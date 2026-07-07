@@ -74,6 +74,7 @@ for (const viewport of viewports) {
       const footerContent = document.querySelector('[data-site-footer-content="true"]')
       const footerNav = document.querySelector('footer nav')
       const openMenuButton = document.querySelector('button[aria-label="Open menu"]')
+      const portalContentScroll = document.querySelector('[data-portal-content-scroll="true"]')
       const rail = document.querySelector('[data-portal-rail="true"]')
 
       return {
@@ -85,6 +86,9 @@ for (const viewport of viewports) {
         header: roundRect('header'),
         main: roundRect('#main-content'),
         openMenuButton: openMenuButton ? roundRect('button[aria-label="Open menu"]') : null,
+        portalContentScroll: portalContentScroll ? roundRect('[data-portal-content-scroll="true"]') : null,
+        portalContentScrollHeight: portalContentScroll ? portalContentScroll.scrollHeight : null,
+        portalContentScrollTop: portalContentScroll ? portalContentScroll.scrollTop : null,
         rail: roundRect('[data-portal-rail="true"]'),
         railScrollbarWidth: rail ? window.getComputedStyle(rail).scrollbarWidth : null,
         viewportHeight: window.innerHeight,
@@ -171,6 +175,74 @@ for (const viewport of viewports) {
           type: 'rail-scrollbar-visible',
           railScrollbarWidth: metrics.railScrollbarWidth,
         })
+      }
+
+      if (!metrics.portalContentScroll) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'portal-content-scroll-missing',
+          metrics,
+        })
+      } else if (metrics.header && metrics.portalContentScroll.height < metrics.viewportHeight - metrics.header.height - 40) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'portal-content-scroll-too-short',
+          metrics,
+        })
+      } else {
+        const scrollState = await page.evaluate(async () => {
+          const scroller = document.querySelector('[data-portal-content-scroll="true"]')
+          const header = document.querySelector('header')
+          const rail = document.querySelector('[data-portal-rail="true"]')
+          if (!(scroller instanceof HTMLElement) || !header || !rail) return null
+
+          const before = {
+            headerTop: Math.round(header.getBoundingClientRect().top),
+            railTop: Math.round(rail.getBoundingClientRect().top),
+            windowY: Math.round(window.scrollY),
+          }
+
+          scroller.style.scrollBehavior = 'auto'
+          scroller.scrollTop = 420
+          await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)))
+
+          return {
+            before,
+            after: {
+              headerTop: Math.round(header.getBoundingClientRect().top),
+              railTop: Math.round(rail.getBoundingClientRect().top),
+              scrollerTop: Math.round(scroller.scrollTop),
+              windowY: Math.round(window.scrollY),
+            },
+          }
+        })
+
+        if (!scrollState || scrollState.after.scrollerTop < 120) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'portal-content-did-not-scroll',
+            scrollState,
+            metrics,
+          })
+        } else if (scrollState.after.windowY !== scrollState.before.windowY) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'portal-window-scrolled-with-content',
+            scrollState,
+          })
+        } else if (Math.abs(scrollState.after.headerTop - scrollState.before.headerTop) > tolerance) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'portal-header-moved-during-content-scroll',
+            scrollState,
+          })
+        } else if (Math.abs(scrollState.after.railTop - scrollState.before.railTop) > tolerance) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'portal-rail-moved-during-content-scroll',
+            scrollState,
+          })
+        }
       }
 
       if (!metrics.openMenuButton) {

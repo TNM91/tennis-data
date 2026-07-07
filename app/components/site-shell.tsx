@@ -130,15 +130,18 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
             >
               <PortalToolBar layout="rail" />
             </aside>
-            <div id="main-content" className="page-reveal" style={portalRailMainStyle}>{children}</div>
+            <div data-portal-content-scroll="true" style={portalRailScrollStyle}>
+              <div id="main-content" className="page-reveal" style={portalRailMainStyle}>{children}</div>
+              <SiteFooter railLayout railWidth={0} />
+            </div>
           </div>
         ) : (
           <>
             {showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
             <div id="main-content" className="page-reveal">{children}</div>
+            <SiteFooter railLayout={false} railWidth={portalRailWidth} />
           </>
         )}
-        <SiteFooter railLayout={usePortalRailLayout} railWidth={portalRailWidth} />
       </main>
   )
 }
@@ -148,9 +151,11 @@ const portalRailLayoutStyle: CSSProperties = {
   zIndex: 1,
   display: 'block',
   width: 'min(1280px, 100%)',
+  height: 'calc(100dvh - var(--header-height))',
   margin: '0 auto',
   padding: '10px 16px 0',
   boxSizing: 'border-box',
+  overflow: 'hidden',
 }
 
 const portalRailAsideStyle: CSSProperties = {
@@ -166,6 +171,16 @@ const portalRailAsideStyle: CSSProperties = {
 
 const portalRailMainStyle: CSSProperties = {
   minWidth: 0,
+}
+
+const portalRailScrollStyle: CSSProperties = {
+  height: '100%',
+  minWidth: 0,
+  overflowY: 'auto',
+  overflowX: 'clip',
+  WebkitOverflowScrolling: 'touch',
+  overscrollBehavior: 'contain',
+  scrollBehavior: 'smooth',
 }
 
 function getBrandAtmosphereClassName(pathname: string) {
