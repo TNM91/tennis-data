@@ -21,12 +21,22 @@ const META_LINKS = [
 export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFooterProps) {
   const { isTablet, isMobile } = useViewportBreakpoints()
   const useRailFooter = railLayout && !isMobile
-  const railFooterOffset = railWidth + 32
+  const railFooterOffset = railWidth > 0 ? railWidth + 32 : 0
   const showFooterNav = !isMobile && !useRailFooter
   const footerYear = new Date().getFullYear()
   const footerCopy = useRailFooter
     ? `\u00A9 ${footerYear} TenAceIQ.`
     : `\u00A9 ${footerYear} TenAceIQ. Data. Insight. Competitive advantage.`
+
+  function scrollShellToTop() {
+    const portalScroller = document.querySelector('[data-portal-content-scroll="true"]')
+    if (portalScroller instanceof HTMLElement) {
+      portalScroller.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <footer
@@ -44,7 +54,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
           maxWidth: '1280px',
           margin: '0 auto',
           paddingLeft: useRailFooter ? railFooterOffset : 0,
-          paddingRight: useRailFooter ? 16 : 0,
+          paddingRight: useRailFooter && railWidth > 0 ? 16 : 0,
           boxSizing: 'border-box',
         }}
       >
@@ -143,7 +153,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
                 <span style={railFooterCopyrightStyle}>{footerCopy}</span>
               </div>
 
-              <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
+              <button type="button" onClick={scrollShellToTop} style={backToTopStyle}>
                 Back to top
               </button>
             </div>
@@ -176,7 +186,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
                   ))}
                 </div>
 
-                <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
+                <button type="button" onClick={scrollShellToTop} style={backToTopStyle}>
                   Back to top
                 </button>
               </div>

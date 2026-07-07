@@ -203,10 +203,10 @@ export const previewCards: PreviewCard[] = [
 
 const heroBoardActions = [
   { label: 'Explore', detail: 'Players, teams, leagues, events', href: '/explore' },
-  { label: 'Improve', detail: 'Drills, skills, development paths', href: '/player-development' },
-  { label: 'Compete', detail: 'Matchup insight and scouting', href: '/compete' },
-  { label: 'Manage', detail: 'Teams, leagues, tournaments', href: '/manage' },
-  { label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href },
+  { label: 'Improve', detail: 'Drills and player plans', href: '/player-development' },
+  { label: 'Compete', detail: 'Matchups and scouting', href: '/compete' },
+  { label: 'Manage', detail: 'Teams and events', href: '/manage' },
+  { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },
 ] as const
 
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
@@ -271,18 +271,9 @@ export function CommandHero({
         <div style={heroPanelStyle}>
           <span aria-hidden="true" style={heroPanelBrandMarkStyle} />
           <div style={heroPanelHeaderStyle}>
-            <span style={panelKickerStyle}>Platform paths</span>
-            <strong style={panelTitleStyle}>Start with the tennis need you have today.</strong>
-            <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward the next action worth taking.</p>
-          </div>
-          <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
-            <span aria-hidden="true" style={courtNetStyle} />
-            <span aria-hidden="true" style={courtServiceLineStyle('top')} />
-            <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
-            <div style={courtBoardStyle}>
-              <span style={courtBoardKickerStyle}>Today</span>
-              <strong style={courtBoardTitleStyle}>Explore, improve, compete, manage, or fix tennis context.</strong>
-            </div>
+            <span style={panelKickerStyle}>Quick actions</span>
+            <strong style={panelTitleStyle}>Pick the job, then move.</strong>
+            <p style={panelCopyStyle}>Search when you know the name. Use a lane when you know what needs doing next.</p>
           </div>
           <div style={heroBoardGridStyle}>
             {heroBoardActions.map((action) => (
@@ -298,7 +289,6 @@ export function CommandHero({
               </TrackedProductLink>
             ))}
           </div>
-          <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next action should be easy from a phone.</p>
         </div>
       ) : null}
     </section>
@@ -1014,72 +1004,6 @@ const storyCardStyle: CSSProperties = {
   minHeight: 180,
 }
 
-const miniCourtStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  minHeight: 'clamp(96px, 12vw, 118px)',
-  borderRadius: 8,
-  border: '2px solid rgba(155,225,29,0.44)',
-  background:
-    'linear-gradient(135deg, rgba(32,75,52,0.82), rgba(12,40,48,0.74)), radial-gradient(circle at 18% 24%, rgba(255,255,255,0.12), transparent 26%)',
-  overflow: 'hidden',
-}
-
-const courtNetStyle: CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  transform: 'translateX(-50%)',
-  background: 'rgba(255,255,255,0.34)',
-}
-
-function courtServiceLineStyle(position: 'top' | 'bottom'): CSSProperties {
-  return {
-    position: 'absolute',
-    left: '12%',
-    right: '12%',
-    top: position === 'top' ? '34%' : undefined,
-    bottom: position === 'bottom' ? '34%' : undefined,
-    height: 2,
-    background: 'rgba(255,255,255,0.24)',
-  }
-}
-
-const courtBoardStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 12,
-  display: 'grid',
-  alignContent: 'end',
-  gap: 8,
-  padding: 12,
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'linear-gradient(180deg, transparent 4%, rgba(3,7,18,0.22) 56%, rgba(3,7,18,0.72) 100%)',
-  color: 'var(--foreground-strong)',
-}
-
-const courtBoardKickerStyle: CSSProperties = {
-  width: 'fit-content',
-  padding: '4px 8px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.26)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--brand-green)',
-  fontSize: 11,
-  lineHeight: 1,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const courtBoardTitleStyle: CSSProperties = {
-  fontSize: 17,
-  lineHeight: 1.14,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
 const heroBoardGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -1116,17 +1040,6 @@ const heroBoardActionDetailStyle: CSSProperties = {
   lineHeight: 1.22,
   fontWeight: 760,
   overflowWrap: 'anywhere',
-}
-
-const panelFooterStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  margin: 0,
-  paddingTop: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.35,
-  fontWeight: 780,
 }
 
 const trustWrapStyle: CSSProperties = {

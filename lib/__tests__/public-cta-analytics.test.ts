@@ -66,7 +66,7 @@ describe('public CTA analytics', () => {
   })
 
   it('keeps the homepage board source-review action routed through Data Assist tracking', () => {
-    expect(commandCenterSource).toContain("{ label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href }")
+    expect(commandCenterSource).toContain("{ label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href }")
     expect(commandCenterSource).toContain("event={getPublicLinkEvent(action.label, action.href, 'hero-board')}")
   })
 

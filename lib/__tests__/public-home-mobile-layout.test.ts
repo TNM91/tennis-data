@@ -6,6 +6,8 @@ const previewSource = readFileSync(join(process.cwd(), 'app/components/preview-h
 const heroSource = readFileSync(join(process.cwd(), 'app/components/homepage-hero-responsive.tsx'), 'utf8')
 const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
 const portalToolbarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
+const siteShellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
+const siteFooterSource = readFileSync(join(process.cwd(), 'app/components/site-footer.tsx'), 'utf8')
 const universalSearchSource = readFileSync(join(process.cwd(), 'app/components/universal-search.tsx'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
@@ -70,7 +72,10 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'heroBodyStyle')).toContain("fontSize: 'clamp(0.96rem, 2.2cqw, 1.08rem)'")
     expect(styleBlock(commandCenterSource, 'heroCopyStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'heroPanelStyle')).toContain("boxSizing: 'border-box'")
-    expect(styleBlock(commandCenterSource, 'miniCourtStyle')).toContain("minHeight: 'clamp(96px, 12vw, 118px)'")
+    expect(commandCenterSource).not.toContain('miniCourtStyle')
+    expect(commandCenterSource).toContain('Quick actions')
+    expect(commandCenterSource).toContain('Pick the job, then move.')
+    expect(commandCenterSource).toContain('Search when you know the name.')
     expect(styleBlock(commandCenterSource, 'heroBoardGridStyle')).toContain(
       "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'",
     )
@@ -92,6 +97,21 @@ describe('Public home mobile layout guards', () => {
     expect(commandCenterSource).toContain("audience: 'Coaches'")
     expect(commandCenterSource).toContain("helper: 'Search players, teams, leagues, and rankings.'")
     expect(commandCenterSource).toContain("helper: 'Find drills, skills, and training paths.'")
+  })
+
+  it('keeps desktop and tablet portal navigation frozen while the content lane scrolls', () => {
+    expect(siteShellSource).toContain('data-portal-content-scroll="true"')
+    expect(styleBlock(siteShellSource, 'portalRailLayoutStyle')).toContain("height: 'calc(100dvh - var(--header-height))'")
+    expect(styleBlock(siteShellSource, 'portalRailLayoutStyle')).toContain("overflow: 'hidden'")
+    expect(styleBlock(siteShellSource, 'portalRailScrollStyle')).toContain("overflowY: 'auto'")
+    expect(styleBlock(siteShellSource, 'portalRailScrollStyle')).toContain("overscrollBehavior: 'contain'")
+    expect(siteShellSource).toContain('<SiteFooter railLayout railWidth={0} />')
+    expect(siteFooterSource).toContain("document.querySelector('[data-portal-content-scroll=\"true\"]')")
+    expect(siteFooterSource).toContain('portalScroller.scrollTo({ top: 0, behavior: \'smooth\' })')
+    expect(shellSmokeSource).toContain("type: 'portal-content-scroll-missing'")
+    expect(shellSmokeSource).toContain("type: 'portal-window-scrolled-with-content'")
+    expect(shellSmokeSource).toContain("type: 'portal-header-moved-during-content-scroll'")
+    expect(shellSmokeSource).toContain("type: 'portal-rail-moved-during-content-scroll'")
   })
 
   it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {
