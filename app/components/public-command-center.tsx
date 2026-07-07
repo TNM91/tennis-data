@@ -207,6 +207,21 @@ const heroBoardActions = [
   { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },
 ] as const
 
+const platformLaneCues = {
+  improve: {
+    label: 'Practice lane',
+    when: 'Use when the question is what to work on next.',
+  },
+  compete: {
+    label: 'Match lane',
+    when: 'Use when the next match needs a clearer read.',
+  },
+  manage: {
+    label: 'Season lane',
+    when: 'Use when people, schedules, scores, or rosters need to move.',
+  },
+} as const
+
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
   return <SiteShell active={active}>{children}</SiteShell>
 }
@@ -298,31 +313,40 @@ export function PlatformPillarGrid() {
     <section style={sectionStyle} aria-labelledby="platform-pillars-title">
       <SectionHeader
         eyebrow="Tennis lanes"
-        title="Improve, compete, and manage without the extra noise."
-        body="Three lanes cover the common tennis work: get better, prepare to play, or keep the season moving."
+        title="Start with the problem in front of you."
+        body="Improve is for practice. Compete is for match prep. Manage is for the people and schedule work around the tennis."
         titleId="platform-pillars-title"
       />
-      <div style={pillarGridStyle}>
-        {PLATFORM_PILLARS.map((pillar, index) => (
-          <article key={pillar.id} style={pillarCardStyle}>
-            <span style={pillarLaneStyle}>{`Lane ${index + 1}`}</span>
-            <h2 style={cardTitleStyle}>{pillar.title}</h2>
-            <p style={pillarPromiseStyle}>{pillar.promise}</p>
-            <p style={cardBodyStyle}>{pillar.body}</p>
-            <div style={pillarProofGridStyle}>
-              {pillar.proof.map((item) => (
-                <span key={item} style={pillarProofStyle}>{item}</span>
-              ))}
-            </div>
-            <TrackedProductLink
-              href={pillar.href}
-              style={cardPrimaryLinkStyle}
-              event={getPublicLinkEvent(pillar.cta, pillar.href, `pillar-${pillar.id}`)}
-            >
-              {pillar.cta}
-            </TrackedProductLink>
-          </article>
-        ))}
+      <div style={pillarBoardStyle}>
+        <div style={pillarBoardIntroStyle}>
+          <span style={pillarBoardKickerStyle}>Three lanes</span>
+          <p style={pillarBoardIntroCopyStyle}>The homepage should point you to one useful next move, not make you decode the whole platform.</p>
+        </div>
+        <div role="list" style={pillarLaneListStyle}>
+          {PLATFORM_PILLARS.map((pillar) => (
+            <article key={pillar.id} role="listitem" style={pillarLaneRowStyle}>
+              <div style={pillarLaneHeaderStyle}>
+                <span style={pillarLaneBadgeStyle}>{platformLaneCues[pillar.id].label}</span>
+                <div style={pillarLaneCopyStyle}>
+                  <h3 style={pillarTitleStyle}>{pillar.title}</h3>
+                  <p style={pillarPromiseStyle}>{pillar.promise}</p>
+                </div>
+                <TrackedProductLink
+                  href={pillar.href}
+                  style={pillarLaneActionStyle}
+                  event={getPublicLinkEvent(pillar.cta, pillar.href, `pillar-${pillar.id}`)}
+                >
+                  {pillar.cta}
+                </TrackedProductLink>
+              </div>
+              <p style={pillarUseWhenStyle}>{platformLaneCues[pillar.id].when}</p>
+              <p aria-label={`${pillar.title} signals`} style={pillarProofLineStyle}>
+                <span style={pillarProofLabelStyle}>Signals</span>
+                {pillar.proof.join(' / ')}
+              </p>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -775,22 +799,29 @@ const cardGhostLinkStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const pillarGridStyle: CSSProperties = {
+const pillarBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
-  gap: 12,
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055) 42%, rgba(8,16,34,0.82))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const pillarBoardIntroStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
   minWidth: 0,
 }
 
-const pillarCardStyle: CSSProperties = {
-  ...actionCardStyle,
-  minHeight: 244,
-  border: '1px solid rgba(155,225,29,0.16)',
-  background:
-    'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 40%, rgba(8,16,34,0.84))',
-}
-
-const pillarLaneStyle: CSSProperties = {
+const pillarBoardKickerStyle: CSSProperties = {
   width: 'fit-content',
   display: 'inline-flex',
   alignItems: 'center',
@@ -805,32 +836,99 @@ const pillarLaneStyle: CSSProperties = {
   textTransform: 'uppercase',
 }
 
-const pillarPromiseStyle: CSSProperties = {
-  margin: '-2px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  lineHeight: 1.35,
-  fontWeight: 900,
+const pillarBoardIntroCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
 }
 
-const pillarProofGridStyle: CSSProperties = {
+const pillarLaneListStyle: CSSProperties = {
   display: 'grid',
-  gap: 6,
+  gap: 8,
   minWidth: 0,
 }
 
-const pillarProofStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 30,
-  padding: '0 9px',
+const pillarLaneRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 10,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(7,17,33,0.58)',
+  background: 'rgba(7,17,33,0.62)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const pillarLaneHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+}
+
+const pillarLaneBadgeStyle: CSSProperties = {
+  ...pillarBoardKickerStyle,
+  flex: '0 1 auto',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+}
+
+const pillarLaneCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  flex: '1 1 150px',
+  minWidth: 0,
+}
+
+const pillarTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const pillarPromiseStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.3,
+  fontWeight: 900,
+}
+
+const pillarUseWhenStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.38,
+  fontWeight: 760,
+}
+
+const pillarProofLineStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
-  fontWeight: 850,
+  lineHeight: 1.35,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const pillarProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
+}
+
+const pillarLaneActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  flex: '0 1 auto',
+  minHeight: 38,
 }
 
 const previewGridStyle: CSSProperties = {
