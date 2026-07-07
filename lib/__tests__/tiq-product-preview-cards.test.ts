@@ -45,12 +45,12 @@ describe('TIQ product preview cards', () => {
   })
 
   it('powers the homepage product preview grid with named tennis cards', () => {
-    expect(commandCenterSource).toContain('TiqMatchupCard')
-    expect(commandCenterSource).toContain('TiqLineupPreview')
-    expect(commandCenterSource).toContain('TiqCoachAssignmentCard')
-    expect(commandCenterSource).toContain('TiqTournamentDrawCard')
-    expect(commandCenterSource).toContain('TiqLeagueStandingCard')
-    expect(commandCenterSource).toContain('renderPreviewCard(card)')
+    expect(commandCenterSource).toContain('const previewBoardStyle: CSSProperties')
+    expect(commandCenterSource).toContain('const previewProofRowStyle: CSSProperties')
+    expect(commandCenterSource).toContain("card.metrics.map((metric) => `${metric.label}: ${metric.value}`).join(' / ')")
+    expect(commandCenterSource).toContain('Proof before the click.')
+    expect(commandCenterSource).not.toContain('renderPreviewCard(card)')
+    expect(commandCenterSource).not.toContain('previewBodyStyle')
   })
 
   it('uses product-path preview language instead of sample record names', () => {
@@ -65,8 +65,9 @@ describe('TIQ product preview cards', () => {
       expect(source).toContain(copy)
     }
 
-    expect(commandCenterSource).toContain('See what each path actually does.')
-    expect(commandCenterSource).toContain('Each preview shows the decision it supports, the signal it reads, and the next tennis action.')
+    expect(commandCenterSource).toContain('Proof before the click.')
+    expect(commandCenterSource).toContain('Each row gives you the decision, the signal, and the next action without making the homepage another tour.')
+    expect(commandCenterSource).toContain('Tool proof')
 
     for (const staleCopy of [
       'Rivera vs Brooks',
@@ -76,6 +77,8 @@ describe('TIQ product preview cards', () => {
       'Spring Ladder',
       'Useful tennis tools for the next action.',
       'Preview cards keep each tool concrete',
+      'See what each path actually does.',
+      'Each preview shows the decision it supports, the signal it reads, and the next tennis action.',
     ]) {
       expect(commandCenterSource).not.toContain(staleCopy)
       expect(source).not.toContain(staleCopy)

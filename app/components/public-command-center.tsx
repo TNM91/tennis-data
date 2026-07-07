@@ -1,13 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import {
-  TiqCoachAssignmentCard,
-  TiqLeagueStandingCard,
-  TiqLineupPreview,
-  TiqMatchupCard,
-  TiqTournamentDrawCard,
-  TiqWorkspacePreview,
-} from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
 import {
@@ -388,34 +380,40 @@ export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCa
     <section style={sectionStyle}>
       <SectionHeader
         eyebrow="Tool previews"
-        title="See what each path actually does."
-        body="Each preview shows the decision it supports, the signal it reads, and the next tennis action."
+        title="Proof before the click."
+        body="Each row gives you the decision, the signal, and the next action without making the homepage another tour."
       />
-      <div style={previewGridStyle}>
-        {cards.map((card) => renderPreviewCard(card))}
+      <div style={previewBoardStyle}>
+        <div style={previewBoardHeaderStyle}>
+          <span style={previewBoardKickerStyle}>Tool proof</span>
+          <p style={previewBoardCopyStyle}>Use this as a quick scan before opening a deeper tennis tool.</p>
+        </div>
+        <div role="list" style={previewListStyle}>
+          {cards.map((card) => (
+            <article key={card.title} role="listitem" style={previewProofRowStyle}>
+              <div style={previewProofMainStyle}>
+                <span style={previewLabelStyle}>{card.label}</span>
+                <div style={previewProofCopyStyle}>
+                  <h3 style={previewTitleStyle}>{card.title}</h3>
+                </div>
+              </div>
+              <p aria-label={`${card.title} signals`} style={previewSignalLineStyle}>
+                <span style={previewSignalLabelStyle}>Signals</span>
+                {card.metrics.map((metric) => `${metric.label}: ${metric.value}`).join(' / ')}
+              </p>
+              <TrackedProductLink
+                href={card.href}
+                style={previewProofActionStyle}
+                event={getPublicLinkEvent(card.cta, card.href, `preview-${card.label}`)}
+              >
+                {card.cta}
+              </TrackedProductLink>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
-}
-
-function renderPreviewCard(card: PreviewCard) {
-  const props = {
-    title: card.title,
-    body: card.body,
-    metrics: card.metrics,
-    href: card.href,
-    cta: card.cta,
-    event: getPublicLinkEvent(card.cta, card.href, `preview-${card.label}`),
-    trust: card.trust,
-  }
-
-  if (card.label === 'Matchup') return <TiqMatchupCard key={card.title} {...props} />
-  if (card.label === 'Captain Tools') return <TiqLineupPreview key={card.title} {...props} />
-  if (card.label === 'Coach Hub') return <TiqCoachAssignmentCard key={card.title} {...props} />
-  if (card.label === 'Tournament Desk') return <TiqTournamentDrawCard key={card.title} {...props} />
-  if (card.label === 'League Office') return <TiqLeagueStandingCard key={card.title} {...props} />
-
-  return <TiqWorkspacePreview key={card.title} eyebrow={card.label} {...props} />
 }
 
 export function TrustStrip({
@@ -931,11 +929,120 @@ const pillarLaneActionStyle: CSSProperties = {
   minHeight: 38,
 }
 
-const previewGridStyle: CSSProperties = {
+const previewBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.72)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewBoardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const previewBoardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const previewBoardCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const previewListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const previewProofRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewProofMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const previewLabelStyle: CSSProperties = {
+  ...previewBoardKickerStyle,
+  flex: '0 1 auto',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+}
+
+const previewProofCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  flex: '1 1 190px',
+  minWidth: 0,
+}
+
+const previewTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const previewSignalLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const previewSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
+}
+
+const previewProofActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 38,
 }
 
 const twoColumnStyle: CSSProperties = {
