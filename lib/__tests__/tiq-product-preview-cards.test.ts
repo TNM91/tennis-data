@@ -53,6 +53,35 @@ describe('TIQ product preview cards', () => {
     expect(commandCenterSource).toContain('renderPreviewCard(card)')
   })
 
+  it('uses product-path preview language instead of sample record names', () => {
+    for (const copy of [
+      'Scout the next match',
+      'Build the team week',
+      'Assign the next drill',
+      'Run the event desk',
+      'Keep standings current',
+    ]) {
+      expect(commandCenterSource).toContain(copy)
+      expect(source).toContain(copy)
+    }
+
+    expect(commandCenterSource).toContain('See what each path actually does.')
+    expect(commandCenterSource).toContain('Each preview shows the decision it supports, the signal it reads, and the next tennis action.')
+
+    for (const staleCopy of [
+      'Rivera vs Brooks',
+      'Saturday vs West County',
+      'Ava M.',
+      'Summer Doubles Classic',
+      'Spring Ladder',
+      'Useful tennis tools for the next action.',
+      'Preview cards keep each tool concrete',
+    ]) {
+      expect(commandCenterSource).not.toContain(staleCopy)
+      expect(source).not.toContain(staleCopy)
+    }
+  })
+
   it('keeps the public command-center cards compact instead of overly rounded', () => {
     expect(commandCenterSource).toContain('const actionCardStyle: CSSProperties')
     expect(commandCenterSource).toContain('const heroCopyStyle: CSSProperties')

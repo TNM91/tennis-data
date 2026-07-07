@@ -140,35 +140,35 @@ export const homeActionCards: PublicActionCard[] = [
 export const previewCards: PreviewCard[] = [
   {
     label: 'Matchup',
-    title: 'Rivera vs Brooks',
-    body: 'Watch Brooks return pressure on second serves.',
+    title: 'Scout the next match',
+    body: 'Compare players, read the edge, and know what to watch before first serve.',
     metrics: [
-      { label: 'Edge', value: 'Rivera +0.18' },
-      { label: 'Confidence', value: 'Medium' },
-      { label: 'Preview', value: '63%' },
+      { label: 'Edge', value: 'Rating + form' },
+      { label: 'Confidence', value: 'Context check' },
+      { label: 'Next', value: 'Match plan' },
     ],
     href: '/matchup',
     cta: 'Open Matchup',
   },
   {
     label: 'Captain Tools',
-    title: 'Saturday vs West County',
-    body: 'D1 changes if Brooks is unavailable.',
+    title: 'Build the team week',
+    body: 'Check availability, lineup options, and opponent context before you send the plan.',
     metrics: [
-      { label: 'Available', value: '8/10' },
-      { label: 'Team edge', value: '71%' },
-      { label: 'Risk', value: 'Line 1' },
+      { label: 'Available', value: 'In / bubble / out' },
+      { label: 'Team edge', value: 'Projected courts' },
+      { label: 'Risk', value: 'Lineup swaps' },
     ],
     href: '/captain/lineup-builder',
     cta: 'Build Lineup',
   },
   {
     label: 'Coach Hub',
-    title: 'Ava M.',
-    body: 'Serve target routine with evidence due Friday.',
+    title: 'Assign the next drill',
+    body: 'Turn a player goal into court work, proof, and follow-up between lessons.',
     metrics: [
-      { label: 'Assignment', value: 'Active' },
-      { label: 'Evidence', value: '3 points' },
+      { label: 'Assignment', value: 'Active plan' },
+      { label: 'Evidence', value: 'Player proof' },
       { label: 'Next', value: 'Review' },
     ],
     href: '/coaches',
@@ -176,24 +176,24 @@ export const previewCards: PreviewCard[] = [
   },
   {
     label: 'Tournament Desk',
-    title: 'Summer Doubles Classic',
-    body: 'Draws are drafted and six courts are assigned.',
+    title: 'Run the event desk',
+    body: 'Draft draws, assign courts, track results, and keep players updated from one event sheet.',
     metrics: [
-      { label: 'Entries', value: '28' },
-      { label: 'Draws', value: 'Draft' },
-      { label: 'Results', value: 'Clear' },
+      { label: 'Entries', value: 'Entrants' },
+      { label: 'Draws', value: 'Draft / live' },
+      { label: 'Results', value: 'Reviewable' },
     ],
     href: '/tournaments',
     cta: 'Open Tournament Desk',
   },
   {
     label: 'League Office',
-    title: 'Spring Ladder',
-    body: 'Standings are current and three scorecards need review.',
+    title: 'Keep standings current',
+    body: 'Publish schedules, collect scores, apply standings rules, and review data fixes.',
     metrics: [
-      { label: 'Teams', value: '10' },
-      { label: 'Matches', value: '36' },
-      { label: 'Freshness', value: 'Today' },
+      { label: 'Teams', value: 'Players or teams' },
+      { label: 'Scores', value: 'Reviewed' },
+      { label: 'Freshness', value: 'Current' },
     ],
     href: '/leagues',
     cta: 'Open League Office',
@@ -362,7 +362,11 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
 export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Product previews" title="Useful tennis tools for the next action." body="Preview cards keep each tool concrete, approachable, and tied to the next tennis action." />
+      <SectionHeader
+        eyebrow="Tool previews"
+        title="See what each path actually does."
+        body="Each preview shows the decision it supports, the signal it reads, and the next tennis action."
+      />
       <div style={previewGridStyle}>
         {cards.map((card) => renderPreviewCard(card))}
       </div>
