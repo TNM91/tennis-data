@@ -115,7 +115,7 @@ for (const viewport of viewports) {
       })
     }
 
-    const homeHeroHeightLimit = viewport.name === 'mobile' ? 1050 : viewport.name === 'tablet' ? 900 : 520
+    const homeHeroHeightLimit = viewport.name === 'mobile' ? 850 : viewport.name === 'tablet' ? 900 : 520
     if (!metrics.main || !metrics.footer || metrics.footer.top <= metrics.main.top) {
       findings.push({
         viewport: viewport.name,
