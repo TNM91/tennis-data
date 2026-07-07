@@ -96,6 +96,8 @@ describe('Public home mobile layout guards', () => {
     expect(commandCenterSource).not.toContain('Who it helps')
     expect(commandCenterSource).not.toContain('Every path explains who it helps')
     expect(homePageSource).toContain('<ActionGrid />')
+    expect(homePageSource).not.toContain('homeTierPromiseStyle')
+    expect(homePageSource).not.toContain('Start free, then unlock My Lab, Coach Hub, Team Hub')
     expect(homePageSource).not.toContain('<HomeCtaGrid />')
     expect(homePageSource).not.toContain('<AudiencePathGrid />')
   })
