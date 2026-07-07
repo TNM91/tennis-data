@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import {
   ActionGrid,
-  AudiencePathGrid,
   CommandHero,
-  HomeCtaGrid,
   PlatformPillarGrid,
   ProductPreviewGrid,
   PublicPageShell,
@@ -59,12 +57,10 @@ export default function HomePage() {
         <p style={homeTierPromiseStyle}>
           Start free, then unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
         </p>
-        <HomeCtaGrid />
-        <PlatformPillarGrid />
-        <AudiencePathGrid />
         <div id="what-next">
           <ActionGrid />
         </div>
+        <PlatformPillarGrid />
         <ProductPreviewGrid />
       </main>
     </PublicPageShell>
