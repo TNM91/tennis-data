@@ -13,7 +13,6 @@ import UniversalSearch from '@/app/components/universal-search'
 import {
   DATA_ASSIST_STORY,
   PLATFORM_PILLARS,
-  PLATFORM_POSITIONING,
   PRODUCT_MOTTO,
 } from '@/lib/product-story'
 
@@ -298,16 +297,17 @@ export function PlatformPillarGrid() {
   return (
     <section style={sectionStyle} aria-labelledby="platform-pillars-title">
       <SectionHeader
-        eyebrow="Platform pillars"
-        title="Improve. Compete. Manage."
-        body={PLATFORM_POSITIONING}
+        eyebrow="Tennis lanes"
+        title="Improve, compete, and manage without the extra noise."
+        body="Three lanes cover the common tennis work: get better, prepare to play, or keep the season moving."
         titleId="platform-pillars-title"
       />
       <div style={pillarGridStyle}>
-        {PLATFORM_PILLARS.map((pillar) => (
+        {PLATFORM_PILLARS.map((pillar, index) => (
           <article key={pillar.id} style={pillarCardStyle}>
-            <span style={chipStyle}>{pillar.title}</span>
-            <h2 style={cardTitleStyle}>{pillar.promise}</h2>
+            <span style={pillarLaneStyle}>{`Lane ${index + 1}`}</span>
+            <h2 style={cardTitleStyle}>{pillar.title}</h2>
+            <p style={pillarPromiseStyle}>{pillar.promise}</p>
             <p style={cardBodyStyle}>{pillar.body}</p>
             <div style={pillarProofGridStyle}>
               {pillar.proof.map((item) => (
@@ -784,10 +784,33 @@ const pillarGridStyle: CSSProperties = {
 
 const pillarCardStyle: CSSProperties = {
   ...actionCardStyle,
-  minHeight: 260,
+  minHeight: 244,
   border: '1px solid rgba(155,225,29,0.16)',
   background:
     'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 40%, rgba(8,16,34,0.84))',
+}
+
+const pillarLaneStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const pillarPromiseStyle: CSSProperties = {
+  margin: '-2px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.35,
+  fontWeight: 900,
 }
 
 const pillarProofGridStyle: CSSProperties = {

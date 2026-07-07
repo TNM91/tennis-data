@@ -84,6 +84,24 @@ describe('product story guardrails', () => {
     )
     expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Manage'])
     expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/manage'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.promise)).toEqual([
+      'Turn player context into court work.',
+      'Turn matchup context into a plan.',
+      'Turn scattered admin into a cleaner week.',
+    ])
+    expect(PLATFORM_PILLARS.flatMap((pillar) => pillar.proof)).toEqual([
+      'Player path',
+      'Drill focus',
+      'Coach handoff',
+      'Matchup read',
+      'Opponent scout',
+      'Court plan',
+      'Availability',
+      'Schedules and scores',
+      'Rosters',
+    ])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('player development paths, ratings, progress signals')
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('lineup strategy, match preparation, performance tracking')
     expect(PLATFORM_AUDIENCE_PATHS.map((path) => path.audience)).toEqual([
       'Players',
       'Captains',
