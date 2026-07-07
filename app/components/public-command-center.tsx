@@ -426,6 +426,29 @@ export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCa
   )
 }
 
+export function HomeClosingBand() {
+  return (
+    <section style={closingBandStyle} aria-labelledby="home-closing-title">
+      <div style={closingCopyStyle}>
+        <span style={closingKickerStyle}>Keep moving</span>
+        <h2 id="home-closing-title" style={closingTitleStyle}>Start with tennis context, then act.</h2>
+        <p style={closingBodyStyle}>Search the public tennis map first, compare the next matchup, or move into the team week when decisions need structure.</p>
+      </div>
+      <div style={closingActionRowStyle}>
+        <TrackedProductLink href="/explore" style={primaryButtonStyle} event={getPublicLinkEvent('Start Exploring', '/explore', 'home-closing')}>
+          Start Exploring
+        </TrackedProductLink>
+        <TrackedProductLink href="/matchup" style={ghostButtonStyle} event={getPublicLinkEvent('Prep a Matchup', '/matchup', 'home-closing')}>
+          Prep a Matchup
+        </TrackedProductLink>
+        <TrackedProductLink href="/captain" style={ghostButtonStyle} event={getPublicLinkEvent('Manage My Team', '/captain', 'home-closing')}>
+          Manage My Team
+        </TrackedProductLink>
+      </div>
+    </section>
+  )
+}
+
 export function TrustStrip({
   signals = defaultTrustSignals,
   context = 'Homepage trust strip',
@@ -1137,6 +1160,64 @@ const previewProofActionStyle: CSSProperties = {
   ...cardPrimaryLinkStyle,
   justifySelf: 'start',
   minHeight: 38,
+}
+
+const closingBandStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: 'clamp(14px, 2.4vw, 18px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.07) 46%, rgba(8,16,34,0.76))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const closingCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  flex: '1 1 360px',
+  minWidth: 0,
+}
+
+const closingKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const closingTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const closingBodyStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 760,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.45,
+  fontWeight: 740,
+}
+
+const closingActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 8,
+  flex: '0 1 auto',
+  minWidth: 0,
 }
 
 const twoColumnStyle: CSSProperties = {
