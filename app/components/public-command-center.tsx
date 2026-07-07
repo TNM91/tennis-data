@@ -619,11 +619,11 @@ const heroPanelStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
   alignContent: 'start',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 18,
+  padding: 16,
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(160deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08) 42%, rgba(8,16,34,0.84))',
@@ -650,7 +650,7 @@ const heroPanelHeaderStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 7,
+  gap: 6,
   minWidth: 0,
 }
 
@@ -665,7 +665,7 @@ const panelKickerStyle: CSSProperties = {
 
 const panelTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 21,
+  fontSize: 19,
   lineHeight: 1.05,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -675,7 +675,7 @@ const panelCopyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
-  lineHeight: 1.45,
+  lineHeight: 1.36,
   fontWeight: 720,
 }
 
@@ -1017,7 +1017,7 @@ const storyCardStyle: CSSProperties = {
 const miniCourtStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  minHeight: 138,
+  minHeight: 'clamp(96px, 12vw, 118px)',
   borderRadius: 8,
   border: '2px solid rgba(155,225,29,0.44)',
   background:
@@ -1084,16 +1084,16 @@ const heroBoardGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 9,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
 const heroBoardActionStyle: CSSProperties = {
   display: 'grid',
-  gap: 4,
-  minHeight: 62,
-  padding: 10,
+  gap: 3,
+  minHeight: 50,
+  padding: 8,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'rgba(7,17,33,0.74)',
@@ -1105,15 +1105,15 @@ const heroBoardActionStyle: CSSProperties = {
 
 const heroBoardActionLabelStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 14,
+  fontSize: 13,
   lineHeight: 1.1,
   fontWeight: 950,
 }
 
 const heroBoardActionDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.28,
+  fontSize: 11.5,
+  lineHeight: 1.22,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
@@ -1122,10 +1122,10 @@ const panelFooterStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   margin: 0,
-  paddingTop: 2,
+  paddingTop: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
-  lineHeight: 1.45,
+  lineHeight: 1.35,
   fontWeight: 780,
 }
 
