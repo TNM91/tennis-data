@@ -7,6 +7,7 @@ const heroSource = readFileSync(join(process.cwd(), 'app/components/homepage-her
 const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
 const portalToolbarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 const universalSearchSource = readFileSync(join(process.cwd(), 'app/components/universal-search.tsx'), 'utf8')
+const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(source: string, name: string) {
   const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
@@ -69,6 +70,13 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'heroBodyStyle')).toContain("fontSize: 'clamp(0.96rem, 2.2cqw, 1.08rem)'")
     expect(styleBlock(commandCenterSource, 'heroCopyStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'heroPanelStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock(commandCenterSource, 'miniCourtStyle')).toContain("minHeight: 'clamp(96px, 12vw, 118px)'")
+    expect(styleBlock(commandCenterSource, 'heroBoardGridStyle')).toContain(
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'",
+    )
+    expect(styleBlock(commandCenterSource, 'heroBoardActionStyle')).toContain('minHeight: 50')
+    expect(shellSmokeSource).toContain("type: 'home-hero-too-tall'")
+    expect(shellSmokeSource).toContain('homeHeroHeightLimit')
     expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'primaryButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(commandCenterSource, 'homePrimaryCtaStyle')).toContain("width: '100%'")

@@ -109,6 +109,31 @@ for (const viewport of viewports) {
       })
     }
 
+    const homeHeroHeightLimit = viewport.name === 'mobile' ? 1050 : viewport.name === 'tablet' ? 900 : 520
+    if (!metrics.main || !metrics.footer || metrics.footer.top <= metrics.main.top) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'home-shell-content-missing',
+        metrics,
+      })
+    } else if (metrics.footer.top - metrics.main.top < 100) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'home-shell-content-too-short',
+        metrics,
+      })
+    }
+
+    const firstHomeSection = await page.locator('#main-content main > section').first().boundingBox()
+    if (!firstHomeSection || firstHomeSection.height > homeHeroHeightLimit) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'home-hero-too-tall',
+        homeHeroHeightLimit,
+        firstHomeSection,
+      })
+    }
+
     if (!metrics.main || metrics.main.width < 280) {
       findings.push({
         viewport: viewport.name,
