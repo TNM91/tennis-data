@@ -388,8 +388,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         }}
       >
         {collapseMobilePortal ? (
-          <div
+          <nav
             id={mobilePortalLane ? portalActionMenuId : portalMenuId}
+            data-mobile-portal-palette={mobilePortalLane ? 'actions' : 'lanes'}
             style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
             aria-live="polite"
@@ -399,6 +400,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                 <button
                   type="button"
                   onClick={handleMobilePortalMainSelect}
+                  data-mobile-portal-action="main"
                   style={mobilePortalBackTileStyle}
                   aria-label="Show main TenAceIQ menu"
                   aria-controls={portalMenuId}
@@ -442,7 +444,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                 onSelect={handleMobilePortalLaneSelect}
               />
             ))}
-          </div>
+          </nav>
         ) : (
           <>
 
@@ -733,6 +735,7 @@ function MobilePortalTaskTile({
     <Link
       href={target.href}
       onClick={(event) => onActivate(event, target.href)}
+      data-mobile-portal-action={getMobileActionKey(target.title)}
       aria-current={active ? 'page' : undefined}
       aria-label={`${target.title}${target.locked ? ' locked' : ''}: ${task.detail}`}
       title={task.detail}
@@ -771,6 +774,7 @@ function MobilePortalLaneButton({
     <button
       type="button"
       onClick={(event) => onSelect(event, lane.id)}
+      data-mobile-portal-lane={lane.id}
       style={{
         ...mobilePortalTileStyle,
         borderColor: active ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
@@ -822,6 +826,7 @@ function MobilePortalHubTile({
     <Link
       href={target.href}
       onClick={(event) => onActivate(event, target.href)}
+      data-mobile-portal-action={`${lane.id}-hub`}
       aria-current={active ? 'page' : undefined}
       aria-label={`${getMobileLaneLabel(lane.id)} hub${target.locked ? ' locked' : ''}: ${lane.cue}`}
       title={`${getMobileLaneLabel(lane.id)} hub`}
@@ -880,6 +885,10 @@ function getMobileTaskLabel(title: string) {
   if (title === 'Shared calendar') return 'Calendar'
   if (title === 'Build tournament') return 'Tournament'
   return title
+}
+
+function getMobileActionKey(title: string) {
+  return getMobileTaskLabel(title).toLowerCase().replace(/\s+/g, '-')
 }
 
 function getActiveTaskCardStyle(accent: string): CSSProperties {
