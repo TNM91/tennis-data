@@ -2520,10 +2520,10 @@ function CoachPlannerPreview({
           <TemplateBlock time="0:40-0:54" title="Competitive close" text="Live points with the module's identity constraint." />
           <TemplateBlock time="0:54-1:00" title="Homework handoff" text="Assign one measurable action and one TenAceIQ check-in." />
         </div>
-        <div className={styles.coachLessonSupportProof} aria-label="Coach lesson support proof cue">
+        <div className={styles.coachLessonSupportProof} aria-label="Coach lesson checklist">
           <div>
-            <span>Coach lesson support proof cue</span>
-            <strong>Prove the lesson supports the player path.</strong>
+            <span>Coach lesson checklist</span>
+            <strong>Keep the lesson aligned to the player path.</strong>
           </div>
           <div className={styles.coachLessonSupportProofGrid}>
             {lessonSupportProof.map((item) => (
