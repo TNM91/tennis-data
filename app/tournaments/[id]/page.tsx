@@ -266,23 +266,64 @@ function TournamentPublicInner() {
         </div>
       </section>
 
-      {tournamentStatus ? (
-        <section style={statusRailStyle} aria-label="Tournament status">
-          <div style={statusHeroStyle}>
-            <span style={statusDotStyle} />
-            <div>
-              <div style={eyebrowStyle}>Status</div>
-              <strong>{tournamentStatus.label}</strong>
-              <span>{tournamentStatus.detail}</span>
+      <section style={eventDayCommandStyle} aria-label="Event-day command board">
+        <div style={eventDayCommandCopyStyle}>
+          <div style={eyebrowStyle}>Event-day command board</div>
+          <h2 style={eventDayCommandTitleStyle}>Check the next move before you scroll.</h2>
+          <p style={eventDayCommandTextStyle}>
+            Alerts, profile, draw, schedule, results, and awards stay close to the tournament status so players can act from one place.
+          </p>
+        </div>
+        {tournamentStatus ? (
+          <div style={statusRailStyle} aria-label="Tournament status">
+            <div style={statusHeroStyle}>
+              <span style={statusDotStyle} />
+              <div>
+                <div style={eyebrowStyle}>Status</div>
+                <strong>{tournamentStatus.label}</strong>
+                <span>{tournamentStatus.detail}</span>
+              </div>
+            </div>
+            <div style={statusGridStyle}>
+              <Stat label="Scheduled" value={`${scheduledMatches.length}/${summary?.totalMatches ?? 0}`} />
+              <Stat label="Results" value={`${summary?.completedMatches ?? 0}/${summary?.totalMatches ?? 0}`} />
+              <Stat label="Awards" value={awards.length ? `${awards.length}` : 'TBD'} />
             </div>
           </div>
-          <div style={statusGridStyle}>
-            <Stat label="Scheduled" value={`${scheduledMatches.length}/${summary?.totalMatches ?? 0}`} />
-            <Stat label="Results" value={`${summary?.completedMatches ?? 0}/${summary?.totalMatches ?? 0}`} />
-            <Stat label="Awards" value={awards.length ? `${awards.length}` : 'TBD'} />
-          </div>
+        ) : null}
+        <section style={publicReadinessStyle} aria-label="Tournament readiness">
+          {publicReadinessItems.map((item) => (
+            <div key={item.label} style={publicReadinessItemStyle}>
+              <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
+              <strong>{item.label}</strong>
+              <em>{item.value}</em>
+            </div>
+          ))}
         </section>
-      ) : null}
+        <section style={playerRailStyle} aria-label="Match-day actions">
+          {matchDayActions.map((action) => {
+            const content = (
+              <>
+                <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
+                <span style={playerRailCopyStyle}>
+                  <strong>{action.label}</strong>
+                  <em>{action.value}</em>
+                </span>
+              </>
+            )
+
+            return action.href.startsWith('/') ? (
+              <Link key={action.label} href={action.href} style={playerRailCardStyle}>
+                {content}
+              </Link>
+            ) : (
+              <a key={action.label} href={action.href} style={playerRailCardStyle}>
+                {content}
+              </a>
+            )
+          })}
+        </section>
+      </section>
 
       <DataTrustPanel
         title="Tournament data trust"
@@ -304,30 +345,6 @@ function TournamentPublicInner() {
         ]}
         reviewContext={`Tournament ${record.name}`}
       />
-
-      <section style={playerRailStyle} aria-label="Match-day actions">
-        {matchDayActions.map((action) => {
-          const content = (
-            <>
-              <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
-              <span style={playerRailCopyStyle}>
-                <strong>{action.label}</strong>
-                <em>{action.value}</em>
-              </span>
-            </>
-          )
-
-          return action.href.startsWith('/') ? (
-            <Link key={action.label} href={action.href} style={playerRailCardStyle}>
-              {content}
-            </Link>
-          ) : (
-            <a key={action.label} href={action.href} style={playerRailCardStyle}>
-              {content}
-            </a>
-          )
-        })}
-      </section>
 
       <section style={tournamentDetailPlayerIdStyle} aria-label="Tournament detail Player ID match-day read">
         <div style={tournamentDetailPlayerIdCopyStyle}>
@@ -356,16 +373,6 @@ function TournamentPublicInner() {
             </Link>
           ))}
         </div>
-      </section>
-
-      <section style={publicReadinessStyle} aria-label="Tournament readiness">
-        {publicReadinessItems.map((item) => (
-          <div key={item.label} style={publicReadinessItemStyle}>
-            <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
-            <strong>{item.label}</strong>
-            <em>{item.value}</em>
-          </div>
-        ))}
       </section>
 
       {standings.length ? (
@@ -835,15 +842,61 @@ const bracketShellStyle: CSSProperties = {
   boxShadow: '0 18px 46px rgba(2,10,24,0.18)',
 }
 
-const statusRailStyle: CSSProperties = {
+const eventDayCommandStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 12,
+  alignItems: 'stretch',
   minWidth: 0,
   padding: 14,
   borderRadius: 22,
   border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(12,26,50,0.88), rgba(8,17,34,0.94))',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.075), rgba(116,190,255,0.045)), rgba(8,16,34,0.78)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const eventDayCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'start',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.58)',
+}
+
+const eventDayCommandTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.5vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const eventDayCommandTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.48,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const statusRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  gridColumn: 'span 1',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(7,17,33,0.64)',
 }
 
 const statusHeroStyle: CSSProperties = {
