@@ -199,9 +199,9 @@ function FindCommandPanel() {
           ))}
       </div>
 
-      <div style={publicDiscoveryProofStyle} aria-label="Public discovery proof cue">
+      <div style={publicDiscoveryProofStyle} aria-label="What you can check free">
         <div style={publicDiscoveryProofHeaderStyle}>
-          <span style={findCommandEyebrow}>Public discovery proof cue</span>
+          <span style={findCommandEyebrow}>What you can check free</span>
           <strong style={publicDiscoveryProofTitleStyle}>Useful before upgrade.</strong>
         </div>
         <div style={publicDiscoveryProofGridStyle}>
