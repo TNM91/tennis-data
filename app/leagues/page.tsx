@@ -11,7 +11,6 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqActionCard, TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
   getCompetitionLayerLabel,
@@ -77,6 +76,7 @@ export default function LeaguesPage() {
   const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
   const isTinyMobile = screenWidth < 360
   const compactIntroCards = isMobile
+  const compactLeagueCommandBoard = isMobile || screenWidth < 1180
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -269,98 +269,75 @@ export default function LeaguesPage() {
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
-              <div style={sectionKicker}>League next actions</div>
-              <h2 style={panelTitle}>Pick the season need, then open the right path.</h2>
+              <div style={sectionKicker}>Season control board</div>
+              <h2 style={panelTitle}>Find the season, then keep it moving.</h2>
               <p style={panelIntro}>
-                League pages should help players and organizers move from discovery to schedules, scores, standings, or corrections without hunting through a spreadsheet.
+                Start with the public league record. When the season needs work, move into the tools for schedules, scores, standings, organizer planning, or reviewed corrections.
               </p>
             </div>
           </div>
-          <div style={leagueNextActionGrid}>
-            {leagueNextActions.map((action) => (
-              <TiqActionCard
-                key={action.title}
-                eyebrow={action.eyebrow}
-                title={action.title}
-                body={action.body}
-                metrics={[...action.metrics]}
-                href={action.href}
-                cta={action.cta}
-                event={action.event}
-                trust={[...action.trust]}
-              />
-            ))}
-          </div>
-        </article>
-      </section>
-      <section style={contentWrap}>
-        <article style={panelCard}>
-          <div style={panelHead}>
-            <div>
-              <div style={sectionKicker}>League Office preview</div>
-              <h2 style={panelTitle}>Schedules, scores, standings, and corrections.</h2>
-              <p style={panelIntro}>
-                League Office turns a season into a practical home: organize participants, publish the schedule, collect scores, update standings, manage corrections, and hand reviewed data back to Data Assist.
+          <div style={leagueCommandBoardStyle(compactLeagueCommandBoard)}>
+            <article style={leagueCommandSpotlightStyle}>
+              <div style={leagueCommandTopStyle}>
+                <span style={leagueCommandBadgeStyle}>League Office</span>
+                <TrackedProductLink
+                  href="/league-coordinator"
+                  style={leagueCommandTopLinkStyle}
+                  event={{
+                    eventName: 'league_office_clicked',
+                    surface: 'leagues',
+                    metadata: {
+                      location: 'league_command_board',
+                    },
+                  }}
+                >
+                  Open Office
+                </TrackedProductLink>
+              </div>
+              <h3 style={leagueCommandTitleStyle}>One place for the season.</h3>
+              <p style={leagueCommandTextStyle}>
+                Build the schedule, collect scores, publish standings, and send changes through review before players rely on them.
               </p>
+              <p style={leagueCommandSupportLineStyle}>Useful for coordinators, captains, and players</p>
+              <div style={leagueCommandMetricGridStyle}>
+                <MetricCard label="Matches" value="36" />
+                <MetricCard label="Teams" value="10" />
+                <MetricCard label="Pending" value="3" accent />
+              </div>
+              <div style={leagueCommandActionRowStyle}>
+                <TrackedProductLink
+                  href="/league-coordinator"
+                  style={secondaryIntroButton}
+                  event={{
+                    eventName: 'schedule_preview_clicked',
+                    surface: 'leagues',
+                    metadata: {
+                      location: 'league_command_board',
+                    },
+                  }}
+                >
+                  Review Schedule
+                </TrackedProductLink>
+                <TrackedProductLink
+                  href={dataAssistLeagueOfficeHref}
+                  style={secondaryIntroButton}
+                  event={{
+                    eventName: 'data_assist_opened',
+                    surface: 'data_assist',
+                    metadata: {
+                      location: 'league_command_board',
+                    },
+                  }}
+                >
+                  Send Correction
+                </TrackedProductLink>
+              </div>
+            </article>
+            <div style={leagueCommandStepListStyle}>
+              {leagueNextActions.map((action, index) => (
+                <LeagueCommandStep key={action.title} action={action} step={index + 1} />
+              ))}
             </div>
-          </div>
-          <div style={leagueOfficePreviewGrid}>
-            <TiqWorkspacePreview
-              eyebrow="Schedule"
-              title="Spring Ladder schedule"
-              body="Publish court windows, team dates, round-robin blocks, and schedule change notes."
-              metrics={[
-                { label: 'Matches', value: '36' },
-                { label: 'Courts', value: '6' },
-                { label: 'Changes', value: '2' },
-              ]}
-              href="/league-coordinator"
-              cta="Schedule Preview"
-              event={{
-                eventName: 'schedule_preview_clicked',
-                surface: 'leagues',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
-            <TiqLeagueStandingCard
-              title="Spring Ladder standings"
-              body="Standings update after reviewed scores, tiebreakers, and corrections."
-              metrics={[
-                { label: 'Teams', value: '10' },
-                { label: 'Matches', value: '36' },
-                { label: 'Pending', value: '3' },
-              ]}
-              href="/league-coordinator"
-              cta="Standings Preview"
-              event={{
-                eventName: 'standings_preview_clicked',
-                surface: 'leagues',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
-            <TiqWorkspacePreview
-              eyebrow="Data Assist handoff"
-              title="Corrections queue"
-              body="Schedules, scorecards, rosters, and disputed results move through review before public context changes."
-              metrics={[
-                { label: 'Source', value: 'Uploads' },
-                { label: 'Status', value: 'Review' },
-                { label: 'Office', value: 'League' },
-              ]}
-              href={dataAssistLeagueOfficeHref}
-              cta="Open Data Assist"
-              event={{
-                eventName: 'data_assist_opened',
-                surface: 'data_assist',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
           </div>
         </article>
       </section>
@@ -618,10 +595,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'Public league layer', tone: 'info' },
-      { label: 'Status', value: 'Discovery ready', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Schedule',
@@ -641,10 +614,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'League Office', tone: 'info' },
-      { label: 'Freshness', value: 'Coordinator updated', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Standings',
@@ -664,10 +633,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Confidence', value: 'Higher after review', tone: 'warn' },
-      { label: 'Status', value: 'Reviewable', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Organize',
@@ -688,10 +653,6 @@ const leagueNextActions = [
         job: 'organize_competition',
       },
     },
-    trust: [
-      { label: 'Status', value: 'Public organizer path', tone: 'good' },
-      { label: 'Source', value: 'TenAceIQ hub', tone: 'info' },
-    ],
   },
   {
     eyebrow: 'Fix data',
@@ -711,12 +672,35 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'User upload', tone: 'info' },
-      { label: 'Status', value: 'Review before public use', tone: 'warn' },
-    ],
   },
 ] as const
+
+type LeagueNextAction = (typeof leagueNextActions)[number]
+
+function LeagueCommandStep({ action, step }: { action: LeagueNextAction; step: number }) {
+  return (
+    <article style={leagueCommandStepStyle}>
+      <div style={leagueCommandStepNumberStyle}>{step}</div>
+      <div style={leagueCommandStepCopyStyle}>
+        <div style={leagueCommandStepTopStyle}>
+          <span style={leagueCommandStepEyebrowStyle}>{action.eyebrow}</span>
+          <TrackedProductLink href={action.href} style={leagueCommandStepLinkStyle} event={action.event}>
+            {action.cta}
+          </TrackedProductLink>
+        </div>
+        <h3 style={leagueCommandStepTitleStyle}>{action.title}</h3>
+        <p style={leagueCommandStepBodyStyle}>{action.body}</p>
+        <div style={leagueCommandStepMetricsStyle}>
+          {action.metrics.map((metric) => (
+            <span key={metric.label} style={leagueCommandStepMetricPillStyle}>
+              {metric.label}: {metric.value}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
 
 function uniqueSorted(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => safeText(value)).filter(Boolean))).sort((a, b) =>
@@ -1067,18 +1051,203 @@ const publicIntroGridStyle = (isTinyMobile: boolean): CSSProperties => ({
   gap: isTinyMobile ? 8 : publicIntroGrid.gap,
 })
 
-const leagueOfficePreviewGrid: CSSProperties = {
+const leagueCommandBoardStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 0.86fr) minmax(0, 1.14fr)',
+  gap: isMobile ? 10 : 14,
+  alignItems: 'stretch',
+  minWidth: 0,
+})
+
+const leagueCommandSpotlightStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
   gap: 12,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, transparent), rgba(8,16,34,0.86) 48%, rgba(7,17,33,0.92))',
+  padding: 16,
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const leagueCommandTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
-const leagueNextActionGrid: CSSProperties = {
+const leagueCommandBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const leagueCommandTopLinkStyle: CSSProperties = {
+  ...secondaryIntroButton,
+  minHeight: 34,
+  padding: '0 12px',
+  fontSize: 12,
+}
+
+const leagueCommandTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandSupportLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandMetricGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-  gap: 12,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
   minWidth: 0,
+}
+
+const leagueCommandActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueCommandStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueCommandStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: 12,
+}
+
+const leagueCommandStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const leagueCommandStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const leagueCommandStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leagueCommandStepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const leagueCommandStepLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  borderBottom: '1px solid color-mix(in srgb, var(--brand-green) 46%, transparent)',
+}
+
+const leagueCommandStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandStepMetricsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const leagueCommandStepMetricPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 24,
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
 }
 
 const introMiniCardStyle = (compact: boolean): CSSProperties => ({
