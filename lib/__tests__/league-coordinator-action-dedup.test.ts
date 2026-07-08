@@ -50,6 +50,26 @@ describe('league coordinator action deduplication', () => {
     expect(source).toContain('emptyRegistryActionStyle')
   })
 
+  it('keeps the league setup form oriented before the long field list', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('setupFocusItems')
+    expect(source).toContain('aria-label="League setup focus"')
+    expect(source).toContain('Setup focus')
+    expect(source).toContain('Build only what the season needs next.')
+    expect(source).toContain('Review the league before updating it.')
+    expect(source).toContain("label: 'Format'")
+    expect(source).toContain("label: 'Season'")
+    expect(source).toContain("label: 'Schedule'")
+    expect(source).toContain('draftParticipantCount')
+    expect(source).toContain('setupFocusPanelStyle')
+    expect(source).toContain('setupFocusGridStyle')
+    expect(source).toContain('setupFocusItemReadyStyle')
+  })
+
   it('keeps public page empty readiness actionable', () => {
     const source = readFileSync(
       join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),

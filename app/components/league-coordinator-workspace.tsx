@@ -1258,6 +1258,48 @@ export function LeagueCoordinatorWorkspace() {
     : 'Choose a start date and TenAceIQ will calculate the end date.'
   const scheduleCapacityText = getTiqLeagueScheduleCapacitySummary(draft)
   const scheduleCapacityWarning = validateTiqLeagueScheduleCapacity(draft)
+  const schedulingPlanRows = buildTiqLeagueSchedulingPlanRows(draft)
+  const schedulingHandoffSummary = getTiqLeagueSchedulingHandoffSummary(draft)
+  const draftParticipantCount = parseRegistryListInput(draft.leagueFormat === 'team' ? teamListInput : playerListInput).length
+  const setupFocusItems = [
+    {
+      label: 'Format',
+      title: draft.leagueFormat === 'team' ? 'Team league' : 'Individual league',
+      detail:
+        draft.leagueFormat === 'team'
+          ? 'Teams, match events, line winners, and team standings.'
+          : `${getTiqIndividualCompetitionFormatLabel(draft.individualCompetitionFormat)} with player standings.`,
+      ready: true,
+    },
+    {
+      label: 'Season',
+      title: draft.leagueName || 'Name the league',
+      detail:
+        draft.seasonLabel && draft.startsOn
+          ? `${draft.seasonLabel} starts ${draft.startsOn}`
+          : 'Add a season label and start date before saving.',
+      ready: Boolean(safeText(draft.leagueName) && safeText(draft.seasonLabel) && draft.startsOn && calculatedEndsOn),
+    },
+    {
+      label: 'Schedule',
+      title: scheduleCapacityWarning
+        ? 'Capacity needs review'
+        : draft.schedulingMode === 'player_arranged'
+          ? 'Players schedule matches'
+          : 'League Office sets schedule',
+      detail: scheduleCapacityWarning || schedulingHandoffSummary,
+      ready: Boolean(!scheduleCapacityWarning && draft.startsOn),
+    },
+    {
+      label: draft.leagueFormat === 'team' ? 'Teams' : 'Players',
+      title: `${draftParticipantCount} added`,
+      detail:
+        draftParticipantCount > 1
+          ? 'Enough competitors are in the draft for schedule and result tools.'
+          : `Add at least two ${draft.leagueFormat === 'team' ? 'teams' : 'players'} before the league is useful.`,
+      ready: draftParticipantCount > 1,
+    },
+  ] as const
   const sharedSchedulerItems = [
     {
       label: 'Schedule',
@@ -1317,8 +1359,6 @@ export function LeagueCoordinatorWorkspace() {
                   href: '/compete/schedule',
                   cta: 'Open calendar',
                 }
-  const schedulingPlanRows = buildTiqLeagueSchedulingPlanRows(draft)
-  const schedulingHandoffSummary = getTiqLeagueSchedulingHandoffSummary(draft)
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
@@ -2011,6 +2051,29 @@ export function LeagueCoordinatorWorkspace() {
                 {accessBannerText}
               </div>
             )}
+
+            <div style={setupFocusPanelStyle} aria-label="League setup focus">
+              <div style={leagueOpsHeaderStyle}>
+                <div style={leagueOpsHeaderCopyStyle}>
+                  <div style={sectionEyebrow}>Setup focus</div>
+                  <strong style={setupAssistTitleStyle}>
+                    {editingId ? 'Review the league before updating it.' : 'Build only what the season needs next.'}
+                  </strong>
+                </div>
+                <span style={canSaveCurrentDraft ? pillGreen : pillSlate}>
+                  {canSaveCurrentDraft ? 'Saving enabled' : 'Preview only'}
+                </span>
+              </div>
+              <div style={setupFocusGridStyle}>
+                {setupFocusItems.map((item) => (
+                  <div key={item.label} style={item.ready ? setupFocusItemReadyStyle : setupFocusItemStyle}>
+                    <span style={item.ready ? pillGreen : pillSlate}>{item.label}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.detail}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div style={responsiveFieldGrid}>
               <label style={fieldLabel}>
@@ -4041,6 +4104,47 @@ const infoCardText: CSSProperties = {
   lineHeight: 1.55,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const setupFocusPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const setupFocusGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const setupFocusItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '132px',
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 760,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const setupFocusItemReadyStyle: CSSProperties = {
+  ...setupFocusItemStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
 }
 
 const setupAssistPanelStyle: CSSProperties = {
