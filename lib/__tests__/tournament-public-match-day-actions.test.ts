@@ -14,6 +14,10 @@ function styleBlock(styleName: string) {
 describe('public tournament match-day actions', () => {
   it('keeps participant actions compact and status-driven', () => {
     expect(source).toContain('matchDayActions')
+    expect(source).toContain('Event-day command board')
+    expect(source).toContain('Check the next move before you scroll.')
+    expect(source).toContain('Alerts, profile, draw, schedule, results, and awards stay close to the tournament status so players can act from one place.')
+    expect(source).toContain('eventDayCommandStyle')
     expect(source).toContain('Match-day actions')
     expect(source).toContain('playerRailCopyStyle')
     expect(source).toContain('Court alerts')
@@ -39,10 +43,14 @@ describe('public tournament match-day actions', () => {
     expect(source).toContain('Read Player ID')
     expect(source).toContain('Prep matchup')
     expect(source.indexOf('aria-label="Tournament detail Player ID match-day read"')).toBeGreaterThan(source.indexOf('aria-label="Match-day actions"'))
-    expect(source.indexOf('aria-label="Tournament detail Player ID match-day read"')).toBeLessThan(source.indexOf('aria-label="Tournament readiness"'))
+    expect(source.indexOf('aria-label="Tournament detail Player ID match-day read"')).toBeGreaterThan(source.indexOf('aria-label="Tournament readiness"'))
+    expect(source.indexOf('aria-label="Tournament readiness"')).toBeLessThan(source.indexOf('aria-label="Match-day actions"'))
   })
 
   it('keeps the tournament detail Player ID read compact on phones', () => {
+    expect(styleBlock('eventDayCommandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))'")
+    expect(styleBlock('eventDayCommandStyle')).toContain('minWidth: 0')
+    expect(styleBlock('eventDayCommandStyle')).toContain("overflow: 'hidden'")
     expect(styleBlock('tournamentDetailPlayerIdStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('tournamentDetailPlayerIdStyle')).toContain('minWidth: 0')
     expect(styleBlock('tournamentDetailPlayerIdStyle')).toContain("overflowWrap: 'anywhere'")
