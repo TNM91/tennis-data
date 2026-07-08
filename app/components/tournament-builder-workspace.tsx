@@ -317,6 +317,26 @@ export default function TournamentBuilderWorkspace() {
       ready: isPublic || draftEntrants.length >= 2,
     },
   ]
+  const setupPathItems = [
+    {
+      step: '1',
+      label: 'Name the room',
+      detail: name.trim() ? name.trim() : 'Add the tournament name.',
+      ready: Boolean(name.trim()),
+    },
+    {
+      step: '2',
+      label: 'Set the field',
+      detail: draftEntrants.length >= 2 ? `${draftEntrants.length} ${entrantType} in the draw.` : 'Add at least two entrants.',
+      ready: draftEntrants.length >= 2,
+    },
+    {
+      step: '3',
+      label: 'Save and schedule',
+      detail: startsOn ? 'Date is set. Save before assigning courts.' : 'Pick a date, then save the room.',
+      ready: Boolean(startsOn) && draftEntrants.length >= 2,
+    },
+  ]
   const tournamentPathStatusItems = selectedRecord ? [
     {
       label: 'Active room',
@@ -365,6 +385,29 @@ export default function TournamentBuilderWorkspace() {
           cta: 'Save room first',
         }
   ))
+  const scorebookCommandItems = selectedRecord ? [
+    {
+      label: 'Schedule',
+      value: `${scheduledMatchCount}/${totalMatchCount}`,
+      detail: scheduledMatchCount ? 'Court slots have started.' : 'Add the first date, time, and court.',
+      href: '#tournament-scorebook',
+      ready: scheduledMatchCount > 0,
+    },
+    {
+      label: 'Results',
+      value: `${completedMatchCount}/${totalMatchCount}`,
+      detail: completedMatchCount ? 'Scores are moving.' : 'Record winners as matches finish.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Player update',
+      value: alertRecords.length ? `${alertRecords.length} drafts` : 'Draft next',
+      detail: alertRecords.length ? 'Alerts are ready to review.' : 'Prepare a schedule or recap alert.',
+      href: '#tournament-alerts',
+      ready: alertRecords.length > 0,
+    },
+  ] : []
 
   useEffect(() => {
     let active = true
@@ -1315,6 +1358,18 @@ export default function TournamentBuilderWorkspace() {
             ))}
           </div>
 
+          <div style={setupPathStyle} aria-label="Event setup path">
+            {setupPathItems.map((item) => (
+              <div key={item.label} style={setupPathItemStyle}>
+                <span style={item.ready ? setupPathStepReadyStyle : setupPathStepStyle}>{item.step}</span>
+                <span style={setupPathCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+              </div>
+            ))}
+          </div>
+
           <div style={fieldGridStyle}>
             <label style={fieldStyle}>
               Tournament name
@@ -1608,6 +1663,19 @@ export default function TournamentBuilderWorkspace() {
           <div style={recordMetricGridStyle}>
             <Stat label="Completed" value={`${selectedSummary?.completedMatches ?? 0}/${selectedSummary?.totalMatches ?? 0}`} compact />
             <Stat label="Open" value={String(selectedSummary?.openMatches ?? 0)} compact />
+          </div>
+
+          <div style={scorebookCommandStyle} aria-label="Scorebook command">
+            {scorebookCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={scorebookCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={scorebookCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={scorebookCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
           </div>
 
           {selectedStandings.length ? (
@@ -3205,6 +3273,57 @@ const setupReadinessItemStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const setupPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const setupPathItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const setupPathStepStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const setupPathStepReadyStyle: CSSProperties = {
+  ...setupPathStepStyle,
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--brand-lime)',
+}
+
+const setupPathCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
@@ -3601,6 +3720,48 @@ const calendarMoreStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 10,
   fontWeight: 900,
+}
+
+const scorebookCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 185px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const scorebookCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gap: 9,
+  alignItems: 'center',
+  minWidth: 0,
+  minHeight: 64,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(15,23,42,0.48)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflow: 'hidden',
+}
+
+const scorebookCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const scorebookCommandValueStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const scorebookMatchStyle: CSSProperties = {
