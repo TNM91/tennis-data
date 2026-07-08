@@ -33,7 +33,7 @@ const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
   coach: 'Coach - Coach Hub for player development',
   captain: 'Captain - Team Hub for match week',
   league: 'League - League Office for a season',
-  full_court: 'Full-Court - Complete toolkit, including Tournament Desk',
+  full_court: 'Full-Court - Every tennis role, including Tournament Desk',
 }
 
 const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
@@ -84,7 +84,7 @@ const WORKSPACE_PREVIEWS: Array<{
   {
     planId: 'full_court',
     title: 'Full-Court',
-    body: 'Connect My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations from one account.',
+    body: 'Use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs from one account.',
     chips: ['My Lab', 'Coach Hub', 'Team Hub', 'Tournament Desk'],
   },
 ]
@@ -187,8 +187,8 @@ const JOB_CHOOSER: Array<{
     href: getPlanUnlockHref('league'),
   },
   {
-    job: 'Use the full toolkit',
-    cue: 'All role tools plus unlimited Tournament Desk operations.',
+    job: 'Support every tennis role',
+    cue: 'My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs.',
     planId: 'full_court',
     href: getPlanUnlockHref('full_court'),
   },
@@ -384,9 +384,9 @@ function PricingContent() {
               </Link>
             ))}
           </div>
-          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court tool fit proof cue">
+          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court role guide">
             <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court tool fit proof cue</span>
+              <span style={sectionEyebrowStyle}>Full-Court role guide</span>
               <strong>Pick the right tool for the tennis need.</strong>
             </div>
             <div style={fullCourtWorkspaceFitGridStyle}>
@@ -398,10 +398,10 @@ function PricingContent() {
               ))}
             </div>
           </div>
-          <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching proof cue">
+          <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching">
             <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court role switching proof cue</span>
-              <strong>Prove every paid tool opens without stale locks.</strong>
+              <span style={sectionEyebrowStyle}>Full-Court role switching</span>
+              <strong>Move between paid tools without stale locks.</strong>
             </div>
             <div style={fullCourtRoleSwitchingProofGridStyle}>
               {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
