@@ -6,6 +6,7 @@ import {
   CSSProperties,
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -142,9 +143,11 @@ function JoinContent() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const hasRedirectedRef = useRef(false)
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const requestedEmail = searchParams.get('email')?.trim() ?? ''
@@ -160,7 +163,17 @@ function JoinContent() {
   const authLoading = !authResolved
 
   useEffect(() => {
-    if (!authResolved || role === 'public') return
+    if (!authResolved) return
+
+    if (role === 'public') {
+      hasRedirectedRef.current = false
+      setRedirecting(false)
+      return
+    }
+
+    if (hasRedirectedRef.current) return
+    hasRedirectedRef.current = true
+    setRedirecting(true)
     const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)
     router.replace(signedInRedirectRoute)
   }, [authResolved, entitlements, requestedNextRoute, role, router, selectedNextRoute])
@@ -266,7 +279,7 @@ function JoinContent() {
     ...(isMobile ? mobileHelperRow : null),
   }
 
-  if (authLoading) {
+  if (authLoading || redirecting || role !== 'public') {
     return (
       <section style={loadingShell}>
         <div style={loadingCard}>
@@ -280,13 +293,11 @@ function JoinContent() {
               style={authLoadingImageStyle}
             />
           </span>
-          Checking account status...
+          {authLoading ? 'Checking account status...' : 'Opening your TenAceIQ home...'}
         </div>
       </section>
     )
   }
-
-  if (role !== 'public') return null
 
   return (
     <section style={heroShellResponsive}>
