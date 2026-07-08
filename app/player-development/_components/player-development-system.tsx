@@ -188,21 +188,21 @@ function buildPlayerDevelopmentTacticsHref(identity: PlayerDevelopmentIdentity, 
 function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const starterCard = getIdentityStarterLevelUpCard(identity)
   const tacticsHref = buildPlayerDevelopmentTacticsHref(identity, starterCard)
+  const primaryAction = {
+    body: 'Run the next court rep, score one proof, and decide whether to repeat, progress, or test it in a match.',
+    cta: 'Start Level Up',
+    href: `/level-up/${identity.slug}#level-up-flow`,
+    icon: 'reports' as const,
+    markers: ['Phone court mode', '0-5 proof', 'Repeat, progress, or test'],
+    title: 'Start Level Up',
+  }
   const actions = [
-    {
-      body: 'Run the next court rep, score one proof, and decide whether to repeat, progress, or test it in a match.',
-      cta: 'Start Level Up',
-      href: `/level-up/${identity.slug}#level-up-flow`,
-      icon: 'reports' as const,
-      markers: ['Phone court mode', '0-5 proof', 'Repeat, progress, or test'],
-      title: 'Start Level Up',
-    },
     {
       body: 'Keep goals, match notes, proof history, follows, and coach assignments close to your player profile.',
       cta: 'Open My Lab',
       href: '/mylab#player-workshop',
       icon: 'myLab' as const,
-      markers: ['Player ID read', 'Saved proof trail', 'Coach assignments'],
+      marker: 'Saved proof trail',
       title: 'Open My Lab',
     },
     {
@@ -210,7 +210,7 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
       cta: 'Build a tactic board',
       href: tacticsHref,
       icon: 'scenarioBuilder' as const,
-      markers: ['Crosscourt starter board', 'Drag players and paths', 'Save or copy the brief'],
+      marker: 'Crosscourt starter board',
       title: 'Build a tactic board',
     },
   ]
@@ -225,16 +225,26 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
         </p>
       </div>
       <div className={styles.improveHubActions} aria-label="Improve actions">
+        <Link className={styles.improveHubPrimaryAction} href={primaryAction.href}>
+          <span className={styles.improveHubActionTopline}>
+            <TiqFeatureIcon name={primaryAction.icon} size="md" variant="surface" />
+            <span>Today</span>
+          </span>
+          <strong>{primaryAction.title}</strong>
+          <p>{primaryAction.body}</p>
+          <ul className={styles.improveHubSignals} aria-label={`${primaryAction.title} next steps`}>
+            {primaryAction.markers.map((marker) => (
+              <li key={marker}>{marker}</li>
+            ))}
+          </ul>
+          <em>{primaryAction.cta}</em>
+        </Link>
         {actions.map((action) => (
           <Link className={styles.improveHubAction} href={action.href} key={action.title}>
-            <TiqFeatureIcon name={action.icon} size="md" variant="surface" />
-            <span>{action.title}</span>
-            <strong>{action.body}</strong>
-            <ul className={styles.improveHubSignals} aria-label={`${action.title} next steps`}>
-              {action.markers.map((marker) => (
-                <li key={marker}>{marker}</li>
-              ))}
-            </ul>
+            <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
+            <span>{action.marker}</span>
+            <strong>{action.title}</strong>
+            <p>{action.body}</p>
             <em>{action.cta}</em>
           </Link>
         ))}
