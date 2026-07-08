@@ -223,17 +223,17 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   full_court: {
     id: 'full_court',
     name: 'Full-Court',
-    shortPromise: 'Unlock the complete TenAceIQ toolkit.',
+    shortPromise: 'Support every tennis role.',
     audience: 'Coaches, captains, clubs, and organizers supporting players, teams, leagues, and tournaments',
     upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools.',
     description:
-      'Use the complete TenAceIQ toolkit for player development, coaching, team decisions, leagues, ladders, tournaments, and event follow-through.',
+      'Use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs for player development, coaching, team decisions, leagues, ladders, tournaments, and event follow-through.',
     valueProps: [
       'My Lab, Coach Hub, Team Hub, and League Office together',
       'Unlimited Tournament Desk tools for events',
       'Shared scheduling, results, standings, and rankings',
       'Team and player books across competition',
-      'One connected toolkit for coaches, captains, coordinators, and organizers',
+      'One connected tennis path for coaches, captains, coordinators, and organizers',
     ],
   },
 } as const
@@ -394,7 +394,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   full_court: {
     stage: 'Full-Court unlock',
-    headline: 'Unlock the complete TenAceIQ toolkit.',
+    headline: 'Support every tennis role.',
     copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools so players, lessons, teams, leagues, ladders, and events stay connected.',
     bullets: [
       'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
