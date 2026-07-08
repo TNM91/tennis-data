@@ -179,6 +179,12 @@ export default function TournamentBuilderWorkspace() {
   const selectedStandings = selectedRecord?.format === 'round_robin' ? buildRoundRobinStandings(selectedRecord) : []
   const scheduledEvents = useMemo(() => buildTournamentScheduleEvents(records), [records])
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, scheduledEvents), [calendarMonth, scheduledEvents])
+  const scheduledMonthEvents = useMemo(() => (
+    scheduledEvents
+      .filter((event) => event.date.startsWith(calendarMonth))
+      .sort((a, b) => `${a.date} ${a.time || '99:99'}`.localeCompare(`${b.date} ${b.time || '99:99'}`))
+      .slice(0, 6)
+  ), [calendarMonth, scheduledEvents])
   const alertDraft = selectedRecord ? buildTiqTournamentAlertDraft({
     record: selectedRecord,
     kind: alertKind,
@@ -1225,45 +1231,68 @@ export default function TournamentBuilderWorkspace() {
           </div>
         </div>
 
-        <div style={weekdayGridStyle}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <span key={day}>{day}</span>
-          ))}
-        </div>
-        <div style={calendarGridStyle}>
-          {calendarDays.map((day) => (
-            <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
-              <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
-              <div style={calendarEventStackStyle}>
-                {day.events.slice(0, 3).map((event) => (
-                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
-                    <strong>{event.time || 'TBD'}</strong>
-                    <span>{event.sideA} vs {event.sideB}</span>
+        <div style={calendarShellStyle}>
+          <div style={calendarBoardStyle}>
+            <div style={weekdayGridStyle}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div style={calendarGridStyle}>
+              {calendarDays.map((day) => (
+                <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
+                  <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
+                  <div style={calendarEventStackStyle}>
+                    {day.events.slice(0, 3).map((event) => (
+                      <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
+                        <strong>{event.time || 'TBD'}</strong>
+                        <span>{event.sideA} vs {event.sideB}</span>
+                        <small>{event.court || event.tournamentName}</small>
+                      </Link>
+                    ))}
+                    {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside style={calendarAgendaStyle} aria-label="Court agenda">
+            <div style={calendarAgendaHeaderStyle}>
+              <div>
+                <div style={sectionEyebrowStyle}>Court agenda</div>
+                <h3 style={calendarAgendaTitleStyle}>{scheduledMonthEvents.length ? 'Next scheduled matches' : 'Schedule from the scorebook'}</h3>
+              </div>
+              <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'No slots yet'}</span>
+            </div>
+            {scheduledMonthEvents.length ? (
+              <div style={calendarAgendaListStyle}>
+                {scheduledMonthEvents.map((event) => (
+                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarAgendaEventStyle}>
+                    <span>{formatCalendarAgendaDate(event)}</span>
+                    <strong>{event.sideA} vs {event.sideB}</strong>
                     <small>{event.court || event.tournamentName}</small>
                   </Link>
                 ))}
-                {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
               </div>
-            </div>
-          ))}
+            ) : (
+              <div style={calendarEmptyStateStyle}>
+                <div style={emptySavedRoomCopyStyle}>
+                  <strong>Calendar fills from match slots.</strong>
+                  <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
+                </div>
+                <div style={emptySavedRoomActionStyle}>
+                  <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
+                    {selectedRecord ? 'Open scorebook' : 'Build room'}
+                  </a>
+                  <a href="#tournament-setup" style={secondaryButtonStyle}>
+                    Set up tournament
+                  </a>
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
-
-        {!scheduledEvents.length ? (
-          <div style={calendarEmptyStateStyle}>
-            <div style={emptySavedRoomCopyStyle}>
-              <strong>Calendar fills from match slots.</strong>
-              <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
-            </div>
-            <div style={emptySavedRoomActionStyle}>
-              <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
-                {selectedRecord ? 'Open scorebook' : 'Build room'}
-              </a>
-              <a href="#tournament-setup" style={secondaryButtonStyle}>
-                Set up tournament
-              </a>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       <section style={builderGridStyle}>
@@ -2535,6 +2564,13 @@ function formatCalendarMonth(month: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(year, monthIndex - 1, 1))
 }
 
+function formatCalendarAgendaDate(event: TiqTournamentCalendarEvent) {
+  const [year, month, day] = event.date.split('-').map((part) => Number.parseInt(part, 10))
+  const date = new Date(year, month - 1, day)
+  const label = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
+  return event.time ? `${label} at ${event.time}` : `${label} time TBD`
+}
+
 function formatGameDiff(value: number) {
   if (value > 0) return `+${value}`
   return String(value)
@@ -3434,6 +3470,68 @@ const calendarActionRowStyle: CSSProperties = {
   justifyContent: 'flex-end',
   gap: 8,
   minWidth: 0,
+}
+
+const calendarShellStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+  gap: 12,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
+const calendarBoardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const calendarAgendaStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(8,16,34,0.48)',
+}
+
+const calendarAgendaHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'flex-start',
+  minWidth: 0,
+}
+
+const calendarAgendaTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const calendarAgendaListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const calendarAgendaEventStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const weekdayGridStyle: CSSProperties = {
