@@ -196,8 +196,8 @@ const commandModes: Array<{
   {
     planId: 'full_court',
     lane: 'Full-Court',
-    action: 'Open the full toolkit',
-    label: 'Coach, Captain, League, and unlimited tournaments',
+    action: 'Support every tennis role',
+    label: 'Players, teams, leagues, and unlimited tournaments',
     href: '/pricing#full_court',
     cta: 'Unlock Full-Court',
     icon: 'teamRankings',
@@ -516,11 +516,11 @@ const commandModeDetails: Record<
     unlockLine: 'League unlocks shared calendar, league spaces, team books, and player books.',
   },
   full_court: {
-    headline: 'Use the complete TenAceIQ toolkit.',
-    subhead: 'Full-Court keeps My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations in one connected tennis toolkit.',
+    headline: 'Support every tennis role.',
+    subhead: 'Full-Court keeps My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs open from one account.',
     searchPlaceholder: 'Search player, team, league, or tournament...',
     queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book'],
-    unlockLine: 'Full-Court unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk.',
+    unlockLine: 'Full-Court opens My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs.',
   },
 }
 const commandCenterSurfaceBackground =
@@ -1015,8 +1015,8 @@ function getDashboardLane(planId: PricingPlanId) {
   if (planId === 'full_court') {
     return {
       label: 'Full-Court',
-      title: 'Every tennis role, connected.',
-      show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
+      title: 'Every tennis role, supported.',
+      show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk runs stay open from one account.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
       next: 'Unlock Full-Court when one role no longer covers the tennis work.',
     }
@@ -2848,7 +2848,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
     >
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 10, alignContent: 'center', minWidth: 0 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, alignItems: 'center' }}>
-          <span style={fullCourtFeaturedBadgeStyle}>Full-Court operation</span>
+          <span style={fullCourtFeaturedBadgeStyle}>Full-Court plan</span>
           <span style={{ ...theme.tierBadge, width: 'fit-content' }}>Full-Court</span>
           <span style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>{accessPresentation.priceLabel}</span>
         </div>
@@ -2863,7 +2863,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
             overflowWrap: 'anywhere',
           }}
         >
-          Open the full toolkit.
+          Support every tennis role.
         </h3>
         <div style={fullCourtValueStripStyle}>
           {suiteItems.map((item) => (
@@ -2874,7 +2874,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
 
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 8, justifyItems: isMobile ? 'start' : 'end', minWidth: 0 }}>
         <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.45, fontWeight: 800, maxWidth: 360, textAlign: isMobile ? 'left' : 'right' }}>
-          My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations stay in one connected tennis operation.
+          My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs stay ready from one account.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
           <Link href={accessPresentation.primaryCta.href} style={fullCourtPrimaryCtaStyle}>
