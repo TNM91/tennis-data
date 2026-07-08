@@ -1295,9 +1295,9 @@ function DataAssistReviewFlowPanel() {
           </article>
         ))}
       </div>
-      <div style={uploadStateProofStyle} aria-label="Data Assist upload state proof cue">
+      <div style={uploadStateProofStyle} aria-label="Upload review status">
         <div style={uploadStateProofHeaderStyle}>
-          <span style={reviewFlowEyebrowStyle}>Upload state proof cue</span>
+          <span style={reviewFlowEyebrowStyle}>Upload review status</span>
           <strong style={uploadStateProofTitleStyle}>Know what changed and what did not.</strong>
         </div>
         <div style={uploadStateProofGridStyle}>
