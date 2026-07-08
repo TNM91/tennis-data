@@ -76,8 +76,9 @@ const tournamentDeskPaths = [
   {
     job: 'organize_schedules',
     question: 'How do I organize schedules?',
+    label: 'Schedule and courts',
     title: 'Build the room',
-    body: 'Name the event, choose the format, add the field, and save the tournament before court times start moving.',
+    body: 'Name it, choose the format, add the field, and save before court times move.',
     href: '#tournament-setup',
     cta: 'Set up event',
     icon: 'schedule',
@@ -85,8 +86,9 @@ const tournamentDeskPaths = [
   {
     job: 'manage_players_teams',
     question: 'How do I manage players or teams?',
+    label: 'Entries and profiles',
     title: 'Clear the entry queue',
-    body: 'Approve entries, connect participants to TIQ profiles, and keep the player or team list ready for the draw.',
+    body: 'Approve entries, connect TIQ profiles, and keep the field draw-ready.',
     href: '#tournament-entries',
     cta: 'Review entries',
     icon: 'teamRankings',
@@ -94,8 +96,9 @@ const tournamentDeskPaths = [
   {
     job: 'track_scores',
     question: 'How do I track scores?',
+    label: 'Scores and standings',
     title: 'Run the scorebook',
-    body: 'Add match slots, enter results, publish standings or brackets, and move the event toward awards.',
+    body: 'Add match slots, post results, publish standings, and finish awards.',
     href: '#tournament-scorebook',
     cta: 'Open scorebook',
     icon: 'reports',
@@ -103,8 +106,9 @@ const tournamentDeskPaths = [
   {
     job: 'reduce_admin_work',
     question: 'How do I reduce admin work?',
+    label: 'Alerts and recaps',
     title: 'Send the useful update',
-    body: 'Use alerts and preference history so court changes, rules, reminders, and recaps stay out of scattered texts.',
+    body: 'Draft court changes, reminders, rules, and recaps from one place.',
     href: '#tournament-alerts',
     cta: 'Prepare alerts',
     icon: 'alerts',
@@ -307,6 +311,54 @@ export default function TournamentBuilderWorkspace() {
       ready: isPublic || draftEntrants.length >= 2,
     },
   ]
+  const tournamentPathStatusItems = selectedRecord ? [
+    {
+      label: 'Active room',
+      value: selectedRecord.name,
+      detail: selectedRecord.isPublic ? 'Public entry page is open.' : 'Private field is loaded.',
+      ready: true,
+    },
+    {
+      label: 'Next move',
+      value: directorNextMove?.label || 'Review the event',
+      detail: directorNextMove?.detail || 'Open the saved room and choose the next section.',
+      ready: Boolean(directorNextMove),
+    },
+    {
+      label: 'Match flow',
+      value: `${completedMatchCount}/${totalMatchCount || selectedPreview.length}`,
+      detail: `${scheduledMatchCount} match${scheduledMatchCount === 1 ? '' : 'es'} scheduled.`,
+      ready: completedMatchCount > 0 || scheduledMatchCount > 0,
+    },
+  ] : [
+    {
+      label: 'Draft field',
+      value: `${draftEntrants.length} ${entrantType}`,
+      detail: draftEntrants.length >= 2 ? 'The draw can be previewed.' : 'Add at least two names.',
+      ready: draftEntrants.length >= 2,
+    },
+    {
+      label: 'Entry mode',
+      value: isPublic ? 'Public' : 'Private',
+      detail: isPublic ? 'Players can request a spot.' : 'Use the pasted field first.',
+      ready: isPublic || draftEntrants.length >= 2,
+    },
+    {
+      label: 'First save',
+      value: canCreateMore ? 'Available' : 'Limit reached',
+      detail: canCreateMore ? 'Save once, then run schedule, scores, alerts, and awards.' : 'Open an event or compare Full-Court.',
+      ready: canCreateMore,
+    },
+  ]
+  const tournamentPathActions = tournamentDeskPaths.map((path) => (
+    selectedRecord || path.href === '#tournament-setup'
+      ? path
+      : {
+          ...path,
+          href: '#tournament-setup',
+          cta: 'Save room first',
+        }
+  ))
 
   useEffect(() => {
     let active = true
@@ -1107,27 +1159,50 @@ export default function TournamentBuilderWorkspace() {
             <h2 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>{PRODUCT_MOTTO}</h2>
           </div>
           <p style={tournamentPathIntroStyle}>
-            Start with the event question, then open the tool that removes the most admin work.
+            Scan the room, then jump to the tournament task that needs attention.
           </p>
         </div>
-        <div style={tournamentPathGridStyle}>
-          {tournamentDeskPaths.map((path) => (
-            <a
-              key={path.job}
-              href={path.href}
-              style={tournamentPathCardStyle}
-              data-tournament-path-job={path.job}
-              aria-label={`${path.cta}: ${path.question}`}
-            >
-              <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
-              <span style={tournamentPathCopyStyle}>
-                <em>{path.question}</em>
-                <strong>{path.title}</strong>
-                <span>{path.body}</span>
+        <div style={tournamentPathCommandStyle}>
+          <div style={tournamentPathStatusPanelStyle}>
+            <div style={sectionEyebrowStyle}>Control tower</div>
+            <strong style={tournamentPathStatusTitleStyle}>
+              {selectedRecord ? 'Keep the event moving.' : 'Build the room first.'}
+            </strong>
+            <span style={tournamentPathStatusTextStyle}>
+              {selectedRecord
+                ? 'Use the live scan to see what is ready, then jump directly to entries, profiles, schedule, scores, alerts, or awards.'
+                : 'Set the field once, preview the draw, then save the room before courts and results start changing.'}
+            </span>
+            <div style={tournamentPathStatusGridStyle} aria-label="Tournament Desk status scan">
+              {tournamentPathStatusItems.map((item) => (
+                <div key={item.label} style={tournamentPathStatusItemStyle}>
+                  <span style={item.ready ? readinessDotReadyStyle : readinessDotBlockedStyle} />
+                  <strong>{item.label}</strong>
+                  <em>{item.value}</em>
+                  <span style={tournamentPathStatusDetailStyle}>{item.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={tournamentPathGridStyle}>
+            {tournamentPathActions.map((path) => (
+              <a
+                key={path.job}
+                href={path.href}
+                style={tournamentPathCardStyle}
+                data-tournament-path-job={path.job}
+                aria-label={`${path.cta}: ${path.question}`}
+              >
+                <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                <span style={tournamentPathCopyStyle}>
+                  <em>{path.label}</em>
+                  <strong>{path.title}</strong>
+                  <span>{path.body}</span>
+                </span>
                 <span style={tournamentPathCtaStyle}>{path.cta}</span>
-              </span>
-            </a>
-          ))}
+              </a>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -2707,21 +2782,87 @@ const tournamentPathIntroStyle: CSSProperties = {
   maxWidth: 500,
 }
 
+const tournamentPathCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const tournamentPathStatusPanelStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(180deg, rgba(14,35,57,0.78), rgba(7,17,33,0.88))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.045)',
+  overflow: 'hidden',
+}
+
+const tournamentPathStatusTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const tournamentPathStatusItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) minmax(0, auto)',
+  gap: 7,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusDetailStyle: CSSProperties = {
+  gridColumn: '2 / -1',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const tournamentPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
-  gap: 12,
+  gap: 8,
+  alignContent: 'start',
   minWidth: 0,
 }
 
 const tournamentPathCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '38px minmax(0, 1fr)',
-  gap: 11,
+  gridTemplateColumns: '38px minmax(0, 1fr) minmax(0, auto)',
+  gap: 10,
+  alignItems: 'center',
   minWidth: 0,
-  minHeight: 158,
-  padding: 14,
-  borderRadius: 18,
+  minHeight: 96,
+  padding: 12,
+  borderRadius: 16,
   border: '1px solid rgba(223,248,194,0.13)',
   background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
   color: 'var(--foreground-strong)',
@@ -2745,6 +2886,8 @@ const tournamentPathCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const lockedPreviewStyle: CSSProperties = {
