@@ -27,9 +27,15 @@ describe('portal rail shell layout', () => {
       siteShellSource.indexOf("maxHeight: 'calc(100dvh - var(--header-height) - 20px)'"),
     )
 
-    expect(portalToolBarSource).toContain("gridTemplateRows: 'auto auto auto minmax(0, 1fr)'")
+    expect(portalToolBarSource).toContain("gridTemplateRows: 'auto auto auto'")
     expect(portalToolBarSource).toContain("minHeight: '100%'")
-    expect(portalToolBarSource).toContain("alignSelf: 'end'")
+    expect(portalToolBarSource).toContain('data-portal-rail-sections={lane.id}')
+    expect(portalToolBarSource).toContain('function PortalRailTaskLink')
+    expect(portalToolBarSource).toContain('const laneActive = lane.id === activeLane.id')
+    expect(portalToolBarSource).toContain('active={isPortalTaskActive(currentPortalPath, task.href)}')
+    expect(portalToolBarSource).toContain('railPortalTaskListStyle')
+    expect(portalToolBarSource).toContain('getRailPortalTaskActiveStyle')
+    expect(portalToolBarSource).not.toContain('railPortalStatusStyle')
 
     expect(globalsSource).toContain("[data-portal-rail='true']")
     expect(globalsSource).toContain('scrollbar-width: none')
