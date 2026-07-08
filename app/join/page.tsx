@@ -78,12 +78,12 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
   },
   full_court: {
     eyebrow: 'Full-Court path',
-    mobileTitle: 'Set up the full toolkit.',
-    desktopTitle: 'Create your account. Unlock the full toolkit.',
+    mobileTitle: 'Support every tennis role.',
+    desktopTitle: 'Create your account. Support every tennis role.',
     mobileText: 'Create the free account first. Full-Court unlocks after the plan is active.',
-    desktopText: 'Full-Court starts with a free account, then unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations after the plan is active.',
-    formCue: 'Signup creates Free access. Activate Full-Court next, then open one connected tennis operation.',
-    success: 'Free account created. Sign in, then activate Full-Court to unlock the full toolkit.',
+    desktopText: 'Full-Court starts with a free account, then opens My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Full-Court next, then support players, teams, leagues, and events from one account.',
+    success: 'Free account created. Sign in, then activate Full-Court to support every tennis role.',
   },
 }
 
@@ -93,7 +93,7 @@ const JOIN_SELECTED_PLAN_COPY: Record<MembershipTierId, string> = {
   coach: 'Coach starts from Free, then opens Coach Hub for lessons, assignments, player proof, and follow-through.',
   captain: 'Captain starts from Free, then opens Team Hub for availability, lineups, scouting, and team messages.',
   league: 'League starts from Free, then opens League Office for one season of schedules, scores, and standings.',
-  full_court: 'Full-Court starts from Free, then opens the complete toolkit plus unlimited Tournament Desk operations.',
+  full_court: 'Full-Court starts from Free, then opens every role path plus unlimited Tournament Desk runs.',
 }
 
 function getJoinNextRoute(planId: MembershipTierId) {
