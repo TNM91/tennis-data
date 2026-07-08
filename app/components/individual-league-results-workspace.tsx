@@ -227,9 +227,49 @@ const resultPathIntro: CSSProperties = {
   maxWidth: 520,
   overflowWrap: 'anywhere',
 }
+const resultPathCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+const resultPathStatusPanelStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 154,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.1), rgba(8,18,36,0.86))',
+  color: 'var(--shell-copy-muted)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflowWrap: 'anywhere',
+}
+const resultPathStatusGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const resultPathStatusItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(223,248,194,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
 const resultPathGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
@@ -237,7 +277,7 @@ const resultPathCard: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
-  minHeight: 142,
+  minHeight: 154,
   padding: 14,
   borderRadius: 18,
   border: '1px solid rgba(223,248,194,0.13)',
@@ -269,66 +309,6 @@ const resultPathCta: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-const readinessPanel: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  background: 'rgba(8, 16, 34, 0.7)',
-  border: '1px solid rgba(116,190,255,0.13)',
-  borderRadius: 24,
-  padding: 18,
-  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-const readinessKicker: CSSProperties = {
-  color: '#93b7ea',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-const readinessTitle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: 20,
-  lineHeight: 1.16,
-  fontWeight: 950,
-  marginTop: 5,
-  overflowWrap: 'anywhere',
-}
-const readinessText: CSSProperties = {
-  color: '#b8c7dc',
-  fontSize: 13,
-  lineHeight: 1.55,
-  marginTop: 6,
-  overflowWrap: 'anywhere',
-}
-const readinessGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-const readinessItem: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minHeight: 86,
-  padding: 12,
-  borderRadius: 14,
-  border: '1px solid rgba(125,211,252,0.12)',
-  background: 'rgba(8, 16, 34, 0.72)',
-  minWidth: 0,
-}
-const readinessItemComplete: CSSProperties = {
-  ...readinessItem,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.08)',
-}
-const readinessItemText: CSSProperties = {
-  color: '#e2e8f0',
-  fontSize: 13,
-  lineHeight: 1.35,
   overflowWrap: 'anywhere',
 }
 const listWrap: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
@@ -1365,84 +1345,102 @@ function IndividualLeagueResultsWorkspaceInner({
               <h2 id="player-result-path-title" style={resultPathTitle}>{PRODUCT_MOTTO}</h2>
             </div>
             <p style={resultPathIntro}>
-              Start with the scorekeeper question, then open the smallest action that keeps standings moving.
+              Scan the book, then open the smallest action that keeps standings moving.
             </p>
           </div>
-          <div style={resultPathGrid}>
-            <button
-              type="button"
-              style={resultPathButton}
-              onClick={() => nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()}
-              disabled={!selectedLeague}
-              data-player-result-path-job="log_result"
-              aria-label="Log player result: What result needs to be entered first?"
-            >
-              <span style={resultPathQuestion}>What result needs to be entered first?</span>
-              <strong style={resultPathCardTitle}>Log the next player result</strong>
-              <span>Choose the league, players, winner, score, and date so standings can update from one result book.</span>
-              <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log result'}</span>
-            </button>
-            <Link
-              href="#player-result-review"
-              style={resultPathCard}
-              data-player-result-path-job="review_standings"
-              aria-label="Review standings: What changed?"
-            >
-              <span style={resultPathQuestion}>What changed?</span>
-              <strong style={resultPathCardTitle}>Review standings and gaps</strong>
-              <span>Check leaders, next useful pairings, edited results, and missing head-to-head coverage.</span>
-              <span style={resultPathCta}>Review standings</span>
-            </Link>
-            <Link
-              href={dataAssistIndividualResultsHref}
-              style={resultPathCard}
-              data-player-result-path-job="upload_scorecard"
-              aria-label="Upload scorecard: How do I avoid retyping scores?"
-            >
-              <span style={resultPathQuestion}>How do I avoid retyping scores?</span>
-              <strong style={resultPathCardTitle}>Upload a reviewed scorecard</strong>
-              <span>Use Data Assist when source scorecards should be reviewed before League Office standings move.</span>
-              <span style={resultPathCta}>Upload scorecard</span>
-            </Link>
-          </div>
-        </section>
-
-        <section style={readinessPanel}>
-          <div>
-            <div style={readinessKicker}>Result entry readiness</div>
-            <div style={readinessTitle}>{individualResultCue.title}</div>
-            <div style={readinessText}>{individualResultCue.detail}</div>
-            <div style={actionRow}>
+          <div style={resultPathCommandStyle} aria-label="Player result command center">
+            <div style={resultPathStatusPanelStyle}>
+              <span style={resultPathQuestion}>Result book scan</span>
+              <strong style={resultPathCardTitle}>{individualResultCue.title}</strong>
+              <span>{individualResultCue.detail}</span>
+              <div style={resultPathStatusGridStyle} aria-label="Player result readiness scan">
+                {individualResultCue.items.map((item) => (
+                  <div key={item.label} style={resultPathStatusItemStyle}>
+                    <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                    <strong>{item.detail}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={resultPathGrid}>
+              <button
+                type="button"
+                style={resultPathButton}
+                onClick={() => nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()}
+                disabled={!selectedLeague}
+                data-player-result-path-job="log_result"
+                aria-label="Log player result"
+              >
+                <span style={resultPathQuestion}>Log</span>
+                <strong style={resultPathCardTitle}>Add result</strong>
+                <span>Choose players, winner, score, and date so standings update.</span>
+                <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log result'}</span>
+              </button>
+              <Link
+                href="#player-result-review"
+                style={resultPathCard}
+                data-player-result-path-job="review_standings"
+                aria-label="Review standings"
+              >
+                <span style={resultPathQuestion}>Review</span>
+                <strong style={resultPathCardTitle}>Check standings</strong>
+                <span>Scan leaders, useful pairings, corrections, and missing head-to-heads.</span>
+                <span style={resultPathCta}>Review standings</span>
+              </Link>
+              <Link
+                href={dataAssistIndividualResultsHref}
+                style={resultPathCard}
+                data-player-result-path-job="upload_scorecard"
+                aria-label="Upload scorecard"
+              >
+                <span style={resultPathQuestion}>Upload</span>
+                <strong style={resultPathCardTitle}>Use Data Assist</strong>
+                <span>Send source scorecards through review before standings move.</span>
+                <span style={resultPathCta}>Upload scorecard</span>
+              </Link>
               {canEditResults ? (
                 <button
                   type="button"
-                  style={btnPrimary}
+                  style={resultPathButton}
                   onClick={() =>
                     nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()
                   }
                   disabled={!selectedLeague}
+                  data-player-result-path-job="next_best_action"
+                  aria-label="Open next player result action"
                 >
-                  {nextPairing ? 'Use next pairing' : 'Log player result'}
+                  <span style={resultPathQuestion}>Next</span>
+                  <strong style={resultPathCardTitle}>{nextPairing ? 'Use pairing' : 'Start entry'}</strong>
+                  <span>{nextPairing ? 'Preload the next useful matchup.' : 'Open the player result form.'}</span>
+                  <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log player result'}</span>
                 </button>
               ) : null}
               {selectedLeague ? (
-                <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`} style={btnSecondary}>
-                  View league
+                <Link
+                  href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`}
+                  style={resultPathCard}
+                  data-player-result-path-job="view_league"
+                  aria-label="View selected league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Public view</strong>
+                  <span>Check what players see after results and standings settle.</span>
+                  <span style={resultPathCta}>View league</span>
                 </Link>
               ) : (
-                <Link href="/league-coordinator#league-setup-form" style={btnSecondary}>
-                  Set up league
+                <Link
+                  href="/league-coordinator#league-setup-form"
+                  style={resultPathCard}
+                  data-player-result-path-job="set_up_league"
+                  aria-label="Set up league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Set up first</strong>
+                  <span>Create an individual league before player results can connect to standings.</span>
+                  <span style={resultPathCta}>Set up league</span>
                 </Link>
               )}
             </div>
-          </div>
-          <div style={readinessGrid}>
-            {individualResultCue.items.map((item) => (
-              <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
-                <span style={item.complete ? pillGreen : pill}>{item.label}</span>
-                <strong style={readinessItemText}>{item.detail}</strong>
-              </div>
-            ))}
           </div>
         </section>
 
