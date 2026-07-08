@@ -178,6 +178,9 @@ describe('League Coordinator mobile layout guards', () => {
       'detailsSummary',
       'fieldGrid',
       'outcomeInfoGrid',
+      'setupFocusPanelStyle',
+      'setupFocusGridStyle',
+      'setupFocusItemStyle',
       'calendarGridStyle',
       'fileInputStyle',
       'textareaStyle',
@@ -219,6 +222,8 @@ describe('League Coordinator mobile layout guards', () => {
       'startCardCtaStyle',
       'leaguePathCopyStyle',
       'sectionEyebrow',
+      'setupFocusPanelStyle',
+      'setupFocusItemStyle',
       'setupAssistTitleStyle',
       'setupAssistTextStyle',
       'calendarWeekStyle',
@@ -272,6 +277,7 @@ describe('League Coordinator mobile layout guards', () => {
       'leaguePathGridStyle',
       'fieldGrid',
       'outcomeInfoGrid',
+      'setupFocusGridStyle',
       'calendarGridStyle',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minmax(min(100%,')
