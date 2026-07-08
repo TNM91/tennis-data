@@ -459,13 +459,82 @@ const emptyResultAction: CSSProperties = {
   whiteSpace: 'normal',
   textDecoration: 'none',
 }
-const reviewToolbar: CSSProperties = {
-  ...card,
+const reviewPanelStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
-  gap: 10,
+  gap: 12,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.68)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+const reviewPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+const reviewPanelTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const reviewCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 48,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflow: 'hidden',
+}
+const reviewCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewFilterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
   alignItems: 'end',
   minWidth: 0,
+}
+const reviewActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minWidth: 0,
+}
+const reviewCountStyle: CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -827,6 +896,32 @@ function IndividualLeagueResultsWorkspaceInner({
   const activeParticipantCount = selectedLeague
     ? visiblePlayerEntries.length
     : leagues.reduce((sum, league) => sum + (league.players || []).length, 0)
+  const reviewCommandItems = [
+    {
+      label: 'Shown',
+      value: `${visibleResults.length}/${results.length}`,
+      detail: activeResultFilterCount ? `${activeResultFilterCount} review filter${activeResultFilterCount === 1 ? '' : 's'} active.` : 'Full player result book in view.',
+      ready: visibleResults.length > 0,
+    },
+    {
+      label: 'Clean',
+      value: `${Math.max(0, results.length - editedResultsCount)}/${results.length}`,
+      detail: results.length ? 'Original entries are separated from corrections.' : 'Log the first player result.',
+      ready: results.length > 0 && editedResultsCount === 0,
+    },
+    {
+      label: 'Corrections',
+      value: String(editedResultsCount),
+      detail: editedResultsCount ? 'Review edited results before sharing standings.' : 'No edited results in this book.',
+      ready: editedResultsCount === 0,
+    },
+    {
+      label: 'Players',
+      value: String(activeParticipantCount),
+      detail: selectedLeague ? 'Players available for result entry.' : 'Players across individual leagues.',
+      ready: activeParticipantCount > 1,
+    },
+  ]
   const individualResultCue = buildIndividualResultCue({
     leagueCount: leagues.length,
     selectedLeagueName: selectedLeague?.leagueName,
@@ -1563,73 +1658,100 @@ function IndividualLeagueResultsWorkspaceInner({
           </section>
         </div>
 
-        <div style={sectionTitle}>Recorded player results</div>
-        <div style={reviewToolbar}>
-          <Field label="Find result">
-            <input
-              value={resultSearch}
-              onChange={(event) => setResultSearch(event.target.value)}
-              placeholder="Player, score, note..."
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="League">
-            <select
-              style={inputStyle}
-              value={filterLeagueId}
-              onChange={(event) => void handleFilterChange(event.target.value)}
-            >
-              <option value="">All leagues</option>
-              {leagues.map((league) => (
-                <option key={league.id} value={league.id}>{league.leagueName}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Review">
-            <select
-              style={inputStyle}
-              value={resultReviewFilter}
-              onChange={(event) => setResultReviewFilter(event.target.value as ResultReviewFilter)}
-            >
-              <option value="all">All results</option>
-              <option value="edited">Corrections only</option>
-              <option value="clean">Original entries</option>
-            </select>
-          </Field>
-          <Field label="Date">
-            <select
-              style={inputStyle}
-              value={resultDateFilter}
-              onChange={(event) => setResultDateFilter(event.target.value as ResultDateFilter)}
-            >
-              <option value="all">Any date</option>
-              <option value="week">Last 7 days</option>
-              <option value="month">Last 30 days</option>
-            </select>
-          </Field>
-          <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={handleExportResults}
-            disabled={visibleResults.length === 0}
-            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleCopyResultSummary()}
-            disabled={visibleResults.length === 0}
-            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
-          >
-            Copy Summary
-          </button>
-          <div style={{ color: '#94a3b8', fontSize: 13, gridColumn: '1 / -1' }}>
-            Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
+        <section style={reviewPanelStyle} aria-labelledby="player-result-book-title">
+          <div style={reviewPanelHeaderStyle}>
+            <div>
+              <div style={tileLabel}>Result book</div>
+              <h2 id="player-result-book-title" style={reviewPanelTitleStyle}>Recorded player results</h2>
+            </div>
+            <span style={activeResultFilterCount ? pillGreen : pill}>
+              {activeResultFilterCount ? `${activeResultFilterCount} active` : 'All results'}
+            </span>
           </div>
-        </div>
+
+          <div style={reviewCommandGridStyle} aria-label="Player result review status">
+            {reviewCommandItems.map((item) => (
+              <div key={item.label} style={reviewCommandItemStyle}>
+                <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+                <span style={reviewCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <em>{item.value}</em>
+              </div>
+            ))}
+          </div>
+
+          <div style={reviewFilterGridStyle} aria-label="Player result review filters">
+            <Field label="Find result">
+              <input
+                value={resultSearch}
+                onChange={(event) => setResultSearch(event.target.value)}
+                placeholder="Player, score, note..."
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="League">
+              <select
+                style={inputStyle}
+                value={filterLeagueId}
+                onChange={(event) => void handleFilterChange(event.target.value)}
+              >
+                <option value="">All leagues</option>
+                {leagues.map((league) => (
+                  <option key={league.id} value={league.id}>{league.leagueName}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Review">
+              <select
+                style={inputStyle}
+                value={resultReviewFilter}
+                onChange={(event) => setResultReviewFilter(event.target.value as ResultReviewFilter)}
+              >
+                <option value="all">All results</option>
+                <option value="edited">Corrections only</option>
+                <option value="clean">Original entries</option>
+              </select>
+            </Field>
+            <Field label="Date">
+              <select
+                style={inputStyle}
+                value={resultDateFilter}
+                onChange={(event) => setResultDateFilter(event.target.value as ResultDateFilter)}
+              >
+                <option value="all">Any date</option>
+                <option value="week">Last 7 days</option>
+                <option value="month">Last 30 days</option>
+              </select>
+            </Field>
+          </div>
+
+          <div style={reviewActionRowStyle}>
+            <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
+              Clear filters
+            </button>
+            <button
+              type="button"
+              onClick={handleExportResults}
+              disabled={visibleResults.length === 0}
+              style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCopyResultSummary()}
+              disabled={visibleResults.length === 0}
+              style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+            >
+              Copy Summary
+            </button>
+            <span style={reviewCountStyle}>
+              Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
+            </span>
+          </div>
+        </section>
 
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>

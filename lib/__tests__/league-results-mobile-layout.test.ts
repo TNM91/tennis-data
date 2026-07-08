@@ -101,7 +101,10 @@ describe('League result workspace mobile layout guards', () => {
       'emptyResultPanel',
       'emptyResultCopy',
       'emptyResultActions',
-      'reviewToolbar',
+      'reviewPanelStyle',
+      'reviewCommandGridStyle',
+      'reviewFilterGridStyle',
+      'reviewActionRowStyle',
     ]) {
       expect(styleBlock(individualSource, styleName)).toContain('minWidth: 0')
     }
