@@ -748,6 +748,9 @@ export function LeagueCoordinatorWorkspace() {
     if (publicPageFilter === 'needs_work') return !row.publicReady
     return true
   })
+  const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
+  const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
+  const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
   const resultQueueItemCount =
     teamResultBooksNeedAttention +
     resultBookNeedsAttention +
@@ -763,40 +766,6 @@ export function LeagueCoordinatorWorkspace() {
       ? teamResultEntryHref
       : individualResultEntryHref
     : '#league-setup-form'
-  const leagueOfficePaths = [
-    {
-      job: 'organize_schedules',
-      question: 'How do I organize schedules?',
-      title: 'Build the season shell',
-      body: 'Set the format, season window, match-day defaults, facility notes, and schedule capacity before dates start moving.',
-      href: '#shared-calendar',
-      cta: 'Review scheduler',
-    },
-    {
-      job: 'manage_players_teams',
-      question: 'How do I manage players or teams?',
-      title: 'Keep participants clean',
-      body: 'Add teams or players, approve join requests, and keep public league pages from drifting ahead of coordinator review.',
-      href: '#league-registry',
-      cta: 'Review participants',
-    },
-    {
-      job: 'track_scores',
-      question: 'How do I track scores?',
-      title: 'Open the right result book',
-      body: 'Use Team Results or Player Results so scorecards, corrections, standings, and awards move from one source.',
-      href: resultEntryHref,
-      cta: hasResultReadyLeague ? 'Record results' : 'Finish setup',
-    },
-    {
-      job: 'reduce_admin_work',
-      question: 'How do I reduce admin work?',
-      title: 'Check the member view',
-      body: 'Use public page readiness and Data Assist review so schedules, participants, scores, and standings stay trustworthy.',
-      href: '#league-public-pages',
-      cta: 'Check public pages',
-    },
-  ] as const
   const resultReadinessDetail =
     teamLeagues.length > 0 && individualLeagues.length > 0
       ? 'Team Results handles team match events and line scores; Player Results handles individual league matches.'
@@ -805,6 +774,73 @@ export function LeagueCoordinatorWorkspace() {
         : individualLeagues.length > 0
           ? 'Player Results is ready for one-on-one results, corrections, and standings updates.'
           : 'Save a team or individual league first; result entry opens after setup has participants.'
+  const leagueDeskItems = [
+    {
+      job: 'season_control',
+      label: 'Season control',
+      title: records.length > 0 ? `${records.length} season setup${records.length === 1 ? '' : 's'} saved` : 'Create the season shell',
+      body:
+        records.length > 0
+          ? 'Format, season dates, match-day defaults, and capacity are ready for review before dates move.'
+          : 'Start with format, dates, location, and the first teams or players so the season has a source of truth.',
+      href: '#league-setup-form',
+      cta: records.length > 0 ? 'Review setup' : 'Create league',
+      complete: records.length > 0,
+    },
+    {
+      job: 'participant_queue',
+      label: 'Participant queue',
+      title:
+        pendingEntryRequestCount > 0
+          ? `${pendingEntryRequestCount} request${pendingEntryRequestCount === 1 ? '' : 's'} waiting`
+          : activeParticipantCount > 0
+            ? `${activeParticipantCount} competitors tracked`
+            : 'Add competitors',
+      body:
+        pendingEntryRequestCount > 0
+          ? 'Handle waiting join requests before the schedule and public pages are treated as current.'
+          : activeParticipantCount > 0
+            ? 'Teams and players are in the record; keep approvals and roster changes inside League Office.'
+            : 'Add teams or players so schedules, results, and public pages have real competitors attached.',
+      href: '#league-registry',
+      cta: pendingEntryRequestCount > 0 ? 'Review requests' : 'Review participants',
+      complete: activeParticipantCount > 0 && pendingEntryRequestCount === 0,
+    },
+    {
+      job: 'result_flow',
+      label: 'Result flow',
+      title:
+        resultQueueItemCount > 0
+          ? `${resultQueueItemCount} review cue${resultQueueItemCount === 1 ? '' : 's'}`
+          : hasResultReadyLeague
+            ? 'Result books are ready'
+            : 'Results open after setup',
+      body:
+        resultQueueItemCount > 0
+          ? 'Clear match lines, edited player results, or score review cues before standings become the story.'
+          : resultReadinessDetail,
+      href: resultEntryHref,
+      cta: hasResultReadyLeague ? 'Open result books' : 'Finish setup',
+      complete: hasResultReadyLeague && resultQueueItemCount === 0,
+    },
+    {
+      job: 'member_view',
+      label: 'Member view',
+      title:
+        publicPageNeedsWorkCount > 0
+          ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need work`
+          : publicReadyLeagueCount > 0
+            ? `${publicReadyLeagueCount} page${publicReadyLeagueCount === 1 ? '' : 's'} ready`
+            : 'Public proof starts after setup',
+      body:
+        publicPageNeedsWorkCount > 0
+          ? 'Check participants and results before sharing pages with players, captains, or league guests.'
+          : 'Compare the member-facing page against the source screen so schedules, results, and standings match.',
+      href: '#league-public-pages',
+      cta: 'Check public pages',
+      complete: publicPageReadinessRows.length > 0 && publicPageNeedsWorkCount === 0,
+    },
+  ] as const
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -1222,9 +1258,6 @@ export function LeagueCoordinatorWorkspace() {
     : 'Choose a start date and TenAceIQ will calculate the end date.'
   const scheduleCapacityText = getTiqLeagueScheduleCapacitySummary(draft)
   const scheduleCapacityWarning = validateTiqLeagueScheduleCapacity(draft)
-  const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
-  const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
-  const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
   const sharedSchedulerItems = [
     {
       label: 'Schedule',
@@ -1339,28 +1372,28 @@ export function LeagueCoordinatorWorkspace() {
           </div>
         </section>
 
-        <section style={leaguePathStyle} aria-labelledby="league-office-path-title">
+        <section style={leaguePathStyle} aria-labelledby="league-office-desk-title">
           <div style={leaguePathHeaderStyle}>
             <div>
-              <div style={sectionEyebrow}>League Office path</div>
-              <h2 id="league-office-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+              <div style={sectionEyebrow}>Today&apos;s league desk</div>
+              <h2 id="league-office-desk-title" style={leaguePathTitleStyle}>Run the season from the thing that needs attention.</h2>
             </div>
             <p style={leaguePathIntroStyle}>
-              Start with the season question, then open the tool that removes the most admin work.
+              {PRODUCT_MOTTO} Setup, approvals, results, and public proof stay separate enough to scan quickly.
             </p>
           </div>
           <div style={leaguePathGridStyle}>
-            {leagueOfficePaths.map((path) => (
+            {leagueDeskItems.map((path) => (
               <Link
                 key={path.job}
                 href={path.href}
-                style={leaguePathCardStyle}
-                data-league-path-job={path.job}
-                aria-label={`${path.cta}: ${path.question}`}
+                style={path.complete ? leagueDeskCardCompleteStyle : leaguePathCardStyle}
+                data-league-desk-job={path.job}
+                aria-label={`${path.cta}: ${path.title}`}
               >
-                <span style={leaguePathMarkerStyle} aria-hidden="true" />
+                <span style={path.complete ? leagueDeskMarkerReadyStyle : leaguePathMarkerStyle} aria-hidden="true" />
                 <span style={leaguePathCopyStyle}>
-                  <em>{path.question}</em>
+                  <em>{path.label}</em>
                   <strong>{path.title}</strong>
                   <span>{path.body}</span>
                   <span style={leaguePathCtaStyle}>{path.cta}</span>
@@ -1912,18 +1945,6 @@ export function LeagueCoordinatorWorkspace() {
           </div>
           <div style={leagueOpsTrackStyle} aria-label={`League season readiness ${leagueOpsReadinessScore} percent`}>
             <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
-          </div>
-          <div style={leagueOpsCheckGridStyle}>
-            {leagueOpsChecks.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                style={item.complete ? leagueOpsCheckCompleteStyle : leagueOpsCheckStyle}
-              >
-                <span>{item.label}</span>
-                <small>{item.detail}</small>
-              </Link>
-            ))}
           </div>
           <div style={leagueOfficeOperationProofStyle} aria-label="League Office operation proof cue">
             <div style={leagueOfficeOperationProofHeaderStyle}>
@@ -3216,6 +3237,12 @@ const leaguePathCardStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const leagueDeskCardCompleteStyle: CSSProperties = {
+  ...leaguePathCardStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'linear-gradient(180deg, rgba(24,62,72,0.74), rgba(8,26,36,0.92))',
+}
+
 const leaguePathMarkerStyle: CSSProperties = {
   width: 28,
   height: 28,
@@ -3224,6 +3251,14 @@ const leaguePathMarkerStyle: CSSProperties = {
   background:
     'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.82) 0 10%, transparent 11%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.94) 0 48%, rgba(155,225,29,0.12) 49%, transparent 62%)',
   boxShadow: '0 0 0 5px rgba(155,225,29,0.07)',
+}
+
+const leagueDeskMarkerReadyStyle: CSSProperties = {
+  ...leaguePathMarkerStyle,
+  border: '1px solid rgba(64,214,145,0.42)',
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.82) 0 10%, transparent 11%), radial-gradient(circle at 50% 50%, rgba(64,214,145,0.94) 0 48%, rgba(64,214,145,0.12) 49%, transparent 62%)',
+  boxShadow: '0 0 0 5px rgba(64,214,145,0.08)',
 }
 
 const leaguePathCopyStyle: CSSProperties = {
@@ -3867,36 +3902,6 @@ const startCardCtaStyle: CSSProperties = {
   letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
-}
-
-const leagueOpsCheckGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const leagueOpsCheckStyle: CSSProperties = {
-  display: 'grid',
-  gap: '6px',
-  minHeight: '94px',
-  padding: '12px',
-  borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--shell-copy-muted)',
-  textDecoration: 'none',
-  fontSize: '12px',
-  fontWeight: 750,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const leagueOpsCheckCompleteStyle: CSSProperties = {
-  ...leagueOpsCheckStyle,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
-  color: 'var(--foreground-strong)',
 }
 
 const leagueOfficeOperationProofStyle: CSSProperties = {
