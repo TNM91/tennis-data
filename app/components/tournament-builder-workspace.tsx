@@ -1303,7 +1303,7 @@ export default function TournamentBuilderWorkspace() {
             Scan the room, then jump to the tournament task that needs attention.
           </p>
         </div>
-        <div style={tournamentPathCommandStyle}>
+        <div style={tournamentPathCommandStyle} aria-label="Tournament Desk command center">
           <div style={tournamentPathStatusPanelStyle}>
             <div style={sectionEyebrowStyle}>Control tower</div>
             <strong style={tournamentPathStatusTitleStyle}>
@@ -3118,11 +3118,11 @@ const tournamentPathGridStyle: CSSProperties = {
 
 const tournamentPathCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '38px minmax(0, 1fr) minmax(0, auto)',
+  gridTemplateColumns: '38px minmax(0, 1fr)',
   gap: 10,
-  alignItems: 'center',
+  alignItems: 'flex-start',
   minWidth: 0,
-  minHeight: 96,
+  minHeight: 108,
   padding: 12,
   borderRadius: 16,
   border: '1px solid rgba(223,248,194,0.13)',
@@ -3145,10 +3145,11 @@ const tournamentPathCopyStyle: CSSProperties = {
 }
 
 const tournamentPathCtaStyle: CSSProperties = {
+  gridColumn: '2 / -1',
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
-  textAlign: 'right',
+  textAlign: 'left',
   overflowWrap: 'anywhere',
 }
 
