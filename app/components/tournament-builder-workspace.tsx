@@ -454,6 +454,52 @@ export default function TournamentBuilderWorkspace() {
       ready: alertRecords.length > 0,
     },
   ] : []
+  const profileCommandItems = selectedRecord ? [
+    {
+      label: 'Profile links',
+      value: `${profileReadyCount}/${selectedRecord.entrants.length}`,
+      detail: profileReadyCount === selectedRecord.entrants.length ? 'Every entrant is TIQ-ready.' : 'Create profiles so results can follow each player.',
+      href: '#tournament-profiles',
+      ready: profileReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+    {
+      label: 'Rating source',
+      value: 'Self-rated',
+      detail: 'New profiles start with S until verified results improve the rating source.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Trophy cases',
+      value: awardRecords.length ? 'Linked' : 'Next',
+      detail: awardRecords.length ? 'Awards can land in player trophy cases.' : 'Issue awards after profiles and results are ready.',
+      href: '#tournament-awards',
+      ready: awardRecords.length > 0,
+    },
+  ] : []
+  const awardCommandItems = selectedRecord ? [
+    {
+      label: 'Results',
+      value: `${completedMatchCount}/${totalMatchCount}`,
+      detail: completedMatchCount ? 'Use completed matches to pick honors.' : 'Finish results before issuing podium awards.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Recipients',
+      value: `${awardCandidates.length} slots`,
+      detail: awardCandidates.length ? 'Confirm names before creating certificates.' : 'Complete the draw to unlock award slots.',
+      href: '#tournament-awards',
+      ready: awardCandidates.length > 0,
+    },
+    {
+      label: 'Award follow-through',
+      value: awardRecords.length ? `${awardRecords.length} issued` : 'Ready',
+      detail: awardRecords.length ? 'Print, email, or send the recap alert.' : 'Create awards, then send the recap.',
+      href: awardRecords.length ? '#tournament-alerts' : '#tournament-awards',
+      ready: awardRecords.length > 0,
+    },
+  ] : []
 
   useEffect(() => {
     let active = true
@@ -2141,6 +2187,19 @@ export default function TournamentBuilderWorkspace() {
             </button>
           </div>
 
+          <div style={profileCommandStyle} aria-label="Profile command">
+            {profileCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={profileCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={profileCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={profileCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
+
           <div style={profileLinkGridStyle}>
             {selectedRecord.entrants.map((entrant) => {
               const playerId = selectedRecord.entrantPlayerIds[entrant]
@@ -2177,6 +2236,19 @@ export default function TournamentBuilderWorkspace() {
           <p style={smallNoteStyle}>
             Issue TenAceIQ-branded awards for podium finishers. Winners can print certificates, email them, and carry the badge into their trophy case.
           </p>
+
+          <div style={awardCommandStyle} aria-label="Award command">
+            {awardCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={awardCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={awardCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={awardCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
 
           <div style={awardSetupGridStyle}>
             {awardCandidates.map((candidate) => (
@@ -3865,6 +3937,38 @@ const alertCommandCopyStyle: CSSProperties = {
 }
 
 const alertCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const profileCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const profileCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const profileCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const profileCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const awardCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const awardCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const awardCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const awardCommandValueStyle: CSSProperties = {
   ...scorebookCommandValueStyle,
 }
 
