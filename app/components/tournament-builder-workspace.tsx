@@ -408,6 +408,52 @@ export default function TournamentBuilderWorkspace() {
       ready: alertRecords.length > 0,
     },
   ] : []
+  const entryCommandItems = selectedRecord ? [
+    {
+      label: 'Registration',
+      value: selectedRecord.isPublic ? 'Public' : 'Private',
+      detail: selectedRecord.isPublic ? 'Review requests before they reach the draw.' : 'Open setup when you want public entry.',
+      href: selectedRecord.isPublic ? '#tournament-entries' : '#tournament-setup',
+      ready: selectedRecord.isPublic,
+    },
+    {
+      label: 'Entry queue',
+      value: pendingEntries.length ? `${pendingEntries.length} waiting` : 'Clear',
+      detail: pendingEntries.length ? 'Approve players into the field.' : 'No entry decisions are waiting.',
+      href: '#tournament-entries',
+      ready: pendingEntries.length === 0,
+    },
+    {
+      label: 'Player profiles',
+      value: `${profileReadyCount}/${selectedRecord.entrants.length}`,
+      detail: profileReadyCount === selectedRecord.entrants.length ? 'Profiles are linked.' : 'Create TIQ profiles for entrant follow-through.',
+      href: '#tournament-profiles',
+      ready: profileReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+  ] : []
+  const alertCommandItems = selectedRecord ? [
+    {
+      label: 'Contact list',
+      value: `${phoneReadyCount}/${selectedRecord.entrants.length}`,
+      detail: phoneReadyCount ? 'Phone numbers are started.' : 'Add phone numbers before queueing alerts.',
+      href: '#tournament-alerts',
+      ready: phoneReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+    {
+      label: 'Opt-ins',
+      value: `${optedInCount}/${selectedRecord.entrants.length}`,
+      detail: optedInCount ? 'Use confirmed consent only.' : 'Confirm opt-in before delivery review.',
+      href: '#tournament-alerts',
+      ready: optedInCount > 0,
+    },
+    {
+      label: 'Drafts',
+      value: alertRecords.length ? `${alertRecords.length} saved` : 'Start one',
+      detail: queuedAlertCount ? 'Queued drafts can be previewed.' : 'Write the useful court, schedule, or recap update.',
+      href: '#tournament-alerts',
+      ready: alertRecords.length > 0,
+    },
+  ] : []
 
   useEffect(() => {
     let active = true
@@ -1566,6 +1612,19 @@ export default function TournamentBuilderWorkspace() {
             <span style={pillStyle}>{selectedRecord.isPublic ? 'Public entry' : 'Private draw'}</span>
           </div>
 
+          <div style={entryCommandStyle} aria-label="Entry command">
+            {entryCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={entryCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={entryCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={entryCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
+
           {selectedRecord.isPublic ? (
             <div style={entryQueueGridStyle}>
               {pendingEntries.length ? pendingEntries.map((entry) => (
@@ -1840,6 +1899,19 @@ export default function TournamentBuilderWorkspace() {
               <h2 style={sectionTitleStyle}>{optedInCount}/{selectedRecord.entrants.length} opted in</h2>
             </div>
             <span style={pillStyle}>Draft only</span>
+          </div>
+
+          <div style={alertCommandStyle} aria-label="Alert command">
+            {alertCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={alertCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={alertCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={alertCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
           </div>
 
           <div style={sendReadinessStyle}>
@@ -3762,6 +3834,38 @@ const scorebookCommandValueStyle: CSSProperties = {
   fontWeight: 950,
   textAlign: 'right',
   overflowWrap: 'anywhere',
+}
+
+const entryCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const entryCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const entryCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const entryCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const alertCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const alertCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const alertCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const alertCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
 }
 
 const scorebookMatchStyle: CSSProperties = {
