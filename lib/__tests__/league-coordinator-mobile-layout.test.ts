@@ -168,6 +168,9 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
       'leagueOpsTrackStyle',
+      'leagueActionRowStyle',
+      'leagueActionGroupStyle',
+      'leagueAdminActionGroupStyle',
       'leagueOfficeOperationProofStyle',
       'leagueOfficeOperationProofHeaderStyle',
       'leagueOfficeOperationProofGridStyle',
@@ -265,6 +268,10 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'emptyJoinRequestActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'leagueActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'leagueActionGroupStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'leagueAdminActionGroupStyle')).toContain("borderLeft: '1px solid var(--shell-panel-border)'")
+    expect(source).toContain("borderTop: '1px solid var(--shell-panel-border)'")
   })
 
   it('uses responsive grid tracks for coordinator-heavy surfaces', () => {

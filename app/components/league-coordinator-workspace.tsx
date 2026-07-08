@@ -2969,15 +2969,36 @@ function LeagueActionRow({
   children?: ReactNode
 }) {
   const { isMobile } = useViewportBreakpoints()
-  const responsiveLeagueActionRowStyle = isMobile ? { ...buttonRow, ...mobileStackedActionRowStyle } : buttonRow
+  const responsiveLeagueActionRowStyle = isMobile
+    ? { ...leagueActionRowStyle, ...mobileStackedActionRowStyle }
+    : leagueActionRowStyle
+  const responsiveLeagueActionGroupStyle = isMobile
+    ? { ...leagueActionGroupStyle, ...mobileStackedActionRowStyle }
+    : leagueActionGroupStyle
+  const responsiveLeagueAdminActionGroupStyle = isMobile
+    ? {
+        ...leagueAdminActionGroupStyle,
+        ...mobileStackedActionRowStyle,
+        paddingLeft: 0,
+        paddingTop: '10px',
+        borderLeft: '0',
+        borderTop: '1px solid var(--shell-panel-border)',
+      }
+    : leagueAdminActionGroupStyle
 
   return (
-    <div style={responsiveLeagueActionRowStyle}>
-      <GhostLink href={buildTiqLeaguePageHref(league)}>{publicLabel}</GhostLink>
-      <GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>
-      <GhostLink href={resultHref}>{resultLabel}</GhostLink>
-      {includeManage ? <GhostLink href={buildLeagueSetupHref(league)}>Manage</GhostLink> : null}
-      {children}
+    <div style={responsiveLeagueActionRowStyle} aria-label={`${league.leagueName} actions`}>
+      <div style={responsiveLeagueActionGroupStyle}>
+        <GhostLink href={buildTiqLeaguePageHref(league)}>{publicLabel}</GhostLink>
+        <GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>
+        <GhostLink href={resultHref}>{resultLabel}</GhostLink>
+        {includeManage ? <GhostLink href={buildLeagueSetupHref(league)}>Manage</GhostLink> : null}
+      </div>
+      {children ? (
+        <div style={responsiveLeagueAdminActionGroupStyle} aria-label={`${league.leagueName} setup actions`}>
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -4424,6 +4445,32 @@ const buttonRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   minWidth: 0,
+}
+
+const leagueActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '10px',
+  width: '100%',
+  minWidth: 0,
+}
+
+const leagueActionGroupStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const leagueAdminActionGroupStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  minWidth: 0,
+  paddingLeft: '10px',
+  borderLeft: '1px solid var(--shell-panel-border)',
 }
 
 const primaryButton: CSSProperties = {
