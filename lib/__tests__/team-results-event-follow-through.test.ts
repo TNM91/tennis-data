@@ -55,4 +55,13 @@ describe('team result event follow-through', () => {
     expect(source).toContain('Clear filters')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
   })
+
+  it('consolidates team result next steps into one command center', () => {
+    expect(source).toContain('aria-label="Team result command center"')
+    expect(source).toContain('Scorekeeper scan')
+    expect(source).toContain('aria-label="Team result readiness scan"')
+    expect(source).toContain('data-team-result-path-job="next_best_action"')
+    expect(source).not.toContain('Result entry readiness')
+    expect(source).not.toContain('const readinessPanel: CSSProperties')
+  })
 })
