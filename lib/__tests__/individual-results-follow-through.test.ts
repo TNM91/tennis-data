@@ -52,4 +52,13 @@ describe('individual result follow-through', () => {
     expect(source).toContain('Clear filters')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
   })
+
+  it('consolidates player result next steps into one command center', () => {
+    expect(source).toContain('aria-label="Player result command center"')
+    expect(source).toContain('Result book scan')
+    expect(source).toContain('aria-label="Player result readiness scan"')
+    expect(source).toContain('data-player-result-path-job="next_best_action"')
+    expect(source).not.toContain('Result entry readiness')
+    expect(source).not.toContain('const readinessPanel: CSSProperties')
+  })
 })
