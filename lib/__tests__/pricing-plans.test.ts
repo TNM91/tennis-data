@@ -60,7 +60,7 @@ describe('pricing plans', () => {
 
     expect(getPricingPlan('full_court')).toMatchObject({
       priceLabel: '$19.99/month',
-      badge: 'Complete Toolkit',
+      badge: 'All Roles',
       outcome: 'Keep every tennis role connected, with unlimited Tournament Desk room.',
       billing: {
         amountCents: 1999,
@@ -70,6 +70,7 @@ describe('pricing plans', () => {
       },
     })
     expect(getPricingPlan('full_court').badge).not.toBe('Full Suite')
+    expect(getPricingPlan('full_court').badge).not.toBe('Complete Toolkit')
     expect(getPricingPlan('full_court').outcome).not.toContain('Run every TenAceIQ workspace')
   })
 
@@ -114,7 +115,8 @@ describe('pricing plans', () => {
   it('keeps role upgrade proof concrete instead of everything-language', () => {
     const roleUpgrade = WHY_TENACEIQ_POINTS.find((point) => point.title === 'Upgrade by role')
 
-    expect(roleUpgrade?.text).toContain('Full-Court connects the complete tennis toolkit.')
+    expect(roleUpgrade?.text).toContain('Full-Court keeps every tennis role connected.')
     expect(roleUpgrade?.text).not.toContain('Full-Court unlocks everything')
+    expect(roleUpgrade?.text).not.toContain('complete tennis toolkit')
   })
 })

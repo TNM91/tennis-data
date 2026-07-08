@@ -244,7 +244,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     billing: PRICING_BILLING.full_court,
     entitlementGrant: FULL_COURT_ENTITLEMENTS,
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.full_court),
-    badge: 'Complete Toolkit',
+    badge: 'All Roles',
     ctaLabel: 'Unlock Full-Court',
     problem: 'Supporting more than one tennis role?',
     friction: 'Coach work, captain work, league operations, tournaments, and player context split apart when the season gets busy.',
@@ -273,7 +273,7 @@ export const WHY_TENACEIQ_POINTS = [
   },
   {
     title: 'Upgrade by role',
-    text: 'Coach is for player development. Captain is for team decisions. Full-Court connects the complete tennis toolkit.',
+    text: 'Coach is for player development. Captain is for team decisions. Full-Court keeps every tennis role connected.',
   },
 ] as const
 
