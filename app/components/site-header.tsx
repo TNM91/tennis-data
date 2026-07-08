@@ -190,11 +190,17 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   })
 
   return (
+    <>
     <header
+      data-site-header={useRailHeader ? 'rail-fixed' : 'flow'}
       style={{
-        position: 'sticky',
+        position: useRailHeader ? 'fixed' : 'sticky',
         top: 0,
+        left: useRailHeader ? 0 : undefined,
+        right: useRailHeader ? 0 : undefined,
         zIndex: 40,
+        width: useRailHeader ? '100%' : undefined,
+        boxSizing: 'border-box',
         overflow: 'visible',
         padding: `max(0px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left))`,
         background: 'transparent',
@@ -537,6 +543,8 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         ) : null}
       </div>
     </header>
+    {useRailHeader ? <div aria-hidden="true" style={railHeaderSpacerStyle} /> : null}
+    </>
   )
 }
 
@@ -807,6 +815,14 @@ const railHeaderMenuButtonStyle = {
   fontWeight: 850,
   letterSpacing: 0,
 } as const
+
+const railHeaderSpacerStyle: CSSProperties = {
+  height: 'var(--header-height)',
+  minHeight: 'var(--header-height)',
+  width: '100%',
+  flex: '0 0 auto',
+  pointerEvents: 'none',
+}
 
 const mobileItemStyle = {
   width: '100%',

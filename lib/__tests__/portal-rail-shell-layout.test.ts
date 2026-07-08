@@ -3,22 +3,36 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const siteShellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
+const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
 const portalToolBarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 const siteFooterSource = readFileSync(join(process.cwd(), 'app/components/site-footer.tsx'), 'utf8')
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
+function styleBlock(source: string, name: string) {
+  const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
+  return source.match(pattern)?.[1] ?? ''
+}
+
 describe('portal rail shell layout', () => {
   it('keeps the desktop portal rail fixed and scrollable without a visible nested scrollbar', () => {
     expect(siteShellSource).toContain('data-portal-rail="true"')
     expect(siteShellSource).toContain('data-portal-content-scroll="true"')
+    expect(siteShellSource).toContain('screenWidth >= 820')
     expect(siteShellSource).toContain("position: 'fixed'")
+    expect(siteHeaderSource).toContain("data-site-header={useRailHeader ? 'rail-fixed' : 'flow'}")
+    expect(siteHeaderSource).toContain("position: useRailHeader ? 'fixed' : 'sticky'")
+    expect(siteHeaderSource).toContain('const railHeaderSpacerStyle')
+    expect(siteHeaderSource).toContain("{useRailHeader ? <div aria-hidden=\"true\" style={railHeaderSpacerStyle} /> : null}")
     expect(siteShellSource).toContain("height: 'calc(100dvh - var(--header-height) - 20px)'")
     expect(siteShellSource).toContain("overflow: 'auto'")
     expect(siteShellSource).toContain("maxHeight: 'calc(100dvh - var(--header-height) - 20px)'")
     expect(siteShellSource).toContain("height: 'calc(100dvh - var(--header-height))'")
     expect(siteShellSource).toContain("overflow: 'hidden'")
     expect(siteShellSource).toContain('const portalRailScrollStyle')
+    expect(siteShellSource).toContain("maxWidth: '100vw'")
+    expect(styleBlock(siteShellSource, 'portalRailMainStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(siteShellSource, 'portalRailScrollStyle')).toContain("maxWidth: '100%'")
     expect(siteShellSource).toContain("overflowY: 'auto'")
     expect(siteShellSource).toContain("overscrollBehavior: 'contain'")
     expect(siteShellSource).toContain('<SiteFooter railLayout railWidth={0} />')
@@ -54,6 +68,7 @@ describe('portal rail shell layout', () => {
     expect(shellSmokeSource).toContain("type: 'portal-window-scrolled-with-content'")
     expect(shellSmokeSource).toContain("type: 'portal-header-moved-during-content-scroll'")
     expect(shellSmokeSource).toContain("type: 'portal-rail-moved-during-content-scroll'")
+    expect(shellSmokeSource).toContain("type: 'portal-header-not-fixed'")
     expect(siteFooterSource).toContain("const railFooterOffset = railWidth > 0 ? railWidth + 32 : 0")
     expect(siteFooterSource).toContain('function scrollShellToTop()')
   })

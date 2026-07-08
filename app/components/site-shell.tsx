@@ -26,11 +26,11 @@ export default function SiteShell({ children, active, showPortalToolBar = true }
 
 function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProps) {
   const pathname = usePathname() || '/'
-  const { isMobile, isTablet } = useViewportBreakpoints()
+  const { screenWidth, isTablet } = useViewportBreakpoints()
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
-  const usePortalRailLayout = showPortalToolBar && !isMobile
+  const usePortalRailLayout = showPortalToolBar && screenWidth >= 820
   const portalRailWidth = isTablet ? 252 : 304
 
   useEffect(() => {
@@ -151,11 +151,14 @@ const portalRailLayoutStyle: CSSProperties = {
   zIndex: 1,
   display: 'block',
   width: 'min(1280px, 100%)',
+  maxWidth: '100vw',
+  minWidth: 0,
   height: 'calc(100dvh - var(--header-height))',
   margin: '0 auto',
   padding: '10px 16px 0',
   boxSizing: 'border-box',
   overflow: 'hidden',
+  overflowX: 'clip',
 }
 
 const portalRailAsideStyle: CSSProperties = {
@@ -170,12 +173,18 @@ const portalRailAsideStyle: CSSProperties = {
 }
 
 const portalRailMainStyle: CSSProperties = {
+  width: '100%',
+  maxWidth: '100%',
   minWidth: 0,
+  boxSizing: 'border-box',
 }
 
 const portalRailScrollStyle: CSSProperties = {
   height: '100%',
+  width: '100%',
+  maxWidth: '100%',
   minWidth: 0,
+  boxSizing: 'border-box',
   overflowY: 'auto',
   overflowX: 'clip',
   WebkitOverflowScrolling: 'touch',

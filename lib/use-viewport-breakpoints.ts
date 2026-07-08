@@ -12,7 +12,11 @@ function getViewportWidth() {
 function subscribe(onStoreChange: () => void) {
   if (typeof window === 'undefined') return () => {}
   window.addEventListener('resize', onStoreChange)
-  return () => window.removeEventListener('resize', onStoreChange)
+  const frame = window.requestAnimationFrame(onStoreChange)
+  return () => {
+    window.cancelAnimationFrame(frame)
+    window.removeEventListener('resize', onStoreChange)
+  }
 }
 
 export function useViewportBreakpoints() {

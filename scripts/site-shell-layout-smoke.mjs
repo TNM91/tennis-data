@@ -77,6 +77,7 @@ for (const viewport of viewports) {
       const mobilePortalPalette = document.querySelector('[data-mobile-portal-palette]')
       const portalContentScroll = document.querySelector('[data-portal-content-scroll="true"]')
       const rail = document.querySelector('[data-portal-rail="true"]')
+      const headerElement = document.querySelector('header')
 
       return {
         bodyText,
@@ -85,6 +86,7 @@ for (const viewport of viewports) {
         footerContent: footerContent ? roundRect('[data-site-footer-content="true"]') : null,
         footerNav: footerNav ? roundRect('footer nav') : null,
         header: roundRect('header'),
+        headerPosition: headerElement ? window.getComputedStyle(headerElement).position : null,
         main: roundRect('#main-content'),
         mobilePortalPalette: mobilePortalPalette ? roundRect('[data-mobile-portal-palette]') : null,
         openMenuButton: openMenuButton ? roundRect('button[aria-label="Open menu"]') : null,
@@ -183,6 +185,13 @@ for (const viewport of viewports) {
         findings.push({
           viewport: viewport.name,
           type: 'portal-content-scroll-missing',
+          metrics,
+        })
+      } else if (metrics.headerPosition !== 'fixed') {
+        findings.push({
+          viewport: viewport.name,
+          type: 'portal-header-not-fixed',
+          headerPosition: metrics.headerPosition,
           metrics,
         })
       } else if (metrics.header && metrics.portalContentScroll.height < metrics.viewportHeight - metrics.header.height - 40) {
@@ -895,6 +904,13 @@ for (const viewport of viewports) {
         timeout: 35_000,
       })
       await directoryPage.waitForTimeout(800)
+      if (viewport.expectsRail) {
+        await directoryPage
+          .waitForFunction(() => Boolean(document.querySelector('[data-portal-rail="true"]')), null, {
+            timeout: 2_500,
+          })
+          .catch(() => {})
+      }
 
       const directoryMetrics = await directoryPage.evaluate(() => {
         const roundRect = (selector) => {
