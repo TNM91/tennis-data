@@ -8,7 +8,7 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqActionCard, TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -519,95 +519,38 @@ export default function TeamsPage() {
                 <p style={sectionKicker}>Captain decision path</p>
                 <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
                 <p style={sectionText}>
-                  Teams are public. Captain Tools help captains reduce match-week chaos by turning availability, lineup choices, pairings, and team communication into one clear path.
+                  Team Hub connects the public team record with Captain Tools, so availability, lineup choices, scouting, and the final team note reduce match-week chaos in one path.
                 </p>
               </div>
             </div>
-            <div style={teamNextActionGrid}>
-              {teamNextActions.map((action) => (
-                <TiqActionCard
-                  key={action.title}
-                  eyebrow={action.eyebrow}
-                  title={action.title}
-                  body={action.body}
-                  metrics={[...action.metrics]}
-                  href={action.href}
-                  cta={action.cta}
-                  event={action.event}
-                  trust={[...action.trust]}
+            <div style={teamWeekBoardStyle(isMobile, isTablet)}>
+              <div style={teamWeekLeftStackStyle}>
+                <TeamWeekSpotlight />
+                <TiqWorkspacePreview
+                  eyebrow="Opponent scouting"
+                  title="West County roster read"
+                  body="Scan roster depth, recent results, and matchup context before assigning courts."
+                  metrics={[
+                    { label: 'Roster', value: '12' },
+                    { label: 'Recent', value: '3-1' },
+                    { label: 'Watch', value: 'Doubles' },
+                  ]}
+                  href="/matchup"
+                  cta="Scout Opponent"
+                  event={{
+                    eventName: 'matchup_started',
+                    surface: 'matchup',
+                    metadata: {
+                      location: 'team_hub_preview',
+                    },
+                  }}
                 />
-              ))}
-            </div>
-          </section>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
-            <div style={sectionHeader}>
-              <div>
-                <p style={sectionKicker}>Team Hub preview</p>
-                <h2 style={sectionTitle}>Availability, lineup, scouting, and match week.</h2>
-                <p style={sectionText}>
-                  Team Hub is the public team object plus Captain Tools for the person organizing who can play, where they fit, and what the week needs.
-                </p>
               </div>
-            </div>
-            <div style={teamHubPreviewGrid}>
-              <TiqWorkspacePreview
-                eyebrow="Availability"
-                title="Saturday vs West County"
-                body="Collect who is in, out, or on the bubble before lineup lock."
-                metrics={[
-                  { label: 'Available', value: '8/10' },
-                  { label: 'Bubble', value: '2' },
-                  { label: 'Deadline', value: 'Thu' },
-                ]}
-                href="/captain/availability"
-                cta="Check Availability"
-                event={{
-                  eventName: 'availability_clicked',
-                  surface: 'teams',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
-              <TiqLineupPreview
-                title="Suggested lineup"
-                body="Compare projected courts, player availability, and team edge before match day."
-                metrics={[
-                  { label: 'Available', value: '8/10' },
-                  { label: 'Team edge', value: '71%' },
-                  { label: 'Risk', value: 'D1 swap' },
-                ]}
-                href="/captain/lineup-builder"
-                cta="Build Lineup"
-                event={{
-                  eventName: 'lineup_preview_clicked',
-                  surface: 'teams',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
-              <TiqWorkspacePreview
-                eyebrow="Opponent scouting"
-                title="West County roster read"
-                body="Scan roster depth, recent results, and matchup context before assigning courts."
-                metrics={[
-                  { label: 'Roster', value: '12' },
-                  { label: 'Recent', value: '3-1' },
-                  { label: 'Watch', value: 'Doubles' },
-                ]}
-                href="/matchup"
-                cta="Scout Opponent"
-                event={{
-                  eventName: 'matchup_started',
-                  surface: 'matchup',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
+              <div style={teamWeekStepListStyle}>
+                {teamNextActions.map((action, index) => (
+                  <TeamWeekStep key={action.title} action={action} step={index + 1} />
+                ))}
+              </div>
             </div>
           </section>
         </section>
@@ -993,6 +936,94 @@ const teamNextActions = [
   },
 ] as const
 
+type TeamNextAction = (typeof teamNextActions)[number]
+
+function TeamWeekSpotlight() {
+  return (
+    <article style={teamWeekSpotlightStyle}>
+      <div style={teamWeekSpotlightTopStyle}>
+        <span style={teamWeekBadgeStyle}>Team Hub preview</span>
+        <TrackedProductLink
+          href="/captain/lineup-builder"
+          style={teamWeekSpotlightLinkStyle}
+          event={{
+            eventName: 'lineup_preview_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Build Lineup
+        </TrackedProductLink>
+      </div>
+      <h3 style={teamWeekSpotlightTitleStyle}>Saturday vs West County</h3>
+      <p style={teamWeekSupportLineStyle}>Availability, lineup, scouting, and match week.</p>
+      <p style={teamWeekSpotlightTextStyle}>
+        Check availability, choose the lineup, watch doubles risk, and send the team plan before match day.
+      </p>
+      <div style={teamWeekMetricGridStyle}>
+        <Metric label="Available" value="8/10" />
+        <Metric label="Team edge" value="71%" />
+        <Metric label="Risk" value="D1 swap" />
+      </div>
+      <div style={teamWeekSpotlightActionRowStyle}>
+        <TrackedProductLink
+          href="/captain/availability"
+          style={secondaryIntroButton}
+          event={{
+            eventName: 'availability_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Check Availability
+        </TrackedProductLink>
+        <TrackedProductLink
+          href="/captain/messaging"
+          style={secondaryIntroButton}
+          event={{
+            eventName: 'captain_tools_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Send Team Plan
+        </TrackedProductLink>
+      </div>
+    </article>
+  )
+}
+
+function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }) {
+  return (
+    <article style={teamWeekStepStyle}>
+      <div style={teamWeekStepNumberStyle}>{step}</div>
+      <div style={teamWeekStepCopyStyle}>
+        <div style={teamWeekStepTopStyle}>
+          <span style={teamWeekStepEyebrowStyle}>{action.eyebrow}</span>
+          <TrackedProductLink href={action.href} style={teamWeekStepLinkStyle} event={action.event}>
+            {action.cta}
+          </TrackedProductLink>
+        </div>
+        <h3 style={teamWeekStepTitleStyle}>{action.title}</h3>
+        <p style={teamWeekStepBodyStyle}>{action.body}</p>
+        <div style={teamWeekStepMetricsStyle}>
+          {action.metrics.map((metric) => (
+            <span key={metric.label} style={teamWeekStepMetricPillStyle}>
+              {metric.label}: {metric.value}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry; awards: TiqAwardRecord[] }) {
   const [hovered, setHovered] = useState(false)
 
@@ -1252,18 +1283,212 @@ const publicIntroGridStyle = (isTinyMobile: boolean): CSSProperties => ({
   gap: isTinyMobile ? 8 : publicIntroGrid.gap,
 })
 
-const teamHubPreviewGrid: CSSProperties = {
+const teamWeekBoardStyle = (isMobile: boolean, isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(320px, 0.9fr) minmax(0, 1.1fr)',
+  gap: isMobile ? 12 : 14,
+  alignItems: 'start',
+  minWidth: 0,
+  marginTop: 18,
+})
+
+const teamWeekLeftStackStyle: CSSProperties = {
+  display: 'grid',
   gap: 12,
   minWidth: 0,
 }
 
-const teamNextActionGrid: CSSProperties = {
+const teamWeekSpotlightStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-  gap: 12,
+  alignContent: 'start',
+  alignSelf: 'start',
+  gap: 14,
   minWidth: 0,
+  minHeight: 0,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, transparent), rgba(8,16,34,0.86) 48%, rgba(7,17,33,0.92))',
+  padding: 16,
+  overflow: 'hidden',
+}
+
+const teamWeekSpotlightTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamWeekBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const teamWeekSpotlightLinkStyle: CSSProperties = {
+  ...secondaryIntroButton,
+  minHeight: 34,
+  padding: '0 12px',
+  fontSize: 12,
+}
+
+const teamWeekSpotlightTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekSpotlightTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekSupportLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekSpotlightActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: 12,
+}
+
+const teamWeekStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const teamWeekStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const teamWeekStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamWeekStepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const teamWeekStepLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  borderBottom: '1px solid color-mix(in srgb, var(--brand-green) 46%, transparent)',
+}
+
+const teamWeekStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekStepMetricsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const teamWeekStepMetricPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 24,
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
 }
 
 const introMiniCardStyle = (compact: boolean): CSSProperties => ({

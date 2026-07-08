@@ -6,7 +6,8 @@ const source = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
 
 describe('Teams Hub preview', () => {
   it('makes Team Hub and Captain Tools concrete before directory results', () => {
-    expect(source).toContain('TiqActionCard')
+    expect(source).toContain('TeamWeekSpotlight')
+    expect(source).toContain('TeamWeekStep')
     expect(source).toContain('Captain decision path')
     expect(source).toContain('Who can play, where they fit, and what gets sent?')
     expect(source).toContain('reduce match-week chaos')
@@ -21,8 +22,8 @@ describe('Teams Hub preview', () => {
     expect(source).toContain('Team Hub preview')
     expect(source).toContain('Availability, lineup, scouting, and match week.')
     expect(source).toContain('TiqWorkspacePreview')
-    expect(source).toContain('TiqLineupPreview')
     expect(source).toContain('Opponent scouting')
+    expect(source).toContain('teamWeekBoardStyle(isMobile, isTablet)')
   })
 
   it('tracks availability, lineup, and scouting actions from the preview band', () => {
