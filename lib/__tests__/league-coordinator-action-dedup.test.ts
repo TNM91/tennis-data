@@ -12,7 +12,7 @@ describe('league coordinator action deduplication', () => {
     expect(source).toContain('sharedSchedulerNextMove')
     expect(source).toContain('sharedCalendarNextMoveStyle')
     expect(source).toContain('sharedCalendarStepGridStyle')
-    expect(source).toContain('leagueOpsCheckGridStyle')
+    expect(source).toContain('leagueOfficeOperationProofStyle')
     expect(source).toContain('<GhostLink href="#league-setup-form">Pending dates</GhostLink>')
     expect(source).toContain('<GhostLink href="/compete/schedule">Confirmed calendar</GhostLink>')
     expect(source).toContain('<GhostLink href={resultEntryHref}>Post results</GhostLink>')
@@ -30,6 +30,7 @@ describe('league coordinator action deduplication', () => {
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/compete/leagues">View leagues</GhostLink>')
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/explore/rankings">View rankings</GhostLink>')
     expect(seasonReadinessSection).not.toContain('responsiveHeroActionRowStyle')
+    expect(seasonReadinessSection).not.toContain('leagueOpsChecks.map')
   })
 
   it('keeps the empty league registry actionable', () => {
