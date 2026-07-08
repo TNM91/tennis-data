@@ -150,6 +150,13 @@ describe('league coordinator action deduplication', () => {
       'utf8',
     )
 
+    expect(source).toContain('aria-label="Join request approval summary"')
+    expect(source).toContain('entryRequestSummaryGridStyle')
+    expect(source).toContain('entryRequestSummaryItemStyle')
+    expect(source).toContain('Queue is clear')
+    expect(source).toContain('Need approval')
+    expect(source).toContain('Team requests')
+    expect(source).toContain('Player requests')
     expect(source).toContain('function EmptyJoinRequestPanel')
     expect(source).toContain('No join requests are waiting.')
     expect(source).toContain('Check public pages')
