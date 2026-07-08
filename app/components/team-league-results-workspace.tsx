@@ -88,7 +88,6 @@ const portalWatermarkStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 const portalPanelContentStyle: CSSProperties = { position: 'relative', zIndex: 1, minWidth: 0 }
-const sectionTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
 const card: CSSProperties = {
   background: 'rgba(8, 16, 34, 0.74)',
   border: '1px solid rgba(125,211,252,0.13)',
@@ -306,6 +305,82 @@ const readinessItemText: CSSProperties = {
   color: '#e2e8f0',
   fontSize: 13,
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+const reviewPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.68)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+const reviewPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+const reviewPanelTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const reviewCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 48,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflow: 'hidden',
+}
+const reviewCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewFilterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const reviewActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minWidth: 0,
+}
+const reviewCountStyle: CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 700,
   overflowWrap: 'anywhere',
 }
 const eventFollowThroughGrid: CSSProperties = {
@@ -1362,6 +1437,26 @@ function TeamLeagueResultsWorkspaceInner({
   }).length
   const totalLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.total, 0)
   const completedLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.completed, 0)
+  const reviewCommandItems = [
+    {
+      label: 'Shown',
+      value: `${visibleEvents.length}/${events.length}`,
+      detail: activeReviewFilterCount ? `${activeReviewFilterCount} review filter${activeReviewFilterCount === 1 ? '' : 's'} active.` : 'Full result book in view.',
+      ready: visibleEvents.length > 0,
+    },
+    {
+      label: 'Complete',
+      value: `${completeEventCount}/${events.length}`,
+      detail: events.length ? 'Finished matches can feed standings.' : 'Create the first team match.',
+      ready: events.length > 0 && completeEventCount === events.length,
+    },
+    {
+      label: 'Lines',
+      value: `${completedLineCount}/${totalLineCount}`,
+      detail: totalLineCount ? 'Line cards show what still needs a score.' : 'Add lines after the match shell.',
+      ready: totalLineCount > 0 && completedLineCount === totalLineCount,
+    },
+  ]
   const teamResultCue = buildTeamResultCue({
     leagueCount: leagues.length,
     selectedLeagueName: selectedFilterLeague?.leagueName,
@@ -1760,66 +1855,92 @@ function TeamLeagueResultsWorkspaceInner({
           ) : null}
         </details>
 
-        <div id="team-match-review" style={sectionTitle}>Recorded matches</div>
+        <section id="team-match-review" style={reviewPanelStyle} aria-labelledby="team-match-review-title">
+          <div style={reviewPanelHeaderStyle}>
+            <div>
+              <div style={tileLabel}>Result book</div>
+              <h2 id="team-match-review-title" style={reviewPanelTitleStyle}>Recorded matches</h2>
+            </div>
+            <span style={activeReviewFilterCount ? pillGreen : pill}>
+              {activeReviewFilterCount ? `${activeReviewFilterCount} active` : 'All results'}
+            </span>
+          </div>
 
-        <div style={{ ...row, marginBottom: 14 }}>
-          <input
-            style={{ ...inputStyle, maxWidth: 260 }}
-            value={resultSearch}
-            onChange={(event) => setResultSearch(event.target.value)}
-            placeholder="Team, facility, note..."
-          />
-          <select
-            style={{ ...selectStyle, maxWidth: 260 }}
-            value={filterLeagueId}
-            onChange={(e) => void handleFilterChange(e.target.value)}
-          >
-            <option value="">All leagues</option>
-            {leagues.map((l) => (
-              <option key={l.id} value={l.id}>{l.leagueName}</option>
+          <div style={reviewCommandGridStyle} aria-label="Team result review status">
+            {reviewCommandItems.map((item) => (
+              <div key={item.label} style={reviewCommandItemStyle}>
+                <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+                <span style={reviewCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <em>{item.value}</em>
+              </div>
             ))}
-          </select>
-          <select
-            style={{ ...selectStyle, maxWidth: 180 }}
-            value={completionFilter}
-            onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
-          >
-            <option value="all">All statuses</option>
-            <option value="complete">Complete only</option>
-            <option value="incomplete">Needs lines</option>
-          </select>
-          <select
-            style={{ ...selectStyle, maxWidth: 180 }}
-            value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
-          >
-            <option value="all">Any date</option>
-            <option value="week">Last 7 days</option>
-            <option value="month">Last 30 days</option>
-          </select>
-          <button type="button" style={btnSecondary} onClick={() => void handleClearReviewFilters()}>
-            Clear
-          </button>
-          <button
-            type="button"
-            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
-            onClick={handleExportResults}
-            disabled={visibleEvents.length === 0}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
-            onClick={() => void handleCopyResultSummary()}
-            disabled={visibleEvents.length === 0}
-          >
-            Copy Summary
-          </button>
-          <span style={{ color: '#94a3b8', fontSize: 13 }}>
-            Showing {visibleEvents.length} of {events.length} team match{events.length === 1 ? '' : 'es'}.
-          </span>
-        </div>
+          </div>
+
+          <div style={reviewFilterGridStyle} aria-label="Team result review filters">
+            <input
+              style={inputStyle}
+              value={resultSearch}
+              onChange={(event) => setResultSearch(event.target.value)}
+              placeholder="Team, facility, note..."
+            />
+            <select
+              style={selectStyle}
+              value={filterLeagueId}
+              onChange={(e) => void handleFilterChange(e.target.value)}
+            >
+              <option value="">All leagues</option>
+              {leagues.map((l) => (
+                <option key={l.id} value={l.id}>{l.leagueName}</option>
+              ))}
+            </select>
+            <select
+              style={selectStyle}
+              value={completionFilter}
+              onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
+            >
+              <option value="all">All statuses</option>
+              <option value="complete">Complete only</option>
+              <option value="incomplete">Needs lines</option>
+            </select>
+            <select
+              style={selectStyle}
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
+            >
+              <option value="all">Any date</option>
+              <option value="week">Last 7 days</option>
+              <option value="month">Last 30 days</option>
+            </select>
+          </div>
+
+          <div style={reviewActionRowStyle}>
+            <button type="button" style={btnSecondary} onClick={() => void handleClearReviewFilters()}>
+              Clear filters
+            </button>
+            <button
+              type="button"
+              style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              onClick={handleExportResults}
+              disabled={visibleEvents.length === 0}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              onClick={() => void handleCopyResultSummary()}
+              disabled={visibleEvents.length === 0}
+            >
+              Copy Summary
+            </button>
+            <span style={reviewCountStyle}>
+              Showing {visibleEvents.length} of {events.length} team match{events.length === 1 ? '' : 'es'}.
+            </span>
+          </div>
+        </section>
 
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
