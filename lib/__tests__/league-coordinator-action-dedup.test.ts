@@ -92,6 +92,30 @@ describe('league coordinator action deduplication', () => {
     expect(registryCardSection).not.toContain(".join(' | ')}")
   })
 
+  it('groups league card actions without mixing setup and share commands', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('leagueActionRowStyle')
+    expect(source).toContain('leagueActionGroupStyle')
+    expect(source).toContain('leagueAdminActionGroupStyle')
+    expect(source).toContain('aria-label={`${league.leagueName} actions`}')
+    expect(source).toContain('aria-label={`${league.leagueName} setup actions`}')
+    expect(source).toContain('<GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>')
+
+    const leagueActionRowSection = source.slice(
+      source.indexOf('function LeagueActionRow({'),
+      source.indexOf('function EmptyLeagueRegistryPanel()'),
+    )
+    expect(leagueActionRowSection).toContain('<div style={responsiveLeagueActionGroupStyle}>')
+    expect(leagueActionRowSection).toContain('<div style={responsiveLeagueAdminActionGroupStyle}')
+    expect(leagueActionRowSection.indexOf('Copy share link')).toBeLessThan(
+      leagueActionRowSection.indexOf('{children ? ('),
+    )
+  })
+
   it('keeps public page empty readiness actionable', () => {
     const source = readFileSync(
       join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
