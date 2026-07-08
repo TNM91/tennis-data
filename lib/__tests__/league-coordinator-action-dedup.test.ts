@@ -70,6 +70,28 @@ describe('league coordinator action deduplication', () => {
     expect(source).toContain('setupFocusItemReadyStyle')
   })
 
+  it('keeps saved league cards scannable with a registry snapshot', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('registrySnapshotGridStyle')
+    expect(source).toContain('registrySnapshotItemStyle')
+    expect(source).toContain('aria-label={`${record.leagueName} league snapshot`}')
+    expect(source).toContain("const scheduleLabel =")
+    expect(source).toContain("const formatLabel =")
+    expect(source).toContain("const locationLabel =")
+    expect(source).toContain("const publicLabel =")
+    expect(source).toContain('Needs capacity review')
+    expect(source).toContain("record.leagueFormat === 'team' ? 'Teams' : 'Players'")
+    const registryCardSection = source.slice(
+      source.indexOf('{records.map((record) => {'),
+      source.indexOf('{leagueCards.length > 0 ? ('),
+    )
+    expect(registryCardSection).not.toContain(".join(' | ')}")
+  })
+
   it('keeps public page empty readiness actionable', () => {
     const source = readFileSync(
       join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),

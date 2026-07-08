@@ -2779,6 +2779,20 @@ export function LeagueCoordinatorWorkspace() {
                       : `${record.players.length} players`
                   const recordCapacityWarning = validateTiqLeagueScheduleCapacity(record)
                   const recordCapacitySummary = getTiqLeagueScheduleCapacitySummary(record)
+                  const scheduleLabel =
+                    record.schedulingMode === 'coordinator_fixed' && (record.defaultMatchDay || record.defaultMatchTime || record.defaultFacility)
+                      ? [record.defaultMatchDay, record.defaultMatchTime, record.defaultFacility].filter(Boolean).join(' ')
+                      : getTiqLeagueSchedulingModeLabel(record.schedulingMode)
+                  const formatLabel =
+                    record.leagueFormat === 'individual'
+                      ? getTiqIndividualCompetitionFormatLabel(record.individualCompetitionFormat)
+                      : getLeagueFormatLabel(record.leagueFormat)
+                  const locationLabel = [record.flight, record.locationLabel].filter(Boolean).join(' | ') || 'No flight or location yet'
+                  const seasonLabel =
+                    record.startsOn && record.endsOn
+                      ? `${record.startsOn} to ${record.endsOn}`
+                      : record.seasonLabel || 'Season dates missing'
+                  const publicLabel = record.isPublic ? 'Public page visible' : 'Private league'
 
                   return (
                     <div key={record.id} style={registryCard}>
@@ -2806,27 +2820,31 @@ export function LeagueCoordinatorWorkspace() {
                       </div>
 
                       <div style={registryTitle}>{record.leagueName}</div>
-                      <div style={registryText}>
-                        {[
-                          record.leagueFormat === 'individual'
-                            ? getTiqIndividualCompetitionFormatLabel(record.individualCompetitionFormat)
-                            : null,
-                          record.flight,
-                          record.locationLabel,
-                          record.startsOn && record.endsOn ? `${record.startsOn} to ${record.endsOn}` : null,
-                          record.schedulingMode === 'coordinator_fixed' && (record.defaultMatchDay || record.defaultMatchTime || record.defaultFacility)
-                            ? [record.defaultMatchDay, record.defaultMatchTime, record.defaultFacility].filter(Boolean).join(' ')
-                            : getTiqLeagueSchedulingModeLabel(record.schedulingMode),
-                          participantLabel,
-                        ]
-                          .filter(Boolean)
-                          .join(' | ')}
+                      <div style={registrySnapshotGridStyle} aria-label={`${record.leagueName} league snapshot`}>
+                        <div style={registrySnapshotItemStyle}>
+                          <span>Format</span>
+                          <strong>{formatLabel}</strong>
+                          <small>{locationLabel}</small>
+                        </div>
+                        <div style={registrySnapshotItemStyle}>
+                          <span>Season</span>
+                          <strong>{record.seasonLabel || 'Season label missing'}</strong>
+                          <small>{seasonLabel}</small>
+                        </div>
+                        <div style={registrySnapshotItemStyle}>
+                          <span>Schedule</span>
+                          <strong>{scheduleLabel}</strong>
+                          <small>{recordCapacityWarning ? 'Needs capacity review' : recordCapacitySummary}</small>
+                        </div>
+                        <div style={registrySnapshotItemStyle}>
+                          <span>{record.leagueFormat === 'team' ? 'Teams' : 'Players'}</span>
+                          <strong>{participantLabel}</strong>
+                          <small>{publicLabel}</small>
+                        </div>
                       </div>
                       {record.notes ? <div style={registryNotes}>{record.notes}</div> : null}
                       {record.schedulingNotes ? <div style={registryNotes}>{record.schedulingNotes}</div> : null}
-                      <div style={recordCapacityWarning ? registryWarning : registryNotes}>
-                        {recordCapacityWarning || recordCapacitySummary}
-                      </div>
+                      {recordCapacityWarning ? <div style={registryWarning}>{recordCapacityWarning}</div> : null}
 
                       <div style={registryFooter}>
                         <span style={registryTimestamp}>Updated {formatDateTime(record.updatedAt)}</span>
@@ -4621,6 +4639,29 @@ const registryText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
+}
+
+const registrySnapshotGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const registrySnapshotItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minHeight: '104px',
+  padding: '11px',
+  borderRadius: '15px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.42,
+  fontWeight: 760,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
