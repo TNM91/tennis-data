@@ -1077,7 +1077,7 @@ export default function TournamentBuilderWorkspace() {
         <div style={eyebrowStyle}>Tournament Desk</div>
         <h1 style={titleStyle}>Run the event without the desk chaos.</h1>
         <p style={textStyle}>
-          Create player or team events, manage entries, build draws, schedule courts, enter scores, and publish results from one event desk.
+          Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
         </p>
         <div style={statGridStyle}>
           <Stat label="Saved events" value={String(records.length)} />
@@ -2617,11 +2617,11 @@ const heroStyle: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+  gap: 12,
   alignItems: 'stretch',
-  padding: 22,
-  borderRadius: 28,
+  padding: 18,
+  borderRadius: 24,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'var(--portal-surface-bg)',
   boxShadow: '0 24px 70px rgba(2, 8, 23, 0.42)',
@@ -2642,7 +2642,7 @@ const watermarkStyle: CSSProperties = {
 const heroCopyStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 12,
+  gap: 10,
   alignContent: 'center',
   minWidth: 0,
 }
@@ -2658,7 +2658,7 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2rem, 4vw, 4.2rem)',
+  fontSize: 'clamp(1.9rem, 3.45vw, 3.45rem)',
   lineHeight: 0.98,
   fontWeight: 950,
   letterSpacing: 0,
@@ -2668,8 +2668,8 @@ const titleStyle: CSSProperties = {
 const textStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 15,
-  lineHeight: 1.7,
+  fontSize: 14,
+  lineHeight: 1.55,
   fontWeight: 750,
   maxWidth: 760,
 }
@@ -2690,11 +2690,11 @@ const syncNoticeStyle: CSSProperties = {
 const heroPanelStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 14,
+  gap: 10,
   alignContent: 'center',
   minWidth: 0,
-  padding: 18,
-  borderRadius: 20,
+  padding: 14,
+  borderRadius: 18,
   border: '1px solid rgba(155,225,29,0.30)',
   background: 'linear-gradient(145deg, rgba(155,225,29,0.12), rgba(116,190,255,0.07) 58%, rgba(15,23,42,0.62))',
   color: 'var(--foreground-strong)',
@@ -2727,16 +2727,16 @@ const fullCourtFeatureGridStyle: CSSProperties = {
 
 const statGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
 
 const statStyle: CSSProperties = {
   display: 'grid',
-  gap: 4,
-  padding: 12,
-  borderRadius: 16,
+  gap: 3,
+  padding: 10,
+  borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
