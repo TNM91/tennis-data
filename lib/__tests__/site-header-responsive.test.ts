@@ -71,6 +71,16 @@ describe('site header responsive rules', () => {
     )
   })
 
+  it('locks the header in place when the desktop/tablet rail is active', () => {
+    expect(siteHeaderSource).toContain("data-site-header={useRailHeader ? 'rail-fixed' : 'flow'}")
+    expect(siteHeaderSource).toContain("position: useRailHeader ? 'fixed' : 'sticky'")
+    expect(siteHeaderSource).toContain("left: useRailHeader ? 0 : undefined")
+    expect(siteHeaderSource).toContain("right: useRailHeader ? 0 : undefined")
+    expect(siteHeaderSource).toContain("width: useRailHeader ? '100%' : undefined")
+    expect(siteHeaderSource).toContain('const railHeaderSpacerStyle')
+    expect(siteHeaderSource).toContain("height: 'var(--header-height)'")
+  })
+
   it('puts universal search in the header and compact menu', () => {
     expect(siteHeaderSource).toContain("import UniversalSearch from '@/app/components/universal-search'")
     expect(siteHeaderSource).toContain('aria-controls="site-header-search-panel"')
