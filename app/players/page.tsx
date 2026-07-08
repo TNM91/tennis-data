@@ -390,24 +390,24 @@ export default function PlayersPage() {
     {
       label: 'Find the ID',
       value: shouldShowPlayerResults ? `${visiblePlayers.length} shown` : 'Search first',
-      body: 'Search by name, city, team context, or level to open the right player record.',
+      body: 'Name, city, team, or level.',
     },
     {
       label: 'Your anchor',
       value: linkedPlayer?.name || (linkedPlayerId ? 'Linked profile' : 'Set profile'),
       body: linkedPlayerId
-        ? 'Use your linked Player ID to compare, follow, and personalize the next tennis step.'
-        : 'Set your profile so player discovery can hand off to Matchup and My Lab with you preloaded.',
+        ? 'Compare, follow, and personalize with your profile.'
+        : 'Set your profile for Matchup and My Lab handoffs.',
     },
     {
       label: 'Next move',
       value: 'Profile, Matchup, My Lab',
-      body: 'Open the record, compare the matchup, follow the player, or send missing context through Data Assist.',
+      body: 'Open, compare, follow, or send missing context.',
     },
     {
       label: 'Starter read',
       value: DIRECTORY_PLAYER_IDENTITY_READ.label,
-      body: 'No match history yet? Start with a Level Up identity, then let the profile record sharpen the next cue.',
+      body: 'No match history yet? Start with Level Up.',
     },
   ] as const
   const playerIdStarterRead = [
@@ -706,7 +706,7 @@ export default function PlayersPage() {
         <div style={dynamicSectionHeader}>
           <div>
             <div style={sectionKicker}>{shouldShowPlayerResults ? 'Directory' : 'Find'}</div>
-            <h2 style={sectionTitle}>{shouldShowPlayerResults ? 'Open a player profile' : 'Choose a path.'}</h2>
+            <h2 style={sectionTitle}>{shouldShowPlayerResults ? 'Open a player profile' : 'Start with the right player move.'}</h2>
           </div>
         </div>
 
@@ -748,6 +748,43 @@ export default function PlayersPage() {
               <Link href={DIRECTORY_PLAYER_DEVELOPMENT_HREF} style={playerIdStarterSecondaryLinkStyle}>
                 Read Player ID
               </Link>
+            </div>
+          </div>
+          <div style={playerIdLaunchpadActionPanelStyle}>
+            <span style={playerIdLaunchpadLabelStyle}>Next player move</span>
+            <div style={playerIdLaunchpadActionListStyle} aria-label="Player directory starter actions">
+              <button
+                type="button"
+                onClick={() => searchInputRef.current?.focus()}
+                style={findStartActionStyle}
+              >
+                <strong>Name or city</strong>
+                <span>Jump to search.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterBy('trending-up')}
+                style={findStartActionStyle}
+              >
+                <strong>Trending</strong>
+                <span>Players moving up.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterBy('high-rated')}
+                style={findStartActionStyle}
+              >
+                <strong>4.0+</strong>
+                <span>Stronger ratings.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBrowseAll(true)}
+                style={findStartActionStyle}
+              >
+                <strong>Browse</strong>
+                <span>Full board.</span>
+              </button>
             </div>
           </div>
         </section>
@@ -792,44 +829,7 @@ export default function PlayersPage() {
               ]}
             />
           </div>
-        ) : !shouldShowPlayerResults ? (
-          <div style={findStartPanelStyle}>
-            <div style={findStartGridStyle}>
-              <button
-                type="button"
-                onClick={() => searchInputRef.current?.focus()}
-                style={findStartActionStyle}
-              >
-                <strong>Name or city</strong>
-                <span>Jump to search.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBy('trending-up')}
-                style={findStartActionStyle}
-              >
-                <strong>Trending</strong>
-                <span>Players moving up.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBy('high-rated')}
-                style={findStartActionStyle}
-              >
-                <strong>4.0+</strong>
-                <span>Stronger ratings.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setBrowseAll(true)}
-                style={findStartActionStyle}
-              >
-                <strong>Browse</strong>
-                <span>Full board.</span>
-              </button>
-            </div>
-          </div>
-        ) : visiblePlayers.length === 0 ? (
+        ) : !shouldShowPlayerResults ? null : visiblePlayers.length === 0 ? (
           <div style={loadingCard}>
             <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
@@ -1442,7 +1442,9 @@ const secondaryLink: CSSProperties = {
 
 const playerIdLaunchpadStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  alignItems: 'start',
+  gap: 10,
   minWidth: 0,
   marginBottom: 16,
   padding: 16,
@@ -1488,17 +1490,16 @@ const playerIdLaunchpadTitleStyle: CSSProperties = {
 
 const playerIdLaunchpadGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
+  gap: 6,
   minWidth: 0,
 }
 
 const playerIdLaunchpadCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
+  gap: 3,
   minWidth: 0,
-  padding: 12,
-  borderRadius: 16,
+  padding: '8px 10px',
+  borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.68)',
   overflowWrap: 'anywhere',
@@ -1531,10 +1532,11 @@ const playerIdLaunchpadTextStyle: CSSProperties = {
 
 const playerIdStarterReadStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  alignItems: 'start',
+  gap: 8,
   minWidth: 0,
-  padding: 12,
-  borderRadius: 18,
+  padding: 10,
+  borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
   background: 'rgba(7,17,33,0.52)',
   overflowWrap: 'anywhere',
@@ -1549,16 +1551,16 @@ const playerIdStarterReadCopyStyle: CSSProperties = {
 
 const playerIdStarterReadGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
-  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
+  gap: 6,
   minWidth: 0,
 }
 
 const playerIdStarterReadItemStyle: CSSProperties = {
   display: 'grid',
-  gap: 3,
+  gap: 2,
   minWidth: 0,
-  padding: '8px 9px',
+  padding: '7px 8px',
   borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
@@ -1572,14 +1574,15 @@ const playerIdStarterReadItemStyle: CSSProperties = {
 const playerIdStarterActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
+  alignItems: 'center',
   gap: 8,
   minWidth: 0,
 }
 
 const playerIdStarterPrimaryLinkStyle: CSSProperties = {
   ...secondaryLink,
-  minHeight: 40,
-  padding: '0 14px',
+  minHeight: 36,
+  padding: '0 12px',
   fontSize: 12,
 }
 
@@ -1600,30 +1603,30 @@ const loadingCard: CSSProperties = {
   minWidth: 0,
 }
 
-const findStartPanelStyle: CSSProperties = {
-  ...loadingCard,
-  position: 'relative',
-  overflow: 'hidden',
-  padding: '24px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background:
-    'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,16,34,0.78) 42%, rgba(8,16,34,0.86))',
+const playerIdLaunchpadActionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gridColumn: '1 / -1',
+  gap: 7,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(255,255,255,0.035)',
 }
 
-const findStartGridStyle: CSSProperties = {
+const playerIdLaunchpadActionListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
-  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 6,
   minWidth: 0,
-  marginTop: 16,
 }
 
 const findStartActionStyle: CSSProperties = {
   display: 'grid',
-  gap: 6,
-  minHeight: 112,
-  padding: 15,
-  borderRadius: 18,
+  gap: 3,
+  minHeight: 58,
+  padding: 9,
+  borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
