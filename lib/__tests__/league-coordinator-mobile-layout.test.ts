@@ -197,6 +197,8 @@ describe('League Coordinator mobile layout guards', () => {
       'emptyJoinRequestCopyStyle',
       'emptyJoinRequestActionRowStyle',
       'registryCard',
+      'registrySnapshotGridStyle',
+      'registrySnapshotItemStyle',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minWidth: 0')
@@ -242,6 +244,7 @@ describe('League Coordinator mobile layout guards', () => {
       'emptyJoinRequestCopyStyle',
       'emptyJoinRequestActionStyle',
       'registryCard',
+      'registrySnapshotItemStyle',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
@@ -278,6 +281,7 @@ describe('League Coordinator mobile layout guards', () => {
       'fieldGrid',
       'outcomeInfoGrid',
       'setupFocusGridStyle',
+      'registrySnapshotGridStyle',
       'calendarGridStyle',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minmax(min(100%,')
