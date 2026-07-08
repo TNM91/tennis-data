@@ -191,6 +191,7 @@ function getBrandAtmosphereClassName(pathname: string) {
     '/captain/',
     '/league-coordinator/results',
     '/league-coordinator/individual-results',
+    '/explore/search',
     '/profile',
     '/login',
     '/pricing',

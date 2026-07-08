@@ -22,6 +22,7 @@ describe('portal rail shell layout', () => {
     expect(siteShellSource).toContain("overflowY: 'auto'")
     expect(siteShellSource).toContain("overscrollBehavior: 'contain'")
     expect(siteShellSource).toContain('<SiteFooter railLayout railWidth={0} />')
+    expect(siteShellSource).toContain("'/explore/search'")
     expect(siteShellSource).not.toContain("scrollbarGutter: 'stable'")
     expect(siteShellSource.indexOf("height: 'calc(100dvh - var(--header-height) - 20px)'")).toBeLessThan(
       siteShellSource.indexOf("maxHeight: 'calc(100dvh - var(--header-height) - 20px)'"),
