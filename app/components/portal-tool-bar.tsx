@@ -320,26 +320,50 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         </form>
 
         <nav aria-label="Choose a TenAceIQ tool" style={railPortalLaneGridStyle}>
-          {portalLanes.map((lane) => (
-            <PortalLaneCard
-              key={lane.id}
-              lane={lane}
-              active={lane.id === activeLane.id}
-              access={access}
-              authenticated={authenticated}
-              accessPending={accessPending}
-              profileLinked={profileLinked}
-              compact
-              dense
-            />
-          ))}
-        </nav>
+          {portalLanes.map((lane) => {
+            const laneActive = lane.id === activeLane.id
+            const laneAccent = getLaneAccent(lane.id)
+            const railTasks = publicVisitor ? lane.tasks.slice(0, 4) : lane.tasks
 
-        <div style={railPortalStatusStyle}>
-          <span style={summaryKickerStyle}>Active path</span>
-          <strong style={railPortalStatusTitleStyle}>{activeLane.label}</strong>
-          <span style={railPortalStatusCopyStyle}>{activeLane.cue}</span>
-        </div>
+            return (
+              <div key={lane.id} style={railPortalLaneGroupStyle}>
+                <PortalLaneCard
+                  lane={lane}
+                  active={laneActive}
+                  access={access}
+                  authenticated={authenticated}
+                  accessPending={accessPending}
+                  profileLinked={profileLinked}
+                  compact
+                  dense
+                />
+                {laneActive ? (
+                  <div
+                    aria-label={`${lane.label} sections`}
+                    data-portal-rail-sections={lane.id}
+                    style={{
+                      ...railPortalTaskListStyle,
+                      borderColor: `color-mix(in srgb, ${laneAccent} 48%, rgba(116,190,255,0.16))`,
+                    }}
+                  >
+                    {railTasks.map((task) => (
+                      <PortalRailTaskLink
+                        key={`${lane.id}-${task.href}-${task.title}`}
+                        task={task}
+                        access={access}
+                        authenticated={authenticated}
+                        accessPending={accessPending}
+                        active={isPortalTaskActive(currentPortalPath, task.href)}
+                        profileLinked={profileLinked}
+                        accent={laneAccent}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </nav>
       </section>
     )
   }
@@ -702,6 +726,59 @@ function PortalTaskCard({
   )
 }
 
+function PortalRailTaskLink({
+  task,
+  access,
+  authenticated,
+  accessPending,
+  active,
+  profileLinked,
+  accent,
+}: {
+  task: PortalLane['tasks'][number]
+  access: ProductAccessState
+  authenticated: boolean
+  accessPending: boolean
+  active: boolean
+  profileLinked: boolean
+  accent: string
+}) {
+  const target = getPortalTaskTarget({
+    href: task.href,
+    requiredRoute: task.requiredRoute,
+    title: task.title,
+    access,
+    authenticated,
+    accessPending,
+    profileLinked,
+  })
+
+  return (
+    <Link
+      href={target.href}
+      aria-current={active ? 'page' : undefined}
+      title={task.detail}
+      style={{
+        ...railPortalTaskLinkStyle,
+        ...(active ? getRailPortalTaskActiveStyle(accent) : null),
+      }}
+    >
+      <span style={{ ...railPortalTaskDotStyle, background: active ? accent : 'rgba(116,190,255,0.32)' }} aria-hidden="true" />
+      <span style={railPortalTaskCopyStyle}>
+        <strong style={railPortalTaskTitleStyle}>
+          {target.title}
+          {target.locked ? (
+            <span style={railPortalTaskLockStyle} aria-label={`${target.title} locked`}>
+              <NavLockIcon size={11} />
+            </span>
+          ) : null}
+        </strong>
+        <span style={railPortalTaskMetaStyle}>{task.metric}</span>
+      </span>
+    </Link>
+  )
+}
+
 function MobilePortalTaskTile({
   task,
   access,
@@ -899,6 +976,14 @@ function getActiveTaskCardStyle(accent: string): CSSProperties {
   }
 }
 
+function getRailPortalTaskActiveStyle(accent: string): CSSProperties {
+  return {
+    borderColor: `color-mix(in srgb, ${accent} 84%, rgba(116,190,255,0.16))`,
+    background: `color-mix(in srgb, ${accent} 14%, rgba(255,255,255,0.04))`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px color-mix(in srgb, ${accent} 16%, transparent)`,
+  }
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
@@ -911,7 +996,8 @@ function SearchIcon() {
 const railPortalShellStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
+  gridTemplateRows: 'auto auto auto',
+  alignContent: 'start',
   gap: 10,
   width: '100%',
   minHeight: '100%',
@@ -977,35 +1063,78 @@ const railPortalLaneGridStyle: CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const railPortalStatusStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
+const railPortalLaneGroupStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: 4,
-  padding: 11,
-  borderRadius: 8,
-  border: '1px solid rgba(155,225,29,0.16)',
-  background: 'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 42%, rgba(7,17,33,0.72))',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  gap: 6,
   minWidth: 0,
-  alignSelf: 'end',
 }
 
-const railPortalStatusTitleStyle: CSSProperties = {
+const railPortalTaskListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  marginLeft: 13,
+  padding: '0 0 2px 10px',
+  borderLeft: '1px solid rgba(116,190,255,0.16)',
+  minWidth: 0,
+  boxSizing: 'border-box',
+}
+
+const railPortalTaskLinkStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '8px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minHeight: 35,
+  padding: '6px 8px',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.032)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+  boxSizing: 'border-box',
+}
+
+const railPortalTaskDotStyle: CSSProperties = {
+  width: 6,
+  height: 6,
+  borderRadius: 999,
+  boxShadow: '0 0 0 3px rgba(255,255,255,0.035)',
+}
+
+const railPortalTaskCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+}
+
+const railPortalTaskTitleStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
   color: 'var(--foreground-strong)',
-  fontSize: 18,
-  lineHeight: 1.05,
-  fontWeight: 950,
+  fontSize: 11.5,
+  lineHeight: 1.12,
+  fontWeight: 920,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
-const railPortalStatusCopyStyle: CSSProperties = {
+const railPortalTaskMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.35,
-  fontWeight: 760,
+  fontSize: 9.5,
+  lineHeight: 1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
   overflowWrap: 'anywhere',
+}
+
+const railPortalTaskLockStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  flex: '0 0 auto',
+  color: 'var(--shell-copy-muted)',
 }
 
 const portalTitleStyle: CSSProperties = {
