@@ -2389,6 +2389,16 @@ export default function TournamentBuilderWorkspace() {
               awardCount: recordAwardCount,
               alertCount: recordAlertCount,
             })
+            const recordFinishChecklist = buildTournamentFinishChecklist({
+              record,
+              pendingEntriesCount: pendingEntryCount,
+              profileReadyCount: recordProfileReadyCount,
+              scheduledMatchCount: recordScheduledMatchCount,
+              completedMatchCount: summary.completedMatches,
+              totalMatchCount: summary.totalMatches,
+              awardCount: recordAwardCount,
+              alertCount: recordAlertCount,
+            })
             return (
               <article key={record.id} style={recordCardStyle}>
                 <div style={recordTopStyle}>
@@ -2403,17 +2413,21 @@ export default function TournamentBuilderWorkspace() {
                     .filter(Boolean)
                     .join(' - ')}
                 </p>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Done" value={`${summary.completedMatches}/${summary.totalMatches}`} compact />
-                  <Stat label="Open" value={String(summary.openMatches)} compact />
-                </div>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Entrants" value={String(record.entrants.length)} compact />
-                  <Stat label={record.isPublic ? 'Queue' : 'Matches'} value={record.isPublic ? String(pendingEntryCount) : String(preview.length)} compact />
-                </div>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Awards" value={recordAwardCount ? String(recordAwardCount) : 'Ready'} compact />
-                  <Stat label="Alerts" value={recordAlertCount ? String(recordAlertCount) : userId ? '0' : 'Sign in'} compact />
+                <div style={recordReadinessRailStyle} aria-label={`${record.name} readiness`}>
+                  {recordFinishChecklist.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => loadRecordSection(record, item.href.replace('#', ''))}
+                      style={recordReadinessItemStyle}
+                    >
+                      <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                      <span style={recordReadinessCopyStyle}>
+                        <strong>{item.label}</strong>
+                        <small>{item.value}</small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
                 <button
                   type="button"
@@ -4692,6 +4706,40 @@ const recordMetricGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 8,
   minWidth: 0,
+}
+
+const recordReadinessRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 104px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const recordReadinessItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 7,
+  alignItems: 'center',
+  minWidth: 0,
+  minHeight: 42,
+  padding: '8px 9px',
+  borderRadius: 13,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.42)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  overflow: 'hidden',
+}
+
+const recordReadinessCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const recordActionGridStyle: CSSProperties = {
