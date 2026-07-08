@@ -56,6 +56,22 @@ const FIND_COMMAND_STEPS: Array<{
   },
 ]
 
+const EXPLORE_PRIMARY_COMMAND: {
+  href: string
+  label: string
+  title: string
+  body: string
+  icon: TiqFeatureIconName
+  event: ProductLinkEvent
+} = {
+  href: '/explore/search',
+  label: 'Search first',
+  title: 'Start with one tennis question.',
+  body: 'Search a player, team, league, city, rating, or court need, then open the clearest public result.',
+  icon: 'opponentScouting',
+  event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_primary_command', job: 'search_first' } },
+}
+
 const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
 const FREE_TIER_STORY = getMembershipTier('free')
 const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
@@ -96,7 +112,7 @@ const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
 ]
 
 export default function ExplorePage() {
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile, isTablet } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -155,7 +171,7 @@ export default function ExplorePage() {
 
           </div>
 
-          <FindCommandPanel />
+          <FindCommandPanel compact={isTablet} />
         </div>
       </section>
       {shouldShowAds ? (
@@ -167,20 +183,52 @@ export default function ExplorePage() {
   )
 }
 
-function FindCommandPanel() {
+function FindCommandPanel({ compact }: { compact: boolean }) {
+  const workspaceStyle = compact
+    ? { ...findCommandWorkspace, gridTemplateColumns: 'minmax(0, 1fr)' }
+    : findCommandWorkspace
+  const shortcutGridStyle = compact
+    ? { ...findCommandGrid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))' }
+    : findCommandGrid
+  const proofStyle = compact
+    ? { ...publicDiscoveryProofStyle, gridTemplateColumns: 'minmax(0, 1fr)' }
+    : publicDiscoveryProofStyle
+  const proofGridStyle = compact
+    ? { ...publicDiscoveryProofGridStyle, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }
+    : publicDiscoveryProofGridStyle
+
   return (
-    <section style={findCommandPanel} aria-label="Explore mode paths">
+    <section style={findCommandPanel} aria-label="Explore discovery workspace">
       <div style={findCommandHeader}>
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={findCommandCopy}>
-          <div style={findCommandEyebrow}>Explore mode</div>
-          <h2 style={findCommandTitle}>Choose a path.</h2>
+          <div style={findCommandEyebrow}>Explore</div>
+          <h2 style={findCommandTitle}>Start with one tennis question.</h2>
         </div>
         <Link href="/pricing#free" style={findCommandPill}>Free to start</Link>
       </div>
 
-      <div style={findCommandGrid}>
-        {FIND_COMMAND_STEPS.map((step, index) => (
+      <div style={workspaceStyle}>
+        <TrackedProductLink
+          href={EXPLORE_PRIMARY_COMMAND.href}
+          className="explore-primary-command"
+          style={findCommandPrimaryCard}
+          ariaLabel={`${EXPLORE_PRIMARY_COMMAND.label}: ${EXPLORE_PRIMARY_COMMAND.title} ${EXPLORE_PRIMARY_COMMAND.body}`}
+          event={EXPLORE_PRIMARY_COMMAND.event}
+        >
+          <span style={findCommandPrimaryIconStyle}>
+            <TiqFeatureIcon name={EXPLORE_PRIMARY_COMMAND.icon} size="md" variant="surface" />
+          </span>
+          <span style={findCommandCardCopy}>
+            <span style={findCommandLabel}>{EXPLORE_PRIMARY_COMMAND.label}</span>
+            <strong style={findCommandPrimaryTitleStyle}>{EXPLORE_PRIMARY_COMMAND.title}</strong>
+            <span style={findCommandPrimaryBodyStyle}>{EXPLORE_PRIMARY_COMMAND.body}</span>
+          </span>
+          <span style={findCommandPrimaryCtaStyle}>Open search</span>
+        </TrackedProductLink>
+
+        <div style={shortcutGridStyle} aria-label="Explore shortcuts">
+          {FIND_COMMAND_STEPS.map((step) => (
           <TrackedProductLink
             key={step.href}
             href={step.href}
@@ -188,28 +236,26 @@ function FindCommandPanel() {
             ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
             event={step.event}
           >
-            <span style={findCommandNumber}>{index + 1}</span>
             <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
               <span style={findCommandCardCopy}>
                 <span style={findCommandLabel}>{step.label}</span>
                 <strong style={findCommandCardTitle}>{step.title}</strong>
-                <span style={findCommandCardBody}>{step.body}</span>
               </span>
           </TrackedProductLink>
           ))}
+        </div>
       </div>
 
-      <div style={publicDiscoveryProofStyle} aria-label="What you can check free">
+      <div style={proofStyle} aria-label="What you can check free">
         <div style={publicDiscoveryProofHeaderStyle}>
           <span style={findCommandEyebrow}>What you can check free</span>
           <strong style={publicDiscoveryProofTitleStyle}>Useful before upgrade.</strong>
         </div>
-        <div style={publicDiscoveryProofGridStyle}>
+        <div style={proofGridStyle}>
           {PUBLIC_DISCOVERY_PROOF_STEPS.map((step) => (
             <TrackedProductLink key={step.label} href={step.href} style={publicDiscoveryProofItemStyle} event={step.event}>
               <span style={publicDiscoveryProofLabelStyle}>{step.label}</span>
               <strong>{step.title}</strong>
-              <small>{step.body}</small>
             </TrackedProductLink>
           ))}
         </div>
@@ -283,6 +329,13 @@ const findCommandPanel: CSSProperties = {
   minWidth: 0,
 }
 
+const findCommandWorkspace: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(min(100%, 360px), 0.9fr) minmax(0, 1.1fr)',
+  gap: '12px',
+  minWidth: 0,
+}
+
 const findCommandHeader: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '48px minmax(0, 1fr) minmax(0, auto)',
@@ -332,17 +385,66 @@ const findCommandPill: CSSProperties = {
 
 const findCommandGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: '10px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  alignContent: 'start',
+  gap: '8px',
   minWidth: 0,
+}
+
+const findCommandPrimaryCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, 1fr) auto',
+  gap: '12px',
+  minHeight: 238,
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background:
+    'radial-gradient(circle at 92% 8%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(116,190,255,0.1), transparent 44%), rgba(7,17,33,0.76)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryIconStyle: CSSProperties = {
+  display: 'inline-grid',
+  width: 'fit-content',
+}
+
+const findCommandPrimaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.3vw, 2rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryCtaStyle: CSSProperties = {
+  width: 'fit-content',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#d8f7a4',
+  padding: '8px 10px',
+  fontSize: '12px',
+  fontWeight: 950,
 }
 
 const findCommandCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
   gap: '9px',
   alignItems: 'start',
-  minHeight: 106,
+  minHeight: 74,
   padding: '10px',
   borderRadius: '15px',
   border: '1px solid rgba(116,190,255,0.13)',
@@ -350,18 +452,6 @@ const findCommandCard: CSSProperties = {
   color: 'var(--foreground)',
   textDecoration: 'none',
   minWidth: 0,
-}
-
-const findCommandNumber: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
 }
 
 const findCommandCardCopy: CSSProperties = {
@@ -385,17 +475,11 @@ const findCommandCardTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const findCommandCardBody: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '11px',
-  lineHeight: 1.35,
-  fontWeight: 720,
-  overflowWrap: 'anywhere',
-}
-
 const publicDiscoveryProofStyle: CSSProperties = {
   display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.5fr) minmax(0, 1fr)',
   gap: '12px',
+  alignItems: 'start',
   padding: '14px',
   borderRadius: '18px',
   border: '1px solid rgba(155,225,29,0.16)',
@@ -418,7 +502,7 @@ const publicDiscoveryProofTitleStyle: CSSProperties = {
 
 const publicDiscoveryProofGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
   minWidth: 0,
 }
