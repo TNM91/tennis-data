@@ -2729,6 +2729,28 @@ export function LeagueCoordinatorWorkspace() {
               <div style={registryText}>
                 Public and private leagues both require approval before a team or player becomes an active participant.
               </div>
+              <div style={entryRequestSummaryGridStyle} aria-label="Join request approval summary">
+                <div style={entryRequestSummaryItemStyle}>
+                  <span>Waiting</span>
+                  <strong>{pendingEntryRequestCount}</strong>
+                  <small>{pendingEntryRequestCount === 0 ? 'Queue is clear' : 'Need approval'}</small>
+                </div>
+                <div style={entryRequestSummaryItemStyle}>
+                  <span>Teams</span>
+                  <strong>{pendingTeamEntryRequests.length}</strong>
+                  <small>Team requests</small>
+                </div>
+                <div style={entryRequestSummaryItemStyle}>
+                  <span>Players</span>
+                  <strong>{pendingPlayerEntryRequests.length}</strong>
+                  <small>Player requests</small>
+                </div>
+                <div style={entryRequestSummaryItemStyle}>
+                  <span>Leagues</span>
+                  <strong>{records.length}</strong>
+                  <small>{records.length === 1 ? 'League accepting requests' : 'Leagues accepting requests'}</small>
+                </div>
+              </div>
               {entryRequestStatus ? <div style={statusBanner}>{entryRequestStatus}</div> : null}
               {pendingEntryRequestCount === 0 ? (
                 <EmptyJoinRequestPanel />
@@ -4747,6 +4769,29 @@ const entryRequestPanelStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
   minWidth: 0,
+}
+
+const entryRequestSummaryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const entryRequestSummaryItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minHeight: '92px',
+  padding: '11px',
+  borderRadius: '15px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.42,
+  fontWeight: 760,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const requestCardStyle: CSSProperties = {
