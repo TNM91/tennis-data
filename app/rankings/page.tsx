@@ -1363,49 +1363,49 @@ function RankingNextActionRail({
       label: 'Ranking signal',
       value: topPlayer ? `#1 ${topPlayer.name}` : boardCue,
       body: topPlayer
-        ? 'Open the player record before turning a rank, rating gap, or momentum signal into a tennis decision.'
-        : 'Search or widen the board to find the player record behind the ranking signal.',
+        ? 'Open the record before acting.'
+        : 'Find the record behind the signal.',
     },
     {
       label: 'Compare next',
       value: topPlayer && topRival ? `${topPlayer.name} vs ${topRival.name}` : 'Matchup read',
-      body: 'Use Matchup to translate the board into edge, confidence, and a watch item.',
+      body: 'Edge, confidence, watch item.',
     },
     {
       label: 'Train or fix',
       value: 'My Lab / Data Assist',
-      body: 'Save the takeaway to your tennis work, or route missing scorecards and profile context through review.',
+      body: 'Save the takeaway or fix missing data.',
     },
   ] as const
   const rankingPlayerIdStarterRead = [
-    { label: 'Train first', value: RANKINGS_PLAYER_IDENTITY_READ.trainingPriority },
-    { label: 'Proof target', value: RANKINGS_PLAYER_IDENTITY_READ.proofTarget },
-    { label: 'Match test', value: RANKINGS_PLAYER_IDENTITY_READ.matchTrigger },
+    { label: 'Train first', value: 'One focus' },
+    { label: 'Proof target', value: 'Match proof' },
+    { label: 'Match test', value: 'Next result' },
   ] as const
 
   const actions = [
     {
       href: compareHref,
       label: compareTitle,
-      body: 'Turn a ranking gap into a practical match read with edge, confidence, and a watch item.',
+      body: 'Edge and watch item.',
       cta: 'Compare',
     },
     {
       href: '/players',
       label: 'Find the player record',
-      body: 'Open a profile before drawing conclusions from a rating, tier, or recent form signal.',
+      body: 'Check history first.',
       cta: 'Find players',
     },
     {
       href: '/leagues',
       label: 'Check league context',
-      body: 'See the teams, flights, standings, and season shape behind the board.',
+      body: 'Teams, flights, standings.',
       cta: 'Find leagues',
     },
     {
       href: DATA_ASSIST_STORY.href,
       label: 'Fix ranking data',
-      body: 'Upload a scorecard, report a missing player, or request a review when the board looks off.',
+      body: 'Scorecard or review.',
       cta: DATA_ASSIST_STORY.cta,
     },
   ]
@@ -1415,40 +1415,42 @@ function RankingNextActionRail({
       <div style={rankingNextActionHead}>
         <div>
           <div style={sectionKicker}>Ranking next actions</div>
-          <h2 style={rankingNextActionTitle}>Use rankings to decide what to check next.</h2>
+          <h2 style={rankingNextActionTitle}>Turn the board into a next check.</h2>
         </div>
         <span style={panelChip}>{boardCue}</span>
       </div>
-      <div style={rankingPlayerIdTrailStyle} aria-label="Ranking Player ID trail">
-        {playerIdSignals.map((signal) => (
-          <div key={signal.label} style={rankingPlayerIdSignalStyle}>
-            <span style={rankingPlayerIdSignalLabelStyle}>{signal.label}</span>
-            <strong style={rankingPlayerIdSignalValueStyle}>{signal.value}</strong>
-            <span style={rankingPlayerIdSignalTextStyle}>{signal.body}</span>
-          </div>
-        ))}
-      </div>
-      <div style={rankingPlayerIdStarterStyle}>
-        <div style={rankingPlayerIdStarterCopyStyle}>
-          <span style={rankingPlayerIdSignalLabelStyle}>Ranking Player ID starter</span>
-          <strong style={rankingPlayerIdSignalValueStyle}>{RANKINGS_PLAYER_IDENTITY_READ.label}</strong>
-          <span style={rankingPlayerIdSignalTextStyle}>{RANKINGS_PLAYER_IDENTITY_READ.levelUpNudge}</span>
-        </div>
-        <div style={rankingPlayerIdStarterGridStyle} aria-label="Ranking Player ID starter read">
-          {rankingPlayerIdStarterRead.map((item) => (
-            <span key={item.label} style={rankingPlayerIdStarterItemStyle}>
-              <em>{item.label}</em>
-              <b>{item.value}</b>
-            </span>
+      <div style={rankingDecisionBoardStyle}>
+        <div style={rankingPlayerIdTrailStyle} aria-label="Ranking Player ID trail">
+          {playerIdSignals.map((signal) => (
+            <div key={signal.label} style={rankingPlayerIdSignalStyle}>
+              <span style={rankingPlayerIdSignalLabelStyle}>{signal.label}</span>
+              <strong style={rankingPlayerIdSignalValueStyle}>{signal.value}</strong>
+              <span style={rankingPlayerIdSignalTextStyle}>{signal.body}</span>
+            </div>
           ))}
         </div>
-        <div style={rankingPlayerIdStarterActionRowStyle}>
-          <Link href={RANKINGS_LEVEL_UP_HREF} style={rankingPlayerIdStarterLinkStyle}>
-            Start Level Up
-          </Link>
-          <Link href={RANKINGS_PLAYER_DEVELOPMENT_HREF} style={rankingPlayerIdStarterSecondaryLinkStyle}>
-            Read Player ID
-          </Link>
+        <div style={rankingPlayerIdStarterStyle}>
+          <div style={rankingPlayerIdStarterCopyStyle}>
+            <span style={rankingPlayerIdSignalLabelStyle}>Ranking Player ID starter</span>
+            <strong style={rankingPlayerIdSignalValueStyle}>{RANKINGS_PLAYER_IDENTITY_READ.label}</strong>
+            <span style={rankingPlayerIdSignalTextStyle}>Start with Level Up when the board has no match history yet.</span>
+          </div>
+          <div style={rankingPlayerIdStarterGridStyle} aria-label="Ranking Player ID starter read">
+            {rankingPlayerIdStarterRead.map((item) => (
+              <span key={item.label} style={rankingPlayerIdStarterItemStyle}>
+                <em>{item.label}</em>
+                <b>{item.value}</b>
+              </span>
+            ))}
+          </div>
+          <div style={rankingPlayerIdStarterActionRowStyle}>
+            <Link href={RANKINGS_LEVEL_UP_HREF} style={rankingPlayerIdStarterLinkStyle}>
+              Start Level Up
+            </Link>
+            <Link href={RANKINGS_PLAYER_DEVELOPMENT_HREF} style={rankingPlayerIdStarterSecondaryLinkStyle}>
+              Read Player ID
+            </Link>
+          </div>
         </div>
       </div>
       <div style={rankingNextActionGrid}>
@@ -2459,14 +2461,14 @@ const rowActionSecondaryStyle: CSSProperties = {
 
 const rankingNextActionPanel: CSSProperties = {
   display: 'grid',
-  gap: '16px',
+  gap: '12px',
   marginBottom: '16px',
-  padding: '20px',
+  padding: '16px',
   borderRadius: '26px',
   background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
-  minWidth: 88,
+  minWidth: 0,
 }
 
 const rankingNextActionHead: CSSProperties = {
@@ -2488,13 +2490,22 @@ const rankingNextActionTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const rankingDecisionBoardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const rankingPlayerIdTrailStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: '10px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 6,
+  alignSelf: 'start',
   minWidth: 0,
-  padding: '14px',
-  borderRadius: '20px',
+  padding: 10,
+  borderRadius: '16px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
   overflowWrap: 'anywhere',
@@ -2502,10 +2513,12 @@ const rankingPlayerIdTrailStyle: CSSProperties = {
 
 const rankingPlayerIdSignalStyle: CSSProperties = {
   display: 'grid',
-  gap: '5px',
+  gridTemplateColumns: 'minmax(0, 88px) minmax(0, 1fr)',
+  alignItems: 'start',
+  gap: 3,
   minWidth: 0,
-  padding: '12px',
-  borderRadius: '16px',
+  padding: '8px 10px',
+  borderRadius: '12px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.68)',
   overflowWrap: 'anywhere',
@@ -2529,6 +2542,7 @@ const rankingPlayerIdSignalValueStyle: CSSProperties = {
 }
 
 const rankingPlayerIdSignalTextStyle: CSSProperties = {
+  gridColumn: '1 / -1',
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.45,
@@ -2538,10 +2552,11 @@ const rankingPlayerIdSignalTextStyle: CSSProperties = {
 
 const rankingPlayerIdStarterStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  alignSelf: 'start',
+  gap: 8,
   minWidth: 0,
-  padding: 14,
-  borderRadius: '20px',
+  padding: 10,
+  borderRadius: '16px',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
   background: 'rgba(7,17,33,0.62)',
   overflowWrap: 'anywhere',
@@ -2556,16 +2571,16 @@ const rankingPlayerIdStarterCopyStyle: CSSProperties = {
 
 const rankingPlayerIdStarterGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
-  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
+  gap: 6,
   minWidth: 0,
 }
 
 const rankingPlayerIdStarterItemStyle: CSSProperties = {
   display: 'grid',
-  gap: 3,
+  gap: 2,
   minWidth: 0,
-  padding: '8px 9px',
+  padding: '7px 8px',
   borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.04)',
@@ -2579,6 +2594,7 @@ const rankingPlayerIdStarterItemStyle: CSSProperties = {
 const rankingPlayerIdStarterActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
+  alignItems: 'center',
   gap: 8,
   minWidth: 0,
 }
@@ -2587,8 +2603,8 @@ const rankingPlayerIdStarterLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '40px',
-  padding: '0 14px',
+  minHeight: '36px',
+  padding: '0 12px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
@@ -2611,18 +2627,18 @@ const rankingPlayerIdStarterSecondaryLinkStyle: CSSProperties = {
 
 const rankingNextActionGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  gap: '12px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: '8px',
   minWidth: 0,
 }
 
 const rankingNextActionCard: CSSProperties = {
   display: 'grid',
-  gap: '9px',
+  gap: '6px',
   alignContent: 'start',
-  minHeight: '168px',
-  padding: '16px',
-  borderRadius: '20px',
+  minHeight: '88px',
+  padding: '12px',
+  borderRadius: '16px',
   background: 'rgba(7,17,33,0.72)',
   border: '1px solid rgba(116,190,255,0.13)',
   color: 'inherit',
