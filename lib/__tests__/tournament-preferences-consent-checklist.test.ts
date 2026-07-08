@@ -13,6 +13,14 @@ describe('tournament preferences consent checklist', () => {
   it('shows compact consent readiness before saving text preferences', () => {
     const source = readFileSync(join(process.cwd(), 'app/tournaments/[id]/preferences/page.tsx'), 'utf8')
 
+    expect(source).toContain('alertCommandItems')
+    expect(source).toContain('Event-day alert command board')
+    expect(source).toContain('Event-day alert settings')
+    expect(source).toContain('Choose the texts that help you get to the next match.')
+    expect(source).toContain('Tournament alerts are practical: court moves, schedule changes, result updates, and a clear way to stop messages.')
+    expect(source).toContain('Know where to go next.')
+    expect(source).toContain('Use this page to turn tournament texts on or off for this event only.')
+    expect(source).toContain('alertCommandBoardStyle')
     expect(source).toContain('consentSteps')
     expect(source).toContain('Text alert consent checklist')
     expect(source).toContain('consentStepStyle')
@@ -62,6 +70,15 @@ describe('tournament preferences consent checklist', () => {
 
   it('keeps the Player ID alert bridge from squeezing on phone screens', () => {
     const source = readFileSync(join(process.cwd(), 'app/tournaments/[id]/preferences/page.tsx'), 'utf8')
+
+    const commandStyle = styleBlock(source, 'alertCommandBoardStyle')
+    expect(commandStyle).toContain("gridTemplateColumns: '1fr'")
+    expect(commandStyle).toContain('minWidth: 0')
+    expect(commandStyle).toContain("overflow: 'hidden'")
+
+    const commandGridStyle = styleBlock(source, 'alertCommandGridStyle')
+    expect(commandGridStyle).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))'")
+    expect(commandGridStyle).toContain('minWidth: 0')
 
     const bridgeStyle = styleBlock(source, 'alertPlayerIdStyle')
     expect(bridgeStyle).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")

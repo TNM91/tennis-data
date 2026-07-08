@@ -19,6 +19,26 @@ const tournamentAlertPlayerIdActions = [
   { href: TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
   { href: '/matchup', label: 'Prep matchup' },
 ] as const
+const alertCommandItems = [
+  {
+    label: 'Court alerts',
+    title: 'Know where to go next.',
+    body: 'Court changes and schedule updates point you back to the tournament page.',
+    value: 'Schedule',
+  },
+  {
+    label: 'Result updates',
+    title: 'See what changed after play.',
+    body: 'Score, winner, and recap messages help you follow the event without refreshing the draw.',
+    value: 'Results',
+  },
+  {
+    label: 'Control',
+    title: 'Keep the choice with you.',
+    body: 'Use this page to turn tournament texts on or off for this event only.',
+    value: 'This event',
+  },
+] as const
 
 export default function TournamentPreferencesPage() {
   return (
@@ -125,6 +145,26 @@ function TournamentPreferencesInner() {
             <p style={textStyle}>Use the same name and phone number from your tournament entry. Changes are saved for this tournament only.</p>
           </div>
         </div>
+
+        <section style={alertCommandBoardStyle} aria-label="Event-day alert command board">
+          <div style={alertCommandIntroStyle}>
+            <div style={eyebrowStyle}>Event-day alert settings</div>
+            <strong style={alertCommandTitleStyle}>Choose the texts that help you get to the next match.</strong>
+            <span style={alertCommandTextStyle}>
+              Tournament alerts are practical: court moves, schedule changes, result updates, and a clear way to stop messages.
+            </span>
+          </div>
+          <div style={alertCommandGridStyle}>
+            {alertCommandItems.map((item) => (
+              <article key={item.label} style={alertCommandCardStyle}>
+                <span style={alertCommandLabelStyle}>{item.label}</span>
+                <strong>{item.title}</strong>
+                <span>{item.body}</span>
+                <em>{item.value}</em>
+              </article>
+            ))}
+          </div>
+        </section>
 
         <div style={consentGridStyle} aria-label="Text alert consent checklist">
           {consentSteps.map((step) => (
@@ -305,6 +345,79 @@ const formStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
   gap: 12,
+}
+
+const alertCommandBoardStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055))',
+  overflow: 'hidden',
+}
+
+const alertCommandIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.52)',
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const alertCommandCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 112,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.38,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandLabelStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const consentGridStyle: CSSProperties = {
