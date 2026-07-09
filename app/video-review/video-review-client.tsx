@@ -1708,6 +1708,41 @@ export default function VideoReviewClient() {
                 </section>
               ) : null}
 
+              {mode === 'player' && activeClip?.status === 'sent' ? (
+                <section className={styles.coachBriefPanel} aria-label="Coach handoff">
+                  <div className={styles.lessonCopy}>
+                    <span className={styles.noteTime}>Coach link ready</span>
+                    <h3 className={styles.clipTitle}>Send this clip to {activeClip.coachName}</h3>
+                    <p>Copy the coach review link or share a review file. Your coach can open the clip, mark the key moment, and send one focus back.</p>
+                  </div>
+                  <div className={styles.lessonStats} aria-label="Coach handoff details">
+                    <span>
+                      <strong>Sent</strong>
+                      <span>status</span>
+                    </span>
+                    <span>
+                      <strong>{formatVideoReviewDuration(activeClip.durationSeconds)}</strong>
+                      <span>clip</span>
+                    </span>
+                    <span>
+                      <strong>{activeClip.coachName}</strong>
+                      <span>coach</span>
+                    </span>
+                  </div>
+                  <div className={styles.actionRow}>
+                    <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
+                      Copy coach link
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => switchMode('coach')}>
+                      Preview coach view
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
+                      Share review file
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               {mode === 'coach' && activeClip?.status === 'sent' ? (
                 <section className={styles.coachBriefPanel} aria-label="Coach review brief">
                   <div className={styles.lessonCopy}>

@@ -145,7 +145,22 @@ for (const viewport of viewports) {
     }
 
     await page.getByRole('button', { name: 'Send to coach' }).click({ timeout: 10_000 })
-    await page.getByRole('button', { name: /Coach review/i }).click({ timeout: 10_000 })
+    await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
+
+    const handoffReady = await page.locator('[aria-label="Coach handoff"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Copy coach link') && text.includes('Preview coach view') && text.includes('Share review file')
+    }).catch(() => false)
+
+    if (!handoffReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-handoff',
+        text: 'Sent clip did not show the coach handoff actions.',
+      })
+    }
+
+    await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
     await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })
 
     const returnFocusReady = await page.getByLabel('Next focus').evaluate((field) => {
