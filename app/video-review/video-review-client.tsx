@@ -326,6 +326,7 @@ export default function VideoReviewClient() {
   const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [cameraActive, setCameraActive] = useState(false)
+  const [cameraPreviewReady, setCameraPreviewReady] = useState(false)
   const [recording, setRecording] = useState(false)
   const [message, setMessage] = useState('')
   const [tool, setTool] = useState<VideoAnnotationTool>('line')
@@ -529,6 +530,32 @@ export default function VideoReviewClient() {
     }
   }, [activeBlobUrl, playbackRate])
 
+  useEffect(() => {
+    if (!cameraActive || !previewVideoRef.current || !streamRef.current) return
+
+    const preview = previewVideoRef.current
+    const activeStream = streamRef.current
+    preview.srcObject = activeStream
+    preview.muted = true
+    preview.playsInline = true
+
+    const playPreview = async () => {
+      try {
+        await preview.play()
+      } catch {
+        setMessage('Tap Record when the camera preview is ready.')
+      }
+    }
+
+    void playPreview()
+
+    return () => {
+      if (preview.srcObject === activeStream) {
+        preview.srcObject = null
+      }
+    }
+  }, [cameraActive])
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !activeClip) return
@@ -640,16 +667,14 @@ export default function VideoReviewClient() {
 
   async function startCamera() {
     try {
+      setCameraPreviewReady(false)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
       streamRef.current = stream
-      if (previewVideoRef.current) {
-        previewVideoRef.current.srcObject = stream
-      }
       setCameraActive(true)
-      setMessage('Camera ready.')
+      setMessage('Starting camera preview.')
     } catch {
       setMessage('Camera access was blocked. Upload a saved clip instead.')
     }
@@ -662,6 +687,7 @@ export default function VideoReviewClient() {
     recorderRef.current = null
     setRecording(false)
     setCameraActive(false)
+    setCameraPreviewReady(false)
   }
 
   function startRecording() {
@@ -1468,11 +1494,17 @@ export default function VideoReviewClient() {
               setDraft={setDraft}
               selectedFileName={selectedFileName}
               cameraActive={cameraActive}
+              cameraPreviewReady={cameraPreviewReady}
               recording={recording}
               previewVideoRef={previewVideoRef}
               onFileChange={handleFileChange}
               onStartCamera={startCamera}
               onStopCamera={stopCamera}
+              onPreviewReady={() => {
+                if (cameraPreviewReady) return
+                setCameraPreviewReady(true)
+                setMessage('Camera ready.')
+              }}
               onStartRecording={startRecording}
               onStopRecording={stopRecording}
               onSave={() => void saveDraft('draft')}
@@ -1927,11 +1959,13 @@ function PlayerCapture({
   setDraft,
   selectedFileName,
   cameraActive,
+  cameraPreviewReady,
   recording,
   previewVideoRef,
   onFileChange,
   onStartCamera,
   onStopCamera,
+  onPreviewReady,
   onStartRecording,
   onStopRecording,
   onSave,
@@ -1942,11 +1976,13 @@ function PlayerCapture({
   setDraft: (draft: DraftState) => void
   selectedFileName: string
   cameraActive: boolean
+  cameraPreviewReady: boolean
   recording: boolean
   previewVideoRef: React.RefObject<HTMLVideoElement | null>
   onFileChange: (file: File | null) => void
   onStartCamera: () => void
   onStopCamera: () => void
+  onPreviewReady: () => void
   onStartRecording: () => void
   onStopRecording: () => void
   onSave: () => void
@@ -1998,7 +2034,20 @@ function PlayerCapture({
 
         {cameraActive ? (
           <div className={styles.cameraPreview}>
-            <video ref={previewVideoRef} autoPlay muted playsInline className={styles.videoStage} />
+            <div className={styles.cameraPreviewFrame}>
+              <video
+                ref={previewVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className={styles.cameraVideo}
+                onCanPlay={onPreviewReady}
+                onPlaying={onPreviewReady}
+              />
+              {!cameraPreviewReady ? (
+                <span className={styles.cameraPreviewStatus}>Starting camera...</span>
+              ) : null}
+            </div>
             <p className={styles.formHelp}>{recording ? 'Recording your court clip.' : 'Frame the stroke, then record.'}</p>
           </div>
         ) : null}

@@ -23,15 +23,23 @@ const ignoredConsoleFragments = [
   'Failed to load resource: net::ERR_FAILED',
 ]
 const findings = []
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({
+  headless: true,
+  args: [
+    '--use-fake-device-for-media-stream',
+    '--use-fake-ui-for-media-stream',
+  ],
+})
 
 for (const viewport of viewports) {
-  const page = await browser.newPage({
+  const context = await browser.newContext({
+    permissions: ['camera'],
     viewport: {
       width: viewport.width,
       height: viewport.height,
     },
   })
+  const page = await context.newPage()
 
   page.on('console', (message) => {
     if (message.type() !== 'error') return
@@ -64,12 +72,19 @@ for (const viewport of viewports) {
 
     await page.getByRole('button', { name: /Player capture/i }).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByRole('button', { name: /Coach review/i }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Open camera' }).click({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Record' }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => {
+      const video = document.querySelector('video')
+      return Boolean(video?.srcObject) && !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+    }, undefined, { timeout: 10_000 })
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
       mainVisible: Boolean(document.querySelector('main')),
       videoInputs: document.querySelectorAll('input[type="file"], video, canvas').length,
+      cameraPreviewReady: Boolean(document.querySelector('video')?.srcObject),
     }))
 
     if (!layout.mainVisible) {
@@ -95,6 +110,14 @@ for (const viewport of viewports) {
         text: 'No file input, video, or canvas surface found.',
       })
     }
+
+    if (!layout.cameraPreviewReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'camera-preview',
+        text: 'Camera preview did not attach to a media stream.',
+      })
+    }
   } catch (error) {
     findings.push({
       viewport: viewport.name,
@@ -102,7 +125,7 @@ for (const viewport of viewports) {
       text: error instanceof Error ? error.message : String(error),
     })
   } finally {
-    await page.close()
+    await context.close()
   }
 }
 
