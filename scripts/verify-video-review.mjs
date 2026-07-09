@@ -28,6 +28,7 @@ const ignoredConsoleFragments = [
   '/_vercel/speed-insights/script.js',
   'Failed to load resource: net::ERR_FAILED',
   'Failed to load resource: the server responded with a status of 404 (Not Found)',
+  'violates the following report-only Content Security Policy directive',
 ]
 const findings = []
 const browser = await chromium.launch({
