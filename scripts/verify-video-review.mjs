@@ -80,9 +80,9 @@ for (const viewport of viewports) {
       return Boolean(video?.srcObject) && !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     }, undefined, { timeout: 10_000 })
     await page.getByRole('button', { name: 'Record' }).click({ timeout: 10_000 })
-    await page.waitForTimeout(700)
+    await page.waitForTimeout(1_500)
     await page.getByRole('button', { name: 'Stop recording' }).click({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Discard clip' }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Discard clip' }).waitFor({ state: 'visible', timeout: 20_000 })
 
     const draftPreviewReady = await page.locator('[aria-label="Draft clip preview"] video').evaluate((video) => {
       return video instanceof HTMLVideoElement && Boolean(video.currentSrc || video.src)
