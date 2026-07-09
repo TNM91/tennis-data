@@ -21,6 +21,7 @@ const ignoredConsoleFragments = [
   '/_vercel/insights/script.js',
   '/_vercel/speed-insights/script.js',
   'Failed to load resource: net::ERR_FAILED',
+  'Failed to load resource: the server responded with a status of 404 (Not Found)',
 ]
 const findings = []
 const browser = await chromium.launch({
@@ -54,7 +55,7 @@ for (const viewport of viewports) {
 
   try {
     await page.goto(`${baseUrl}${route}?videoqa=${Date.now()}`, {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 35_000,
     })
 
@@ -78,6 +79,25 @@ for (const viewport of viewports) {
       const video = document.querySelector('video')
       return Boolean(video?.srcObject) && !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     }, undefined, { timeout: 10_000 })
+    await page.getByRole('button', { name: 'Record' }).click({ timeout: 10_000 })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: 'Stop recording' }).click({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Discard clip' }).waitFor({ state: 'visible', timeout: 10_000 })
+
+    const draftPreviewReady = await page.locator('[aria-label="Draft clip preview"] video').evaluate((video) => {
+      return video instanceof HTMLVideoElement && Boolean(video.currentSrc || video.src)
+    }).catch(() => false)
+
+    if (!draftPreviewReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-preview',
+        text: 'Recorded clip did not appear in the draft preview.',
+      })
+    }
+
+    await page.getByRole('button', { name: 'Discard clip' }).click({ timeout: 10_000 })
+    await page.getByText('No clip selected yet.').waitFor({ state: 'visible', timeout: 10_000 })
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,

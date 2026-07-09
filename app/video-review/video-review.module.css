@@ -2,9 +2,11 @@
   position: relative;
   z-index: 1;
   width: min(1320px, calc(100% - 48px));
+  max-width: 100%;
   margin-inline: auto;
   padding: 18px 0 calc(88px + var(--safe-bottom));
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .hero {
@@ -23,6 +25,7 @@
   background: var(--shell-panel-bg);
   box-shadow: var(--shadow-card);
   min-width: 0;
+  max-width: 100%;
 }
 
 .heroPanel {
@@ -91,6 +94,14 @@
   flex-wrap: wrap;
   gap: 9px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modeBar > *,
+.toolBar > *,
+.actionRow > *,
+.clipActions > * {
   min-width: 0;
 }
 
@@ -410,6 +421,7 @@
 .formGrid {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .field {
@@ -478,6 +490,10 @@
   min-width: 0;
 }
 
+.clipTop > span {
+  min-width: 0;
+}
+
 .clipTitle {
   font-size: 15px;
 }
@@ -487,6 +503,11 @@
   color: var(--shell-copy-muted);
   font-size: 12px;
   font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.clipMeta {
+  display: block;
 }
 
 .statusBadge {
@@ -527,6 +548,7 @@
   background: #020817;
   aspect-ratio: 16 / 9;
   min-height: 260px;
+  max-width: 100%;
 }
 
 .video,
@@ -550,6 +572,8 @@
 .cameraPreview {
   display: grid;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
   border-radius: 18px;
   border: 1px solid rgba(155, 225, 29, 0.2);
   background: rgba(155, 225, 29, 0.065);
@@ -564,6 +588,7 @@
   background: #020817;
   aspect-ratio: 16 / 9;
   min-height: 260px;
+  max-width: 100%;
 }
 
 .cameraVideo {
@@ -584,6 +609,37 @@
   font-size: 13px;
   font-weight: 850;
   text-align: center;
+}
+
+.draftPreview {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  background: rgba(116, 190, 255, 0.065);
+  padding: 12px;
+}
+
+.draftPreviewHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.draftVideo {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: #020817;
+  object-fit: contain;
 }
 
 .reviewGrid {
@@ -905,7 +961,8 @@
 
 @media (max-width: 767px) {
   .shell {
-    width: min(100% - 28px, 1320px);
+    width: calc(100% - 28px);
+    max-width: 1320px;
     padding-top: 16px;
     padding-bottom: calc(116px + var(--safe-bottom));
   }
@@ -976,6 +1033,10 @@
 
   .cameraPreviewFrame {
     min-height: 220px;
+  }
+
+  .draftVideo {
+    min-height: 180px;
   }
 
   .mobileDock {

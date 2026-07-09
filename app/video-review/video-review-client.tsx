@@ -325,6 +325,7 @@ export default function VideoReviewClient() {
   const [draft, setDraft] = useState<DraftState>(INITIAL_DRAFT)
   const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
+  const [draftPreviewUrl, setDraftPreviewUrl] = useState('')
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraPreviewReady, setCameraPreviewReady] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -531,6 +532,18 @@ export default function VideoReviewClient() {
   }, [activeBlobUrl, playbackRate])
 
   useEffect(() => {
+    if (!selectedFile) {
+      setDraftPreviewUrl('')
+      return
+    }
+
+    const url = URL.createObjectURL(selectedFile)
+    setDraftPreviewUrl(url)
+
+    return () => URL.revokeObjectURL(url)
+  }, [selectedFile])
+
+  useEffect(() => {
     if (!cameraActive || !previewVideoRef.current || !streamRef.current) return
 
     const preview = previewVideoRef.current
@@ -665,6 +678,13 @@ export default function VideoReviewClient() {
     setMessage('Clip ready. Add context, then save or send it.')
   }
 
+  function clearDraftClip(messageText = 'Draft clip discarded.') {
+    chunksRef.current = []
+    setSelectedFile(null)
+    setSelectedFileName('')
+    setMessage(messageText)
+  }
+
   async function startCamera() {
     try {
       setCameraPreviewReady(false)
@@ -692,6 +712,7 @@ export default function VideoReviewClient() {
 
   function startRecording() {
     if (!streamRef.current) return
+    clearDraftClip('Recording.')
     chunksRef.current = []
     const recorder = new MediaRecorder(streamRef.current, { mimeType: pickRecorderMimeType() })
     recorderRef.current = recorder
@@ -712,6 +733,13 @@ export default function VideoReviewClient() {
 
   function stopRecording() {
     recorderRef.current?.stop()
+  }
+
+  function recordAgain() {
+    clearDraftClip('Ready for a new recording.')
+    if (!cameraActive) {
+      void startCamera()
+    }
   }
 
   async function saveDraft(status: VideoReviewStatus) {
@@ -1493,6 +1521,7 @@ export default function VideoReviewClient() {
               draft={draft}
               setDraft={setDraft}
               selectedFileName={selectedFileName}
+              draftPreviewUrl={draftPreviewUrl}
               cameraActive={cameraActive}
               cameraPreviewReady={cameraPreviewReady}
               recording={recording}
@@ -1507,6 +1536,8 @@ export default function VideoReviewClient() {
               }}
               onStartRecording={startRecording}
               onStopRecording={stopRecording}
+              onRecordAgain={recordAgain}
+              onDiscardDraft={() => clearDraftClip()}
               onSave={() => void saveDraft('draft')}
               onSend={() => void saveDraft('sent')}
               quotaFull={quota.usedClips >= VIDEO_REVIEW_QUOTA.maxClips || quota.usedBytes >= VIDEO_REVIEW_QUOTA.maxBytes}
@@ -1958,6 +1989,7 @@ function PlayerCapture({
   draft,
   setDraft,
   selectedFileName,
+  draftPreviewUrl,
   cameraActive,
   cameraPreviewReady,
   recording,
@@ -1968,6 +2000,8 @@ function PlayerCapture({
   onPreviewReady,
   onStartRecording,
   onStopRecording,
+  onRecordAgain,
+  onDiscardDraft,
   onSave,
   onSend,
   quotaFull,
@@ -1975,6 +2009,7 @@ function PlayerCapture({
   draft: DraftState
   setDraft: (draft: DraftState) => void
   selectedFileName: string
+  draftPreviewUrl: string
   cameraActive: boolean
   cameraPreviewReady: boolean
   recording: boolean
@@ -1985,6 +2020,8 @@ function PlayerCapture({
   onPreviewReady: () => void
   onStartRecording: () => void
   onStopRecording: () => void
+  onRecordAgain: () => void
+  onDiscardDraft: () => void
   onSave: () => void
   onSend: () => void
   quotaFull: boolean
@@ -2006,7 +2043,10 @@ function PlayerCapture({
               type="file"
               accept="video/*"
               capture="environment"
-              onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                onFileChange(event.target.files?.[0] ?? null)
+                event.currentTarget.value = ''
+              }}
               style={{ display: 'none' }}
             />
           </label>
@@ -2050,6 +2090,33 @@ function PlayerCapture({
             </div>
             <p className={styles.formHelp}>{recording ? 'Recording your court clip.' : 'Frame the stroke, then record.'}</p>
           </div>
+        ) : null}
+
+        {draftPreviewUrl ? (
+          <section className={styles.draftPreview} aria-label="Draft clip preview">
+            <div className={styles.draftPreviewHeader}>
+              <div>
+                <h3 className={styles.clipTitle}>Check this clip</h3>
+                <p className={styles.formHelp}>Play it back before saving or sending it to your coach.</p>
+              </div>
+              <span className={styles.statusBadge}>Not saved yet</span>
+            </div>
+            <video
+              className={styles.draftVideo}
+              src={draftPreviewUrl}
+              controls
+              playsInline
+              preload="metadata"
+            />
+            <div className={styles.actionRow}>
+              <button type="button" className={styles.ghostButton} onClick={onRecordAgain}>
+                Record again
+              </button>
+              <button type="button" className={styles.dangerButton} onClick={onDiscardDraft}>
+                Discard clip
+              </button>
+            </div>
+          </section>
         ) : null}
 
         <div className={styles.statsGrid}>
