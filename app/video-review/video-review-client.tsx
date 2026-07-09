@@ -317,6 +317,13 @@ function formatPracticeDoneDate(doneAt: string) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function formatRecordingTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(safeSeconds / 60)
+  const remainingSeconds = String(safeSeconds % 60).padStart(2, '0')
+  return `${minutes}:${remainingSeconds}`
+}
+
 export default function VideoReviewClient() {
   const [mode, setMode] = useState<VideoReviewRole>('player')
   const [clips, setClips] = useState<VideoReviewClip[]>([])
@@ -329,6 +336,7 @@ export default function VideoReviewClient() {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraPreviewReady, setCameraPreviewReady] = useState(false)
   const [recording, setRecording] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [message, setMessage] = useState('')
   const [tool, setTool] = useState<VideoAnnotationTool>('line')
   const [color, setColor] = useState(ANNOTATION_COLORS[0])
@@ -409,6 +417,7 @@ export default function VideoReviewClient() {
     [clipSearch, clips, mode, statusFilter, strokeFilter],
   )
   const hasClipFilters = Boolean(clipSearch.trim()) || statusFilter !== 'all' || strokeFilter !== 'all'
+  const draftFileSizeLabel = selectedFile ? formatVideoReviewBytes(selectedFile.size) : ''
   const storageStatusTitle = quota.warningLevel === 'full'
     ? 'Storage full'
     : quota.warningLevel === 'tight'
@@ -542,6 +551,32 @@ export default function VideoReviewClient() {
 
     return () => URL.revokeObjectURL(url)
   }, [selectedFile])
+
+  useEffect(() => {
+    if (!draftPreviewUrl) return
+    const timeout = window.setTimeout(() => {
+      document.getElementById('video-review-draft-preview')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 80)
+
+    return () => window.clearTimeout(timeout)
+  }, [draftPreviewUrl])
+
+  useEffect(() => {
+    if (!recording) {
+      setRecordingSeconds(0)
+      return
+    }
+
+    const startedAt = Date.now()
+    const updateTimer = () => setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000))
+    updateTimer()
+    const interval = window.setInterval(updateTimer, 500)
+
+    return () => window.clearInterval(interval)
+  }, [recording])
 
   useEffect(() => {
     if (!cameraActive || !previewVideoRef.current || !streamRef.current) return
@@ -701,7 +736,9 @@ export default function VideoReviewClient() {
   }
 
   function stopCamera() {
-    recorderRef.current?.stop()
+    if (recorderRef.current?.state === 'recording') {
+      recorderRef.current.stop()
+    }
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
     recorderRef.current = null
@@ -712,6 +749,10 @@ export default function VideoReviewClient() {
 
   function startRecording() {
     if (!streamRef.current) return
+    if (!cameraPreviewReady) {
+      setMessage('Camera is almost ready. Start recording when the preview appears.')
+      return
+    }
     clearDraftClip('Recording.')
     chunksRef.current = []
     const recorder = new MediaRecorder(streamRef.current, { mimeType: pickRecorderMimeType() })
@@ -720,19 +761,26 @@ export default function VideoReviewClient() {
       if (event.data.size > 0) chunksRef.current.push(event.data)
     }
     recorder.onstop = () => {
+      recorderRef.current = null
+      setRecording(false)
+      if (!chunksRef.current.length) {
+        setMessage('No video was captured. Try recording again.')
+        return
+      }
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' })
       setSelectedFile(blob)
       setSelectedFileName(`court-recording-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`)
       setMessage('Recording ready. Save it or send it to coach review.')
-      setRecording(false)
     }
-    recorder.start()
+    recorder.start(250)
     setRecording(true)
     setMessage('Recording.')
   }
 
   function stopRecording() {
-    recorderRef.current?.stop()
+    if (recorderRef.current?.state === 'recording') {
+      recorderRef.current.stop()
+    }
   }
 
   function recordAgain() {
@@ -1521,10 +1569,12 @@ export default function VideoReviewClient() {
               draft={draft}
               setDraft={setDraft}
               selectedFileName={selectedFileName}
+              draftFileSizeLabel={draftFileSizeLabel}
               draftPreviewUrl={draftPreviewUrl}
               cameraActive={cameraActive}
               cameraPreviewReady={cameraPreviewReady}
               recording={recording}
+              recordingSeconds={recordingSeconds}
               previewVideoRef={previewVideoRef}
               onFileChange={handleFileChange}
               onStartCamera={startCamera}
@@ -1989,10 +2039,12 @@ function PlayerCapture({
   draft,
   setDraft,
   selectedFileName,
+  draftFileSizeLabel,
   draftPreviewUrl,
   cameraActive,
   cameraPreviewReady,
   recording,
+  recordingSeconds,
   previewVideoRef,
   onFileChange,
   onStartCamera,
@@ -2009,10 +2061,12 @@ function PlayerCapture({
   draft: DraftState
   setDraft: (draft: DraftState) => void
   selectedFileName: string
+  draftFileSizeLabel: string
   draftPreviewUrl: string
   cameraActive: boolean
   cameraPreviewReady: boolean
   recording: boolean
+  recordingSeconds: number
   previewVideoRef: React.RefObject<HTMLVideoElement | null>
   onFileChange: (file: File | null) => void
   onStartCamera: () => void
@@ -2026,6 +2080,8 @@ function PlayerCapture({
   onSend: () => void
   quotaFull: boolean
 }) {
+  const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
+
   return (
     <section id="video-review-capture" className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -2036,6 +2092,21 @@ function PlayerCapture({
       </div>
 
       <div className={styles.formGrid}>
+        <ol className={styles.captureSteps} aria-label="Capture steps">
+          <li className={`${styles.captureStep} ${captureStep === 'start' ? styles.captureStepActive : styles.captureStepDone}`}>
+            <span>1</span>
+            <strong>Record or upload</strong>
+          </li>
+          <li className={`${styles.captureStep} ${captureStep === 'check' ? styles.captureStepActive : ''}`}>
+            <span>2</span>
+            <strong>Check the clip</strong>
+          </li>
+          <li className={styles.captureStep}>
+            <span>3</span>
+            <strong>Save or send</strong>
+          </li>
+        </ol>
+
         <div className={styles.actionRow}>
           <label className={styles.ghostButton}>
             Upload video
@@ -2057,8 +2128,8 @@ function PlayerCapture({
           ) : (
             <>
               {!recording ? (
-                <button type="button" className={styles.primaryButton} onClick={onStartRecording}>
-                  Record
+                <button type="button" className={styles.primaryButton} disabled={!cameraPreviewReady} onClick={onStartRecording}>
+                  Start recording
                 </button>
               ) : (
                 <button type="button" className={styles.dangerButton} onClick={onStopRecording}>
@@ -2084,22 +2155,31 @@ function PlayerCapture({
                 onCanPlay={onPreviewReady}
                 onPlaying={onPreviewReady}
               />
+              {recording ? (
+                <span className={styles.recordingBadge}>Recording {formatRecordingTime(recordingSeconds)}</span>
+              ) : null}
               {!cameraPreviewReady ? (
                 <span className={styles.cameraPreviewStatus}>Starting camera...</span>
               ) : null}
             </div>
-            <p className={styles.formHelp}>{recording ? 'Recording your court clip.' : 'Frame the stroke, then record.'}</p>
+            <p className={styles.formHelp}>
+              {recording
+                ? `Recording ${formatRecordingTime(recordingSeconds)}. Keep the phone steady.`
+                : cameraPreviewReady
+                  ? 'Frame the stroke, then start recording.'
+                  : 'The preview will appear here before recording starts.'}
+            </p>
           </div>
         ) : null}
 
         {draftPreviewUrl ? (
-          <section className={styles.draftPreview} aria-label="Draft clip preview">
+          <section id="video-review-draft-preview" className={styles.draftPreview} aria-label="Draft clip preview">
             <div className={styles.draftPreviewHeader}>
               <div>
                 <h3 className={styles.clipTitle}>Check this clip</h3>
                 <p className={styles.formHelp}>Play it back before saving or sending it to your coach.</p>
               </div>
-              <span className={styles.statusBadge}>Not saved yet</span>
+              <span className={styles.statusBadge}>{draftFileSizeLabel || 'Not saved yet'}</span>
             </div>
             <video
               className={styles.draftVideo}
@@ -2108,7 +2188,14 @@ function PlayerCapture({
               playsInline
               preload="metadata"
             />
+            <p className={styles.draftMeta}>{selectedFileName}</p>
             <div className={styles.actionRow}>
+              <button type="button" className={styles.primaryButton} disabled={quotaFull} onClick={onSend}>
+                Send to coach
+              </button>
+              <button type="button" className={styles.ghostButton} disabled={quotaFull} onClick={onSave}>
+                Save private
+              </button>
               <button type="button" className={styles.ghostButton} onClick={onRecordAgain}>
                 Record again
               </button>
@@ -2171,15 +2258,17 @@ function PlayerCapture({
           />
         </label>
 
-        <div className={styles.actionRow}>
-          <button type="button" className={styles.ghostButton} disabled={!selectedFileName || quotaFull} onClick={onSave}>
-            Save private
-          </button>
-          <button type="button" className={styles.primaryButton} disabled={!selectedFileName || quotaFull} onClick={onSend}>
-            Send to coach
-          </button>
-          <span className={styles.formHelp}>{selectedFileName || 'No clip selected yet.'}</span>
-        </div>
+        {!draftPreviewUrl ? (
+          <div className={styles.actionRow}>
+            <button type="button" className={styles.ghostButton} disabled={!selectedFileName || quotaFull} onClick={onSave}>
+              Save private
+            </button>
+            <button type="button" className={styles.primaryButton} disabled={!selectedFileName || quotaFull} onClick={onSend}>
+              Send to coach
+            </button>
+            <span className={styles.formHelp}>No clip selected yet.</span>
+          </div>
+        ) : null}
       </div>
     </section>
   )

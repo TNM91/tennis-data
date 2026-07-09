@@ -15,6 +15,9 @@ const expectedText = [
   'Coach tools',
   'Export review file',
   'Import review file',
+  'Record or upload',
+  'Check the clip',
+  'Save or send',
 ]
 const ignoredConsoleFragments = [
   '/_next/webpack-hmr',
@@ -59,6 +62,9 @@ for (const viewport of viewports) {
       timeout: 35_000,
     })
 
+    await page.getByRole('button', { name: /Player capture/i }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: /Coach review/i }).waitFor({ state: 'visible', timeout: 10_000 })
+
     const pageText = await page.locator('body').innerText({ timeout: 10_000 })
     const normalizedText = pageText.replace(/\s+/g, ' ').trim()
     for (const text of expectedText) {
@@ -71,15 +77,14 @@ for (const viewport of viewports) {
       }
     }
 
-    await page.getByRole('button', { name: /Player capture/i }).waitFor({ state: 'visible', timeout: 10_000 })
-    await page.getByRole('button', { name: /Coach review/i }).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByRole('button', { name: 'Open camera' }).click({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Record' }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Start recording' }).waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForFunction(() => {
       const video = document.querySelector('video')
       return Boolean(video?.srcObject) && !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     }, undefined, { timeout: 10_000 })
-    await page.getByRole('button', { name: 'Record' }).click({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Start recording' }).click({ timeout: 10_000 })
+    await page.locator('[class*="recordingBadge"]').waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForTimeout(1_500)
     await page.getByRole('button', { name: 'Stop recording' }).click({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Discard clip' }).waitFor({ state: 'visible', timeout: 20_000 })
@@ -93,6 +98,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'draft-preview',
         text: 'Recorded clip did not appear in the draft preview.',
+      })
+    }
+
+    const draftActionsReady = await page.locator('[aria-label="Draft clip preview"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Send to coach') && text.includes('Save private') && text.includes('Record again')
+    }).catch(() => false)
+
+    if (!draftActionsReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-actions',
+        text: 'Draft preview did not show save, send, and re-record actions together.',
       })
     }
 
