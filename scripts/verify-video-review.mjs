@@ -21,6 +21,7 @@ const expectedText = [
   'ASK COACH TO CHECK',
   'Toss',
   'Contact',
+  'QUICK FOCUS',
 ]
 const ignoredConsoleFragments = [
   '/_next/webpack-hmr',
@@ -100,6 +101,18 @@ for (const viewport of viewports) {
       const video = document.querySelector('video')
       return Boolean(video?.srcObject) && !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     }, undefined, { timeout: 10_000 })
+    const cameraPreviewAttached = await page.locator('[class*="cameraPreview"] video').evaluate((video) => {
+      return video instanceof HTMLVideoElement && Boolean(video.srcObject)
+    }).catch(() => false)
+
+    if (!cameraPreviewAttached) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'camera-preview',
+        text: 'Camera preview did not attach to a media stream.',
+      })
+    }
+
     await page.getByRole('button', { name: 'Start recording' }).click({ timeout: 10_000 })
     await page.locator('[class*="recordingBadge"]').waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForTimeout(1_500)
@@ -131,15 +144,27 @@ for (const viewport of viewports) {
       })
     }
 
-    await page.getByRole('button', { name: 'Discard clip' }).click({ timeout: 10_000 })
-    await page.getByText('No clip selected yet.').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Send to coach' }).click({ timeout: 10_000 })
+    await page.getByRole('button', { name: /Coach review/i }).click({ timeout: 10_000 })
+    await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })
+
+    const returnFocusReady = await page.getByLabel('Next focus').evaluate((field) => {
+      return field instanceof HTMLTextAreaElement && field.value.includes('contact stays away from the body')
+    }).catch(() => false)
+
+    if (!returnFocusReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'return-focus-cue',
+        text: 'Coach quick focus did not fill the return review note.',
+      })
+    }
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
       mainVisible: Boolean(document.querySelector('main')),
       videoInputs: document.querySelectorAll('input[type="file"], video, canvas').length,
-      cameraPreviewReady: Boolean(document.querySelector('video')?.srcObject),
     }))
 
     if (!layout.mainVisible) {
@@ -166,13 +191,6 @@ for (const viewport of viewports) {
       })
     }
 
-    if (!layout.cameraPreviewReady) {
-      findings.push({
-        viewport: viewport.name,
-        type: 'camera-preview',
-        text: 'Camera preview did not attach to a media stream.',
-      })
-    }
   } catch (error) {
     findings.push({
       viewport: viewport.name,

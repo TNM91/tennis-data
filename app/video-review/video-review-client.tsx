@@ -965,6 +965,11 @@ export default function VideoReviewClient() {
     setMessage('Coach cue loaded. Edit it or add it at the current timestamp.')
   }
 
+  function applyCoachReturnFocus(summary: string) {
+    setCoachSummary(summary)
+    setMessage('Next focus ready. Add a mark or send the review back.')
+  }
+
   async function sendReview() {
     if (!activeClip) return
     const returnFocus = buildVideoReviewReturnFocus(activeClip, coachSummary)
@@ -1946,6 +1951,23 @@ export default function VideoReviewClient() {
 
               <div className={styles.panel}>
                 <h3 className={styles.clipTitle}>Return review</h3>
+                <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
+                  <span className={styles.label}>Quick focus</span>
+                  <div className={styles.returnCueGrid}>
+                    {coachCues.map((cue) => (
+                      <button
+                        type="button"
+                        key={`${cue.id}-return`}
+                        className={styles.returnCueButton}
+                        disabled={mode !== 'coach' || !activeClip}
+                        onClick={() => applyCoachReturnFocus(cue.summary)}
+                      >
+                        <strong>{cue.label}</strong>
+                        <span>{cue.summary}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <label className={styles.field}>
                   <span className={styles.label}>Next focus</span>
                   <textarea
