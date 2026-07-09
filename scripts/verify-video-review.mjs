@@ -18,6 +18,9 @@ const expectedText = [
   'Record or upload',
   'Check the clip',
   'Save or send',
+  'ASK COACH TO CHECK',
+  'Toss',
+  'Contact',
 ]
 const ignoredConsoleFragments = [
   '/_next/webpack-hmr',
@@ -75,6 +78,19 @@ for (const viewport of viewports) {
           text,
         })
       }
+    }
+
+    await page.getByRole('button', { name: 'Ask coach to check Toss' }).click({ timeout: 10_000 })
+    const playerNoteReady = await page.getByLabel('Player note').evaluate((field) => {
+      return field instanceof HTMLTextAreaElement && field.value.includes('toss is consistent')
+    }).catch(() => false)
+
+    if (!playerNoteReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-note-cue',
+        text: 'Player note cue did not fill the coach question.',
+      })
     }
 
     await page.getByRole('button', { name: 'Open camera' }).click({ timeout: 10_000 })

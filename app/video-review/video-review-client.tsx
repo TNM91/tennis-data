@@ -65,6 +65,32 @@ const BLOB_STORE = 'blobs'
 const ANNOTATION_COLORS = ['#9be11d', '#74beff', '#ffc257', '#ff7a7a']
 const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 1.5] as const
 const FRAME_STEP_SECONDS = 1 / 30
+const PLAYER_NOTE_CUES = [
+  {
+    label: 'Toss',
+    note: 'Please check whether my toss is consistent and far enough in front.',
+  },
+  {
+    label: 'Contact',
+    note: 'Please check my contact point and whether I am meeting the ball early enough.',
+  },
+  {
+    label: 'Footwork',
+    note: 'Please check my setup steps and whether I am balanced before contact.',
+  },
+  {
+    label: 'Recovery',
+    note: 'Please check how quickly I recover after the shot.',
+  },
+  {
+    label: 'Timing',
+    note: 'Please check whether my timing is rushed or late.',
+  },
+  {
+    label: 'Swing path',
+    note: 'Please check my swing path and finish.',
+  },
+] as const
 
 type ClipBlobRecord = {
   id: string
@@ -2082,6 +2108,16 @@ function PlayerCapture({
 }) {
   const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
 
+  function applyPlayerNoteCue(note: string) {
+    const currentNote = draft.playerNote.trim()
+    const nextNote = currentNote.includes(note)
+      ? currentNote
+      : currentNote
+        ? `${currentNote} ${note}`
+        : note
+    setDraft({ ...draft, playerNote: nextNote.slice(0, 700) })
+  }
+
   return (
     <section id="video-review-capture" className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -2246,6 +2282,26 @@ function PlayerCapture({
               placeholder="Coach name"
             />
           </label>
+        </div>
+
+        <div className={styles.noteCuePanel}>
+          <div>
+            <span className={styles.label}>Ask coach to check</span>
+            <p className={styles.formHelp}>Tap a cue or write your own note.</p>
+          </div>
+          <div className={styles.noteCueGrid}>
+            {PLAYER_NOTE_CUES.map((cue) => (
+              <button
+                type="button"
+                key={cue.label}
+                className={styles.noteCueButton}
+                onClick={() => applyPlayerNoteCue(cue.note)}
+                aria-label={`Ask coach to check ${cue.label}`}
+              >
+                {cue.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <label className={styles.field}>
