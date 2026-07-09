@@ -49,6 +49,7 @@ import {
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
@@ -196,6 +197,15 @@ const COACH_SUPPORT_PATHS = [
     href: '/resources?q=coach%20drills%20skills',
     cta: 'Open coach resources',
     icon: 'reports',
+  },
+  {
+    job: 'review_court_clips',
+    question: 'How can I review player video?',
+    title: 'Mark a court clip',
+    body: 'Open player serve and stroke clips, draw the key cue, and send one timestamped focus back.',
+    href: `${VIDEO_REVIEW_ROUTE}?mode=coach`,
+    cta: 'Open video review',
+    icon: 'scenarioBuilder',
   },
   {
     job: 'support_between_sessions',
@@ -1384,6 +1394,13 @@ function CoachContent() {
       title: 'Proof back from players',
       body: assignmentsNeedingReview.length ? 'Start with proof that needs a coach response.' : 'Player proof will land here when assigned work syncs back.',
       href: '#coach-linked-dashboard',
+    },
+    {
+      label: 'Video',
+      value: 'Queue',
+      title: 'Review court clips',
+      body: 'Open serve and stroke clips, then return timestamped notes and markups.',
+      href: `${VIDEO_REVIEW_ROUTE}?mode=coach`,
     },
     {
       label: 'Next lesson',

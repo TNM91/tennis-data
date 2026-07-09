@@ -98,6 +98,7 @@
     "qa:vercel-branch": "node scripts/vercel-production-branch-smoke.mjs",
     "qa:prod-logs": "node scripts/vercel-production-log-smoke.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
+    "verify:video-review": "node scripts/verify-video-review.mjs",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",
     "db:push": "supabase db push",

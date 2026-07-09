@@ -45,6 +45,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -2749,6 +2750,14 @@ function MyLabPageInner() {
       cta: 'Find drills',
       job: 'find_resources',
     },
+    {
+      question: 'What did my stroke look like?',
+      title: 'Send a video review',
+      body: 'Record a serve, return, rally, or footwork clip and keep coach feedback tied to the exact timestamp.',
+      href: VIDEO_REVIEW_ROUTE,
+      cta: 'Open Video Review',
+      job: 'video_review',
+    },
   ] as const
   const focusTemplates: Array<{ label: string } & GoalTemplate> = [
     {
@@ -2895,6 +2904,14 @@ function MyLabPageInner() {
       href: matchupHref,
       cta: 'Open Matchup',
       icon: 'matchupAnalysis' as TiqFeatureIconName,
+    },
+    {
+      label: 'Video review',
+      value: 'Court clip',
+      note: 'Record or upload a stroke clip, then send it into the coach review flow.',
+      href: VIDEO_REVIEW_ROUTE,
+      cta: 'Capture clip',
+      icon: 'reports' as TiqFeatureIconName,
     },
     ...(canOpenPersonalQuest
       ? [{
@@ -4391,6 +4408,7 @@ function PlayerDevelopmentPathPanel({
       <div style={developmentActionRowStyle}>
         <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
+        <Link href={VIDEO_REVIEW_ROUTE} style={miniActionLinkStyle}>Video review</Link>
         <Link href={tacticsBoardHref} style={miniActionLinkStyle}>Build tactic board</Link>
         <Link href={MY_LAB_GOAL_PROGRESS_HREF} style={miniActionLinkStyle}>Update My Lab goal</Link>
       </div>
@@ -5395,6 +5413,7 @@ function PlayerCoachAssignmentsPanel({
           </div>
           <div style={coachReviewNextPlanActionsStyle}>
             <Link href={latestCoachFeedbackHref} style={miniActionPillStyle}>Run coach response</Link>
+            <Link href={`${VIDEO_REVIEW_ROUTE}?mode=player`} style={miniActionLinkStyle}>Record video</Link>
             <Link
               href={buildPlayerCoachMessageHref(
                 coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId),
@@ -5441,6 +5460,7 @@ function PlayerCoachAssignmentsPanel({
             <Link href={firstAssignmentRequestHref} style={miniActionLinkStyle}>
               Request first assignment
             </Link>
+            <Link href={`${VIDEO_REVIEW_ROUTE}?mode=player`} style={miniActionLinkStyle}>Record video</Link>
             <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>
           </div>
         </div>
