@@ -1512,7 +1512,7 @@ export default function VideoReviewClient() {
         </aside>
       </section>
 
-      <section className={styles.handoffPanel} aria-label="Video review notifications">
+      <section id="video-review-sharing" className={styles.handoffPanel} aria-label="Video review notifications">
         <div className={styles.panelHeader}>
           <div>
             <p className={styles.kicker}>Coach-player sharing</p>
@@ -1705,13 +1705,65 @@ export default function VideoReviewClient() {
           {!storageError && !storageReady ? <div className={styles.emptyState}>Opening video lab.</div> : null}
           {storageReady && filteredClips.length === 0 ? (
             <div className={styles.emptyState}>
-              {hasClipFilters
-                ? 'No clips match these filters.'
-                : mode === 'coach'
-                  ? queueSummary.reviewed
-                    ? 'Every coach clip has feedback. Open a reviewed clip, add a review file, or wait for the next player send.'
-                    : 'No clips are in the coach queue yet. Send one from Player capture or add a review file.'
-                  : 'Record or upload the first serve, return, rally, or footwork clip.'}
+              {hasClipFilters ? (
+                <>
+                  <strong>No clips match these filters.</strong>
+                  <span>Clear the filters or search by a different player, coach, stroke, or note.</span>
+                  <div className={styles.emptyActions} aria-label="Empty video library actions">
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={() => {
+                        setClipSearch('')
+                        setStatusFilter('all')
+                        setStrokeFilter('all')
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                </>
+              ) : mode === 'coach' ? (
+                <>
+                  <strong>{queueSummary.reviewed ? 'All coach clips are returned.' : 'No clips are waiting yet.'}</strong>
+                  <span>{queueSummary.reviewed ? 'Open returned clips, add a review file, or wait for the next player send.' : 'Send a clip from Player capture, or add a review file your player shared.'}</span>
+                  <div className={styles.emptyActions} aria-label="Empty coach queue actions">
+                    {queueSummary.reviewed ? (
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() => setStatusFilter('reviewed')}
+                      >
+                        Show returned clips
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() => openMobilePanel('video-review-capture', 'player')}
+                      >
+                        Capture a clip
+                      </button>
+                    )}
+                    <button type="button" className={styles.ghostButton} onClick={() => scrollToVideoReviewPanel('video-review-sharing')}>
+                      Add review file
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>Start with one clip.</strong>
+                  <span>Record or upload a serve, return, rally, or footwork clip, then send it to your coach.</span>
+                  <div className={styles.emptyActions} aria-label="Empty player library actions">
+                    <button type="button" className={styles.primaryButton} onClick={() => openMobilePanel('video-review-capture', 'player')}>
+                      Record first clip
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => scrollToVideoReviewPanel('video-review-sharing')}>
+                      Add review file
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
           <div className={styles.clipList}>

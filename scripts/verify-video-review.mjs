@@ -80,6 +80,9 @@ for (const viewport of viewports) {
       }
     }
 
+    await page.getByText('Start with one clip.').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Record first clip' }).waitFor({ state: 'visible', timeout: 10_000 })
+
     await page.getByRole('button', { name: 'Ask coach to check Toss' }).click({ timeout: 10_000 })
     const playerNoteReady = await page.getByLabel('Player note').evaluate((field) => {
       return field instanceof HTMLTextAreaElement && field.value.includes('toss is consistent')
@@ -198,6 +201,10 @@ for (const viewport of viewports) {
     await page.locator('[aria-label="Player practice checklist"]').getByText('Read the coach focus').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Feedback ready' }).click({ timeout: 10_000 })
+    await page.getByText('Feedback ready for').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Private' }).click({ timeout: 10_000 })
+    await page.getByText('No clips match these filters.').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Empty video library actions"]').getByRole('button', { name: 'Clear filters' }).click({ timeout: 10_000 })
     await page.getByText('Feedback ready for').waitFor({ state: 'visible', timeout: 10_000 })
 
     const layout = await page.evaluate(() => ({
