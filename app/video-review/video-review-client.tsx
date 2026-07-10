@@ -91,6 +91,17 @@ const PLAYER_NOTE_CUES = [
     note: 'Please check my swing path and finish.',
   },
 ] as const
+const PLAYER_QUICK_FILTERS = [
+  { label: 'All clips', status: 'all' },
+  { label: 'Private', status: 'draft' },
+  { label: 'Waiting on coach', status: 'sent' },
+  { label: 'Feedback ready', status: 'reviewed' },
+] as const satisfies Array<{ label: string; status: VideoReviewStatusFilter }>
+const COACH_QUICK_FILTERS = [
+  { label: 'All clips', status: 'all' },
+  { label: 'Needs review', status: 'sent' },
+  { label: 'Returned', status: 'reviewed' },
+] as const satisfies Array<{ label: string; status: VideoReviewStatusFilter }>
 
 type ClipBlobRecord = {
   id: string
@@ -561,6 +572,7 @@ export default function VideoReviewClient() {
     : quota.warningLevel === 'tight'
       ? 'You are close to the clip limit. Clear an old reviewed or private clip before the next upload.'
       : 'Keep the queue moving by clearing reviewed or private clips first.'
+  const quickFilters = mode === 'coach' ? COACH_QUICK_FILTERS : PLAYER_QUICK_FILTERS
   const activeNextStep = activeClip ? buildActiveVideoReviewNextStep({
     clip: activeClip,
     mode,
@@ -1632,6 +1644,21 @@ export default function VideoReviewClient() {
                 placeholder="Search player, coach, stroke, or note"
               />
             </label>
+            <div className={styles.quickFilterPanel} aria-label="Quick video filters">
+              <span className={styles.label}>Quick filters</span>
+              <div className={styles.quickFilterRow}>
+                {quickFilters.map((filter) => (
+                  <button
+                    type="button"
+                    key={`${mode}-${filter.status}`}
+                    className={`${styles.quickFilterButton} ${statusFilter === filter.status ? styles.quickFilterButtonActive : ''}`}
+                    onClick={() => setStatusFilter(filter.status)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className={styles.filterGrid}>
               <label className={styles.field}>
                 <span className={styles.label}>Status</span>
