@@ -2789,6 +2789,27 @@ function PlayerCapture({
               onLoadedMetadata={(event) => onDraftMetadata(event.currentTarget)}
             />
             <p className={styles.draftMeta}>{selectedFileName}</p>
+            <div className={styles.sendReadiness} aria-label="Send readiness">
+              <span className={styles.noteTime}>{playerNoteText ? 'Ready to send' : 'Almost ready'}</span>
+              <div className={styles.readinessGrid}>
+                <span className={styles.readinessItem}>
+                  <strong>Video</strong>
+                  <em>Ready</em>
+                </span>
+                <span className={styles.readinessItem}>
+                  <strong>Goal</strong>
+                  <em>{selectedIntent.shortLabel}</em>
+                </span>
+                <span className={`${styles.readinessItem} ${playerNoteText ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                  <strong>Question</strong>
+                  <em>{playerNoteText ? 'Ready' : 'Add one cue'}</em>
+                </span>
+                <span className={styles.readinessItem}>
+                  <strong>Size</strong>
+                  <em>{draftFileSizeLabel || 'Not saved yet'}</em>
+                </span>
+              </div>
+            </div>
             <div className={styles.draftCoachNote} aria-label="Draft coach question">
               <span className={styles.noteTime}>{playerNoteText ? 'Coach question ready' : 'Coach question'}</span>
               <p>

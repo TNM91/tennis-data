@@ -919,6 +919,63 @@
   overflow-wrap: anywhere;
 }
 
+.sendReadiness {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  background: rgba(8, 14, 28, 0.34);
+  padding: 11px;
+}
+
+.readinessGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 108px), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.readinessItem {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 13px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+
+.readinessItem strong,
+.readinessItem em {
+  display: block;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.readinessItem strong {
+  color: var(--shell-copy-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.readinessItem em {
+  color: var(--foreground-strong);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.readinessItemReady em {
+  color: var(--brand-green-3);
+}
+
+.readinessItemTodo em {
+  color: #ffd36b;
+}
+
 .draftCoachNote {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

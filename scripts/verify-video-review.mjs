@@ -203,6 +203,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const sendReadinessReady = await page.locator('[aria-label="Send readiness"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Ready to send') && text.includes('Video') && text.includes('Goal') && text.includes('Question')
+    }).catch(() => false)
+
+    if (!sendReadinessReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'send-readiness',
+        text: 'Draft preview did not show the coach-ready check before sending.',
+      })
+    }
+
     const draftAngleReady = await page.locator('[aria-label="Phone recording angle"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Horizontal clip') && text.includes('full-court spacing')
