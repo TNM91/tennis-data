@@ -319,6 +319,8 @@ for (const viewport of viewports) {
     await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
 
+    await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).waitFor({ state: 'visible', timeout: 10_000 })
+
     const coachIntentReady = await page.locator('[aria-label="Clip goal for coach"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Full court') && text.includes('spacing')
@@ -358,6 +360,35 @@ for (const viewport of viewports) {
         type: 'mark-player-question',
         text: 'Coach shortcut did not save the player question as a timeline mark.',
       })
+    }
+
+    const undoButtonReady = await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).isEnabled().catch(() => false)
+
+    if (!undoButtonReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'undo-last-mark',
+        text: 'Undo last mark was not enabled after saving a coach mark.',
+      })
+    } else {
+      await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).click({ timeout: 10_000 })
+      await page.getByText('Latest mark removed.').waitFor({ state: 'visible', timeout: 10_000 })
+
+      const playerQuestionRemoved = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
+        const text = section.textContent || ''
+        return !text.includes('toss is consistent') && text.includes('Coach markups will appear here by timestamp.')
+      }).catch(() => false)
+
+      if (!playerQuestionRemoved) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'undo-last-mark',
+          text: 'Undo last mark did not remove the saved timeline note.',
+        })
+      }
+
+      await page.locator('[aria-label="Coach review brief"]').getByRole('button', { name: 'Mark player question' }).click({ timeout: 10_000 })
+      await page.getByText('Coach markup saved at this timestamp.').waitFor({ state: 'visible', timeout: 10_000 })
     }
 
     await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })

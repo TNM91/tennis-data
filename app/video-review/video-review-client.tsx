@@ -1511,6 +1511,19 @@ export default function VideoReviewClient() {
     setMessage('Timestamp mark removed.')
   }
 
+  async function undoLatestCoachMark() {
+    if (!activeClip || !latestCoachMark) {
+      setMessage('Add a timestamp mark first.')
+      return
+    }
+    if (!canEditMarks) {
+      setMessage('Coach marks are view-only in player mode.')
+      return
+    }
+    await updateClip(removeVideoReviewAnnotation(activeClip, latestCoachMark.id))
+    setMessage('Latest mark removed.')
+  }
+
   function openMobilePanel(panelId: string, nextMode?: VideoReviewRole) {
     if (nextMode) {
       switchMode(nextMode)
@@ -2486,14 +2499,24 @@ export default function VideoReviewClient() {
                         disabled={!activeClip}
                       />
                     </label>
-                    <button
-                      type="button"
-                      className={styles.primaryButton}
-                      disabled={!activeClip || !coachNote.trim()}
-                      onClick={() => void saveAnnotation([{ x: 0.5, y: 0.5 }], 'note', coachNote)}
-                    >
-                      Add note at {timeLabel(currentTime)}
-                    </button>
+                    <div className={styles.actionRow}>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        disabled={!activeClip || !coachNote.trim()}
+                        onClick={() => void saveAnnotation([{ x: 0.5, y: 0.5 }], 'note', coachNote)}
+                      >
+                        Add note at {timeLabel(currentTime)}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.ghostButton}
+                        disabled={!latestCoachMark}
+                        onClick={() => void undoLatestCoachMark()}
+                      >
+                        Undo last mark
+                      </button>
+                    </div>
                   </div>
 
                   <div id="video-review-return-review" className={styles.panel}>
