@@ -2534,6 +2534,7 @@ function PlayerCapture({
   quotaFull: boolean
 }) {
   const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
+  const playerNoteText = draft.playerNote.trim()
 
   function applyPlayerNoteCue(note: string) {
     const currentNote = draft.playerNote.trim()
@@ -2543,6 +2544,14 @@ function PlayerCapture({
         ? `${currentNote} ${note}`
         : note
     setDraft({ ...draft, playerNote: nextNote.slice(0, 700) })
+  }
+
+  function focusPlayerNote() {
+    const field = document.getElementById('video-review-player-note')
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (field instanceof HTMLTextAreaElement) {
+      field.focus()
+    }
   }
 
   return (
@@ -2652,6 +2661,15 @@ function PlayerCapture({
               preload="metadata"
             />
             <p className={styles.draftMeta}>{selectedFileName}</p>
+            <div className={styles.draftCoachNote} aria-label="Draft coach question">
+              <span className={styles.noteTime}>{playerNoteText ? 'Coach question ready' : 'Coach question'}</span>
+              <p>
+                {playerNoteText || 'Add one thing you want your coach to check before you send this.'}
+              </p>
+              <button type="button" className={styles.ghostButton} onClick={focusPlayerNote}>
+                {playerNoteText ? 'Edit note' : 'Add note'}
+              </button>
+            </div>
             <div className={styles.actionRow}>
               <button type="button" className={styles.primaryButton} disabled={quotaFull} onClick={onSend}>
                 Send to coach
@@ -2734,6 +2752,7 @@ function PlayerCapture({
         <label className={styles.field}>
           <span className={styles.label}>Player note</span>
           <textarea
+            id="video-review-player-note"
             className={styles.textarea}
             value={draft.playerNote}
             onChange={(event) => setDraft({ ...draft, playerNote: event.target.value })}

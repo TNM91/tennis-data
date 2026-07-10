@@ -820,6 +820,30 @@
   overflow-wrap: anywhere;
 }
 
+.draftCoachNote {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  min-width: 0;
+  border-block: 1px solid rgba(116, 190, 255, 0.18);
+  padding: 10px 0;
+}
+
+.draftCoachNote .noteTime {
+  grid-column: 1 / -1;
+}
+
+.draftCoachNote p {
+  min-width: 0;
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .reviewGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(270px, 0.38fr);

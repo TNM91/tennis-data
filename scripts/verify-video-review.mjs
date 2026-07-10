@@ -80,6 +80,18 @@ for (const viewport of viewports) {
       }
     }
 
+    const initialOverflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    if (initialOverflow.scrollWidth > initialOverflow.clientWidth + 1) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'horizontal-overflow',
+        text: `Initial page width overflowed the viewport by ${initialOverflow.scrollWidth - initialOverflow.clientWidth}px.`,
+      })
+    }
+
     await page.getByText('Start with one clip.').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByRole('button', { name: 'Record first clip' }).waitFor({ state: 'visible', timeout: 10_000 })
 
@@ -142,6 +154,44 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'draft-actions',
         text: 'Draft preview did not show save, send, and re-record actions together.',
+      })
+    }
+
+    const draftCoachQuestionReady = await page.locator('[aria-label="Draft coach question"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Coach question ready') && text.includes('Edit note') && text.includes('toss is consistent')
+    }).catch(() => false)
+
+    if (!draftCoachQuestionReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-coach-question',
+        text: 'Draft preview did not show the player note before sending to coach.',
+      })
+    }
+
+    await page.locator('[aria-label="Draft coach question"]').getByRole('button', { name: 'Edit note' }).click({ timeout: 10_000 })
+    const playerNoteFocused = await page.getByLabel('Player note').evaluate((field) => {
+      return field instanceof HTMLTextAreaElement && document.activeElement === field
+    }).catch(() => false)
+
+    if (!playerNoteFocused) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-note-focus',
+        text: 'Edit note did not focus the player note field.',
+      })
+    }
+
+    const draftOverflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    if (draftOverflow.scrollWidth > draftOverflow.clientWidth + 1) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'horizontal-overflow',
+        text: `Draft preview overflowed the viewport by ${draftOverflow.scrollWidth - draftOverflow.clientWidth}px.`,
       })
     }
 
