@@ -362,6 +362,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const initialCoachNextStepReady = await page.locator('[aria-label="Coach next step"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Mark the key moment') && text.includes('Pause at the frame that matters')
+    }).catch(() => false)
+
+    if (!initialCoachNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-next-step',
+        text: 'Coach tools did not explain the next action before a mark is added.',
+      })
+    }
+
     await page.locator('[aria-label="Coach review brief"]').getByRole('button', { name: 'Use player note' }).click({ timeout: 10_000 })
     const coachNoteFromPlayerReady = await page.getByLabel('Timestamp note').evaluate((field) => {
       return field instanceof HTMLTextAreaElement && field.value.includes('toss is consistent')
@@ -512,6 +525,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'coach-return-readiness',
         text: 'Coach return panel did not show the readiness check before sending feedback.',
+      })
+    }
+
+    const readyCoachNextStepReady = await page.locator('[aria-label="Coach next step"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Ready to send back') && text.includes('Send the review back')
+    }).catch(() => false)
+
+    if (!readyCoachNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-next-step-ready',
+        text: 'Coach tools did not switch to the send-back next step when the review was ready.',
       })
     }
 

@@ -709,6 +709,24 @@ export default function VideoReviewClient() {
   const nextCoachMarkActionLabel = nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber
     ? `${watchedCoachMarkCount ? 'Continue' : 'Watch'} Mark ${nextUnwatchedCoachMarkNumber}`
     : activeCoachAnnotations.length ? 'Replay marks' : 'Open feedback'
+  const coachActionTitle = !activeClip
+    ? 'Choose a clip first'
+    : activeClip.status === 'reviewed'
+      ? 'Review already returned'
+      : canSendReviewBack
+        ? 'Ready to send back'
+        : activeCoachAnnotations.length
+          ? 'Name one next focus'
+          : 'Mark the key moment'
+  const coachActionCopy = !activeClip
+    ? 'Open a clip from the library before adding coach marks.'
+    : activeClip.status === 'reviewed'
+      ? 'Copy the player link or preview the player feedback.'
+      : canSendReviewBack
+        ? 'Send the review back, then copy the player link if you want to text it.'
+        : activeCoachAnnotations.length
+          ? 'Write the one court cue the player should use next.'
+          : 'Pause at the frame that matters, then add a line, arrow, circle, or note.'
 
   function openClip(clipId: string, nextMode: VideoReviewRole = mode) {
     if (!clipId) return
@@ -2591,6 +2609,10 @@ export default function VideoReviewClient() {
                   <div id="video-review-coach-tools" className={styles.panel}>
                     <h3 className={styles.clipTitle}>Coach tools</h3>
                     <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
+                    <div className={styles.nextActionStatus} aria-label="Coach next step">
+                      <span>{coachActionTitle}</span>
+                      <p>{coachActionCopy}</p>
+                    </div>
                     <div className={styles.toolBar}>
                       {(['line', 'arrow', 'circle', 'freehand', 'note'] as VideoAnnotationTool[]).map((candidate) => (
                         <button
@@ -3027,7 +3049,7 @@ function PlayerCapture({
           )}
         </div>
 
-        <div className={styles.captureActionStatus} aria-label="Capture next step">
+        <div className={styles.nextActionStatus} aria-label="Capture next step">
           <span>{captureActionTitle}</span>
           <p>{captureActionCopy}</p>
         </div>
