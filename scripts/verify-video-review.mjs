@@ -14,6 +14,7 @@ const expectedText = [
   'Video library',
   'Export review file',
   'Import review file',
+  'Import on the other device',
   'Record or upload',
   'Check the clip',
   'Save or send',

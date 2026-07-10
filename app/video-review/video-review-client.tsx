@@ -1382,8 +1382,8 @@ export default function VideoReviewClient() {
       setMessage(importQuota.existingClip
         ? 'Video review file updated the saved clip.'
         : importedClip.status === 'reviewed'
-          ? 'Coach feedback added.'
-          : 'Video review added.')
+          ? 'Coach feedback added. Open player feedback to watch the marks and practice plan.'
+          : 'Video review added. Open coach review to mark the clip and return one focus.')
     } catch {
       setMessage('The video review file could not be added.')
     }
@@ -1622,6 +1622,20 @@ export default function VideoReviewClient() {
           <div className={styles.shareCopy}>
             <strong>Share a review file</strong>
             <span>Send the selected clip for review, or add a file returned by your coach.</span>
+            <div className={styles.shareSteps} aria-label="Review file steps">
+              <span>
+                <strong>1</strong>
+                Export or share
+              </span>
+              <span>
+                <strong>2</strong>
+                Import on the other device
+              </span>
+              <span>
+                <strong>3</strong>
+                Review or practice
+              </span>
+            </div>
           </div>
           <div className={styles.actionRow}>
             <button type="button" className={styles.primaryButton} disabled={!activeClip} onClick={() => void exportActivePackage()}>

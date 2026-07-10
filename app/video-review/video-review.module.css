@@ -364,6 +364,43 @@
   font-size: 14px;
 }
 
+.shareSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 126px), 1fr));
+  gap: 7px;
+  min-width: 0;
+  margin-top: 5px;
+}
+
+.shareSteps span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid var(--shell-panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--shell-copy-muted);
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.shareSteps strong {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%);
+  color: var(--brand-green-3);
+  font-size: 10px;
+  line-height: 1;
+}
+
 .panelHeader {
   display: flex;
   justify-content: space-between;
