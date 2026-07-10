@@ -329,6 +329,19 @@ for (const viewport of viewports) {
     await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Waiting on coach').waitFor({ state: 'visible', timeout: 10_000 })
 
+    const sentLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Next: waiting on coach')
+    }).catch(() => false)
+
+    if (!sentLibraryNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'library-next-step',
+        text: 'Player library card did not show the waiting-on-coach next step.',
+      })
+    }
+
     const handoffReady = await page.locator('[aria-label="Coach handoff"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Copy coach link') && text.includes('Preview coach view') && text.includes('Share review file')
@@ -348,6 +361,19 @@ for (const viewport of viewports) {
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
 
     await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).waitFor({ state: 'visible', timeout: 10_000 })
+
+    const coachLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Next: mark key moment')
+    }).catch(() => false)
+
+    if (!coachLibraryNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-library-next-step',
+        text: 'Coach library card did not show the mark-key-moment next step.',
+      })
+    }
 
     const coachIntentReady = await page.locator('[aria-label="Clip goal for coach"]').evaluate((section) => {
       const text = section.textContent || ''
@@ -541,6 +567,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const readyCoachLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Next: send back')
+    }).catch(() => false)
+
+    if (!readyCoachLibraryNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-library-next-step-ready',
+        text: 'Coach library card did not switch to send-back after the return focus was ready.',
+      })
+    }
+
     await page.getByRole('button', { name: 'Send review back' }).click({ timeout: 10_000 })
     await page.getByText('Review ready to send').waitFor({ state: 'visible', timeout: 10_000 })
 
@@ -561,6 +600,20 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview player feedback' }).click({ timeout: 10_000 })
     await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
+
+    const reviewedLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Next: watch Mark 1')
+    }).catch(() => false)
+
+    if (!reviewedLibraryNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'reviewed-library-next-step',
+        text: 'Player library card did not show the next coach mark to watch.',
+      })
+    }
+
     await page.locator('[aria-label="Player practice checklist"]').getByText('Watch the coach marks').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
     const playerFeedbackFocusReady = await page.locator('[aria-label="Player feedback focus"]').evaluate((section) => {

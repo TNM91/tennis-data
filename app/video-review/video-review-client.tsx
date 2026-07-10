@@ -367,6 +367,35 @@ function buildPlayerFeedbackChecklist(input: {
   ]
 }
 
+function buildLibraryClipNextAction(input: {
+  clip: VideoReviewClip
+  mode: VideoReviewRole
+  practiceDone: boolean
+  watchedCoachMarkIds: string[]
+}) {
+  const coachMarks = getVideoReviewCoachAnnotations(input.clip)
+
+  if (input.mode === 'coach') {
+    if (input.clip.status === 'reviewed') return 'Next: share player feedback'
+    if (input.clip.status === 'sent') {
+      if (canReturnVideoReview(input.clip)) return 'Next: send back'
+      if (coachMarks.length) return 'Next: add one focus'
+      return 'Next: mark key moment'
+    }
+    return 'Next: wait for player send'
+  }
+
+  if (input.clip.status === 'reviewed') {
+    if (input.practiceDone) return 'Next: practice logged'
+    const nextMarkIndex = coachMarks.findIndex((mark) => !input.watchedCoachMarkIds.includes(mark.id))
+    if (nextMarkIndex >= 0) return `Next: watch Mark ${nextMarkIndex + 1}`
+    return coachMarks.length ? 'Next: practice the cue' : 'Next: read coach focus'
+  }
+
+  if (input.clip.status === 'sent') return 'Next: waiting on coach'
+  return 'Next: send to coach'
+}
+
 function clampPoint(point: VideoAnnotationPoint): VideoAnnotationPoint {
   return {
     x: Math.max(0, Math.min(1, point.x)),
@@ -2051,32 +2080,42 @@ export default function VideoReviewClient() {
               )}
             </div>
           ) : null}
-          <div className={styles.clipList}>
-            {filteredClips.map((clip) => (
-              <button
-                type="button"
-                key={clip.id}
-                className={`${styles.clipCard} ${activeClip?.id === clip.id ? styles.clipCardActive : ''}`}
-                onClick={() => openClip(clip.id)}
-              >
-                <span className={styles.clipTop}>
-                  <span>
-                    <span className={styles.clipTitle}>{clip.title}</span>
-                    <span className={styles.clipMeta}>
-                      {clip.playerName} | {getVideoReviewStrokeLabel(clip.stroke)} | {formatVideoReviewDuration(clip.durationSeconds)}
+          <div className={styles.clipList} aria-label="Video library clips">
+            {filteredClips.map((clip) => {
+              const clipCoachMarks = getVideoReviewCoachAnnotations(clip)
+              const libraryNextAction = buildLibraryClipNextAction({
+                clip,
+                mode,
+                practiceDone: Boolean(practiceRecords[clip.id]),
+                watchedCoachMarkIds: watchedCoachMarks[clip.id] ?? [],
+              })
+              return (
+                <button
+                  type="button"
+                  key={clip.id}
+                  className={`${styles.clipCard} ${activeClip?.id === clip.id ? styles.clipCardActive : ''}`}
+                  onClick={() => openClip(clip.id)}
+                >
+                  <span className={styles.clipTop}>
+                    <span>
+                      <span className={styles.clipTitle}>{clip.title}</span>
+                      <span className={styles.clipMeta}>
+                        {clip.playerName} | {getVideoReviewStrokeLabel(clip.stroke)} | {formatVideoReviewDuration(clip.durationSeconds)}
+                      </span>
+                    </span>
+                    <span
+                      className={`${styles.statusBadge} ${
+                        clip.status === 'reviewed' ? styles.statusReviewed : clip.status === 'sent' ? styles.statusSent : ''
+                      }`}
+                    >
+                      {statusLabel(clip.status)}
                     </span>
                   </span>
-                  <span
-                    className={`${styles.statusBadge} ${
-                      clip.status === 'reviewed' ? styles.statusReviewed : clip.status === 'sent' ? styles.statusSent : ''
-                    }`}
-                  >
-                    {statusLabel(clip.status)}
-                  </span>
-                </span>
-                <span className={styles.clipMeta}>{formatVideoReviewBytes(clip.sizeBytes)} | {formatVideoReviewCoachMarkCount(getVideoReviewCoachAnnotations(clip).length)}</span>
-              </button>
-            ))}
+                  <span className={styles.clipNextStep}>{libraryNextAction}</span>
+                  <span className={styles.clipMeta}>{formatVideoReviewBytes(clip.sizeBytes)} | {formatVideoReviewCoachMarkCount(clipCoachMarks.length)}</span>
+                </button>
+              )
+            })}
           </div>
         </aside>
 

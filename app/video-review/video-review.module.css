@@ -676,6 +676,21 @@
   display: block;
 }
 
+.clipNextStep {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%);
+  background: color-mix(in srgb, var(--brand-green) 8%, rgba(255, 255, 255, 0.045) 92%);
+  color: var(--foreground-strong);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .statusBadge {
   width: fit-content;
   max-width: 100%;
