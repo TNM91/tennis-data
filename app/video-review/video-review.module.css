@@ -911,6 +911,33 @@
   padding: 11px;
 }
 
+.captureActionStatus {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: rgba(8, 14, 28, 0.28);
+  padding: 11px 12px;
+}
+
+.captureActionStatus span {
+  color: var(--foreground-strong);
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.captureActionStatus p {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .intentBrief {
   border-left: 3px solid var(--brand-green);
   padding: 6px 0 6px 10px;

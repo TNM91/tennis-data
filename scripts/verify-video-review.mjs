@@ -18,6 +18,8 @@ const expectedText = [
   'Record or upload',
   'Check the clip',
   'Save or send',
+  'Record or upload first',
+  'Open the camera on court or upload a video from your phone.',
   'Start a clip',
   'Set up the shot',
   'Phone sideways',
@@ -126,6 +128,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'capture-intent',
         text: 'Default full-court clip goal did not explain the best phone angle.',
+      })
+    }
+
+    const initialCaptureNextStepReady = await page.locator('[aria-label="Capture next step"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Record or upload first') && text.includes('Open the camera on court or upload a video from your phone.')
+    }).catch(() => false)
+
+    if (!initialCaptureNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'capture-next-step',
+        text: 'Capture panel did not explain the first player action before a clip is selected.',
       })
     }
 
@@ -269,6 +284,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'draft-coach-question',
         text: 'Draft preview did not show the player note before sending to coach.',
+      })
+    }
+
+    const draftCaptureNextStepReady = await page.locator('[aria-label="Capture next step"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Ready to save or send') && text.includes('Play it once, then send it to your coach or keep it private.')
+    }).catch(() => false)
+
+    if (!draftCaptureNextStepReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-next-step',
+        text: 'Draft preview did not tell the player what to do before saving or sending.',
       })
     }
 

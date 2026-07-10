@@ -2923,6 +2923,30 @@ function PlayerCapture({
         : 'Set up the shot'
   const angleCheck = selectedIntent.id === 'full-court' ? 'Phone sideways' : 'Close-up ok'
   const frameCheck = selectedIntent.id === 'full-court' ? 'Player, ball path, recovery' : 'Grip, contact, finish'
+  const captureActionTitle = quotaFull
+    ? 'Free space first'
+    : draftPreviewUrl
+      ? playerNoteText ? 'Ready to save or send' : 'Add one coach question'
+      : recording
+        ? 'Finish the take'
+        : cameraActive
+          ? cameraPreviewReady ? 'Start when framed' : 'Camera opening'
+          : selectedFileName ? 'Checking clip' : 'Record or upload first'
+  const captureActionCopy = quotaFull
+    ? 'Delete an old clip before saving another video.'
+    : draftPreviewUrl
+      ? playerNoteText
+        ? 'Play it once, then send it to your coach or keep it private.'
+        : 'Add one thing you want your coach to check before sending.'
+      : recording
+        ? 'Stop recording when the stroke and recovery are captured.'
+        : cameraActive
+          ? cameraPreviewReady
+            ? 'Frame the player and ball path, then start recording.'
+            : 'Keep this page open while the camera preview loads.'
+          : selectedFileName
+            ? 'The preview will open so you can check the clip.'
+            : 'Open the camera on court or upload a video from your phone.'
 
   function applyPlayerNoteCue(note: string) {
     const currentNote = draft.playerNote.trim()
@@ -3001,6 +3025,11 @@ function PlayerCapture({
               </button>
             </>
           )}
+        </div>
+
+        <div className={styles.captureActionStatus} aria-label="Capture next step">
+          <span>{captureActionTitle}</span>
+          <p>{captureActionCopy}</p>
         </div>
 
         <div className={styles.orientationPanel} aria-label="Phone recording angle">
