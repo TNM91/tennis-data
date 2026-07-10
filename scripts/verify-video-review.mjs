@@ -12,7 +12,6 @@ const expectedText = [
   'Coach review',
   'Keep the clip queue light.',
   'Video library',
-  'Coach tools',
   'Export review file',
   'Import review file',
   'Record or upload',
@@ -21,7 +20,6 @@ const expectedText = [
   'ASK COACH TO CHECK',
   'Toss',
   'Contact',
-  'QUICK FOCUS',
 ]
 const ignoredConsoleFragments = [
   '/_next/webpack-hmr',
@@ -162,6 +160,8 @@ for (const viewport of viewports) {
     }
 
     await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
+    await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })
 
     const returnFocusReady = await page.getByLabel('Next focus').evaluate((field) => {

@@ -2100,116 +2100,120 @@ export default function VideoReviewClient() {
                 ) : null}
               </div>
 
-              <div className={styles.panel}>
-                <h3 className={styles.clipTitle}>Coach tools</h3>
-                <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
-                <div className={styles.toolBar}>
-                  {(['line', 'arrow', 'circle', 'freehand', 'note'] as VideoAnnotationTool[]).map((candidate) => (
+              {mode === 'coach' ? (
+                <>
+                  <div className={styles.panel}>
+                    <h3 className={styles.clipTitle}>Coach tools</h3>
+                    <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
+                    <div className={styles.toolBar}>
+                      {(['line', 'arrow', 'circle', 'freehand', 'note'] as VideoAnnotationTool[]).map((candidate) => (
+                        <button
+                          type="button"
+                          key={candidate}
+                          className={`${styles.toolButton} ${tool === candidate ? styles.toolButtonActive : ''}`}
+                          disabled={!activeClip}
+                          onClick={() => setTool(candidate)}
+                        >
+                          {candidate}
+                        </button>
+                      ))}
+                    </div>
+                    <div className={styles.toolBar} aria-label="Annotation color">
+                      {ANNOTATION_COLORS.map((candidate) => (
+                        <button
+                          type="button"
+                          key={candidate}
+                          className={`${styles.toolButton} ${color === candidate ? styles.toolButtonActive : ''}`}
+                          disabled={!activeClip}
+                          onClick={() => setColor(candidate)}
+                          style={{ color: candidate }}
+                        >
+                          Color
+                        </button>
+                      ))}
+                    </div>
+                    <div className={styles.cuePanel} aria-label="Coach quick cues">
+                      <span className={styles.label}>Quick cues</span>
+                      <div className={styles.cueGrid}>
+                        {coachCues.map((cue) => (
+                          <button
+                            type="button"
+                            key={cue.id}
+                            className={styles.cueButton}
+                            disabled={!activeClip}
+                            onClick={() => applyCoachCue(cue)}
+                          >
+                            <strong>{cue.label}</strong>
+                            <span>{cue.note}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Timestamp note</span>
+                      <textarea
+                        className={styles.textarea}
+                        value={coachNote}
+                        onChange={(event) => setCoachNote(event.target.value)}
+                        placeholder="Contact point is drifting left."
+                        disabled={!activeClip}
+                      />
+                    </label>
                     <button
                       type="button"
-                      key={candidate}
-                      className={`${styles.toolButton} ${tool === candidate ? styles.toolButtonActive : ''}`}
-                      disabled={mode !== 'coach' || !activeClip}
-                      onClick={() => setTool(candidate)}
+                      className={styles.primaryButton}
+                      disabled={!activeClip || !coachNote.trim()}
+                      onClick={() => void saveAnnotation([{ x: 0.5, y: 0.5 }], 'note', coachNote)}
                     >
-                      {candidate}
+                      Add note at {timeLabel(currentTime)}
                     </button>
-                  ))}
-                </div>
-                <div className={styles.toolBar} aria-label="Annotation color">
-                  {ANNOTATION_COLORS.map((candidate) => (
-                    <button
-                      type="button"
-                      key={candidate}
-                      className={`${styles.toolButton} ${color === candidate ? styles.toolButtonActive : ''}`}
-                      disabled={mode !== 'coach' || !activeClip}
-                      onClick={() => setColor(candidate)}
-                      style={{ color: candidate }}
-                    >
-                      Color
-                    </button>
-                  ))}
-                </div>
-                <div className={styles.cuePanel} aria-label="Coach quick cues">
-                  <span className={styles.label}>Quick cues</span>
-                  <div className={styles.cueGrid}>
-                    {coachCues.map((cue) => (
-                      <button
-                        type="button"
-                        key={cue.id}
-                        className={styles.cueButton}
-                        disabled={mode !== 'coach' || !activeClip}
-                        onClick={() => applyCoachCue(cue)}
-                      >
-                        <strong>{cue.label}</strong>
-                        <span>{cue.note}</span>
-                      </button>
-                    ))}
                   </div>
-                </div>
-                <label className={styles.field}>
-                  <span className={styles.label}>Timestamp note</span>
-                  <textarea
-                    className={styles.textarea}
-                    value={coachNote}
-                    onChange={(event) => setCoachNote(event.target.value)}
-                    placeholder="Contact point is drifting left."
-                    disabled={mode !== 'coach' || !activeClip}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  disabled={mode !== 'coach' || !activeClip || !coachNote.trim()}
-                  onClick={() => void saveAnnotation([{ x: 0.5, y: 0.5 }], 'note', coachNote)}
-                >
-                  Add note at {timeLabel(currentTime)}
-                </button>
-              </div>
 
-              <div id="video-review-return-review" className={styles.panel}>
-                <h3 className={styles.clipTitle}>Return review</h3>
-                <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
-                  <span className={styles.label}>Quick focus</span>
-                  <div className={styles.returnCueGrid}>
-                    {coachCues.map((cue) => (
-                      <button
-                        type="button"
-                        key={`${cue.id}-return`}
-                        className={styles.returnCueButton}
-                        disabled={mode !== 'coach' || !activeClip}
-                        onClick={() => applyCoachReturnFocus(cue.summary)}
-                      >
-                        <strong>{cue.label}</strong>
-                        <span>{cue.summary}</span>
-                      </button>
-                    ))}
+                  <div id="video-review-return-review" className={styles.panel}>
+                    <h3 className={styles.clipTitle}>Return review</h3>
+                    <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
+                      <span className={styles.label}>Quick focus</span>
+                      <div className={styles.returnCueGrid}>
+                        {coachCues.map((cue) => (
+                          <button
+                            type="button"
+                            key={`${cue.id}-return`}
+                            className={styles.returnCueButton}
+                            disabled={!activeClip}
+                            onClick={() => applyCoachReturnFocus(cue.summary)}
+                          >
+                            <strong>{cue.label}</strong>
+                            <span>{cue.summary}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Next focus</span>
+                      <textarea
+                        className={styles.textarea}
+                        value={coachSummary}
+                        onChange={(event) => setCoachSummary(event.target.value)}
+                        placeholder={activeClip?.coachSummary || 'Keep the toss more in front and finish balanced before the next serve basket.'}
+                        disabled={!activeClip}
+                      />
+                    </label>
+                    <p className={styles.formHelp}>
+                      {returnReviewFocus
+                        ? `Ready to return: ${returnReviewFocus}`
+                        : 'Add one timestamp mark or write the next focus before sending this review back.'}
+                    </p>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      disabled={!canSendReviewBack}
+                      onClick={() => void sendReview()}
+                    >
+                      Send review back
+                    </button>
                   </div>
-                </div>
-                <label className={styles.field}>
-                  <span className={styles.label}>Next focus</span>
-                  <textarea
-                    className={styles.textarea}
-                    value={coachSummary}
-                    onChange={(event) => setCoachSummary(event.target.value)}
-                    placeholder={activeClip?.coachSummary || 'Keep the toss more in front and finish balanced before the next serve basket.'}
-                    disabled={mode !== 'coach' || !activeClip}
-                  />
-                </label>
-                <p className={styles.formHelp}>
-                  {returnReviewFocus
-                    ? `Ready to return: ${returnReviewFocus}`
-                    : 'Add one timestamp mark or write the next focus before sending this review back.'}
-                </p>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  disabled={!canSendReviewBack}
-                  onClick={() => void sendReview()}
-                >
-                  Send review back
-                </button>
-              </div>
+                </>
+              ) : null}
 
               {activeClip?.status === 'reviewed' && practicePlan ? (
                 <div className={styles.panel}>
