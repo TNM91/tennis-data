@@ -146,6 +146,7 @@ for (const viewport of viewports) {
 
     await page.getByRole('button', { name: 'Send to coach' }).click({ timeout: 10_000 })
     await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByText('Next step | Waiting on coach').waitFor({ state: 'visible', timeout: 10_000 })
 
     const handoffReady = await page.locator('[aria-label="Coach handoff"]').evaluate((section) => {
       const text = section.textContent || ''
@@ -193,6 +194,7 @@ for (const viewport of viewports) {
 
     await page.getByRole('button', { name: 'Preview player feedback' }).click({ timeout: 10_000 })
     await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,

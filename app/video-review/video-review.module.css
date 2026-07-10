@@ -769,7 +769,8 @@
 }
 
 .lessonPanel,
-.coachBriefPanel {
+.coachBriefPanel,
+.nextStepPanel {
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -783,6 +784,15 @@
 .coachBriefPanel {
   border-color: color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%);
   background: color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%);
+}
+
+.nextStepPanel {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: color-mix(in srgb, var(--brand-green) 30%, var(--brand-blue-2) 12%, var(--shell-panel-border) 58%);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), rgba(116, 190, 255, 0.055)),
+    var(--shell-panel-bg);
 }
 
 .lessonCopy {
@@ -1192,6 +1202,10 @@
   }
 
   .lessonStats {
+    grid-template-columns: 1fr;
+  }
+
+  .nextStepPanel {
     grid-template-columns: 1fr;
   }
 

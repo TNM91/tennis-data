@@ -233,6 +233,80 @@ function timeLabel(seconds: number) {
   return formatVideoReviewDuration(seconds)
 }
 
+function buildActiveVideoReviewNextStep(input: {
+  clip: VideoReviewClip
+  mode: VideoReviewRole
+  coachMarkCount: number
+  canSendReviewBack: boolean
+  practiceDone: boolean
+}) {
+  const strokeLabel = getVideoReviewStrokeLabel(input.clip.stroke).toLowerCase()
+
+  if (input.mode === 'coach') {
+    if (input.clip.status === 'reviewed') {
+      return {
+        badge: 'Ready for player',
+        title: `Return ${strokeLabel} feedback`,
+        body: `${input.clip.playerName} can open the coach marks and take the next focus back to court.`,
+      }
+    }
+
+    if (input.clip.status === 'sent') {
+      if (input.canSendReviewBack) {
+        return {
+          badge: 'Ready to return',
+          title: 'Send one clear focus back',
+          body: 'The review has enough feedback. Return it now or add one more timestamp mark first.',
+        }
+      }
+
+      if (input.coachMarkCount) {
+        return {
+          badge: 'Next focus',
+          title: 'Name the practice cue',
+          body: 'Add the one thing the player should work on before sending this clip back.',
+        }
+      }
+
+      return {
+        badge: 'Coach queue',
+        title: 'Mark the key moment',
+        body: 'Play the clip, pause at the frame that matters, then add a line, arrow, circle, or note.',
+      }
+    }
+
+    return {
+      badge: 'Private clip',
+      title: 'Open the player view',
+      body: 'This clip has not been sent into the coach queue yet.',
+    }
+  }
+
+  if (input.clip.status === 'reviewed') {
+    return {
+      badge: input.practiceDone ? 'Practice logged' : 'Feedback ready',
+      title: input.practiceDone ? 'Keep the cue active' : 'Watch, then practice',
+      body: input.practiceDone
+        ? 'Your feedback is saved. Use the same cue again before deleting or archiving the clip.'
+        : 'Open the first coach mark, copy the practice plan, then mark the work done after your next session.',
+    }
+  }
+
+  if (input.clip.status === 'sent') {
+    return {
+      badge: 'Waiting on coach',
+      title: `Share this with ${input.clip.coachName}`,
+      body: 'Copy the coach link or share the review file so your coach can mark the clip and return feedback.',
+    }
+  }
+
+  return {
+    badge: 'Saved private',
+    title: 'Send it when ready',
+    body: 'This clip is only on this device. Send it to coach review when you want feedback.',
+  }
+}
+
 function clampPoint(point: VideoAnnotationPoint): VideoAnnotationPoint {
   return {
     x: Math.max(0, Math.min(1, point.x)),
@@ -454,6 +528,13 @@ export default function VideoReviewClient() {
     : quota.warningLevel === 'tight'
       ? 'You are close to the clip limit. Clear an old reviewed or private clip before the next upload.'
       : 'Keep the queue moving by clearing reviewed or private clips first.'
+  const activeNextStep = activeClip ? buildActiveVideoReviewNextStep({
+    clip: activeClip,
+    mode,
+    coachMarkCount: activeCoachAnnotations.length,
+    canSendReviewBack,
+    practiceDone: Boolean(activePracticeRecord),
+  }) : null
 
   function openClip(clipId: string, nextMode: VideoReviewRole = mode) {
     if (!clipId) return
@@ -1655,6 +1736,73 @@ export default function VideoReviewClient() {
                 ) : null}
               </div>
 
+              {activeClip && activeNextStep ? (
+                <section className={styles.nextStepPanel} aria-label="Next video review step">
+                  <div className={styles.lessonCopy}>
+                    <span className={styles.noteTime}>Next step | {activeNextStep.badge}</span>
+                    <h3 className={styles.clipTitle}>{activeNextStep.title}</h3>
+                    <p>{activeNextStep.body}</p>
+                  </div>
+                  <div className={styles.actionRow}>
+                    {mode === 'player' && activeClip.status === 'draft' ? (
+                      <button type="button" className={styles.primaryButton} onClick={() => void sendActiveClip()}>
+                        Send clip
+                      </button>
+                    ) : null}
+                    {mode === 'player' && activeClip.status === 'sent' ? (
+                      <>
+                        <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
+                          Copy coach link
+                        </button>
+                        <button type="button" className={styles.ghostButton} onClick={() => switchMode('coach')}>
+                          Open coach view
+                        </button>
+                      </>
+                    ) : null}
+                    {mode === 'player' && activeClip.status === 'reviewed' ? (
+                      <>
+                        <button type="button" className={styles.primaryButton} onClick={openFirstReviewMark}>
+                          Open first mark
+                        </button>
+                        <button type="button" className={styles.ghostButton} onClick={markPracticeDone}>
+                          {activePracticeRecord ? 'Practice again' : 'Mark practiced'}
+                        </button>
+                      </>
+                    ) : null}
+                    {mode === 'coach' && activeClip.status === 'sent' ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          onClick={() => {
+                            if (canSendReviewBack) {
+                              void sendReview()
+                            } else {
+                              seekTo(0)
+                            }
+                          }}
+                        >
+                          {canSendReviewBack ? 'Return to player' : 'Start review'}
+                        </button>
+                        <button type="button" className={styles.ghostButton} onClick={() => scrollToVideoReviewPanel('video-review-return-review')}>
+                          Next focus
+                        </button>
+                      </>
+                    ) : null}
+                    {mode === 'coach' && activeClip.status === 'reviewed' ? (
+                      <>
+                        <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>
+                          Copy player link
+                        </button>
+                        <button type="button" className={styles.ghostButton} onClick={() => switchMode('player')}>
+                          Open player view
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
               {activeClip?.status === 'reviewed' && practicePlan ? (
                 <section className={styles.lessonPanel} aria-label="Returned coach lesson">
                   <div className={styles.lessonCopy}>
@@ -2019,7 +2167,7 @@ export default function VideoReviewClient() {
                 </button>
               </div>
 
-              <div className={styles.panel}>
+              <div id="video-review-return-review" className={styles.panel}>
                 <h3 className={styles.clipTitle}>Return review</h3>
                 <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
                   <span className={styles.label}>Quick focus</span>
