@@ -2665,7 +2665,7 @@ export default function VideoReviewClient() {
                 </div>
                 {activeCoachAnnotations.length ? (
                   <div className={styles.noteList}>
-                    {activeCoachAnnotations.map((annotation) => {
+                    {activeCoachAnnotations.map((annotation, index) => {
                       const isVisibleOnVideo = visibleAnnotationIds.has(annotation.id)
                       return (
                         <div
@@ -2673,6 +2673,7 @@ export default function VideoReviewClient() {
                           className={`${styles.noteItem} ${isVisibleOnVideo ? styles.noteItemActive : ''}`}
                         >
                           <span className={styles.noteMeta}>
+                            <span className={styles.noteNumber}>Mark {index + 1}</span>
                             <span className={styles.noteTime}>{timeLabel(annotation.timestamp)} | {annotation.tool}</span>
                             {isVisibleOnVideo ? <span className={styles.noteNow}>On video now</span> : null}
                           </span>

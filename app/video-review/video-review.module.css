@@ -1429,6 +1429,17 @@
   min-width: 0;
 }
 
+.noteNumber {
+  border-radius: 999px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  background: rgba(116, 190, 255, 0.08);
+  color: var(--foreground-strong);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
 .noteNow {
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%);

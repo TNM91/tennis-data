@@ -352,7 +352,7 @@ for (const viewport of viewports) {
     const playerQuestionMarked = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
-        && text.includes('1 mark saved') && text.includes('First mark') && text.includes('Latest mark')
+        && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('First mark') && text.includes('Latest mark')
     }).catch(() => false)
 
     if (!playerQuestionMarked) {
