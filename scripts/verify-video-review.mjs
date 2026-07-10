@@ -165,6 +165,20 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
     await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
+
+    await page.locator('[aria-label="Coach review brief"]').getByRole('button', { name: 'Use player note' }).click({ timeout: 10_000 })
+    const coachNoteFromPlayerReady = await page.getByLabel('Timestamp note').evaluate((field) => {
+      return field instanceof HTMLTextAreaElement && field.value.includes('toss is consistent')
+    }).catch(() => false)
+
+    if (!coachNoteFromPlayerReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-note-to-coach-note',
+        text: 'Coach shortcut did not load the player note into the timestamp note.',
+      })
+    }
+
     await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })
 
     const returnFocusReady = await page.getByLabel('Next focus').evaluate((field) => {

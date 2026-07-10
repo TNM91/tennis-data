@@ -1117,6 +1117,18 @@ export default function VideoReviewClient() {
     setMessage('Coach cue loaded. Edit it or add it at the current timestamp.')
   }
 
+  function usePlayerNoteAsCoachNote() {
+    const note = activeClip?.playerNote.trim()
+    if (!note) {
+      setMessage('No player note added.')
+      return
+    }
+    setCoachNote(cleanText(note, 280))
+    setTool('note')
+    setMessage('Player note loaded. Add it at the current timestamp or edit it first.')
+    scrollToVideoReviewPanel('video-review-coach-tools')
+  }
+
   function applyCoachReturnFocus(summary: string) {
     setCoachSummary(summary)
     setMessage('Next focus ready. Add a mark or send the review back.')
@@ -2090,6 +2102,11 @@ export default function VideoReviewClient() {
                     <button type="button" className={styles.primaryButton} onClick={() => seekTo(0)}>
                       Start review
                     </button>
+                    {activeClip.playerNote.trim() ? (
+                      <button type="button" className={styles.ghostButton} onClick={usePlayerNoteAsCoachNote}>
+                        Use player note
+                      </button>
+                    ) : null}
                     <button type="button" className={styles.ghostButton} disabled={!activeCoachAnnotations.length} onClick={() => jumpToReviewMark('next')}>
                       Next mark
                     </button>
@@ -2268,7 +2285,7 @@ export default function VideoReviewClient() {
 
               {mode === 'coach' ? (
                 <>
-                  <div className={styles.panel}>
+                  <div id="video-review-coach-tools" className={styles.panel}>
                     <h3 className={styles.clipTitle}>Coach tools</h3>
                     <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
                     <div className={styles.toolBar}>
