@@ -229,6 +229,21 @@ for (const viewport of viewports) {
       })
     }
 
+    await page.locator('[aria-label="Coach review brief"]').getByRole('button', { name: 'Mark player question' }).click({ timeout: 10_000 })
+    await page.getByText('Coach markup saved at this timestamp.').waitFor({ state: 'visible', timeout: 10_000 })
+    const playerQuestionMarked = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('| note') && text.includes('toss is consistent')
+    }).catch(() => false)
+
+    if (!playerQuestionMarked) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'mark-player-question',
+        text: 'Coach shortcut did not save the player question as a timeline mark.',
+      })
+    }
+
     await page.locator('[aria-label="Coach return focus cues"]').getByRole('button', { name: /Spacing/ }).click({ timeout: 10_000 })
 
     const returnFocusReady = await page.getByLabel('Next focus').evaluate((field) => {
@@ -262,7 +277,7 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview player feedback' }).click({ timeout: 10_000 })
     await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
-    await page.locator('[aria-label="Player practice checklist"]').getByText('Read the coach focus').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Player practice checklist"]').getByText('Watch the coach marks').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player video library summary"]').getByRole('button', { name: 'Open feedback' }).click({ timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })

@@ -1129,6 +1129,16 @@ export default function VideoReviewClient() {
     scrollToVideoReviewPanel('video-review-coach-tools')
   }
 
+  async function markPlayerQuestion() {
+    const note = activeClip?.playerNote.trim()
+    if (!note) {
+      setMessage('No player note added.')
+      return
+    }
+    await saveAnnotation([{ x: 0.5, y: 0.5 }], 'note', note)
+    scrollToVideoReviewPanel('video-review-return-review')
+  }
+
   function applyCoachReturnFocus(summary: string) {
     setCoachSummary(summary)
     setMessage('Next focus ready. Add a mark or send the review back.')
@@ -2107,6 +2117,11 @@ export default function VideoReviewClient() {
                         Use player note
                       </button>
                     ) : null}
+                    {activeClip.playerNote.trim() ? (
+                      <button type="button" className={styles.ghostButton} onClick={() => void markPlayerQuestion()}>
+                        Mark player question
+                      </button>
+                    ) : null}
                     <button type="button" className={styles.ghostButton} disabled={!activeCoachAnnotations.length} onClick={() => jumpToReviewMark('next')}>
                       Next mark
                     </button>
@@ -2431,7 +2446,7 @@ export default function VideoReviewClient() {
                 </div>
               ) : null}
 
-              <div className={styles.panel}>
+              <div className={styles.panel} aria-label="Timeline marks">
                 <h3 className={styles.clipTitle}>Timeline marks</h3>
                 {activeCoachAnnotations.length ? (
                   <div className={styles.noteList}>
