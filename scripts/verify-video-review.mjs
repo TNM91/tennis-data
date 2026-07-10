@@ -19,6 +19,8 @@ const expectedText = [
   'Check the clip',
   'Save or send',
   'Start a clip',
+  'Set up the shot',
+  'Phone sideways',
   'Phone angle',
   'Horizontal is best',
   'Full court',
@@ -127,6 +129,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const defaultCaptureSetupReady = await page.locator('[aria-label="Before recording"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Set up the shot') && text.includes('Phone sideways') && text.includes('Player, ball path, recovery')
+    }).catch(() => false)
+
+    if (!defaultCaptureSetupReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'capture-setup',
+        text: 'Full-court recording setup did not show the phone angle and framing checks.',
+      })
+    }
+
     await page.getByRole('button', { name: 'Choose Technique close-up' }).click({ timeout: 10_000 })
     const techniqueIntentReady = await page.locator('[aria-label="Clip goal"]').evaluate((section) => {
       const text = section.textContent || ''
@@ -138,6 +153,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'capture-intent',
         text: 'Technique clip goal did not switch the player guidance.',
+      })
+    }
+
+    const techniqueCaptureSetupReady = await page.locator('[aria-label="Before recording"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Close-up ok') && text.includes('Grip, contact, finish')
+    }).catch(() => false)
+
+    if (!techniqueCaptureSetupReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'capture-setup',
+        text: 'Technique recording setup did not switch the angle and framing checks.',
       })
     }
 

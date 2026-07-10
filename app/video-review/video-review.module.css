@@ -899,6 +899,18 @@
   color: var(--brand-green-3);
 }
 
+.captureSetup {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 22%, rgba(116, 190, 255, 0.18) 78%);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.075), rgba(116, 190, 255, 0.055)),
+    rgba(8, 14, 28, 0.24);
+  padding: 11px;
+}
+
 .intentBrief {
   border-left: 3px solid var(--brand-green);
   padding: 6px 0 6px 10px;

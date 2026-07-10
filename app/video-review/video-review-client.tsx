@@ -2707,6 +2707,17 @@ function PlayerCapture({
   const orientationLabel = getVideoShapeLabel(videoShape)
   const orientationCopy = getVideoShapeCopy(videoShape)
   const selectedIntent = getVideoReviewCaptureIntent(draft.captureIntent)
+  const captureReadyLabel = recording
+    ? 'Recording now'
+    : draftPreviewUrl
+      ? 'Check the clip'
+      : cameraActive
+        ? cameraPreviewReady
+          ? 'Ready to record'
+          : 'Opening camera'
+        : 'Set up the shot'
+  const angleCheck = selectedIntent.id === 'full-court' ? 'Phone sideways' : 'Close-up ok'
+  const frameCheck = selectedIntent.id === 'full-court' ? 'Player, ball path, recovery' : 'Grip, contact, finish'
 
   function applyPlayerNoteCue(note: string) {
     const currentNote = draft.playerNote.trim()
@@ -2810,6 +2821,24 @@ function PlayerCapture({
                 <span>{intent.id === 'full-court' ? 'Spacing, movement, serve path' : 'Grip, contact, swing path'}</span>
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className={styles.captureSetup} aria-label="Before recording">
+          <span className={styles.noteTime}>{captureReadyLabel}</span>
+          <div className={styles.readinessGrid}>
+            <span className={styles.readinessItem}>
+              <strong>Angle</strong>
+              <em>{angleCheck}</em>
+            </span>
+            <span className={styles.readinessItem}>
+              <strong>Frame</strong>
+              <em>{frameCheck}</em>
+            </span>
+            <span className={`${styles.readinessItem} ${playerNoteText ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+              <strong>Question</strong>
+              <em>{playerNoteText ? 'Ready' : 'Add one cue'}</em>
+            </span>
           </div>
         </div>
 
