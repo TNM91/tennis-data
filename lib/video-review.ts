@@ -575,7 +575,7 @@ export function buildVideoReviewSummaryText(clip: VideoReviewClip) {
     ``,
     `Coach timestamp marks (${marks.length})`,
     marks.length
-      ? marks.map((annotation) => `${formatVideoReviewDuration(annotation.timestamp)} | ${annotation.tool} | ${annotation.text || 'Coach markup'}`).join('\n')
+      ? marks.map((annotation, index) => `Mark ${index + 1}: ${formatVideoReviewDuration(annotation.timestamp)} | ${annotation.tool} | ${annotation.text || 'Coach markup'}`).join('\n')
       : 'No coach timestamp marks added.',
     ``,
     `Practice plan`,
@@ -594,9 +594,10 @@ export function buildVideoReviewPackageExportMessage(recipientRole: VideoReviewR
 }
 
 function buildReturnedReviewActionCopy(coachMarkCount: number) {
-  return coachMarkCount
-    ? `watch ${coachMarkCount} coach ${coachMarkCount === 1 ? 'mark' : 'marks'} and the practice plan`
-    : 'read the practice plan'
+  if (!coachMarkCount) return 'read the practice plan'
+  return coachMarkCount === 1
+    ? 'watch Mark 1 and the practice plan'
+    : `watch Marks 1-${coachMarkCount} and the practice plan`
 }
 
 function capitalizeFirst(value: string) {

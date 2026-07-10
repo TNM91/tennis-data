@@ -198,7 +198,7 @@ describe('video review product model', () => {
     expect(sent.recipientRole).toBe('coach')
     expect(sent.body).toContain('Player A sent Deuce court serve')
     expect(returned.recipientRole).toBe('player')
-    expect(returned.body).toContain('Watch 1 coach mark and the practice plan.')
+    expect(returned.body).toContain('Watch Mark 1 and the practice plan.')
     expect(returnedWithoutMarks.body).toContain('Read the practice plan.')
     expect(returned.href).toBe('/video-review?mode=player&clip=clip-1')
   })
@@ -350,11 +350,44 @@ describe('video review product model', () => {
       status: 'reviewed',
       annotations: [],
     }, 'player')
+    const playerTextWithTwoMarks = buildVideoReviewPackageShareText({
+      ...baseClip,
+      title: 'Serve review',
+      playerName: 'Player A',
+      coachName: 'Coach B',
+      stroke: 'serve',
+      status: 'reviewed',
+      annotations: [
+        {
+          id: 'coach-mark-1',
+          clipId: baseClip.id,
+          timestamp: 4,
+          tool: 'note',
+          color: '#9be11d',
+          text: 'Finish through contact.',
+          points: [{ x: 0.5, y: 0.5 }],
+          createdBy: 'coach',
+          createdAt: '2026-07-09T12:02:00.000Z',
+        },
+        {
+          id: 'coach-mark-2',
+          clipId: baseClip.id,
+          timestamp: 6,
+          tool: 'line',
+          color: '#9be11d',
+          text: 'Track the landing.',
+          points: [{ x: 0.4, y: 0.6 }],
+          createdBy: 'coach',
+          createdAt: '2026-07-09T12:03:00.000Z',
+        },
+      ],
+    }, 'player')
 
     expect(coachText).toContain('Player A sent Serve review for serve review.')
     expect(coachText).toContain('import this review file')
     expect(playerText).toContain('Coach B returned feedback on Serve review.')
-    expect(playerText).toContain('watch 1 coach mark and the practice plan')
+    expect(playerText).toContain('watch Mark 1 and the practice plan')
+    expect(playerTextWithTwoMarks).toContain('watch Marks 1-2 and the practice plan')
     expect(playerTextWithoutMarks).toContain('read the practice plan')
   })
 
@@ -422,7 +455,9 @@ describe('video review product model', () => {
     expect(summary).toContain('Coach feedback\nKeep the toss in front.')
     expect(summary).toContain('Coach timestamp marks (2)')
     expect(summary).not.toContain('Player asked about balance.')
-    expect(summary.indexOf('0:02 | line')).toBeLessThan(summary.indexOf('0:05 | note'))
+    expect(summary).toContain('Mark 1: 0:02 | line | Contact point.')
+    expect(summary).toContain('Mark 2: 0:05 | note | Recover after contact.')
+    expect(summary.indexOf('Mark 1: 0:02 | line')).toBeLessThan(summary.indexOf('Mark 2: 0:05 | note'))
     expect(summary).toContain('Practice plan')
     expect(buildVideoReviewSummaryFileName(clip)).toBe('deuce-serve-review-12345678.tenaceiq-video-summary.txt')
 
