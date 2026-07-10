@@ -200,6 +200,8 @@ for (const viewport of viewports) {
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Read the coach focus').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Player video library summary"]').getByRole('button', { name: 'Open feedback' }).click({ timeout: 10_000 })
+    await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Feedback ready' }).click({ timeout: 10_000 })
     await page.getByText('Feedback ready for').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Private' }).click({ timeout: 10_000 })

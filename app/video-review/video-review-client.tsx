@@ -572,6 +572,20 @@ export default function VideoReviewClient() {
     : quota.warningLevel === 'tight'
       ? 'You are close to the clip limit. Clear an old reviewed or private clip before the next upload.'
       : 'Keep the queue moving by clearing reviewed or private clips first.'
+  const latestPlayerClip = useMemo(
+    () => clips.find((clip) => clip.status === 'reviewed')
+      ?? clips.find((clip) => clip.status === 'sent')
+      ?? clips.find((clip) => clip.status === 'draft')
+      ?? null,
+    [clips],
+  )
+  const latestPlayerClipAction = latestPlayerClip?.status === 'reviewed'
+    ? 'Open feedback'
+    : latestPlayerClip?.status === 'sent'
+      ? 'Check status'
+      : latestPlayerClip
+        ? 'Continue clip'
+        : ''
   const quickFilters = mode === 'coach' ? COACH_QUICK_FILTERS : PLAYER_QUICK_FILTERS
   const activeNextStep = activeClip ? buildActiveVideoReviewNextStep({
     clip: activeClip,
@@ -1628,9 +1642,27 @@ export default function VideoReviewClient() {
                   <span>private</span>
                 </span>
                 <span className={styles.queueMetric}>
-                  <strong>{queueSummary.reviewed}</strong>
-                  <span>reviewed</span>
+                  <strong>{queueSummary.needsReview}</strong>
+                  <span>waiting</span>
                 </span>
+                <span className={styles.queueMetric}>
+                  <strong>{queueSummary.reviewed}</strong>
+                  <span>feedback</span>
+                </span>
+                {latestPlayerClip ? (
+                  <button
+                    type="button"
+                    className={styles.ghostButton}
+                    onClick={() => {
+                      setClipSearch('')
+                      setStatusFilter(latestPlayerClip.status)
+                      setStrokeFilter('all')
+                      openClip(latestPlayerClip.id, 'player')
+                    }}
+                  >
+                    {latestPlayerClipAction}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
