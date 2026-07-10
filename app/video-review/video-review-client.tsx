@@ -445,8 +445,8 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-function scrollToVideoReviewPanel(panelId: string) {
-  document.getElementById(panelId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+function scrollToVideoReviewPanel(panelId: string, behavior: ScrollBehavior = 'smooth') {
+  document.getElementById(panelId)?.scrollIntoView({ behavior, block: 'start' })
 }
 
 function importQuotaMessage(reason: ReturnType<typeof getVideoReviewImportQuotaState>['reason']) {
@@ -608,6 +608,10 @@ export default function VideoReviewClient() {
     setMode(nextMode)
     setActiveClipId(clipId)
     window.history.replaceState(null, '', buildVideoReviewHandoffHref(clipId, nextMode))
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      scrollToVideoReviewPanel('video-review-active', 'auto')
+      window.requestAnimationFrame(() => scrollToVideoReviewPanel('video-review-active', 'auto'))
+    }
   }
 
   function switchMode(nextMode: VideoReviewRole) {

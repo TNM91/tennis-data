@@ -21,6 +21,7 @@
 .panel,
 .reviewPanel,
 .handoffPanel {
+  box-sizing: border-box;
   border: 1px solid var(--shell-panel-border);
   background: var(--shell-panel-bg);
   box-shadow: var(--shadow-card);
@@ -1225,6 +1226,19 @@
   .primaryButton,
   .dangerButton {
     min-height: 44px;
+  }
+
+  .toolBar {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .toolBar .toolButton,
+  .toolBar .ghostButton {
+    box-sizing: border-box;
+    width: 100%;
+    padding-inline: 8px;
   }
 
   .mobileQuickBar {

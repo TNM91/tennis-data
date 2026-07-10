@@ -202,6 +202,20 @@ for (const viewport of viewports) {
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player video library summary"]').getByRole('button', { name: 'Open feedback' }).click({ timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
+    const activeReviewInView = await page.waitForFunction(() => {
+      if (window.innerWidth > 767) return true
+      const review = document.getElementById('video-review-active')
+      if (!review) return false
+      const rect = review.getBoundingClientRect()
+      return rect.top < window.innerHeight * 0.72 && rect.bottom > 0
+    }, undefined, { timeout: 5_000 }).then(() => true).catch(() => false)
+    if (!activeReviewInView) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'mobile-open-review',
+        text: 'Opening a clip from the mobile library did not bring the review panel into view.',
+      })
+    }
     await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Feedback ready' }).click({ timeout: 10_000 })
     await page.getByText('Feedback ready for').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Quick video filters"]').getByRole('button', { name: 'Private' }).click({ timeout: 10_000 })
