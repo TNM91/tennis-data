@@ -2113,6 +2113,25 @@ export default function VideoReviewClient() {
                       ))}
                     </div>
                   ) : null}
+                  {mode === 'player' ? (
+                    <div className={`${styles.sendReadiness} ${styles.playerFeedbackFocus}`} aria-label="Player feedback focus">
+                      <span className={styles.noteTime}>{activePracticeRecord ? 'Practice logged' : 'Take this to court'}</span>
+                      <div className={styles.readinessGrid}>
+                        <span className={styles.readinessItem}>
+                          <strong>Watch</strong>
+                          <em>{activeCoachAnnotations.length ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'}` : 'Coach focus'}</em>
+                        </span>
+                        <span className={styles.readinessItem}>
+                          <strong>Cue</strong>
+                          <em>{practicePlan.steps[0]?.title ?? 'One focus'}</em>
+                        </span>
+                        <span className={`${styles.readinessItem} ${activePracticeRecord ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                          <strong>Practice</strong>
+                          <em>{activePracticeRecord ? 'Logged' : 'Mark after session'}</em>
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={styles.actionRow}>
                     <button type="button" className={styles.primaryButton} onClick={openFirstReviewMark}>
                       Watch feedback

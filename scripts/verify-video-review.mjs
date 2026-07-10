@@ -440,6 +440,20 @@ for (const viewport of viewports) {
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Watch the coach marks').waitFor({ state: 'visible', timeout: 10_000 })
     await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
+    const playerFeedbackFocusReady = await page.locator('[aria-label="Player feedback focus"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Take this to court') && text.includes('Watch') && text.includes('Cue') && text.includes('Practice')
+        && text.includes('Mark after session')
+    }).catch(() => false)
+
+    if (!playerFeedbackFocusReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-feedback-focus',
+        text: 'Returned player feedback did not show the watch, cue, and practice focus.',
+      })
+    }
+
     await page.locator('[aria-label="Player video library summary"]').getByRole('button', { name: 'Open feedback' }).click({ timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
     const activeReviewInView = await page.waitForFunction(() => {
