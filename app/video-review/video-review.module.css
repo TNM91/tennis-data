@@ -780,6 +780,25 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
+.orientationPanel {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%);
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%);
+  padding: 11px 12px;
+}
+
+.orientationPanel p {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .draftPreview {
   display: grid;
   gap: 10px;

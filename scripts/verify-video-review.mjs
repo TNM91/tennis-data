@@ -17,6 +17,8 @@ const expectedText = [
   'Record or upload',
   'Check the clip',
   'Save or send',
+  'Phone angle',
+  'Horizontal is best',
   'ASK COACH TO CHECK',
   'Toss',
   'Contact',
@@ -126,6 +128,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const phoneAngleReady = await page.locator('[aria-label="Phone recording angle"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Horizontal clip') && text.includes('full-court spacing')
+    }).catch(() => false)
+
+    if (!phoneAngleReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'phone-angle',
+        text: 'Camera preview did not show horizontal recording guidance.',
+      })
+    }
+
     await page.getByRole('button', { name: 'Start recording' }).click({ timeout: 10_000 })
     await page.locator('[class*="recordingBadge"]').waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForTimeout(1_500)
@@ -154,6 +169,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'draft-actions',
         text: 'Draft preview did not show save, send, and re-record actions together.',
+      })
+    }
+
+    const draftAngleReady = await page.locator('[aria-label="Phone recording angle"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Horizontal clip') && text.includes('full-court spacing')
+    }).catch(() => false)
+
+    if (!draftAngleReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'draft-angle',
+        text: 'Draft preview did not keep the recorded clip angle guidance visible.',
       })
     }
 

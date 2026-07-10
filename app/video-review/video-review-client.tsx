@@ -116,6 +116,14 @@ type DraftState = {
   playerNote: string
 }
 
+type VideoReviewOrientation = 'landscape' | 'portrait' | 'square'
+
+type VideoReviewVideoShape = {
+  width: number
+  height: number
+  orientation: VideoReviewOrientation
+}
+
 const INITIAL_DRAFT: DraftState = {
   title: '',
   playerName: '',
@@ -468,6 +476,41 @@ function formatRecordingTime(seconds: number) {
   return `${minutes}:${remainingSeconds}`
 }
 
+function getVideoReviewOrientation(width: number, height: number): VideoReviewOrientation {
+  if (width > height) return 'landscape'
+  if (height > width) return 'portrait'
+  return 'square'
+}
+
+function readVideoShape(video: HTMLVideoElement): VideoReviewVideoShape | null {
+  if (!video.videoWidth || !video.videoHeight) return null
+  return {
+    width: video.videoWidth,
+    height: video.videoHeight,
+    orientation: getVideoReviewOrientation(video.videoWidth, video.videoHeight),
+  }
+}
+
+function getVideoShapeLabel(shape: VideoReviewVideoShape | null) {
+  if (!shape) return 'Phone angle'
+  if (shape.orientation === 'landscape') return 'Horizontal clip'
+  if (shape.orientation === 'portrait') return 'Portrait clip'
+  return 'Square clip'
+}
+
+function getVideoShapeCopy(shape: VideoReviewVideoShape | null) {
+  if (!shape) {
+    return 'Horizontal is best for serves, point play, and full-court spacing. Portrait works for close-up mechanics.'
+  }
+  if (shape.orientation === 'landscape') {
+    return 'Good for full-court spacing, serves, movement, and coach markup across the whole frame.'
+  }
+  if (shape.orientation === 'portrait') {
+    return 'Good for close-up mechanics. Turn the phone sideways when you want full-court spacing or serve path.'
+  }
+  return 'Keep the player, contact point, and recovery steps inside the frame before sending.'
+}
+
 export default function VideoReviewClient() {
   const [mode, setMode] = useState<VideoReviewRole>('player')
   const [clips, setClips] = useState<VideoReviewClip[]>([])
@@ -479,6 +522,7 @@ export default function VideoReviewClient() {
   const [draftPreviewUrl, setDraftPreviewUrl] = useState('')
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraPreviewReady, setCameraPreviewReady] = useState(false)
+  const [captureVideoShape, setCaptureVideoShape] = useState<VideoReviewVideoShape | null>(null)
   const [recording, setRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [message, setMessage] = useState('')
@@ -888,6 +932,7 @@ export default function VideoReviewClient() {
     if (!file) return
     setSelectedFile(file)
     setSelectedFileName(file.name)
+    setCaptureVideoShape(null)
     setMessage('Clip ready. Add context, then save or send it.')
   }
 
@@ -895,6 +940,7 @@ export default function VideoReviewClient() {
     chunksRef.current = []
     setSelectedFile(null)
     setSelectedFileName('')
+    setCaptureVideoShape(null)
     setMessage(messageText)
   }
 
@@ -923,6 +969,7 @@ export default function VideoReviewClient() {
     setRecording(false)
     setCameraActive(false)
     setCameraPreviewReady(false)
+    setCaptureVideoShape(null)
   }
 
   function startRecording() {
@@ -948,6 +995,7 @@ export default function VideoReviewClient() {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' })
       setSelectedFile(blob)
       setSelectedFileName(`court-recording-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`)
+      setCaptureVideoShape(null)
       setMessage('Recording ready. Save it or send it to coach review.')
     }
     recorder.start(250)
@@ -1003,6 +1051,7 @@ export default function VideoReviewClient() {
       await saveClip(clip, selectedFile)
       setSelectedFile(null)
       setSelectedFileName('')
+      setCaptureVideoShape(null)
       setDraft(INITIAL_DRAFT)
       openClip(clip.id, 'player')
       if (status === 'sent') {
@@ -1861,6 +1910,7 @@ export default function VideoReviewClient() {
               selectedFileName={selectedFileName}
               draftFileSizeLabel={draftFileSizeLabel}
               draftPreviewUrl={draftPreviewUrl}
+              videoShape={captureVideoShape}
               cameraActive={cameraActive}
               cameraPreviewReady={cameraPreviewReady}
               recording={recording}
@@ -1870,9 +1920,15 @@ export default function VideoReviewClient() {
               onStartCamera={startCamera}
               onStopCamera={stopCamera}
               onPreviewReady={() => {
+                const nextShape = previewVideoRef.current ? readVideoShape(previewVideoRef.current) : null
+                if (nextShape) setCaptureVideoShape(nextShape)
                 if (cameraPreviewReady) return
                 setCameraPreviewReady(true)
                 setMessage('Camera ready.')
+              }}
+              onDraftMetadata={(video) => {
+                const nextShape = readVideoShape(video)
+                if (nextShape) setCaptureVideoShape(nextShape)
               }}
               onStartRecording={startRecording}
               onStopRecording={stopRecording}
@@ -2509,6 +2565,7 @@ function PlayerCapture({
   selectedFileName,
   draftFileSizeLabel,
   draftPreviewUrl,
+  videoShape,
   cameraActive,
   cameraPreviewReady,
   recording,
@@ -2518,6 +2575,7 @@ function PlayerCapture({
   onStartCamera,
   onStopCamera,
   onPreviewReady,
+  onDraftMetadata,
   onStartRecording,
   onStopRecording,
   onRecordAgain,
@@ -2531,6 +2589,7 @@ function PlayerCapture({
   selectedFileName: string
   draftFileSizeLabel: string
   draftPreviewUrl: string
+  videoShape: VideoReviewVideoShape | null
   cameraActive: boolean
   cameraPreviewReady: boolean
   recording: boolean
@@ -2540,6 +2599,7 @@ function PlayerCapture({
   onStartCamera: () => void
   onStopCamera: () => void
   onPreviewReady: () => void
+  onDraftMetadata: (video: HTMLVideoElement) => void
   onStartRecording: () => void
   onStopRecording: () => void
   onRecordAgain: () => void
@@ -2550,6 +2610,8 @@ function PlayerCapture({
 }) {
   const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
   const playerNoteText = draft.playerNote.trim()
+  const orientationLabel = getVideoShapeLabel(videoShape)
+  const orientationCopy = getVideoShapeCopy(videoShape)
 
   function applyPlayerNoteCue(note: string) {
     const currentNote = draft.playerNote.trim()
@@ -2630,6 +2692,11 @@ function PlayerCapture({
           )}
         </div>
 
+        <div className={styles.orientationPanel} aria-label="Phone recording angle">
+          <span className={styles.noteTime}>{orientationLabel}</span>
+          <p>{orientationCopy}</p>
+        </div>
+
         {cameraActive ? (
           <div className={styles.cameraPreview}>
             <div className={styles.cameraPreviewFrame}>
@@ -2641,6 +2708,7 @@ function PlayerCapture({
                 className={styles.cameraVideo}
                 onCanPlay={onPreviewReady}
                 onPlaying={onPreviewReady}
+                onLoadedMetadata={onPreviewReady}
               />
               {recording ? (
                 <span className={styles.recordingBadge}>Recording {formatRecordingTime(recordingSeconds)}</span>
@@ -2674,6 +2742,7 @@ function PlayerCapture({
               controls
               playsInline
               preload="metadata"
+              onLoadedMetadata={(event) => onDraftMetadata(event.currentTarget)}
             />
             <p className={styles.draftMeta}>{selectedFileName}</p>
             <div className={styles.draftCoachNote} aria-label="Draft coach question">
