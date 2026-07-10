@@ -147,6 +147,8 @@ export const VIDEO_REVIEW_NOTIFICATION_STORAGE_KEY = 'tenaceiq.videoReview.notif
 
 export const VIDEO_REVIEW_PRACTICE_STORAGE_KEY = 'tenaceiq.videoReview.practiceDone.v1'
 
+export const VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY = 'tenaceiq.videoReview.watchedMarks.v1'
+
 export const VIDEO_REVIEW_QUOTA: VideoReviewQuota = {
   maxClips: 12,
   maxBytes: 500 * 1024 * 1024,

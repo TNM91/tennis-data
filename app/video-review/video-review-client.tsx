@@ -8,6 +8,7 @@ import {
   VIDEO_REVIEW_QUOTA,
   VIDEO_REVIEW_NOTIFICATION_STORAGE_KEY,
   VIDEO_REVIEW_PRACTICE_STORAGE_KEY,
+  VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY,
   VIDEO_REVIEW_STROKES,
   VIDEO_REVIEW_WORKFLOW,
   buildVideoReviewCoachChecklistState,
@@ -434,6 +435,28 @@ function writeLocalPracticeRecords(records: Record<string, VideoReviewPracticeRe
   window.localStorage.setItem(VIDEO_REVIEW_PRACTICE_STORAGE_KEY, JSON.stringify(records))
 }
 
+function readLocalWatchedCoachMarks(): Record<string, string[]> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY) || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed).flatMap(([clipId, annotationIds]) => (
+        typeof clipId === 'string' && Array.isArray(annotationIds)
+          ? [[clipId, annotationIds.filter((id): id is string => typeof id === 'string').slice(0, 80)]]
+          : []
+      )),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function writeLocalWatchedCoachMarks(records: Record<string, string[]>) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY, JSON.stringify(records))
+}
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -721,6 +744,7 @@ export default function VideoReviewClient() {
       void loadClips()
       setNotifications(readLocalNotifications())
       setPracticeRecords(readLocalPracticeRecords())
+      setWatchedCoachMarks(readLocalWatchedCoachMarks())
     }, 0)
 
     return () => window.clearTimeout(timeout)
@@ -750,6 +774,9 @@ export default function VideoReviewClient() {
       }
       if (event.key === VIDEO_REVIEW_PRACTICE_STORAGE_KEY) {
         setPracticeRecords(readLocalPracticeRecords())
+      }
+      if (event.key === VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY) {
+        setWatchedCoachMarks(readLocalWatchedCoachMarks())
       }
     }
     window.addEventListener('storage', handleStorage)
@@ -1115,6 +1142,13 @@ export default function VideoReviewClient() {
 
   function clearDeletedClipFromView(clipId: string) {
     setClips((current) => current.filter((clip) => clip.id !== clipId))
+    setWatchedCoachMarks((current) => {
+      if (!current[clipId]) return current
+      const next = { ...current }
+      delete next[clipId]
+      writeLocalWatchedCoachMarks(next)
+      return next
+    })
     if (activeClip?.id === clipId) {
       setActiveClipId('')
       setActiveBlobUrl('')
@@ -1458,10 +1492,29 @@ export default function VideoReviewClient() {
     setWatchedCoachMarks((current) => {
       const currentIds = current[activeClip.id] ?? []
       if (currentIds.includes(annotationId)) return current
-      return {
+      const next = {
         ...current,
         [activeClip.id]: [...currentIds, annotationId],
       }
+      writeLocalWatchedCoachMarks(next)
+      return next
+    })
+  }
+
+  function forgetWatchedCoachMark(annotationId: string) {
+    if (!activeClip) return
+    setWatchedCoachMarks((current) => {
+      const currentIds = current[activeClip.id] ?? []
+      if (!currentIds.includes(annotationId)) return current
+      const nextIds = currentIds.filter((id) => id !== annotationId)
+      const next = { ...current }
+      if (nextIds.length) {
+        next[activeClip.id] = nextIds
+      } else {
+        delete next[activeClip.id]
+      }
+      writeLocalWatchedCoachMarks(next)
+      return next
     })
   }
 
@@ -1555,6 +1608,7 @@ export default function VideoReviewClient() {
       return
     }
     await updateClip(removeVideoReviewAnnotation(activeClip, annotationId))
+    forgetWatchedCoachMark(annotationId)
     setMessage('Timestamp mark removed.')
   }
 
@@ -1568,6 +1622,7 @@ export default function VideoReviewClient() {
       return
     }
     await updateClip(removeVideoReviewAnnotation(activeClip, latestCoachMark.id))
+    forgetWatchedCoachMark(latestCoachMark.id)
     setMessage('Latest mark removed.')
   }
 

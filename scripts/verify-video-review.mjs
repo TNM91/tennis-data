@@ -378,6 +378,23 @@ for (const viewport of viewports) {
       })
     }
 
+    const watchedMarkStored = await page.evaluate(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem('tenaceiq.videoReview.watchedMarks.v1') || '{}')
+        return Object.values(parsed).some((annotationIds) => Array.isArray(annotationIds) && annotationIds.length > 0)
+      } catch {
+        return false
+      }
+    }).catch(() => false)
+
+    if (!watchedMarkStored) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'watched-mark-storage',
+        text: 'Opening a timeline mark did not save watched progress on the device.',
+      })
+    }
+
     const undoButtonReady = await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).isEnabled().catch(() => false)
 
     if (!undoButtonReady) {
