@@ -1249,7 +1249,7 @@ export default function VideoReviewClient() {
     const href = `${window.location.origin}${buildVideoReviewHandoffHref(activeClip.id, role)}`
     try {
       await navigator.clipboard.writeText(href)
-      setMessage(role === 'coach' ? 'Coach review link copied.' : 'Player return link copied.')
+      setMessage(role === 'coach' ? 'Coach review link copied for this device.' : 'Player return link copied for this device.')
     } catch {
       setMessage(`${role === 'coach' ? 'Coach review' : 'Player return'} link: ${href}`)
     }
@@ -2127,6 +2127,19 @@ export default function VideoReviewClient() {
                       <span>coach</span>
                     </span>
                   </div>
+                  <div className={styles.handoffGuide} aria-label="Coach sharing options">
+                    <span className={styles.noteTime}>Share options</span>
+                    <div className={styles.handoffChoiceGrid}>
+                      <span className={styles.handoffChoice}>
+                        <strong>Different phone or computer</strong>
+                        <em>Share review file</em>
+                      </span>
+                      <span className={styles.handoffChoice}>
+                        <strong>This device</strong>
+                        <em>Copy coach link</em>
+                      </span>
+                    </div>
+                  </div>
                   <div className={styles.actionRow}>
                     <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
                       Copy coach link
@@ -2215,6 +2228,19 @@ export default function VideoReviewClient() {
                       <strong>{activeClip.playerName}</strong>
                       <span>player</span>
                     </span>
+                  </div>
+                  <div className={styles.handoffGuide} aria-label="Player sharing options">
+                    <span className={styles.noteTime}>Share options</span>
+                    <div className={styles.handoffChoiceGrid}>
+                      <span className={styles.handoffChoice}>
+                        <strong>Different phone or computer</strong>
+                        <em>Share returned file</em>
+                      </span>
+                      <span className={styles.handoffChoice}>
+                        <strong>This device</strong>
+                        <em>Copy player link</em>
+                      </span>
+                    </div>
                   </div>
                   <div className={styles.actionRow}>
                     <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>

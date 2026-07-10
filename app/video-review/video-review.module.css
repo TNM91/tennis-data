@@ -879,6 +879,54 @@
   line-height: 1.4;
 }
 
+.handoffGuide {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: rgba(8, 14, 28, 0.32);
+  padding: 11px;
+}
+
+.handoffChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 152px), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.handoffChoice {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 13px;
+  border: 1px solid var(--shell-panel-border);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+
+.handoffChoice strong,
+.handoffChoice em {
+  display: block;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.handoffChoice strong {
+  color: var(--foreground-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.handoffChoice em {
+  color: var(--brand-green-3);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .draftPreview {
   display: grid;
   gap: 10px;

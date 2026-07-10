@@ -274,6 +274,7 @@ for (const viewport of viewports) {
     const handoffReady = await page.locator('[aria-label="Coach handoff"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Copy coach link') && text.includes('Preview coach view') && text.includes('Share review file')
+        && text.includes('Different phone or computer') && text.includes('This device')
     }).catch(() => false)
 
     if (!handoffReady) {
@@ -362,6 +363,7 @@ for (const viewport of viewports) {
     const returnHandoffReady = await page.locator('[aria-label="Player return handoff"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Copy player link') && text.includes('Preview player feedback') && text.includes('Share returned file')
+        && text.includes('Different phone or computer') && text.includes('This device')
     }).catch(() => false)
 
     if (!returnHandoffReady) {
