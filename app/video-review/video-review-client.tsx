@@ -2643,7 +2643,26 @@ export default function VideoReviewClient() {
               ) : null}
 
               <div className={styles.panel} aria-label="Timeline marks">
-                <h3 className={styles.clipTitle}>Timeline marks</h3>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <h3 className={styles.clipTitle}>Timeline marks</h3>
+                    <p className={styles.formHelp}>
+                      {activeCoachAnnotations.length
+                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. Open a mark to jump to that frame.`
+                        : 'Coach markups will appear here by timestamp.'}
+                    </p>
+                  </div>
+                  {activeCoachAnnotations.length ? (
+                    <div className={styles.actionRow}>
+                      <button type="button" className={styles.ghostButton} disabled={!firstReviewMark} onClick={openFirstReviewMark}>
+                        First mark
+                      </button>
+                      <button type="button" className={styles.ghostButton} disabled={!latestCoachMark} onClick={openLatestCoachMark}>
+                        Latest mark
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
                 {activeCoachAnnotations.length ? (
                   <div className={styles.noteList}>
                     {activeCoachAnnotations.map((annotation) => {
@@ -2675,7 +2694,7 @@ export default function VideoReviewClient() {
                     })}
                   </div>
                 ) : (
-                  <p className={styles.formHelp}>Coach markups will appear here by timestamp.</p>
+                  <p className={styles.formHelp}>Add the first coach note or drawing when you see the key moment.</p>
                 )}
               </div>
 
