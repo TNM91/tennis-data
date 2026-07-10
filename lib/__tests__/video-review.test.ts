@@ -418,6 +418,7 @@ describe('video review product model', () => {
 
     expect(summary).toContain('TenAceIQ Video Review')
     expect(summary).toContain('Clip: Deuce serve review')
+    expect(summary).toContain('Clip goal: Full court')
     expect(summary).toContain('Coach feedback\nKeep the toss in front.')
     expect(summary).toContain('Coach timestamp marks (2)')
     expect(summary).not.toContain('Player asked about balance.')
@@ -837,6 +838,7 @@ describe('video review product model', () => {
       playerName: '',
       coachName: '  Coach C ',
       stroke: 'return',
+      captureIntent: 'technique',
       playerNote: '  Watch   split timing. ',
     }, '2026-07-09T12:10:00.000Z')
 
@@ -844,6 +846,7 @@ describe('video review product model', () => {
     expect(updated.playerName).toBe('Player')
     expect(updated.coachName).toBe('Coach C')
     expect(updated.stroke).toBe('return')
+    expect(updated.captureIntent).toBe('technique')
     expect(updated.playerNote).toBe('Watch split timing.')
     expect(updated.status).toBe('reviewed')
     expect(updated.annotations).toHaveLength(1)

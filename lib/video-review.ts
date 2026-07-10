@@ -14,6 +14,8 @@ export type VideoStrokeTag =
 
 export type VideoAnnotationTool = 'line' | 'arrow' | 'circle' | 'freehand' | 'note'
 
+export type VideoReviewCaptureIntent = 'full-court' | 'technique'
+
 export type VideoAnnotationPoint = {
   x: number
   y: number
@@ -44,6 +46,7 @@ export type VideoReviewClip = {
   fileType: string
   sizeBytes: number
   durationSeconds: number | null
+  captureIntent?: VideoReviewCaptureIntent
   playerNote: string
   coachSummary: string
   annotations: VideoAnnotation[]
@@ -133,7 +136,7 @@ export type VideoReviewPracticeRecord = {
 
 export type VideoReviewClipMetadataPatch = Partial<Pick<
   VideoReviewClip,
-  'title' | 'playerName' | 'coachName' | 'stroke' | 'playerNote'
+  'title' | 'playerName' | 'coachName' | 'stroke' | 'captureIntent' | 'playerNote'
 >>
 
 export const VIDEO_REVIEW_ROUTE = '/video-review'
@@ -161,6 +164,29 @@ export const VIDEO_REVIEW_STROKES: Array<{ id: VideoStrokeTag; label: string }> 
   { id: 'overhead', label: 'Overhead' },
   { id: 'footwork', label: 'Footwork' },
   { id: 'match-play', label: 'Match play' },
+]
+
+export const VIDEO_REVIEW_CAPTURE_INTENTS: Array<{
+  id: VideoReviewCaptureIntent
+  label: string
+  shortLabel: string
+  playerCopy: string
+  coachCopy: string
+}> = [
+  {
+    id: 'full-court',
+    label: 'Full court',
+    shortLabel: 'Full court',
+    playerCopy: 'Use this for serves, movement, spacing, recovery, and point play. Horizontal usually gives your coach the most useful view.',
+    coachCopy: 'Check spacing, court position, recovery, and whether the full stroke shape fits the point.',
+  },
+  {
+    id: 'technique',
+    label: 'Technique close-up',
+    shortLabel: 'Close-up',
+    playerCopy: 'Use this for grip, toss, contact point, swing path, and balance. Portrait works when the player fills the frame.',
+    coachCopy: 'Check setup, contact point, swing path, balance, and the one mechanical cue the player can repeat.',
+  },
 ]
 
 export const VIDEO_REVIEW_COACH_CUES: VideoReviewCoachCue[] = [
@@ -307,6 +333,14 @@ export function formatVideoReviewDuration(seconds: number | null | undefined) {
 
 export function getVideoReviewStrokeLabel(stroke: VideoStrokeTag) {
   return VIDEO_REVIEW_STROKES.find((candidate) => candidate.id === stroke)?.label ?? 'Clip'
+}
+
+export function getVideoReviewCaptureIntent(intent: VideoReviewCaptureIntent | undefined) {
+  return VIDEO_REVIEW_CAPTURE_INTENTS.find((candidate) => candidate.id === intent) ?? VIDEO_REVIEW_CAPTURE_INTENTS[0]
+}
+
+export function getVideoReviewCaptureIntentLabel(intent: VideoReviewCaptureIntent | undefined) {
+  return getVideoReviewCaptureIntent(intent).label
 }
 
 export function getVideoReviewQuotaState(clips: Array<Pick<VideoReviewClip, 'sizeBytes'>>): VideoReviewQuotaState {
@@ -528,6 +562,7 @@ export function buildVideoReviewSummaryText(clip: VideoReviewClip) {
     `Player: ${clip.playerName}`,
     `Coach: ${clip.coachName}`,
     `Stroke: ${strokeLabel}`,
+    `Clip goal: ${getVideoReviewCaptureIntentLabel(clip.captureIntent)}`,
     `Status: ${statusLabelForSummary(clip.status)}`,
     `Duration: ${formatVideoReviewDuration(clip.durationSeconds)}`,
     `Updated: ${formatSummaryDate(clip.updatedAt)}`,
@@ -601,6 +636,7 @@ export function applyVideoReviewClipMetadata(
     title: normalizeVideoReviewText(patch.title ?? clip.title, 96) || clip.title,
     playerName: normalizeVideoReviewText(patch.playerName ?? clip.playerName, 80) || 'Player',
     coachName: normalizeVideoReviewText(patch.coachName ?? clip.coachName, 80) || 'Coach',
+    captureIntent: patch.captureIntent ?? clip.captureIntent,
     playerNote: normalizeVideoReviewText(patch.playerNote ?? clip.playerNote, 700),
     updatedAt,
   }
@@ -620,6 +656,7 @@ function buildVideoReviewSearchText(clip: VideoReviewClip) {
     clip.playerName,
     clip.coachName,
     getVideoReviewStrokeLabel(clip.stroke),
+    getVideoReviewCaptureIntentLabel(clip.captureIntent),
     statusLabelForSearch(clip.status),
     clip.playerNote,
     clip.coachSummary,
@@ -866,6 +903,7 @@ function isVideoReviewClip(value: unknown): value is VideoReviewClip {
     && typeof value.sizeBytes === 'number'
     && Number.isFinite(value.sizeBytes)
     && (typeof value.durationSeconds === 'number' || value.durationSeconds === null)
+    && (value.captureIntent === undefined || isVideoReviewCaptureIntent(value.captureIntent))
     && typeof value.playerNote === 'string'
     && typeof value.coachSummary === 'string'
     && Array.isArray(value.annotations)
@@ -902,6 +940,10 @@ function isVideoAnnotationPoint(value: unknown): value is VideoAnnotationPoint {
 
 function isVideoReviewStatus(value: unknown): value is VideoReviewStatus {
   return value === 'draft' || value === 'sent' || value === 'reviewed'
+}
+
+function isVideoReviewCaptureIntent(value: unknown): value is VideoReviewCaptureIntent {
+  return value === 'full-court' || value === 'technique'
 }
 
 function isVideoStrokeTag(value: unknown): value is VideoStrokeTag {

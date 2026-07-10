@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import {
   applyVideoReviewClipMetadata,
   VIDEO_REVIEW_COACH_CUES,
+  VIDEO_REVIEW_CAPTURE_INTENTS,
   VIDEO_REVIEW_QUOTA,
   VIDEO_REVIEW_NOTIFICATION_STORAGE_KEY,
   VIDEO_REVIEW_PRACTICE_STORAGE_KEY,
@@ -31,6 +32,7 @@ import {
   getVideoReviewCleanupCandidate,
   getVideoReviewAnnotationNotificationType,
   getVideoReviewAnnotationSaveStatus,
+  getVideoReviewCaptureIntent,
   getVideoReviewCoachAnnotations,
   getVideoReviewImportQuotaState,
   getLatestVideoReviewCoachAnnotation,
@@ -46,6 +48,7 @@ import {
   type VideoAnnotation,
   type VideoAnnotationPoint,
   type VideoAnnotationTool,
+  type VideoReviewCaptureIntent,
   type VideoReviewNotification,
   type VideoReviewPracticeRecord,
   type VideoReviewClip,
@@ -113,6 +116,7 @@ type DraftState = {
   playerName: string
   coachName: string
   stroke: VideoStrokeTag
+  captureIntent: VideoReviewCaptureIntent
   playerNote: string
 }
 
@@ -129,6 +133,7 @@ const INITIAL_DRAFT: DraftState = {
   playerName: '',
   coachName: '',
   stroke: 'serve',
+  captureIntent: 'full-court',
   playerNote: '',
 }
 
@@ -1042,6 +1047,7 @@ export default function VideoReviewClient() {
       fileType: selectedFile.type || 'video/webm',
       sizeBytes: selectedFile.size,
       durationSeconds,
+      captureIntent: draft.captureIntent,
       playerNote: cleanText(draft.playerNote, 700),
       coachSummary: '',
       annotations: [],
@@ -2141,6 +2147,10 @@ export default function VideoReviewClient() {
                     <span className={styles.noteTime}>Coach queue</span>
                     <h3 className={styles.clipTitle}>Review {activeClip.playerName}&apos;s {getVideoReviewStrokeLabel(activeClip.stroke).toLowerCase()}</h3>
                     <p>{activeClip.playerNote || 'No player note added. Watch the clip, mark the key moment, then return one next focus.'}</p>
+                    <div className={styles.intentBrief} aria-label="Clip goal for coach">
+                      <strong>{getVideoReviewCaptureIntent(activeClip.captureIntent).label}</strong>
+                      <span>{getVideoReviewCaptureIntent(activeClip.captureIntent).coachCopy}</span>
+                    </div>
                   </div>
                   <div className={styles.lessonStats} aria-label="Coach review progress">
                     <span>
@@ -2274,6 +2284,18 @@ export default function VideoReviewClient() {
                       >
                         {VIDEO_REVIEW_STROKES.map((stroke) => (
                           <option key={stroke.id} value={stroke.id}>{stroke.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Clip goal</span>
+                      <select
+                        className={styles.select}
+                        value={getVideoReviewCaptureIntent(activeClip.captureIntent).id}
+                        onChange={(event) => void updateActiveClipDetails({ captureIntent: event.target.value as VideoReviewCaptureIntent })}
+                      >
+                        {VIDEO_REVIEW_CAPTURE_INTENTS.map((intent) => (
+                          <option key={intent.id} value={intent.id}>{intent.label}</option>
                         ))}
                       </select>
                     </label>
@@ -2612,6 +2634,7 @@ function PlayerCapture({
   const playerNoteText = draft.playerNote.trim()
   const orientationLabel = getVideoShapeLabel(videoShape)
   const orientationCopy = getVideoShapeCopy(videoShape)
+  const selectedIntent = getVideoReviewCaptureIntent(draft.captureIntent)
 
   function applyPlayerNoteCue(note: string) {
     const currentNote = draft.playerNote.trim()
@@ -2695,6 +2718,27 @@ function PlayerCapture({
         <div className={styles.orientationPanel} aria-label="Phone recording angle">
           <span className={styles.noteTime}>{orientationLabel}</span>
           <p>{orientationCopy}</p>
+        </div>
+
+        <div className={styles.intentPanel} aria-label="Clip goal">
+          <div>
+            <span className={styles.label}>Clip goal</span>
+            <p className={styles.formHelp}>{selectedIntent.playerCopy}</p>
+          </div>
+          <div className={styles.intentGrid}>
+            {VIDEO_REVIEW_CAPTURE_INTENTS.map((intent) => (
+              <button
+                type="button"
+                key={intent.id}
+                aria-label={`Choose ${intent.label}`}
+                className={`${styles.intentButton} ${draft.captureIntent === intent.id ? styles.intentButtonActive : ''}`}
+                onClick={() => setDraft({ ...draft, captureIntent: intent.id })}
+              >
+                <strong>{intent.label}</strong>
+                <span>{intent.id === 'full-court' ? 'Spacing, movement, serve path' : 'Grip, contact, swing path'}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {cameraActive ? (

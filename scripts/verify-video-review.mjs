@@ -19,6 +19,8 @@ const expectedText = [
   'Save or send',
   'Phone angle',
   'Horizontal is best',
+  'Full court',
+  'Technique close-up',
   'ASK COACH TO CHECK',
   'Toss',
   'Contact',
@@ -109,6 +111,35 @@ for (const viewport of viewports) {
         text: 'Player note cue did not fill the coach question.',
       })
     }
+
+    const defaultIntentReady = await page.locator('[aria-label="Clip goal"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Full court') && text.includes('Horizontal usually gives your coach')
+    }).catch(() => false)
+
+    if (!defaultIntentReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'capture-intent',
+        text: 'Default full-court clip goal did not explain the best phone angle.',
+      })
+    }
+
+    await page.getByRole('button', { name: 'Choose Technique close-up' }).click({ timeout: 10_000 })
+    const techniqueIntentReady = await page.locator('[aria-label="Clip goal"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Technique close-up') && text.includes('Portrait works')
+    }).catch(() => false)
+
+    if (!techniqueIntentReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'capture-intent',
+        text: 'Technique clip goal did not switch the player guidance.',
+      })
+    }
+
+    await page.getByRole('button', { name: 'Choose Full court' }).click({ timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Open camera' }).click({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Start recording' }).waitFor({ state: 'visible', timeout: 10_000 })
@@ -243,6 +274,19 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
     await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
+
+    const coachIntentReady = await page.locator('[aria-label="Clip goal for coach"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Full court') && text.includes('spacing')
+    }).catch(() => false)
+
+    if (!coachIntentReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-capture-intent',
+        text: 'Coach review did not show the clip goal and review cue.',
+      })
+    }
 
     await page.locator('[aria-label="Coach review brief"]').getByRole('button', { name: 'Use player note' }).click({ timeout: 10_000 })
     const coachNoteFromPlayerReady = await page.getByLabel('Timestamp note').evaluate((field) => {
