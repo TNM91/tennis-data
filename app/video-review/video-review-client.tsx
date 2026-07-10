@@ -1783,6 +1783,41 @@ export default function VideoReviewClient() {
                 </section>
               ) : null}
 
+              {mode === 'coach' && activeClip?.status === 'reviewed' && practicePlan ? (
+                <section className={styles.coachBriefPanel} aria-label="Player return handoff">
+                  <div className={styles.lessonCopy}>
+                    <span className={styles.noteTime}>Review ready to send</span>
+                    <h3 className={styles.clipTitle}>Return feedback to {activeClip.playerName}</h3>
+                    <p>{practicePlan.focus}</p>
+                  </div>
+                  <div className={styles.lessonStats} aria-label="Player return details">
+                    <span>
+                      <strong>{activeCoachAnnotations.length}</strong>
+                      <span>marks</span>
+                    </span>
+                    <span>
+                      <strong>{formatVideoReviewDuration(activeClip.durationSeconds)}</strong>
+                      <span>clip</span>
+                    </span>
+                    <span>
+                      <strong>{activeClip.playerName}</strong>
+                      <span>player</span>
+                    </span>
+                  </div>
+                  <div className={styles.actionRow}>
+                    <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>
+                      Copy player link
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => switchMode('player')}>
+                      Preview player feedback
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
+                      Share returned file
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               <div className={styles.videoStage}>
                 {activeBlobUrl ? (
                   <>

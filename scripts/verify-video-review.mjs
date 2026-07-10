@@ -175,6 +175,25 @@ for (const viewport of viewports) {
       })
     }
 
+    await page.getByRole('button', { name: 'Send review back' }).click({ timeout: 10_000 })
+    await page.getByText('Review ready to send').waitFor({ state: 'visible', timeout: 10_000 })
+
+    const returnHandoffReady = await page.locator('[aria-label="Player return handoff"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Copy player link') && text.includes('Preview player feedback') && text.includes('Share returned file')
+    }).catch(() => false)
+
+    if (!returnHandoffReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-return-handoff',
+        text: 'Returned review did not show the player handoff actions.',
+      })
+    }
+
+    await page.getByRole('button', { name: 'Preview player feedback' }).click({ timeout: 10_000 })
+    await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
+
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
