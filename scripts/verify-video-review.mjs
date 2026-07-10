@@ -351,7 +351,7 @@ for (const viewport of viewports) {
     await page.getByText('Coach markup saved at this timestamp.').waitFor({ state: 'visible', timeout: 10_000 })
     const playerQuestionMarked = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('| note') && text.includes('toss is consistent')
+      return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
     }).catch(() => false)
 
     if (!playerQuestionMarked) {

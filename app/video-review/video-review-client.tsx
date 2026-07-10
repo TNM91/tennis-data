@@ -588,6 +588,10 @@ export default function VideoReviewClient() {
     if (!activeClip) return []
     return activeCoachAnnotations.filter((annotation) => Math.abs(annotation.timestamp - currentTime) <= 1.25)
   }, [activeClip, activeCoachAnnotations, currentTime])
+  const visibleAnnotationIds = useMemo(
+    () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
+    [visibleAnnotations],
+  )
   const coachCues = useMemo(
     () => VIDEO_REVIEW_COACH_CUES.filter((cue) => cue.stroke === 'all' || cue.stroke === activeClip?.stroke),
     [activeClip?.stroke],
@@ -2642,27 +2646,33 @@ export default function VideoReviewClient() {
                 <h3 className={styles.clipTitle}>Timeline marks</h3>
                 {activeCoachAnnotations.length ? (
                   <div className={styles.noteList}>
-                    {activeCoachAnnotations.map((annotation) => (
-                      <div
-                        key={annotation.id}
-                        className={styles.noteItem}
-                      >
-                        <span className={styles.noteTime}>{timeLabel(annotation.timestamp)} | {annotation.tool}</span>
-                        <span>{annotation.text || 'Coach markup'}</span>
-                        <span className={styles.noteActions}>
-                          <button type="button" className={styles.ghostButton} onClick={() => seekTo(annotation.timestamp)}>
-                            Open
-                          </button>
-                          {canEditMarks ? (
-                            <button type="button" className={styles.dangerButton} onClick={() => void deleteAnnotation(annotation.id)}>
-                              Delete
+                    {activeCoachAnnotations.map((annotation) => {
+                      const isVisibleOnVideo = visibleAnnotationIds.has(annotation.id)
+                      return (
+                        <div
+                          key={annotation.id}
+                          className={`${styles.noteItem} ${isVisibleOnVideo ? styles.noteItemActive : ''}`}
+                        >
+                          <span className={styles.noteMeta}>
+                            <span className={styles.noteTime}>{timeLabel(annotation.timestamp)} | {annotation.tool}</span>
+                            {isVisibleOnVideo ? <span className={styles.noteNow}>On video now</span> : null}
+                          </span>
+                          <span>{annotation.text || 'Coach markup'}</span>
+                          <span className={styles.noteActions}>
+                            <button type="button" className={styles.ghostButton} onClick={() => seekTo(annotation.timestamp)}>
+                              Open
                             </button>
-                          ) : (
-                            <span className={styles.formHelp}>View only</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
+                            {canEditMarks ? (
+                              <button type="button" className={styles.dangerButton} onClick={() => void deleteAnnotation(annotation.id)}>
+                                Delete
+                              </button>
+                            ) : (
+                              <span className={styles.formHelp}>View only</span>
+                            )}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className={styles.formHelp}>Coach markups will appear here by timestamp.</p>
