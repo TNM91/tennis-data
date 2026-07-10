@@ -353,7 +353,7 @@ for (const viewport of viewports) {
       const text = section.textContent || ''
       return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
         && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('0 of 1 watched')
-        && text.includes('Next: Mark 1 at') && text.includes('Next to watch')
+        && text.includes('Next: Mark 1 at') && text.includes('Watch Mark 1')
         && text.includes('First mark') && text.includes('Latest mark')
     }).catch(() => false)
 
@@ -402,7 +402,7 @@ for (const viewport of viewports) {
     await page.getByText('Coach marks ready to watch again.').waitFor({ state: 'visible', timeout: 10_000 })
     const watchedMarkReset = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('0 of 1 watched') && text.includes('Next: Mark 1 at') && text.includes('Next to watch')
+      return text.includes('0 of 1 watched') && text.includes('Next: Mark 1 at') && text.includes('Watch Mark 1')
         && !text.includes('Watched') && !text.includes('Start over')
     }).catch(() => false)
 

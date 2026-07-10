@@ -706,8 +706,8 @@ export default function VideoReviewClient() {
       practiceDone: Boolean(activePracticeRecord),
     })
     : []
-  const playerWatchActionLabel = nextUnwatchedCoachMark
-    ? watchedCoachMarkCount ? 'Continue marks' : 'Watch feedback'
+  const nextCoachMarkActionLabel = nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber
+    ? `${watchedCoachMarkCount ? 'Continue' : 'Watch'} Mark ${nextUnwatchedCoachMarkNumber}`
     : activeCoachAnnotations.length ? 'Replay marks' : 'Open feedback'
 
   function openClip(clipId: string, nextMode: VideoReviewRole = mode) {
@@ -2156,7 +2156,7 @@ export default function VideoReviewClient() {
                     {mode === 'player' && activeClip.status === 'reviewed' ? (
                       <>
                         <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
-                          {playerWatchActionLabel}
+                          {nextCoachMarkActionLabel}
                         </button>
                         <button type="button" className={styles.ghostButton} onClick={markPracticeDone}>
                           {activePracticeRecord ? 'Practice again' : 'Mark practiced'}
@@ -2261,7 +2261,7 @@ export default function VideoReviewClient() {
                   ) : null}
                   <div className={styles.actionRow}>
                     <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
-                      {playerWatchActionLabel}
+                      {nextCoachMarkActionLabel}
                     </button>
                     <button type="button" className={styles.ghostButton} disabled={!latestCoachMark} onClick={openLatestCoachMark}>
                       Latest mark
@@ -2778,7 +2778,7 @@ export default function VideoReviewClient() {
                   {activeCoachAnnotations.length ? (
                     <div className={styles.actionRow}>
                       <button type="button" className={styles.ghostButton} disabled={!nextUnwatchedCoachMark} onClick={openNextUnwatchedCoachMark}>
-                        {nextUnwatchedCoachMark ? 'Next to watch' : 'All watched'}
+                        {nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber ? `Watch Mark ${nextUnwatchedCoachMarkNumber}` : 'All watched'}
                       </button>
                       <button type="button" className={styles.ghostButton} disabled={!firstReviewMark} onClick={openFirstReviewMark}>
                         First mark
