@@ -1451,6 +1451,17 @@
   line-height: 1.2;
 }
 
+.noteWatched {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%);
+  background: color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%);
+  color: var(--brand-blue-2);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
 .noteActions {
   display: flex;
   flex-wrap: wrap;

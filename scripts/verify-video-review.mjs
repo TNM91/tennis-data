@@ -352,7 +352,8 @@ for (const viewport of viewports) {
     const playerQuestionMarked = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
-        && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('First mark') && text.includes('Latest mark')
+        && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('0 of 1 watched')
+        && text.includes('First mark') && text.includes('Latest mark')
     }).catch(() => false)
 
     if (!playerQuestionMarked) {
@@ -360,6 +361,20 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'mark-player-question',
         text: 'Coach shortcut did not save the player question as a timeline mark.',
+      })
+    }
+
+    await page.locator('[aria-label="Timeline marks"]').getByRole('button', { name: 'Open' }).click({ timeout: 10_000 })
+    const playerQuestionWatched = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('1 of 1 watched') && text.includes('Watched')
+    }).catch(() => false)
+
+    if (!playerQuestionWatched) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'watched-mark-progress',
+        text: 'Opening a timeline mark did not show watched progress.',
       })
     }
 

@@ -543,6 +543,7 @@ export default function VideoReviewClient() {
   const [storageError, setStorageError] = useState('')
   const [notifications, setNotifications] = useState<VideoReviewNotification[]>([])
   const [practiceRecords, setPracticeRecords] = useState<Record<string, VideoReviewPracticeRecord>>({})
+  const [watchedCoachMarks, setWatchedCoachMarks] = useState<Record<string, string[]>>({})
   const [clipSearch, setClipSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<VideoReviewStatusFilter>('all')
   const [strokeFilter, setStrokeFilter] = useState<VideoReviewStrokeFilter>('all')
@@ -569,6 +570,14 @@ export default function VideoReviewClient() {
   const activeCoachAnnotations = useMemo(
     () => activeClip ? getVideoReviewCoachAnnotations(activeClip) : [],
     [activeClip],
+  )
+  const watchedCoachMarkIds = useMemo(() => {
+    if (!activeClip) return new Set<string>()
+    return new Set(watchedCoachMarks[activeClip.id] ?? [])
+  }, [activeClip, watchedCoachMarks])
+  const watchedCoachMarkCount = useMemo(
+    () => activeCoachAnnotations.filter((annotation) => watchedCoachMarkIds.has(annotation.id)).length,
+    [activeCoachAnnotations, watchedCoachMarkIds],
   )
   const returnReviewFocus = useMemo(
     () => activeClip ? buildVideoReviewReturnFocus(activeClip, coachSummary) : '',
@@ -1435,14 +1444,31 @@ export default function VideoReviewClient() {
     setMessage('Review summary downloaded.')
   }
 
+  function markCoachMarkWatched(annotationId: string) {
+    if (!activeClip) return
+    setWatchedCoachMarks((current) => {
+      const currentIds = current[activeClip.id] ?? []
+      if (currentIds.includes(annotationId)) return current
+      return {
+        ...current,
+        [activeClip.id]: [...currentIds, annotationId],
+      }
+    })
+  }
+
+  function openCoachMark(annotation: VideoAnnotation, label: string) {
+    markCoachMarkWatched(annotation.id)
+    seekTo(annotation.timestamp)
+    setMessage(`Opened ${label} at ${timeLabel(annotation.timestamp)}.`)
+  }
+
   function openFirstReviewMark() {
     if (!firstReviewMark) {
       seekTo(0)
       setMessage('Review opened from the start.')
       return
     }
-    seekTo(firstReviewMark.timestamp)
-    setMessage(`Opened first coach mark at ${timeLabel(firstReviewMark.timestamp)}.`)
+    openCoachMark(firstReviewMark, 'first coach mark')
   }
 
   function openLatestCoachMark() {
@@ -1451,8 +1477,7 @@ export default function VideoReviewClient() {
       setMessage('Review opened from the start.')
       return
     }
-    seekTo(latestCoachMark.timestamp)
-    setMessage(`Opened latest coach mark at ${timeLabel(latestCoachMark.timestamp)}.`)
+    openCoachMark(latestCoachMark, 'latest coach mark')
   }
 
   function jumpToReviewMark(direction: 'previous' | 'next') {
@@ -1464,8 +1489,7 @@ export default function VideoReviewClient() {
     const mark = direction === 'next'
       ? activeCoachAnnotations.find((annotation) => annotation.timestamp > currentTime + margin) ?? activeCoachAnnotations[0]
       : [...activeCoachAnnotations].reverse().find((annotation) => annotation.timestamp < currentTime - margin) ?? activeCoachAnnotations[activeCoachAnnotations.length - 1]
-    seekTo(mark.timestamp)
-    setMessage(`Opened ${direction} mark at ${timeLabel(mark.timestamp)}.`)
+    openCoachMark(mark, `${direction} mark`)
   }
 
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
@@ -2648,7 +2672,7 @@ export default function VideoReviewClient() {
                     <h3 className={styles.clipTitle}>Timeline marks</h3>
                     <p className={styles.formHelp}>
                       {activeCoachAnnotations.length
-                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. Open a mark to jump to that frame.`
+                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. ${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched.`
                         : 'Coach markups will appear here by timestamp.'}
                     </p>
                   </div>
@@ -2667,6 +2691,7 @@ export default function VideoReviewClient() {
                   <div className={styles.noteList}>
                     {activeCoachAnnotations.map((annotation, index) => {
                       const isVisibleOnVideo = visibleAnnotationIds.has(annotation.id)
+                      const isWatched = watchedCoachMarkIds.has(annotation.id)
                       return (
                         <div
                           key={annotation.id}
@@ -2676,10 +2701,11 @@ export default function VideoReviewClient() {
                             <span className={styles.noteNumber}>Mark {index + 1}</span>
                             <span className={styles.noteTime}>{timeLabel(annotation.timestamp)} | {annotation.tool}</span>
                             {isVisibleOnVideo ? <span className={styles.noteNow}>On video now</span> : null}
+                            {isWatched ? <span className={styles.noteWatched}>Watched</span> : null}
                           </span>
                           <span>{annotation.text || 'Coach markup'}</span>
                           <span className={styles.noteActions}>
-                            <button type="button" className={styles.ghostButton} onClick={() => seekTo(annotation.timestamp)}>
+                            <button type="button" className={styles.ghostButton} onClick={() => openCoachMark(annotation, `Mark ${index + 1}`)}>
                               Open
                             </button>
                             {canEditMarks ? (
