@@ -1045,20 +1045,22 @@
 
 .handoffChoice {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   min-width: 0;
   border-radius: 13px;
   border: 1px solid var(--shell-panel-border);
   background: rgba(255, 255, 255, 0.045);
-  padding: 9px;
+  padding: 10px;
   overflow-wrap: anywhere;
 }
 
 .handoffChoice strong,
-.handoffChoice em {
+.handoffChoice em,
+.handoffChoice p {
   display: block;
   min-width: 0;
-  line-height: 1.25;
+  margin: 0;
+  line-height: 1.32;
 }
 
 .handoffChoice strong {
@@ -1072,6 +1074,24 @@
   font-size: 11px;
   font-style: normal;
   font-weight: 900;
+}
+
+.handoffChoice p {
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.handoffChoiceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.handoffChoiceActions > * {
+  min-width: 0;
 }
 
 .draftPreview {
@@ -1719,6 +1739,11 @@
   }
 
   .nextStepPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .handoffChoiceActions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 

@@ -2403,28 +2403,35 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                   <div className={styles.handoffGuide} aria-label="Coach sharing options">
-                    <span className={styles.noteTime}>Share options</span>
+                    <span className={styles.noteTime}>Pick how to send it</span>
                     <div className={styles.handoffChoiceGrid}>
-                      <span className={styles.handoffChoice}>
-                        <strong>Different phone or computer</strong>
+                      <div className={styles.handoffChoice}>
+                        <strong>Coach on another phone</strong>
                         <em>Share review file</em>
-                      </span>
-                      <span className={styles.handoffChoice}>
-                        <strong>This device</strong>
-                        <em>Copy coach link</em>
-                      </span>
+                        <p>Best when your coach opens this away from your phone. The file includes the video and notes.</p>
+                        <div className={styles.handoffChoiceActions}>
+                          <button type="button" className={styles.primaryButton} onClick={() => void shareActivePackage()}>
+                            Share review file
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => void exportActivePackage()}>
+                            Download file
+                          </button>
+                        </div>
+                      </div>
+                      <div className={styles.handoffChoice}>
+                        <strong>Coach with this device</strong>
+                        <em>Preview coach view</em>
+                        <p>Hand the phone over or open the coach view courtside so the clip can be marked now.</p>
+                        <div className={styles.handoffChoiceActions}>
+                          <button type="button" className={styles.primaryButton} onClick={() => switchMode('coach')}>
+                            Preview coach view
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => void copyHandoffLink('coach')}>
+                            Copy coach link
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className={styles.actionRow}>
-                    <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
-                      Copy coach link
-                    </button>
-                    <button type="button" className={styles.ghostButton} onClick={() => switchMode('coach')}>
-                      Preview coach view
-                    </button>
-                    <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
-                      Share review file
-                    </button>
                   </div>
                 </section>
               ) : null}
@@ -2505,28 +2512,35 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                   <div className={styles.handoffGuide} aria-label="Player sharing options">
-                    <span className={styles.noteTime}>Share options</span>
+                    <span className={styles.noteTime}>Pick how to send it</span>
                     <div className={styles.handoffChoiceGrid}>
-                      <span className={styles.handoffChoice}>
-                        <strong>Different phone or computer</strong>
+                      <div className={styles.handoffChoice}>
+                        <strong>Player on another phone</strong>
                         <em>Share returned file</em>
-                      </span>
-                      <span className={styles.handoffChoice}>
-                        <strong>This device</strong>
-                        <em>Copy player link</em>
-                      </span>
+                        <p>Best when the player needs the feedback on their own phone. The file includes the marked video.</p>
+                        <div className={styles.handoffChoiceActions}>
+                          <button type="button" className={styles.primaryButton} onClick={() => void shareActivePackage()}>
+                            Share returned file
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => void exportActivePackage()}>
+                            Download file
+                          </button>
+                        </div>
+                      </div>
+                      <div className={styles.handoffChoice}>
+                        <strong>Player with this device</strong>
+                        <em>Preview player feedback</em>
+                        <p>Open the player view now so they can watch the marks and take the cue back to court.</p>
+                        <div className={styles.handoffChoiceActions}>
+                          <button type="button" className={styles.primaryButton} onClick={() => switchMode('player')}>
+                            Preview player feedback
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => void copyHandoffLink('player')}>
+                            Copy player link
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className={styles.actionRow}>
-                    <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>
-                      Copy player link
-                    </button>
-                    <button type="button" className={styles.ghostButton} onClick={() => switchMode('player')}>
-                      Preview player feedback
-                    </button>
-                    <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
-                      Share returned file
-                    </button>
                   </div>
                 </section>
               ) : null}
