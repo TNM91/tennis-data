@@ -307,6 +307,39 @@ function buildActiveVideoReviewNextStep(input: {
   }
 }
 
+function buildPlayerFeedbackChecklist(input: {
+  clip: VideoReviewClip
+  coachMarkCount: number
+  currentTime: number
+  practiceDone: boolean
+}) {
+  return [
+    {
+      id: 'watch',
+      label: '1',
+      title: input.coachMarkCount ? 'Watch the coach marks' : 'Read the coach focus',
+      body: input.coachMarkCount
+        ? 'Open the timestamp marks before taking the cue back to court.'
+        : 'Start with the one focus your coach returned.',
+      done: input.currentTime > 0.2 || input.coachMarkCount === 0,
+    },
+    {
+      id: 'cue',
+      label: '2',
+      title: 'Take one cue to court',
+      body: input.clip.coachSummary || 'Use the coach focus during the next practice block.',
+      done: Boolean(input.clip.coachSummary),
+    },
+    {
+      id: 'practice',
+      label: '3',
+      title: 'Log the practice',
+      body: 'Mark it practiced after the next session so the clip can move out of the main queue.',
+      done: input.practiceDone,
+    },
+  ]
+}
+
 function clampPoint(point: VideoAnnotationPoint): VideoAnnotationPoint {
   return {
     x: Math.max(0, Math.min(1, point.x)),
@@ -535,6 +568,14 @@ export default function VideoReviewClient() {
     canSendReviewBack,
     practiceDone: Boolean(activePracticeRecord),
   }) : null
+  const playerFeedbackChecklist = activeClip && activeClip.status === 'reviewed'
+    ? buildPlayerFeedbackChecklist({
+      clip: activeClip,
+      coachMarkCount: activeCoachAnnotations.length,
+      currentTime,
+      practiceDone: Boolean(activePracticeRecord),
+    })
+    : []
 
   function openClip(clipId: string, nextMode: VideoReviewRole = mode) {
     if (!clipId) return
@@ -1836,6 +1877,16 @@ export default function VideoReviewClient() {
                       <span>stroke</span>
                     </span>
                   </div>
+                  {mode === 'player' ? (
+                    <div className={styles.briefSteps} aria-label="Player practice checklist">
+                      {playerFeedbackChecklist.map((item) => (
+                        <span key={item.id} className={`${styles.checklistStep} ${item.done ? styles.checklistDone : ''}`}>
+                          <strong>{item.label}. {item.title}</strong>
+                          <em>{item.body}</em>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className={styles.actionRow}>
                     <button type="button" className={styles.primaryButton} onClick={openFirstReviewMark}>
                       Watch feedback

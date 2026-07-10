@@ -195,6 +195,8 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview player feedback' }).click({ timeout: 10_000 })
     await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Player practice checklist"]').getByText('Read the coach focus').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('[aria-label="Player practice checklist"]').getByText('Log the practice').waitFor({ state: 'visible', timeout: 10_000 })
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
