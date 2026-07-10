@@ -18,6 +18,7 @@ const expectedText = [
   'Record or upload',
   'Check the clip',
   'Save or send',
+  'Start a clip',
   'Phone angle',
   'Horizontal is best',
   'Full court',
@@ -97,8 +98,8 @@ for (const viewport of viewports) {
       })
     }
 
-    await page.getByText('Start with one clip.').waitFor({ state: 'visible', timeout: 10_000 })
-    await page.getByRole('button', { name: 'Record first clip' }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByText('Choose a clip when you are ready to review.').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Start a clip' }).waitFor({ state: 'visible', timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Ask coach to check Toss' }).click({ timeout: 10_000 })
     const playerNoteReady = await page.getByLabel('Player note').evaluate((field) => {

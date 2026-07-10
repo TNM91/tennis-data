@@ -2296,7 +2296,18 @@ export default function VideoReviewClient() {
                     />
                   </>
                 ) : (
-                  <div className={styles.emptyState}>Choose a saved clip to watch and mark up.</div>
+                  <div className={styles.emptyState}>
+                    <strong>Choose a clip when you are ready to review.</strong>
+                    <span>Record or upload first, then this canvas will hold the video and coach marks.</span>
+                    <span className={styles.emptyActions}>
+                      <button type="button" className={styles.primaryButton} onClick={() => openMobilePanel('video-review-capture', 'player')}>
+                        Start a clip
+                      </button>
+                      <button type="button" className={styles.ghostButton} onClick={() => openMobilePanel('video-review-library')}>
+                        Open library
+                      </button>
+                    </span>
+                  </div>
                 )}
               </div>
             </div>

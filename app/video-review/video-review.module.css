@@ -741,6 +741,14 @@
   max-width: 100%;
 }
 
+.videoStage > .emptyState {
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  align-content: center;
+}
+
 .video,
 .canvas {
   position: absolute;
@@ -1554,15 +1562,15 @@
   }
 
   .videoStage {
-    min-height: 220px;
+    min-height: 0;
   }
 
   .cameraPreviewFrame {
-    min-height: 220px;
+    min-height: 0;
   }
 
   .draftVideo {
-    min-height: 180px;
+    min-height: 0;
   }
 
   .mobileDock {
