@@ -528,6 +528,76 @@ function formatPracticeDoneDate(doneAt: string) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function formatActivityMoment(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Saved'
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function buildClipActivityTrail(input: {
+  clip: VideoReviewClip
+  notifications: VideoReviewNotification[]
+  coachMarkCount: number
+  latestCoachMark: VideoAnnotation | null
+  practiceRecord: VideoReviewPracticeRecord | null
+}) {
+  const sentNotification = input.notifications.find((notification) => notification.type === 'clip_sent')
+  const returnedNotification = input.notifications.find((notification) => notification.type === 'review_returned')
+  const sentAt = sentNotification?.createdAt ?? input.clip.updatedAt
+  const returnedAt = returnedNotification?.createdAt ?? input.clip.updatedAt
+  const latestMarkAt = input.latestCoachMark ? timeLabel(input.latestCoachMark.timestamp) : ''
+
+  return [
+    {
+      id: 'saved',
+      label: '1',
+      title: 'Saved to lab',
+      body: `${formatActivityMoment(input.clip.createdAt)} | ${input.clip.playerName} to ${input.clip.coachName}`,
+      done: true,
+    },
+    {
+      id: 'sent',
+      label: '2',
+      title: input.clip.status === 'draft' ? 'Not sent yet' : `Sent to ${input.clip.coachName}`,
+      body: input.clip.status === 'draft'
+        ? 'Send the clip when you want coach feedback.'
+        : `${formatActivityMoment(sentAt)} | Waiting for coach feedback`,
+      done: input.clip.status !== 'draft',
+    },
+    {
+      id: 'marked',
+      label: '3',
+      title: input.coachMarkCount ? `${input.coachMarkCount} coach ${input.coachMarkCount === 1 ? 'mark' : 'marks'}` : 'Coach marks next',
+      body: input.coachMarkCount
+        ? `${latestMarkAt ? `Latest mark at ${latestMarkAt}` : 'Coach marks saved'} | Lines, arrows, circles, or notes`
+        : input.clip.status === 'draft'
+          ? 'Coach marks appear after the clip is sent.'
+          : 'Pause the clip and mark the key moment.',
+      done: input.coachMarkCount > 0,
+    },
+    {
+      id: 'returned',
+      label: '4',
+      title: input.clip.status === 'reviewed' ? 'Feedback returned' : 'Feedback not returned',
+      body: input.clip.status === 'reviewed'
+        ? `${formatActivityMoment(returnedAt)} | ${input.clip.coachSummary || 'One focus is ready'}`
+        : 'Return one clear focus when the review is ready.',
+      done: input.clip.status === 'reviewed',
+    },
+    {
+      id: 'practice',
+      label: '5',
+      title: input.practiceRecord ? 'Practice logged' : 'Practice not logged',
+      body: input.practiceRecord
+        ? `${formatActivityMoment(input.practiceRecord.doneAt)} | ${input.practiceRecord.focus}`
+        : input.clip.status === 'reviewed'
+          ? 'Mark practiced after the next court session.'
+          : 'Practice can be logged after feedback comes back.',
+      done: Boolean(input.practiceRecord),
+    },
+  ]
+}
+
 function formatRecordingTime(seconds: number) {
   const safeSeconds = Math.max(0, Math.floor(seconds))
   const minutes = Math.floor(safeSeconds / 60)
@@ -682,6 +752,10 @@ export default function VideoReviewClient() {
     () => notifications.filter((notification) => notification.recipientRole === mode),
     [mode, notifications],
   )
+  const activeClipNotifications = useMemo(
+    () => activeClip ? notifications.filter((notification) => notification.clipId === activeClip.id) : [],
+    [activeClip, notifications],
+  )
   const unreadNotificationCount = visibleNotifications.filter((notification) => !notification.readAt).length
   const coachUnreadNotificationCount = notifications.filter((notification) => notification.recipientRole === 'coach' && !notification.readAt).length
   const filteredClips = useMemo(
@@ -727,6 +801,13 @@ export default function VideoReviewClient() {
     canSendReviewBack,
     practiceDone: Boolean(activePracticeRecord),
   }) : null
+  const activeActivityTrail = activeClip ? buildClipActivityTrail({
+    clip: activeClip,
+    notifications: activeClipNotifications,
+    coachMarkCount: activeCoachAnnotations.length,
+    latestCoachMark,
+    practiceRecord: activePracticeRecord,
+  }) : []
   const playerFeedbackChecklist = activeClip && activeClip.status === 'reviewed'
     ? buildPlayerFeedbackChecklist({
       clip: activeClip,
@@ -2295,6 +2376,23 @@ export default function VideoReviewClient() {
                         </button>
                       </>
                     ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {activeClip ? (
+                <section className={styles.activityTrailPanel} aria-label="Clip activity trail">
+                  <div className={styles.lessonCopy}>
+                    <span className={styles.noteTime}>Clip activity</span>
+                    <h3 className={styles.clipTitle}>What happened last</h3>
+                  </div>
+                  <div className={styles.activityTrailGrid}>
+                    {activeActivityTrail.map((item) => (
+                      <span key={item.id} className={`${styles.activityItem} ${item.done ? styles.activityItemDone : ''}`}>
+                        <strong>{item.label}. {item.title}</strong>
+                        <em>{item.body}</em>
+                      </span>
+                    ))}
                   </div>
                 </section>
               ) : null}

@@ -329,6 +329,20 @@ for (const viewport of viewports) {
     await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Waiting on coach').waitFor({ state: 'visible', timeout: 10_000 })
 
+    const sentActivityReady = await page.locator('[aria-label="Clip activity trail"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Clip activity') && text.includes('Saved to lab') && text.includes('Sent to Coach')
+        && text.includes('Coach marks next') && text.includes('Feedback not returned') && text.includes('Practice not logged')
+    }).catch(() => false)
+
+    if (!sentActivityReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'clip-activity-sent',
+        text: 'Sent clip did not show the saved, sent, waiting, and practice activity trail.',
+      })
+    }
+
     const playerSentStatusReady = await page.locator('[aria-label="Player sent clip status"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('With coach') && text.includes('is waiting for Coach') && text.includes('Open waiting clip')
@@ -458,6 +472,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'mark-player-question',
         text: 'Coach shortcut did not save the player question as a timeline mark.',
+      })
+    }
+
+    const markedActivityReady = await page.locator('[aria-label="Clip activity trail"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('1 coach mark') && text.includes('Latest mark at') && text.includes('Feedback not returned')
+    }).catch(() => false)
+
+    if (!markedActivityReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'clip-activity-marked',
+        text: 'Coach mark did not update the active clip activity trail.',
       })
     }
 
@@ -631,6 +658,19 @@ for (const viewport of viewports) {
     await page.getByText(/Feedback ready for/i).waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
 
+    const returnedActivityReady = await page.locator('[aria-label="Clip activity trail"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Feedback returned') && text.includes('Practice not logged') && text.includes('contact stays away from the body')
+    }).catch(() => false)
+
+    if (!returnedActivityReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'clip-activity-returned',
+        text: 'Returned feedback did not update the active clip activity trail.',
+      })
+    }
+
     const reviewedLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Next: watch Mark 1')
@@ -660,8 +700,23 @@ for (const viewport of viewports) {
       })
     }
 
+    await page.locator('[aria-label="Returned coach lesson"]').getByRole('button', { name: 'Mark practiced' }).click({ timeout: 10_000 })
+    await page.getByText('Practice marked done for').waitFor({ state: 'visible', timeout: 10_000 })
+    const practicedActivityReady = await page.locator('[aria-label="Clip activity trail"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Practice logged') && text.includes('contact stays away from the body')
+    }).catch(() => false)
+
+    if (!practicedActivityReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'clip-activity-practiced',
+        text: 'Marking practice done did not update the active clip activity trail.',
+      })
+    }
+
     await page.locator('[aria-label="Player video library summary"]').getByRole('button', { name: 'Open feedback' }).click({ timeout: 10_000 })
-    await page.getByText('Next step | Feedback ready').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByText('Next step | Practice logged').waitFor({ state: 'visible', timeout: 10_000 })
     const activeReviewInView = await page.waitForFunction(() => {
       if (window.innerWidth > 767) return true
       const review = document.getElementById('video-review-active')
