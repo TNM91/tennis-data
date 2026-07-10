@@ -343,6 +343,19 @@ for (const viewport of viewports) {
       })
     }
 
+    const coachReturnReadinessReady = await page.locator('[aria-label="Coach return readiness"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Ready to return') && text.includes('Watch') && text.includes('Mark') && text.includes('Focus') && text.includes('Send')
+    }).catch(() => false)
+
+    if (!coachReturnReadinessReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-return-readiness',
+        text: 'Coach return panel did not show the readiness check before sending feedback.',
+      })
+    }
+
     await page.getByRole('button', { name: 'Send review back' }).click({ timeout: 10_000 })
     await page.getByText('Review ready to send').waitFor({ state: 'visible', timeout: 10_000 })
 

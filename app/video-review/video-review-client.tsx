@@ -2479,6 +2479,27 @@ export default function VideoReviewClient() {
                         ? `Ready to return: ${returnReviewFocus}`
                         : 'Add one timestamp mark or write the next focus before sending this review back.'}
                     </p>
+                    <div className={`${styles.sendReadiness} ${styles.returnReadiness}`} aria-label="Coach return readiness">
+                      <span className={styles.noteTime}>{canSendReviewBack ? 'Ready to return' : 'Return readiness'}</span>
+                      <div className={styles.readinessGrid}>
+                        <span className={`${styles.readinessItem} ${currentTime > 0.2 ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                          <strong>Watch</strong>
+                          <em>{currentTime > 0.2 ? 'Started' : 'Start video'}</em>
+                        </span>
+                        <span className={`${styles.readinessItem} ${activeCoachAnnotations.length ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                          <strong>Mark</strong>
+                          <em>{activeCoachAnnotations.length ? `${activeCoachAnnotations.length} saved` : 'Add mark'}</em>
+                        </span>
+                        <span className={`${styles.readinessItem} ${returnReviewFocus ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                          <strong>Focus</strong>
+                          <em>{returnReviewFocus ? 'Ready' : 'Add focus'}</em>
+                        </span>
+                        <span className={`${styles.readinessItem} ${canSendReviewBack ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                          <strong>Send</strong>
+                          <em>{canSendReviewBack ? 'Ready' : 'Waiting'}</em>
+                        </span>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       className={styles.primaryButton}
