@@ -334,18 +334,20 @@ function buildActiveVideoReviewNextStep(input: {
 function buildPlayerFeedbackChecklist(input: {
   clip: VideoReviewClip
   coachMarkCount: number
-  currentTime: number
+  watchedCoachMarkCount: number
   practiceDone: boolean
 }) {
+  const watchedMarkCopy = input.coachMarkCount
+    ? `${input.watchedCoachMarkCount} of ${input.coachMarkCount} opened.`
+    : 'Start with the one focus your coach returned.'
+
   return [
     {
       id: 'watch',
       label: '1',
       title: input.coachMarkCount ? 'Watch the coach marks' : 'Read the coach focus',
-      body: input.coachMarkCount
-        ? 'Open the timestamp marks before taking the cue back to court.'
-        : 'Start with the one focus your coach returned.',
-      done: input.currentTime > 0.2 || input.coachMarkCount === 0,
+      body: watchedMarkCopy,
+      done: input.coachMarkCount === 0 || input.watchedCoachMarkCount >= input.coachMarkCount,
     },
     {
       id: 'cue',
@@ -579,6 +581,10 @@ export default function VideoReviewClient() {
     () => activeCoachAnnotations.filter((annotation) => watchedCoachMarkIds.has(annotation.id)).length,
     [activeCoachAnnotations, watchedCoachMarkIds],
   )
+  const nextUnwatchedCoachMark = useMemo(
+    () => activeCoachAnnotations.find((annotation) => !watchedCoachMarkIds.has(annotation.id)) ?? null,
+    [activeCoachAnnotations, watchedCoachMarkIds],
+  )
   const returnReviewFocus = useMemo(
     () => activeClip ? buildVideoReviewReturnFocus(activeClip, coachSummary) : '',
     [activeClip, coachSummary],
@@ -660,10 +666,13 @@ export default function VideoReviewClient() {
     ? buildPlayerFeedbackChecklist({
       clip: activeClip,
       coachMarkCount: activeCoachAnnotations.length,
-      currentTime,
+      watchedCoachMarkCount,
       practiceDone: Boolean(activePracticeRecord),
     })
     : []
+  const playerWatchActionLabel = nextUnwatchedCoachMark
+    ? watchedCoachMarkCount ? 'Continue marks' : 'Watch feedback'
+    : activeCoachAnnotations.length ? 'Replay marks' : 'Open feedback'
 
   function openClip(clipId: string, nextMode: VideoReviewRole = mode) {
     if (!clipId) return
@@ -1480,6 +1489,16 @@ export default function VideoReviewClient() {
     openCoachMark(latestCoachMark, 'latest coach mark')
   }
 
+  function openNextUnwatchedCoachMark() {
+    const mark = nextUnwatchedCoachMark ?? firstReviewMark
+    if (!mark) {
+      seekTo(0)
+      setMessage('Review opened from the start.')
+      return
+    }
+    openCoachMark(mark, nextUnwatchedCoachMark ? 'next mark' : 'first coach mark')
+  }
+
   function jumpToReviewMark(direction: 'previous' | 'next') {
     if (!activeCoachAnnotations.length) {
       setMessage('Add a timestamp mark first.')
@@ -2056,8 +2075,8 @@ export default function VideoReviewClient() {
                     ) : null}
                     {mode === 'player' && activeClip.status === 'reviewed' ? (
                       <>
-                        <button type="button" className={styles.primaryButton} onClick={openFirstReviewMark}>
-                          Open first mark
+                        <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
+                          {playerWatchActionLabel}
                         </button>
                         <button type="button" className={styles.ghostButton} onClick={markPracticeDone}>
                           {activePracticeRecord ? 'Practice again' : 'Mark practiced'}
@@ -2147,7 +2166,7 @@ export default function VideoReviewClient() {
                       <div className={styles.readinessGrid}>
                         <span className={styles.readinessItem}>
                           <strong>Watch</strong>
-                          <em>{activeCoachAnnotations.length ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'}` : 'Coach focus'}</em>
+                          <em>{activeCoachAnnotations.length ? `${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched` : 'Coach focus'}</em>
                         </span>
                         <span className={styles.readinessItem}>
                           <strong>Cue</strong>
@@ -2161,8 +2180,8 @@ export default function VideoReviewClient() {
                     </div>
                   ) : null}
                   <div className={styles.actionRow}>
-                    <button type="button" className={styles.primaryButton} onClick={openFirstReviewMark}>
-                      Watch feedback
+                    <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
+                      {playerWatchActionLabel}
                     </button>
                     <button type="button" className={styles.ghostButton} disabled={!latestCoachMark} onClick={openLatestCoachMark}>
                       Latest mark
@@ -2678,6 +2697,9 @@ export default function VideoReviewClient() {
                   </div>
                   {activeCoachAnnotations.length ? (
                     <div className={styles.actionRow}>
+                      <button type="button" className={styles.ghostButton} disabled={!nextUnwatchedCoachMark} onClick={openNextUnwatchedCoachMark}>
+                        {nextUnwatchedCoachMark ? 'Next to watch' : 'All watched'}
+                      </button>
                       <button type="button" className={styles.ghostButton} disabled={!firstReviewMark} onClick={openFirstReviewMark}>
                         First mark
                       </button>

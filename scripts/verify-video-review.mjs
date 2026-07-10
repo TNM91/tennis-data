@@ -353,7 +353,7 @@ for (const viewport of viewports) {
       const text = section.textContent || ''
       return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
         && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('0 of 1 watched')
-        && text.includes('First mark') && text.includes('Latest mark')
+        && text.includes('Next to watch') && text.includes('First mark') && text.includes('Latest mark')
     }).catch(() => false)
 
     if (!playerQuestionMarked) {
@@ -367,7 +367,7 @@ for (const viewport of viewports) {
     await page.locator('[aria-label="Timeline marks"]').getByRole('button', { name: 'Open' }).click({ timeout: 10_000 })
     const playerQuestionWatched = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('1 of 1 watched') && text.includes('Watched')
+      return text.includes('1 of 1 watched') && text.includes('Watched') && text.includes('All watched')
     }).catch(() => false)
 
     if (!playerQuestionWatched) {
