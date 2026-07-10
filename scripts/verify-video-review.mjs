@@ -368,6 +368,7 @@ for (const viewport of viewports) {
     const playerQuestionWatched = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('1 of 1 watched') && text.includes('Watched') && text.includes('All watched')
+        && text.includes('Start over')
     }).catch(() => false)
 
     if (!playerQuestionWatched) {
@@ -392,6 +393,39 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'watched-mark-storage',
         text: 'Opening a timeline mark did not save watched progress on the device.',
+      })
+    }
+
+    await page.locator('[aria-label="Timeline marks"]').getByRole('button', { name: 'Start over' }).click({ timeout: 10_000 })
+    await page.getByText('Coach marks ready to watch again.').waitFor({ state: 'visible', timeout: 10_000 })
+    const watchedMarkReset = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('0 of 1 watched') && text.includes('Next to watch')
+        && !text.includes('Watched') && !text.includes('Start over')
+    }).catch(() => false)
+
+    if (!watchedMarkReset) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'watched-mark-reset',
+        text: 'Starting over did not clear watched progress from the timeline.',
+      })
+    }
+
+    const watchedMarkStorageReset = await page.evaluate(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem('tenaceiq.videoReview.watchedMarks.v1') || '{}')
+        return !Object.values(parsed).some((annotationIds) => Array.isArray(annotationIds) && annotationIds.length > 0)
+      } catch {
+        return false
+      }
+    }).catch(() => false)
+
+    if (!watchedMarkStorageReset) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'watched-mark-reset-storage',
+        text: 'Starting over did not clear saved watched progress on the device.',
       })
     }
 

@@ -1518,6 +1518,18 @@ export default function VideoReviewClient() {
     })
   }
 
+  function resetWatchedCoachMarks() {
+    if (!activeClip || !watchedCoachMarkCount) return
+    setWatchedCoachMarks((current) => {
+      if (!current[activeClip.id]?.length) return current
+      const next = { ...current }
+      delete next[activeClip.id]
+      writeLocalWatchedCoachMarks(next)
+      return next
+    })
+    setMessage('Coach marks ready to watch again.')
+  }
+
   function openCoachMark(annotation: VideoAnnotation, label: string) {
     markCoachMarkWatched(annotation.id)
     seekTo(annotation.timestamp)
@@ -2761,6 +2773,11 @@ export default function VideoReviewClient() {
                       <button type="button" className={styles.ghostButton} disabled={!latestCoachMark} onClick={openLatestCoachMark}>
                         Latest mark
                       </button>
+                      {watchedCoachMarkCount ? (
+                        <button type="button" className={styles.ghostButton} onClick={resetWatchedCoachMarks}>
+                          Start over
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
