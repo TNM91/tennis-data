@@ -329,6 +329,20 @@ for (const viewport of viewports) {
     await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Waiting on coach').waitFor({ state: 'visible', timeout: 10_000 })
 
+    const playerSentStatusReady = await page.locator('[aria-label="Player sent clip status"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('With coach') && text.includes('is waiting for Coach') && text.includes('Open waiting clip')
+        && text.includes('Show waiting') && text.includes('Keep the coach link handy')
+    }).catch(() => false)
+
+    if (!playerSentStatusReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-sent-status',
+        text: 'Player library did not show the waiting coach handoff banner after sending.',
+      })
+    }
+
     const sentLibraryNextStepReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Next: waiting on coach')
@@ -359,6 +373,20 @@ for (const viewport of viewports) {
     await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
     await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
+
+    const coachInboxReady = await page.locator('[aria-label="Coach inbox"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Coach inbox') && text.includes('Player sent') && text.includes('Open request')
+        && text.includes('Show needs review') && text.includes('mark the key moment')
+    }).catch(() => false)
+
+    if (!coachInboxReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-inbox',
+        text: 'Coach view did not show the newest player clip as an inbox request.',
+      })
+    }
 
     await page.locator('#video-review-coach-tools').getByRole('button', { name: 'Undo last mark' }).waitFor({ state: 'visible', timeout: 10_000 })
 

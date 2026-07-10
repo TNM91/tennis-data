@@ -442,6 +442,54 @@
   line-height: 1;
 }
 
+.inboxBanner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  margin-bottom: 12px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 30%, var(--brand-blue-2) 12%, var(--shell-panel-border) 58%);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), rgba(116, 190, 255, 0.055)),
+    rgba(255, 255, 255, 0.04);
+  padding: 12px;
+}
+
+.inboxCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inboxCopy strong,
+.inboxCopy span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inboxCopy strong {
+  color: var(--foreground-strong);
+  font-size: 15px;
+  line-height: 1.22;
+}
+
+.inboxCopy span:last-child {
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.4;
+}
+
+.inboxActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
 .filterPanel {
   display: grid;
   gap: 10px;
@@ -1640,6 +1688,14 @@
   .shareStrip {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .inboxBanner {
+    grid-template-columns: 1fr;
+  }
+
+  .inboxActions {
+    justify-content: flex-start;
   }
 
   .workflow {

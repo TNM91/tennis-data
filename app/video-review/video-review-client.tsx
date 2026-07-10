@@ -1948,6 +1948,51 @@ export default function VideoReviewClient() {
               </div>
             )}
           </div>
+          {queueSummary.latestNeedsReview ? (
+            <section
+              className={styles.inboxBanner}
+              aria-label={mode === 'coach' ? 'Coach inbox' : 'Player sent clip status'}
+            >
+              <div className={styles.inboxCopy}>
+                <span className={styles.noteTime}>{mode === 'coach' ? 'Coach inbox' : 'With coach'}</span>
+                <strong>
+                  {mode === 'coach'
+                    ? `${queueSummary.latestNeedsReview.playerName} sent ${queueSummary.latestNeedsReview.title}`
+                    : `${queueSummary.latestNeedsReview.title} is waiting for ${queueSummary.latestNeedsReview.coachName}`}
+                </strong>
+                <span>
+                  {mode === 'coach'
+                    ? `Open the ${getVideoReviewStrokeLabel(queueSummary.latestNeedsReview.stroke).toLowerCase()} clip, mark the key moment, then return one clear focus.`
+                    : 'Keep the coach link handy or share the review file if your coach is using another device.'}
+                </span>
+              </div>
+              <div className={styles.inboxActions}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => {
+                    setClipSearch('')
+                    setStatusFilter('sent')
+                    setStrokeFilter('all')
+                    openClip(queueSummary.latestNeedsReview?.id ?? '', mode === 'coach' ? 'coach' : 'player')
+                  }}
+                >
+                  {mode === 'coach' ? 'Open request' : 'Open waiting clip'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  onClick={() => {
+                    setClipSearch('')
+                    setStatusFilter('sent')
+                    setStrokeFilter('all')
+                  }}
+                >
+                  {mode === 'coach' ? 'Show needs review' : 'Show waiting'}
+                </button>
+              </div>
+            </section>
+          ) : null}
           <div className={styles.filterPanel} aria-label="Video library filters">
             <label className={styles.field}>
               <span className={styles.label}>Find clip</span>
