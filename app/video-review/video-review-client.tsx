@@ -608,6 +608,19 @@ export default function VideoReviewClient() {
     () => activeCoachAnnotations.find((annotation) => !watchedCoachMarkIds.has(annotation.id)) ?? null,
     [activeCoachAnnotations, watchedCoachMarkIds],
   )
+  const nextUnwatchedCoachMarkNumber = nextUnwatchedCoachMark
+    ? activeCoachAnnotations.findIndex((annotation) => annotation.id === nextUnwatchedCoachMark.id) + 1
+    : 0
+  const nextCoachMarkCue = nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber
+    ? `Next: Mark ${nextUnwatchedCoachMarkNumber} at ${timeLabel(nextUnwatchedCoachMark.timestamp)}.`
+    : activeCoachAnnotations.length
+      ? 'All marks watched. Replay any mark or start over.'
+      : ''
+  const playerWatchProgressLabel = activeCoachAnnotations.length
+    ? nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber
+      ? `${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched. Mark ${nextUnwatchedCoachMarkNumber} next.`
+      : 'All marks watched'
+    : 'Coach focus'
   const returnReviewFocus = useMemo(
     () => activeClip ? buildVideoReviewReturnFocus(activeClip, coachSummary) : '',
     [activeClip, coachSummary],
@@ -2233,7 +2246,7 @@ export default function VideoReviewClient() {
                       <div className={styles.readinessGrid}>
                         <span className={styles.readinessItem}>
                           <strong>Watch</strong>
-                          <em>{activeCoachAnnotations.length ? `${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched` : 'Coach focus'}</em>
+                          <em>{playerWatchProgressLabel}</em>
                         </span>
                         <span className={styles.readinessItem}>
                           <strong>Cue</strong>
@@ -2758,7 +2771,7 @@ export default function VideoReviewClient() {
                     <h3 className={styles.clipTitle}>Timeline marks</h3>
                     <p className={styles.formHelp}>
                       {activeCoachAnnotations.length
-                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. ${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched.`
+                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. ${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched. ${nextCoachMarkCue}`
                         : 'Coach markups will appear here by timestamp.'}
                     </p>
                   </div>
