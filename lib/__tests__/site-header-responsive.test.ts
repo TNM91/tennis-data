@@ -61,8 +61,8 @@ describe('site header responsive rules', () => {
   it('keeps the compact phone header short enough for the sticky portal', () => {
     expect(siteHeaderSource).toContain("padding: isMobile ? '5px 2px'")
     expect(siteHeaderSource).toContain("padding: isMobile ? '5px 6px'")
-    expect(siteHeaderSource).toContain("width: '36px'")
-    expect(siteHeaderSource).toContain("height: '36px'")
+    expect(siteHeaderSource).toContain("width: '44px'")
+    expect(siteHeaderSource).toContain("height: '44px'")
     expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
     expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
     expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')

@@ -16,10 +16,11 @@ describe('site header mobile navigation descriptions', () => {
   })
 
   it('keeps every primary mobile nav item tied to More Tennis. Less Chaos. jobs', () => {
-    expect(PRIMARY_NAV_ITEMS).toHaveLength(7)
+    expect(PRIMARY_NAV_ITEMS).toHaveLength(8)
     expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
       'Explore',
       'Improve',
+      'Video Review',
       'Compete',
       'Manage',
       'Coaches',
@@ -33,6 +34,7 @@ describe('site header mobile navigation descriptions', () => {
     }
 
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/manage')?.description).toContain('schedules')
+    expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/video-review')?.description).toContain('coach')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/leagues-and-tournaments')?.description).toContain('scores')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/mylab')?.description).toContain('personal tennis home')
   })
