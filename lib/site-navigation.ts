@@ -14,6 +14,7 @@ export type NavSection = {
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/explore', label: 'Explore', description: 'Find players, teams, leagues, rankings, and public tennis context.' },
   { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
+  { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
   { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
   { href: '/manage', label: 'Manage', description: 'Run teams, schedules, availability, scores, and communication.' },
   { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
@@ -24,6 +25,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
+  { href: '/video-review', label: 'Video Review' },
   { href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' },
   { href: '/coach', label: 'Coach Hub' },
   { href: '/data-assist', label: 'Fix tennis info' },
@@ -49,6 +51,7 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
 export const COACH_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/coaches', label: 'Find coaches' },
   { href: '/coach', label: 'Coach Hub' },
+  { href: '/video-review', label: 'Video Review' },
   { href: COACH_TACTICS_BOARD_HREF, label: 'Tactical Studio' },
   { href: '/player-development', label: 'Development paths' },
   { href: '/player-development/relentless-competitor-4-0/coach-planner', label: 'Coach planner' },
@@ -75,6 +78,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
       { href: '/player-development', label: 'Player development' },
       { href: '/resources', label: 'Resource hub' },
       { href: '/mylab', label: 'Open My Lab' },
+      { href: '/video-review', label: 'Video Review' },
       { href: '/data-assist', label: 'Fix tennis info' },
       { href: '/matchup', label: 'Prep matchup' },
       { href: '/messages', label: 'Review messages' },

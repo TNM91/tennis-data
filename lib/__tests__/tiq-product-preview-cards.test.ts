@@ -103,6 +103,7 @@ describe('TIQ product preview cards', () => {
     expect(commandCenterSource).not.toContain('Platform paths')
     expect(commandCenterSource).not.toContain('Explore, improve, compete, manage, or fix tennis context.')
     expect(commandCenterSource).not.toContain('Start with what you need to do.')
+    expect(commandCenterSource).toContain("{ label: 'Video Review', detail: 'Record clips and coach feedback', href: '/video-review' }")
     expect(commandCenterSource).toContain("{ label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href }")
     expect(commandCenterSource).toContain('heroBoardGridStyle')
     expect(commandCenterSource).toContain('heroBoardActionStyle')

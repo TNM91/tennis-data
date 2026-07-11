@@ -213,6 +213,7 @@ export const previewCards: PreviewCard[] = [
 const heroBoardActions = [
   { label: 'Explore', detail: 'Players, teams, leagues, events', href: '/explore' },
   { label: 'Improve', detail: 'Drills and player plans', href: '/player-development' },
+  { label: 'Video Review', detail: 'Record clips and coach feedback', href: '/video-review' },
   { label: 'Compete', detail: 'Matchups and scouting', href: '/compete' },
   { label: 'Manage', detail: 'Teams and events', href: '/manage' },
   { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },

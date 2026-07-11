@@ -791,8 +791,8 @@ const desktopMenuCueStyle: CSSProperties = {
 }
 
 const menuButtonStyle = {
-  width: '36px',
-  height: '36px',
+  width: '44px',
+  height: '44px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',

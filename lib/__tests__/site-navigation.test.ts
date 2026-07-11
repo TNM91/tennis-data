@@ -7,6 +7,7 @@ describe('site navigation language', () => {
     expect(PRIMARY_NAV_ITEMS).toEqual([
       { href: '/explore', label: 'Explore', description: 'Find players, teams, leagues, rankings, and public tennis context.' },
       { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
+      { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
       { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
       { href: '/manage', label: 'Manage', description: 'Run teams, schedules, availability, scores, and communication.' },
       { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
@@ -17,6 +18,7 @@ describe('site navigation language', () => {
     expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
       'Explore',
       'Improve',
+      'Video Review',
       'Compete',
       'Manage',
       'Coaches',
@@ -77,6 +79,7 @@ describe('site navigation language', () => {
     expect(COACH_QUICK_NAV_ITEMS).toEqual([
       { href: '/coaches', label: 'Find coaches' },
       { href: '/coach', label: 'Coach Hub' },
+      { href: '/video-review', label: 'Video Review' },
       { href: COACH_TACTICS_BOARD_HREF, label: 'Tactical Studio' },
       { href: '/player-development', label: 'Development paths' },
       { href: '/player-development/relentless-competitor-4-0/coach-planner', label: 'Coach planner' },
@@ -85,6 +88,7 @@ describe('site navigation language', () => {
 
   it('surfaces Coach from account quick navigation', () => {
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/coach', label: 'Coach Hub' })
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/video-review', label: 'Video Review' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' })
   })
 })
