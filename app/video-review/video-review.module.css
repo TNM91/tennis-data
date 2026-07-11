@@ -198,6 +198,16 @@
   font-size: 13px;
 }
 
+.quotaCompactText {
+  display: none;
+  margin: 5px 0 0;
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .meter {
   height: 10px;
   border-radius: 999px;
@@ -2302,17 +2312,17 @@
 
   .heroPanel,
   .quotaPanel {
-    padding: 18px;
+    padding: 14px;
   }
 
   .title {
-    font-size: 2rem;
-    line-height: 1.02;
+    font-size: 1.72rem;
+    line-height: 1.05;
   }
 
   .subtitle {
-    font-size: 0.96rem;
-    line-height: 1.55;
+    font-size: 0.9rem;
+    line-height: 1.42;
   }
 
   .modeButton,
@@ -2372,36 +2382,32 @@
   }
 
   .quotaPanel .statsGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    display: none;
   }
 
   .quotaPanel {
-    gap: 8px;
-    padding: 12px;
+    gap: 7px;
+    border-radius: 18px;
+    padding: 10px 12px;
   }
 
   .quotaPanel .kicker,
-  .quotaText {
+  .quotaText,
+  .quotaPanel .meter {
     display: none;
   }
 
   .quotaTitle {
-    font-size: 16px;
+    font-size: 14px;
   }
 
-  .quotaPanel .stat {
-    border-radius: 12px;
-    padding: 8px 6px;
+  .quotaCompactText {
+    display: block;
   }
 
-  .quotaPanel .statValue {
-    font-size: 17px;
-  }
-
-  .quotaPanel .statLabel {
-    font-size: 10px;
-    line-height: 1.15;
+  .quotaPanel .storageTip {
+    padding-top: 8px;
+    gap: 5px;
   }
 
   .stageTabs {

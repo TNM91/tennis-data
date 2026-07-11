@@ -7,10 +7,12 @@ const viewports = [
   { name: 'mobile', width: 390, height: 844 },
 ]
 const expectedText = [
-  'Capture the stroke. Mark the moment.',
+  'Video Review',
+  'Record a clip, send it to your coach, and practice the returned marks.',
   'Player capture',
   'Coach review',
   'Keep the clip queue light.',
+  'clip slots left',
   'Record',
   'Review',
   'Practice',

@@ -2126,9 +2126,9 @@ export default function VideoReviewClient() {
         <div className={styles.heroPanel}>
           <div className={styles.heroCopy}>
             <span className={styles.kicker}>My Lab video</span>
-            <h1 className={styles.title}>Capture the stroke. Mark the moment.</h1>
+            <h1 className={styles.title}>Video Review</h1>
             <p className={styles.subtitle}>
-              Record or upload a tennis clip, send it to your coach, then get timestamped lines, arrows, circles, and notes back for the next practice.
+              Record a clip, send it to your coach, and practice the returned marks.
             </p>
             <div className={styles.modeBar} aria-label="Video review mode">
               <button
@@ -2163,6 +2163,9 @@ export default function VideoReviewClient() {
           <div>
             <p className={styles.kicker}>{VIDEO_REVIEW_QUOTA.label}</p>
             <h2 className={styles.quotaTitle}>Keep the clip queue light.</h2>
+            <p className={styles.quotaCompactText}>
+              {quota.clipsRemaining} clip slots left | {formatVideoReviewBytes(quota.bytesRemaining)} free
+            </p>
           </div>
           <p className={styles.quotaText}>{VIDEO_REVIEW_QUOTA.storageCue}</p>
           <div className={styles.meter} aria-label={`${quota.percentUsed}% of video space used`}>
