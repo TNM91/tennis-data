@@ -9,20 +9,149 @@
 .levelUpShell {
   width: min(1180px, calc(100% - 28px));
   padding-top: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
   overflow-x: clip;
 }
 
+.levelUpShell > .levelUpRouteHeader,
+.levelUpShell > .levelUpIdentityStrip,
+.levelUpShell > .levelUpIphoneCommandCenter,
+.levelUpShell > .levelUpIphoneDock,
+.levelUpShell > .levelUpNextRepCommand,
+.levelUpShell > .liveWorkbench {
+  grid-column: 1 / -1;
+}
+
+.levelUpShell .levelUpRouteHeader {
+  padding: 14px 16px;
+}
+
+.levelUpShell .levelUpRouteCopy h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.levelUpShell .levelUpRouteCopy p {
+  display: none;
+}
+
+.levelUpShell .levelUpIdentityStrip {
+  grid-template-columns: minmax(190px, 0.32fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+.levelUpShell .levelUpIdentityStrip > div:first-child span {
+  display: none;
+}
+
+.levelUpShell .levelUpIdentityButtons {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+}
+
+.levelUpShell .levelUpIdentityButtons a {
+  flex: 0 0 min(180px, 22vw);
+  min-height: 40px;
+  scroll-snap-align: start;
+}
+
+.levelUpShell .levelUpMorePanel {
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.levelUpShell .levelUpMoreSummary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 9px;
+}
+
+.levelUpShell .levelUpMoreSummary span {
+  grid-column: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.levelUpShell .levelUpMoreSummary strong {
+  overflow: hidden;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelUpShell .levelUpMoreSummary small {
+  padding: 4px 7px;
+  font-size: 0.66rem;
+}
+
+.levelUpShell .levelUpMoreBody {
+  padding: 9px;
+}
+
+.levelUpShell .liveWorkbench {
+  gap: 10px;
+  padding: 10px;
+}
+
+.levelUpShell .liveWorkbenchHero,
+.levelUpShell .liveCoachChallengeEntry {
+  display: none;
+}
+
+.levelUpShell .liveCompactSummary p {
+  display: none;
+}
+
+.levelUpShell .liveTrainingFlow,
+.levelUpShell .liveWorkbenchBody,
+.levelUpShell .liveStepPanel,
+.levelUpShell .liveActionCard,
+.levelUpShell .liveLaneColumn,
+.levelUpShell .liveTracker {
+  gap: 9px;
+}
+
+.levelUpShell .liveStepPanel,
+.levelUpShell .liveActionCard,
+.levelUpShell .liveLaneColumn,
+.levelUpShell .liveTracker {
+  padding: 10px;
+  border-radius: 13px;
+}
+
+.levelUpShell .liveIdentityCourtRead,
+.levelUpShell .liveCourtsideResume,
+.levelUpShell .liveCoachLoop,
+.levelUpShell .liveAccessPanel,
+.levelUpShell .liveModeStrip,
+.levelUpShell .liveProgressPanel,
+.levelUpShell .liveSyncProofPanel,
+.levelUpShell .liveUnlockPanel {
+  display: none;
+}
+
 .packetShell {
-  padding-top: 24px;
+  padding-top: 16px;
 }
 
 .hero,
 .improveHub,
+.overviewDetails,
 .auditPanel,
 .structurePanel,
 .sheetPanel,
 .integrationPanel,
 .identitySelector,
+.packetToolShortcut,
 .packetHeader,
 .workbookPage {
   border: 1px solid var(--card-border-soft);
@@ -34,19 +163,35 @@
 .packetHeader {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 18px;
+  gap: 12px;
   align-items: center;
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
+  border-radius: 18px;
+  padding: 12px 14px;
 }
 
 .packetHeader h1 {
   margin: 2px 0 0;
   color: var(--foreground-strong);
-  font-size: clamp(1.8rem, 4vw, 3.4rem);
+  font-size: clamp(1.45rem, 3.4vw, 2.6rem);
   font-weight: 950;
-  line-height: 0.98;
+  line-height: 1.02;
   letter-spacing: 0;
+}
+
+.packetShell :global(.player-development-print-controls-drawer summary)::-webkit-details-marker {
+  display: none;
+}
+
+.packetShell :global(.player-development-print-controls-drawer summary::marker) {
+  content: "";
+}
+
+.packetShell :global(.player-development-print-controls-drawer[open]) {
+  align-content: start;
+}
+
+.packetShell :global(.player-development-print-controls-actions) {
+  min-width: 0;
 }
 
 .hero {
@@ -58,6 +203,48 @@
   padding: clamp(22px, 4vw, 34px);
 }
 
+.hero[data-compact='true'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  border-radius: var(--radius-lg);
+  padding: clamp(14px, 2.2vw, 20px);
+}
+
+.hero[data-compact='true'] .heroPanel {
+  display: none;
+}
+
+.hero[data-compact='true'] .heroCopy {
+  align-content: start;
+  gap: 10px;
+}
+
+.hero[data-compact='true'] .brandRow {
+  display: none;
+}
+
+.hero[data-compact='true'] .heroTitle {
+  font-size: clamp(1.45rem, 3.2vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.hero[data-compact='true'] .heroText {
+  max-width: 860px;
+  font-size: 0.94rem;
+  line-height: 1.42;
+}
+
+.hero[data-compact='true'] .actions {
+  margin-top: 0;
+}
+
+.hero[data-compact='true'] .actions :global(.button-primary),
+.hero[data-compact='true'] .actions :global(.button-secondary) {
+  min-width: 0;
+  min-height: 42px;
+  white-space: normal;
+}
+
 .improveHub {
   display: grid;
   grid-template-columns: minmax(0, 0.74fr) minmax(0, 1.26fr);
@@ -66,6 +253,97 @@
   overflow: hidden;
   border-radius: var(--radius-xl);
   padding: clamp(20px, 3.5vw, 32px);
+}
+
+.overviewDetails {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.overviewDetailsDesktopStack {
+  display: contents;
+}
+
+.overviewDetailsMobileGroup {
+  display: none;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.overviewDetailsMobileGroupBody {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 12px 12px;
+}
+
+.overviewDetailsSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.overviewDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.overviewDetailsSummary span {
+  flex: 0 0 auto;
+  color: var(--brand-green);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.overviewDetailsSummary strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1rem, 2.8vw, 1.35rem);
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.overviewDetailsSummary em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--foreground-strong);
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.overviewDetailsContent {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 16px 16px;
+}
+
+.overviewDetails:not([open]) > .overviewDetailsContent,
+.overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody,
+.improveHubMoreActions:not([open]) > div,
+.playerIdActionPlanMore:not([open]) > div,
+.playerQuestionStripDrawer:not([open]) > .playerQuestionStripDrawerBody {
+  display: none;
 }
 
 .improveHubCopy,
@@ -82,10 +360,12 @@
 .improveHubCopy h1 {
   margin: 2px 0 0;
   color: var(--foreground-strong);
-  font-size: clamp(2.6rem, 6vw, 5.6rem);
+  max-width: 100%;
+  font-size: clamp(2.6rem, 6vw, 4.6rem);
   font-weight: 950;
   line-height: 0.92;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .improveHubCopy p {
@@ -101,6 +381,14 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: 12px;
+}
+
+.improveHubSecondaryActions {
+  display: contents;
+}
+
+.improveHubMoreActions {
+  display: none;
 }
 
 .improveHubPrimaryAction,
@@ -371,10 +659,21 @@
   padding: clamp(18px, 3vw, 26px);
 }
 
+.playerQuestionStripDrawer {
+  display: none;
+}
+
+.playerQuestionStripDrawerBody {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
 .playerQuestionStripHeader {
   display: grid;
   gap: 6px;
   max-width: 800px;
+  min-width: 0;
 }
 
 .playerQuestionStripHeader h2 {
@@ -517,6 +816,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
+}
+
+.playerIdActionPlanMore {
+  display: none;
 }
 
 .playerIdActionPlanCard,
@@ -934,6 +1237,59 @@
   overflow: hidden;
 }
 
+.levelUpNextRepCommandDrawerSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.levelUpNextRepCommandDrawerSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpNextRepCommandDrawerSummary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpNextRepCommandDrawerSummary span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpNextRepCommandDrawerSummary strong {
+  color: var(--foreground-strong);
+  font-size: clamp(1rem, 1.8vw, 1.28rem);
+  line-height: 1.1;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.levelUpNextRepCommandDrawerSummary em {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.09);
+  color: var(--foreground-strong);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .levelUpNextRepCommandCopy,
 .levelUpNextRepCommandCard,
 .levelUpNextRepCommandSignals article {
@@ -987,6 +1343,49 @@
 }
 
 .levelUpNextRepCommandSignals {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.levelUpNextRepCommandSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px;
+}
+
+.levelUpNextRepCommandSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpNextRepCommandSummary strong {
+  display: block;
+  margin-top: 5px;
+}
+
+.levelUpNextRepCommandSummary em {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.09);
+  color: var(--foreground-strong);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.levelUpNextRepCommandSignalGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -1085,6 +1484,86 @@
   box-shadow: var(--shadow-card);
   color: var(--foreground);
   padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpMorePanel {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(5, 15, 30, 0.72);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  overflow: clip;
+}
+
+.levelUpMoreSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  min-width: 0;
+  padding: 13px 14px;
+}
+
+.levelUpMoreSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpMoreSummary span {
+  grid-column: 1 / -1;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  background: rgba(155, 225, 29, 0.09);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpMoreSummary strong {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+}
+
+.levelUpMoreSummary small {
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.levelUpMorePanel[open] .levelUpMoreSummary {
+  border-bottom: 1px solid rgba(116, 190, 255, 0.14);
+}
+
+.levelUpMorePanel[open] .levelUpMoreSummary small {
+  background: rgba(155, 225, 29, 0.12);
+  color: #d8f7a4;
+}
+
+.levelUpMoreBody {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.levelUpMorePanel:not([open]) > .levelUpMoreBody {
+  display: none;
+}
+
+.levelUpMoreBody > section {
+  box-shadow: none;
 }
 
 .levelUpQuestPackPreview {
@@ -1736,7 +2215,7 @@
 }
 
 .levelUpQuestBuilderFlow {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 
 .levelUpQuestTemplateGrid {
@@ -1784,6 +2263,11 @@
   color: var(--muted-strong);
   font-size: 0.8rem;
   line-height: 1.38;
+}
+
+.levelUpQuestBuilderFlow small {
+  grid-column: 2 / -1;
+  min-width: 0;
 }
 
 .levelUpQuestTemplateGrid article {
@@ -2643,6 +3127,15 @@
 
 .levelUpPortalApp > * {
   min-width: 0;
+}
+
+.levelUpFocusTraining:not([open]) > :not(summary) {
+  display: none;
+}
+
+.levelUpModuleGrid:not([open]) > :not(summary),
+.levelUpCardGrid:not([open]) > :not(summary) {
+  display: none;
 }
 
 .levelUpPortalApp[data-session-focus='active'] .levelUpHero,
@@ -3685,6 +4178,16 @@
 
 .levelUpCardPlan[open] summary {
   margin-bottom: 8px;
+}
+
+.levelUpCardPlan:not([open]) > :not(summary) {
+  display: none;
+}
+
+.coachAssignmentBuilder:not([open]) > :not(summary),
+.levelUpFilters:not([open]) > :not(summary),
+.levelUpModuleGuide:not([open]) > :not(summary) {
+  display: none;
 }
 
 .levelUpPlanCue {
@@ -6777,6 +7280,9 @@
   border: 1px solid rgba(116, 190, 255, 0.16);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.045);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 13px;
 }
 
@@ -8546,6 +9052,10 @@
   gap: 8px;
 }
 
+.completionLogger:not([open]) > :not(summary) {
+  display: none;
+}
+
 .completionLogger p,
 .levelUpLoggerHint {
   margin: 0;
@@ -8693,6 +9203,10 @@
   font-weight: 950;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.levelUpTinyNoteDrawer:not([open]) > :not(summary) {
+  display: none;
 }
 
 .levelUpTinyNoteDrawer[open] > * + * {
@@ -10447,7 +10961,7 @@
 
 .liveFocusRail {
   display: grid;
-  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 10px;
 }
 
@@ -10520,7 +11034,21 @@
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.48fr);
 }
 
+.liveWorkbenchBody[data-flow-state='focus'],
+.liveWorkbenchBody[data-flow-state='setup'] {
+  display: none;
+}
+
+.liveWorkbenchBody[data-flow-state='drill'][data-scoring='false'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.liveWorkbenchBody[data-flow-state='drill'] .liveLaneColumn,
 .liveWorkbenchBody[data-flow-state='drill'] .liveLaneColumn[data-collapsed='true'] {
+  display: none;
+}
+
+.liveWorkbenchBody[data-flow-state='drill'][data-scoring='false'] .liveTracker {
   display: none;
 }
 
@@ -10811,6 +11339,80 @@
   color: var(--foreground-strong);
   font-size: 0.86rem;
   line-height: 1.2;
+}
+
+.liveDrillDetails,
+.liveScoreDetails {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(4, 17, 24, 0.34);
+  overflow: clip;
+}
+
+.liveDrillDetailsSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  min-width: 0;
+  padding: 10px;
+}
+
+.liveDrillDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.liveDrillDetailsSummary div {
+  min-width: 0;
+}
+
+.liveDrillDetailsSummary span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveDrillDetailsSummary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+}
+
+.liveDrillDetailsSummary small {
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.liveDrillDetails[open] .liveDrillDetailsSummary,
+.liveScoreDetails[open] .liveDrillDetailsSummary {
+  border-bottom: 1px solid rgba(116, 190, 255, 0.12);
+}
+
+.liveDrillDetails[open] .liveDrillDetailsSummary small,
+.liveScoreDetails[open] .liveDrillDetailsSummary small {
+  background: rgba(155, 225, 29, 0.12);
+  color: #d8f7a4;
+}
+
+.liveDrillDetailsBody,
+.liveScoreDetailsBody {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
 }
 
 .liveSavedDeliveryRail article {
@@ -11434,9 +12036,60 @@
   display: block;
   margin-top: 8px;
   color: var(--foreground-strong);
-  font-size: clamp(2.1rem, 7vw, 4.6rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   line-height: 0.95;
   letter-spacing: 0;
+}
+
+.packetToolShortcut {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.packetToolShortcut > div {
+  min-width: 0;
+}
+
+.packetToolShortcut > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.packetToolShortcut span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.packetToolShortcut strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--foreground-strong);
+  font-size: clamp(0.98rem, 1.7vw, 1.18rem);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.packetToolShortcut p {
+  max-width: 760px;
+  margin: 5px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .liveTimerPanel p {
@@ -11505,6 +12158,8 @@
   margin-top: 3px;
   font-size: 0.92rem;
   line-height: 1.16;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .liveWakeLockControl button {
@@ -11515,12 +12170,40 @@
 
 .liveTimerActions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.liveTimerActions button {
+  min-width: 0;
 }
 
 .liveTimerActions button[data-action='done'] {
   grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) {
+  .liveTimerPanel {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: center;
+  }
+
+  .liveTimerTrack {
+    grid-column: 1 / -1;
+  }
+
+  .liveWakeLockControl {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .liveWakeLockControl button {
+    width: 100%;
+  }
+
+  .liveTimerActions {
+    grid-column: 2;
+  }
 }
 
 .liveTimerDock {
@@ -11932,8 +12615,45 @@
 }
 
 .liveSyncProofPanel {
-  grid-template-columns: minmax(200px, 0.34fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
+}
+
+.liveSyncProofSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.liveSyncProofSummary::-webkit-details-marker {
+  display: none;
+}
+
+.liveSyncProofSummary strong {
+  margin: 8px 0 0;
+}
+
+.liveSyncProofSummary em {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.08);
+  color: var(--foreground-strong);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.liveSyncProofBody {
+  display: grid;
+  gap: 10px;
 }
 
 .liveSyncProofGrid {
@@ -12728,6 +13448,38 @@
   display: grid;
   gap: 18px;
   scroll-margin-top: 120px;
+}
+
+@media screen {
+  .printBook {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  :global(body:not([data-player-development-screen-scope='full'])) .printBook[data-print-active='true'] .workbookPage:not([data-screen-page='true']) {
+    display: none;
+  }
+
+  :global(body:not([data-player-development-screen-scope='full'])) .printBook[data-print-active='true']:not(:has(.workbookPage[data-screen-page='true'])) {
+    display: none;
+  }
+
+  .workbookPage {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .workbookPage::after {
+    display: none;
+  }
+
+  .workbookPageBody {
+    max-width: 100%;
+    overflow-x: clip;
+  }
 }
 
 .focusSection {
@@ -14131,14 +14883,17 @@
 
 .trackerWrap {
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   border-radius: 16px;
   border: 1px solid rgba(116, 190, 255, 0.14);
 }
 
 .trackerTable {
   width: 100%;
-  min-width: 720px;
+  min-width: 0;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .trackerTable th,
@@ -14148,6 +14903,7 @@
   border-bottom: 1px solid rgba(116, 190, 255, 0.12);
   border-right: 1px solid rgba(116, 190, 255, 0.1);
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .trackerTable th {
@@ -16186,6 +16942,177 @@
     width: min(var(--container), calc(100% - 28px));
   }
 
+  .improveHub {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .improveHubCopy {
+    gap: 6px;
+  }
+
+  .improveHubCopy h1 {
+    font-size: clamp(2rem, 8vw, 3rem);
+    line-height: 0.96;
+  }
+
+  .improveHubCopy p,
+  .improveHubPrimaryAction p,
+  .improveHubPrimaryAction .improveHubSignals,
+  .improveHubAction p,
+  .hero[data-compact='true'] {
+    display: none;
+  }
+
+  .improveHubActions {
+    gap: 8px;
+  }
+
+  .improveHubPrimaryAction,
+  .improveHubAction {
+    min-height: 0;
+    gap: 8px;
+    border-radius: 14px;
+    padding: 11px;
+  }
+
+  .improveHubPrimaryAction {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .improveHubPrimaryAction > :first-child,
+  .improveHubPrimaryAction strong {
+    grid-column: 1;
+  }
+
+  .improveHubPrimaryAction em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .improveHubSecondaryActions {
+    display: none;
+  }
+
+  .improveHubMoreActions {
+    display: grid;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 14px;
+    background: rgba(116, 190, 255, 0.07);
+    overflow: hidden;
+  }
+
+  .improveHubMoreActions summary,
+  .playerIdActionPlanMore summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 44px;
+    min-width: 0;
+    padding: 9px 10px;
+    cursor: pointer;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary::-webkit-details-marker,
+  .playerIdActionPlanMore summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .improveHubMoreActions summary span,
+  .playerIdActionPlanMore summary span {
+    color: var(--brand-green);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .improveHubMoreActions summary strong,
+  .playerIdActionPlanMore summary strong {
+    min-width: 0;
+    color: var(--foreground-strong);
+    font-size: 0.86rem;
+    font-weight: 950;
+    line-height: 1.12;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary em,
+  .playerIdActionPlanMore summary em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    border: 1px solid rgba(155, 225, 29, 0.26);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.1);
+    color: var(--foreground-strong);
+    padding: 5px 7px;
+    font-size: 0.62rem;
+    font-style: normal;
+    font-weight: 950;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .improveHubMoreActions > div {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 10px 10px;
+  }
+
+  .playerIdActionPlan {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    border-radius: 16px;
+    padding: 12px;
+  }
+
+  .playerIdActionPlanGrid article:nth-child(n+2),
+  .playerIdActionPlanCopy :global(.tiq-feature-icon),
+  .playerIdActionPlanCopy p,
+  .playerIdActionPlanCard small,
+  .playerIdActionPlanActions :global(.button-secondary) {
+    display: none;
+  }
+
+  .playerIdActionPlanCopy {
+    gap: 8px;
+  }
+
+  .playerIdActionPlanCard,
+  .playerIdActionPlanGrid article {
+    padding: 8px;
+  }
+
+  .playerIdActionPlanMore {
+    display: grid;
+    grid-column: auto;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 16px;
+    background: rgba(116, 190, 255, 0.07);
+    overflow: hidden;
+  }
+
+  .playerIdActionPlanMore > div {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 10px 10px;
+  }
+
   .planGrid,
   .playerQuestionGrid,
   .playerIdLevelUpBridge > div:last-child,
@@ -16260,10 +17187,89 @@
     grid-template-columns: 1fr;
   }
 
+  .playerIdActionPlan {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 0.72fr);
+    gap: 10px;
+    align-items: start;
+    padding: 12px;
+  }
+
+  .playerIdActionPlanCopy p,
+  .playerIdActionPlanCard small {
+    display: none;
+  }
+
+  .playerIdActionPlanGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .playerIdActionPlanGrid article:nth-child(n+2) {
+    display: none;
+  }
+
+  .playerIdActionPlanMore {
+    display: grid;
+    grid-column: 1;
+  }
+
+  .playerIdActionPlanActions {
+    grid-column: 2;
+  }
+
+  .playerIdActionPlanActions :global(.button-secondary) {
+    display: none;
+  }
+
   .levelUpNextRepCommand,
   .levelUpNextRepCommandSignals,
-  .levelUpNextRepCommandActions {
+  .levelUpNextRepCommandActions,
+  .levelUpNextRepCommandSignalGrid {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpNextRepCommand {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .levelUpNextRepCommandCopy {
+    gap: 4px;
+  }
+
+  .levelUpNextRepCommandCopy h2 {
+    font-size: 1.15rem;
+    line-height: 1.08;
+  }
+
+  .levelUpNextRepCommandCopy p,
+  .levelUpNextRepCommandCard small,
+  .levelUpNextRepCommandSummary strong {
+    display: none;
+  }
+
+  .levelUpNextRepCommandCard,
+  .levelUpNextRepCommandSummary {
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .levelUpNextRepCommandCard strong {
+    font-size: 0.88rem;
+  }
+
+  .levelUpNextRepCommandActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .levelUpNextRepCommandActions :global(.button-primary),
+  .levelUpNextRepCommandActions :global(.button-secondary) {
+    min-height: 40px;
+    padding-inline: 10px;
+  }
+
+  .levelUpNextRepCommandSummary {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .playerIdOnCourtBrief {
@@ -16279,13 +17285,174 @@
     grid-template-columns: 1fr;
   }
 
+  .playerQuestionStripInline {
+    display: none;
+  }
+
+  .playerQuestionStripDrawer {
+    display: grid;
+    padding: 0;
+  }
+
+  .playerQuestionStripDrawerBody {
+    padding: 0 14px 14px;
+  }
+
+  .improveHubSecondaryActions {
+    display: none;
+  }
+
+  .improveHubMoreActions {
+    display: grid;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 18px;
+    background: rgba(116, 190, 255, 0.07);
+    overflow: hidden;
+  }
+
+  .improveHubMoreActions summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 13px;
+    cursor: pointer;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .improveHubMoreActions summary span {
+    color: var(--brand-green);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .improveHubMoreActions summary strong {
+    min-width: 0;
+    color: var(--foreground-strong);
+    font-size: 0.98rem;
+    font-weight: 950;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    border: 1px solid rgba(155, 225, 29, 0.26);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.1);
+    color: var(--foreground-strong);
+    padding: 7px 9px;
+    font-size: 0.68rem;
+    font-style: normal;
+    font-weight: 950;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .improveHubMoreActions > div {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 0 12px 12px;
+  }
+
+  .overviewDetailsDesktopStack {
+    display: none;
+  }
+
+  .overviewDetailsMobileGroup {
+    display: grid;
+    border: 1px solid var(--card-border-soft);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  .overviewDetailsMobileGroup .overviewDetails {
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: none;
+  }
+
   .coverPage .workbookPageBody {
     grid-template-columns: 1fr;
+  }
+
+  .workbookPage {
+    min-height: 0;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .coverPage {
+    gap: 12px;
+  }
+
+  .coverPage .workbookPageBody {
+    gap: 12px;
+    align-items: start;
+  }
+
+  .coverPage .pageTopline,
+  .coverPage .courtFigure,
+  .coverContent > p:not(.kicker),
+  .coverMeta,
+  .coverAccess p,
+  .qrAction small {
+    display: none;
+  }
+
+  .coverContent {
+    display: grid;
+    gap: 9px;
+  }
+
+  .coverContent h2,
+  .coverPage .coverContent h2 {
+    margin: 0;
+    font-size: clamp(1.7rem, 6vw, 2.7rem);
+    line-height: 1.02;
+  }
+
+  .coverContent p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .coverAccess {
+    gap: 8px;
+    margin-top: 0;
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .coverAccess strong {
+    font-size: 0.94rem;
+    line-height: 1.18;
+  }
+
+  .qrAction {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
   }
 
   .packetIndexHero,
   .missionHero,
   .liveWorkbenchHero,
+  .packetToolShortcut,
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
@@ -16355,6 +17522,28 @@
     grid-template-columns: 1fr;
   }
 
+  .packetToolShortcut {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .packetToolShortcut p {
+    display: none;
+  }
+
+  .packetToolShortcut > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .packetToolShortcut :global(.button-primary),
+  .packetToolShortcut :global(.button-secondary) {
+    min-width: 0;
+    justify-content: center;
+    white-space: normal;
+  }
+
   .levelUpNetToolkitNav {
     display: flex;
     overflow-x: auto;
@@ -16397,15 +17586,15 @@
   }
 
   .levelUpIntentPresets > div:last-child {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scroll-snap-type: x proximity;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+    padding-bottom: 0;
   }
 
   .levelUpIntentPresets button {
-    min-width: 176px;
-    scroll-snap-align: start;
+    min-width: 0;
+    min-height: 74px;
   }
 
   .levelUpReadinessChoices {
@@ -16533,8 +17722,54 @@
     text-decoration: none;
   }
 
+  .levelUpShell .levelUpIphoneCommandCenter {
+    display: none;
+  }
+
   .levelUpPortal {
     padding: 12px;
+  }
+
+  .levelUpMorePanel {
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .levelUpMoreSummary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 7px;
+    min-height: 44px;
+    padding: 8px 9px;
+  }
+
+  .levelUpMoreSummary span {
+    grid-column: auto;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .levelUpMoreSummary strong {
+    overflow: hidden;
+    font-size: 0.84rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .levelUpMoreSummary small {
+    padding: 4px 7px;
+    font-size: 0.66rem;
+  }
+
+  .levelUpMoreBody {
+    padding: 9px;
+  }
+
+  .liveIdentityCourtRead,
+  .liveCourtsideResume {
+    display: none;
   }
 
   .levelUpSessionDock {
@@ -16596,6 +17831,77 @@
     min-width: 0;
     min-height: 38px;
     padding-inline: 8px;
+  }
+
+  .levelUpOnCourtCommand {
+    gap: 10px;
+    border-radius: 18px;
+    padding: 10px;
+  }
+
+  .levelUpOnCourtCommandHeader {
+    gap: 5px;
+  }
+
+  .levelUpOnCourtCommandHeader span {
+    padding: 4px 7px;
+    font-size: 0.62rem;
+  }
+
+  .levelUpOnCourtCommandHeader strong {
+    font-size: 1.18rem;
+    line-height: 1.08;
+  }
+
+  .levelUpOnCourtCommandHeader small {
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  .levelUpOnCourtCommandActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpOnCourtCommandActions button {
+    min-height: 58px;
+    border-radius: 13px;
+    padding: 9px;
+  }
+
+  .levelUpOnCourtCommandActions button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .levelUpOnCourtCommandActions b {
+    font-size: 0.82rem;
+  }
+
+  .levelUpOnCourtCommandActions span {
+    font-size: 0.7rem;
+    line-height: 1.18;
+  }
+
+  .levelUpLocalSyncProof {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .levelUpLocalSyncProof span {
+    padding: 4px 7px;
+    font-size: 0.62rem;
+  }
+
+  .levelUpLocalSyncProof strong {
+    font-size: 0.9rem;
+  }
+
+  .levelUpLocalSyncProof p {
+    font-size: 0.76rem;
+    line-height: 1.28;
+  }
+
+  .levelUpLocalSyncProof p:nth-child(n+2) {
+    display: none;
   }
 
   .levelUpCoachAssignmentBanner :global(.button-primary) {
@@ -16842,6 +18148,59 @@
     overflow: hidden;
   }
 
+  .levelUpStartList {
+    display: grid;
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .levelUpStartList .levelUpRailHeader {
+    gap: 5px;
+  }
+
+  .levelUpStartList .levelUpRailHeader p {
+    display: none;
+  }
+
+  .levelUpAdaptiveStartHint {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 7px;
+    padding: 8px;
+  }
+
+  .levelUpAdaptiveStartHint span,
+  .levelUpAdaptiveStartHint small {
+    display: none;
+  }
+
+  .levelUpAdaptiveStartHint strong {
+    font-size: 0.84rem;
+  }
+
+  .levelUpAdaptiveStartHint b {
+    justify-self: end;
+    padding: 4px 7px;
+    font-size: 0.62rem;
+  }
+
+  .levelUpProgressPath {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .levelUpProgressPath > div {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .levelUpProgressPath section {
+    gap: 3px;
+    padding: 7px;
+  }
+
+  .levelUpProgressPath small {
+    display: none;
+  }
+
   .levelUpRail > * {
     max-width: 100%;
   }
@@ -16902,6 +18261,172 @@
 
   .levelUpRailGrid article[data-activity='true'] {
     flex-basis: min(92vw, 420px);
+  }
+
+  .levelUpQuestBuilderFlow,
+  .levelUpRailGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    margin-inline: 0;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .levelUpStartList .levelUpRailGrid {
+    display: flex;
+    gap: 8px;
+    margin-inline: -1px;
+    overflow-x: auto;
+    padding: 0 1px 8px;
+    scrollbar-color: rgba(155, 225, 29, 0.72) rgba(255, 255, 255, 0.12);
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .levelUpStartList .levelUpRailGrid::-webkit-scrollbar {
+    height: 7px;
+  }
+
+  .levelUpStartList .levelUpRailGrid::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .levelUpStartList .levelUpRailGrid::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--brand-green-3), var(--brand-blue-2));
+  }
+
+  .levelUpQuestBuilderFlow article,
+  .levelUpRailGrid article,
+  .levelUpRailGrid article[data-activity='true'] {
+    flex: initial;
+    width: 100%;
+  }
+
+  .levelUpStartList .levelUpRailGrid article,
+  .levelUpStartList .levelUpRailGrid article[data-activity='true'] {
+    flex: 0 0 min(82vw, 306px);
+    width: auto;
+    scroll-snap-align: start;
+  }
+
+  .levelUpCardTile[data-activity='false'] {
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .levelUpCardTile[data-activity='false'] > div:first-child p,
+  .levelUpCardTile[data-activity='false'] > p,
+  .levelUpCardTile[data-activity='false'] .levelUpDrillHabitBridge,
+  .levelUpCardTile[data-activity='false'] .levelUpPurposeStrip,
+  .levelUpCardTile[data-activity='false'] .levelUpTrainingStandards,
+  .levelUpCardTile[data-activity='false'] .levelUpDoNow,
+  .levelUpCardTile[data-activity='false'] .levelUpRunStrip,
+  .levelUpCardTile[data-activity='false'] > .levelUpCardPlan,
+  .levelUpCardTile[data-activity='false'] > .completionLogger {
+    display: none;
+  }
+
+  .levelUpCardTile[data-activity='false'] .levelUpCardActions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .levelUpCardTile[data-activity='false'] .levelUpCardActions :global(.button-secondary) {
+    display: none;
+  }
+
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpHero,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpCoachAssignmentBanner,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpCoachChallengeInbox,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpTodayDashboard,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpHabitMomentum,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpSessionBuilder,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpLaneChooser,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpLaneProgress,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpTodayPlan,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpCloseLoop,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpNextBestRep,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpTrainingPulse,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpWeeklyBalance,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpCoachUpdate,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpTodayMission,
+  .levelUpPortalApp[data-session-focus='idle'] .levelUpSafetyNote {
+    display: none;
+  }
+
+  .levelUpModuleTile {
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .levelUpModuleTile > p,
+  .levelUpModuleTile > small,
+  .levelUpModulePathCoach,
+  .levelUpModulePath,
+  .levelUpModuleCards {
+    display: none;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary small {
+    display: none;
+  }
+
+  .levelUpFocusTraining:not([open]),
+  .levelUpRail:not([open]),
+  .levelUpFilters:not([open]),
+  .levelUpModuleGrid:not([open]),
+  .levelUpCardGrid:not([open]) {
+    gap: 0;
+    border-radius: 14px;
+    padding: 9px 10px;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary,
+  .levelUpRail:not([open]) .levelUpRailSummary,
+  .levelUpModuleGrid:not([open]) .levelUpRailSummary,
+  .levelUpCardGrid:not([open]) .levelUpRailSummary {
+    min-height: 42px;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary span {
+    grid-column: auto;
+    overflow: hidden;
+    color: var(--foreground-strong);
+    font-size: 0.86rem;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary strong {
+    display: none;
+  }
+
+  .levelUpFocusTraining:not([open]) .levelUpRailSummary::after,
+  .levelUpRail:not([open]) .levelUpRailSummary::after,
+  .levelUpModuleGrid:not([open]) .levelUpRailSummary::after,
+  .levelUpCardGrid:not([open]) .levelUpRailSummary::after {
+    content: "+";
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 1px solid rgba(155, 225, 29, 0.24);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.1);
+    color: var(--brand-green-3);
+    font-size: 1rem;
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .levelUpRail:not([open]) .levelUpRailSummary span {
+    display: none;
   }
 
   .levelUpPortalLanes p,
@@ -17243,7 +18768,7 @@
   }
 
   .liveFocusButton {
-    min-width: 148px;
+    min-width: 0;
     min-height: 66px;
     scroll-snap-align: start;
   }
@@ -17796,20 +19321,341 @@
 }
 
 @media (max-width: 620px) {
+  .shell {
+    width: calc(100% - 20px);
+    padding: 18px 0 64px;
+    gap: 14px;
+  }
+
+  .packetShell {
+    padding-top: 8px;
+  }
+
+  .packetHeader {
+    gap: 7px;
+    border-radius: 14px;
+    padding: 9px 10px;
+  }
+
+  .packetHeader h1 {
+    font-size: clamp(1.24rem, 7vw, 1.72rem);
+    line-height: 1.04;
+  }
+
+  .packetShell :global(.player-development-print-controls) {
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .packetShell :global(.player-development-print-controls summary) {
+    gap: 8px;
+  }
+
+  .packetShell :global(.player-development-print-controls summary > span:first-child) {
+    gap: 2px;
+  }
+
+  .packetShell :global(.player-development-print-controls summary > span:last-child) {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+  }
+
+  .packetShell :global(.player-development-print-controls .button-primary),
+  .packetShell :global(.player-development-print-controls .button-secondary) {
+    min-height: 36px;
+    border-radius: 12px;
+    padding-inline: 8px;
+    font-size: 0.78rem;
+  }
+
+  .workbookPage {
+    min-height: 0;
+    gap: 10px;
+    border-radius: 16px;
+    padding: 12px;
+  }
+
+  .paperBrandBar {
+    border-radius: 12px;
+    padding: 8px 9px;
+  }
+
+  .paperBrandBar > span,
+  .coverPage .pageTopline,
+  .coverPage .courtFigure,
+  .coverContent > p:not(.kicker),
+  .coverMeta,
+  .coverAccess p,
+  .qrAction small {
+    display: none;
+  }
+
+  .pageFooter {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+  }
+
+  .coverPage {
+    gap: 10px;
+  }
+
+  .coverPage .workbookPageBody {
+    gap: 10px;
+    align-items: start;
+  }
+
+  .coverContent {
+    display: grid;
+    gap: 8px;
+  }
+
+  .coverContent h2,
+  .coverPage .coverContent h2 {
+    margin: 0;
+    font-size: clamp(1.55rem, 10vw, 2.35rem);
+    line-height: 1.02;
+  }
+
+  .coverContent p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.38;
+  }
+
+  .levelPath {
+    gap: 6px;
+    margin: 0;
+  }
+
+  .levelPath span {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+  }
+
+  .coverAccess {
+    gap: 7px;
+    margin-top: 0;
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .coverAccess strong {
+    font-size: 0.92rem;
+    line-height: 1.18;
+  }
+
+  .qrAction {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px;
+  }
+
+  .qrCode {
+    width: 52px;
+    height: 52px;
+    border-radius: 7px;
+    box-shadow: 0 0 0 3px #ffffff;
+  }
+
+  .levelUpShell {
+    grid-template-columns: 1fr;
+  }
+
   .improveHub {
-    padding: 18px;
-    gap: 16px;
+    padding: 12px;
+    gap: 10px;
   }
 
   .improveHubCopy h1 {
     font-size: clamp(2.4rem, 18vw, 4rem);
   }
 
+  .improveHubCopy p {
+    display: none;
+  }
+
   .improveHubPrimaryAction,
   .improveHubAction {
     grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .improveHubPrimaryAction p {
+    display: none;
+  }
+
+  .improveHubAction p {
+    line-height: 1.35;
+  }
+
+  .improveHubPrimaryAction .improveHubSignals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .improveHubSignals li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    font-size: 0.7rem;
+    line-height: 1.18;
+  }
+
+  .improveHubSignals li::before {
+    width: 6px;
+    height: 6px;
+    margin-top: 0;
+  }
+
+  .improveHubSecondaryActions {
+    display: none;
+  }
+
+  .improveHubMoreActions {
+    display: grid;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 18px;
+    background: rgba(116, 190, 255, 0.07);
+    overflow: hidden;
+  }
+
+  .improveHubMoreActions summary,
+  .playerIdActionPlanMore summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 13px;
+    cursor: pointer;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary::-webkit-details-marker,
+  .playerIdActionPlanMore summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .improveHubMoreActions summary span,
+  .playerIdActionPlanMore summary span {
+    color: var(--brand-green);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .improveHubMoreActions summary strong,
+  .playerIdActionPlanMore summary strong {
+    min-width: 0;
+    color: var(--foreground-strong);
+    font-size: 0.98rem;
+    font-weight: 950;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .improveHubMoreActions summary em,
+  .playerIdActionPlanMore summary em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    border: 1px solid rgba(155, 225, 29, 0.26);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.1);
+    color: var(--foreground-strong);
+    padding: 7px 9px;
+    font-size: 0.68rem;
+    font-style: normal;
+    font-weight: 950;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .improveHubMoreActions > div {
+    display: grid;
     gap: 10px;
+    min-width: 0;
+    padding: 0 12px 12px;
+  }
+
+  .improveHub {
+    gap: 10px;
+    border-radius: 18px;
     padding: 14px;
+  }
+
+  .improveHubCopy {
+    gap: 6px;
+  }
+
+  .improveHubCopy h1 {
+    font-size: clamp(2.05rem, 13vw, 3rem);
+  }
+
+  .improveHubCopy p,
+  .improveHubPrimaryAction p,
+  .improveHubPrimaryAction .improveHubSignals,
+  .improveHubAction p {
+    display: none;
+  }
+
+  .improveHubPrimaryAction,
+  .improveHubAction {
+    min-height: 0;
+    border-radius: 14px;
+    padding: 11px;
+  }
+
+  .improveHubPrimaryAction {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .improveHubPrimaryAction > :first-child {
+    grid-column: 1;
+  }
+
+  .improveHubPrimaryAction strong {
+    grid-column: 1;
+  }
+
+  .improveHubPrimaryAction em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .improveHubMoreActions {
+    border-radius: 14px;
+  }
+
+  .improveHubMoreActions summary,
+  .playerIdActionPlanMore summary {
+    min-height: 44px;
+    padding: 9px 10px;
+  }
+
+  .improveHubMoreActions summary strong,
+  .playerIdActionPlanMore summary strong {
+    font-size: 0.86rem;
+    line-height: 1.12;
+  }
+
+  .improveHubMoreActions summary em,
+  .playerIdActionPlanMore summary em {
+    padding: 5px 7px;
+    font-size: 0.62rem;
   }
 
   .improveHubPrimaryAction > :first-child,
@@ -17825,15 +19671,231 @@
     grid-row: auto;
   }
 
-  .improveHubPrimaryAction .improveHubSignals {
-    grid-template-columns: 1fr;
-  }
-
   .improveHubPrimaryAction em,
   .improveHubAction em {
     width: 100%;
     justify-self: stretch;
     text-align: center;
+  }
+
+  .improveHubPrimaryAction > :first-child,
+  .improveHubPrimaryAction strong {
+    grid-column: 1;
+  }
+
+  .improveHubPrimaryAction em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .playerIdActionPlanGrid article:nth-child(n+2) {
+    display: none;
+  }
+
+  .playerIdActionPlan {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    border-radius: 16px;
+    padding: 10px;
+  }
+
+  .playerIdActionPlanCopy {
+    gap: 8px;
+  }
+
+  .playerIdActionPlanCopy :global(.tiq-feature-icon),
+  .playerIdActionPlanCard small {
+    display: none;
+  }
+
+  .playerIdActionPlanCopy strong,
+  .playerIdActionPlanCard strong,
+  .playerIdActionPlanGrid strong {
+    font-size: 0.88rem;
+    line-height: 1.14;
+  }
+
+  .playerIdActionPlanCopy p {
+    display: none;
+  }
+
+  .playerIdActionPlanCard,
+  .playerIdActionPlanGrid article {
+    padding: 8px;
+  }
+
+  .playerIdActionPlanActions {
+    grid-column: auto;
+    gap: 6px;
+  }
+
+  .playerIdActionPlanActions :global(.button-primary) {
+    min-height: 38px;
+  }
+
+  .playerIdActionPlanActions :global(.button-secondary) {
+    display: none;
+  }
+
+  .playerIdActionPlanMore {
+    display: grid;
+    grid-column: auto;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 16px;
+    background: rgba(116, 190, 255, 0.07);
+    overflow: hidden;
+  }
+
+  .playerIdActionPlanMore > div {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 10px 10px;
+  }
+
+  .playerIdActionPlanMore article {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.15);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .playerIdActionPlanMore article span {
+    color: var(--brand-green-3);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .playerIdActionPlanMore article strong {
+    color: var(--foreground-strong);
+    font-size: 0.92rem;
+    line-height: 1.18;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+
+  .overviewDetailsSummary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .overviewDetailsSummary strong {
+    flex-basis: 100%;
+    order: 2;
+  }
+
+  .overviewDetailsSummary em {
+    max-width: 100%;
+  }
+
+  .overviewDetailsDesktopStack {
+    display: none;
+  }
+
+  .overviewDetailsMobileGroup {
+    display: grid;
+    border: 1px solid var(--card-border-soft);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  .overviewDetailsMobileGroup .overviewDetails {
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: none;
+  }
+
+  .hero[data-compact='true'] {
+    padding: 14px;
+    gap: 8px;
+  }
+
+  .hero[data-compact='true'] .heroTitle {
+    font-size: clamp(1.35rem, 9vw, 2rem);
+  }
+
+  .hero[data-compact='true'] .heroText {
+    display: none;
+  }
+
+  .hero[data-compact='true'] .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .hero[data-compact='true'] .actions :global(.button-primary) {
+    grid-column: 1 / -1;
+  }
+
+  .hero[data-compact='true'] .actions :global(.button-primary),
+  .hero[data-compact='true'] .actions :global(.button-secondary) {
+    min-height: 40px;
+  }
+
+  .hero:not([data-compact='true']) {
+    gap: 10px;
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .hero:not([data-compact='true']) .brandRow {
+    display: none;
+  }
+
+  .hero:not([data-compact='true']) .heroCopy {
+    gap: 8px;
+  }
+
+  .hero:not([data-compact='true']) .kicker {
+    margin-bottom: 0;
+    font-size: 0.7rem;
+    line-height: 1.1;
+  }
+
+  .hero:not([data-compact='true']) .heroTitle {
+    margin-top: 2px;
+    font-size: clamp(2rem, 12vw, 2.85rem);
+    line-height: 0.98;
+  }
+
+  .hero:not([data-compact='true']) .heroText {
+    margin-top: 4px;
+    font-size: 0.96rem;
+    line-height: 1.48;
+  }
+
+  .hero:not([data-compact='true']) .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .hero:not([data-compact='true']) .actions :global(.button-primary) {
+    grid-column: 1 / -1;
+  }
+
+  .hero:not([data-compact='true']) .actions :global(.button-primary),
+  .hero:not([data-compact='true']) .actions :global(.button-secondary) {
+    min-height: 40px;
+    border-radius: 13px;
+    padding-inline: 8px;
+    font-size: 0.84rem;
+  }
+
+  .hero:not([data-compact='true']) .heroPanel {
+    display: none;
   }
 
   .identityGrid,

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type UIEvent } from 'react'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -187,6 +187,8 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
+  const mobilePortalPaletteRef = useRef<HTMLElement | null>(null)
+  const [mobilePortalScroll, setMobilePortalScroll] = useState({ left: 0, max: 0 })
   const [mobilePortalLaneState, setMobilePortalLaneState] = useState<{ pathname: string; laneId: PortalLaneId | null }>({
     pathname: '',
     laneId: null,
@@ -234,14 +236,12 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     return () => window.removeEventListener('hashchange', syncCurrentHash)
   }, [pathname])
 
-  if (isPortalHidden(pathname)) return null
+  const portalHidden = isPortalHidden(pathname)
   const publicVisitor = !authenticated
   const showPublicTasks = !(publicVisitor && isMobile)
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
   const showPortalBrandRunway = publicVisitor && pathname === '/' && !isMobile
   const collapseMobilePortal = isMobile
-
-  if (collapseMobilePortal && suppressed) return null
 
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
@@ -254,6 +254,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
   const portalActionMenuId = 'tenaceiq-mobile-portal-actions'
+  const mobilePortalScrollProgress = mobilePortalScroll.max > 0
+    ? Math.min(1, Math.max(0, mobilePortalScroll.left / mobilePortalScroll.max))
+    : 0
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -282,6 +285,36 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       // Relative URLs should always parse, but navigation should not fail if one does not.
     }
   }
+
+  function handleMobilePortalPaletteScroll(event: UIEvent<HTMLElement>) {
+    const palette = event.currentTarget
+    setMobilePortalScroll({
+      left: palette.scrollLeft,
+      max: Math.max(0, palette.scrollWidth - palette.clientWidth),
+    })
+  }
+
+  useEffect(() => {
+    if (!collapseMobilePortal) return
+
+    const palette = mobilePortalPaletteRef.current
+    if (!palette) return
+    const scrollPalette = palette
+
+    function syncScrollState() {
+      setMobilePortalScroll({
+        left: scrollPalette.scrollLeft,
+        max: Math.max(0, scrollPalette.scrollWidth - scrollPalette.clientWidth),
+      })
+    }
+
+    syncScrollState()
+    window.addEventListener('resize', syncScrollState)
+    return () => window.removeEventListener('resize', syncScrollState)
+  }, [collapseMobilePortal, mobilePortalLaneId, pathname])
+
+  if (portalHidden) return null
+  if (collapseMobilePortal && suppressed) return null
 
   const headline = authenticated
     ? firstName
@@ -413,11 +446,13 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       >
         {collapseMobilePortal ? (
           <nav
+            ref={mobilePortalPaletteRef}
             id={mobilePortalLane ? portalActionMenuId : portalMenuId}
             data-mobile-portal-palette={mobilePortalLane ? 'actions' : 'lanes'}
             style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
             aria-live="polite"
+            onScroll={handleMobilePortalPaletteScroll}
           >
             {mobilePortalLane ? (
               <>
@@ -469,6 +504,18 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
               />
             ))}
           </nav>
+        ) : null}
+
+        {collapseMobilePortal ? (
+          <span aria-hidden="true" data-mobile-portal-scrollbar="true" style={mobilePortalScrollbarStyle}>
+            <span
+              style={{
+                ...mobilePortalScrollbarThumbStyle,
+                marginLeft: mobilePortalScroll.max > 0 ? `${mobilePortalScrollProgress * 66}%` : 0,
+                width: '34%',
+              }}
+            />
+          </span>
         ) : (
           <>
 
@@ -527,10 +574,10 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                       compact={useCompactPortalControls}
                       mobileCompact={false}
                       dense={useDenseDesktopPortalRail}
-                    />
-                  ))}
-                </nav>
-              ) : null}
+                      />
+                    ))}
+                  </nav>
+                ) : null}
             </aside>
 
             <div style={desktopPortalMainStyle}>
@@ -1313,19 +1360,44 @@ const mobilePortalPaletteStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   gridAutoFlow: 'column',
-  gridAutoColumns: 'minmax(70px, 1fr)',
+  gridAutoColumns: 'minmax(72px, 1fr)',
   gap: 4,
   minWidth: 0,
+  width: '100%',
+  boxSizing: 'border-box',
   overflowX: 'auto',
   overflowY: 'hidden',
-  paddingBottom: 2,
-  scrollbarWidth: 'none',
+  paddingBottom: 8,
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(155,225,29,0.72) rgba(116,190,255,0.12)',
   WebkitOverflowScrolling: 'touch',
   scrollSnapType: 'x proximity',
 }
 
 const mobilePortalActionPaletteStyle: CSSProperties = {
   ...mobilePortalPaletteStyle,
+}
+
+const mobilePortalScrollbarStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'block',
+  width: 'min(164px, 46%)',
+  height: 6,
+  margin: '-5px auto 0',
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, rgba(116,190,255,0.14), rgba(155,225,29,0.12))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 20px rgba(2,10,24,0.22)',
+}
+
+const mobilePortalScrollbarThumbStyle: CSSProperties = {
+  display: 'block',
+  height: '100%',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, rgba(155,225,29,0.96), rgba(116,190,255,0.82))',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 0 16px rgba(155,225,29,0.24)',
+  transition: 'margin-left 120ms ease, width 120ms ease',
 }
 
 const mobilePortalTileStyle: CSSProperties = {
@@ -1362,8 +1434,8 @@ const mobilePortalBackTileStyle: CSSProperties = {
 const mobilePortalTileIconStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
-  width: 20,
-  height: 20,
+  width: 32,
+  height: 32,
 }
 
 const mobilePortalTileLabelStyle: CSSProperties = {

@@ -333,6 +333,25 @@ footer {
   height: 0;
 }
 
+[data-mobile-portal-palette] {
+  scrollbar-gutter: stable;
+}
+
+[data-mobile-portal-palette]::-webkit-scrollbar {
+  height: 7px;
+}
+
+[data-mobile-portal-palette]::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(116, 190, 255, 0.1), rgba(155, 225, 29, 0.08));
+}
+
+[data-mobile-portal-palette]::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(7, 13, 27, 0.96);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(155, 225, 29, 0.92), rgba(116, 190, 255, 0.78));
+}
+
 .brand-atmosphere-mark {
   position: fixed;
   right: clamp(24px, 4vw, 72px);
@@ -361,6 +380,13 @@ footer {
   width: min(68vw, 860px);
   right: clamp(28px, 4.5vw, 76px);
   bottom: clamp(64px, 9vh, 128px);
+}
+
+.brand-atmosphere-mark--auth {
+  opacity: 0.055;
+  width: min(52vw, 560px);
+  right: clamp(18px, 3vw, 52px);
+  bottom: clamp(24px, 4vh, 58px);
 }
 
 .admin-shell {
@@ -1394,6 +1420,391 @@ hr {
   .page-reveal {
     animation: none !important;
   }
+}
+
+.tournamentDetailsSection:not([open]) > .tournamentDetailsContent {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .tournamentFindSection,
+  .tournamentNextActionSection,
+  .tournamentDeskSection {
+    gap: 8px !important;
+  }
+
+  .tournamentFindSection > div:first-child,
+  .tournamentNextActionSection > div:first-child,
+  .tournamentDeskSection > div:first-child {
+    gap: 4px !important;
+  }
+
+  .tournamentFindSection > div:first-child > h2,
+  .tournamentNextActionSection > div:first-child > h2,
+  .tournamentDeskSection > div:first-child > h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .tournamentFindSection > div:first-child > p,
+  .tournamentNextActionSection > div:first-child > p,
+  .tournamentDeskSection > div:first-child > p,
+  .tournamentDiscoveryBody,
+  .tournamentCommandText,
+  .tournamentCommandMetricGrid {
+    display: none !important;
+  }
+
+  .tournamentDiscoveryGrid {
+    gap: 8px !important;
+  }
+
+  .tournamentDiscoveryCard,
+  .tournamentCommandBoard,
+  .tournamentCommandDesk,
+  .tournamentDeskQuick {
+    gap: 8px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+  }
+
+  .tournamentCommandTitle {
+    font-size: 1.25rem !important;
+    line-height: 1.06 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .tournamentDiscoveryCard {
+    min-height: 66px !important;
+  }
+
+  .tournamentDiscoveryTitle {
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+
+  .tournamentDiscoveryLabel,
+  .tournamentDiscoveryCta {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .tournamentCommandActionRow > a,
+  .tournamentDeskQuick > a {
+    flex: 1 1 130px !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
+  }
+
+  .tournamentDetailsSection > summary {
+    padding: 9px 10px !important;
+  }
+
+  .tournamentDetailsSection > summary strong {
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+  }
+}
+
+.tournamentAlertDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.pricingDetailsSection:not([open]) > .pricingDetailsBody,
+.pricingPlanDetails:not([open]) > .pricingPlanDetailsBody {
+  display: none !important;
+}
+
+.rankingDetailsSection:not([open]) > .rankingDetailsBody {
+  display: none !important;
+}
+
+.coachDetailsSection:not([open]) > .coachDetailsBody {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .coachQuickPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .coachQuickPathHeader {
+    gap: 4px !important;
+  }
+
+  .coachQuickPathText {
+    display: none !important;
+  }
+
+  .coachQuickPathGrid {
+    gap: 8px !important;
+  }
+
+  .coachQuickPathCard {
+    min-height: 62px !important;
+    padding: 9px !important;
+  }
+
+  .coachQuickPathQuestion {
+    font-size: 13px !important;
+    line-height: 1.18 !important;
+  }
+
+  .coachQuickPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .coachDetailsSummary {
+    min-height: 0 !important;
+    padding: 10px 12px !important;
+    gap: 6px 10px !important;
+  }
+
+  .coachDetailsSummaryTitle {
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .coachQuickPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  .coachQuickPathGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .coachQuickPathCard {
+    min-height: 58px !important;
+  }
+
+  .coachDetailsSummary {
+    padding: 9px 10px !important;
+  }
+
+  .coachDetailsSummaryTitle {
+    font-size: 13px !important;
+  }
+}
+
+.organizerDetailsSection:not([open]) > .organizerDetailsBody {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .organizerQuickPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .organizerQuickPathText,
+  .organizerCommandDeskText,
+  .organizerCommandMetricGrid {
+    display: none !important;
+  }
+
+  .organizerCommandBoard,
+  .organizerCommandDesk {
+    gap: 8px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+  }
+
+  .organizerCommandDeskTitle {
+    font-size: 1.25rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .organizerToolsSection {
+    gap: 8px !important;
+  }
+
+  .organizerToolsSection > div:first-child {
+    gap: 4px !important;
+  }
+
+  .organizerToolsSection > div:first-child > h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .organizerToolsSection > div:first-child > p {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .organizerQuickPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  .organizerQuickPathHeader {
+    gap: 4px !important;
+  }
+
+  .organizerQuickPathGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .organizerQuickPathCard {
+    min-height: 54px !important;
+    padding: 9px !important;
+  }
+
+  .organizerQuickPathQuestion {
+    font-size: 13px !important;
+    line-height: 1.18 !important;
+  }
+
+  .organizerQuickPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .organizerCommandActionRow > a {
+    flex: 1 1 130px !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
+  }
+
+  .organizerDetailsSection > summary {
+    padding: 9px 10px !important;
+  }
+
+  .organizerDetailsSection > summary strong {
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+  }
+}
+
+.leagueDetailsSection:not([open]) > .leagueDetailsBody {
+  display: none !important;
+}
+
+.matchupDetailsSection:not([open]) > .matchupDetailsBody {
+  display: none !important;
+}
+
+.dataAssistDetailsSection:not([open]) > .dataAssistDetailsBody {
+  display: none !important;
+}
+
+.myLabDetailsSection:not([open]) > .myLabDetailsBody {
+  display: none !important;
+}
+
+.authReturnDetailsSection:not([open]) > .authReturnDetailsBody {
+  display: none !important;
+}
+
+.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody {
+  display: none !important;
+}
+
+.leagueCoordinatorDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.tournamentBuilderDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.manageDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.profileDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.publicInfoDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .resourceNeedPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .resourceNeedPathHeader {
+    gap: 4px !important;
+  }
+
+  .resourceNeedPathText {
+    display: none !important;
+  }
+
+  .resourceNeedPathGrid {
+    gap: 8px !important;
+  }
+
+  .resourceNeedPathCard {
+    min-height: 60px !important;
+    padding: 9px !important;
+  }
+
+  .resourceNeedPathQuestion {
+    font-size: 13px !important;
+    line-height: 1.18 !important;
+  }
+
+  .resourceNeedPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .resourceDetailsSummary {
+    min-height: 0 !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+
+  .resourceDetailsSummaryTitle {
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .resourceNeedPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  .resourceNeedPathCard {
+    min-height: 56px !important;
+  }
+
+  .resourceDetailsSummary {
+    padding: 9px 10px !important;
+  }
+
+  .resourceDetailsSummaryTitle {
+    font-size: 13px !important;
+  }
+}
+
+.upgradeDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.competeDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.exploreDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
 }
 
 @media print {

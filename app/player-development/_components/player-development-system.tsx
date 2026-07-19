@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { create as createQrCode } from 'qrcode'
+import type { ReactNode } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import SiteShell from '@/app/components/site-shell'
@@ -23,7 +24,7 @@ import {
   type PlayerDevelopmentWeek,
 } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
-import { DATA_ASSIST_STORY, PRODUCT_MOTTO, getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import PlayerDevelopmentPrintControls from './player-development-print-controls'
 import PlayerLiveWorkbench from './player-live-workbench'
 import styles from './player-development.module.css'
@@ -51,7 +52,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
           <>
             {improveLanding ? <ImproveLandingHub identity={identity} /> : null}
 
-            <section className={styles.hero}>
+            <section className={styles.hero} data-compact={improveLanding ? 'true' : undefined}>
               <div className={styles.heroCopy}>
                 <div className={styles.brandRow}>
                   <BrandWordmark top />
@@ -64,14 +65,14 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                   <h1 className={styles.heroTitle}>{identity.title}</h1>
                 )}
                 <p className={styles.heroText}>
-                  {PRODUCT_MOTTO} Choose today&apos;s court habit, run the rep from your phone, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}: {identity.promise}
+                  Choose today&apos;s court habit, run one rep, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}.
                 </p>
                 <div className={styles.actions}>
                   <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
                     Start Level Up
                   </Link>
                   <Link className="button-secondary" href={`/level-up/${identity.slug}#level-up-flow`}>
-                    Open phone drill mode
+                    Drill mode
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
                     Coach handoff
@@ -93,38 +94,43 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
 
             <PlayerIdActionPlan identity={identity} />
 
-            <PlayerSuitePanel
-              active="development"
-              playerLabel={`${playerTier.name} development path`}
-              flow={['lab', 'development', 'matchup', 'refresh']}
-            />
+            <OverviewDetails eyebrow="Player tools" title="See how Level Up fits with My Lab" cue="Show tools">
+              <PlayerSuitePanel
+                active="development"
+                playerLabel={`${playerTier.name} development path`}
+                flow={['lab', 'development', 'matchup', 'refresh']}
+              />
+            </OverviewDetails>
 
             <PlayerQuestionStrip identity={identity} />
 
-            <PlayerIdentitySnapshot identity={identity} />
+            <OverviewDetails eyebrow="Player ID" title="Choose or review a player path" cue="Show player paths">
+              <PlayerIdentitySnapshot identity={identity} />
+              <IdentitySelector activeSlug={identity.slug} />
+            </OverviewDetails>
 
-            <IdentitySelector activeSlug={identity.slug} />
-
-            <section className={styles.structurePanel} aria-labelledby="structure-title">
-              <div className={styles.sectionHead}>
-                <p className={styles.kicker}>Player Development</p>
-                <h2 id="structure-title">Turn match goals into phone-ready court work.</h2>
-                <p>
-                  Use Level Up, phone court mode, weekly proof scores, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons. Print backups stay available when a coach or player wants paper.
-                </p>
-              </div>
-              <div className={styles.planGrid}>
-                <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
-                <PlanCard icon="reports" title="Phone Level Up" items={['On-court reps', 'Timer', '0-5 proof', 'Next action']} />
-                <PlanCard icon="schedule" title="Coach handoff" items={['Assignment cue', 'Proof standard', 'Review prompt', 'Print backup']} />
-              </div>
-            </section>
+            <OverviewDetails eyebrow="How it works" title="See the development structure" cue="Show guide">
+              <section className={styles.structurePanel} aria-labelledby="structure-title">
+                <div className={styles.sectionHead}>
+                  <p className={styles.kicker}>Player Development</p>
+                  <h2 id="structure-title">Turn match goals into phone-ready court work.</h2>
+                  <p>
+                    Use Level Up, phone court mode, weekly proof scores, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons. Print backups stay available when a coach or player wants paper.
+                  </p>
+                </div>
+                <div className={styles.planGrid}>
+                  <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
+                  <PlanCard icon="reports" title="Phone Level Up" items={['On-court reps', 'Timer', '0-5 proof', 'Next action']} />
+                  <PlanCard icon="schedule" title="Coach handoff" items={['Assignment cue', 'Proof standard', 'Review prompt', 'Print backup']} />
+                </div>
+              </section>
+            </OverviewDetails>
           </>
         ) : (
           <section className={styles.packetHeader} aria-label="Paper backup">
-            <BrandWordmark top />
+            <BrandWordmark top compact />
             <div>
-              <p className={styles.kicker}>{focus === 'coach' ? 'Coach planner' : 'Print backup'}</p>
+              <p className={styles.kicker}>{focus === 'coach' ? 'Coach planner' : 'Paper backup'}</p>
               <h1>{identity.title}</h1>
             </div>
           </section>
@@ -137,16 +143,77 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
           />
         ) : null}
 
-        {focus === 'overview' ? <LevelUpOverviewPanel identity={identity} /> : null}
-        {focus === 'overview' || focus === 'workbook' ? <PlayerMissionDashboard identity={identity} /> : null}
-        {focus === 'workbook' ? <WorkbookPreview identity={identity} active printActive={workbookPrintActive} /> : null}
-        {focus === 'coach' ? <CoachPlannerPreview identity={identity} active printActive={coachPrintActive} /> : null}
+        {focus === 'workbook' || focus === 'coach' ? (
+          <section className={styles.packetToolShortcut} aria-label="Open the live Level Up tool">
+            <div>
+              <span>{focus === 'coach' ? 'Coach tool' : 'Live tool'}</span>
+              <strong>
+                {focus === 'coach'
+                  ? 'Plan the lesson. Send one Level Up assignment.'
+                  : 'Use Level Up on court. Keep this as the paper backup.'}
+              </strong>
+              <p>
+                {focus === 'coach'
+                  ? 'Print the planner when you want paper. Use Coach Hub and Level Up when the assignment needs tracking.'
+                  : 'Start the live drill flow when you want the timer, proof score, and My Lab return path.'}
+              </p>
+            </div>
+            <div>
+              {focus === 'coach' ? (
+                <Link className="button-primary" href="/coach">
+                  Coach Hub
+                </Link>
+              ) : (
+                <Link className="button-primary" href={`/level-up/${identity.slug}#level-up-flow`}>
+                  Open Level Up
+                </Link>
+              )}
+              <Link className="button-secondary" href={`/player-development/${identity.slug}/level-up`}>
+                {focus === 'coach' ? 'Player path' : 'Level Up portal'}
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
-        {!packetView ? (
+        {focus === 'overview' ? (
           <>
-            <ConnectedCompanion identity={identity} />
+            <div className={styles.overviewDetailsDesktopStack}>
+              <OverviewDetails eyebrow="Level Up guide" title="See the full Level Up path" cue="Show path">
+                <LevelUpOverviewPanel identity={identity} />
+              </OverviewDetails>
+              <OverviewDetails eyebrow="Weekly plan" title="Open the mission dashboard" cue="Show dashboard">
+                <PlayerMissionDashboard identity={identity} />
+              </OverviewDetails>
+              {!packetView ? (
+                <OverviewDetails eyebrow="Saved work" title="Connect proof, coach notes, and Data Assist" cue="Show companion">
+                  <ConnectedCompanion identity={identity} />
+                </OverviewDetails>
+              ) : null}
+            </div>
+            <details className={styles.overviewDetailsMobileGroup} aria-label="More player development paths">
+              <summary className={styles.overviewDetailsSummary}>
+                <span>More paths</span>
+                <strong>Open guide, dashboard, and saved work.</strong>
+                <em>3 paths</em>
+              </summary>
+              <div className={styles.overviewDetailsMobileGroupBody}>
+                <OverviewDetails eyebrow="Level Up guide" title="See the full Level Up path" cue="Show path">
+                  <LevelUpOverviewPanel identity={identity} />
+                </OverviewDetails>
+                <OverviewDetails eyebrow="Weekly plan" title="Open the mission dashboard" cue="Show dashboard">
+                  <PlayerMissionDashboard identity={identity} />
+                </OverviewDetails>
+                {!packetView ? (
+                  <OverviewDetails eyebrow="Saved work" title="Connect proof, coach notes, and Data Assist" cue="Show companion">
+                    <ConnectedCompanion identity={identity} />
+                  </OverviewDetails>
+                ) : null}
+              </div>
+            </details>
           </>
         ) : null}
+        {focus === 'workbook' ? <WorkbookPreview identity={identity} active printActive={workbookPrintActive} /> : null}
+        {focus === 'coach' ? <CoachPlannerPreview identity={identity} active printActive={coachPrintActive} /> : null}
     </main>
   )
 
@@ -156,6 +223,29 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
     <SiteShell active="you">
       {content}
     </SiteShell>
+  )
+}
+
+function OverviewDetails({
+  eyebrow,
+  title,
+  cue,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  return (
+    <details className={styles.overviewDetails}>
+      <summary className={styles.overviewDetailsSummary}>
+        <span>{eyebrow}</span>
+        <strong>{title}</strong>
+        <em>{cue}</em>
+      </summary>
+      <div className={styles.overviewDetailsContent}>{children}</div>
+    </details>
   )
 }
 
@@ -206,12 +296,12 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
       title: 'Open My Lab',
     },
     {
-      body: 'Turn the next Player ID cue into the crosscourt starter board before you compete.',
-      cta: 'Build a tactic board',
+      body: 'Turn the next Player ID cue into a simple crosscourt point plan before you compete.',
+      cta: 'Build a tactic plan',
       href: tacticsHref,
       icon: 'scenarioBuilder' as const,
-      marker: 'Crosscourt starter board',
-      title: 'Build a tactic board',
+      marker: 'Crosscourt point plan',
+      title: 'Build a tactic plan',
     },
   ]
 
@@ -239,15 +329,35 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
           </ul>
           <em>{primaryAction.cta}</em>
         </Link>
-        {actions.map((action) => (
-          <Link className={styles.improveHubAction} href={action.href} key={action.title}>
-            <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
-            <span>{action.marker}</span>
-            <strong>{action.title}</strong>
-            <p>{action.body}</p>
-            <em>{action.cta}</em>
-          </Link>
-        ))}
+        <div className={styles.improveHubSecondaryActions}>
+          {actions.map((action) => (
+            <Link className={styles.improveHubAction} href={action.href} key={action.title}>
+              <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
+              <span>{action.marker}</span>
+              <strong>{action.title}</strong>
+              <p>{action.body}</p>
+              <em>{action.cta}</em>
+            </Link>
+          ))}
+        </div>
+        <details className={styles.improveHubMoreActions}>
+          <summary>
+            <span>More improve moves</span>
+            <strong>Open My Lab or build a tactic plan.</strong>
+            <em>{actions.length} moves</em>
+          </summary>
+          <div>
+            {actions.map((action) => (
+              <Link className={styles.improveHubAction} href={action.href} key={action.title}>
+                <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
+                <span>{action.marker}</span>
+                <strong>{action.title}</strong>
+                <p>{action.body}</p>
+                <em>{action.cta}</em>
+              </Link>
+            ))}
+          </div>
+        </details>
       </div>
     </section>
   )
@@ -264,6 +374,7 @@ function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity 
     ['Prove', firstCard?.proof ?? actionRead.proofTarget],
     ['Use it', actionRead.nextCue],
   ] as const
+  const extraActionRows = actionRows.slice(1)
 
   return (
     <section className={styles.playerIdActionPlan} aria-label="Player ID action plan">
@@ -283,6 +394,21 @@ function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity 
           </article>
         ))}
       </div>
+      <details className={styles.playerIdActionPlanMore}>
+        <summary>
+          <span>Full loop</span>
+          <strong>Show prove and use cues.</strong>
+          <em>{extraActionRows.length} cues</em>
+        </summary>
+        <div>
+          {extraActionRows.map(([label, value]) => (
+            <article key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+      </details>
       <div className={styles.playerIdActionPlanCard}>
         <span>{firstCard?.pack ?? 'Level Up starter'}</span>
         <strong>{firstCard?.title ?? actionRead.title}</strong>
@@ -336,12 +462,11 @@ function IdentitySelector({ activeSlug }: { activeSlug: string }) {
 
 function PlayerQuestionStrip({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const cards = getPlayerQuestionCards(identity)
-
-  return (
-    <section className={styles.playerQuestionStrip} aria-labelledby="player-question-strip-title">
+  const renderContent = (titleId: string) => (
+    <>
       <div className={styles.playerQuestionStripHeader}>
         <p className={styles.kicker}>Player quick starts</p>
-        <h2 id="player-question-strip-title">Find the next useful tennis move.</h2>
+        <h2 id={titleId}>Find the next useful tennis move.</h2>
         <p>Start with the tennis need you have today, then open the path that gets you back to court work fastest.</p>
       </div>
       <div className={styles.playerQuestionGrid}>
@@ -355,7 +480,23 @@ function PlayerQuestionStrip({ identity }: { identity: PlayerDevelopmentIdentity
           </Link>
         ))}
       </div>
-    </section>
+    </>
+  )
+
+  return (
+    <>
+      <section className={`${styles.playerQuestionStrip} ${styles.playerQuestionStripInline}`} aria-labelledby="player-question-strip-title">
+        {renderContent('player-question-strip-title')}
+      </section>
+      <details className={`${styles.playerQuestionStrip} ${styles.playerQuestionStripDrawer}`} aria-label="Player quick starts">
+        <summary className={styles.overviewDetailsSummary}>
+          <span>Quick starts</span>
+          <strong>Open tennis moves for today</strong>
+          <em>Show moves</em>
+        </summary>
+        <div className={styles.playerQuestionStripDrawerBody}>{renderContent('player-question-strip-drawer-title')}</div>
+      </details>
+    </>
   )
 }
 
@@ -366,7 +507,7 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
       label: 'Focus',
       question: 'What should I work on?',
       answer: `Start with ${identity.title.replace(/^The /, '')} and choose the habit that can change your next match fastest.`,
-      href: `/player-development/${identity.slug}#weekly-action-plan`,
+      href: `/player-development/${identity.slug}/level-up`,
       cta: 'Choose a focus',
     },
     {
@@ -374,7 +515,7 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
       label: 'Progress',
       question: 'How am I improving?',
       answer: 'Use quick ratings, proof notes, and Level Up history to see whether to repeat, progress, or test in a match.',
-      href: `/player-development/${identity.slug}#toolbelt`,
+      href: '/mylab#player-workshop',
       cta: 'Check progress',
     },
     {
@@ -382,7 +523,7 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
       label: 'Match prep',
       question: 'What matchups matter?',
       answer: 'Use the match card before, during, and after play so the lesson turns into a practical match plan.',
-      href: `/player-development/${identity.slug}#match-card`,
+      href: '/matchup',
       cta: 'Prep the match',
     },
     {
@@ -622,7 +763,7 @@ function WorkbookPreview({
       aria-labelledby="workbook-title"
       data-print-active={printActive ? 'true' : 'false'}
     >
-      <WorkbookPage className={styles.coverPage} core footer="Workbook cover">
+      <WorkbookPage className={styles.coverPage} core screen footer="Workbook cover">
         <div className={styles.pageTopline}>
           <BrandWordmark compact onLight />
           <span>Print backup</span>
@@ -758,7 +899,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer={`${playerTier.name} handoff`}>
-        <PageHeader label={`${playerTier.name} workflow`} title="Turn the backup into court work" />
+        <PageHeader label={`${playerTier.name} handoff`} title="Turn the backup into court work" />
         <div className={styles.playerPlusBridge}>
           <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
           <div>
@@ -1012,7 +1153,7 @@ function TodayLessonSheet({ identity }: { identity: PlayerDevelopmentIdentity })
           <span>Your session setup</span>
           <strong>Pick one focus, test it under pressure, leave with one assignment.</strong>
           <p>
-            Use this page before the session starts. It gives you a clear target and a quick pass/fix/retest loop.
+            Before the session starts, choose a clear target and a quick pass/fix/retest loop.
           </p>
         </div>
       </div>
@@ -1847,7 +1988,7 @@ function IdentityGuardrails({ identity }: { identity: PlayerDevelopmentIdentity 
         <div>
           <span>Identity clarity</span>
           <strong>A useful style narrows decisions. It should not excuse bad habits.</strong>
-          <p>Use this page when you start using the identity as a label instead of a match plan.</p>
+          <p>Come back here when the identity starts acting like a label instead of a match plan.</p>
         </div>
       </div>
       <div className={styles.guardrailGrid}>
@@ -2353,8 +2494,8 @@ function PlayerPlusCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
           <span>{playerTier.name} review loop</span>
           <strong>Evidence creates the next assignment.</strong>
           <p>
-            Use this page after each phase to decide what you update in My Lab. When you are linked, your assignment recap
-            syncs back to Coach Hub so the coach can plan the next session.
+            After each phase, choose what to update in My Lab. When you are linked, your assignment recap syncs back to
+            Coach Hub so the coach can plan the next session.
           </p>
         </div>
       </div>
@@ -2387,7 +2528,7 @@ function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdent
   const rows = [
     ['Save my identity', 'Turn the style finder into a My Lab goal', '/mylab'],
     ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/level-up`],
-    ['Build the tactic board', 'Turn the Level Up cue into a visual point plan in TIQ Tactical Studio', tacticsHref],
+    ['Build a tactic plan', 'Turn the Level Up cue into a visual point plan in TIQ Tactical Studio', tacticsHref],
     ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/level-up`],
     ['Update coach assignment status', 'Mark the work complete in My Lab; linked coaches see the recap in Coach Hub', '/mylab#coach-assignments'],
     ['Check readiness', `Compare evidence against ${identity.levelPath.to} gates`, '/profile'],
@@ -2478,12 +2619,12 @@ function CoachPlannerPreview({
       aria-labelledby="coach-title"
       data-print-active={printActive ? 'true' : 'false'}
     >
-      <WorkbookPage footer="Coach index">
+      <WorkbookPage core footer="Coach index">
         <PageHeader label="Coach index" title="How to run this planner" />
         <CoachPacketIndex identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Coach progression">
+      <WorkbookPage core footer="Coach progression">
         <PageHeader label="Coach planner" title={`${moduleCount}-module lesson progression`} id="coach-title" />
         <div className={styles.lessonGrid}>
           {identity.coachLessons.map((week) => (
@@ -2501,7 +2642,7 @@ function CoachPlannerPreview({
         </div>
       </WorkbookPage>
 
-      <WorkbookPage footer="Readiness adapter">
+      <WorkbookPage core footer="Readiness adapter">
         <PageHeader label="Coach guide" title="Adjust the lesson to how the player feels" />
         <CoachReadinessAdapter identity={identity} />
       </WorkbookPage>
@@ -2521,7 +2662,7 @@ function CoachPlannerPreview({
         <CoachOneHourPlans identity={identity} lessons={identity.coachLessons.slice(4)} />
       </WorkbookPage>
 
-      <WorkbookPage footer="One-hour lesson">
+      <WorkbookPage core footer="One-hour lesson">
         <PageHeader label="One-hour lesson" title="Lesson plan template" />
         <div className={styles.lessonTemplate}>
           <TemplateBlock time="0:00-0:08" title="Readiness review" text="Review tracker, last match reflection, and one player-owned goal." />
@@ -2574,7 +2715,7 @@ function CoachPlannerPreview({
         <TrackerTable columns={['Skill', 'Baseline', 'Midpoint', 'Final', 'Coach cue']} rows={identity.metrics.map((metric) => metric.skill)} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Coach review">
+      <WorkbookPage core footer="Coach review">
         <PageHeader label="Coach review" title={`${playerTier.name} evidence review`} />
         <CoachEvidenceReview identity={identity} />
         <div className={styles.twoColumn}>
@@ -2600,7 +2741,7 @@ function CoachPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity })
       <div className={styles.packetIndexHero}>
         <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
         <div>
-          <span>Coach workflow</span>
+          <span>Coach planner</span>
           <strong>Coach the evidence, not the page count.</strong>
           <p>Use this planner to turn each player path module into one private lesson, one pressure test, and one measurable assignment.</p>
         </div>
@@ -3015,15 +3156,21 @@ function WorkbookPage({
   children,
   className = '',
   core = false,
+  screen = false,
   footer,
 }: {
   children: React.ReactNode
   className?: string
   core?: boolean
+  screen?: boolean
   footer?: string
 }) {
   return (
-    <article className={`${styles.workbookPage} ${className}`} data-core-page={core ? 'true' : undefined}>
+    <article
+      className={`${styles.workbookPage} ${className}`}
+      data-core-page={core ? 'true' : undefined}
+      data-screen-page={screen ? 'true' : undefined}
+    >
       <header className={styles.paperBrandBar}>
         <BrandWordmark compact />
         <span>Player Development System</span>
