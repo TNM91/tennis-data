@@ -219,6 +219,17 @@ type CaptainNudgeDraft = {
   cta: string
 }
 
+type CaptainWeekTimelineItem = {
+  label: string
+  title: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -1492,6 +1503,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainNudgeComposerGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainWeekTimelineShell: CSSProperties = {
+    ...captainWeekTimelineShell,
+    gap: isMobile ? 12 : captainWeekTimelineShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainWeekTimelineShell.padding,
+    borderRadius: isMobile ? 20 : captainWeekTimelineShell.borderRadius,
+  }
+
+  const dynamicCaptainWeekTimelineGrid: CSSProperties = {
+    ...captainWeekTimelineGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeekTimelineGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2037,6 +2060,69 @@ function CaptainHubContent() {
   const postMatchCloseoutRows = matchDayLineupRows.slice(0, isMobile ? 2 : 3)
   const postMatchUploadedState = selectedFromCaptainScope ? 'Refresh data' : 'Upload needed'
   const postMatchClosed = weekStatus === 'finalized'
+  const captainWeekTimelineItems = useMemo<CaptainWeekTimelineItem[]>(() => [
+    {
+      label: 'Today',
+      title: captainNudgeOpenReplyCount > 0 ? 'Tighten replies' : 'Keep replies clean',
+      state: captainNudgeOpenReplyCount > 0 ? `${captainNudgeOpenReplyCount} waiting` : 'Clear',
+      detail: captainNudgeOpenReplyCount > 0
+        ? 'Send the availability nudge before lineup choices harden.'
+        : 'Availability is quiet enough to focus on courts.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: captainNudgeOpenReplyCount > 0 ? 'warn' : 'good',
+      cta: 'Check availability',
+    },
+    {
+      label: 'Tomorrow',
+      title: workspaceState.lineupReady ? 'Review court order' : 'Build court order',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady
+        ? 'Confirm the court plan still fits the latest replies.'
+        : 'Save courts before the final team note goes out.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'info',
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+    },
+    {
+      label: 'Match day',
+      title: matchDaySubRiskCount > 0 ? 'Protect the lineup' : 'Carry the sheet',
+      state: matchDaySubRiskCount > 0 ? `${matchDaySubRiskCount} flag${matchDaySubRiskCount === 1 ? '' : 's'}` : matchDayResponseRows.length ? 'Ready' : 'Confirm',
+      detail: `${captainNudgeArrivalLabel} at ${captainNudgeLocationLabel}. ${matchDaySubRiskCount > 0 ? 'Keep backup coverage close.' : 'Send the final note before players arrive.'}`,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: matchDaySubRiskCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+      cta: 'Send final note',
+    },
+    {
+      label: 'After play',
+      title: postMatchClosed ? 'Week closed' : 'Close the loop',
+      state: postMatchClosed ? 'Closed' : postMatchCloseoutRows.length ? `${postMatchCloseoutRows.length} courts` : 'Scorecard',
+      detail: postMatchClosed
+        ? 'The match week is finalized here.'
+        : 'Capture the scorecard, recap the match, and mark the week closed.',
+      href: dataAssistCaptainHref,
+      stage: 'team',
+      tone: postMatchClosed ? 'good' : 'info',
+      cta: postMatchClosed ? 'Review data' : 'Upload scorecard',
+    },
+  ], [
+    captainNudgeArrivalLabel,
+    captainNudgeLocationLabel,
+    captainNudgeOpenReplyCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayResponseRows.length,
+    matchDaySubRiskCount,
+    messagingHref,
+    postMatchClosed,
+    postMatchCloseoutRows.length,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainWeekTimelineNextItem = captainWeekTimelineItems.find((item) => item.tone === 'warn') ?? captainWeekTimelineItems.find((item) => item.tone === 'info') ?? captainWeekTimelineItems[0]
+  const captainWeekTimelineReadyCount = captainWeekTimelineItems.filter((item) => item.tone === 'good').length
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -3103,6 +3189,46 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainWeekTimeline = (
+    <section style={dynamicCaptainWeekTimelineShell} aria-label="Captain week timeline">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Week timeline</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Keep the week moving.' : 'Keep the week moving from first nudge to closeout.'}</h2>
+        </div>
+        <span style={captainWeekTimelineNextItem.tone === 'warn' ? warnBadge : captainWeekTimelineReadyCount >= 3 ? badgeGreen : badgeBlue}>
+          {captainWeekTimelineNextItem.label}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        See what needs action now, what can wait, and where to jump next without re-reading the whole captain board.
+      </div>
+
+      <div style={dynamicCaptainWeekTimelineGrid}>
+        {captainWeekTimelineItems.map((item, index) => (
+          <article key={item.label} style={captainWeekTimelineCard}>
+            <div style={captainWeekTimelineTop}>
+              <div style={captainWeekTimelineMarker}>
+                <span style={captainWeekTimelineDot}>{index + 1}</span>
+                <span style={commandCenterLabel}>{item.label}</span>
+              </div>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <div style={captainWeekTimelineBody}>
+              <strong style={captainWeekTimelineTitle}>{item.title}</strong>
+              <span>{item.detail}</span>
+            </div>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+              {item.cta}
+            </SecondarySmallBtn>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -3346,6 +3472,8 @@ function CaptainHubContent() {
         {captainPlayerReadinessPulse}
 
         {captainNudgeComposer}
+
+        {captainWeekTimeline}
 
         {captainMatchDaySheet}
 
@@ -5594,6 +5722,87 @@ const captainNudgeMiniActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
+}
+
+const captainWeekTimelineShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.08), rgba(8,13,28,0.76) 44%, rgba(20,32,54,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const captainWeekTimelineGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainWeekTimelineCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  minHeight: 210,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainWeekTimelineTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainWeekTimelineMarker: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainWeekTimelineDot: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 28,
+  height: 28,
+  flex: '0 0 28px',
+  borderRadius: 999,
+  color: 'var(--foreground-strong)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.10)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const captainWeekTimelineBody: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainWeekTimelineTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchDaySheetShell: CSSProperties = {
