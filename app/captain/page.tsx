@@ -230,6 +230,15 @@ type CaptainWeekTimelineItem = {
   cta: string
 }
 
+type CaptainMatchDayCommandAction = {
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainCourtConfidenceItem = {
   label: string
   players: string
@@ -1544,6 +1553,22 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeekTimelineGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainMatchDayCommandStrip: CSSProperties = {
+    ...captainMatchDayCommandStrip,
+    position: isMobile ? 'sticky' : 'relative',
+    top: isMobile ? 8 : 'auto',
+    zIndex: isMobile ? 12 : 1,
+    gap: isMobile ? 10 : captainMatchDayCommandStrip.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainMatchDayCommandStrip.padding,
+    borderRadius: isMobile ? 18 : captainMatchDayCommandStrip.borderRadius,
+  }
+
+  const dynamicCaptainMatchDayCommandGrid: CSSProperties = {
+    ...captainMatchDayCommandGrid,
+    gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : captainMatchDayCommandGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
+  }
+
   const dynamicCaptainCourtConfidenceShell: CSSProperties = {
     ...captainCourtConfidenceShell,
     gap: isMobile ? 12 : captainCourtConfidenceShell.gap,
@@ -2368,6 +2393,58 @@ function CaptainHubContent() {
   const captainCourtSwapStableCount = captainCourtSwapItems.filter((item) => item.tone === 'good').length
   const captainCourtSwapPrimaryItem = captainCourtSwapItems[0]
 
+  const captainMatchDayCommandActions = useMemo<CaptainMatchDayCommandAction[]>(() => [
+    {
+      label: 'Chase replies',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : matchDayResponseRows.length ? 'Clear' : 'Collect',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Nudge the players still missing a clear answer.'
+        : matchDayResponseRows.length
+          ? 'Replies are clear for the saved event.'
+          : 'Start availability before courts lock.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      label: 'Message lineup',
+      state: workspaceState.messagingReady ? 'Ready' : workspaceState.lineupReady ? 'Add details' : 'Draft',
+      detail: workspaceState.messagingReady
+        ? 'Send the lineup and arrival note.'
+        : workspaceState.lineupReady
+          ? 'Add arrival or location before sending.'
+          : 'Build courts before the team note.',
+      href: messagingHref,
+      stage: 'messaging',
+      tone: workspaceState.messagingReady ? 'good' : workspaceState.lineupReady ? 'info' : 'warn',
+    },
+    {
+      label: 'Adjust courts',
+      state: captainCourtSwapNeedsCount > 0 ? `${captainCourtSwapNeedsCount} move` : matchDaySubRiskCount > 0 ? 'Sub risk' : workspaceState.lineupReady ? 'Stable' : 'Build',
+      detail: captainCourtSwapNeedsCount > 0
+        ? 'Use the least disruptive swap before texting.'
+        : matchDaySubRiskCount > 0
+          ? 'Check backup coverage before warm-up.'
+          : workspaceState.lineupReady
+            ? 'Court order is stable for now.'
+            : 'Save lineup courts first.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtSwapNeedsCount > 0 || matchDaySubRiskCount > 0 ? 'warn' : workspaceState.lineupReady ? 'good' : 'info',
+    },
+  ], [
+    captainCourtSwapNeedsCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    matchDaySubRiskCount,
+    messagingHref,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainMatchDayPrimaryCommand = captainMatchDayCommandActions.find((item) => item.tone === 'warn') ?? captainMatchDayCommandActions[0]
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -2868,6 +2945,51 @@ function CaptainHubContent() {
   if (!premiumEnabled) {
     return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" />
   }
+
+  const captainMatchDayCommandStripSurface = (
+    <section style={dynamicCaptainMatchDayCommandStrip} aria-label="Captain match day command strip">
+      <div style={captainMatchDayCommandHeader}>
+        <div>
+          <div style={sectionKicker}>Match-day command strip</div>
+          <h2 style={captainMatchDayCommandTitle}>{isMobile ? 'Live actions' : 'Live match-day actions'}</h2>
+        </div>
+        <span style={captainMatchDayPrimaryCommand.tone === 'warn' ? warnBadge : captainMatchDayPrimaryCommand.tone === 'good' ? badgeGreen : badgeBlue}>
+          {captainMatchDayPrimaryCommand.label}
+        </span>
+      </div>
+
+      <div style={dynamicCaptainMatchDayCommandGrid}>
+        {captainMatchDayCommandActions.map((action) => {
+          const locked = !hasTeamScope || !premiumEnabled
+
+          return (
+            <button
+              key={action.label}
+              type="button"
+              disabled={locked}
+              style={{
+                ...captainMatchDayCommandAction,
+                ...(action.tone === 'good'
+                  ? captainMatchDayCommandActionGood
+                  : action.tone === 'warn'
+                    ? captainMatchDayCommandActionWarn
+                    : captainMatchDayCommandActionInfo),
+                ...(locked ? disabledButtonSecondary : null),
+              }}
+              onClick={() => {
+                if (locked) return
+                handleCaptainNav(action.href, action.stage)
+              }}
+            >
+              <span style={captainMatchDayCommandLabel}>{action.label}</span>
+              <strong style={captainMatchDayCommandState}>{action.state}</strong>
+              {!isMobile ? <span style={captainMatchDayCommandDetail}>{action.detail}</span> : null}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
 
   const captainCommandCenter = (
     <section style={dynamicCommandCenterShell} aria-label="Captain week command center">
@@ -3939,6 +4061,8 @@ function CaptainHubContent() {
 
           </div>
         </section>
+
+        {captainMatchDayCommandStripSurface}
 
         {captainCommandCenter}
 
@@ -5590,6 +5714,101 @@ const captainDecisionHandoffProofTopStyle: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const captainMatchDayCommandStrip: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(8,13,28,0.88)',
+  boxShadow: '0 16px 40px rgba(2,8,23,0.28)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainMatchDayCommandHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchDayCommandTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayCommandGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainMatchDayCommandAction: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 74,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayCommandActionGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.09)',
+}
+
+const captainMatchDayCommandActionWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainMatchDayCommandActionInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainMatchDayCommandLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayCommandState: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayCommandDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const commandCenterShell: CSSProperties = {
