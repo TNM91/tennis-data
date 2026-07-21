@@ -300,6 +300,28 @@ const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 
+type CaptainLineupAssignment = {
+  id?: string
+  event_key?: string
+  court_label?: string
+  slot_type?: string
+  players?: string[]
+}
+
+type CaptainEventDetail = {
+  key?: string
+  location?: string
+  arrivalTime?: string
+  notes?: string
+}
+
+type CaptainWeeklyResponse = {
+  event_key?: string
+  status?: string
+  note?: string
+  updated_at?: string
+}
+
 type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 
 type TeamPlayerSummary = {
@@ -1345,6 +1367,18 @@ function CaptainHubContent() {
     borderRadius: isMobile ? 18 : commandCenterCard.borderRadius,
   }
 
+  const dynamicMatchDaySheetShell: CSSProperties = {
+    ...matchDaySheetShell,
+    gap: isMobile ? 12 : matchDaySheetShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : matchDaySheetShell.padding,
+    borderRadius: isMobile ? 20 : matchDaySheetShell.borderRadius,
+  }
+
+  const dynamicMatchDaySheetGrid: CSSProperties = {
+    ...matchDaySheetGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySheetGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainDecisionPathShell: CSSProperties = {
     ...captainDecisionPathShellStyle,
     gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
@@ -1608,6 +1642,67 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
   ])
+
+  const matchDayLineupRows = useMemo(() => {
+    if (!workspaceState.currentEventKey) return []
+
+    return readLocalArray<CaptainLineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY)
+      .filter((row) => safeText(row.event_key) === workspaceState.currentEventKey)
+      .sort((a, b) => safeText(a.court_label).localeCompare(safeText(b.court_label)))
+  }, [workspaceState.currentEventKey])
+
+  const matchDayEventDetail = useMemo(() => {
+    if (!workspaceState.currentEventKey) return null
+
+    return readLocalArray<CaptainEventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY)
+      .find((row) => safeText(row.key) === workspaceState.currentEventKey) ?? null
+  }, [workspaceState.currentEventKey])
+
+  const matchDayResponseRows = useMemo(() => {
+    if (!workspaceState.currentEventKey) return []
+
+    return readLocalArray<CaptainWeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY)
+      .filter((row) => safeText(row.event_key) === workspaceState.currentEventKey)
+  }, [workspaceState.currentEventKey])
+
+  const matchDayConfirmedCount = matchDayResponseRows.filter((row) => safeText(row.status).toLowerCase() === 'confirmed').length
+  const matchDayNotConfirmedCount = matchDayResponseRows.filter((row) => {
+    const status = safeText(row.status).toLowerCase()
+    return !status || ['viewed', 'no-response', 'running-late', 'need-sub'].includes(status)
+  }).length
+  const matchDaySubRiskCount = matchDayResponseRows.filter((row) =>
+    ['running-late', 'need-sub'].includes(safeText(row.status).toLowerCase()),
+  ).length
+  const matchDayLineupPreview = matchDayLineupRows.slice(0, isMobile ? 3 : 4)
+  const matchDayLocationLabel = safeText(matchDayEventDetail?.location || nextMatch?.facility, 'Add location')
+  const matchDayArrivalLabel = safeText(matchDayEventDetail?.arrivalTime || nextMatch?.time, 'Add arrival')
+
+  const matchDayChecklist = [
+    {
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady ? 'Court plan is ready to carry into warm-up.' : 'Save the court plan before players arrive.',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Confirmations',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : matchDayResponseRows.length ? 'Clear' : 'Not collected',
+      detail: matchDayNotConfirmedCount > 0 ? 'Follow up before locking the sheet.' : matchDayResponseRows.length ? `${matchDayConfirmedCount} confirmed.` : 'Collect replies from the roster.',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      label: 'Sub risk',
+      state: matchDaySubRiskCount > 0 ? `${matchDaySubRiskCount} flagged` : 'None saved',
+      detail: matchDaySubRiskCount > 0 ? 'Keep a backup player close.' : 'No late or need-sub flags saved for this event.',
+      tone: matchDaySubRiskCount > 0 ? 'warn' : 'good',
+    },
+    {
+      label: 'Logistics',
+      state: workspaceState.messagingReady ? 'Ready to send' : 'Needs detail',
+      detail: matchDayEventDetail?.notes || `${matchDayArrivalLabel} - ${matchDayLocationLabel}`,
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ] as const
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
@@ -2039,6 +2134,110 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainMatchDaySheet = (
+    <section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Match day sheet</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Carry the court plan.' : 'Carry the court plan into match day.'}</h2>
+        </div>
+        <span style={matchDaySubRiskCount > 0 ? warnBadge : workspaceState.lineupReady ? badgeGreen : badgeBlue}>
+          {matchDaySubRiskCount > 0 ? 'Sub risk' : workspaceState.lineupReady ? 'Lineup ready' : 'Build sheet'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        See today&apos;s courts, confirmation gaps, arrival details, and the scorecard handoff before players arrive.
+      </div>
+
+      <div style={matchDayLogisticsGrid} aria-label="Match day logistics">
+        <div style={matchDayLogisticsCard}>
+          <span style={commandCenterSnapshotLabel}>Match</span>
+          <strong style={commandCenterSnapshotValue}>{weekAtGlance.eventDateLabel}</strong>
+          <span style={commandCenterSnapshotDetail}>Opponent: {weekAtGlance.opponentLabel}</span>
+        </div>
+        <div style={matchDayLogisticsCard}>
+          <span style={commandCenterSnapshotLabel}>Arrival</span>
+          <strong style={commandCenterSnapshotValue}>{matchDayArrivalLabel}</strong>
+          <span style={commandCenterSnapshotDetail}>{matchDayLocationLabel}</span>
+        </div>
+      </div>
+
+      <div style={dynamicMatchDaySheetGrid}>
+        <div style={matchDaySheetMain}>
+          <div style={matchDaySheetTop}>
+            <div>
+              <div style={commandCenterLabel}>Today&apos;s lineup</div>
+              <div style={matchDaySheetTitle}>{workspaceState.lineupReady ? `${workspaceState.lineupCount} saved court${workspaceState.lineupCount === 1 ? '' : 's'}` : 'No court plan saved yet'}</div>
+            </div>
+            <span style={workspaceState.lineupReady ? badgeGreen : warnBadge}>
+              {workspaceState.lineupReady ? 'Ready' : 'Draft'}
+            </span>
+          </div>
+
+          {matchDayLineupPreview.length ? (
+            <div style={matchDayLineupStack} aria-label="Match day court cards">
+              {matchDayLineupPreview.map((row, index) => {
+                const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+                const playerLabel = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+
+                return (
+                  <article key={row.id || `${courtLabel}-${index}`} style={matchDayCourtCard}>
+                    <div style={matchDayCourtTop}>
+                      <span style={matchDayCourtLabel}>{courtLabel}</span>
+                      <span style={badgeSlate}>{safeText(row.slot_type, 'court')}</span>
+                    </div>
+                    <strong style={matchDayCourtPlayers}>{playerLabel}</strong>
+                  </article>
+                )
+              })}
+              {matchDayLineupRows.length > matchDayLineupPreview.length ? (
+                <div style={matchDayMoreLineups}>
+                  +{matchDayLineupRows.length - matchDayLineupPreview.length} more saved court{matchDayLineupRows.length - matchDayLineupPreview.length === 1 ? '' : 's'} in Lineup Builder.
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div style={emptyLine}>
+              Build the lineup first so match day opens with court assignments instead of memory work.
+            </div>
+          )}
+        </div>
+
+        <div style={matchDayChecklistPanel}>
+          <div style={commandCenterLabel}>At-court checks</div>
+          <div style={matchDayChecklistGrid}>
+            {matchDayChecklist.map((item) => (
+              <div key={item.label} style={matchDayChecklistItem}>
+                <div style={matchDayChecklistTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={matchDayActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Send final note
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
+          Follow up gaps
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Edit lineup
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(dataAssistCaptainHref, 'team')}>
+          Upload scorecard
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
   return (
     <div style={pageWrap}>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
@@ -2183,6 +2382,8 @@ function CaptainHubContent() {
         </section>
 
         {captainCommandCenter}
+
+        {captainMatchDaySheet}
 
         <section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">
           <div style={captainDecisionPathHeaderStyle}>
@@ -3984,6 +4185,171 @@ const commandCenterText: CSSProperties = {
 }
 
 const commandCenterActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const matchDaySheetShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(163,230,53,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(8,13,28,0.76) 42%, rgba(14,25,48,0.82))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.26)',
+  minWidth: 0,
+}
+
+const matchDayLogisticsGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const matchDayLogisticsCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const matchDaySheetGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.18fr) minmax(min(100%, 300px), 0.82fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const matchDaySheetMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const matchDaySheetTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchDaySheetTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const matchDayLineupStack: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const matchDayCourtCard: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const matchDayCourtTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchDayCourtLabel: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const matchDayCourtPlayers: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 900,
+}
+
+const matchDayMoreLineups: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchDayChecklistPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const matchDayChecklistGrid: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const matchDayChecklistItem: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchDayChecklistTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const matchDayActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
