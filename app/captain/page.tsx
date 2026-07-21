@@ -201,6 +201,13 @@ type CaptainSaveSignal = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPlayerReadinessItem = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -1449,6 +1456,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : opponentScoutGrid.gridTemplateColumns,
   }
 
+  const dynamicPlayerReadinessPulseShell: CSSProperties = {
+    ...playerReadinessPulseShell,
+    gap: isMobile ? 12 : playerReadinessPulseShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : playerReadinessPulseShell.padding,
+    borderRadius: isMobile ? 20 : playerReadinessPulseShell.borderRadius,
+  }
+
+  const dynamicPlayerReadinessPulseGrid: CSSProperties = {
+    ...playerReadinessPulseGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : playerReadinessPulseGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -1869,6 +1888,60 @@ function CaptainHubContent() {
         }
       })
   }, [isMobile, matchDayLineupPlayerKeys, roster])
+
+  const playerReadinessConfirmedLabel = matchDayResponseRows.length
+    ? `${matchDayConfirmedCount}/${matchDayResponseRows.length}`
+    : 'Not collected'
+  const playerReadinessRiskCount = matchDaySubRiskCount + rosterSignalSummary.atRisk
+  const playerReadinessChallengeReady = Boolean(levelUpTeamChallenge)
+  const playerReadinessPulseChecks = useMemo<CaptainPlayerReadinessItem[]>(() => [
+    {
+      label: 'Confirmed',
+      state: playerReadinessConfirmedLabel,
+      detail: matchDayResponseRows.length
+        ? `${matchDayConfirmedCount} confirmed for this event.`
+        : 'Collect player replies before the week gets noisy.',
+      tone: matchDayResponseRows.length
+        ? matchDayNotConfirmedCount > 0 ? 'warn' : 'good'
+        : 'info',
+    },
+    {
+      label: 'Follow-ups',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : 'Clear',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Nudge players before lineup and sub decisions tighten.'
+        : 'No open replies are saved for this event.',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : 'good',
+    },
+    {
+      label: 'Risk',
+      state: playerReadinessRiskCount > 0 ? `${playerReadinessRiskCount} watch` : 'Stable',
+      detail: matchDaySubRiskCount > 0
+        ? 'Late or need-sub replies are already on the sheet.'
+        : rosterSignalSummary.atRisk > 0
+          ? 'Rating-watch players need a careful court call.'
+          : 'No saved sub or rating watch flags are active.',
+      tone: playerReadinessRiskCount > 0 ? 'warn' : 'good',
+    },
+    {
+      label: 'Practice',
+      state: playerReadinessChallengeReady ? 'Challenge ready' : 'Plan work',
+      detail: playerReadinessChallengeReady
+        ? 'Send the team challenge into practice before match day.'
+        : 'Use practice prep for pair communication and pressure points.',
+      tone: playerReadinessChallengeReady ? 'good' : 'info',
+    },
+  ], [
+    matchDayConfirmedCount,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    matchDaySubRiskCount,
+    playerReadinessChallengeReady,
+    playerReadinessConfirmedLabel,
+    playerReadinessRiskCount,
+    rosterSignalSummary.atRisk,
+  ])
+  const playerReadinessReadyCount = playerReadinessPulseChecks.filter((item) => item.tone === 'good').length
 
   const postMatchCloseoutRows = matchDayLineupRows.slice(0, isMobile ? 2 : 3)
   const postMatchUploadedState = selectedFromCaptainScope ? 'Refresh data' : 'Upload needed'
@@ -2782,6 +2855,81 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainPlayerReadinessPulse = (
+    <section style={dynamicPlayerReadinessPulseShell} aria-label="Captain player readiness pulse">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Player readiness pulse</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Know who is ready.' : 'Know who is ready before you lock courts.'}</h2>
+        </div>
+        <span style={playerReadinessRiskCount > 0 ? warnBadge : playerReadinessReadyCount >= 2 ? badgeGreen : badgeBlue}>
+          {playerReadinessRiskCount > 0 ? `${playerReadinessRiskCount} watch` : `${playerReadinessReadyCount}/${playerReadinessPulseChecks.length} clear`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        See confirmations, follow-ups, sub risk, and practice needs in one quick read before match day.
+      </div>
+
+      <div style={dynamicPlayerReadinessPulseGrid}>
+        <div style={playerReadinessMain}>
+          <div style={playerReadinessScoreTop}>
+            <div>
+              <div style={commandCenterLabel}>Team pulse</div>
+              <div style={playerReadinessScoreValue}>{playerReadinessConfirmedLabel}</div>
+            </div>
+            <span style={matchDayNotConfirmedCount > 0 || matchDaySubRiskCount > 0 ? warnBadge : matchDayResponseRows.length ? badgeGreen : badgeBlue}>
+              {matchDayResponseRows.length ? 'Replies saved' : 'Ask team'}
+            </span>
+          </div>
+
+          <div style={playerReadinessMetricGrid}>
+            <div style={playerReadinessMetricCard}>
+              <span style={commandCenterSnapshotLabel}>Confirmed</span>
+              <strong style={commandCenterSnapshotValue}>{matchDayConfirmedCount}</strong>
+            </div>
+            <div style={playerReadinessMetricCard}>
+              <span style={commandCenterSnapshotLabel}>Open replies</span>
+              <strong style={commandCenterSnapshotValue}>{matchDayNotConfirmedCount}</strong>
+            </div>
+            <div style={playerReadinessMetricCard}>
+              <span style={commandCenterSnapshotLabel}>Rating watch</span>
+              <strong style={commandCenterSnapshotValue}>{rosterSignalSummary.atRisk}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style={playerReadinessChecklist}>
+          <div style={commandCenterLabel}>Readiness checks</div>
+          <div style={playerReadinessList}>
+            {playerReadinessPulseChecks.map((item) => (
+              <div key={item.label} style={playerReadinessItem}>
+                <div style={playerReadinessItemTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={playerReadinessActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(levelUpAvailabilityHref, 'availability')}>
+          Check availability
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Build lineup
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Send nudge
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -3021,6 +3169,8 @@ function CaptainHubContent() {
         {captainSeasonLaunchChecklist}
 
         {captainOpponentScoutPocket}
+
+        {captainPlayerReadinessPulse}
 
         {captainMatchDaySheet}
 
@@ -5031,6 +5181,123 @@ const opponentScoutItemTop: CSSProperties = {
 }
 
 const opponentScoutActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerReadinessPulseShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(34,211,238,0.16)',
+  background: 'linear-gradient(135deg, rgba(34,211,238,0.08), rgba(8,13,28,0.76) 44%, rgba(18,29,50,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const playerReadinessPulseGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 300px), 0.86fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const playerReadinessMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const playerReadinessScoreTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const playerReadinessScoreValue: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 30,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerReadinessMetricGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const playerReadinessMetricCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const playerReadinessChecklist: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const playerReadinessList: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const playerReadinessItem: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const playerReadinessItemTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const playerReadinessActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
