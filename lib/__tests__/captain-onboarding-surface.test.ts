@@ -204,6 +204,19 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainNudgeDrafts')
     expect(source).toContain('captainNudgePrimaryDraft')
     expect(source).toContain('handleCopyCaptainNudge')
+    expect(source).toContain('Captain week timeline')
+    expect(source).toContain('Week timeline')
+    expect(source).toContain('Keep the week moving.')
+    expect(source).toContain('Keep the week moving from first nudge to closeout.')
+    expect(source).toContain('Today')
+    expect(source).toContain('Tomorrow')
+    expect(source).toContain('Match day')
+    expect(source).toContain('After play')
+    expect(source).toContain('Tighten replies')
+    expect(source).toContain('Close the loop')
+    expect(source).toContain('captainWeekTimelineItems')
+    expect(source).toContain('captainWeekTimelineNextItem')
+    expect(source).toContain('captainWeekTimelineReadyCount')
     expect(source).toContain('Captain match day sheet')
     expect(source).toContain('Match day sheet')
     expect(source).toContain('Carry the court plan.')
@@ -252,6 +265,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainNudgeComposer}'),
     )
     expect(source.indexOf('{captainNudgeComposer}')).toBeLessThan(
+      source.indexOf('{captainWeekTimeline}'),
+    )
+    expect(source.indexOf('{captainWeekTimeline}')).toBeLessThan(
       source.indexOf('{captainMatchDaySheet}'),
     )
     expect(source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">')).toBeLessThan(
@@ -327,6 +343,18 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainNudgeDraftTop')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('captainNudgeActionRow')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('captainNudgeMiniActionRow')).toContain("flexWrap: 'wrap'")
+    expect(source).toContain('const dynamicCaptainWeekTimelineShell: CSSProperties')
+    expect(source).toContain('const dynamicCaptainWeekTimelineGrid: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeekTimelineGrid.gridTemplateColumns")
+    expect(styleBlock('captainWeekTimelineShell')).toContain('minWidth: 0')
+    expect(styleBlock('captainWeekTimelineGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+    expect(styleBlock('captainWeekTimelineCard')).toContain('minWidth: 0')
+    expect(styleBlock('captainWeekTimelineCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainWeekTimelineTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainWeekTimelineMarker')).toContain('minWidth: 0')
+    expect(styleBlock('captainWeekTimelineDot')).toContain("flex: '0 0 28px'")
+    expect(styleBlock('captainWeekTimelineBody')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainWeekTimelineTitle')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain('const dynamicMatchDaySheetShell: CSSProperties')
     expect(source).toContain('const dynamicMatchDaySheetGrid: CSSProperties')
     expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySheetGrid.gridTemplateColumns")
