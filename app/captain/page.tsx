@@ -370,6 +370,16 @@ type CaptainCloseoutCheck = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainSeasonLaunchItem = {
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1408,6 +1418,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySubBoardGrid.gridTemplateColumns,
   }
 
+  const dynamicSeasonLaunchShell: CSSProperties = {
+    ...seasonLaunchShell,
+    gap: isMobile ? 12 : seasonLaunchShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : seasonLaunchShell.padding,
+    borderRadius: isMobile ? 20 : seasonLaunchShell.borderRadius,
+  }
+
+  const dynamicSeasonLaunchGrid: CSSProperties = {
+    ...seasonLaunchGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2006,6 +2028,69 @@ function CaptainHubContent() {
     stage: 'brief' as CaptainResumeStage,
   }
 
+  const captainSeasonLaunchItems = useMemo<CaptainSeasonLaunchItem[]>(() => [
+    {
+      label: 'Roster',
+      state: roster.length > 0 ? `${roster.length} players` : 'Needs roster',
+      detail: roster.length > 0
+        ? `${rosterSignalSummary.withStatus} rating read${rosterSignalSummary.withStatus === 1 ? '' : 's'} ready for lineup calls.`
+        : 'Refresh roster source files before the first availability ask.',
+      href: roster.length > 0 ? currentTeamHref : dataAssistCaptainHref,
+      stage: roster.length > 0 ? 'team' : 'team',
+      cta: roster.length > 0 ? 'Review roster' : 'Refresh roster',
+      tone: roster.length > 0 ? 'good' : 'warn',
+    },
+    {
+      label: 'Schedule',
+      state: matches.length > 0 ? `${matches.length} matches` : 'Needs schedule',
+      detail: matches.length > 0
+        ? `Next up: ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`
+        : 'Upload or connect the schedule so week one has an opponent and date.',
+      href: matches.length > 0 ? weeklyBriefHref : dataAssistCaptainHref,
+      stage: matches.length > 0 ? 'brief' : 'team',
+      cta: matches.length > 0 ? 'Open brief' : 'Add schedule',
+      tone: matches.length > 0 ? 'good' : 'warn',
+    },
+    {
+      label: 'Rating watch',
+      state: rosterSignalSummary.atRisk > 0 ? `${rosterSignalSummary.atRisk} watch` : rosterSignalSummary.trendingUp > 0 ? `${rosterSignalSummary.trendingUp} rising` : 'Set baseline',
+      detail: rosterSignalSummary.withStatus > 0
+        ? 'Use rating direction before you lock early-season court order.'
+        : 'Refresh player ratings so early lineups are not built on memory.',
+      href: analyticsHref,
+      stage: 'analytics',
+      cta: 'Open analytics',
+      tone: rosterSignalSummary.atRisk > 0 ? 'warn' : rosterSignalSummary.withStatus > 0 ? 'good' : 'info',
+    },
+    {
+      label: 'Week one',
+      state: workspaceState.lineupReady ? 'Lineup started' : workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Start rhythm',
+      detail: workspaceState.lineupReady
+        ? 'You already have saved courts to refine for the opener.'
+        : 'Start the availability habit before lineup week gets noisy.',
+      href: workspaceState.lineupReady ? lineupBuilderHref : availabilityHref,
+      stage: workspaceState.lineupReady ? 'lineup' : 'availability',
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Ask availability',
+      tone: workspaceState.lineupReady ? 'good' : workspaceState.pendingResponseCount > 0 ? 'warn' : 'info',
+    },
+  ], [
+    analyticsHref,
+    availabilityHref,
+    currentTeamHref,
+    lineupBuilderHref,
+    matches.length,
+    roster.length,
+    rosterSignalSummary.atRisk,
+    rosterSignalSummary.trendingUp,
+    rosterSignalSummary.withStatus,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    weeklyBriefHref,
+    workspaceState.lineupReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainSeasonLaunchReadyCount = captainSeasonLaunchItems.filter((item) => item.tone === 'good').length
+
   const captainCommandSnapshots = [
     {
       label: 'Match',
@@ -2478,6 +2563,86 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainSeasonLaunchChecklist = (
+    <section style={dynamicSeasonLaunchShell} aria-label="Captain season launch checklist">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Season launch checklist</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Start the season clean.' : 'Start the season with the team ready.'}</h2>
+        </div>
+        <span style={captainSeasonLaunchReadyCount >= 3 ? badgeGreen : captainSeasonLaunchReadyCount >= 2 ? badgeBlue : warnBadge}>
+          {captainSeasonLaunchReadyCount}/{captainSeasonLaunchItems.length} ready
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Check roster depth, schedule context, rating watch, and week-one rhythm before the first lineup decision lands.
+      </div>
+
+      <div style={seasonLaunchSnapshotGrid} aria-label="Season launch snapshot">
+        <div style={seasonLaunchSnapshotCard}>
+          <span style={commandCenterSnapshotLabel}>Roster</span>
+          <strong style={commandCenterSnapshotValue}>{roster.length ? `${roster.length} players` : 'Needs import'}</strong>
+          <span style={commandCenterSnapshotDetail}>{rosterSignalSummary.atRisk > 0 ? `${rosterSignalSummary.atRisk} rating watches` : rosterSignalSummary.trendingUp > 0 ? `${rosterSignalSummary.trendingUp} trending up` : 'Baseline before week one'}</span>
+        </div>
+        <div style={seasonLaunchSnapshotCard}>
+          <span style={commandCenterSnapshotLabel}>Schedule</span>
+          <strong style={commandCenterSnapshotValue}>{matches.length ? `${matches.length} matches` : 'Needs schedule'}</strong>
+          <span style={commandCenterSnapshotDetail}>{weekAtGlance.eventDateLabel}</span>
+        </div>
+        <div style={seasonLaunchSnapshotCard}>
+          <span style={commandCenterSnapshotLabel}>Week one</span>
+          <strong style={commandCenterSnapshotValue}>{workspaceState.lineupReady ? 'Lineup started' : 'Open'}</strong>
+          <span style={commandCenterSnapshotDetail}>{workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} replies waiting` : 'Availability rhythm ready'}</span>
+        </div>
+      </div>
+
+      <div style={dynamicSeasonLaunchGrid}>
+        {captainSeasonLaunchItems.map((item) => {
+          const locked = !hasTeamScope || !premiumEnabled
+          const toneBadge = item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue
+
+          return (
+            <article key={item.label} style={seasonLaunchCard}>
+              <div style={seasonLaunchCardTop}>
+                <span style={commandCenterLabel}>{item.label}</span>
+                <span style={locked ? badgeSlate : toneBadge}>
+                  {!hasTeamScope ? 'Choose team' : item.state}
+                </span>
+              </div>
+              <div style={seasonLaunchCardDetail}>
+                {locked ? 'Choose the team, league, and flight so season prep opens with the right roster and schedule.' : item.detail}
+              </div>
+              <div style={seasonLaunchActionRow}>
+                <SecondarySmallBtn
+                  fullWidth={isMobile}
+                  disabled={locked}
+                  onClick={() => {
+                    if (locked) return
+                    handleCaptainNav(item.href, item.stage)
+                  }}
+                >
+                  {item.cta}
+                </SecondarySmallBtn>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+
+      <div style={seasonLaunchActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
+          Start availability
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(dataAssistCaptainHref, 'team')}>
+          Refresh team data
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !leagueToolsEnabled} onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
+          Season tools
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -2713,6 +2878,8 @@ function CaptainHubContent() {
         </section>
 
         {captainCommandCenter}
+
+        {captainSeasonLaunchChecklist}
 
         {captainMatchDaySheet}
 
@@ -4518,6 +4685,79 @@ const commandCenterText: CSSProperties = {
 }
 
 const commandCenterActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const seasonLaunchShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.74) 42%, rgba(18,29,47,0.82))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+  minWidth: 0,
+}
+
+const seasonLaunchSnapshotGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const seasonLaunchSnapshotCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const seasonLaunchCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  minHeight: 178,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const seasonLaunchCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,

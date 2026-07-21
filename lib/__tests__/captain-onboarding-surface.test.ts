@@ -160,6 +160,15 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Ready for match day')
     expect(source).toContain('captainCommandSnapshots')
     expect(source).toContain('captainReadinessScore}% ready')
+    expect(source).toContain('Captain season launch checklist')
+    expect(source).toContain('Season launch checklist')
+    expect(source).toContain('Start the season clean.')
+    expect(source).toContain('Start the season with the team ready.')
+    expect(source).toContain('Season launch snapshot')
+    expect(source).toContain('Refresh team data')
+    expect(source).toContain('Season tools')
+    expect(source).toContain('captainSeasonLaunchItems')
+    expect(source).toContain('captainSeasonLaunchReadyCount')
     expect(source).toContain('Captain match day sheet')
     expect(source).toContain('Match day sheet')
     expect(source).toContain('Carry the court plan.')
@@ -195,8 +204,11 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('postMatchCloseoutRows')
     expect(source).toContain('matchDayChecklist')
     expect(source).toContain('matchDayLineupPreview')
-    expect(source.indexOf('<section style={dynamicCommandCenterShell} aria-label="Captain week command center">')).toBeLessThan(
-      source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">'),
+    expect(source.indexOf('{captainCommandCenter}')).toBeLessThan(
+      source.indexOf('{captainSeasonLaunchChecklist}'),
+    )
+    expect(source.indexOf('{captainSeasonLaunchChecklist}')).toBeLessThan(
+      source.indexOf('{captainMatchDaySheet}'),
     )
     expect(source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">')).toBeLessThan(
       source.indexOf('<section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">'),
@@ -215,6 +227,18 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('commandCenterGrid')).toContain('minWidth: 0')
     expect(styleBlock('commandCenterCard')).toContain('minWidth: 0')
     expect(styleBlock('commandCenterCard')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain('const dynamicSeasonLaunchShell: CSSProperties')
+    expect(source).toContain('const dynamicSeasonLaunchGrid: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchGrid.gridTemplateColumns")
+    expect(styleBlock('seasonLaunchShell')).toContain('minWidth: 0')
+    expect(styleBlock('seasonLaunchSnapshotGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
+    expect(styleBlock('seasonLaunchSnapshotCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('seasonLaunchGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+    expect(styleBlock('seasonLaunchCard')).toContain('minWidth: 0')
+    expect(styleBlock('seasonLaunchCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('seasonLaunchCardTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('seasonLaunchCardDetail')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('seasonLaunchActionRow')).toContain("flexWrap: 'wrap'")
     expect(source).toContain('const dynamicMatchDaySheetShell: CSSProperties')
     expect(source).toContain('const dynamicMatchDaySheetGrid: CSSProperties')
     expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySheetGrid.gridTemplateColumns")
