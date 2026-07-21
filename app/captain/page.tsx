@@ -230,6 +230,14 @@ type CaptainWeekTimelineItem = {
   cta: string
 }
 
+type CaptainCourtConfidenceItem = {
+  label: string
+  players: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -1515,6 +1523,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeekTimelineGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainCourtConfidenceShell: CSSProperties = {
+    ...captainCourtConfidenceShell,
+    gap: isMobile ? 12 : captainCourtConfidenceShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainCourtConfidenceShell.padding,
+    borderRadius: isMobile ? 20 : captainCourtConfidenceShell.borderRadius,
+  }
+
+  const dynamicCaptainCourtConfidenceGrid: CSSProperties = {
+    ...captainCourtConfidenceGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCourtConfidenceGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2123,6 +2143,85 @@ function CaptainHubContent() {
   ])
   const captainWeekTimelineNextItem = captainWeekTimelineItems.find((item) => item.tone === 'warn') ?? captainWeekTimelineItems.find((item) => item.tone === 'info') ?? captainWeekTimelineItems[0]
   const captainWeekTimelineReadyCount = captainWeekTimelineItems.filter((item) => item.tone === 'good').length
+
+  const rosterByNameKey = useMemo(() => {
+    const map = new Map<string, TeamPlayerSummary>()
+    for (const player of roster) {
+      map.set(safeKey(player.name), player)
+    }
+    return map
+  }, [roster])
+  const captainCourtConfidenceItems = useMemo<CaptainCourtConfidenceItem[]>(() => {
+    if (!matchDayLineupRows.length) {
+      return [
+        {
+          label: 'No saved courts',
+          players: 'Lineup not saved',
+          state: 'Build lineup',
+          detail: 'Save courts first, then confidence checks can attach to each court.',
+          tone: 'warn',
+        },
+      ]
+    }
+
+    return matchDayLineupRows.slice(0, isMobile ? 3 : 4).map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const players = (row.players ?? []).filter((name) => safeText(name))
+      const playerLabel = players.length ? players.join(' / ') : 'Players not set'
+      const expectedPlayers = safeText(row.slot_type).toLowerCase().includes('single') ? 1 : 2
+      const hasMissingPlayers = players.length < expectedPlayers
+      const hasSubRisk = index < matchDaySubRiskCount
+      const ratingWatchPlayers = players
+        .map((name) => rosterByNameKey.get(safeKey(name)))
+        .filter((player): player is TeamPlayerSummary => Boolean(player))
+        .filter((player) => player.ratingStatus === 'At Risk' || player.ratingStatus === 'Drop Watch')
+
+      if (hasMissingPlayers) {
+        return {
+          label: courtLabel,
+          players: playerLabel,
+          state: 'Needs players',
+          detail: 'Add the missing player name before this court is ready to send.',
+          tone: 'warn',
+        }
+      }
+
+      if (hasSubRisk) {
+        return {
+          label: courtLabel,
+          players: playerLabel,
+          state: 'Backup needed',
+          detail: 'A late or need-sub reply is tied to this match window.',
+          tone: 'warn',
+        }
+      }
+
+      if (ratingWatchPlayers.length) {
+        return {
+          label: courtLabel,
+          players: playerLabel,
+          state: 'Rating watch',
+          detail: `${ratingWatchPlayers.map((player) => player.name).join(' / ')} need a careful court call.`,
+          tone: 'info',
+        }
+      }
+
+      return {
+        label: courtLabel,
+        players: playerLabel,
+        state: 'Solid',
+        detail: 'Players are named with no saved sub or rating watch flags.',
+        tone: 'good',
+      }
+    })
+  }, [isMobile, matchDayLineupRows, matchDaySubRiskCount, rosterByNameKey])
+  const captainCourtSolidCount = captainCourtConfidenceItems.filter((item) => item.tone === 'good').length
+  const captainCourtWatchCount = captainCourtConfidenceItems.filter((item) => item.tone === 'info').length
+  const captainCourtBackupCount = captainCourtConfidenceItems.filter((item) => item.tone === 'warn').length
+  const captainCourtConfidencePercent = matchDayLineupRows.length
+    ? Math.round((captainCourtSolidCount / captainCourtConfidenceItems.length) * 100)
+    : 0
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -2716,6 +2815,79 @@ function CaptainHubContent() {
             </article>
           )
         })}
+      </div>
+    </section>
+  )
+
+  const captainCourtConfidenceMeter = (
+    <section style={dynamicCaptainCourtConfidenceShell} aria-label="Captain court confidence meter">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Court confidence meter</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Trust the courts.' : 'Trust the courts before you send the lineup.'}</h2>
+        </div>
+        <span style={captainCourtBackupCount > 0 ? warnBadge : captainCourtWatchCount > 0 ? badgeBlue : badgeGreen}>
+          {matchDayLineupRows.length ? `${captainCourtConfidencePercent}% solid` : 'Build lineup'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Spot solid courts, backup needs, and rating-watch calls before the final team note goes out.
+      </div>
+
+      <div style={captainCourtConfidenceSummary}>
+        <div
+          style={captainCourtConfidenceTrack}
+          role="progressbar"
+          aria-label="Captain court confidence"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={captainCourtConfidencePercent}
+        >
+          <span style={{ ...captainCourtConfidenceFill, width: `${captainCourtConfidencePercent}%` }} />
+        </div>
+        <div style={captainCourtConfidenceStats}>
+          <div style={captainCourtConfidenceStatCard}>
+            <span style={commandCenterSnapshotLabel}>Solid</span>
+            <strong style={commandCenterSnapshotValue}>{captainCourtSolidCount}</strong>
+          </div>
+          <div style={captainCourtConfidenceStatCard}>
+            <span style={commandCenterSnapshotLabel}>Watch</span>
+            <strong style={commandCenterSnapshotValue}>{captainCourtWatchCount}</strong>
+          </div>
+          <div style={captainCourtConfidenceStatCard}>
+            <span style={commandCenterSnapshotLabel}>Backup</span>
+            <strong style={commandCenterSnapshotValue}>{captainCourtBackupCount}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainCourtConfidenceGrid}>
+        {captainCourtConfidenceItems.map((item) => (
+          <article key={item.label} style={captainCourtConfidenceCard}>
+            <div style={captainCourtConfidenceTop}>
+              <strong>{item.label}</strong>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <div style={captainCourtConfidenceBody}>
+              <span style={captainCourtConfidencePlayers}>{item.players}</span>
+              <span>{item.detail}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div style={captainCourtConfidenceActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Review lineup
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupProjectionHref, 'projection')}>
+          Check pairings
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Send final note
+        </SecondarySmallBtn>
       </div>
     </section>
   )
@@ -3474,6 +3646,8 @@ function CaptainHubContent() {
         {captainNudgeComposer}
 
         {captainWeekTimeline}
+
+        {captainCourtConfidenceMeter}
 
         {captainMatchDaySheet}
 
@@ -5803,6 +5977,111 @@ const captainWeekTimelineTitle: CSSProperties = {
   lineHeight: 1.2,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
+}
+
+const captainCourtConfidenceShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.085), rgba(8,13,28,0.76) 42%, rgba(18,32,52,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const captainCourtConfidenceSummary: CSSProperties = {
+  display: 'grid',
+  gap: 11,
+  minWidth: 0,
+}
+
+const captainCourtConfidenceTrack: CSSProperties = {
+  position: 'relative',
+  height: 12,
+  minWidth: 0,
+  overflow: 'hidden',
+  borderRadius: 999,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.34)',
+}
+
+const captainCourtConfidenceFill: CSSProperties = {
+  position: 'absolute',
+  inset: '0 auto 0 0',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, rgba(155,225,29,0.82), rgba(34,211,238,0.58))',
+}
+
+const captainCourtConfidenceStats: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtConfidenceStatCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtConfidenceGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtConfidenceCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtConfidenceTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainCourtConfidenceBody: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtConfidencePlayers: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtConfidenceActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const matchDaySheetShell: CSSProperties = {
