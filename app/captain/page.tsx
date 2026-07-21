@@ -346,6 +346,23 @@ type PairingSummary = {
   avgDoublesRating: number | null
 }
 
+type CaptainSubBoardFlag = {
+  key: string
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
+type CaptainSubCandidate = {
+  id: string
+  name: string
+  fit: string
+  signal: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1379,6 +1396,11 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySheetGrid.gridTemplateColumns,
   }
 
+  const dynamicMatchDaySubBoardGrid: CSSProperties = {
+    ...matchDaySubBoardGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySubBoardGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainDecisionPathShell: CSSProperties = {
     ...captainDecisionPathShellStyle,
     gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
@@ -1703,6 +1725,90 @@ function CaptainHubContent() {
       tone: workspaceState.messagingReady ? 'good' : 'info',
     },
   ] as const
+
+  const matchDayLineupPlayerKeys = useMemo(() => (
+    matchDayLineupRows
+      .flatMap((row) => row.players ?? [])
+      .map((name) => safeKey(name))
+      .filter(Boolean)
+  ), [matchDayLineupRows])
+
+  const matchDaySubBoardFlags = useMemo<CaptainSubBoardFlag[]>(() => {
+    if (!matchDayLineupRows.length) {
+      return [
+        {
+          key: 'lineup-needed',
+          label: 'No saved courts',
+          state: 'Build lineup',
+          detail: 'Save courts first, then backup calls can attach to the match sheet.',
+          tone: 'warn',
+        },
+      ]
+    }
+
+    if (matchDaySubRiskCount > 0) {
+      return matchDayLineupRows.slice(0, isMobile ? 2 : 3).map((row, index) => ({
+        key: row.id || `sub-risk-${index}`,
+        label: safeText(row.court_label, `Court ${index + 1}`),
+        state: index < matchDaySubRiskCount ? 'Backup needed' : 'Watch',
+        detail: index < matchDaySubRiskCount
+          ? 'Late or need-sub reply is saved for this match.'
+          : 'Keep this court close while replacements settle.',
+        tone: index < matchDaySubRiskCount ? 'warn' : 'info',
+      }))
+    }
+
+    if (matchDayNotConfirmedCount > 0) {
+      return matchDayLineupRows.slice(0, isMobile ? 2 : 3).map((row, index) => ({
+        key: row.id || `open-reply-${index}`,
+        label: safeText(row.court_label, `Court ${index + 1}`),
+        state: index === 0 ? `${matchDayNotConfirmedCount} open` : 'Confirm',
+        detail: 'Confirm every player before you tell the bench they can stand down.',
+        tone: 'info',
+      }))
+    }
+
+    return [
+      {
+        key: 'courts-clear',
+        label: 'All courts',
+        state: 'Clear',
+        detail: 'No late, need-sub, or open reply flags are saved for this event.',
+        tone: 'good',
+      },
+    ]
+  }, [isMobile, matchDayLineupRows, matchDayNotConfirmedCount, matchDaySubRiskCount])
+
+  const matchDaySubCandidates = useMemo<CaptainSubCandidate[]>(() => {
+    const lineupPlayerKeys = new Set(matchDayLineupPlayerKeys)
+
+    return roster
+      .filter((player) => !lineupPlayerKeys.has(safeKey(player.name)))
+      .sort((a, b) => {
+        const aRating = Math.max(a.singlesDynamic ?? 0, a.doublesDynamic ?? 0, a.overallUstaDynamic ?? 0)
+        const bRating = Math.max(b.singlesDynamic ?? 0, b.doublesDynamic ?? 0, b.overallUstaDynamic ?? 0)
+        if (Math.abs(bRating - aRating) > 0.0001) return bRating - aRating
+        return b.appearances - a.appearances
+      })
+      .slice(0, isMobile ? 3 : 4)
+      .map((player) => {
+        const doublesRating = player.doublesDynamic ?? player.overallUstaDynamic ?? player.overallBase
+        const singlesRating = player.singlesDynamic ?? player.overallUstaDynamic ?? player.overallBase
+        const leansDoubles = (doublesRating ?? 0) >= (singlesRating ?? 0)
+        const bestRating = Math.max(singlesRating ?? 0, doublesRating ?? 0)
+        const isRatingRisk = player.ratingStatus === 'At Risk' || player.ratingStatus === 'Drop Watch'
+        const isStrongSignal = player.ratingStatus === 'Bump Up Pace' || player.ratingStatus === 'Trending Up'
+
+        return {
+          id: player.id,
+          name: player.name,
+          fit: leansDoubles ? 'Doubles cover' : 'Singles cover',
+          signal: player.ratingStatus || formatRating(bestRating || null),
+          detail: `${player.appearances} match${player.appearances === 1 ? '' : 'es'} tracked - ${player.wins}-${player.losses} record`,
+          tone: isRatingRisk ? 'warn' : isStrongSignal ? 'good' : 'info',
+        }
+      })
+  }, [isMobile, matchDayLineupPlayerKeys, roster])
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
@@ -2218,6 +2324,76 @@ function CaptainHubContent() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div style={matchDaySubBoardShell} aria-label="Captain sub board">
+        <div style={matchDaySubBoardHeader}>
+          <div>
+            <div style={commandCenterLabel}>Sub board</div>
+            <div style={matchDaySheetTitle}>{isMobile ? 'Cover late changes.' : 'Cover late changes before warm-up.'}</div>
+          </div>
+          <span style={matchDaySubRiskCount > 0 ? warnBadge : matchDayNotConfirmedCount > 0 ? badgeBlue : badgeGreen}>
+            {matchDaySubRiskCount > 0 ? `${matchDaySubRiskCount} flag${matchDaySubRiskCount === 1 ? '' : 's'}` : matchDayNotConfirmedCount > 0 ? 'Check replies' : 'Keep plan'}
+          </span>
+        </div>
+        <div style={sectionSub}>
+          Keep a short list of backup calls, court flags, and lineup handoffs ready for the five minutes before warm-up.
+        </div>
+
+        <div style={dynamicMatchDaySubBoardGrid}>
+          <div style={matchDaySubPanel}>
+            <div style={commandCenterLabel}>Court watch</div>
+            <div style={matchDaySubList}>
+              {matchDaySubBoardFlags.map((flag) => (
+                <article key={flag.key} style={matchDaySubCard}>
+                  <div style={matchDayChecklistTop}>
+                    <strong>{flag.label}</strong>
+                    <span style={flag.tone === 'good' ? badgeGreen : flag.tone === 'warn' ? warnBadge : badgeBlue}>
+                      {flag.state}
+                    </span>
+                  </div>
+                  <span>{flag.detail}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div style={matchDaySubPanel}>
+            <div style={commandCenterLabel}>Backup reads</div>
+            {matchDaySubCandidates.length ? (
+              <div style={matchDaySubList}>
+                {matchDaySubCandidates.map((candidate) => (
+                  <article key={candidate.id} style={matchDaySubCandidateCard}>
+                    <div style={matchDaySubCandidateTop}>
+                      <strong style={matchDaySubCandidateName}>{candidate.name}</strong>
+                      <span style={candidate.tone === 'good' ? badgeGreen : candidate.tone === 'warn' ? warnBadge : badgeBlue}>
+                        {candidate.signal}
+                      </span>
+                    </div>
+                    <div style={matchDaySubCandidateFit}>{candidate.fit}</div>
+                    <span>{candidate.detail}</span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div style={emptyLine}>
+                Add roster depth so backup calls show before match day gets tight.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={matchDaySubActionRow}>
+          <SecondarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
+            Find backup
+          </SecondarySmallBtn>
+          <SecondarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+            Move in lineup
+          </SecondarySmallBtn>
+          <SecondarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+            Send sub update
+          </SecondarySmallBtn>
         </div>
       </div>
 
@@ -4350,6 +4526,98 @@ const matchDayChecklistTop: CSSProperties = {
 }
 
 const matchDayActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const matchDaySubBoardShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const matchDaySubBoardHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchDaySubBoardGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 300px), 1.1fr)',
+  gap: 12,
+  minWidth: 0,
+}
+
+const matchDaySubPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const matchDaySubList: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchDaySubCard: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchDaySubCandidateCard: CSSProperties = {
+  ...matchDaySubCard,
+  borderColor: 'rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+}
+
+const matchDaySubCandidateTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchDaySubCandidateName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.25,
+  fontWeight: 950,
+}
+
+const matchDaySubCandidateFit: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const matchDaySubActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
