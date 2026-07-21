@@ -1337,6 +1337,14 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : commandCenterGrid.gridTemplateColumns,
   }
 
+  const dynamicCommandCenterCard: CSSProperties = {
+    ...commandCenterCard,
+    gap: isMobile ? 12 : commandCenterCard.gap,
+    minHeight: isMobile ? 0 : commandCenterCard.minHeight,
+    padding: isMobile ? 14 : commandCenterCard.padding,
+    borderRadius: isMobile ? 18 : commandCenterCard.borderRadius,
+  }
+
   const dynamicCaptainDecisionPathShell: CSSProperties = {
     ...captainDecisionPathShellStyle,
     gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
@@ -1733,6 +1741,29 @@ function CaptainHubContent() {
     stage: 'brief' as CaptainResumeStage,
   }
 
+  const captainCommandSnapshots = [
+    {
+      label: 'Match',
+      value: weekAtGlance.eventDateLabel,
+      detail: weekAtGlance.opponentLabel,
+    },
+    {
+      label: 'Scope',
+      value: selectedTeam || 'Choose team',
+      detail: weekAtGlance.scopeLabel,
+    },
+    {
+      label: 'Readiness',
+      value: `${captainReadinessScore}%`,
+      detail: `${captainReadinessCompleteCount} of ${captainReadinessChecks.length} checks ready`,
+    },
+    {
+      label: 'Next',
+      value: captainPrimaryAction.cta,
+      detail: captainPrimaryAction.title,
+    },
+  ]
+
   const captainDecisionPath = useMemo<CaptainDecisionPath[]>(() => [
     {
       label: 'Availability',
@@ -1913,18 +1944,45 @@ function CaptainHubContent() {
   }
 
   const captainCommandCenter = (
-    <section style={dynamicCommandCenterShell}>
+    <section style={dynamicCommandCenterShell} aria-label="Captain week command center">
       <div style={commandCenterHeader}>
         <div>
-          <div style={sectionKicker}>Team hub</div>
-          <h2 style={sectionTitle}>Run match week from four moves.</h2>
+          <div style={sectionKicker}>Captain week command center</div>
+          <h2 style={sectionTitle}>{isMobile ? "Make this week's call." : "Make this week's call from one lane."}</h2>
         </div>
-        <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
-          {workspaceState.lastUpdatedLabel}
+        <span style={captainReadinessScore >= 80 ? badgeGreen : captainReadinessScore >= 40 ? badgeBlue : warnBadge}>
+          {captainReadinessScore}% ready
         </span>
       </div>
       <div style={sectionSub}>
-        Start with who can play, choose the lineup, check the pairings, and send the team plan from one lane.
+        Start with who can play, choose the lineup, check the pairings, and send the team plan without leaving the match-week lane.
+      </div>
+
+      <div style={commandCenterSnapshotGrid} aria-label="Captain week snapshot">
+        {captainCommandSnapshots.map((item) => (
+          <div key={item.label} style={commandCenterSnapshotCard}>
+            <span style={commandCenterSnapshotLabel}>{item.label}</span>
+            <strong style={commandCenterSnapshotValue}>{item.value}</strong>
+            <span style={commandCenterSnapshotDetail}>{item.detail}</span>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={commandCenterReadinessShell}
+        role="progressbar"
+        aria-label="Captain week readiness"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={captainReadinessScore}
+      >
+        <div style={commandCenterReadinessTop}>
+          <span>Ready for match day</span>
+          <strong>{captainReadinessCompleteCount}/{captainReadinessChecks.length}</strong>
+        </div>
+        <div style={commandCenterReadinessTrack}>
+          <span style={{ ...commandCenterReadinessFill, width: `${captainReadinessScore}%` }} />
+        </div>
       </div>
 
       <div style={dynamicCommandCenterGrid}>
@@ -1936,7 +1994,7 @@ function CaptainHubContent() {
             <article
               key={step.label}
               style={{
-                ...commandCenterCard,
+                ...dynamicCommandCenterCard,
                 ...(step.tone === 'good'
                   ? commandCenterCardGood
                   : step.tone === 'warn'
@@ -1964,6 +2022,7 @@ function CaptainHubContent() {
 
               <div style={commandCenterActionRow}>
                 <PrimarySmallBtn
+                  fullWidth={isMobile}
                   disabled={locked}
                   onClick={() => {
                     if (locked) return
@@ -2123,6 +2182,8 @@ function CaptainHubContent() {
           </div>
         </section>
 
+        {captainCommandCenter}
+
         <section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">
           <div style={captainDecisionPathHeaderStyle}>
             <div>
@@ -2252,19 +2313,6 @@ function CaptainHubContent() {
             tone={workspaceState.briefReady ? 'good' : 'info'}
           />
         </section>
-
-        {isMobile ? (
-          <details style={mobileCommandCenterDetailsStyle}>
-            <summary style={mobileCommandCenterSummaryStyle}>
-              <span>
-                <span style={sectionKicker}>More captain paths</span>
-                <span style={optionalSummaryTitle}>Lineup, message, and league shortcuts</span>
-              </span>
-              <span style={badgeSlate}>Open</span>
-            </summary>
-            {captainCommandCenter}
-          </details>
-        ) : captainCommandCenter}
 
         <details style={dynamicCaptainSaveStatusShell} aria-label="Captain save status">
           <summary style={captainSaveStatusSummaryStyle}>
@@ -3784,21 +3832,101 @@ const commandCenterHeader: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const commandCenterSnapshotGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const commandCenterSnapshotCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const commandCenterSnapshotLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const commandCenterSnapshotValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 950,
+}
+
+const commandCenterSnapshotDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
+}
+
+const commandCenterReadinessShell: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(163,230,53,0.18)',
+  background: 'rgba(163,230,53,0.07)',
+}
+
+const commandCenterReadinessTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const commandCenterReadinessTrack: CSSProperties = {
+  position: 'relative',
+  height: 8,
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.1)',
+}
+
+const commandCenterReadinessFill: CSSProperties = {
+  display: 'block',
+  height: '100%',
+  minWidth: 8,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-lime))',
+}
+
 const commandCenterGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
+  minWidth: 0,
 }
 
 const commandCenterCard: CSSProperties = {
   display: 'grid',
   alignContent: 'space-between',
   gap: 14,
+  minWidth: 0,
   minHeight: 230,
   padding: 16,
   borderRadius: 20,
   border: '1px solid rgba(125,211,252,0.16)',
   background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
 }
 
 const commandCenterCardGood: CSSProperties = {
@@ -3859,6 +3987,7 @@ const commandCenterActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const nextActionShell: CSSProperties = {
@@ -4207,22 +4336,6 @@ const optionalSummaryStyle: CSSProperties = {
 const weeklyDetailsSummaryStyle: CSSProperties = {
   ...optionalSummaryStyle,
   marginBottom: 0,
-}
-
-const mobileCommandCenterDetailsStyle: CSSProperties = {
-  ...sectionCard,
-  gap: 12,
-  padding: 14,
-  borderRadius: 18,
-  minWidth: 0,
-  overflow: 'hidden',
-}
-
-const mobileCommandCenterSummaryStyle: CSSProperties = {
-  ...optionalSummaryStyle,
-  gap: 10,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
 }
 
 const optionalSummaryTitle: CSSProperties = {
