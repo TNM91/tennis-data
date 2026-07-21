@@ -1800,30 +1800,6 @@ const surfaceCard: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamStartGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-  marginTop: 16,
-}
-
-const teamStartActionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minHeight: 112,
-  padding: 15,
-  borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'var(--foreground-strong)',
-  textAlign: 'left',
-  cursor: 'pointer',
-  font: 'inherit',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
 const emptyTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '22px',

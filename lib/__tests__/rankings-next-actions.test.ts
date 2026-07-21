@@ -74,7 +74,7 @@ describe('rankings next actions', () => {
     expect(source).toContain('compactRankingCardDenseStyle')
     expect(source).toContain('compactRankingTopDenseStyle')
     expect(source).toContain('compactRatingStackDenseStyle')
-    expect(source).toContain('compactSignalRowDenseStyle')
+    expect(source).toContain('compactSignalRowStyle')
   })
 
   it('keeps closed ranking drawers out of measured layout', () => {

@@ -319,7 +319,7 @@ function JoinContent() {
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
-            <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
+            <form onSubmit={handleSubmit} noValidate style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>Create Free access</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
               <div style={identityCueStyle}>

@@ -2888,12 +2888,6 @@ const compactSignalRowStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const compactSignalRowDenseStyle: CSSProperties = {
-  ...compactSignalRowStyle,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: '6px',
-}
-
 const compactBottomGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',

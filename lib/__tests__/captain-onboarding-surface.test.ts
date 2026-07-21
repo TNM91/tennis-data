@@ -128,6 +128,8 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('aria-label="Captain mobile unlock actions"')
     expect(source).toContain("const captainUnlockHref = getPlanUnlockHref('captain')")
     expect(source).toContain('summaryOnly={isMobile}')
+    expect(source).toContain("router.replace('/login?plan=captain&next=%2Fcaptain')")
+    expect(source).not.toContain("router.replace('/login?next=/captain')")
     expect(styleBlock('captainPreviewMobileActionRowStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(styleBlock('captainPreviewMobilePrimaryActionStyle')).toContain('minHeight: 38')
     expect(styleBlock('captainPreviewMobilePrimaryActionStyle')).toContain("overflowWrap: 'anywhere'")

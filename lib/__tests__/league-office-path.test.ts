@@ -9,7 +9,7 @@ describe('League Office desk', () => {
     expect(source).toContain('leagueDeskItems')
     expect(source).toContain('Today&apos;s league desk')
     expect(source).toContain('Run the season from the thing that needs attention.')
-    expect(source).toContain('Setup, approvals, results, and public proof stay separate enough to scan quickly.')
+    expect(source).toContain('Setup, participants, results, and public pages stay close when you need them.')
     expect(source).not.toContain('Start with the season question, then open the workspace that removes the most admin work.')
 
     expect(source).toContain("job: 'season_control'")
@@ -28,8 +28,8 @@ describe('League Office desk', () => {
   })
 
   it('keeps the desk tappable and measurable on mobile', () => {
-    expect(source).toContain('gridTemplateColumns: \'repeat(auto-fit, minmax(min(100%, 230px), 1fr))\'')
-    expect(source).toContain('gridTemplateColumns: \'38px minmax(0, 1fr)\'')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))'")
+    expect(source).toContain("gridTemplateColumns: '38px minmax(0, 1fr)'")
     expect(source).toContain('data-league-desk-job={path.job}')
     expect(source).toContain('aria-label={`${path.cta}: ${path.title}`}')
     expect(source).toContain('leaguePathMarkerStyle')

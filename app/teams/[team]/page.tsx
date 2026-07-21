@@ -2182,45 +2182,6 @@ function GhostLink({ href, children }: { href: string; children: React.ReactNode
   )
 }
 
-function CaptainListCard({
-  href,
-  question,
-  title,
-  description,
-  cta,
-  job,
-}: {
-  href: string
-  question: string
-  title: string
-  description: string
-  cta: string
-  job: string
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <Link
-      href={href}
-      aria-label={`${cta}: ${question}`}
-      data-team-week-job={job}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...listLinkCard,
-        borderColor: hovered ? 'rgba(116,190,255,0.20)' : 'rgba(255,255,255,0.08)',
-        background: hovered ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        transition: 'all 150ms ease',
-      }}
-    >
-      <span style={teamWeekActionQuestionStyle}>{question}</span>
-      <strong style={{ color: hovered ? '#f8fbff' : '#f0f6ff' }}>{title}</strong>
-      <span style={{ color: 'rgba(214,228,246,0.70)', fontSize: '14px' }}>{description}</span>
-      <span style={teamWeekActionCtaStyle}>{cta}</span>
-    </Link>
-  )
-}
-
 function MetricCard({
   label,
   value,
@@ -2625,13 +2586,6 @@ const teamWeekActionTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
-  overflowWrap: 'anywhere',
-}
-
-const teamWeekActionCtaStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 900,
   overflowWrap: 'anywhere',
 }
 
@@ -3274,19 +3228,6 @@ const tableToggleButtonStyle: CSSProperties = {
   background: 'rgba(15, 23, 42, 0.72)',
   color: 'var(--foreground-strong)',
   whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const listLinkCard: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  textDecoration: 'none',
-  color: 'var(--foreground)',
-  padding: '16px',
-  borderRadius: '18px',
-  border: '1px solid rgba(125, 211, 252, 0.16)',
-  background: 'rgba(15, 23, 42, 0.62)',
-  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 

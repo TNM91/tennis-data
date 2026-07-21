@@ -243,7 +243,7 @@ function LineupProjectionContent() {
     if (!authResolved || role !== 'public') {
       return
     }
-    router.replace('/login?next=/captain/lineup-projection')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Flineup-projection')
   }, [authResolved, role, router])
 
   useEffect(() => {

@@ -15,7 +15,7 @@ describe('Team Hub metadata language', () => {
     expect(adSlotSource).toContain('player tools and Team Hub')
     expect(adSlotSource).not.toContain('Captain workspaces')
 
-    expect(scenarioBuilderSource).toContain('Team Hub workflow')
+    expect(scenarioBuilderSource).toContain('Team Hub path')
     expect(scenarioBuilderSource).not.toContain('Captain workflow')
   })
 })
