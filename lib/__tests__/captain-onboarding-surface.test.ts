@@ -181,12 +181,27 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Send final note')
     expect(source).toContain('Follow up gaps')
     expect(source).toContain('Upload scorecard')
+    expect(source).toContain('Captain post-match closeout')
+    expect(source).toContain('Post-match closeout')
+    expect(source).toContain('Close the match.')
+    expect(source).toContain('Close the match while it is fresh.')
+    expect(source).toContain('Scorecard trail')
+    expect(source).toContain('Closeout checks')
+    expect(source).toContain('Court results to capture')
+    expect(source).toContain('Send recap')
+    expect(source).toContain('Review team brief')
+    expect(source).toContain('Mark closed')
+    expect(source).toContain('postMatchCloseoutChecks')
+    expect(source).toContain('postMatchCloseoutRows')
     expect(source).toContain('matchDayChecklist')
     expect(source).toContain('matchDayLineupPreview')
     expect(source.indexOf('<section style={dynamicCommandCenterShell} aria-label="Captain week command center">')).toBeLessThan(
       source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">'),
     )
     expect(source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">')).toBeLessThan(
+      source.indexOf('<section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">'),
+    )
+    expect(source.indexOf('<section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">')).toBeLessThan(
       source.indexOf('<section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">'),
     )
     expect(source.indexOf('<section style={dynamicCommandCenterShell} aria-label="Captain week command center">')).toBeLessThan(
@@ -225,6 +240,18 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('matchDaySubCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('matchDaySubCandidateTop')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('matchDaySubActionRow')).toContain("flexWrap: 'wrap'")
+    expect(source).toContain('const dynamicPostMatchCloseoutShell: CSSProperties')
+    expect(source).toContain('const dynamicPostMatchCloseoutGrid: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : postMatchCloseoutGrid.gridTemplateColumns")
+    expect(styleBlock('postMatchCloseoutShell')).toContain('minWidth: 0')
+    expect(styleBlock('postMatchCloseoutGrid')).toContain('minmax(min(100%, 300px), 0.86fr)')
+    expect(styleBlock('postMatchCloseoutMain')).toContain('minWidth: 0')
+    expect(styleBlock('postMatchCourtList')).toContain('minWidth: 0')
+    expect(styleBlock('postMatchCourtCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('postMatchCloseoutChecklist')).toContain('minWidth: 0')
+    expect(styleBlock('postMatchCloseoutItem')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('postMatchCloseoutTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('postMatchActionRow')).toContain("flexWrap: 'wrap'")
     expect(source).toContain("{isMobile ? 'What saves here?' : 'Know what carries forward.'}")
     expect(source).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : statusStrip.gridTemplateColumns")
     expect(styleBlock('captainDecisionPathCardStyle')).toContain('minWidth: 0')

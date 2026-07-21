@@ -363,6 +363,13 @@ type CaptainSubCandidate = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainCloseoutCheck = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1401,6 +1408,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySubBoardGrid.gridTemplateColumns,
   }
 
+  const dynamicPostMatchCloseoutShell: CSSProperties = {
+    ...postMatchCloseoutShell,
+    gap: isMobile ? 12 : postMatchCloseoutShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : postMatchCloseoutShell.padding,
+    borderRadius: isMobile ? 20 : postMatchCloseoutShell.borderRadius,
+  }
+
+  const dynamicPostMatchCloseoutGrid: CSSProperties = {
+    ...postMatchCloseoutGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : postMatchCloseoutGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainDecisionPathShell: CSSProperties = {
     ...captainDecisionPathShellStyle,
     gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
@@ -1809,6 +1828,51 @@ function CaptainHubContent() {
         }
       })
   }, [isMobile, matchDayLineupPlayerKeys, roster])
+
+  const postMatchCloseoutRows = matchDayLineupRows.slice(0, isMobile ? 2 : 3)
+  const postMatchUploadedState = selectedFromCaptainScope ? 'Refresh data' : 'Upload needed'
+  const postMatchClosed = weekStatus === 'finalized'
+  const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
+    {
+      label: 'Scores',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Lineup needed',
+      detail: workspaceState.lineupReady
+        ? 'Use the saved courts as your scorecard checklist.'
+        : 'Save courts first so the scorecard has a match map.',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Scorecard',
+      state: postMatchUploadedState,
+      detail: selectedFromCaptainScope
+        ? 'Upload the scorecard when the reviewed result should update Team Hub.'
+        : 'Send the scorecard through Data Assist after the match.',
+      tone: selectedFromCaptainScope ? 'info' : 'warn',
+    },
+    {
+      label: 'Recap',
+      state: workspaceState.messagingReady ? 'Ready' : 'Prep note',
+      detail: workspaceState.messagingReady
+        ? 'Arrival and lineup context can turn into a short team recap.'
+        : 'Add event details before sending the final team note.',
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+    {
+      label: 'Week status',
+      state: postMatchClosed ? 'Closed' : 'Open',
+      detail: postMatchClosed
+        ? 'This week is marked finalized in Captain.'
+        : 'Mark it closed after the result and scorecard are handled.',
+      tone: postMatchClosed ? 'good' : 'info',
+    },
+  ], [
+    postMatchClosed,
+    postMatchUploadedState,
+    selectedFromCaptainScope,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
@@ -2414,6 +2478,97 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainPostMatchCloseout = (
+    <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Post-match closeout</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Close the match.' : 'Close the match while it is fresh.'}</h2>
+        </div>
+        <span style={postMatchClosed ? badgeGreen : workspaceState.lineupReady ? badgeBlue : warnBadge}>
+          {postMatchClosed ? 'Closed' : workspaceState.lineupReady ? 'Ready after play' : 'Needs courts'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Capture the result, upload the scorecard, send the recap, and mark the week closed before details fade.
+      </div>
+
+      <div style={dynamicPostMatchCloseoutGrid}>
+        <div style={postMatchCloseoutMain}>
+          <div style={matchDaySheetTop}>
+            <div>
+              <div style={commandCenterLabel}>Scorecard trail</div>
+              <div style={matchDaySheetTitle}>{postMatchCloseoutRows.length ? 'Court results to capture' : 'No courts saved yet'}</div>
+            </div>
+            <span style={postMatchCloseoutRows.length ? badgeGreen : warnBadge}>
+              {postMatchCloseoutRows.length ? `${postMatchCloseoutRows.length} shown` : 'Draft'}
+            </span>
+          </div>
+
+          {postMatchCloseoutRows.length ? (
+            <div style={postMatchCourtList} aria-label="Post-match scorecard courts">
+              {postMatchCloseoutRows.map((row, index) => {
+                const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+                const playerLabel = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+
+                return (
+                  <article key={row.id || `${courtLabel}-closeout-${index}`} style={postMatchCourtCard}>
+                    <div style={matchDayCourtTop}>
+                      <span style={matchDayCourtLabel}>{courtLabel}</span>
+                      <span style={badgeSlate}>Add score</span>
+                    </div>
+                    <strong style={matchDayCourtPlayers}>{playerLabel}</strong>
+                  </article>
+                )
+              })}
+              {matchDayLineupRows.length > postMatchCloseoutRows.length ? (
+                <div style={matchDayMoreLineups}>
+                  +{matchDayLineupRows.length - postMatchCloseoutRows.length} more court{matchDayLineupRows.length - postMatchCloseoutRows.length === 1 ? '' : 's'} ready in Lineup Builder.
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div style={emptyLine}>
+              Build the lineup before match day so closeout starts with the courts already named.
+            </div>
+          )}
+        </div>
+
+        <div style={postMatchCloseoutChecklist}>
+          <div style={commandCenterLabel}>Closeout checks</div>
+          <div style={postMatchCloseoutList}>
+            {postMatchCloseoutChecks.map((item) => (
+              <div key={item.label} style={postMatchCloseoutItem}>
+                <div style={postMatchCloseoutTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={postMatchActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(dataAssistCaptainHref, 'team')}>
+          Upload scorecard
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Send recap
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(teamBriefHref, 'brief')}>
+          Review team brief
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || postMatchClosed} onClick={() => handleWeekStatusUpdate('finalized')}>
+          Mark closed
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
   return (
     <div style={pageWrap}>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
@@ -2560,6 +2715,8 @@ function CaptainHubContent() {
         {captainCommandCenter}
 
         {captainMatchDaySheet}
+
+        {captainPostMatchCloseout}
 
         <section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">
           <div style={captainDecisionPathHeaderStyle}>
@@ -4618,6 +4775,103 @@ const matchDaySubCandidateFit: CSSProperties = {
 }
 
 const matchDaySubActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const postMatchCloseoutShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(74,222,128,0.14)',
+  background: 'linear-gradient(135deg, rgba(74,222,128,0.08), rgba(8,13,28,0.74) 44%, rgba(20,31,50,0.82))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+  minWidth: 0,
+}
+
+const postMatchCloseoutGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 300px), 0.86fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const postMatchCloseoutMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const postMatchCourtList: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const postMatchCourtCard: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const postMatchCloseoutChecklist: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const postMatchCloseoutList: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const postMatchCloseoutItem: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const postMatchCloseoutTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const postMatchActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
