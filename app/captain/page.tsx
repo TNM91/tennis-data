@@ -248,6 +248,17 @@ type CaptainBenchReadinessItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainCourtSwapItem = {
+  id: string
+  courtLabel: string
+  outPlayer: string
+  inPlayer: string
+  keep: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -1557,6 +1568,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainBenchReadinessGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainCourtSwapShell: CSSProperties = {
+    ...captainCourtSwapShell,
+    gap: isMobile ? 12 : captainCourtSwapShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainCourtSwapShell.padding,
+    borderRadius: isMobile ? 20 : captainCourtSwapShell.borderRadius,
+  }
+
+  const dynamicCaptainCourtSwapGrid: CSSProperties = {
+    ...captainCourtSwapGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainCourtSwapGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2280,6 +2303,70 @@ function CaptainHubContent() {
   const captainBenchReadyCount = captainBenchReadinessItems.filter((item) => item.tone === 'good' || item.priority === 'First call').length
   const captainBenchWatchCount = captainBenchReadinessItems.filter((item) => item.tone === 'warn').length
   const captainBenchPrimaryItem = captainBenchReadinessItems.find((item) => item.priority === 'First call') ?? captainBenchReadinessItems[0]
+
+  const captainCourtSwapItems = useMemo<CaptainCourtSwapItem[]>(() => {
+    if (!matchDayLineupRows.length) {
+      return [
+        {
+          id: 'swap-lineup-needed',
+          courtLabel: 'No saved court',
+          outPlayer: 'Lineup needed',
+          inPlayer: 'Pick court first',
+          keep: 'No changes yet',
+          state: 'Build lineup',
+          detail: 'Save a court plan before swap options can stay tied to court order.',
+          tone: 'warn',
+        },
+      ]
+    }
+
+    const benchPool = captainBenchReadinessItems.filter((item) => item.id !== 'bench-empty')
+    const rankedRows = matchDayLineupRows
+      .map((row, index) => {
+        const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+        const confidence = captainCourtConfidenceItems.find((item) => item.label === courtLabel)
+        const score = confidence?.tone === 'warn' ? 0 : confidence?.tone === 'info' ? 1 : 2
+        return { row, index, courtLabel, confidence, score }
+      })
+      .sort((a, b) => a.score - b.score || a.index - b.index)
+      .slice(0, isMobile ? 2 : 3)
+
+    return rankedRows.map(({ row, index, courtLabel, confidence }, swapIndex) => {
+      const players = (row.players ?? []).map((name) => safeText(name)).filter(Boolean)
+      const expectedPlayers = safeText(row.slot_type).toLowerCase().includes('single') ? 1 : 2
+      const hasOpenSlot = players.length < expectedPlayers
+      const bench = benchPool[swapIndex] ?? null
+      const outPlayer = hasOpenSlot ? 'Open slot' : safeText(players[players.length - 1], 'Player to confirm')
+      const keepPlayers = hasOpenSlot
+        ? players.join(' / ')
+        : players.filter((name) => name !== outPlayer).join(' / ')
+      const keep = safeText(keepPlayers, hasOpenSlot ? 'Court shell' : 'Court order')
+      const inPlayer = bench?.name ?? 'Bench call needed'
+      const state = confidence?.tone === 'warn'
+        ? 'Needs cover'
+        : confidence?.tone === 'info'
+          ? 'Watch move'
+          : 'Stable option'
+
+      return {
+        id: row.id || `${courtLabel}-${index}`,
+        courtLabel,
+        outPlayer,
+        inPlayer,
+        keep,
+        state,
+        detail: bench
+          ? hasOpenSlot
+            ? `Fill ${courtLabel} with ${bench.name} and keep ${keep} untouched.`
+            : `Swap ${bench.name} for ${outPlayer}; keep ${keep} unchanged.`
+          : 'Mark the unavailable player, then add an off-court roster option before moving this court.',
+        tone: confidence?.tone === 'warn' ? 'warn' : confidence?.tone === 'info' ? 'info' : 'good',
+      }
+    })
+  }, [captainBenchReadinessItems, captainCourtConfidenceItems, isMobile, matchDayLineupRows])
+  const captainCourtSwapNeedsCount = captainCourtSwapItems.filter((item) => item.tone === 'warn').length
+  const captainCourtSwapStableCount = captainCourtSwapItems.filter((item) => item.tone === 'good').length
+  const captainCourtSwapPrimaryItem = captainCourtSwapItems[0]
 
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
@@ -3021,6 +3108,90 @@ function CaptainHubContent() {
         </SecondarySmallBtn>
         <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
           Review lineup
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
+  const captainCourtSwapAssistant = (
+    <section style={dynamicCaptainCourtSwapShell} aria-label="Captain court swap assistant">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Court swap assistant</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Swap without guessing.' : 'Swap a player without rebuilding every court.'}</h2>
+        </div>
+        <span style={captainCourtSwapNeedsCount > 0 ? warnBadge : workspaceState.lineupReady ? badgeGreen : badgeBlue}>
+          {captainCourtSwapNeedsCount > 0 ? `${captainCourtSwapNeedsCount} move` : workspaceState.lineupReady ? 'Plan stable' : 'Build lineup'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        See the court to protect, the bench call to make, and what should stay untouched before you text changes.
+      </div>
+
+      <div style={dynamicCaptainCourtSwapGrid}>
+        <div style={captainCourtSwapLead}>
+          <div style={captainCourtSwapTop}>
+            <div>
+              <div style={commandCenterLabel}>Least disruption move</div>
+              <div style={captainCourtSwapCourt}>{captainCourtSwapPrimaryItem.courtLabel}</div>
+            </div>
+            <span style={captainCourtSwapPrimaryItem.tone === 'good' ? badgeGreen : captainCourtSwapPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainCourtSwapPrimaryItem.state}
+            </span>
+          </div>
+          <div style={captainCourtSwapSignalGrid}>
+            <div style={captainCourtSwapSignalCard}>
+              <span style={commandCenterSnapshotLabel}>Replace</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtSwapPrimaryItem.outPlayer}</strong>
+            </div>
+            <div style={captainCourtSwapSignalCard}>
+              <span style={commandCenterSnapshotLabel}>Use</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtSwapPrimaryItem.inPlayer}</strong>
+            </div>
+            <div style={captainCourtSwapSignalCard}>
+              <span style={commandCenterSnapshotLabel}>Keep</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtSwapPrimaryItem.keep}</strong>
+            </div>
+          </div>
+          <p style={captainCourtSwapDetail}>{captainCourtSwapPrimaryItem.detail}</p>
+        </div>
+
+        <div style={captainCourtSwapListPanel}>
+          <div style={captainCourtSwapListHeader}>
+            <div style={commandCenterLabel}>Swap options</div>
+            <span style={captainCourtSwapStableCount > 0 ? badgeGreen : badgeBlue}>
+              {captainCourtSwapStableCount > 0 ? `${captainCourtSwapStableCount} stable` : 'Review'}
+            </span>
+          </div>
+          <div style={captainCourtSwapList}>
+            {captainCourtSwapItems.map((item) => (
+              <article key={item.id} style={captainCourtSwapCard}>
+                <div style={captainCourtSwapCardTop}>
+                  <strong>{item.courtLabel}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <div style={captainCourtSwapMeta}>
+                  <span>{item.outPlayer}</span>
+                  <span>{item.inPlayer}</span>
+                </div>
+                <span>{item.detail}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={captainCourtSwapActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Message change
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Adjust lineup
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(levelUpAvailabilityHref, 'availability')}>
+          Check replies
         </SecondarySmallBtn>
       </div>
     </section>
@@ -3784,6 +3955,8 @@ function CaptainHubContent() {
         {captainCourtConfidenceMeter}
 
         {captainBenchReadinessRail}
+
+        {captainCourtSwapAssistant}
 
         {captainMatchDaySheet}
 
@@ -6354,6 +6527,155 @@ const captainBenchReadinessMeta: CSSProperties = {
 }
 
 const captainBenchReadinessActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtSwapShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.09), rgba(8,13,28,0.76) 44%, rgba(22,28,44,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const captainCourtSwapGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 320px), 1.1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainCourtSwapLead: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtSwapCourt: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapSignalGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtSwapSignalCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapListPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapListHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtSwapList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 205px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtSwapCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtSwapCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainCourtSwapMeta: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const captainCourtSwapActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
