@@ -238,6 +238,16 @@ type CaptainCourtConfidenceItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainBenchReadinessItem = {
+  id: string
+  name: string
+  fit: string
+  signal: string
+  detail: string
+  priority: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -1535,6 +1545,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCourtConfidenceGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainBenchReadinessShell: CSSProperties = {
+    ...captainBenchReadinessShell,
+    gap: isMobile ? 12 : captainBenchReadinessShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainBenchReadinessShell.padding,
+    borderRadius: isMobile ? 20 : captainBenchReadinessShell.borderRadius,
+  }
+
+  const dynamicCaptainBenchReadinessGrid: CSSProperties = {
+    ...captainBenchReadinessGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainBenchReadinessGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2222,6 +2244,43 @@ function CaptainHubContent() {
     ? Math.round((captainCourtSolidCount / captainCourtConfidenceItems.length) * 100)
     : 0
 
+  const captainBenchReadinessItems = useMemo<CaptainBenchReadinessItem[]>(() => {
+    if (!matchDaySubCandidates.length) {
+      return [
+        {
+          id: 'bench-empty',
+          name: roster.length ? 'Bench covered' : 'Roster needed',
+          fit: roster.length ? 'No off-court players in this view' : 'Add roster context',
+          signal: roster.length ? 'Check lineup' : 'No roster',
+          detail: roster.length
+            ? 'Every visible roster player is already on the saved courts. Review the lineup before calling backups.'
+            : 'Load a team roster before bench readiness can rank backup calls.',
+          priority: roster.length ? 'Review' : 'Start',
+          tone: 'info',
+        },
+      ]
+    }
+
+    return matchDaySubCandidates.map((candidate, index) => ({
+      id: candidate.id || `${candidate.name}-${index}`,
+      name: candidate.name,
+      fit: candidate.fit,
+      signal: candidate.signal,
+      detail: candidate.detail,
+      priority: index === 0
+        ? 'First call'
+        : candidate.tone === 'warn'
+          ? 'Use carefully'
+          : candidate.tone === 'good'
+            ? 'Strong cover'
+            : 'Bench option',
+      tone: candidate.tone,
+    }))
+  }, [matchDaySubCandidates, roster.length])
+  const captainBenchReadyCount = captainBenchReadinessItems.filter((item) => item.tone === 'good' || item.priority === 'First call').length
+  const captainBenchWatchCount = captainBenchReadinessItems.filter((item) => item.tone === 'warn').length
+  const captainBenchPrimaryItem = captainBenchReadinessItems.find((item) => item.priority === 'First call') ?? captainBenchReadinessItems[0]
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -2887,6 +2946,81 @@ function CaptainHubContent() {
         </SecondarySmallBtn>
         <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
           Send final note
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
+  const captainBenchReadinessRail = (
+    <section style={dynamicCaptainBenchReadinessShell} aria-label="Captain bench readiness rail">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Bench readiness rail</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Know the next call.' : 'Know the next backup call before a court moves.'}</h2>
+        </div>
+        <span style={captainBenchWatchCount > 0 ? warnBadge : captainBenchReadyCount > 0 ? badgeGreen : badgeBlue}>
+          {captainBenchWatchCount > 0 ? `${captainBenchWatchCount} watch` : `${captainBenchReadinessItems.length} ready`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Rank backup options by singles or doubles fit, rating signal, and recent match history before the warm-up scramble.
+      </div>
+
+      <div style={dynamicCaptainBenchReadinessGrid}>
+        <div style={captainBenchReadinessLead}>
+          <div style={captainBenchReadinessTop}>
+            <div>
+              <div style={commandCenterLabel}>Best bench read</div>
+              <div style={captainBenchReadinessName}>{captainBenchPrimaryItem.name}</div>
+            </div>
+            <span style={captainBenchPrimaryItem.tone === 'good' ? badgeGreen : captainBenchPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainBenchPrimaryItem.priority}
+            </span>
+          </div>
+          <div style={captainBenchReadinessSignalGrid}>
+            <div style={captainBenchReadinessSignalCard}>
+              <span style={commandCenterSnapshotLabel}>Fit</span>
+              <strong style={commandCenterSnapshotValue}>{captainBenchPrimaryItem.fit}</strong>
+            </div>
+            <div style={captainBenchReadinessSignalCard}>
+              <span style={commandCenterSnapshotLabel}>Signal</span>
+              <strong style={commandCenterSnapshotValue}>{captainBenchPrimaryItem.signal}</strong>
+            </div>
+          </div>
+          <p style={captainBenchReadinessDetail}>{captainBenchPrimaryItem.detail}</p>
+        </div>
+
+        <div style={captainBenchReadinessListPanel}>
+          <div style={commandCenterLabel}>Backup calls</div>
+          <div style={captainBenchReadinessList}>
+            {captainBenchReadinessItems.map((item) => (
+              <article key={item.id} style={captainBenchReadinessCard}>
+                <div style={captainBenchReadinessCardTop}>
+                  <strong>{item.name}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.signal}
+                  </span>
+                </div>
+                <div style={captainBenchReadinessMeta}>
+                  <span>{item.fit}</span>
+                  <span>{item.priority}</span>
+                </div>
+                <span>{item.detail}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={captainBenchReadinessActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Message bench
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(levelUpAvailabilityHref, 'availability')}>
+          Check availability
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Review lineup
         </SecondarySmallBtn>
       </div>
     </section>
@@ -3648,6 +3782,8 @@ function CaptainHubContent() {
         {captainWeekTimeline}
 
         {captainCourtConfidenceMeter}
+
+        {captainBenchReadinessRail}
 
         {captainMatchDaySheet}
 
@@ -6078,6 +6214,146 @@ const captainCourtConfidencePlayers: CSSProperties = {
 }
 
 const captainCourtConfidenceActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainBenchReadinessShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(34,211,238,0.16)',
+  background: 'linear-gradient(135deg, rgba(34,211,238,0.075), rgba(8,13,28,0.76) 44%, rgba(20,32,54,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const captainBenchReadinessGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.8fr) minmax(min(100%, 340px), 1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainBenchReadinessLead: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainBenchReadinessName: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessSignalGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainBenchReadinessSignalCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessListPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainBenchReadinessCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainBenchReadinessCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainBenchReadinessMeta: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const captainBenchReadinessActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
