@@ -196,7 +196,7 @@ describe('video review product model', () => {
 
     expect(buildVideoReviewHandoffHref('clip-1', 'coach')).toBe('/video-review?mode=coach&clip=clip-1')
     expect(sent.recipientRole).toBe('coach')
-    expect(sent.body).toContain('Player A sent Deuce court serve')
+    expect(sent.body).toContain('Player A shared Deuce court serve')
     expect(returned.recipientRole).toBe('player')
     expect(returned.body).toContain('Watch Mark 1 and the practice plan.')
     expect(returnedWithoutMarks.body).toContain('Read the practice plan.')
@@ -383,7 +383,7 @@ describe('video review product model', () => {
       ],
     }, 'player')
 
-    expect(coachText).toContain('Player A sent Serve review for serve review.')
+    expect(coachText).toContain('Player A shared Serve review for serve review.')
     expect(coachText).toContain('import this review file')
     expect(playerText).toContain('Coach B returned feedback on Serve review.')
     expect(playerText).toContain('watch Mark 1 and the practice plan')
@@ -392,8 +392,8 @@ describe('video review product model', () => {
   })
 
   it('builds role-specific package export next steps', () => {
-    expect(buildVideoReviewPackageExportMessage('coach')).toBe('Review file downloaded. Send it to the coach.')
-    expect(buildVideoReviewPackageExportMessage('player')).toBe('Review file downloaded. Send it to the player.')
+    expect(buildVideoReviewPackageExportMessage('coach')).toBe('Review file downloaded. Share it with the coach.')
+    expect(buildVideoReviewPackageExportMessage('player')).toBe('Review file downloaded. Share it with the player.')
   })
 
   it('builds a clear local delete confirmation', () => {
@@ -483,6 +483,7 @@ describe('video review product model', () => {
   it('filters the local video library by role, status, stroke, and search text', () => {
     const clips: VideoReviewClip[] = [
       { ...baseClip, id: 'draft-1', title: 'Private serve draft' },
+      { ...baseClip, id: 'coach-draft-1', title: 'Guest player draft', ownerRole: 'coach', playerLinkTarget: 'guest' },
       { ...baseClip, id: 'sent-1', title: 'Forehand shape', stroke: 'forehand', status: 'sent', playerNote: 'Racket path check' },
       { ...baseClip, id: 'reviewed-1', title: 'Return split', stroke: 'return', status: 'reviewed', coachSummary: 'Earlier split step' },
     ]
@@ -492,7 +493,7 @@ describe('video review product model', () => {
       query: '',
       status: 'all',
       stroke: 'all',
-    }).map((clip) => clip.id)).toEqual(['sent-1', 'reviewed-1'])
+    }).map((clip) => clip.id)).toEqual(['coach-draft-1', 'sent-1', 'reviewed-1'])
 
     expect(filterVideoReviewClips(clips, {
       role: 'player',
@@ -686,7 +687,7 @@ describe('video review product model', () => {
   })
 
   it('keeps reviewed clips reviewed when coach marks are added later', () => {
-    expect(getVideoReviewAnnotationSaveStatus({ status: 'draft' })).toBe('sent')
+    expect(getVideoReviewAnnotationSaveStatus({ status: 'draft' })).toBe('draft')
     expect(getVideoReviewAnnotationSaveStatus({ status: 'sent' })).toBe('sent')
     expect(getVideoReviewAnnotationSaveStatus({ status: 'reviewed' })).toBe('reviewed')
   })

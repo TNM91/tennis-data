@@ -597,7 +597,7 @@ function ScenarioComparisonContent() {
 
   return (
     <section style={pageContentStyle}>
-         <CaptainSuitePanel active="scenario" teamLabel={teamFilter || 'Team week'} />
+         {!isMobile ? <CaptainSuitePanel active="scenario" teamLabel={teamFilter || 'Team week'} /> : null}
          <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Scenario controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div>
@@ -862,7 +862,7 @@ function ScenarioComparisonContent() {
                         <div style={changeDigestTextStyle}>
                           {yourComparison.changedCount === 0
                             ? 'Both saved versions use the same lineup on your side.'
-                            : 'These are the internal lineup shifts driving the difference between your compared versions.'}
+                            : 'These are the lineup shifts driving the difference between your compared versions.'}
                         </div>
                       </div>
 
@@ -1005,13 +1005,13 @@ function ScenarioComparisonContent() {
                       </div>
 
                       <div style={takeawayCardStyle}>
-                        <div style={takeawayLabelStyle}>Biggest internal change</div>
+                        <div style={takeawayLabelStyle}>Biggest lineup change</div>
                         <div style={takeawayValueStyle}>
                           {yourComparison.biggestSwing?.label || 'No major lineup swing'}
                         </div>
                         <div style={takeawayTextStyle}>
                           {yourComparison.biggestSwing
-                            ? 'This lineup slot creates the largest internal difference between your compared versions.'
+                            ? 'This lineup slot creates the largest difference between your compared versions.'
                             : 'The compared lineups are currently very similar across your own side.'}
                         </div>
                       </div>
@@ -1076,7 +1076,7 @@ function ScenarioComparisonContent() {
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
-                        <p style={sectionKicker}>Finalize workflow</p>
+                        <p style={sectionKicker}>Finalize plan</p>
                         <h3 style={sectionTitleSmall}>Move from comparison to action</h3>
                       </div>
                       <span style={miniPillSlate}>
@@ -1115,7 +1115,7 @@ function ScenarioComparisonContent() {
                         <div style={finalizeLabelStyle}>Captain follow-through</div>
                         <div style={finalizeValueStyle}>Communicate the plan</div>
                         <div style={finalizeTextStyle}>
-                          Once you trust the winning scenario, carry it into your weekly messaging workflow so the team gets one clear version.
+                          Once you trust the winning scenario, carry it into weekly messaging so the team gets one clear version.
                         </div>
                       </div>
                     </div>
@@ -1313,7 +1313,7 @@ function ScenarioComparisonContent() {
                       </div>
 
                       <div style={scenarioCommandCardStyle}>
-                        <div style={scenarioCommandLabelStyle}>Team Hub workflow</div>
+                        <div style={scenarioCommandLabelStyle}>Team Hub path</div>
                         <div style={scenarioCommandValueStyle}>Compare {'->'} refine {'->'} send</div>
                         <div style={scenarioCommandTextStyle}>
                           Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.

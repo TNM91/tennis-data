@@ -62,7 +62,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain("action: 'read_player_id'")
   })
 
-  it('explains the review-first upload flow before users choose a file', () => {
+  it('keeps review-first details available after the upload tool', () => {
     expect(source).toContain('const dataAssistReviewFlow')
     expect(source).toContain('const dataAssistUploadStateProof')
     expect(source).toContain('DataAssistReviewFlowPanel')
@@ -87,13 +87,17 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('no public records change until the import check finishes')
     expect(source).not.toContain('refresh analytics across the platform')
     expect(source).not.toContain('ready without admin review')
+    expect(source.indexOf('<label style={dropzoneStyle')).toBeLessThan(source.indexOf('<DataAssistReviewFlowPanel />'))
+    expect(source.indexOf('<label style={dropzoneStyle')).toBeLessThan(source.indexOf('<DataAssistTrustEnginePanel />'))
   })
 
   it('gives upload visitors a plain source refresh path before the file picker', () => {
-    expect(source).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
     expect(source).toContain('const dataAssistSourcePathJobs')
     expect(source).toContain('DataAssistSourcePathPanel')
     expect(source).toContain('Source refresh path')
+    expect(source).toContain('Choose the source you want to fix or import.')
+    expect(source).toContain('Need help choosing the right source?')
+    expect(source).toContain('Show source choices')
     expect(source).toContain('Choose the tennis need first. Data Assist will keep the upload review-first before records change.')
     expect(source).toContain('What result should update first?')
     expect(source).toContain('Upload a scorecard')
@@ -107,6 +111,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('data-data-assist-source-path-job="report_or_review"')
     expect(source).toContain('onClick={() => onSelectImportType(job.id)}')
     expect(source).toContain("location: 'data_assist_source_path'")
+    expect(source.indexOf('<label style={dropzoneStyle')).toBeLessThan(source.indexOf('<DataAssistSourcePathPanel'))
   })
 
   it('keeps source refresh cards tappable on mobile', () => {

@@ -66,6 +66,13 @@ export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
     icon: 'messagingCenter',
   },
   {
+    title: 'Review court video',
+    detail: 'Open serve, stroke, and footwork clips with timestamped notes, lines, arrows, and circles.',
+    href: '/video-review?mode=coach',
+    cta: 'Open video queue',
+    icon: 'reports',
+  },
+  {
     title: 'Schedule next session',
     detail: 'Keep lesson date, site, focus, and follow-up together with the player workflow.',
     href: '/messages?compose=direct&subject=Next%20lesson%20schedule&body=Let%27s%20confirm%20the%20next%20lesson.%20Date%2Ftime%3A%20%20Site%3A%20%20Focus%3A%20',

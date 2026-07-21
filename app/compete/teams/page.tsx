@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
   CompeteCard,
@@ -11,11 +11,11 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import {
   listTiqTeamParticipations,
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
 
@@ -79,8 +79,8 @@ export default function CompeteTeamsPage() {
   return (
     <CompetePageFrame
       eyebrow="My Teams"
-      title="Team context, already in motion."
-      description="Entered TIQ seasons, roster links, and captain actions sit together."
+      title="Find the team move fast."
+      description="Open the team, refresh roster data, build a lineup, or send match history to the team book."
     >
       <CompeteTeamsContent />
     </CompetePageFrame>
@@ -160,80 +160,15 @@ function CompeteTeamsContent() {
   return (
     <>
       <TeamPathPanel />
-      <TeamPlayerIdPrepPanel />
-
-      <CompeteGrid>
-        <CompeteCard
-          href="/teams"
-          meta="Public map"
-          title="Team directory"
-          text="Open roster, standings, and team analytics."
-          icon="teamRankings"
-          action="Find team"
-        />
-        <CompeteCard
-          href="/league-coordinator/results"
-          meta="Scorebook"
-          title="Team book"
-          text="Record team match events, line scores, and standings-moving outcomes."
-          icon="reports"
-          action="Open book"
-        />
-        <CompeteCard
-          href="/captain/lineup-builder"
-          meta="Team handoff"
-          title="Build lineup"
-          text="Build from the team already in view."
-          icon="lineupBuilder"
-          action="Build lineup"
-        />
-        <CompeteCard
-          href="/compete/schedule"
-          meta="Shared calendar"
-          title="Match dates"
-          text="Keep team matches connected to the league calendar."
-          icon="schedule"
-          action="Open calendar"
-        />
-      </CompeteGrid>
-
-      {authResolved ? (
-        <div style={upgradeGridStyle}>
-          {!access.canUseCaptainWorkflow ? (
-            <UpgradePrompt
-              planId="captain"
-              compact
-              headline="Still moving from team context to lineups by hand?"
-              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging through Team Hub."
-              ctaLabel="Unlock Captain"
-              ctaHref="/pricing"
-              secondaryLabel="See Captain plan"
-              secondaryHref="/pricing"
-            />
-          ) : null}
-          {!access.canUseLeagueTools ? (
-            <UpgradePrompt
-              planId="league"
-              compact
-              headline="Running TIQ team seasons without a real organizer layer?"
-              body="League Office keeps season structure, standings, scheduling, and team coordination organized instead of scattered spreadsheet cleanup."
-              ctaLabel="Unlock League"
-              ctaHref="/pricing"
-              secondaryLabel="See league plan"
-              secondaryHref="/pricing"
-            />
-          ) : null}
-        </div>
-      ) : null}
 
       <section id="tiq-entered-teams" style={sectionStyle}>
-        <div style={sectionEyebrowStyle}>TIQ Entered Teams</div>
+        <div style={sectionEyebrowStyle}>Entered teams</div>
         <div style={sectionTextStyle}>
           {loading
-            ? 'Loading TIQ team participation...'
+            ? 'Loading team participation...'
             : groupedTeams.length > 0
-              ? 'These teams are already entered in TIQ competition and should act like living workflow objects, not isolated league labels.'
-              : 'Start with a team league, roster refresh, or public team lookup.'}
+              ? 'Open the team, check match history, or move straight into the lineup action.'
+              : 'Create a team league, refresh roster data, or find a public team.'}
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
@@ -302,38 +237,163 @@ function CompeteTeamsContent() {
           </div>
         )}
       </section>
+
+      <TeamToolsDisclosure>
+        <CompeteGrid>
+          <CompeteCard
+            href="/teams"
+            meta="Public map"
+            title="Team directory"
+            text="Open roster, standings, and team analytics."
+            icon="teamRankings"
+            action="Find team"
+          />
+          <CompeteCard
+            href="/league-coordinator/results"
+            meta="Scorebook"
+            title="Team book"
+            text="Record team match events, line scores, and standings-moving outcomes."
+            icon="reports"
+            action="Open book"
+          />
+          <CompeteCard
+            href="/captain/lineup-builder"
+            meta="Team handoff"
+            title="Build lineup"
+            text="Build from the team already in view."
+            icon="lineupBuilder"
+            action="Build lineup"
+          />
+          <CompeteCard
+            href="/compete/schedule"
+            meta="Shared calendar"
+            title="Match dates"
+            text="Keep team matches connected to the league calendar."
+            icon="schedule"
+            action="Open calendar"
+          />
+        </CompeteGrid>
+      </TeamToolsDisclosure>
+
+      <TeamSupportDisclosure>
+        <TeamPlayerIdPrepPanel />
+      </TeamSupportDisclosure>
+
+      {authResolved ? (
+        <TeamUpgradeDisclosure>
+          <div style={upgradeGridStyle}>
+            {!access.canUseCaptainWorkflow ? (
+              <UpgradePrompt
+                planId="captain"
+                compact
+                headline="Still moving from team context to lineups by hand?"
+                body="Unlock Captain to connect team context, availability, lineup building, and messaging through Team Hub."
+                ctaLabel="Unlock Captain"
+                ctaHref="/pricing"
+                secondaryLabel="See Captain plan"
+                secondaryHref="/pricing"
+              />
+            ) : null}
+            {!access.canUseLeagueTools ? (
+              <UpgradePrompt
+                planId="league"
+                compact
+                headline="Running TIQ team seasons without a real organizer layer?"
+                body="League Office keeps season structure, standings, scheduling, and team coordination organized instead of scattered spreadsheet cleanup."
+                ctaLabel="Unlock League"
+                ctaHref="/pricing"
+                secondaryLabel="See league plan"
+                secondaryHref="/pricing"
+              />
+            ) : null}
+          </div>
+        </TeamUpgradeDisclosure>
+      ) : null}
     </>
   )
 }
 
+function TeamSupportDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
+      <summary style={teamSupportSummaryStyle}>
+        <span style={teamSupportSummaryCopyStyle}>Use Player ID for this team read</span>
+        <span>Open</span>
+      </summary>
+      <div style={teamSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function TeamUpgradeDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
+      <summary style={teamSupportSummaryStyle}>
+        <span style={teamSupportSummaryCopyStyle}>Need Captain or League tools?</span>
+        <span>Open</span>
+      </summary>
+      <div style={teamSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function TeamToolsDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
+      <summary style={teamSupportSummaryStyle}>
+        <span style={teamSupportSummaryCopyStyle}>More team tools</span>
+        <span>Open</span>
+      </summary>
+      <div style={teamSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
 function TeamPathPanel() {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <section style={teamPathStyle} aria-labelledby="compete-team-path-title">
       <div style={teamPathHeaderStyle}>
         <div>
           <span style={teamPathEyebrowStyle}>Team path</span>
-          <h2 id="compete-team-path-title" style={teamPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <h2 id="compete-team-path-title" style={teamPathTitleStyle}>Choose what to do with a team</h2>
         </div>
-        <p style={teamPathIntroStyle}>
-          Start with the team need, then open the smallest action that turns context into a captain move.
+        <p style={{ ...teamPathIntroStyle, display: isMobile ? 'none' : undefined }}>
+          Pick the action that matches the team question in front of you.
         </p>
       </div>
-      <div style={teamPathGridStyle}>
+      <div style={{ ...teamPathGridStyle, gap: isMobile ? '8px' : teamPathGridStyle.gap }}>
         {teamPathActions.map((action) => (
           <Link
             key={action.job}
             href={action.href}
-            style={teamPathCardStyle}
+            style={{
+              ...teamPathCardStyle,
+              minHeight: isMobile ? 76 : teamPathCardStyle.minHeight,
+              padding: isMobile ? '10px' : teamPathCardStyle.padding,
+              borderRadius: isMobile ? '14px' : teamPathCardStyle.borderRadius,
+            }}
             data-compete-team-path-job={action.job}
             aria-label={`${action.cta}: ${action.question}`}
           >
             <span style={teamPathQuestionStyle}>{action.question}</span>
             <strong style={teamPathCardTitleStyle}>{action.title}</strong>
-            <span>{action.body}</span>
             <span style={teamPathCtaStyle}>{action.cta}</span>
           </Link>
         ))}
       </div>
+      <details className="competeDetailsSection" style={teamPathGuideStyle}>
+        <summary style={teamPathGuideSummaryStyle}>Help me choose</summary>
+        <div style={teamPathGuideGridStyle}>
+          {teamPathActions.map((action) => (
+            <div key={action.job} style={teamPathGuideItemStyle}>
+              <strong>{action.title}</strong>
+              <span>{action.body}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
@@ -375,7 +435,7 @@ function EmptyTeamsState() {
   return (
     <div style={emptyTeamsStyle}>
       <div style={emptyTeamsCopyStyle}>
-        <strong>Team workflow starts with one real team signal.</strong>
+        <strong>Team tools start with one real team signal.</strong>
         <span>Create a TIQ team league, upload a roster or scorecard through Data Assist, or find the team already in the public map.</span>
       </div>
       <div style={emptyTeamsActionRowStyle}>
@@ -418,6 +478,39 @@ const teamPathStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const teamSupportDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.62)',
+  boxShadow: '0 14px 36px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const teamSupportSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 48,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const teamSupportSummaryCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamSupportBodyStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
 const teamPathHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-end',
@@ -458,7 +551,7 @@ const teamPathIntroStyle: CSSProperties = {
 
 const teamPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -467,7 +560,7 @@ const teamPathCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   alignContent: 'start',
-  minHeight: 148,
+  minHeight: 92,
   minWidth: 0,
   padding: '12px',
   borderRadius: '16px',
@@ -499,6 +592,48 @@ const teamPathCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: '12px',
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathGuideStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(2,8,23,0.24)',
+  overflow: 'hidden',
+}
+
+const teamPathGuideSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 42,
+  padding: '0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathGuideGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
+const teamPathGuideItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
   overflowWrap: 'anywhere',
 }
 

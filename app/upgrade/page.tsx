@@ -99,6 +99,33 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
   full_court: 'Activate Full-Court when My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk all need to stay connected.',
 }
 
+const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }> = {
+  free: {
+    title: 'Open the tennis map.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas.',
+  },
+  player_plus: {
+    title: 'Unlock My Lab.',
+    body: 'Open My Lab, matchup prep, follows, Level Up work, and tennis messages.',
+  },
+  coach: {
+    title: 'Unlock Coach Hub.',
+    body: 'Plan lessons, assign drills, track proof, and keep player work moving.',
+  },
+  captain: {
+    title: 'Unlock Team Hub.',
+    body: 'Handle availability, lineups, scouting, and team updates for match week.',
+  },
+  league: {
+    title: 'Unlock League Office.',
+    body: 'Run players, teams, schedules, scores, standings, and corrections.',
+  },
+  full_court: {
+    title: 'Unlock Full-Court.',
+    body: 'Keep every tennis role open: player, coach, captain, league, and tournaments.',
+  },
+}
+
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   free: ['Open Find', 'Search public tennis context', 'Upgrade when you need more support'],
   player_plus: ['Create Free access', 'Activate Player', 'Open My Lab'],
@@ -201,6 +228,7 @@ function UpgradeContent({
   const pricingSnapshot = useMemo(() => buildUpgradePricingSnapshot(planId), [planId])
   const tier = getMembershipTier(planId)
   const copy = UNLOCK_COPY[planId]
+  const mobileCopy = MOBILE_UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
   const nextIntent = getUpgradeNextIntent(planId, nextHref)
@@ -599,17 +627,18 @@ function UpgradeContent({
           style={{
             ...heroStyle,
             gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.04fr) minmax(min(100%, 320px), 0.96fr)',
-            padding: isSmallMobile ? 18 : 26,
+            padding: isSmallMobile ? 16 : isMobile ? 18 : 26,
+            borderRadius: isMobile ? 22 : heroStyle.borderRadius,
           }}
         >
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
-            <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
+            <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
                 ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
-                : copy.body}
+                : isMobile ? mobileCopy.body : copy.body}
             </p>
 
             <div style={actionRowStyle}>
@@ -654,77 +683,57 @@ function UpgradeContent({
               <span style={labelStyle}>Result</span>
               <strong>{plan.outcome}</strong>
             </div>
-            <div style={metaGridStyle}>
-              <div style={metaCardStyle}>
-                <span style={labelStyle}>Best for</span>
-                <strong>{UPGRADE_JOB_FIT[planId]}</strong>
+            <details className="upgradeDetailsSection" style={planDetailStyle}>
+              <summary style={planDetailSummaryStyle}>
+                <span>{isMobile ? 'Plan details' : 'Show plan details'}</span>
+              </summary>
+              <div style={planDetailBodyStyle}>
+                <div style={metaGridStyle}>
+                  <div style={metaCardStyle}>
+                    <span style={labelStyle}>Best for</span>
+                    <strong>{UPGRADE_JOB_FIT[planId]}</strong>
+                  </div>
+                  <div style={metaCardStyle}>
+                    <span style={labelStyle}>Upgrade trigger</span>
+                    <strong>{tier.upgradeCue}</strong>
+                  </div>
+                </div>
+                <div style={valueListStyle}>
+                  {plan.valueProps.map((valueProp) => (
+                    <span key={valueProp} style={valuePillStyle}>{valueProp}</span>
+                  ))}
+                </div>
+                <div style={activationPathStyle}>
+                  <span style={labelStyle}>Activation path</span>
+                  <div
+                    style={{
+                      ...activationStepGridStyle,
+                      ...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null),
+                    }}
+                  >
+                    {ACTIVATION_STEPS[planId].map((step, index) => (
+                      <span key={step} style={activationStepStyle}>
+                        <strong>{index + 1}</strong>
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div style={metaCardStyle}>
-                <span style={labelStyle}>Upgrade trigger</span>
-                <strong>{tier.upgradeCue}</strong>
-              </div>
-            </div>
-            <div style={valueListStyle}>
-              {plan.valueProps.map((valueProp) => (
-                <span key={valueProp} style={valuePillStyle}>{valueProp}</span>
-              ))}
-            </div>
-            <div style={activationPathStyle}>
-              <span style={labelStyle}>Activation path</span>
-              <div
-                style={{
-                  ...activationStepGridStyle,
-                  ...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null),
-                }}
-              >
-                {ACTIVATION_STEPS[planId].map((step, index) => (
-                  <span key={step} style={activationStepStyle}>
-                    <strong>{index + 1}</strong>
-                    {step}
-                  </span>
-                ))}
-              </div>
-            </div>
+            </details>
           </aside>
         </section>
 
-        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
-          <div style={tierMapHeaderStyle}>
-            <div>
-              <div style={labelStyle}>Choose by need</div>
-              <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
-            </div>
-            <Link href="/pricing" style={secondaryButtonStyle}>
-              Compare full plans
-            </Link>
-          </div>
-          <div style={tierMapGridStyle}>
-            {planChoiceCards.map((choice) => (
-              <Link
-                key={choice.id}
-                href={choice.href}
-                aria-current={choice.selected ? 'page' : undefined}
-                style={{
-                  ...tierChoiceCardStyle,
-                  ...(choice.selected ? tierChoiceSelectedStyle : null),
-                }}
-              >
-                <div style={tierChoiceTopStyle}>
-                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[choice.id]} size="md" variant={choice.selected ? 'surface' : 'ghost'} />
-                  <span style={choice.active ? activeBadgeStyle : tierBadgeStyle}>
-                    {choice.active ? 'Active' : choice.selected ? 'Selected' : UNLOCK_COPY[choice.id].eyebrow}
-                  </span>
-                </div>
-                <strong style={tierChoiceNameStyle}>{choice.plan.name}</strong>
-                <span style={tierChoiceBodyStyle}>{choice.tier.shortPromise}</span>
-                <span style={tierChoicePriceStyle}>{choice.plan.priceLabel}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         {showAccessRequest ? (
-          <section id="activation" style={activationStyle}>
+          <section
+            id="activation"
+            style={{
+              ...activationStyle,
+              gap: isMobile ? 10 : activationStyle.gap,
+              padding: isSmallMobile ? 10 : isMobile ? 12 : activationStyle.padding,
+              borderRadius: isMobile ? 16 : activationStyle.borderRadius,
+            }}
+          >
             <div style={activationCopyStyle}>
               <div style={labelStyle}>{isPublic ? 'Quick request' : 'Activation step'}</div>
               <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
@@ -854,8 +863,16 @@ function UpgradeContent({
                 ) : null}
               </div>
             ) : (
-              <form style={requestFormStyle} onSubmit={handleRequestSubmit}>
-                <div style={selectedPlanStyle}>
+              <form
+                style={{
+                  ...requestFormStyle,
+                  gap: isMobile ? 8 : requestFormStyle.gap,
+                  padding: isSmallMobile ? 10 : isMobile ? 12 : requestFormStyle.padding,
+                  borderRadius: isMobile ? 14 : requestFormStyle.borderRadius,
+                }}
+                onSubmit={handleRequestSubmit}
+              >
+                <div style={{ ...selectedPlanStyle, display: isMobile ? 'none' : selectedPlanStyle.display }}>
                   <span style={labelStyle}>Selected tennis need</span>
                   <strong>{getPlanDestinationLabel(planId)}</strong>
                 </div>
@@ -864,42 +881,42 @@ function UpgradeContent({
                     Name
                     <input
                       className="tiq-focus-ring"
-                      value={requestName}
-                      onChange={(event) => setRequestName(event.target.value)}
-                      placeholder="Your name"
-                      style={inputStyle}
-                    />
-                  </label>
-                  <label style={fieldStyle}>
+                    value={requestName}
+                    onChange={(event) => setRequestName(event.target.value)}
+                    placeholder="Your name"
+                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                  />
+                </label>
+                <label style={fieldStyle}>
                     Email
                     <input
                       className="tiq-focus-ring"
                       type="email"
-                      value={requestEmail}
-                      onChange={(event) => setRequestEmail(event.target.value)}
-                      placeholder="you@example.com"
-                      style={inputStyle}
-                    />
-                  </label>
+                    value={requestEmail}
+                    onChange={(event) => setRequestEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                  />
+                </label>
                 </div>
                 <label style={fieldStyle}>
                   Team, player, or league
                   <input
                     className="tiq-focus-ring"
-                    value={requestOrganization}
-                    onChange={(event) => setRequestOrganization(event.target.value)}
-                    placeholder="Optional"
-                    style={inputStyle}
-                  />
-                </label>
+                  value={requestOrganization}
+                  onChange={(event) => setRequestOrganization(event.target.value)}
+                  placeholder="Optional"
+                  style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                />
+              </label>
                 <label style={fieldStyle}>
-                  What tennis need should we help with first?
+                  Which tennis need do you want help with first?
                   <textarea
                     className="tiq-focus-ring"
                     value={requestGoal}
                     onChange={(event) => setRequestGoal(event.target.value)}
                     placeholder="Example: compare a lineup, prep for a match, or run league standings."
-                    style={textareaStyle}
+                    style={{ ...textareaStyle, minHeight: isMobile ? 68 : textareaStyle.minHeight }}
                   />
                 </label>
                 {requestError ? <p style={errorTextStyle}>{requestError}</p> : null}
@@ -915,6 +932,49 @@ function UpgradeContent({
             )}
           </section>
         ) : null}
+
+        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
+          <details className="upgradeDetailsSection" style={tierMapDetailsStyle}>
+            <summary style={tierMapSummaryStyle}>
+              <span style={labelStyle}>{isMobile ? 'Need another tool?' : 'Switch tools'}</span>
+              <strong style={tierMapSummaryTitleStyle}>{isMobile ? 'Switch plan' : 'Choose another tennis tool'}</strong>
+            </summary>
+            <div style={tierMapBodyStyle}>
+              <div style={tierMapHeaderStyle}>
+                <div>
+                  <div style={labelStyle}>Choose by need</div>
+                  <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
+                </div>
+                <Link href="/pricing" style={secondaryButtonStyle}>
+                  Compare full plans
+                </Link>
+              </div>
+              <div style={tierMapGridStyle}>
+                {planChoiceCards.map((choice) => (
+                  <Link
+                    key={choice.id}
+                    href={choice.href}
+                    aria-current={choice.selected ? 'page' : undefined}
+                    style={{
+                      ...tierChoiceCardStyle,
+                      ...(choice.selected ? tierChoiceSelectedStyle : null),
+                    }}
+                  >
+                    <div style={tierChoiceTopStyle}>
+                      <TiqFeatureIcon name={PLAN_ICON_BY_ID[choice.id]} size="md" variant={choice.selected ? 'surface' : 'ghost'} />
+                      <span style={choice.active ? activeBadgeStyle : tierBadgeStyle}>
+                        {choice.active ? 'Active' : choice.selected ? 'Selected' : UNLOCK_COPY[choice.id].eyebrow}
+                      </span>
+                    </div>
+                    <strong style={tierChoiceNameStyle}>{choice.plan.name}</strong>
+                    <span style={tierChoiceBodyStyle}>{choice.tier.shortPromise}</span>
+                    <span style={tierChoicePriceStyle}>{choice.plan.priceLabel}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </details>
+        </section>
     </main>
   )
 }
@@ -977,7 +1037,7 @@ function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeN
     return {
       label: 'After unlock',
       title: 'Return to My Lab proof.',
-      body: 'Player opens the Level Up proof panel so the next drill, board, and saved signal stay connected.',
+      body: 'Open the Level Up proof panel so your next drill, board, and saved signal stay connected.',
       action: 'Preview My Lab proof',
     }
   }
@@ -986,7 +1046,7 @@ function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeN
     return {
       label: 'After unlock',
       title: 'Start the Level Up court flow.',
-      body: 'Player opens the selected Level Up card with the same player-development context still attached.',
+      body: 'Open the selected Level Up card with your player-development context still attached.',
       action: 'Preview Level Up',
     }
   }
@@ -1065,9 +1125,9 @@ const heroStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-118px',
-  width: 310,
+  right: 0,
+  top: '-72px',
+  width: 'min(310px, 62vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -1163,6 +1223,36 @@ const planCardStyle: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
 }
 
+const planDetailStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
+  boxSizing: 'border-box',
+}
+
+const planDetailSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  padding: '0 12px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const planDetailBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
 const planCardHeaderStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr)',
@@ -1179,13 +1269,44 @@ const planCardHeaderCopyStyle: CSSProperties = {
 
 const tierMapStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
   minWidth: 0,
-  padding: 18,
   borderRadius: 24,
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(13,28,53,0.72) 0%, rgba(8,18,36,0.9) 100%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const tierMapDetailsStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+}
+
+const tierMapSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 4,
+  minWidth: 0,
+  padding: 18,
+  color: 'var(--foreground-strong)',
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const tierMapSummaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.15rem, 2vw, 1.5rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const tierMapBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: '0 18px 18px',
 }
 
 const tierMapHeaderStyle: CSSProperties = {

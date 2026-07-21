@@ -359,7 +359,7 @@ function CaptainLockedSurface({
   const lockedPreviewPanel: CSSProperties = {
     ...heroLeft,
     ...lockedPreviewPanelStyle,
-    padding: isSmallMobile ? 18 : isMobile ? 20 : lockedPreviewPanelStyle.padding,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : lockedPreviewPanelStyle.padding,
   }
   const lockedPreviewGrid: CSSProperties = {
     ...captainPreviewGridStyle,
@@ -374,8 +374,8 @@ function CaptainLockedSurface({
       ? 'minmax(0, 24px) minmax(0, 1fr)'
       : captainPreviewStepStyle.gridTemplateColumns,
     gap: isMobile ? 8 : captainPreviewStepStyle.gap,
-    padding: isMobile ? 10 : captainPreviewStepStyle.padding,
-    borderRadius: isMobile ? 14 : captainPreviewStepStyle.borderRadius,
+    padding: isMobile ? 8 : captainPreviewStepStyle.padding,
+    borderRadius: isMobile ? 12 : captainPreviewStepStyle.borderRadius,
   }
   const lockedPreviewStepNumber: CSSProperties = {
     ...captainPreviewStepNumberStyle,
@@ -385,8 +385,8 @@ function CaptainLockedSurface({
   const lockedPreviewStepCopy: CSSProperties = {
     ...captainPreviewStepCopyStyle,
     gap: isMobile ? 3 : captainPreviewStepCopyStyle.gap,
-    fontSize: isMobile ? 12 : captainPreviewStepCopyStyle.fontSize,
-    lineHeight: isMobile ? 1.35 : captainPreviewStepCopyStyle.lineHeight,
+    fontSize: isMobile ? 11 : captainPreviewStepCopyStyle.fontSize,
+    lineHeight: isMobile ? 1.25 : captainPreviewStepCopyStyle.lineHeight,
   }
   const captainUnlockHref = getPlanUnlockHref('captain')
 
@@ -399,9 +399,11 @@ function CaptainLockedSurface({
             <div style={sectionKicker}>Captain tools</div>
             <h1 style={scopeTitleStyle}>Run match week with less chaos.</h1>
           </div>
-          <p style={captainPreviewTextStyle}>
-            Start with who can play, build the lineup, check the pairings, and send the match-week plan.
-          </p>
+          {!isMobile ? (
+            <p style={captainPreviewTextStyle}>
+              Start with who can play, build the lineup, check the pairings, and send the match-week plan.
+            </p>
+          ) : null}
           {isMobile ? (
             <div style={captainPreviewMobileActionRowStyle} aria-label="Captain mobile unlock actions">
               <Link href={captainUnlockHref} style={captainPreviewMobilePrimaryActionStyle}>
@@ -418,7 +420,7 @@ function CaptainLockedSurface({
                 <span style={lockedPreviewStepNumber}>{step}</span>
                 <span style={lockedPreviewStepCopy}>
                   <strong>{title}</strong>
-                  <span>{body}</span>
+                  {!isMobile ? <span>{body}</span> : null}
                 </span>
               </div>
             ))}
@@ -1326,12 +1328,48 @@ function CaptainHubContent() {
 
   const dynamicStatusStrip: CSSProperties = {
     ...statusStrip,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : statusStrip.gridTemplateColumns,
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : statusStrip.gridTemplateColumns,
+    gap: isMobile ? 8 : statusStrip.gap,
   }
 
   const dynamicCommandCenterGrid: CSSProperties = {
     ...commandCenterGrid,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : commandCenterGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainDecisionPathShell: CSSProperties = {
+    ...captainDecisionPathShellStyle,
+    gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainDecisionPathShellStyle.padding,
+    borderRadius: isMobile ? 18 : captainDecisionPathShellStyle.borderRadius,
+  }
+
+  const dynamicCaptainDecisionPathGrid: CSSProperties = {
+    ...captainDecisionPathGridStyle,
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : captainDecisionPathGridStyle.gridTemplateColumns,
+    gap: isMobile ? 8 : captainDecisionPathGridStyle.gap,
+  }
+
+  const dynamicCaptainDecisionPathCard: CSSProperties = {
+    ...captainDecisionPathCardStyle,
+    gap: isMobile ? 8 : captainDecisionPathCardStyle.gap,
+    minHeight: isMobile ? 0 : captainDecisionPathCardStyle.minHeight,
+    padding: isMobile ? 10 : captainDecisionPathCardStyle.padding,
+    borderRadius: isMobile ? 14 : captainDecisionPathCardStyle.borderRadius,
+  }
+
+  const dynamicCaptainSaveStatusShell: CSSProperties = {
+    ...captainSaveStatusShell,
+    gap: isMobile ? 10 : captainSaveStatusShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainSaveStatusShell.padding,
+    borderRadius: isMobile ? 18 : captainSaveStatusShell.borderRadius,
+  }
+
+  const dynamicCommandCenterShell: CSSProperties = {
+    ...commandCenterShell,
+    gap: isMobile ? 12 : commandCenterShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : commandCenterShell.padding,
+    borderRadius: isMobile ? 20 : commandCenterShell.borderRadius,
   }
 
   const dynamicNextActionButtonRow: CSSProperties = {
@@ -1574,9 +1612,9 @@ function CaptainHubContent() {
     },
     {
       label: 'Week work',
-      state: workspaceState.briefReady ? 'Browser proof' : 'Not saved yet',
+      state: workspaceState.briefReady ? 'Saved here' : 'Not saved yet',
       detail: workspaceState.briefReady
-        ? 'Lineups, event notes, response status, and week status are browser-saved proof until account sync is added.'
+        ? 'Lineups, event notes, response status, and week status are saved in this browser.'
         : 'Lineup and message prep will appear here after this browser saves weekly context.',
       tone: workspaceState.briefReady ? 'warn' : 'info',
     },
@@ -1874,6 +1912,74 @@ function CaptainHubContent() {
     return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" />
   }
 
+  const captainCommandCenter = (
+    <section style={dynamicCommandCenterShell}>
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Team hub</div>
+          <h2 style={sectionTitle}>Run match week from four moves.</h2>
+        </div>
+        <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
+          {workspaceState.lastUpdatedLabel}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Start with who can play, choose the lineup, check the pairings, and send the team plan from one lane.
+      </div>
+
+      <div style={dynamicCommandCenterGrid}>
+        {captainCommandSteps.map((step) => {
+          const locked = !hasTeamScope || (step.premium && !premiumEnabled)
+          const toneBadge = step.tone === 'good' ? badgeGreen : step.tone === 'warn' ? warnBadge : badgeBlue
+
+          return (
+            <article
+              key={step.label}
+              style={{
+                ...commandCenterCard,
+                ...(step.tone === 'good'
+                  ? commandCenterCardGood
+                  : step.tone === 'warn'
+                    ? commandCenterCardWarn
+                    : commandCenterCardInfo),
+                ...(locked ? commandCenterCardLocked : null),
+              }}
+            >
+              <div style={commandCenterTopRow}>
+                <div style={commandCenterLabelCluster}>
+                  <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
+                  <span style={commandCenterLabel}>{step.label}</span>
+                </div>
+                <span style={locked ? badgeSlate : toneBadge}>
+                  {!hasTeamScope ? 'Choose team' : step.premium && !premiumEnabled ? 'Captain tier' : step.stateLabel}
+                </span>
+              </div>
+
+              <div>
+                <div style={commandCenterTitle}>{step.title}</div>
+                <div style={commandCenterText}>
+                  {locked && step.premium && !premiumEnabled ? CAPTAIN_STORY.lockedMessage : step.detail}
+                </div>
+              </div>
+
+              <div style={commandCenterActionRow}>
+                <PrimarySmallBtn
+                  disabled={locked}
+                  onClick={() => {
+                    if (locked) return
+                    handleCaptainNav(step.href, step.stage)
+                  }}
+                >
+                  {step.cta}
+                </PrimarySmallBtn>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+
   return (
     <div style={pageWrap}>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
@@ -2017,27 +2123,29 @@ function CaptainHubContent() {
           </div>
         </section>
 
-        <section style={captainDecisionPathShellStyle} aria-label="Captain decision path">
+        <section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">
           <div style={captainDecisionPathHeaderStyle}>
             <div>
               <div style={sectionKicker}>Captain decision path</div>
-              <h2 style={captainDecisionPathTitleStyle}>Answer match week from your phone.</h2>
+              <h2 style={captainDecisionPathTitleStyle}>{isMobile ? 'Answer match week.' : 'Answer match week from your phone.'}</h2>
             </div>
             <span style={hasTeamScope ? badgeGreen : badgeBlue}>
               {hasTeamScope ? 'Team selected' : 'Choose team first'}
             </span>
           </div>
-          <p style={captainDecisionPathIntroStyle}>
-            Start with availability, turn it into a lineup, check pairings, message the team, and clean up the scorecard trail.
-          </p>
-          <div style={captainDecisionPathGridStyle}>
+          {!isMobile ? (
+            <p style={captainDecisionPathIntroStyle}>
+              Start with availability, turn it into a lineup, check pairings, message the team, and clean up the scorecard trail.
+            </p>
+          ) : null}
+          <div style={dynamicCaptainDecisionPathGrid}>
             {captainDecisionPath.map((item) => {
               const needsScope = item.requiresScope && !hasTeamScope
               const targetHref = needsScope ? '#captain-team-scope' : item.href
               const targetStage = needsScope ? 'team' : item.stage
 
               return (
-                <article key={item.label} style={captainDecisionPathCardStyle}>
+                <article key={item.label} style={dynamicCaptainDecisionPathCard}>
                   <div style={captainDecisionPathTopStyle}>
                     <div style={captainDecisionPathLabelClusterStyle}>
                       <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
@@ -2049,10 +2157,12 @@ function CaptainHubContent() {
                   </div>
                   <div>
                     <h3 style={captainDecisionPathQuestionStyle}>{item.question}</h3>
-                    <p style={captainDecisionPathAnswerStyle}>{needsScope ? 'Choose the team, league, and flight first so this action opens with the right week.' : item.answer}</p>
+                    {!isMobile ? (
+                      <p style={captainDecisionPathAnswerStyle}>{needsScope ? 'Choose the team, league, and flight first so this action opens with the right week.' : item.answer}</p>
+                    ) : null}
                   </div>
                   <PrimarySmallBtn fullWidth onClick={() => handleCaptainAction(targetHref, targetStage)}>
-                    {needsScope ? 'Choose Team' : item.cta}
+                    {needsScope ? (isMobile ? 'Team' : 'Choose Team') : isMobile ? item.label : item.cta}
                   </PrimarySmallBtn>
                 </article>
               )
@@ -2143,14 +2253,27 @@ function CaptainHubContent() {
           />
         </section>
 
-        <section style={captainSaveStatusShell} aria-label="Captain save status">
-          <div style={captainSaveStatusHeader}>
+        {isMobile ? (
+          <details style={mobileCommandCenterDetailsStyle}>
+            <summary style={mobileCommandCenterSummaryStyle}>
+              <span>
+                <span style={sectionKicker}>More captain paths</span>
+                <span style={optionalSummaryTitle}>Lineup, message, and league shortcuts</span>
+              </span>
+              <span style={badgeSlate}>Open</span>
+            </summary>
+            {captainCommandCenter}
+          </details>
+        ) : captainCommandCenter}
+
+        <details style={dynamicCaptainSaveStatusShell} aria-label="Captain save status">
+          <summary style={captainSaveStatusSummaryStyle}>
             <div>
               <div style={sectionKicker}>Save status</div>
-              <h2 style={captainSaveStatusTitle}>Know what carries forward.</h2>
+              <h2 style={captainSaveStatusTitle}>{isMobile ? 'What saves here?' : 'Know what carries forward.'}</h2>
             </div>
             <span style={badgeSlate}>Local honesty</span>
-          </div>
+          </summary>
 
           <div style={captainSaveStatusGrid}>
             {captainSaveSignals.map((signal) => (
@@ -2166,9 +2289,9 @@ function CaptainHubContent() {
             ))}
           </div>
 
-          <div style={captainLocalSyncProofStyle} aria-label="Captain local sync proof cue">
+          <div style={captainLocalSyncProofStyle} aria-label="Captain saved data check">
             <div>
-              <span style={captainSaveStatusLabel}>Captain local sync proof</span>
+              <span style={captainSaveStatusLabel}>Saved data check</span>
               <h3 style={captainLocalSyncProofTitleStyle}>Separate browser proof from linked team history.</h3>
             </div>
             <div style={captainLocalSyncProofGridStyle}>
@@ -2181,9 +2304,9 @@ function CaptainHubContent() {
             </div>
           </div>
 
-          <div style={captainDecisionHandoffProofStyle} aria-label="Captain decision handoff proof cue">
+          <div style={captainDecisionHandoffProofStyle} aria-label="Captain decision path check">
             <div>
-              <span style={captainSaveStatusLabel}>Captain decision handoff proof cue</span>
+              <span style={captainSaveStatusLabel}>Decision path check</span>
               <h3 style={captainLocalSyncProofTitleStyle}>Move from availability to lineup to team send.</h3>
             </div>
             <div style={captainDecisionHandoffProofGridStyle}>
@@ -2200,73 +2323,7 @@ function CaptainHubContent() {
               ))}
             </div>
           </div>
-        </section>
-
-        <section style={commandCenterShell}>
-          <div style={commandCenterHeader}>
-            <div>
-              <div style={sectionKicker}>Team hub</div>
-              <h2 style={sectionTitle}>Run match week from four moves.</h2>
-            </div>
-            <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
-              {workspaceState.lastUpdatedLabel}
-            </span>
-          </div>
-          <div style={sectionSub}>
-            Start with who can play, choose the lineup, check the pairings, and send the team plan from one lane.
-          </div>
-
-          <div style={dynamicCommandCenterGrid}>
-            {captainCommandSteps.map((step) => {
-              const locked = !hasTeamScope || (step.premium && !premiumEnabled)
-              const toneBadge = step.tone === 'good' ? badgeGreen : step.tone === 'warn' ? warnBadge : badgeBlue
-
-              return (
-                <article
-                  key={step.label}
-                  style={{
-                    ...commandCenterCard,
-                    ...(step.tone === 'good'
-                      ? commandCenterCardGood
-                      : step.tone === 'warn'
-                        ? commandCenterCardWarn
-                        : commandCenterCardInfo),
-                    ...(locked ? commandCenterCardLocked : null),
-                  }}
-                >
-                  <div style={commandCenterTopRow}>
-                    <div style={commandCenterLabelCluster}>
-                      <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
-                      <span style={commandCenterLabel}>{step.label}</span>
-                    </div>
-                    <span style={locked ? badgeSlate : toneBadge}>
-                      {!hasTeamScope ? 'Choose team' : step.premium && !premiumEnabled ? 'Captain tier' : step.stateLabel}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div style={commandCenterTitle}>{step.title}</div>
-                    <div style={commandCenterText}>
-                      {locked && step.premium && !premiumEnabled ? CAPTAIN_STORY.lockedMessage : step.detail}
-                    </div>
-                  </div>
-
-                  <div style={commandCenterActionRow}>
-                    <PrimarySmallBtn
-                      disabled={locked}
-                      onClick={() => {
-                        if (locked) return
-                        handleCaptainNav(step.href, step.stage)
-                      }}
-                    >
-                      {step.cta}
-                    </PrimarySmallBtn>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        </section>
+        </details>
 
         <section style={dynamicNextActionShell}>
           <div style={nextActionIntro}>
@@ -3105,9 +3162,9 @@ const heroCard: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-92px, -7vw, -34px)',
+  right: 0,
   bottom: 'clamp(-112px, -10vw, -52px)',
-  width: 'clamp(230px, 30vw, 420px)',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -3170,7 +3227,7 @@ const captainPreviewMobilePrimaryActionStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 42,
+  minHeight: 38,
   padding: '0 12px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
@@ -3560,6 +3617,14 @@ const captainSaveStatusHeader: CSSProperties = {
   alignItems: 'flex-start',
   gap: 12,
   flexWrap: 'wrap',
+}
+
+const captainSaveStatusSummaryStyle: CSSProperties = {
+  ...captainSaveStatusHeader,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const captainSaveStatusTitle: CSSProperties = {
@@ -4142,6 +4207,22 @@ const optionalSummaryStyle: CSSProperties = {
 const weeklyDetailsSummaryStyle: CSSProperties = {
   ...optionalSummaryStyle,
   marginBottom: 0,
+}
+
+const mobileCommandCenterDetailsStyle: CSSProperties = {
+  ...sectionCard,
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const mobileCommandCenterSummaryStyle: CSSProperties = {
+  ...optionalSummaryStyle,
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const optionalSummaryTitle: CSSProperties = {

@@ -64,27 +64,6 @@ function CaptainPracticeContent() {
 
   return (
     <main style={pageStyle}>
-      <section style={heroStyle}>
-        <span aria-hidden="true" style={watermarkStyle} />
-        <div style={heroCopyStyle}>
-          <div style={eyebrowStyle}>Captain practice</div>
-          <h1 style={titleStyle}>Plan practice without a separate thread.</h1>
-          <p style={textStyle}>
-            Pick the team, date, time, site, and focus. TenAceIQ opens a practice thread and collects In, Out, or Maybe responses from linked player accounts.
-          </p>
-          <div style={proofGridStyle}>
-            <ProofItem label="Invite" value="Roster-linked" />
-            <ProofItem label="Responses" value="In / Out / Maybe" />
-            <ProofItem label="Thread" value="Messages" />
-          </div>
-        </div>
-        <div style={heroPanelStyle}>
-          <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
-          <strong>Practice sits in Team.</strong>
-          <span>Use it before lineup week, between matches, or whenever the roster needs a shared training plan.</span>
-        </div>
-      </section>
-
       <section style={workspaceStyle} aria-label="Practice scheduler setup">
         <div style={panelHeaderStyle}>
           <div>
@@ -156,6 +135,27 @@ function CaptainPracticeContent() {
               <span>{hint.detail}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section style={heroStyle}>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={heroCopyStyle}>
+          <div style={eyebrowStyle}>Captain practice</div>
+          <h1 style={titleStyle}>Plan practice without a separate thread.</h1>
+          <p style={textStyle}>
+            Pick the team, date, time, site, and focus. TenAceIQ opens a practice thread and collects In, Out, or Maybe responses from linked player accounts.
+          </p>
+          <div style={proofGridStyle}>
+            <ProofItem label="Invite" value="Roster-linked" />
+            <ProofItem label="Responses" value="In / Out / Maybe" />
+            <ProofItem label="Thread" value="Messages" />
+          </div>
+        </div>
+        <div style={heroPanelStyle}>
+          <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
+          <strong>Practice sits in Team.</strong>
+          <span>Use it before lineup week, between matches, or whenever the roster needs a shared training plan.</span>
         </div>
       </section>
     </main>

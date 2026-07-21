@@ -43,6 +43,8 @@ describe('profile identity first actions', () => {
   it('explains what the player ID powers after setup', () => {
     expect(source).toContain('const profilePlayerIdBenefits = [')
     expect(source).toContain('Player ID powers')
+    expect(source).toContain('<details className="profileDetailsSection" style={playerIdPowersStyle}>')
+    expect(source).toContain('Show why')
     expect(source).toContain('One tennis identity keeps Level Up, My Lab, matchup prep, and public records aligned.')
     expect(source).toContain('Recommended Level Up cards start from this player ID.')
     expect(source).toContain('Notes and follows stay attached to the right player.')

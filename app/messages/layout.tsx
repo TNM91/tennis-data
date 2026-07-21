@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: {
     absolute: 'Messages | TenAceIQ',
   },
-  description: 'Private TenAceIQ messages and tennis workflow conversations.',
+  description: 'Private TenAceIQ messages for players, coaches, captains, and league work.',
   robots: {
     index: false,
     follow: false,

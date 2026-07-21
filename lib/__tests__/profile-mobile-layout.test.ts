@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/profile/page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -58,6 +59,7 @@ describe('Profile mobile layout guards', () => {
       'profilePlayerIdStarterGridStyle',
       'profilePlayerIdStarterItemStyle',
       'profilePlayerIdStarterActionRowStyle',
+      'profileDetailsSummaryStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -86,16 +88,22 @@ describe('Profile mobile layout guards', () => {
       'profilePlayerIdStarterStyle',
       'profilePlayerIdStarterCopyStyle',
       'profilePlayerIdStarterItemStyle',
+      'profileDetailsCueStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
 
+    expect(source).toContain('<details className="profileDetailsSection" style={playerIdPowersStyle}>')
+    expect(globalsSource).toContain('.profileDetailsSection:not([open]) > :not(summary)')
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('teamContextRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('profileIntroActionsStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('profileIntroStyle')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(styleBlock('autoContextStripStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock('watermarkStyle')).toContain('right: 0')
+    expect(styleBlock('watermarkStyle')).not.toContain('right: \'clamp(-')
+    expect(styleBlock('autoContextStripStyle')).toContain("gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock('autoContextStripStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
+    expect(styleBlock('ratingTileGridStyle')).toContain("gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock('ratingTileGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('newPlayerActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('profilePlayerIdStarterGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")

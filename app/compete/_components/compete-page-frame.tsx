@@ -157,16 +157,19 @@ export default function CompetePageFrame({
                     <div style={mottoStyle}>More Tennis. Less Chaos.</div>
                   </div>
 
-                  <div
-                    style={{
-                      ...signalGridStyle,
-                      gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : signalGridStyle.gridTemplateColumns,
-                    }}
-                  >
-                    {HERO_SIGNALS.map((signal) => (
-                      <HeroSignal key={signal.label} {...signal} />
-                    ))}
-                  </div>
+                  <details className="competeDetailsSection" style={heroSignalsDisclosureStyle}>
+                    <summary style={heroSignalsSummaryStyle}>Need a quick read?</summary>
+                    <div
+                      style={{
+                        ...signalGridStyle,
+                        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : signalGridStyle.gridTemplateColumns,
+                      }}
+                    >
+                      {HERO_SIGNALS.map((signal) => (
+                        <HeroSignal key={signal.label} {...signal} />
+                      ))}
+                    </div>
+                  </details>
                 </div>
 
               </div>
@@ -175,82 +178,98 @@ export default function CompetePageFrame({
 
           {children}
 
-          <section
-            aria-label="Compete Player ID match prep"
-            style={{
-              ...competePlayerIdStyle,
-              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : competePlayerIdStyle.gridTemplateColumns,
-            }}
-          >
-            <div style={competePlayerIdCopyStyle}>
-              <div style={competePlayerIdEyebrowStyle}>Player ID match prep</div>
-              <h2 style={competePlayerIdTitleStyle}>Compete from a clear player read.</h2>
-              <p style={competePlayerIdTextStyle}>
-                {COMPETE_PLAYER_IDENTITY_READ.levelUpNudge} Use that read before matchup prep, scouting, or captain handoff.
-              </p>
-            </div>
-            <div
-              aria-label="Compete Player ID starter read"
-              style={{
-                ...competePlayerIdReadStyle,
-                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : competePlayerIdReadStyle.gridTemplateColumns,
-              }}
-            >
-              {COMPETE_PLAYER_ID_READ.map((item) => (
-                <div key={item.label} style={competePlayerIdReadCardStyle}>
-                  <span style={competePlayerIdReadLabelStyle}>{item.label}</span>
-                  <strong style={competePlayerIdReadValueStyle}>{item.value}</strong>
+          <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+            <summary style={competeSupportSummaryStyle}>
+              <span style={competeSupportSummaryTextStyle}>Use your Player ID before match prep</span>
+              <span>Open</span>
+            </summary>
+            <div style={competeSupportBodyStyle}>
+              <section
+                aria-label="Compete Player ID match prep"
+                style={{
+                  ...competePlayerIdStyle,
+                  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : competePlayerIdStyle.gridTemplateColumns,
+                }}
+              >
+                <div style={competePlayerIdCopyStyle}>
+                  <div style={competePlayerIdEyebrowStyle}>Player ID match prep</div>
+                  <h2 style={competePlayerIdTitleStyle}>Compete from a clear player read.</h2>
+                  <p style={competePlayerIdTextStyle}>
+                    {COMPETE_PLAYER_IDENTITY_READ.levelUpNudge} Use that read before matchup prep, scouting, or captain handoff.
+                  </p>
                 </div>
-              ))}
-            </div>
-            <div style={competePlayerIdActionsStyle}>
-              {COMPETE_PLAYER_ID_ACTIONS.map((action, index) => (
-                <Link
-                  key={action.href}
-                  href={action.href}
+                <div
+                  aria-label="Compete Player ID starter read"
                   style={{
-                    ...competePlayerIdActionStyle,
-                    ...(index === 0 ? competePlayerIdPrimaryActionStyle : {}),
+                    ...competePlayerIdReadStyle,
+                    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : competePlayerIdReadStyle.gridTemplateColumns,
                   }}
                 >
-                  {action.label}
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section
-            aria-label="Captain match-week bridge cue"
-            style={{
-              ...captainBridgeStyle,
-              gridTemplateColumns: isTablet
-                ? 'minmax(0, 1fr)'
-                : captainBridgeStyle.gridTemplateColumns,
-            }}
-          >
-            <div style={captainBridgeCopyStyle}>
-              <div style={captainBridgeEyebrowStyle}>Captain match-week bridge</div>
-              <h2 style={captainBridgeTitleStyle}>Turn Compete context into Team Hub decisions.</h2>
-              <p style={captainBridgeTextStyle}>
-                Use matchup, scouting, schedule, and team context here to feed the captain week: availability, lineup, scenario, and team message.
-              </p>
-            </div>
-            <div style={captainBridgeStepsStyle}>
-              {CAPTAIN_HANDOFF_STEPS.map((step, index) => (
-                <div key={step} style={captainBridgeStepStyle}>
-                  <span style={captainBridgeStepNumberStyle}>{index + 1}</span>
-                  <span>{step}</span>
+                  {COMPETE_PLAYER_ID_READ.map((item) => (
+                    <div key={item.label} style={competePlayerIdReadCardStyle}>
+                      <span style={competePlayerIdReadLabelStyle}>{item.label}</span>
+                      <strong style={competePlayerIdReadValueStyle}>{item.value}</strong>
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <div style={competePlayerIdActionsStyle}>
+                  {COMPETE_PLAYER_ID_ACTIONS.map((action, index) => (
+                    <Link
+                      key={action.href}
+                      href={action.href}
+                      style={{
+                        ...competePlayerIdActionStyle,
+                        ...(index === 0 ? competePlayerIdPrimaryActionStyle : {}),
+                      }}
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </div>
+              </section>
             </div>
-            <div style={captainBridgeActionsStyle}>
-              {CAPTAIN_HANDOFF_ACTIONS.map((action) => (
-                <Link key={action.href} href={action.href} style={captainBridgeActionStyle}>
-                  {action.label}
-                </Link>
-              ))}
+          </details>
+
+          <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+            <summary style={competeSupportSummaryStyle}>
+              <span style={competeSupportSummaryTextStyle}>Turn this into a captain move</span>
+              <span>Open</span>
+            </summary>
+            <div style={competeSupportBodyStyle}>
+              <section
+                aria-label="Captain match-week bridge cue"
+                style={{
+                  ...captainBridgeStyle,
+                  gridTemplateColumns: isTablet
+                    ? 'minmax(0, 1fr)'
+                    : captainBridgeStyle.gridTemplateColumns,
+                }}
+              >
+                <div style={captainBridgeCopyStyle}>
+                  <div style={captainBridgeEyebrowStyle}>Captain match-week bridge</div>
+                  <h2 style={captainBridgeTitleStyle}>Turn Compete context into Team Hub decisions.</h2>
+                  <p style={captainBridgeTextStyle}>
+                    Use matchup, scouting, schedule, and team context here to feed the captain week: availability, lineup, scenario, and team message.
+                  </p>
+                </div>
+                <div style={captainBridgeStepsStyle}>
+                  {CAPTAIN_HANDOFF_STEPS.map((step, index) => (
+                    <div key={step} style={captainBridgeStepStyle}>
+                      <span style={captainBridgeStepNumberStyle}>{index + 1}</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={captainBridgeActionsStyle}>
+                  {CAPTAIN_HANDOFF_ACTIONS.map((action) => (
+                    <Link key={action.href} href={action.href} style={captainBridgeActionStyle}>
+                      {action.label}
+                    </Link>
+                  ))}
+                </div>
+              </section>
             </div>
-          </section>
+          </details>
         </div>
       </section>
     </SiteShell>
@@ -327,6 +346,7 @@ export function CompeteCard({
   event?: ProductLinkEvent
 }) {
   const [hovered, setHovered] = useState(false)
+  const { isMobile } = useViewportBreakpoints()
 
   return (
     <TrackedProductLink
@@ -337,6 +357,7 @@ export function CompeteCard({
       event={event}
       style={{
         ...cardStyle,
+        ...(isMobile ? compactCardStyle : {}),
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         borderColor: hovered
           ? 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
@@ -345,23 +366,25 @@ export function CompeteCard({
     >
       <div style={cardTopStyle}>
         <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
-        <div style={cardMetaStyle}>{meta}</div>
+        <div style={{ ...cardMetaStyle, ...(isMobile ? compactCardMetaStyle : {}) }}>{meta}</div>
       </div>
-      <div style={cardTitleStyle}>{title}</div>
-      {question ? <div style={cardQuestionStyle}>{question}</div> : null}
-      <div style={cardTextStyle}>{text}</div>
-      <div style={cardCtaStyle}>{action} {'\u2192'}</div>
+      <div style={{ ...cardTitleStyle, ...(isMobile ? compactCardTitleStyle : {}) }}>{title}</div>
+      {!isMobile && question ? <div style={cardQuestionStyle}>{question}</div> : null}
+      {!isMobile ? <div style={cardTextStyle}>{text}</div> : null}
+      <div style={{ ...cardCtaStyle, ...(isMobile ? compactCardCtaStyle : {}) }}>{action} {'\u2192'}</div>
     </TrackedProductLink>
   )
 }
 
 export function CompeteGrid({ children }: { children: ReactNode }) {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-        gap: '16px',
+        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+        gap: isMobile ? '10px' : '16px',
         minWidth: 0,
       }}
     >
@@ -404,11 +427,32 @@ const mottoStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const heroSignalsDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.58)',
+  overflow: 'hidden',
+}
+
+const heroSignalsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 42,
+  padding: '0 14px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  display: 'flex',
+  alignItems: 'center',
+  overflowWrap: 'anywhere',
+}
+
 const signalGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 10,
   minWidth: 0,
+  padding: 10,
 }
 
 const signalCardStyle: CSSProperties = {
@@ -424,15 +468,23 @@ const signalCardStyle: CSSProperties = {
 
 const cardStyle: CSSProperties = {
   minWidth: 0,
-  borderRadius: '24px',
+  borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8, 16, 34, 0.74)',
   boxShadow: '0 18px 48px rgba(2, 10, 24, 0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
-  padding: '20px 20px 18px',
+  padding: '16px',
   display: 'grid',
-  gap: '10px',
+  gap: '8px',
   textDecoration: 'none',
   transition: 'transform 160ms ease, border-color 160ms ease',
+}
+
+const compactCardStyle: CSSProperties = {
+  minHeight: 108,
+  alignContent: 'space-between',
+  borderRadius: 13,
+  padding: '10px',
+  gap: '5px',
 }
 
 const cardTopStyle: CSSProperties = {
@@ -452,12 +504,22 @@ const cardMetaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactCardMetaStyle: CSSProperties = {
+  fontSize: 9,
+  lineHeight: 1.1,
+}
+
 const cardTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
+}
+
+const compactCardTitleStyle: CSSProperties = {
+  fontSize: 16,
+  lineHeight: 1.08,
 }
 
 const cardQuestionStyle: CSSProperties = {
@@ -471,9 +533,42 @@ const cardQuestionStyle: CSSProperties = {
 const cardTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
-  lineHeight: 1.75,
+  lineHeight: 1.5,
   fontWeight: 600,
   overflowWrap: 'anywhere',
+}
+
+const competeSupportDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.62)',
+  boxShadow: '0 14px 36px rgba(2, 10, 24, 0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const competeSupportSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 48,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const competeSupportSummaryTextStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const competeSupportBodyStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 10px 10px',
 }
 
 const cardCtaStyle: CSSProperties = {
@@ -484,6 +579,11 @@ const cardCtaStyle: CSSProperties = {
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const compactCardCtaStyle: CSSProperties = {
+  marginTop: 0,
+  fontSize: 12,
 }
 
 const captainBridgeStyle: CSSProperties = {
@@ -716,9 +816,9 @@ const captainBridgeActionStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
+  width: 'min(100%, 340px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

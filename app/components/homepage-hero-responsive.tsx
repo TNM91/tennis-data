@@ -456,7 +456,7 @@ export default function HomePageHeroResponsive() {
               {[
                 ['Dynamic edge', 'Ratings and matchup reads layered together'],
                 ['Captain command', 'Availability, lineups, and projections connected'],
-                ['League context', 'Players, teams, and flights in one workflow'],
+                ['League context', 'Players, teams, and flights connected'],
               ].map(([title, copy]) => (
                 <div
                   key={title}

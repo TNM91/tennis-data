@@ -8,20 +8,17 @@ const viewports = [
 ]
 const expectedText = [
   'Video Review',
-  'Record a clip, send it to your coach, and practice the returned marks.',
-  'Player capture',
-  'Coach review',
-  'Keep the clip queue light.',
-  'clip slots left',
+  'Player',
+  'Coach',
+  'slots',
   'Record',
   'Review',
   'Practice',
-  'Capture one clean clip.',
-  'Notifications and review files',
-  'Share or import',
+  'How this works',
+  'Steps, storage, and review files',
   'Record or upload',
   'Check the clip',
-  'Save or send',
+  'Save or share',
   'Record or upload first',
   'Open the camera on court or upload a video from your phone.',
   'Set up the shot',
@@ -30,6 +27,7 @@ const expectedText = [
   'Horizontal is best',
   'Full court',
   'Technique close-up',
+  'Saved to your videos',
   'ASK COACH TO CHECK',
   'Toss',
   'Contact',
@@ -39,6 +37,7 @@ const ignoredConsoleFragments = [
   '/_vercel/insights/script.js',
   '/_vercel/speed-insights/script.js',
   'Failed to load resource: net::ERR_FAILED',
+  'Failed to load resource: net::ERR_FILE_NOT_FOUND',
   'Failed to load resource: the server responded with a status of 404 (Not Found)',
   'violates the following report-only Content Security Policy directive',
 ]
@@ -78,8 +77,8 @@ for (const viewport of viewports) {
       timeout: 35_000,
     })
 
-    await page.getByRole('button', { name: 'Player capture', exact: true }).waitFor({ state: 'visible', timeout: 10_000 })
-    await page.getByRole('button', { name: 'Coach review', exact: true }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Player', exact: true }).waitFor({ state: 'visible', timeout: 10_000 })
+    await page.getByRole('button', { name: 'Coach', exact: true }).waitFor({ state: 'visible', timeout: 10_000 })
 
     const pageText = await page.locator('body').innerText({ timeout: 10_000 })
     const normalizedText = pageText.replace(/\s+/g, ' ').trim()
@@ -107,13 +106,13 @@ for (const viewport of viewports) {
 
     if (viewport.name === 'mobile') {
       const mobileShortcutLayoutReady = await page.evaluate(() => {
-        const heroShortcut = document.querySelector('[aria-label="Video review shortcuts"]')
+        const topSteps = document.querySelector('[aria-label="Video review steps"]')
         const dock = document.querySelector('[aria-label="Video review mobile shortcuts"]')
-        const heroStyle = heroShortcut ? window.getComputedStyle(heroShortcut) : null
+        const topStyle = topSteps ? window.getComputedStyle(topSteps) : null
         const dockStyle = dock ? window.getComputedStyle(dock) : null
 
-        return Boolean(heroShortcut && dock)
-          && heroStyle?.display === 'none'
+        return Boolean(topSteps && dock)
+          && topStyle?.display !== 'none'
           && dockStyle?.display !== 'none'
           && dockStyle?.visibility !== 'hidden'
       }).catch(() => false)
@@ -122,7 +121,7 @@ for (const viewport of viewports) {
         findings.push({
           viewport: viewport.name,
           type: 'mobile-shortcuts',
-          text: 'Phone view should use the bottom shortcut dock instead of repeating hero shortcuts.',
+          text: 'Phone view should keep compact step controls and the bottom shortcut dock available.',
         })
       }
 
@@ -164,16 +163,28 @@ for (const viewport of viewports) {
 
     const initialStageReady = await page.locator('[aria-label="Video review steps"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Record') && text.includes('Capture one clean clip.')
-        && text.includes('Review') && text.includes('Send, share, or watch marks.')
-        && text.includes('Practice') && text.includes('Feedback appears here after coach review.')
+      return text.includes('Record') && text.includes('Review') && text.includes('Practice')
+        && !text.includes('Capture one clean clip.')
     }).catch(() => false)
 
     if (!initialStageReady) {
       findings.push({
         viewport: viewport.name,
         type: 'stage-tabs',
-        text: 'Video review did not show the simplified Record, Review, Practice steps on first load.',
+        text: 'Video review did not show compact Record, Review, Practice controls before the tool.',
+      })
+    }
+
+    const supportCollapsedReady = await page.locator('[aria-label="Video Review"]').evaluate(() => {
+      const support = document.querySelector('details[class*="supportDrawer"]')
+      return support instanceof HTMLDetailsElement && !support.open
+    }).catch(() => false)
+
+    if (!supportCollapsedReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'support-collapsed',
+        text: 'Workflow guidance should stay collapsed on first load so the recording tools come first.',
       })
     }
 
@@ -203,6 +214,19 @@ for (const viewport of viewports) {
         viewport: viewport.name,
         type: 'player-note-cue',
         text: 'Player note cue did not fill the coach question.',
+      })
+    }
+
+    const playerOwnerReady = await page.locator('[aria-label="Player video owner"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Saved to your videos') && text.includes('No player name needed')
+    }).catch(() => false)
+
+    if (!playerOwnerReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'player-owner',
+        text: 'Player mode should save to the player inventory without asking for a player name.',
       })
     }
 
@@ -421,9 +445,9 @@ for (const viewport of viewports) {
 
     const draftActionsReady = await page.locator('[aria-label="Draft clip preview"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Coach question attached')
-        && text.includes('Draft only. Send or save before leaving this page.')
-        && text.includes('Send to coach') && text.includes('Save private') && text.includes('Record again')
+      return text.includes('Save this take to your videos')
+        && text.includes('Draft only. Save, share, or discard before leaving this page.')
+        && text.includes('Mark up myself') && text.includes('Save to inventory') && text.includes('Share with coach') && text.includes('Record again')
     }).catch(() => false)
 
     if (!draftActionsReady) {
@@ -445,7 +469,7 @@ for (const viewport of viewports) {
 
     const draftActionsPlacementReady = await page.locator('[aria-label="Draft clip preview"]').evaluate((section) => {
       const actions = section.querySelector('[aria-label="Draft clip actions"]')
-      const readiness = section.querySelector('[aria-label="Send readiness"]')
+      const readiness = section.querySelector('[aria-label="Clip readiness"]')
       if (!actions || !readiness) return false
       return actions.getBoundingClientRect().top < readiness.getBoundingClientRect().top
     }).catch(() => false)
@@ -458,9 +482,9 @@ for (const viewport of viewports) {
       })
     }
 
-    const sendReadinessReady = await page.locator('[aria-label="Send readiness"]').evaluate((section) => {
+    const sendReadinessReady = await page.locator('[aria-label="Clip readiness"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Ready to send') && text.includes('Video') && text.includes('Goal') && text.includes('Question')
+      return text.includes('Note ready') && text.includes('Video') && text.includes('Goal') && text.includes('Note')
     }).catch(() => false)
 
     if (!sendReadinessReady) {
@@ -486,7 +510,7 @@ for (const viewport of viewports) {
 
     const draftCoachQuestionReady = await page.locator('[aria-label="Draft coach question"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Coach question ready') && text.includes('Edit note') && text.includes('toss is consistent')
+      return text.includes('Coach note ready') && text.includes('Edit note') && text.includes('toss is consistent')
         && text.includes('Toss') && text.includes('Contact') && text.includes('Footwork')
     }).catch(() => false)
 
@@ -500,7 +524,7 @@ for (const viewport of viewports) {
 
     const draftCaptureNextStepReady = await page.locator('[aria-label="Capture next step"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Ready to save or send') && text.includes('Play it once, then send it to your coach or keep it private.')
+      return text.includes('Ready to save, mark up, or share') && text.includes('Play it once, then save it to your videos, mark it yourself, or share it with your coach.')
     }).catch(() => false)
 
     if (!draftCaptureNextStepReady) {
@@ -527,7 +551,7 @@ for (const viewport of viewports) {
 
     const noteNextStepReady = await page.locator('[aria-label="Player note next step"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Question ready') && text.includes('Review clip actions')
+      return text.includes('Note ready') && text.includes('Review clip actions')
     }).catch(() => false)
 
     if (!noteNextStepReady) {
@@ -577,7 +601,7 @@ for (const viewport of viewports) {
     await page.locator('[class*="recordingBadge"]').waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForTimeout(1_000)
     await page.getByRole('button', { name: 'Stop recording' }).click({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Send to coach' }).waitFor({ state: 'visible', timeout: 20_000 })
+    await page.getByRole('button', { name: 'Share with coach' }).waitFor({ state: 'visible', timeout: 20_000 })
 
     const draftOverflow = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
@@ -591,13 +615,13 @@ for (const viewport of viewports) {
       })
     }
 
-    await page.getByRole('button', { name: 'Send to coach' }).click({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Share with coach' }).click({ timeout: 10_000 })
     await page.getByText('Coach link ready').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('Next step | Waiting on coach').waitFor({ state: 'visible', timeout: 10_000 })
 
     const sentActivityReady = await page.locator('[aria-label="Clip activity trail"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Clip activity') && text.includes('Saved to lab') && text.includes('Sent to Coach')
+      return text.includes('Clip activity') && text.includes('Saved to lab') && text.includes('Shared with Coach')
         && text.includes('Coach marks next') && text.includes('Feedback not returned') && text.includes('Practice not logged')
     }).catch(() => false)
 
@@ -605,11 +629,11 @@ for (const viewport of viewports) {
       findings.push({
         viewport: viewport.name,
         type: 'clip-activity-sent',
-        text: 'Sent clip did not show the saved, sent, waiting, and practice activity trail.',
+        text: 'Shared clip did not show the saved, shared, waiting, and practice activity trail.',
       })
     }
 
-    const playerSentStatusReady = await page.locator('[aria-label="Player sent clip status"]').evaluate((section) => {
+    const playerSentStatusReady = await page.locator('[aria-label="Player shared clip status"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('With coach') && text.includes('is waiting for Coach') && text.includes('Open waiting clip')
         && text.includes('Show waiting') && text.includes('Keep the coach link handy')
@@ -619,7 +643,7 @@ for (const viewport of viewports) {
       findings.push({
         viewport: viewport.name,
         type: 'player-sent-status',
-        text: 'Player library did not show the waiting coach handoff banner after sending.',
+        text: 'Player library did not show the waiting coach handoff banner after sharing.',
       })
     }
 
@@ -652,12 +676,113 @@ for (const viewport of viewports) {
     }
 
     await page.getByRole('button', { name: 'Preview coach view' }).click({ timeout: 10_000 })
+    await page.locator('[aria-label="Video review steps"]').getByRole('button', { name: 'Record' }).click({ timeout: 10_000 })
+    const coachCapturePlayerTargetReady = await page.locator('#video-review-capture').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Player for this video')
+        && text.includes('Maya Chen - Linked player')
+        && text.includes('Guest player - Invite to link before viewing')
+        && text.includes('linked player, a guest')
+    }).catch(() => false)
+
+    if (!coachCapturePlayerTargetReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-player-target',
+        text: 'Coach capture did not show linked players and the guest player option.',
+      })
+    }
+
+    await page.getByLabel('Player for this video').selectOption('guest')
+    const coachGuestTargetReady = await page.locator('#video-review-capture').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Guest name') && text.includes('Guest contact') && text.includes('The player can view it after linking with you.')
+    }).catch(() => false)
+
+    if (!coachGuestTargetReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'coach-guest-target',
+        text: 'Coach guest capture did not show guest name/contact and link-required guidance.',
+      })
+    }
+
+    await page.getByLabel('Guest name').fill('Guest Tester', { timeout: 10_000 })
+    await page.getByLabel('Guest contact').fill('guest@example.com', { timeout: 10_000 })
+    await page.getByLabel('Clip title').fill('Guest invite serve', { timeout: 10_000 })
+    const guestCapturePanel = page.locator('#video-review-capture')
+    const guestStartRecording = guestCapturePanel.getByRole('button', { name: 'Start recording' })
+    const guestStartCount = await guestStartRecording.count()
+    if (guestStartCount === 0) {
+      await guestCapturePanel.getByRole('button', { name: 'Open camera' }).click({ timeout: 10_000 })
+      await guestCapturePanel.getByRole('button', { name: 'Start recording' }).waitFor({ state: 'visible', timeout: 10_000 })
+    }
+    await guestCapturePanel.getByRole('button', { name: 'Start recording' }).click({ timeout: 10_000 })
+    await page.locator('[class*="recordingBadge"]').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForTimeout(800)
+    await guestCapturePanel.getByRole('button', { name: 'Stop recording' }).click({ timeout: 10_000 })
+    await guestCapturePanel.getByRole('button', { name: 'Mark up now' }).waitFor({ state: 'visible', timeout: 20_000 })
+    await page.locator('#video-review-capture').getByRole('button', { name: 'Mark up now' }).click({ timeout: 10_000 })
+    await page.getByText('Clip saved. Add marks now, then share it with the player when ready.').waitFor({ state: 'visible', timeout: 10_000 })
+    const guestAccessReady = await page.locator('[aria-label="Guest player access"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Guest player')
+        && text.includes('Guest Tester needs to link with you')
+        && text.includes('guest@example.com')
+        && text.includes('Copy guest invite')
+        && text.includes('Share review file')
+    }).catch(() => false)
+
+    if (!guestAccessReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'guest-player-access',
+        text: 'Saved guest clip did not show link-required invite guidance and sharing actions.',
+      })
+    }
+
+    await page.locator('[aria-label="Video library filters"]').getByLabel('Status').selectOption('all')
+    const guestCardReady = await page.locator('[aria-label="Video library clips"]').evaluate((section) => {
+      const text = section.textContent || ''
+      return text.includes('Guest invite serve') && text.includes('Guest link needed')
+    }).catch(() => false)
+
+    if (!guestCardReady) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'guest-library-card',
+        text: 'Saved guest clip did not show guest-link status in the coach library.',
+      })
+    }
+
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.locator('#video-review-active').getByRole('button', { name: 'Delete' }).click({ timeout: 10_000 })
+    await page.getByText('Clip deleted from this device.').waitFor({ state: 'visible', timeout: 10_000 })
+
+    if (viewport.name === 'mobile') {
+      const coachDockReady = await page.locator('[aria-label="Video review mobile shortcuts"]').evaluate((section) => {
+        const text = section.textContent || ''
+        const columns = window.getComputedStyle(section).gridTemplateColumns.split(' ').filter(Boolean)
+        return text.includes('Record') && text.includes('Queue') && text.includes('Files') && !text.includes('Practice') && columns.length === 3
+      }).catch(() => false)
+
+      if (!coachDockReady) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'coach-mobile-dock',
+          text: 'Coach phone shortcuts should show Record, Queue, and Files in a three-button dock.',
+        })
+      }
+    }
+
+    await page.locator('[aria-label="Video review steps"]').getByRole('button', { name: 'Queue' }).click({ timeout: 10_000 })
+    await page.locator('[aria-label="Video library clips"]').getByText('Next: mark key moment').click({ timeout: 10_000 })
     await page.getByText('Coach tools').waitFor({ state: 'visible', timeout: 10_000 })
     await page.getByText('QUICK FOCUS').waitFor({ state: 'visible', timeout: 10_000 })
 
     const coachInboxReady = await page.locator('[aria-label="Coach inbox"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('Coach inbox') && text.includes('Player sent') && text.includes('Open request')
+      return text.includes('Coach inbox') && text.includes('Player shared') && text.includes('Open request')
         && text.includes('Show needs review') && text.includes('mark the key moment')
     }).catch(() => false)
 
@@ -759,7 +884,7 @@ for (const viewport of viewports) {
       })
     }
 
-    const initialCoachNextStepReady = await page.locator('[aria-label="Coach next step"]').evaluate((section) => {
+    const initialCoachNextStepReady = await page.locator('[aria-label="Markup next step"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Mark the key moment') && text.includes('Pause at the frame that matters')
     }).catch(() => false)
@@ -790,7 +915,7 @@ for (const viewport of viewports) {
     const playerQuestionMarked = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('| note') && text.includes('toss is consistent') && text.includes('On video now')
-        && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('0 of 1 watched')
+        && text.includes('Mark 1') && text.includes('1 mark saved') && text.includes('0 of 1 coach marks watched')
         && text.includes('Next: Mark 1 at') && text.includes('Watch Mark 1')
         && text.includes('First mark') && text.includes('Latest mark')
     }).catch(() => false)
@@ -816,7 +941,7 @@ for (const viewport of viewports) {
       })
     }
 
-    const markedCoachNextStepReady = await page.locator('[aria-label="Coach next step"]').evaluate((section) => {
+    const markedCoachNextStepReady = await page.locator('[aria-label="Markup next step"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Name one next focus') && text.includes('Add next focus')
     }).catch(() => false)
@@ -829,7 +954,7 @@ for (const viewport of viewports) {
       })
     }
 
-    await page.locator('[aria-label="Coach next step"]').getByRole('button', { name: 'Add next focus' }).click({ timeout: 10_000 })
+    await page.locator('[aria-label="Markup next step"]').getByRole('button', { name: 'Add next focus' }).click({ timeout: 10_000 })
     const returnReviewVisible = await page.waitForFunction(() => {
       const section = document.getElementById('video-review-return-review')
       if (!(section instanceof HTMLElement)) return false
@@ -932,7 +1057,7 @@ for (const viewport of viewports) {
     await page.locator('[aria-label="Timeline marks"]').getByRole('button', { name: 'Open' }).click({ timeout: 10_000 })
     const playerQuestionWatched = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('1 of 1 watched') && text.includes('Watched') && text.includes('All watched')
+      return text.includes('1 of 1 coach marks watched') && text.includes('Watched') && text.includes('All watched')
         && text.includes('All marks watched')
         && text.includes('Start over')
     }).catch(() => false)
@@ -966,7 +1091,7 @@ for (const viewport of viewports) {
     await page.getByText('Coach marks ready to watch again.').waitFor({ state: 'visible', timeout: 10_000 })
     const watchedMarkReset = await page.locator('[aria-label="Timeline marks"]').evaluate((section) => {
       const text = section.textContent || ''
-      return text.includes('0 of 1 watched') && text.includes('Next: Mark 1 at') && text.includes('Watch Mark 1')
+      return text.includes('0 of 1 coach marks watched') && text.includes('Next: Mark 1 at') && text.includes('Watch Mark 1')
         && !text.includes('Watched') && !text.includes('Start over')
     }).catch(() => false)
 
@@ -1051,7 +1176,7 @@ for (const viewport of viewports) {
       })
     }
 
-    const readyCoachNextStepReady = await page.locator('[aria-label="Coach next step"]').evaluate((section) => {
+    const readyCoachNextStepReady = await page.locator('[aria-label="Markup next step"]').evaluate((section) => {
       const text = section.textContent || ''
       return text.includes('Ready to send back') && text.includes('Send the review back')
     }).catch(() => false)
@@ -1330,6 +1455,19 @@ for (const viewport of viewports) {
         text: 'All practice filter did not restore the practiced clip.',
       })
     }
+
+    const supportOpenBeforeStorage = await page.evaluate(() => {
+      const drawer = document.querySelector('details[class*="supportDrawer"]')
+      return drawer instanceof HTMLDetailsElement && drawer.open
+    }).catch(() => false)
+    if (!supportOpenBeforeStorage) {
+      await page.locator('details[class*="supportDrawer"] > summary').click({ timeout: 10_000 })
+    }
+    await page.waitForFunction(() => {
+      const drawer = document.querySelector('details[class*="supportDrawer"]')
+      return drawer instanceof HTMLDetailsElement && drawer.open
+    }, undefined, { timeout: 10_000 })
+    await page.locator('[aria-label="Free storage limits"]').waitFor({ state: 'visible', timeout: 10_000 })
 
     const storageCleanupSummaryReady = await page.locator('[aria-label="Storage cleanup summary"]').evaluate((section) => {
       const text = section.textContent || ''

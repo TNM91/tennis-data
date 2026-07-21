@@ -44,6 +44,12 @@ describe('Captain messaging mobile layout guards', () => {
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock('messageControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"messaging\" teamLabel={teamFilter || 'Team week'} /> : null}")
+    expect(source).toContain('<PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>')
+    expect(source).toContain('<section id="captain-message-composer" style={surfaceCard}>')
+    expect(source.indexOf('messageControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('messagePlaybookSurfaceStyle'),
+    )
   })
 
   it('keeps playbook, handoff, composer, and form controls from forcing overflow', () => {

@@ -32,7 +32,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
@@ -627,7 +627,7 @@ function PlayerProfileContent() {
     [selectedDynamicRating, nextThreshold],
   )
 
-  // Status uses USTA dynamic — that's what USTA measures for bump/knockdown decisions.
+  // Status uses USTA dynamic; that's what USTA measures for bump/knockdown decisions.
   const ratingStatus = useMemo(
     () => getRatingStatus(baseRating, ustaDynamicRating),
     [baseRating, ustaDynamicRating],
@@ -1096,7 +1096,7 @@ function PlayerProfileContent() {
 
   const dynamicRightColumn: CSSProperties = {
     ...heroRight,
-    display: 'grid',
+    display: isMobile ? 'none' : 'grid',
     position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
   }
@@ -1155,6 +1155,17 @@ function PlayerProfileContent() {
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const tiqParticipationCount = tiqParticipations.length
   const featuredPlayerAwards = playerAwards.slice(0, 3)
+  const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
+  const hasPlayerDetailPanels =
+    careerHighs.peakRating !== null ||
+    careerHighs.longestStreak > 0 ||
+    Boolean(careerHighs.bestSeason) ||
+    Boolean(benchmark) ||
+    Boolean(opponentQualityBreakdown) ||
+    access.canUseAdvancedPlayerInsights ||
+    ustaTeamMemberships.length > 0 ||
+    tiqParticipationCount > 0 ||
+    Boolean(tiqParticipationWarning)
   const playerSignals = [
     {
       label: 'Official baseline',
@@ -1252,7 +1263,7 @@ function PlayerProfileContent() {
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
 
-              <div style={heroHintRow}>
+              <div style={{ ...heroHintRow, display: isMobile ? 'none' : 'flex' }}>
                 <span style={heroHintPill}>{totalMatches} matches</span>
                 <span style={heroHintPill}>{winPct}% win rate</span>
                 <span style={heroHintPill}>{ratingViewLabel} view</span>
@@ -1402,7 +1413,7 @@ function PlayerProfileContent() {
                   <StatChip label="Confidence" value={confidence} />
                   <StatChip
                     label="Form last 5"
-                    value={formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '—'}
+                    value={formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '--'}
                   />
                 </div>
               </div>
@@ -1424,16 +1435,27 @@ function PlayerProfileContent() {
       </section>
 
       <section style={contentWrap}>
-        <DataTrustPanel
-          title="Player data trust"
-          body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, team summaries, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
-          signals={[
-            { label: 'Source', value: 'Player records, scorecards, teams, awards' },
-            { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },
-            { label: 'Confidence', value: `${confidence} from ${totalMatches} tracked matches` },
-            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
-          ]}
-        />
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Data quality</span>
+              <strong style={detailDrawerTitleStyle}>Show how this player page is checked</strong>
+            </span>
+            <span style={panelChip}>Details</span>
+          </summary>
+          <div style={detailDrawerContentStyle}>
+            <DataTrustPanel
+              title="Player data trust"
+              body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, team summaries, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
+              signals={[
+                { label: 'Source', value: 'Player records, scorecards, teams, awards' },
+                { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },
+                { label: 'Confidence', value: `${confidence} from ${totalMatches} tracked matches` },
+                { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+              ]}
+            />
+          </div>
+        </details>
 
         <article style={scorecardPanelStyle} id="profile-scorecard">
           <div style={scorecardMainStyle}>
@@ -1470,14 +1492,16 @@ function PlayerProfileContent() {
           <div style={scorecardActionRailStyle}>
             <div style={scorecardRailLabelStyle}>Player path</div>
             <div style={scorecardRailValueStyle}>Find the next useful move.</div>
+            {!isMobile ? (
             <p style={scorecardRailTextStyle}>
-              {PRODUCT_MOTTO}{' '}
               {isOwnProfile
                 ? 'Use this player ID to decide what to work on, how progress is moving, which matchup to prep, and what drill or resource should come next.'
                 : linkedPlayerId
                   ? 'Your profile is loaded, so this player ID can become a direct comparison, a My Lab follow, or a training cue.'
                   : 'Start with this player ID, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
             </p>
+            ) : null}
+            {!isMobile ? (
             <div style={playerPathIdentityGridStyle} aria-label="Player identity signals">
               {playerPathIdentitySignals.map((signal) => (
                 <div key={signal.label} style={playerPathIdentityChipStyle}>
@@ -1486,6 +1510,7 @@ function PlayerProfileContent() {
                 </div>
               ))}
             </div>
+            ) : null}
             <Link
               href={playerPathDevelopmentHref}
               style={playerPathReadStyle}
@@ -1503,6 +1528,7 @@ function PlayerProfileContent() {
                 ))}
               </span>
             </Link>
+            {!isMobile ? (
             <div style={playerPathHandoffStyle} aria-label="Player profile Player ID handoff">
               <div>
                 <span style={playerPathQuestionStyle}>Profile ID handoff</span>
@@ -1525,6 +1551,7 @@ function PlayerProfileContent() {
                 ))}
               </div>
             </div>
+            ) : null}
             <div style={playerPathListStyle} aria-label="Player path actions">
               {playerPathActions.map((action) => (
                 <Link
@@ -1749,17 +1776,17 @@ function PlayerProfileContent() {
 
           <article style={statCard}>
             <div style={statLabel}>Singles record</div>
-            <div style={statValue}>{singlesRecord.total > 0 ? `${singlesRecord.w}-${singlesRecord.l}` : '—'}</div>
+            <div style={statValue}>{singlesRecord.total > 0 ? `${singlesRecord.w}-${singlesRecord.l}` : '--'}</div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>Doubles record</div>
-            <div style={statValue}>{doublesRecord.total > 0 ? `${doublesRecord.w}-${doublesRecord.l}` : '—'}</div>
+            <div style={statValue}>{doublesRecord.total > 0 ? `${doublesRecord.w}-${doublesRecord.l}` : '--'}</div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>Avg opponent ({ratingViewLabel.toLowerCase()})</div>
-            <div style={statValue}>{avgOpponentRating !== null ? avgOpponentRating.toFixed(2) : '—'}</div>
+            <div style={statValue}>{avgOpponentRating !== null ? avgOpponentRating.toFixed(2) : '--'}</div>
           </article>
 
           <article style={statCard}>
@@ -1775,20 +1802,20 @@ function PlayerProfileContent() {
                     : 'var(--foreground)',
               }}
             >
-              {formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '—'}
+              {formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '--'}
             </div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>Status held</div>
             <div style={statValueSmall}>
-              {statusStreakMatches > 0 ? `${statusStreakMatches} match${statusStreakMatches === 1 ? '' : 'es'}` : '—'}
+              {statusStreakMatches > 0 ? `${statusStreakMatches} match${statusStreakMatches === 1 ? '' : 'es'}` : '--'}
             </div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>Best win streak</div>
-            <div style={statValue}>{longestWinStreak > 0 ? `${longestWinStreak}W` : '—'}</div>
+            <div style={statValue}>{longestWinStreak > 0 ? `${longestWinStreak}W` : '--'}</div>
           </article>
 
           {playerRank !== null && totalPlayers !== null ? (
@@ -1867,6 +1894,16 @@ function PlayerProfileContent() {
           </div>
         </details>
 
+        {hasPlayerDetailPanels ? (
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Profile detail</span>
+              <strong style={detailDrawerTitleStyle}>Show deeper player detail</strong>
+            </span>
+            <span style={panelChip}>More</span>
+          </summary>
+          <div style={detailDrawerStackStyle}>
         {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
           <article style={panelCard}>
             <div style={panelHead}>
@@ -1895,7 +1932,7 @@ function PlayerProfileContent() {
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.14)', minWidth: 0, overflowWrap: 'anywhere' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best season</div>
                   <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#a7f3d0' }}>{careerHighs.bestSeason.year}</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.bestSeason.wins}W–{careerHighs.bestSeason.losses}L · {careerHighs.bestSeason.winRate}% win rate</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.bestSeason.wins}W-{careerHighs.bestSeason.losses}L - {careerHighs.bestSeason.winRate}% win rate</div>
                 </div>
               ) : null}
               {careerHighs.mostMatchesSeason && careerHighs.mostMatchesSeason.year !== careerHighs.bestSeason?.year ? (
@@ -1930,14 +1967,14 @@ function PlayerProfileContent() {
                 },
                 {
                   label: 'Win rate vs 50%',
-                  value: benchmark.winRateDiff !== null ? `${benchmark.winRateDiff >= 0 ? '+' : ''}${benchmark.winRateDiff.toFixed(1)}%` : '—',
+                  value: benchmark.winRateDiff !== null ? `${benchmark.winRateDiff >= 0 ? '+' : ''}${benchmark.winRateDiff.toFixed(1)}%` : '--',
                   positive: benchmark.winRateDiff !== null && benchmark.winRateDiff > 0,
                   negative: benchmark.winRateDiff !== null && benchmark.winRateDiff < -5,
                   note: benchmark.winRateDiff !== null ? (benchmark.winRateDiff > 5 ? 'Winning more than losing' : benchmark.winRateDiff < -5 ? 'More losses than wins' : 'Near even') : 'Not enough data',
                 },
                 {
                   label: 'Form vs neutral',
-                  value: benchmark.formVsNeutral !== null ? `${benchmark.formVsNeutral >= 0 ? '+' : ''}${benchmark.formVsNeutral.toFixed(3)}` : '—',
+                  value: benchmark.formVsNeutral !== null ? `${benchmark.formVsNeutral >= 0 ? '+' : ''}${benchmark.formVsNeutral.toFixed(3)}` : '--',
                   positive: benchmark.formVsNeutral !== null && benchmark.formVsNeutral > 0.01,
                   negative: benchmark.formVsNeutral !== null && benchmark.formVsNeutral < -0.01,
                   note: benchmark.formVsNeutral !== null ? (benchmark.formVsNeutral > 0.01 ? 'Gaining recently' : benchmark.formVsNeutral < -0.01 ? 'Losing recently' : 'Flat') : 'Not enough matches',
@@ -1974,7 +2011,7 @@ function PlayerProfileContent() {
                 return (
                   <div key={key} style={{ padding: '14px 16px', borderRadius: 16, background: bg, border: `1px solid ${border}` }}>
                     <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>{label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: 0 }}>{b.w}–{b.l}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: 0 }}>{b.w}-{b.l}</div>
                     {pct !== null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{pct}% win rate</div> : null}
                   </div>
                 )
@@ -1997,6 +2034,7 @@ function PlayerProfileContent() {
           )
         })() : null}
 
+        {ustaTeamMemberships.length > 0 ? (
         <article style={panelCard}>
           <div style={panelHead}>
             <div style={panelHeadCopyStyle}>
@@ -2044,7 +2082,9 @@ function PlayerProfileContent() {
             </div>
           )}
         </article>
+        ) : null}
 
+        {tiqParticipationCount > 0 || tiqParticipationWarning ? (
         <article style={panelCard}>
           <div style={panelHead}>
             <div style={panelHeadCopyStyle}>
@@ -2125,8 +2165,14 @@ function PlayerProfileContent() {
             </div>
           )}
         </article>
+        ) : null}
+          </div>
+        </details>
+        ) : null}
 
+        {hasPlayerHistoryData ? (
         <div style={dynamicContentGrid}>
+          {chartPoints.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
               <div style={panelHeadCopyStyle}>
@@ -2200,7 +2246,7 @@ function PlayerProfileContent() {
                 <table style={dataTable}>
                   <thead>
                     <tr>
-                      {['Date', 'Rating', 'Δ Delta', 'Win %', 'Opp rating', 'Multiplier'].map((h) => (
+                      {['Date', 'Rating', 'Delta', 'Win %', 'Opp rating', 'Multiplier'].map((h) => (
                         <th key={h} style={tableHead}>{h}</th>
                       ))}
                     </tr>
@@ -2219,11 +2265,11 @@ function PlayerProfileContent() {
                               <span style={{ color: positive ? '#9be11d' : negative ? '#fca5a5' : 'var(--shell-copy-muted)', fontWeight: 800 }}>
                                 {positive ? '+' : ''}{pt.delta.toFixed(3)}
                               </span>
-                            ) : '—'}
+                            ) : '--'}
                           </td>
-                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{pt.winProbability != null ? `${pt.winProbability}%` : '—'}</td>
-                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.opponent_rating != null ? snap.opponent_rating.toFixed(2) : '—'}</td>
-                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.multiplier != null ? snap.multiplier.toFixed(2) : '—'}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{pt.winProbability != null ? `${pt.winProbability}%` : '--'}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.opponent_rating != null ? snap.opponent_rating.toFixed(2) : '--'}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.multiplier != null ? snap.multiplier.toFixed(2) : '--'}</td>
                         </tr>
                       )
                     })}
@@ -2237,7 +2283,7 @@ function PlayerProfileContent() {
                   {[
                     { dot: '#3FA7FF', label: 'Standard match' },
                     { dot: '#9be11d', label: 'Big gain (+0.08+)', large: true },
-                    { dot: '#fca5a5', label: 'Big loss (−0.08+)', large: true },
+                    { dot: '#fca5a5', label: 'Big loss (-0.08+)', large: true },
                     { dot: '#ffd700', label: 'Upset win (won < 40% fav)', large: true },
                     { dot: undefined, dashed: 'rgba(155,225,29,0.55)', label: 'Projected trend' },
                     { dot: undefined, dashed: 'rgba(255,210,50,0.65)', label: 'USTA base' },
@@ -2259,7 +2305,9 @@ function PlayerProfileContent() {
               </>
             )}
           </article>
+          ) : null}
 
+          {filteredMatches.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
               <div style={panelHeadCopyStyle}>
@@ -2274,7 +2322,7 @@ function PlayerProfileContent() {
                   onFocus={() => setMatchSearchFocused(true)}
                   onBlur={() => setMatchSearchFocused(false)}
                   aria-label="Search latest match history"
-                  placeholder="Search opponent, score…"
+                  placeholder="Search opponent, score..."
                   style={{
                     ...matchSearchInputStyle,
                     ...(matchSearchFocused ? matchSearchInputFocusStyle : null),
@@ -2314,6 +2362,98 @@ function PlayerProfileContent() {
                   <MiniLink href="/mylab">Open My Lab</MiniLink>
                 </div>
               </div>
+            ) : isMobile ? (
+              <div style={mobileMatchListStyle} aria-label="Latest match history">
+                {mostRecentMatches.map((match) => {
+                  const existingReport = myMatchReportByMatchId.get(match.id) || null
+                  const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
+                  const quality = getMatchScoreQuality(match.score)
+                  const delta = snap?.delta
+                  const winProbability = snap?.win_probability
+                  const isUpset = winProbability != null && ((match.result === 'W' && winProbability < 40) || (match.result === 'L' && winProbability > 60))
+
+                  return (
+                    <article key={match.id} style={mobileMatchCardStyle}>
+                      <div style={mobileMatchCardTopStyle}>
+                        <span style={mobileMatchDateStyle}>{formatDate(match.date)}</span>
+                        <span
+                          style={{
+                            ...resultPill,
+                            ...(match.result === 'W' ? resultWin : resultLoss),
+                          }}
+                        >
+                          {match.result}
+                        </span>
+                      </div>
+                      <div style={mobileMatchOpponentStyle}>
+                        <span style={mobileMatchLabelStyle}>{capitalize(match.matchType)}</span>
+                        {match.opponentIds.length === 1 ? (
+                          <Link href="/mylab" style={mobileMatchOpponentLinkStyle}>
+                            {match.opponent}
+                          </Link>
+                        ) : match.opponentIds.length > 1 ? (
+                          <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`} style={mobileMatchOpponentLinkStyle}>
+                            {match.opponent}
+                          </Link>
+                        ) : (
+                          <strong>{match.opponent}</strong>
+                        )}
+                      </div>
+                      <div style={mobileMatchMetaGridStyle}>
+                        <span style={mobileMatchMetaItemStyle}>
+                          <span>Score</span>
+                          <strong>{match.score}</strong>
+                        </span>
+                        <span style={mobileMatchMetaItemStyle}>
+                          <span>Partner</span>
+                          <strong>{match.partner || '--'}</strong>
+                        </span>
+                        <span style={mobileMatchMetaItemStyle}>
+                          <span>Quality</span>
+                          <strong>{quality || '--'}</strong>
+                        </span>
+                        <span style={mobileMatchMetaItemStyle}>
+                          <span>Rating</span>
+                          <strong style={{ color: delta == null ? 'var(--shell-copy-muted)' : delta >= 0 ? '#9be11d' : '#fca5a5' }}>
+                            {delta == null ? '--' : `${delta >= 0 ? '+' : ''}${delta.toFixed(3)}`}
+                          </strong>
+                        </span>
+                        <span style={mobileMatchMetaItemStyle}>
+                          <span>Win%</span>
+                          <strong style={{ color: isUpset ? '#fed7aa' : 'var(--foreground-strong)' }}>
+                            {winProbability == null ? '--' : `${winProbability}%${isUpset ? ' upset' : ''}`}
+                          </strong>
+                        </span>
+                      </div>
+                      {existingReport ? (
+                        <span style={reportStatusPillStyle(existingReport.status)}>
+                          {getReportStatusLabel(existingReport.status)}
+                        </span>
+                      ) : isOwnProfile ? (
+                        <MatchAccuracyReportButton
+                          matchId={match.id}
+                          reporterPlayerName={player?.name || ''}
+                          matchLabel={`${player?.name || 'Player'} vs ${match.opponent || 'opponent'} - ${match.score || 'No score'}`}
+                          context={{
+                            surface: 'player_profile_match_history',
+                            linkedPlayerId: linkedPlayerId || '',
+                            viewedPlayerId: playerId,
+                            leagueName: match.leagueName,
+                            matchType: match.matchType,
+                            matchDate: match.date,
+                            opponent: match.opponent,
+                            result: match.result,
+                            source: match.source,
+                            sideA: match.sideA,
+                            sideB: match.sideB,
+                          }}
+                          onSubmitted={() => void refreshMyMatchReports()}
+                        />
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
             ) : (
               <div style={tableWrap}>
                 <table style={dataTable}>
@@ -2345,7 +2485,7 @@ function PlayerProfileContent() {
                         >
                         <td style={tableCell}>{formatDate(match.date)}</td>
                         <td style={tableCell}>{capitalize(match.matchType)}</td>
-                        <td style={tableCell}>{match.partner || '—'}</td>
+                        <td style={tableCell}>{match.partner || '--'}</td>
                         <td style={tableCell}>
                           {match.opponentIds.length === 1 ? (
                             <Link
@@ -2398,7 +2538,7 @@ function PlayerProfileContent() {
                         <td style={tableCell}>
                           {(() => {
                             const q = getMatchScoreQuality(match.score)
-                            if (!q) return <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>—</span>
+                            if (!q) return <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>--</span>
                             const isPositive = q === 'Dominant'
                             const isTense = q === 'Tiebreak' || q === '3 sets'
                             return (
@@ -2433,7 +2573,9 @@ function PlayerProfileContent() {
               </div>
             )}
           </article>
+          ) : null}
         </div>
+        ) : null}
 
         {opponentRecords.length > 0 ? (
           <article style={panelCard}>
@@ -2460,7 +2602,7 @@ function PlayerProfileContent() {
                       ) : (
                         <div style={rivalryNameTextStyle}>{opp.name}</div>
                       )}
-                      <div style={rivalryMetaStyle}>{opp.total} match{opp.total === 1 ? '' : 'es'} · last {formatDate(opp.lastDate)}</div>
+                      <div style={rivalryMetaStyle}>{opp.total} match{opp.total === 1 ? '' : 'es'} - last {formatDate(opp.lastDate)}</div>
                     </div>
                     <div style={rivalryRecordRowStyle}>
                       <span style={{ fontWeight: 900, fontSize: 15, color: '#f8fbff' }}>{opp.wins}-{opp.losses}</span>
@@ -2510,7 +2652,7 @@ function PlayerProfileContent() {
                         <td style={{ ...tableCell, fontWeight: 900, fontSize: 15, color: 'var(--foreground)' }}>{s.year}</td>
                         <td style={tableCell}>
                           <span style={{ fontWeight: 800 }}>{s.wins}W</span>
-                          <span style={{ color: 'rgba(190,210,240,0.4)', margin: '0 4px' }}>–</span>
+                          <span style={{ color: 'rgba(190,210,240,0.4)', margin: '0 4px' }}>-</span>
                           <span style={{ fontWeight: 800 }}>{s.losses}L</span>
                         </td>
                         <td style={tableCell}>
@@ -2526,7 +2668,7 @@ function PlayerProfileContent() {
                               {s.netDelta > 0 ? '+' : ''}{s.netDelta.toFixed(3)}
                             </span>
                           ) : (
-                            <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>—</span>
+                            <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>--</span>
                           )}
                         </td>
                       </tr>
@@ -2586,7 +2728,7 @@ function PlayerProfileContent() {
 
 function MatchDeltaCell({ snap }: { snap: SnapshotRow | null }) {
   if (!snap || snap.delta == null) {
-    return <td style={tableCell}>—</td>
+    return <td style={tableCell}>--</td>
   }
   const delta = snap.delta
   const sign = delta >= 0 ? '+' : ''
@@ -2601,7 +2743,7 @@ function MatchDeltaCell({ snap }: { snap: SnapshotRow | null }) {
 
 function MatchWinPctCell({ snap, result }: { snap: SnapshotRow | null; result: 'W' | 'L' }) {
   if (!snap || snap.win_probability == null) {
-    return <td style={tableCell}>—</td>
+    return <td style={tableCell}>--</td>
   }
   const pct = snap.win_probability
   const isUpset = (result === 'W' && pct < 40) || (result === 'L' && pct > 60)
@@ -2724,7 +2866,7 @@ type ChartPoint = { x: number; date: string; rating: number; delta: number | nul
 
 function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } {
   const { delta, winProbability } = point
-  // Upset win: won despite ≤40% chance
+  // Upset win: won despite <=40% chance
   if (delta !== null && delta > 0 && winProbability !== null && winProbability <= 40) {
     return { fill: '#fb923c', halo: 'rgba(251,146,60,0.22)', r: 5.5 }
   }
@@ -2973,11 +3115,11 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
       ) : null}
 
       <div style={chartMeta}>
-        {points.length} data point{points.length === 1 ? '' : 's'} · Latest{' '}
+        {points.length} data point{points.length === 1 ? '' : 's'} - Latest{' '}
         {points[points.length - 1]?.rating.toFixed(2)}
-        {upsets > 0 ? ` · ${upsets} upset win${upsets > 1 ? 's' : ''} (orange)` : ''}
-        {bigGains > 0 ? ` · ${bigGains} big gain${bigGains > 1 ? 's' : ''} (green)` : ''}
-        {bigLosses > 0 ? ` · ${bigLosses} big loss${bigLosses > 1 ? 'es' : ''} (red)` : ''}
+        {upsets > 0 ? ` - ${upsets} upset win${upsets > 1 ? 's' : ''} (orange)` : ''}
+        {bigGains > 0 ? ` - ${bigGains} big gain${bigGains > 1 ? 's' : ''} (green)` : ''}
+        {bigLosses > 0 ? ` - ${bigLosses} big loss${bigLosses > 1 ? 'es' : ''} (red)` : ''}
       </div>
     </div>
   )
@@ -2993,33 +3135,33 @@ function buildPlayerRecommendation(
   const view = ratingView === 'overall' ? 'overall' : ratingView
   const streakNote = statusStreak >= 5 ? ` This signal has held for ${statusStreak} consecutive matches.` : ''
   const diffStr = `${Math.abs(ratingDiff).toFixed(2)}`
-  const confNote = confidence === 'Low' ? 'Sample is still building — more matches will sharpen this read.' : confidence === 'High' ? 'This is a high-confidence read based on your match history.' : 'Moderate sample — a few more results will lock this in.'
+  const confNote = confidence === 'Low' ? 'Sample is still building; more matches will sharpen this read.' : confidence === 'High' ? 'This is a high-confidence read based on your match history.' : 'Moderate sample; a few more results will lock this in.'
 
   switch (status) {
     case 'Bump Up Pace':
       return {
         headline: 'You\'re tracking ahead of your USTA level.',
-        body: `TIQ shows you playing ${diffStr} above your USTA base in ${view}.${streakNote} ${confNote} Keep competing at this level — especially in singles against similarly-rated opponents — to hold this gap through your next rating review window. Avoid coasting against lower-rated competition; the engine weights quality of result over volume.`,
+        body: `TIQ shows you playing ${diffStr} above your USTA base in ${view}.${streakNote} ${confNote} Keep competing at this level, especially in singles against similarly-rated opponents, to hold this gap through your next rating review window. Avoid coasting against lower-rated competition; the engine weights quality of result over volume.`,
       }
     case 'Trending Up':
       return {
-        headline: 'Good momentum — keep pushing.',
-        body: `TIQ is tracking ${diffStr} above your USTA base in ${view}.${streakNote} You're not yet in Bump Up Pace range, but ${(0.15 - ratingDiff).toFixed(2)} more points of separation would get you there. Focus on wins against players at or above your rating — that's where the signal moves fastest. ${confNote}`,
+        headline: 'Good momentum, keep pushing.',
+        body: `TIQ is tracking ${diffStr} above your USTA base in ${view}.${streakNote} You're not yet in Bump Up Pace range, but ${(0.15 - ratingDiff).toFixed(2)} more points of separation would get you there. Focus on wins against players at or above your rating; that's where the signal moves fastest. ${confNote}`,
       }
     case 'Holding':
       return {
         headline: 'Performing at level.',
-        body: `TIQ and USTA signals are closely aligned (${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}) in ${view}.${streakNote} ${confNote} To shift the signal upward, prioritize matches against players rated at or above you — the engine rewards quality of competition over easy wins.`,
+        body: `TIQ and USTA signals are closely aligned (${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}) in ${view}.${streakNote} ${confNote} To shift the signal upward, prioritize matches against players rated at or above you; the engine rewards quality of competition over easy wins.`,
       }
     case 'At Risk':
       return {
         headline: 'USTA signal is sliding below your base.',
-        body: `TIQ shows ${diffStr} below your USTA base in ${view}.${streakNote} ${confNote} Competitive wins at or near your rated level are the most direct recovery path. Close losses against strong competition still move the signal better than blowout wins against lower-rated players — focus on quality matchups.`,
+        body: `TIQ shows ${diffStr} below your USTA base in ${view}.${streakNote} ${confNote} Competitive wins at or near your rated level are the most direct recovery path. Close losses against strong competition still move the signal better than blowout wins against lower-rated players; focus on quality matchups.`,
       }
     case 'Drop Watch':
       return {
         headline: 'Gap warrants attention.',
-        body: `TIQ shows ${diffStr} below your USTA base in ${view} — well into knockdown range.${streakNote} ${confNote} Consistent wins against rated opponents are the clearest path forward. Review your recent match log: look for patterns in the loss column and check whether your toughest matches are close or getting away from you — that distinction matters for recovery pace.`,
+        body: `TIQ shows ${diffStr} below your USTA base in ${view}, well into knockdown range.${streakNote} ${confNote} Consistent wins against rated opponents are the clearest path forward. Review your recent match log: look for patterns in the loss column and check whether your toughest matches are close or getting away from you; that distinction matters for recovery pace.`,
       }
   }
 }
@@ -4257,6 +4399,52 @@ const panelCard: CSSProperties = {
   minWidth: 0,
 }
 
+const detailDrawerStyle: CSSProperties = {
+  borderRadius: '22px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,18,36,0.72)',
+  boxShadow: '0 14px 34px rgba(2,10,24,0.16)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const detailDrawerSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '16px 18px',
+  cursor: 'pointer',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const detailDrawerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerContentStyle: CSSProperties = {
+  padding: '0 14px 14px',
+  minWidth: 0,
+}
+
+const detailDrawerStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  padding: '0 14px 14px',
+  minWidth: 0,
+}
+
 const rosterReadyCard: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1.1fr) minmax(min(100%, 260px), 0.9fr)',
@@ -4484,6 +4672,82 @@ const tableCell: CSSProperties = {
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileMatchCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchCardTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const mobileMatchDateStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchOpponentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const mobileMatchLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchOpponentLinkStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchMetaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileMatchMetaItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 

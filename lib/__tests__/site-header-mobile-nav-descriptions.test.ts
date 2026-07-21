@@ -6,9 +6,10 @@ import { PRIMARY_NAV_ITEMS } from '../site-navigation'
 const headerSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
 
 describe('site header mobile navigation descriptions', () => {
-  it('uses the product motto and benefit-led descriptions in the compact menu', () => {
-    expect(headerSource).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
-    expect(headerSource).toContain('{PRODUCT_MOTTO} Pick the tennis support you need next.')
+  it('uses benefit-led descriptions in the compact menu', () => {
+    expect(headerSource).not.toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(headerSource).toContain('Pick the tennis support you need next.')
+    expect(headerSource).toContain('Search public tennis context first, then open the tool that fits your next match, team, or season.')
     expect(headerSource).toContain('function MobileItemLabel')
     expect(headerSource).toContain('<MobileItemLabel label={item.label} description={item.description} />')
     expect(headerSource).toContain('const mobileMenuCueStyle')

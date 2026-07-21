@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -85,6 +85,7 @@ const DIRECTORY_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-compe
 const DIRECTORY_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(DIRECTORY_PLAYER_IDENTITY)
 const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}#level-up-flow`
 const DIRECTORY_PLAYER_DEVELOPMENT_HREF = `/player-development/${DIRECTORY_PLAYER_IDENTITY.slug}`
+const PLAYER_DEFAULT_CARD_LIMIT = 9
 
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
 const PLAYER_DIRECTORY_SELECT_BASE = `
@@ -151,6 +152,7 @@ export default function PlayersPage() {
   const [searchFocused, setSearchFocused] = useState(false)
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const [browseAll, setBrowseAll] = useState(false)
+  const [showAllPlayers, setShowAllPlayers] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, user, authResolved } = useProductAccess()
@@ -202,6 +204,7 @@ export default function PlayersPage() {
         setFilterBy('all')
         setFlightFilter('all')
         setBrowseAll(false)
+        setShowAllPlayers(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -226,6 +229,10 @@ export default function PlayersPage() {
     )
     setBrowseAll(Boolean(nextSearch || (nextFlight && nextFlight !== 'all')))
   }, [])
+
+  useEffect(() => {
+    setShowAllPlayers(false)
+  }, [browseAll, filterBy, flightFilter, search, sortBy])
 
   async function loadPlayers() {
     setLoading(true)
@@ -375,7 +382,12 @@ export default function PlayersPage() {
   }, [filterBy, flightFilter, players, search, sortBy])
   const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
   const shouldShowPlayerResults = hasActiveFilters || browseAll
-  const visiblePlayers = shouldShowPlayerResults ? filteredPlayers : []
+  const visiblePlayers = shouldShowPlayerResults
+    ? showAllPlayers
+      ? filteredPlayers
+      : filteredPlayers.slice(0, PLAYER_DEFAULT_CARD_LIMIT)
+    : []
+  const hasMorePlayers = shouldShowPlayerResults && filteredPlayers.length > visiblePlayers.length
   const playersWithMatches = useMemo(() => players.filter((player) => player.matches > 0).length, [players])
   const trendingPlayers = useMemo(
     () => players.filter((player) => player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace').length,
@@ -418,7 +430,8 @@ export default function PlayersPage() {
 
   const dynamicControlsShell: CSSProperties = {
     ...controlsShell,
-    padding: isMobile ? '16px' : '18px',
+    padding: isMobile ? '10px' : '18px',
+    borderRadius: isMobile ? '16px' : controlsShell.borderRadius,
     boxShadow: searchFocused
       ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(72,161,255,0.18)'
       : controlsShell.boxShadow,
@@ -430,22 +443,34 @@ export default function PlayersPage() {
     ...controlsTopRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'flex-start' : 'center',
+    gap: isMobile ? 8 : controlsTopRow.gap,
+    marginBottom: isMobile ? 8 : controlsTopRow.marginBottom,
   }
 
   const dynamicControlsRow: CSSProperties = {
     ...controlsRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'stretch' : 'center',
+    display: isTablet ? 'grid' : 'flex',
+    gap: isMobile ? 8 : controlsRow.gap,
+    gridTemplateColumns: isSmallMobile
+      ? 'repeat(2, minmax(0, 1fr))'
+      : isMobile
+        ? 'repeat(3, minmax(0, 1fr))'
+        : isTablet
+          ? 'minmax(240px, 1.4fr) repeat(3, minmax(0, 1fr))'
+          : undefined,
+    alignItems: 'stretch',
   }
 
   const dynamicSearchInputWrap: CSSProperties = {
     ...searchInputWrap,
     width: '100%',
     minWidth: 0,
+    gridColumn: isMobile ? '1 / -1' : undefined,
   }
 
   const dynamicSearchInput: CSSProperties = {
     ...searchInput,
+    ...(isMobile ? compactSearchInput : null),
     ...(searchFocused ? directoryControlFocusStyle : null),
   }
 
@@ -453,6 +478,10 @@ export default function PlayersPage() {
     ...selectStyle,
     width: isTablet ? '100%' : 'auto',
     minWidth: isTablet ? 0 : '150px',
+    height: isMobile ? '40px' : selectStyle.height,
+    borderRadius: isMobile ? '12px' : selectStyle.borderRadius,
+    padding: isMobile ? '0 10px' : selectStyle.padding,
+    fontSize: isMobile ? '12px' : selectStyle.fontSize,
   }
 
   const dynamicSelectWrap: CSSProperties = {
@@ -498,8 +527,75 @@ export default function PlayersPage() {
 
   const dynamicQuickFilterGrid: CSSProperties = {
     ...quickFilterGrid,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: isMobile ? 6 : quickFilterGrid.gap,
+    marginTop: isMobile ? 8 : quickFilterGrid.marginTop,
   }
+
+  const dynamicControlsHelperText: CSSProperties = isMobile
+    ? compactControlsHelperText
+    : controlsHelperText
+
+  const dynamicControlsActionRow: CSSProperties = {
+    ...controlsActionRow,
+    gap: isMobile ? 7 : controlsActionRow.gap,
+    marginTop: isMobile ? 8 : controlsActionRow.marginTop,
+  }
+
+  const dynamicQuickFilterButtonStyle: CSSProperties = {
+    ...quickFilterButton,
+    ...(isMobile ? compactQuickFilterButton : null),
+  }
+
+  const dynamicClearFilterButton: CSSProperties = {
+    ...clearFilterButton,
+    ...(isMobile ? compactClearFilterButton : null),
+  }
+
+  const dynamicPlayerIdLaunchpadStyle: CSSProperties = isMobile
+    ? {
+        ...playerIdLaunchpadStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+        gap: 8,
+        padding: 12,
+        borderRadius: 16,
+        marginBottom: 12,
+      }
+    : playerIdLaunchpadStyle
+
+  const dynamicPlayerIdLaunchpadHeaderStyle: CSSProperties = isMobile
+    ? {
+        ...playerIdLaunchpadHeaderStyle,
+        gap: 8,
+        flexWrap: 'nowrap',
+      }
+    : playerIdLaunchpadHeaderStyle
+
+  const dynamicPlayerIdLaunchpadActionPanelStyle: CSSProperties = isMobile
+    ? {
+        ...playerIdLaunchpadActionPanelStyle,
+        padding: 8,
+        borderRadius: 12,
+      }
+    : playerIdLaunchpadActionPanelStyle
+
+  const dynamicPlayerIdLaunchpadActionListStyle: CSSProperties = isMobile
+    ? {
+        ...playerIdLaunchpadActionListStyle,
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      }
+    : playerIdLaunchpadActionListStyle
+
+  const dynamicFindStartActionStyle: CSSProperties = isMobile
+    ? {
+        ...findStartActionStyle,
+        minHeight: 44,
+        padding: 7,
+        borderRadius: 10,
+        textAlign: 'center',
+        alignContent: 'center',
+      }
+    : findStartActionStyle
 
   return (
     <SiteShell active="players">
@@ -513,8 +609,8 @@ export default function PlayersPage() {
               <h1 style={controlsLabel}>Find a player.</h1>
             </div>
             <div style={inlineStatRow}>
-              <StatChip label="Players" value={loading ? 'Refreshing' : String(players.length)} />
-              <StatChip label="Shown" value={loading ? 'Starter' : shouldShowPlayerResults ? String(filteredPlayers.length) : 'Ready'} accent />
+              <StatChip label="Players" value={loading ? 'Refreshing' : String(players.length)} compact={isMobile} />
+              <StatChip label="Shown" value={loading ? 'Starter' : shouldShowPlayerResults ? `${visiblePlayers.length}/${filteredPlayers.length}` : 'Ready'} accent compact={isMobile} />
             </div>
           </div>
 
@@ -532,7 +628,7 @@ export default function PlayersPage() {
                 aria-describedby="players-directory-helper"
                 ref={searchInputRef}
                 value={search}
-              onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
               placeholder="Search player name or location..."
@@ -601,7 +697,7 @@ export default function PlayersPage() {
             </div>
           </div>
 
-          <div id="players-directory-helper" style={controlsHelperText}>
+          <div id="players-directory-helper" style={dynamicControlsHelperText}>
             Type a name or location.
           </div>
           <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
@@ -613,7 +709,7 @@ export default function PlayersPage() {
                 setFilterBy('with-matches')
               }}
               style={{
-                ...quickFilterButton,
+                ...dynamicQuickFilterButtonStyle,
                 ...(loading ? quickFilterButtonDisabled : null),
                 ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
               }}
@@ -629,7 +725,7 @@ export default function PlayersPage() {
                 setFilterBy('trending-up')
               }}
               style={{
-                ...quickFilterButton,
+                ...dynamicQuickFilterButtonStyle,
                 ...(loading ? quickFilterButtonDisabled : null),
                 ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
               }}
@@ -645,7 +741,7 @@ export default function PlayersPage() {
                 setFilterBy('high-rated')
               }}
               style={{
-                ...quickFilterButton,
+                ...dynamicQuickFilterButtonStyle,
                 ...(loading ? quickFilterButtonDisabled : null),
                 ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
               }}
@@ -654,16 +750,17 @@ export default function PlayersPage() {
               <strong>{loading ? '-' : highRatedPlayers}</strong>
             </button>
           </div>
-          <div style={controlsActionRow}>
+          <div style={dynamicControlsActionRow}>
             <button
               type="button"
               disabled={loading}
               onClick={() => {
                 setBrowseAll(true)
                 setSortBy('overall')
+                setShowAllPlayers(false)
               }}
               style={{
-                ...clearFilterButton,
+                ...dynamicClearFilterButton,
                 ...(browseAll ? browseAllButtonActiveStyle : null),
                 ...(loading ? quickFilterButtonDisabled : null),
               }}
@@ -679,8 +776,9 @@ export default function PlayersPage() {
                   setFilterBy('all')
                   setFlightFilter('all')
                   setBrowseAll(false)
+                  setShowAllPlayers(false)
                 }}
-                style={clearFilterButton}
+                style={dynamicClearFilterButton}
               >
                 Reset directory filters
               </button>
@@ -705,89 +803,10 @@ export default function PlayersPage() {
       <section style={contentWrap}>
         <div style={dynamicSectionHeader}>
           <div>
-            <div style={sectionKicker}>{shouldShowPlayerResults ? 'Directory' : 'Find'}</div>
-            <h2 style={sectionTitle}>{shouldShowPlayerResults ? 'Open a player profile' : 'Start with the right player move.'}</h2>
+            <div style={sectionKicker}>Directory</div>
+            <h2 style={sectionTitle}>{hasActiveFilters || browseAll ? 'Open a player profile' : 'Search or browse players'}</h2>
           </div>
         </div>
-
-        <section style={playerIdLaunchpadStyle} aria-label="Player ID launchpad">
-          <div style={playerIdLaunchpadHeaderStyle}>
-            <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
-            <div style={playerIdLaunchpadCopyStyle}>
-              <span style={playerIdLaunchpadKickerStyle}>Player ID launchpad</span>
-              <h2 style={playerIdLaunchpadTitleStyle}>Turn search into a player record.</h2>
-            </div>
-          </div>
-          <div style={playerIdLaunchpadGridStyle}>
-            {playerIdLaunchpadSignals.map((signal) => (
-              <article key={signal.label} style={playerIdLaunchpadCardStyle}>
-                <span style={playerIdLaunchpadLabelStyle}>{signal.label}</span>
-                <strong style={playerIdLaunchpadValueStyle}>{signal.value}</strong>
-                <span style={playerIdLaunchpadTextStyle}>{signal.body}</span>
-              </article>
-            ))}
-          </div>
-          <div style={playerIdStarterReadStyle}>
-            <div style={playerIdStarterReadCopyStyle}>
-              <span style={playerIdLaunchpadLabelStyle}>Player ID starter path</span>
-              <strong style={playerIdLaunchpadValueStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.title}</strong>
-              <span style={playerIdLaunchpadTextStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.levelUpNudge}</span>
-            </div>
-            <div style={playerIdStarterReadGridStyle} aria-label="Player ID starter read">
-              {playerIdStarterRead.map((item) => (
-                <span key={item.label} style={playerIdStarterReadItemStyle}>
-                  <em>{item.label}</em>
-                  <b>{item.value}</b>
-                </span>
-              ))}
-            </div>
-            <div style={playerIdStarterActionRowStyle}>
-              <Link href={DIRECTORY_LEVEL_UP_HREF} style={playerIdStarterPrimaryLinkStyle}>
-                Start Level Up
-              </Link>
-              <Link href={DIRECTORY_PLAYER_DEVELOPMENT_HREF} style={playerIdStarterSecondaryLinkStyle}>
-                Read Player ID
-              </Link>
-            </div>
-          </div>
-          <div style={playerIdLaunchpadActionPanelStyle}>
-            <span style={playerIdLaunchpadLabelStyle}>Next player move</span>
-            <div style={playerIdLaunchpadActionListStyle} aria-label="Player directory starter actions">
-              <button
-                type="button"
-                onClick={() => searchInputRef.current?.focus()}
-                style={findStartActionStyle}
-              >
-                <strong>Name or city</strong>
-                <span>Jump to search.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBy('trending-up')}
-                style={findStartActionStyle}
-              >
-                <strong>Trending</strong>
-                <span>Players moving up.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBy('high-rated')}
-                style={findStartActionStyle}
-              >
-                <strong>4.0+</strong>
-                <span>Stronger ratings.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setBrowseAll(true)}
-                style={findStartActionStyle}
-              >
-                <strong>Browse</strong>
-                <span>Full board.</span>
-              </button>
-            </div>
-          </div>
-        </section>
 
         {loading ? (
           <div style={loadingCard}>
@@ -806,28 +825,34 @@ export default function PlayersPage() {
               />
               Start with a player search.
             </div>
-            <p style={emptyStateText}>
-              Try a name, city, team, league, or rating level. The reviewed player layer is refreshing behind this starter view.
-            </p>
-            <DataTrustPanel
-              title="Player data trust"
-              signals={[
-                { label: 'Source', value: 'Public records, TIQ context, Data Assist' },
-                { label: 'Freshness', value: 'Last refresh shown on profiles' },
-                { label: 'Confidence', value: 'Based on verified match volume' },
-                { label: 'Status', value: 'Corrections reviewable' },
-              ]}
-            />
-            <TiqDirectoryFallbackCard
-              eyebrow="Featured player path"
-              title="Start with a name, city, or rating band."
-              body="A good first search is a player name, a city, or a level like 4.0 doubles. From there, open the profile, compare the matchup, or follow the player into My Lab."
-              chips={['Search players', 'Compare matchup', 'Follow profile']}
-              actions={[
-                { href: '/matchup', label: 'Open Matchup' },
-                { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
-              ]}
-            />
+            <PlayerDirectoryDetails
+              kicker="Data trust"
+              title="How player records are checked"
+              summary="Show data notes"
+            >
+              <p style={emptyStateText}>
+                The reviewed player layer is refreshing behind this starter view.
+              </p>
+              <DataTrustPanel
+                title="Player data trust"
+                signals={[
+                  { label: 'Source', value: 'Public records, TIQ context, Data Assist' },
+                  { label: 'Freshness', value: 'Last refresh shown on profiles' },
+                  { label: 'Confidence', value: 'Based on verified match volume' },
+                  { label: 'Status', value: 'Corrections reviewable' },
+                ]}
+              />
+              <TiqDirectoryFallbackCard
+                eyebrow="Featured player path"
+                title="Start with a name, city, or rating band."
+                body="A good first search is a player name, a city, or a level like 4.0 doubles. From there, open the profile, compare the matchup, or follow the player into My Lab."
+                chips={['Search players', 'Compare matchup', 'Follow profile']}
+                actions={[
+                  { href: '/matchup', label: 'Open Matchup' },
+                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+                ]}
+              />
+            </PlayerDirectoryDetails>
           </div>
         ) : !shouldShowPlayerResults ? null : visiblePlayers.length === 0 ? (
           <div style={loadingCard}>
@@ -836,10 +861,6 @@ export default function PlayersPage() {
             <p style={emptyStateText}>
               Public discovery only shows reviewed player context. Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
             </p>
-            <DataTrustPanel
-              title="Why a player may be missing"
-              body="Player records appear after reviewed match, roster, or profile context is available. Data Assist is the fastest path for scorecards, team summaries, and corrections."
-            />
             <div style={emptyStateActionRow}>
               <button
                 type="button"
@@ -849,6 +870,7 @@ export default function PlayersPage() {
                   setFilterBy('all')
                   setFlightFilter('all')
                   setBrowseAll(false)
+                  setShowAllPlayers(false)
                 }}
                 style={emptyStateButton}
               >
@@ -858,6 +880,16 @@ export default function PlayersPage() {
                 {DATA_ASSIST_STORY.cta}
               </Link>
             </div>
+            <PlayerDirectoryDetails
+              kicker="Missing a player?"
+              title="How to add or correct player data"
+              summary="Show data options"
+            >
+              <DataTrustPanel
+                title="Why a player may be missing"
+                body="Player records appear after reviewed match, roster, or profile context is available. Data Assist is the fastest path for scorecards, team summaries, and corrections."
+              />
+            </PlayerDirectoryDetails>
           </div>
         ) : (
           <div style={dynamicCardGrid}>
@@ -964,16 +996,24 @@ export default function PlayersPage() {
                     <span style={signalConfidencePill}>{player.confidence}</span>
                   </div>
 
-                  <TiqTrustStrip
-                    label={`${player.name} data trust signals`}
-                    signals={[
-                      { label: 'Source', value: isSelfRatedPlayer(player) ? 'Self-rated' : 'Reviewed public data', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
-                      { label: 'Freshness', value: player.matches > 0 ? 'Match context' : 'Profile context', tone: player.matches > 0 ? 'good' : 'warn' },
-                      { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
-                      { label: 'Status', value: isSelfRatedPlayer(player) ? 'Needs review' : 'Reviewable', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
-                    ]}
-                    reviewContext={`Player ${player.name}`}
-                  />
+                  <details style={playerCardTrustDetailsStyle}>
+                    <summary style={playerCardTrustSummaryStyle}>
+                      <span>Data check</span>
+                      <strong>{player.matches > 0 ? 'Match context' : 'Profile context'}</strong>
+                    </summary>
+                    <div style={playerCardTrustBodyStyle}>
+                      <TiqTrustStrip
+                        label={`${player.name} data trust signals`}
+                        signals={[
+                          { label: 'Source', value: isSelfRatedPlayer(player) ? 'Self-rated' : 'Reviewed public data', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
+                          { label: 'Freshness', value: player.matches > 0 ? 'Match context' : 'Profile context', tone: player.matches > 0 ? 'good' : 'warn' },
+                          { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
+                          { label: 'Status', value: isSelfRatedPlayer(player) ? 'Needs review' : 'Reviewable', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
+                        ]}
+                        reviewContext={`Player ${player.name}`}
+                      />
+                    </div>
+                  </details>
 
                   <div style={deltaRow}>
                     <div style={deltaStat}>
@@ -1005,13 +1045,115 @@ export default function PlayersPage() {
                     >
                       {canCompareAgainstMe ? 'Compare vs me' : 'Compare'}
                     </Link>
-                    <span style={arrowText}>→</span>
+                    <span style={arrowText}>-&gt;</span>
                   </div>
                 </article>
               )
             })}
+            {hasMorePlayers || showAllPlayers ? (
+              <div style={playerBoardLimitRowStyle}>
+                <span style={playerBoardLimitTextStyle}>
+                  Showing {visiblePlayers.length} of {filteredPlayers.length} players.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllPlayers((current) => !current)}
+                  style={clearFilterButton}
+                >
+                  {showAllPlayers ? 'Show top players' : 'Show full directory'}
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
+        {!loading && players.length > 0 ? (
+          <section style={dynamicPlayerIdLaunchpadStyle} aria-label="Player ID launchpad">
+            <div style={dynamicPlayerIdLaunchpadHeaderStyle}>
+              {!isSmallMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
+              <div style={playerIdLaunchpadCopyStyle}>
+                <span style={playerIdLaunchpadKickerStyle}>Player ID launchpad</span>
+                <h2 style={playerIdLaunchpadTitleStyle}>
+                  {isMobile ? 'Pick your next player move.' : 'Use a player record for the next move.'}
+                </h2>
+              </div>
+            </div>
+            <div style={dynamicPlayerIdLaunchpadActionPanelStyle}>
+              <span style={playerIdLaunchpadLabelStyle}>{isMobile ? 'Next move' : 'Next player move'}</span>
+              <div style={dynamicPlayerIdLaunchpadActionListStyle} aria-label="Player directory starter actions">
+                <button
+                  type="button"
+                  onClick={() => searchInputRef.current?.focus()}
+                  style={dynamicFindStartActionStyle}
+                >
+                  <strong>Name or city</strong>
+                  {!isMobile ? <span>Jump to search.</span> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterBy('trending-up')}
+                  style={dynamicFindStartActionStyle}
+                >
+                  <strong>Trending</strong>
+                  {!isMobile ? <span>Players moving up.</span> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterBy('high-rated')}
+                  style={dynamicFindStartActionStyle}
+                >
+                  <strong>4.0+</strong>
+                  {!isMobile ? <span>Stronger ratings.</span> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBrowseAll(true)}
+                  style={dynamicFindStartActionStyle}
+                >
+                  <strong>Browse</strong>
+                  {!isMobile ? <span>Full board.</span> : null}
+                </button>
+              </div>
+            </div>
+            <PlayerDirectoryDetails
+              kicker="Player ID starter path"
+              title={isMobile ? 'Player ID details' : DIRECTORY_PLAYER_IDENTITY_READ.title}
+              summary={isMobile ? 'Open' : 'Show player record cues'}
+            >
+              <div style={playerIdLaunchpadGridStyle}>
+                {playerIdLaunchpadSignals.map((signal) => (
+                  <article key={signal.label} style={playerIdLaunchpadCardStyle}>
+                    <span style={playerIdLaunchpadLabelStyle}>{signal.label}</span>
+                    <strong style={playerIdLaunchpadValueStyle}>{signal.value}</strong>
+                    <span style={playerIdLaunchpadTextStyle}>{signal.body}</span>
+                  </article>
+                ))}
+              </div>
+              <div style={playerIdStarterReadStyle}>
+                <div style={playerIdStarterReadCopyStyle}>
+                  <span style={playerIdLaunchpadLabelStyle}>Player ID starter path</span>
+                  <strong style={playerIdLaunchpadValueStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.title}</strong>
+                  <span style={playerIdLaunchpadTextStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+                </div>
+                <div style={playerIdStarterReadGridStyle} aria-label="Player ID starter read">
+                  {playerIdStarterRead.map((item) => (
+                    <span key={item.label} style={playerIdStarterReadItemStyle}>
+                      <em>{item.label}</em>
+                      <b>{item.value}</b>
+                    </span>
+                  ))}
+                </div>
+                <div style={playerIdStarterActionRowStyle}>
+                  <Link href={DIRECTORY_LEVEL_UP_HREF} style={playerIdStarterPrimaryLinkStyle}>
+                    Start Level Up
+                  </Link>
+                  <Link href={DIRECTORY_PLAYER_DEVELOPMENT_HREF} style={playerIdStarterSecondaryLinkStyle}>
+                    Read Player ID
+                  </Link>
+                </div>
+              </div>
+            </PlayerDirectoryDetails>
+          </section>
+        ) : null}
       </section>
       {shouldShowAds ? (
         <div style={{ marginTop: 12 }}>
@@ -1026,21 +1168,52 @@ function StatChip({
   label,
   value,
   accent = false,
+  compact = false,
 }: {
   label: string
   value: string
   accent?: boolean
+  compact?: boolean
 }) {
   return (
     <div
       style={{
         ...statChip,
         ...(accent ? statChipAccent : {}),
+        ...(compact ? compactStatChip : {}),
       }}
     >
-      <div style={statChipLabel}>{label}</div>
-      <div style={statChipValue}>{value}</div>
+      <div style={{ ...statChipLabel, ...(compact ? compactStatChipLabel : {}) }}>{label}</div>
+      <div style={{ ...statChipValue, ...(compact ? compactStatChipValue : {}) }}>{value}</div>
     </div>
+  )
+}
+
+function PlayerDirectoryDetails({
+  kicker,
+  title,
+  summary,
+  children,
+}: {
+  kicker: string
+  title: string
+  summary: string
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const closedBodyStyle = open ? null : playerDirectoryDetailsBodyClosedStyle
+
+  return (
+    <details style={playerDirectoryDetailsStyle} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary style={playerDirectorySummaryStyle}>
+        <span style={playerDirectorySummaryCopyStyle}>
+          <span style={playerDirectoryKickerStyle}>{kicker}</span>
+          <strong>{title}</strong>
+        </span>
+        <span style={playerDirectorySummaryActionStyle}>{summary}</span>
+      </summary>
+      <div style={{ ...playerDirectoryDetailsBodyStyle, ...closedBodyStyle }}>{children}</div>
+    </details>
   )
 }
 
@@ -1247,6 +1420,12 @@ const searchInput: CSSProperties = {
   boxShadow: 'var(--home-control-shadow)',
 }
 
+const compactSearchInput: CSSProperties = {
+  borderRadius: '12px',
+  padding: '11px 12px 11px 40px',
+  fontSize: '14px',
+}
+
 const selectStyle: CSSProperties = {
   height: '52px',
   borderRadius: '18px',
@@ -1286,6 +1465,10 @@ const controlsHelperText: CSSProperties = {
   lineHeight: 1.6,
 }
 
+const compactControlsHelperText: CSSProperties = {
+  ...srOnlyStyle,
+}
+
 const controlsActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1314,6 +1497,14 @@ const quickFilterButton: CSSProperties = {
   cursor: 'pointer',
 }
 
+const compactQuickFilterButton: CSSProperties = {
+  minHeight: '40px',
+  padding: '0 8px',
+  borderRadius: '12px',
+  gap: '6px',
+  fontSize: '12px',
+}
+
 const quickFilterButtonActive: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
   background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
@@ -1339,6 +1530,12 @@ const clearFilterButton: CSSProperties = {
   cursor: 'pointer',
 }
 
+const compactClearFilterButton: CSSProperties = {
+  minHeight: '32px',
+  padding: '0 10px',
+  fontSize: '12px',
+}
+
 const browseAllButtonActiveStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
   background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
@@ -1351,6 +1548,11 @@ const statChip: CSSProperties = {
   background: 'rgba(8,16,34,0.7)',
   border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
+}
+
+const compactStatChip: CSSProperties = {
+  borderRadius: '12px',
+  padding: '8px 9px',
 }
 
 const statChipAccent: CSSProperties = {
@@ -1367,11 +1569,20 @@ const statChipLabel: CSSProperties = {
   marginBottom: '6px',
 }
 
+const compactStatChipLabel: CSSProperties = {
+  fontSize: '10px',
+  marginBottom: '3px',
+}
+
 const statChipValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: 0,
+}
+
+const compactStatChipValue: CSSProperties = {
+  fontSize: '16px',
 }
 
 const errorCard: CSSProperties = {
@@ -1423,6 +1634,69 @@ const sectionText: CSSProperties = {
   margin: '10px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+}
+
+const playerDirectoryDetailsStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const playerDirectorySummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minHeight: 58,
+  padding: '11px 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const playerDirectorySummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const playerDirectoryKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const playerDirectorySummaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+}
+
+const playerDirectoryDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const playerDirectoryDetailsBodyClosedStyle: CSSProperties = {
+  display: 'none',
 }
 
 const secondaryLink: CSSProperties = {
@@ -1670,6 +1944,26 @@ const cardGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const playerBoardLimitRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+}
+
+const playerBoardLimitTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
 const playerCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
@@ -1691,10 +1985,10 @@ const playerCardHover: CSSProperties = {
 
 const cardAccentGlow: CSSProperties = {
   position: 'absolute',
-  top: '-70px',
-  right: '-50px',
-  width: 'min(100%, 180px)',
-  height: '180px',
+  top: 0,
+  right: 0,
+  width: 'min(42%, 150px)',
+  height: '150px',
   borderRadius: '999px',
   background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
   pointerEvents: 'none',
@@ -1998,6 +2292,39 @@ const signalConfidencePill: CSSProperties = {
   fontWeight: 800,
 }
 
+const playerCardTrustDetailsStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  minWidth: 0,
+  marginTop: '2px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.46)',
+  overflow: 'hidden',
+}
+
+const playerCardTrustSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minHeight: '42px',
+  padding: '0 12px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  flexWrap: 'wrap',
+  overflowWrap: 'anywhere',
+}
+
+const playerCardTrustBodyStyle: CSSProperties = {
+  padding: '0 10px 10px',
+  minWidth: 0,
+}
+
 const deltaRow: CSSProperties = {
   position: 'relative',
   display: 'grid',
@@ -2035,9 +2362,9 @@ const deltaValue: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

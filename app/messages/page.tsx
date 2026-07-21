@@ -3281,7 +3281,7 @@ const hiddenPanelStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-92px',
+  right: 0,
   top: '-108px',
   width: 'clamp(230px, 28vw, 380px)',
   aspectRatio: '1045 / 490',

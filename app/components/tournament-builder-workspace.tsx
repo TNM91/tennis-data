@@ -49,7 +49,6 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
 
@@ -1203,6 +1202,11 @@ export default function TournamentBuilderWorkspace() {
     setNotice('')
   }
 
+  const lockedPrimaryHref = role === 'public'
+    ? '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
+    : '/pricing'
+  const lockedPrimaryLabel = role === 'public' ? 'Create account' : 'Compare Full-Court'
+
   async function removeRecord(record: TiqTournamentRecord) {
     const result = await deleteTiqTournamentRecordForUser(record.id, userId)
     refreshRecords(selectedId === record.id ? '' : selectedId)
@@ -1225,9 +1229,16 @@ export default function TournamentBuilderWorkspace() {
           <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
           <Stat label="Preview" value={format === 'round_robin' ? 'Round robin' : 'Bracket'} />
         </div>
+        {!canUseLeague && authResolved ? (
+          <div style={actionRowStyle}>
+            <Link href={lockedPrimaryHref} style={primaryButtonStyle}>{lockedPrimaryLabel}</Link>
+            <Link href="/pricing" style={secondaryButtonStyle}>View plans</Link>
+          </div>
+        ) : null}
         {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
       </div>
-      <div style={heroPanelStyle}>
+      <details className="tournamentBuilderDetailsSection" style={heroPanelStyle}>
+        <summary style={lockedPreviewDetailsSummaryStyle}>Full-Court tools</summary>
         <TiqFeatureIcon name="teamRankings" size="lg" variant="surface" />
         <div style={fullCourtPanelCopyStyle}>
           <strong>Full-Court tournament command.</strong>
@@ -1239,16 +1250,11 @@ export default function TournamentBuilderWorkspace() {
           <span>Participant alerts</span>
           <span>League + team actions</span>
         </div>
-      </div>
+      </details>
     </section>
   )
 
   if (!canUseLeague && authResolved) {
-    const primaryHref = role === 'public'
-      ? '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
-      : '/pricing'
-    const primaryLabel = role === 'public' ? 'Create account' : 'Compare Full-Court'
-
     return (
       <main style={pageStyle}>
         {tournamentHero}
@@ -1259,6 +1265,7 @@ export default function TournamentBuilderWorkspace() {
           body="Unlimited tournament rooms, shared schedules, entrants, scorebooks, awards, and player alerts live inside Full-Court."
           ctaLabel="Unlock Full-Court"
           compact
+          summaryOnly
         />
 
         <section style={lockedPreviewStyle} aria-label="Tournament Desk preview">
@@ -1268,22 +1275,25 @@ export default function TournamentBuilderWorkspace() {
               <h2 style={sectionTitleStyle}>Run the event without a spreadsheet stack.</h2>
             </div>
             <div style={actionRowStyle}>
-              <Link href={primaryHref} style={primaryButtonStyle}>{primaryLabel}</Link>
+              <Link href={lockedPrimaryHref} style={primaryButtonStyle}>{lockedPrimaryLabel}</Link>
               <Link href="/pricing" style={secondaryButtonStyle}>View plans</Link>
             </div>
           </div>
 
-          <div style={lockedPreviewGridStyle}>
-            {lockedTournamentActions.map((action, index) => (
-              <article key={action.title} style={lockedPreviewCardStyle}>
-                <span style={lockedPreviewIndexStyle}>{index + 1}</span>
-                <div style={lockedPreviewCopyStyle}>
-                  <strong>{action.title}</strong>
-                  <span>{action.detail}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+          <details className="tournamentBuilderDetailsSection" style={lockedPreviewDetailsStyle}>
+            <summary style={lockedPreviewDetailsSummaryStyle}>Show Tournament Desk preview</summary>
+            <div style={lockedPreviewGridStyle}>
+              {lockedTournamentActions.map((action, index) => (
+                <article key={action.title} style={lockedPreviewCardStyle}>
+                  <span style={lockedPreviewIndexStyle}>{index + 1}</span>
+                  <div style={lockedPreviewCopyStyle}>
+                    <strong>{action.title}</strong>
+                    <span>{action.detail}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </details>
         </section>
       </main>
     )
@@ -1291,40 +1301,17 @@ export default function TournamentBuilderWorkspace() {
 
   return (
     <main style={pageStyle}>
-      {tournamentHero}
-
       <section style={tournamentPathStyle} aria-labelledby="tournament-desk-path-title">
         <div style={tournamentPathHeaderStyle}>
           <div>
             <div style={sectionEyebrowStyle}>Tournament Desk path</div>
-            <h2 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+            <h1 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>Run or update a tournament</h1>
           </div>
           <p style={tournamentPathIntroStyle}>
-            Scan the room, then jump to the tournament task that needs attention.
+            Set up the room, review entries, schedule courts, post scores, or send updates.
           </p>
         </div>
         <div style={tournamentPathCommandStyle} aria-label="Tournament Desk command center">
-          <div style={tournamentPathStatusPanelStyle}>
-            <div style={sectionEyebrowStyle}>Control tower</div>
-            <strong style={tournamentPathStatusTitleStyle}>
-              {selectedRecord ? 'Keep the event moving.' : 'Build the room first.'}
-            </strong>
-            <span style={tournamentPathStatusTextStyle}>
-              {selectedRecord
-                ? 'Use the live scan to see what is ready, then jump directly to entries, profiles, schedule, scores, alerts, or awards.'
-                : 'Set the field once, preview the draw, then save the room before courts and results start changing.'}
-            </span>
-            <div style={tournamentPathStatusGridStyle} aria-label="Tournament Desk status scan">
-              {tournamentPathStatusItems.map((item) => (
-                <div key={item.label} style={tournamentPathStatusItemStyle}>
-                  <span style={item.ready ? readinessDotReadyStyle : readinessDotBlockedStyle} />
-                  <strong>{item.label}</strong>
-                  <em>{item.value}</em>
-                  <span style={tournamentPathStatusDetailStyle}>{item.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
           <div style={tournamentPathGridStyle}>
             {tournamentPathActions.map((path) => (
               <a
@@ -1344,89 +1331,30 @@ export default function TournamentBuilderWorkspace() {
               </a>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section style={calendarPanelStyle}>
-        <div style={panelHeaderStyle}>
-          <div>
-            <div style={sectionEyebrowStyle}>Shared calendar</div>
-            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
-          </div>
-          <div style={calendarActionRowStyle}>
-            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, -1))} style={ghostButtonStyle}>
-              Prev
-            </button>
-            <button type="button" onClick={() => setCalendarMonth(new Date().toISOString().slice(0, 7))} style={ghostButtonStyle}>
-              Today
-            </button>
-            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, 1))} style={ghostButtonStyle}>
-              Next
-            </button>
-          </div>
-        </div>
-
-        <div style={calendarShellStyle}>
-          <div style={calendarBoardStyle}>
-            <div style={weekdayGridStyle}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
-            <div style={calendarGridStyle}>
-              {calendarDays.map((day) => (
-                <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
-                  <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
-                  <div style={calendarEventStackStyle}>
-                    {day.events.slice(0, 3).map((event) => (
-                      <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
-                        <strong>{event.time || 'TBD'}</strong>
-                        <span>{event.sideA} vs {event.sideB}</span>
-                        <small>{event.court || event.tournamentName}</small>
-                      </Link>
-                    ))}
-                    {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
-                  </div>
+          <details className="tournamentBuilderDetailsSection" style={tournamentPathStatusPanelStyle}>
+            <summary style={lockedPreviewDetailsSummaryStyle}>
+              <span style={sectionEyebrowStyle}>Room scan</span>
+              <span style={pillStyle}>Open when needed</span>
+            </summary>
+            <strong style={tournamentPathStatusTitleStyle}>
+              {selectedRecord ? 'Keep the event moving.' : 'Build the room first.'}
+            </strong>
+            <span style={tournamentPathStatusTextStyle}>
+              {selectedRecord
+                ? 'Use the live scan to see what is ready, then jump directly to entries, profiles, schedule, scores, alerts, or awards.'
+                : 'Set the field once, preview the draw, then save the room before courts and results start changing.'}
+            </span>
+            <div style={tournamentPathStatusGridStyle} aria-label="Tournament Desk status scan">
+              {tournamentPathStatusItems.map((item) => (
+                <div key={item.label} style={tournamentPathStatusItemStyle}>
+                  <span style={item.ready ? readinessDotReadyStyle : readinessDotBlockedStyle} />
+                  <strong>{item.label}</strong>
+                  <em>{item.value}</em>
+                  <span style={tournamentPathStatusDetailStyle}>{item.detail}</span>
                 </div>
               ))}
             </div>
-          </div>
-
-          <aside style={calendarAgendaStyle} aria-label="Court agenda">
-            <div style={calendarAgendaHeaderStyle}>
-              <div>
-                <div style={sectionEyebrowStyle}>Court agenda</div>
-                <h3 style={calendarAgendaTitleStyle}>{scheduledMonthEvents.length ? 'Next scheduled matches' : 'Schedule from the scorebook'}</h3>
-              </div>
-              <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'No slots yet'}</span>
-            </div>
-            {scheduledMonthEvents.length ? (
-              <div style={calendarAgendaListStyle}>
-                {scheduledMonthEvents.map((event) => (
-                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarAgendaEventStyle}>
-                    <span>{formatCalendarAgendaDate(event)}</span>
-                    <strong>{event.sideA} vs {event.sideB}</strong>
-                    <small>{event.court || event.tournamentName}</small>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div style={calendarEmptyStateStyle}>
-                <div style={emptySavedRoomCopyStyle}>
-                  <strong>Calendar fills from match slots.</strong>
-                  <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
-                </div>
-                <div style={emptySavedRoomActionStyle}>
-                  <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
-                    {selectedRecord ? 'Open scorebook' : 'Build room'}
-                  </a>
-                  <a href="#tournament-setup" style={secondaryButtonStyle}>
-                    Set up tournament
-                  </a>
-                </div>
-              </div>
-            )}
-          </aside>
+          </details>
         </div>
       </section>
 
@@ -1604,6 +1532,134 @@ export default function TournamentBuilderWorkspace() {
           ) : null}
         </section>
       </section>
+
+      <details className="tournamentBuilderDetailsSection" style={heroStyle}>
+        <summary style={calendarSummaryStyle}>
+          <div>
+            <div style={eyebrowStyle}>Tournament Desk</div>
+            <h2 style={sectionTitleStyle}>Season and plan details</h2>
+          </div>
+          <span style={pillStyle}>Details</span>
+        </summary>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={heroCopyStyle}>
+          <h2 style={titleStyle}>Run the event without the desk chaos.</h2>
+          <p style={textStyle}>
+            Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
+          </p>
+          <div style={statGridStyle}>
+            <Stat label="Saved events" value={String(records.length)} />
+            <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
+            <Stat label="Preview" value={format === 'round_robin' ? 'Round robin' : 'Bracket'} />
+          </div>
+          {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
+        </div>
+        <div style={heroPanelStyle}>
+          <TiqFeatureIcon name="teamRankings" size="lg" variant="surface" />
+          <div style={fullCourtPanelCopyStyle}>
+            <strong>Full-Court tournament command.</strong>
+            <span>Unlimited tournament rooms plus the schedule, score, award, alert, league, and team actions around them.</span>
+          </div>
+          <div style={fullCourtFeatureGridStyle}>
+            <span>Unlimited events</span>
+            <span>Award studio</span>
+            <span>Participant alerts</span>
+            <span>League + team actions</span>
+          </div>
+        </div>
+      </details>
+
+      <details className="tournamentBuilderDetailsSection" style={calendarPanelStyle}>
+        <summary style={calendarSummaryStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Shared calendar</div>
+            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
+          </div>
+          <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'Open calendar'}</span>
+        </summary>
+
+        <div style={panelHeaderStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Shared calendar</div>
+            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
+          </div>
+          <div style={calendarActionRowStyle}>
+            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, -1))} style={ghostButtonStyle}>
+              Prev
+            </button>
+            <button type="button" onClick={() => setCalendarMonth(new Date().toISOString().slice(0, 7))} style={ghostButtonStyle}>
+              Today
+            </button>
+            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, 1))} style={ghostButtonStyle}>
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div style={calendarShellStyle}>
+          <div style={calendarBoardStyle}>
+            <div style={weekdayGridStyle}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div style={calendarGridStyle}>
+              {calendarDays.map((day) => (
+                <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
+                  <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
+                  <div style={calendarEventStackStyle}>
+                    {day.events.slice(0, 3).map((event) => (
+                      <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
+                        <strong>{event.time || 'TBD'}</strong>
+                        <span>{event.sideA} vs {event.sideB}</span>
+                        <small>{event.court || event.tournamentName}</small>
+                      </Link>
+                    ))}
+                    {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside style={calendarAgendaStyle} aria-label="Court agenda">
+            <div style={calendarAgendaHeaderStyle}>
+              <div>
+                <div style={sectionEyebrowStyle}>Court agenda</div>
+                <h3 style={calendarAgendaTitleStyle}>{scheduledMonthEvents.length ? 'Next scheduled matches' : 'Schedule from the scorebook'}</h3>
+              </div>
+              <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'No slots yet'}</span>
+            </div>
+            {scheduledMonthEvents.length ? (
+              <div style={calendarAgendaListStyle}>
+                {scheduledMonthEvents.map((event) => (
+                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarAgendaEventStyle}>
+                    <span>{formatCalendarAgendaDate(event)}</span>
+                    <strong>{event.sideA} vs {event.sideB}</strong>
+                    <small>{event.court || event.tournamentName}</small>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={calendarEmptyStateStyle}>
+                <div style={emptySavedRoomCopyStyle}>
+                  <strong>Calendar fills from match slots.</strong>
+                  <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
+                </div>
+                <div style={emptySavedRoomActionStyle}>
+                  <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
+                    {selectedRecord ? 'Open scorebook' : 'Build room'}
+                  </a>
+                  <a href="#tournament-setup" style={secondaryButtonStyle}>
+                    Set up tournament
+                  </a>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      </details>
+
 
       {selectedRecord ? (
         <section style={runSheetStyle} aria-label="Tournament run sheet">
@@ -2892,9 +2948,9 @@ const heroStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-120px',
-  width: 320,
+  right: 0,
+  top: '-84px',
+  width: 'min(100%, 320px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -3046,7 +3102,7 @@ const tournamentPathIntroStyle: CSSProperties = {
 
 const tournamentPathCommandStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
@@ -3178,6 +3234,30 @@ const lockedPreviewGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const lockedPreviewDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const lockedPreviewDetailsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: 40,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '0 13px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const lockedPreviewCardStyle: CSSProperties = {
@@ -3740,6 +3820,12 @@ const calendarPanelStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'var(--portal-surface-bg)',
   overflow: 'hidden',
+}
+
+const calendarSummaryStyle: CSSProperties = {
+  ...panelHeaderStyle,
+  cursor: 'pointer',
+  listStyle: 'none',
 }
 
 const calendarActionRowStyle: CSSProperties = {

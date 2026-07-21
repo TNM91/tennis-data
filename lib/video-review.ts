@@ -50,6 +50,10 @@ export type VideoReviewClip = {
   playerNote: string
   coachSummary: string
   annotations: VideoAnnotation[]
+  ownerRole?: VideoReviewRole
+  playerLinkTarget?: 'self' | 'linked' | 'guest'
+  guestContact?: string
+  guestInviteRequired?: boolean
 }
 
 export type VideoReviewQuota = {
@@ -136,7 +140,7 @@ export type VideoReviewPracticeRecord = {
 
 export type VideoReviewClipMetadataPatch = Partial<Pick<
   VideoReviewClip,
-  'title' | 'playerName' | 'coachName' | 'stroke' | 'captureIntent' | 'playerNote'
+  'title' | 'playerName' | 'coachName' | 'stroke' | 'captureIntent' | 'playerNote' | 'playerLinkTarget' | 'guestContact' | 'guestInviteRequired'
 >>
 
 export const VIDEO_REVIEW_ROUTE = '/video-review'
@@ -245,7 +249,7 @@ export const VIDEO_REVIEW_WORKFLOW = [
   {
     label: 'Share',
     title: 'Send the review request.',
-    body: 'Add the stroke, player note, and coach name, then send it to your coach or share a review file.',
+    body: 'Add the stroke, player note, and coach name, then share with your coach by link or review file.',
   },
   {
     label: 'Review',
@@ -416,7 +420,7 @@ export function getVideoReviewQueueSummary(clips: VideoReviewClip[]): VideoRevie
 export function filterVideoReviewClips(clips: VideoReviewClip[], filter: VideoReviewLibraryFilter) {
   const query = filter.query.trim().toLowerCase()
   return clips.filter((clip) => {
-    if (filter.role === 'coach' && clip.status === 'draft') return false
+    if (filter.role === 'coach' && clip.status === 'draft' && clip.ownerRole !== 'coach') return false
     if (filter.status !== 'all' && clip.status !== filter.status) return false
     if (filter.stroke !== 'all' && clip.stroke !== filter.stroke) return false
     if (!query) return true
@@ -491,7 +495,7 @@ export function normalizeImportedVideoReviewClip(clip: VideoReviewClip): VideoRe
 }
 
 export function getVideoReviewAnnotationSaveStatus(clip: Pick<VideoReviewClip, 'status'>): VideoReviewStatus {
-  return clip.status === 'reviewed' ? 'reviewed' : 'sent'
+  return clip.status
 }
 
 export function getVideoReviewAnnotationNotificationType(
@@ -592,7 +596,7 @@ export function buildVideoReviewSummaryFileName(clip: Pick<VideoReviewClip, 'id'
 }
 
 export function buildVideoReviewPackageExportMessage(recipientRole: VideoReviewRole) {
-  return `Review file downloaded. Send it to the ${recipientRole}.`
+  return `Review file downloaded. Share it with the ${recipientRole}.`
 }
 
 function buildReturnedReviewActionCopy(coachMarkCount: number) {
@@ -613,8 +617,8 @@ export function buildVideoReviewPackageShareText(
   const strokeLabel = getVideoReviewStrokeLabel(clip.stroke).toLowerCase()
   if (recipientRole === 'coach') {
     return [
-      `${clip.playerName} sent ${clip.title} for ${strokeLabel} review.`,
-      'Open TenAceIQ Video Review, import this review file, add coach marks, then send the reviewed file back.',
+      `${clip.playerName} shared ${clip.title} for ${strokeLabel} review.`,
+      'Open TenAceIQ Video Review, import this review file, add coach marks, then share the reviewed file back.',
     ].join(' ')
   }
   const coachMarkCount = getVideoReviewCoachAnnotations(clip).length
@@ -817,7 +821,7 @@ export function buildVideoReviewNotification(input: {
     clipId: input.clip.id,
     title: input.type === 'clip_sent' ? 'Video ready for coach review' : 'Coach video feedback ready',
     body: input.type === 'clip_sent'
-      ? `${input.clip.playerName} sent ${input.clip.title} for ${strokeLabel} review.`
+      ? `${input.clip.playerName} shared ${input.clip.title} for ${strokeLabel} review.`
       : `${input.clip.coachName} returned feedback on ${input.clip.title}. ${capitalizeFirst(buildReturnedReviewActionCopy(coachMarkCount))}.`,
     href: buildVideoReviewHandoffHref(input.clip.id, recipientRole),
     readAt: null,

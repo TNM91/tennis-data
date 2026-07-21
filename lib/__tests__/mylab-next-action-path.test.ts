@@ -13,8 +13,11 @@ function styleBlock(styleName: string) {
 
 describe('My Lab next action path', () => {
   it('makes the personal lab questions visible before deeper panels', () => {
-    expect(source).toContain('PRODUCT_MOTTO')
-    expect(source).toContain('Personal lab path')
+    expect(source).not.toContain('PRODUCT_MOTTO')
+    expect(source).toContain('Your tennis hub')
+    expect(source).toContain('My Lab tools')
+    expect(source).toContain('Choose your next tennis move.')
+    expect(source).toContain('Start with the tool that gets you back to useful tennis fastest.')
     expect(source).toContain('My Lab next action path')
     expect(source).toContain('What should I work on?')
     expect(source).toContain('How am I improving?')
@@ -43,12 +46,16 @@ describe('My Lab next action path', () => {
   })
 
   it('keeps the personal path compact and mobile-safe', () => {
-    expect(source).toContain('personalLabPathGridStyle(isTablet)')
+    expect(source).toContain('personalLabPathGridStyle(isTablet, isMobile)')
     expect(styleBlock('personalLabPathStyle')).toContain('minWidth: 0')
     expect(styleBlock('personalLabPathStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('personalLabPathGridStyle')).toContain("gridTemplateColumns: isTablet")
+    expect(styleBlock('personalLabPathGridStyle')).toContain("gridTemplateColumns: isMobile")
+    expect(styleBlock('personalLabPathGridStyle')).toContain("'repeat(2, minmax(0, 1fr))'")
     expect(styleBlock('personalLabPathGridStyle')).toContain("'minmax(0, 1fr)'")
     expect(styleBlock('personalLabPathCardStyle')).toContain('minHeight: 166')
+    expect(styleBlock('mobilePersonalLabPathCardStyle')).toContain('minHeight: 98')
+    expect(styleBlock('mobilePersonalLabPathCardStyle')).toContain('padding: 9')
+    expect(source).toContain('{!isMobile ? <span style={personalLabPathCardTextStyle}>{card.body}</span> : null}')
     expect(styleBlock('personalLabPathCardTextStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('myLabPlayerIdProofRailStyle')).toContain('minmax(min(100%, 170px), 1fr)')
     expect(styleBlock('myLabPlayerIdProofCardStyle')).toContain('minWidth: 0')

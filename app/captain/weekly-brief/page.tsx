@@ -126,7 +126,7 @@ export default function CaptainWeeklyBriefPage() {
 function CaptainWeeklyBriefContent() {
   const router = useRouter()
   const { role, entitlements, authResolved } = useAuth()
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialBriefContext()
 
   const [loading, setLoading] = useState(false)
@@ -454,7 +454,7 @@ function CaptainWeeklyBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
-          <CaptainSuitePanel active="brief" teamLabel={team || 'Team week'} />
+          {!isMobile ? <CaptainSuitePanel active="brief" teamLabel={team || 'Team week'} /> : null}
           <section style={heroCard} aria-label="Weekly brief controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>

@@ -44,6 +44,10 @@ describe('Captain lineup projection mobile layout guards', () => {
     expect(styleBlock('orbOne')).toContain("width: 'min(100%, 360px)'")
     expect(styleBlock('orbTwo')).toContain("width: 'min(100%, 320px)'")
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"projection\" teamLabel={selectedTeam || 'Team week'} /> : null}")
+    expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('contentWrap'),
+    )
   })
 
   it('keeps projection cards, roster grids, pills, and list rows from forcing overflow', () => {

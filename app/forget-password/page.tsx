@@ -112,17 +112,6 @@ function ForgotPasswordContent() {
         <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
           Get back to your tennis account.
         </h1>
-        <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-          Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
-        </p>
-        <div style={destinationPillStyle}>Next step: check your inbox</div>
-        {nextIntent ? (
-          <div aria-label="Password recovery next action" style={nextIntentStyle}>
-            <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
-            <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
-            <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
-          </div>
-        ) : null}
       </div>
 
       <div style={formPanelResponsive}>
@@ -154,7 +143,7 @@ function ForgotPasswordContent() {
             />
 
             <button type="submit" disabled={submitting} style={submitting ? submitButtonDisabled : submitButton}>
-              {submitting ? 'Sending...' : 'Send reset link'}
+              {submitting ? 'Sending...' : 'Send secure link'}
             </button>
 
             {message ? <div id="reset-message" role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
@@ -171,6 +160,25 @@ function ForgotPasswordContent() {
           </form>
         </div>
       </div>
+
+      <details className="authOptionalDetailsSection" style={recoveryContextStyle}>
+        <summary style={recoveryContextSummaryStyle}>
+          <span>Show recovery path</span>
+        </summary>
+        <div className="authOptionalDetailsBody" style={recoveryContextBodyStyle}>
+          <p style={{ ...recoveryContextTextStyle, fontSize: isSmallMobile ? '15px' : '16px' }}>
+            Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
+          </p>
+          <div style={destinationPillStyle}>Next step: check your inbox</div>
+          {nextIntent ? (
+            <div aria-label="Password recovery next action" style={nextIntentStyle}>
+              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+            </div>
+          ) : null}
+        </div>
+      </details>
     </section>
   )
 }
@@ -192,9 +200,9 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-90px, -7vw, -34px)',
-  bottom: 'clamp(-120px, -10vw, -46px)',
-  width: 'clamp(220px, 31vw, 430px)',
+  right: 0,
+  bottom: '-12px',
+  width: 'min(310px, 62vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -245,6 +253,42 @@ const heroText: CSSProperties = {
   lineHeight: 1.45,
   maxWidth: '760px',
   overflowWrap: 'anywhere',
+}
+
+const recoveryContextStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(15,23,42,0.48)',
+  boxSizing: 'border-box',
+}
+
+const recoveryContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  maxWidth: '100%',
+  padding: '0 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const recoveryContextBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const recoveryContextTextStyle: CSSProperties = {
+  ...heroText,
+  margin: 0,
 }
 
 const destinationPillStyle: CSSProperties = {

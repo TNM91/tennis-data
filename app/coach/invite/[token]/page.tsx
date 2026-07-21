@@ -515,7 +515,7 @@ function CoachInviteContent() {
             <span>TenAceIQ Coach Connect</span>
           </div>
           <span style={{ color: '#9be11d', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            Coach-linked workflow
+            Coach-linked setup
           </span>
         </div>
 
@@ -736,8 +736,8 @@ function CoachInviteContent() {
               </ul>
             </div>
 
-            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account proof cue">
-              <span style={pageStyles.eyebrow}>Account proof cue</span>
+            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account check">
+              <span style={pageStyles.eyebrow}>Account check</span>
               <h2 style={{ margin: '8px 0 10px', color: '#ffffff', fontSize: 22, lineHeight: 1.12 }}>
                 Confirm the account before accepting.
               </h2>

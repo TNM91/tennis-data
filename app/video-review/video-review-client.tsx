@@ -111,12 +111,23 @@ type VideoReviewPracticeFilter = 'all' | 'needs-practice' | 'practiced'
 type VideoReviewCoachReviewFilter = 'all' | 'needs-mark' | 'ready-return'
 type VideoReviewStorageFilter = 'all' | 'space-savers'
 type VideoReviewStage = 'record' | 'review' | 'practice'
+type CoachPlayerTargetId = 'maya-chen' | 'jordan-ellis' | 'guest'
 
 const PLAYER_REVIEW_STAGES = [
   { id: 'record', label: 'Record', body: 'Capture one clean clip.' },
   { id: 'review', label: 'Review', body: 'Send, share, or watch marks.' },
   { id: 'practice', label: 'Practice', body: 'Use coach feedback on court.' },
 ] as const satisfies Array<{ id: VideoReviewStage; label: string; body: string }>
+const COACH_REVIEW_STAGES = [
+  { id: 'record', label: 'Record' },
+  { id: 'review', label: 'Queue' },
+] as const satisfies Array<{ id: VideoReviewStage; label: string }>
+
+const COACH_PLAYER_TARGETS = [
+  { id: 'maya-chen', name: 'Maya Chen', label: 'Maya Chen', detail: 'Linked player' },
+  { id: 'jordan-ellis', name: 'Jordan Ellis', label: 'Jordan Ellis', detail: 'Linked player' },
+  { id: 'guest', name: 'Guest player', label: 'Guest player', detail: 'Invite to link before viewing' },
+] as const satisfies Array<{ id: CoachPlayerTargetId; name: string; label: string; detail: string }>
 
 function getStageForClip(clip: VideoReviewClip | null, role: VideoReviewRole): VideoReviewStage {
   if (role === 'coach') return 'review'
@@ -144,6 +155,9 @@ type DraftState = {
   title: string
   playerName: string
   coachName: string
+  playerTargetId: CoachPlayerTargetId
+  guestPlayerName: string
+  guestContact: string
   stroke: VideoStrokeTag
   captureIntent: VideoReviewCaptureIntent
   playerNote: string
@@ -161,6 +175,9 @@ const INITIAL_DRAFT: DraftState = {
   title: '',
   playerName: '',
   coachName: '',
+  playerTargetId: 'maya-chen',
+  guestPlayerName: '',
+  guestContact: '',
   stroke: 'serve',
   captureIntent: 'full-court',
   playerNote: '',
@@ -175,6 +192,34 @@ function createId(prefix: string) {
 
 function cleanText(value: string, maxLength = 240) {
   return value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
+}
+
+function getCoachPlayerTarget(targetId: CoachPlayerTargetId) {
+  return COACH_PLAYER_TARGETS.find((target) => target.id === targetId) ?? COACH_PLAYER_TARGETS[0]
+}
+
+function getCoachPlayerTargetIdForClip(clip: VideoReviewClip): CoachPlayerTargetId {
+  if (clip.playerLinkTarget === 'guest') return 'guest'
+  return COACH_PLAYER_TARGETS.find((target) => target.name === clip.playerName)?.id ?? 'guest'
+}
+
+function getVideoReviewOwnershipLabel(clip: VideoReviewClip, mode: VideoReviewRole) {
+  if (mode === 'player') return clip.status === 'draft' ? 'My video' : `With ${clip.coachName}`
+  if (clip.playerLinkTarget === 'guest') return clip.guestInviteRequired ? 'Guest link needed' : 'Guest player'
+  return 'Linked player'
+}
+
+function getVideoReviewSelfMarkCount(clip: VideoReviewClip) {
+  return clip.annotations.filter((annotation) => annotation.createdBy === 'player').length
+}
+
+function buildGuestVideoReviewInvite(clip: VideoReviewClip, href: string) {
+  const contactCue = clip.guestContact ? ` I used ${clip.guestContact} for the invite.` : ''
+  return [
+    `I saved a TenAceIQ video review for ${clip.playerName}.`,
+    'Link with me as your coach to view the clip and any markups I send back.',
+    `${href}${contactCue}`,
+  ].join(' ')
 }
 
 function openVideoReviewDb(): Promise<IDBDatabase> {
@@ -353,7 +398,7 @@ function buildActiveVideoReviewNextStep(input: {
     return {
       badge: 'Private clip',
       title: 'Open the player view',
-      body: 'This clip has not been sent into the coach queue yet.',
+      body: 'This clip has not been shared with the player yet.',
     }
   }
 
@@ -377,8 +422,8 @@ function buildActiveVideoReviewNextStep(input: {
 
   return {
     badge: 'Saved private',
-    title: 'Send it when ready',
-    body: 'This clip is only on this device. Send it to coach review when you want feedback.',
+    title: 'Share it when ready',
+    body: 'This clip is only on this device. Share it with your coach when you want feedback.',
   }
 }
 
@@ -642,9 +687,9 @@ function buildClipActivityTrail(input: {
     {
       id: 'sent',
       label: '2',
-      title: input.clip.status === 'draft' ? 'Not sent yet' : `Sent to ${input.clip.coachName}`,
+      title: input.clip.status === 'draft' ? 'Not shared yet' : `Shared with ${input.clip.coachName}`,
       body: input.clip.status === 'draft'
-        ? 'Send the clip when you want coach feedback.'
+        ? 'Share the clip when you want coach feedback.'
         : `${formatActivityMoment(sentAt)} | Waiting for coach feedback`,
       done: input.clip.status !== 'draft',
     },
@@ -655,7 +700,7 @@ function buildClipActivityTrail(input: {
       body: input.coachMarkCount
         ? `${latestMarkAt ? `Latest mark at ${latestMarkAt}` : 'Coach marks saved'} | Lines, arrows, circles, or notes`
         : input.clip.status === 'draft'
-          ? 'Coach marks appear after the clip is sent.'
+          ? 'Coach marks appear after the clip is shared.'
           : 'Pause the clip and mark the key moment.',
       done: input.coachMarkCount > 0,
     },
@@ -760,6 +805,8 @@ export default function VideoReviewClient() {
   const [practiceFilter, setPracticeFilter] = useState<VideoReviewPracticeFilter>('all')
   const [coachReviewFilter, setCoachReviewFilter] = useState<VideoReviewCoachReviewFilter>('all')
   const [storageFilter, setStorageFilter] = useState<VideoReviewStorageFilter>('all')
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [sharingOpen, setSharingOpen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const previewVideoRef = useRef<HTMLVideoElement>(null)
@@ -782,6 +829,10 @@ export default function VideoReviewClient() {
   )
   const activeCoachAnnotations = useMemo(
     () => activeClip ? getVideoReviewCoachAnnotations(activeClip) : [],
+    [activeClip],
+  )
+  const activeReviewAnnotations = useMemo(
+    () => activeClip ? [...activeClip.annotations].sort((left, right) => left.timestamp - right.timestamp) : [],
     [activeClip],
   )
   const watchedCoachMarkIds = useMemo(() => {
@@ -818,7 +869,10 @@ export default function VideoReviewClient() {
     [activeClip, coachSummary, currentTime],
   )
   const activePracticeRecord = activeClip ? practiceRecords[activeClip.id] ?? null : null
-  const canEditMarks = canEditVideoReviewAnnotations(mode)
+  const canEditMarks = Boolean(activeClip && (
+    canEditVideoReviewAnnotations(mode)
+    || (mode === 'player' && activeClip.status === 'draft')
+  ))
   const canSendReviewBack = Boolean(activeClip && mode === 'coach' && canReturnVideoReview(activeClip, coachSummary))
   const hasWrittenCoachFocus = Boolean(coachSummary.trim() || activeClip?.coachSummary.trim())
   const returnFocusReadinessLabel = !returnReviewFocus
@@ -841,12 +895,19 @@ export default function VideoReviewClient() {
   const quota = useMemo(() => getVideoReviewQuotaState(clips), [clips])
   const visibleAnnotations = useMemo(() => {
     if (!activeClip) return []
-    return activeCoachAnnotations.filter((annotation) => Math.abs(annotation.timestamp - currentTime) <= 1.25)
-  }, [activeClip, activeCoachAnnotations, currentTime])
+    return activeReviewAnnotations.filter((annotation) => Math.abs(annotation.timestamp - currentTime) <= 1.25)
+  }, [activeClip, activeReviewAnnotations, currentTime])
   const visibleAnnotationIds = useMemo(
     () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
     [visibleAnnotations],
   )
+  const latestEditableMark = useMemo(() => {
+    if (!activeClip || !canEditMarks) return null
+    return [...activeReviewAnnotations].reverse().find((annotation) => (
+      mode === 'coach'
+      || (mode === 'player' && activeClip.status === 'draft' && annotation.createdBy === 'player')
+    )) ?? null
+  }, [activeClip, activeReviewAnnotations, canEditMarks, mode])
   const coachCues = useMemo(
     () => VIDEO_REVIEW_COACH_CUES.filter((cue) => cue.stroke === 'all' || cue.stroke === activeClip?.stroke),
     [activeClip?.stroke],
@@ -947,12 +1008,12 @@ export default function VideoReviewClient() {
   const reviewedPracticeClip = activeClip?.status === 'reviewed'
     ? activeClip
     : clips.find((clip) => clip.status === 'reviewed') ?? null
-  const selectedStage = mode === 'coach' ? 'review' : activeStage
-  const showCaptureFlow = mode === 'player' && selectedStage === 'record'
+  const selectedStage = activeStage
+  const showCaptureFlow = selectedStage === 'record'
   const showReviewFlow = selectedStage === 'review'
   const showPracticeFlow = mode === 'player' && selectedStage === 'practice'
-  const showWorkspaceLibrary = showReviewFlow || mode === 'coach'
-  const showActiveReview = showReviewFlow || showPracticeFlow || mode === 'coach'
+  const showWorkspaceLibrary = showReviewFlow || showPracticeFlow
+  const showActiveReview = showReviewFlow || showPracticeFlow
   const activeFilterChips = [
     ...(clipSearch.trim()
       ? [{
@@ -1016,6 +1077,10 @@ export default function VideoReviewClient() {
     canSendReviewBack,
     practiceDone: Boolean(activePracticeRecord),
   }) : null
+  const activeNextStepHasActions = Boolean(activeClip && (
+    (mode === 'player' && activeClip.status !== 'draft')
+    || (mode === 'coach' && (activeClip.status === 'sent' || activeClip.status === 'reviewed'))
+  ))
   const activeActivityTrail = activeClip ? buildClipActivityTrail({
     clip: activeClip,
     notifications: activeClipNotifications,
@@ -1094,7 +1159,12 @@ export default function VideoReviewClient() {
 
   function switchStage(nextStage: VideoReviewStage) {
     if (mode === 'coach') {
-      setActiveStage('review')
+      if (nextStage === 'practice') return
+      if (nextStage === 'review' && !activeClip && clips[0]) {
+        openClip(clips[0].id, 'coach')
+        return
+      }
+      setActiveStage(nextStage)
       return
     }
     if (nextStage === 'practice') {
@@ -1427,7 +1497,7 @@ export default function VideoReviewClient() {
     setSelectedFileName(file.name)
     setCaptureVideoShape(null)
     setDraftResetNotice('')
-    setMessage('Clip ready. Add context, then save or send it.')
+    setMessage('Clip ready. Add context, then save or share it.')
   }
 
   function clearDraftClip(messageText = 'Draft clip discarded.') {
@@ -1491,7 +1561,9 @@ export default function VideoReviewClient() {
       setSelectedFile(blob)
       setSelectedFileName(`court-recording-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`)
       setCaptureVideoShape(null)
-      setMessage('Recording ready. Save it or send it to coach review.')
+      setMessage(mode === 'coach'
+        ? 'Recording ready. Save it or mark it up.'
+        : 'Recording ready. Save it, mark it yourself, or share it when ready.')
     }
     recorder.start(250)
     setRecording(true)
@@ -1512,7 +1584,7 @@ export default function VideoReviewClient() {
     }
   }
 
-  async function saveDraft(status: VideoReviewStatus) {
+  async function saveDraft(status: VideoReviewStatus, nextAction: 'open' | 'markup' = 'open') {
     if (!selectedFile) {
       setMessage('Choose a video or record one before saving.')
       return
@@ -1525,10 +1597,18 @@ export default function VideoReviewClient() {
     const now = new Date().toISOString()
     const durationSeconds = await getDuration(selectedFile)
     const title = cleanText(draft.title) || `${getVideoReviewStrokeLabel(draft.stroke)} review`
+    const coachTarget = getCoachPlayerTarget(draft.playerTargetId)
+    const isCoachGuestClip = mode === 'coach' && coachTarget.id === 'guest'
+    const playerName = mode === 'coach'
+      ? isCoachGuestClip
+        ? cleanText(draft.guestPlayerName) || 'Guest player'
+        : coachTarget.name
+      : cleanText(draft.playerName) || 'Player'
+    const guestContact = cleanText(draft.guestContact)
     const clip: VideoReviewClip = {
       id: createId('clip'),
       title,
-      playerName: cleanText(draft.playerName) || 'Player',
+      playerName,
       coachName: cleanText(draft.coachName) || 'Coach',
       stroke: draft.stroke,
       status,
@@ -1542,6 +1622,10 @@ export default function VideoReviewClient() {
       playerNote: cleanText(draft.playerNote, 700),
       coachSummary: '',
       annotations: [],
+      ownerRole: mode,
+      playerLinkTarget: mode === 'coach' ? (isCoachGuestClip ? 'guest' : 'linked') : 'self',
+      guestContact: isCoachGuestClip ? guestContact : '',
+      guestInviteRequired: isCoachGuestClip,
     }
 
     try {
@@ -1551,12 +1635,23 @@ export default function VideoReviewClient() {
       setCaptureVideoShape(null)
       setDraftResetNotice('')
       setDraft(INITIAL_DRAFT)
-      openClip(clip.id, 'player')
+      openClip(clip.id, mode)
       setActiveStage('review')
+      if (nextAction === 'markup') {
+        setTool('line')
+      }
       if (status === 'sent') {
         pushLocalNotification(clip, 'clip_sent')
       }
-      setMessage(status === 'sent' ? 'Coach notified. Copy the coach review link if you want to text or email it.' : 'Clip saved to your video lab.')
+      if (nextAction === 'markup') {
+        setMessage(mode === 'coach'
+          ? 'Clip saved. Add marks now, then share it with the player when ready.'
+          : 'Clip saved. Add your own marks now or keep reviewing later.')
+      } else if (status === 'sent') {
+        setMessage('Shared with coach. Copy the coach review link if you want to text or email it.')
+      } else {
+        setMessage('Clip saved to your video inventory.')
+      }
       await loadClips()
     } catch {
       setMessage('The clip could not be saved on this device.')
@@ -1629,13 +1724,13 @@ export default function VideoReviewClient() {
     await updateClip({ ...activeClip, status: 'sent' })
     pushLocalNotification(activeClip, 'clip_sent')
     setActiveStage('review')
-    setMessage('Coach notified. Copy the coach review link if you want to text or email it.')
+    setMessage('Shared with coach. Copy the coach review link if you want to text or email it.')
   }
 
   async function saveAnnotation(points: VideoAnnotationPoint[], annotationTool = tool, text = coachNote) {
     if (!activeClip || !points.length) return
     if (!canEditMarks) {
-      setMessage('Switch to coach mode to add marks.')
+      setMessage(activeClip.status === 'draft' ? 'Open the saved clip before adding marks.' : 'Coach feedback is view-only here.')
       return
     }
     const timestamp = videoRef.current?.currentTime ?? currentTime
@@ -1647,7 +1742,7 @@ export default function VideoReviewClient() {
       color,
       text: cleanText(text, 280),
       points: points.map(clampPoint),
-      createdBy: 'coach',
+      createdBy: mode,
       createdAt: new Date().toISOString(),
     }
     const updatedClip = {
@@ -1661,9 +1756,11 @@ export default function VideoReviewClient() {
       pushLocalNotification(updatedClip, notificationType)
     }
     setCoachNote('')
-    setMessage(notificationType
-      ? 'Coach markup saved and player feedback refreshed.'
-      : 'Coach markup saved at this timestamp.')
+    setMessage(mode === 'coach'
+      ? notificationType
+        ? 'Coach markup saved and player feedback refreshed.'
+        : 'Coach markup saved at this timestamp.'
+      : 'Mark saved to your video.')
   }
 
   function applyCoachCue(cue: { note: string; summary: string }) {
@@ -1703,6 +1800,14 @@ export default function VideoReviewClient() {
         field.focus({ preventScroll: true })
       }
     }, 120)
+  }
+
+  function openMarkupTools() {
+    if (!activeClip) return
+    if (tool === 'note') {
+      setTool('line')
+    }
+    scrollToVideoReviewPanel('video-review-coach-tools')
   }
 
   function useSavedMarkAsReturnFocus() {
@@ -1782,6 +1887,18 @@ export default function VideoReviewClient() {
     }
   }
 
+  async function copyGuestInvite() {
+    if (!activeClip) return
+    const href = `${window.location.origin}${buildVideoReviewHandoffHref(activeClip.id, 'player')}`
+    const inviteText = buildGuestVideoReviewInvite(activeClip, href)
+    try {
+      await navigator.clipboard.writeText(inviteText)
+      setMessage('Guest invite copied.')
+    } catch {
+      setMessage(`Guest invite: ${inviteText}`)
+    }
+  }
+
   async function createActivePackageFile(blob: Blob) {
     if (!activeClip) return null
     const dataUrl = await blobToDataUrl(blob)
@@ -1799,7 +1916,7 @@ export default function VideoReviewClient() {
     }
     const fileName = buildVideoReviewPackageFileName(activeClip)
     const file = new File([JSON.stringify(reviewPackage)], fileName, { type: 'application/json' })
-    const recipientRole: VideoReviewRole = activeClip.status === 'reviewed' ? 'player' : 'coach'
+    const recipientRole: VideoReviewRole = activeClip.status === 'reviewed' || activeClip.ownerRole === 'coach' ? 'player' : 'coach'
     return {
       file,
       fileName,
@@ -2050,7 +2167,7 @@ export default function VideoReviewClient() {
   }
 
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
-    if (!activeClip || mode !== 'coach' || tool === 'note') return
+    if (!activeClip || !canEditMarks || tool === 'note') return
     const point = getCanvasPoint(event)
     setDrawingPoints([point])
     setPreviewPoints([point])
@@ -2058,7 +2175,7 @@ export default function VideoReviewClient() {
   }
 
   function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
-    if (!drawingPoints.length || mode !== 'coach') return
+    if (!drawingPoints.length || !canEditMarks) return
     const point = getCanvasPoint(event)
     const nextPoints = tool === 'freehand' ? [...drawingPoints, point] : [drawingPoints[0], point]
     setDrawingPoints(nextPoints)
@@ -2066,7 +2183,7 @@ export default function VideoReviewClient() {
   }
 
   function handlePointerUp(event: PointerEvent<HTMLCanvasElement>) {
-    if (!drawingPoints.length || mode !== 'coach') return
+    if (!drawingPoints.length || !canEditMarks) return
     const point = getCanvasPoint(event)
     const finalPoints = tool === 'freehand' ? [...drawingPoints, point] : [drawingPoints[0], point]
     setDrawingPoints([])
@@ -2088,8 +2205,13 @@ export default function VideoReviewClient() {
 
   async function deleteAnnotation(annotationId: string) {
     if (!activeClip) return
-    if (!canEditMarks) {
-      setMessage('Coach marks are view-only in player mode.')
+    const annotation = activeClip.annotations.find((mark) => mark.id === annotationId)
+    const canDeleteMark = Boolean(annotation && (
+      mode === 'coach'
+      || (mode === 'player' && activeClip.status === 'draft' && annotation.createdBy === 'player')
+    ))
+    if (!canDeleteMark) {
+      setMessage('This mark is view-only here.')
       return
     }
     await updateClip(removeVideoReviewAnnotation(activeClip, annotationId))
@@ -2098,16 +2220,16 @@ export default function VideoReviewClient() {
   }
 
   async function undoLatestCoachMark() {
-    if (!activeClip || !latestCoachMark) {
+    if (!activeClip || !latestEditableMark) {
       setMessage('Add a timestamp mark first.')
       return
     }
     if (!canEditMarks) {
-      setMessage('Coach marks are view-only in player mode.')
+      setMessage('This mark is view-only here.')
       return
     }
-    await updateClip(removeVideoReviewAnnotation(activeClip, latestCoachMark.id))
-    forgetWatchedCoachMark(latestCoachMark.id)
+    await updateClip(removeVideoReviewAnnotation(activeClip, latestEditableMark.id))
+    forgetWatchedCoachMark(latestEditableMark.id)
     setMessage('Latest mark removed.')
   }
 
@@ -2120,225 +2242,84 @@ export default function VideoReviewClient() {
     scrollToVideoReviewPanel(panelId)
   }
 
+  function openSupportPanel(panelId?: string) {
+    setSupportOpen(true)
+    if (panelId === 'video-review-sharing') {
+      setSharingOpen(true)
+    }
+    if (panelId) {
+      window.setTimeout(() => scrollToVideoReviewPanel(panelId), 0)
+    }
+  }
+
   return (
     <main className={styles.shell}>
-      <section className={styles.hero}>
-        <div className={styles.heroPanel}>
-          <div className={styles.heroCopy}>
-            <span className={styles.kicker}>My Lab video</span>
-            <h1 className={styles.title}>Video Review</h1>
-            <p className={styles.subtitle}>
-              Record a clip, send it to your coach, and practice the returned marks.
-            </p>
-            <div className={styles.modeBar} aria-label="Video review mode">
-              <button
-                type="button"
-                className={`${styles.modeButton} ${mode === 'player' ? styles.modeButtonActive : ''}`}
-                onClick={() => switchMode('player')}
-              >
-                Player capture
-              </button>
-              <button
-                type="button"
-                className={`${styles.modeButton} ${mode === 'coach' ? styles.modeButtonActive : ''}`}
-                onClick={() => switchMode('coach')}
-              >
-                Coach review{queueSummary.needsReview ? ` (${queueSummary.needsReview})` : coachUnreadNotificationCount ? ` (${coachUnreadNotificationCount})` : ''}
-              </button>
-            </div>
-            <div className={styles.mobileQuickBar} aria-label="Video review shortcuts">
-              <button type="button" className={styles.ghostButton} onClick={() => openStagePanel('record')}>
-                Record
-              </button>
-              <button type="button" className={styles.ghostButton} onClick={() => openStagePanel('review')}>
-                Review
-              </button>
-              <button type="button" className={styles.ghostButton} disabled={!reviewedPracticeClip} onClick={() => openStagePanel('practice')}>
-                Practice
-              </button>
-            </div>
-          </div>
+      <section className={styles.toolTop} aria-label="Video Review">
+        <div className={styles.toolTitleBlock}>
+          <span className={styles.kicker}>My Lab video</span>
+          <h1 className={styles.title}>Video Review</h1>
         </div>
-        <aside className={styles.quotaPanel} aria-label="Free storage limits">
-          <div>
-            <p className={styles.kicker}>{VIDEO_REVIEW_QUOTA.label}</p>
-            <h2 className={styles.quotaTitle}>Keep the clip queue light.</h2>
-            <p className={styles.quotaCompactText}>
-              {quota.clipsRemaining} clip slots left | {formatVideoReviewBytes(quota.bytesRemaining)} free
-            </p>
+        <div className={styles.toolTopActions}>
+          <div className={styles.modeBar} aria-label="Video review role">
+            <button
+              type="button"
+              className={`${styles.modeButton} ${mode === 'player' ? styles.modeButtonActive : ''}`}
+              onClick={() => switchMode('player')}
+            >
+              Player
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeButton} ${mode === 'coach' ? styles.modeButtonActive : ''}`}
+              onClick={() => switchMode('coach')}
+            >
+              Coach{queueSummary.needsReview ? ` (${queueSummary.needsReview})` : coachUnreadNotificationCount ? ` (${coachUnreadNotificationCount})` : ''}
+            </button>
           </div>
-          <p className={styles.quotaText}>{VIDEO_REVIEW_QUOTA.storageCue}</p>
-          <div className={styles.meter} aria-label={`${quota.percentUsed}% of video space used`}>
-            <div className={styles.meterFill} style={{ width: `${quota.percentUsed}%` }} />
-          </div>
-          <div className={styles.statsGrid}>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>{quota.usedClips}/{VIDEO_REVIEW_QUOTA.maxClips}</span>
-              <span className={styles.statLabel}>clips</span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>{formatVideoReviewBytes(quota.usedBytes)}</span>
-              <span className={styles.statLabel}>stored</span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>{quota.clipsRemaining}</span>
-              <span className={styles.statLabel}>clip slots left</span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>{formatVideoReviewBytes(quota.bytesRemaining)}</span>
-              <span className={styles.statLabel}>space left</span>
-            </div>
-          </div>
-          {cleanupCandidate ? (
-            <div className={`${styles.storageTip} ${quota.warningLevel === 'full' ? styles.storageFull : quota.warningLevel === 'tight' ? styles.storageTight : ''}`}>
-              <span className={styles.noteTime}>{storageStatusTitle}</span>
-              <span>{storageStatusCopy}</span>
-              <strong>{cleanupCandidate.title}</strong>
-              <span>{formatVideoReviewBytes(cleanupCandidate.sizeBytes)} | {statusLabel(cleanupCandidate.status)}</span>
-              {storageSaverClips.length ? (
-                <div className={styles.storageCleanupSummary} aria-label="Storage cleanup summary">
-                  <span>
-                    <strong>{storageSaverClips.length}</strong>
-                    <em>reviewed or private</em>
-                  </span>
-                  <span>
-                    <strong>{formatVideoReviewBytes(storageSaverBytes)}</strong>
-                    <em>can be cleared</em>
-                  </span>
-                </div>
-              ) : null}
-              <div className={styles.actionRow}>
-                <button type="button" className={styles.ghostButton} onClick={() => openClip(cleanupCandidate.id)}>
-                  Open clip
+          <div className={styles.toolStageBar} aria-label="Video review steps">
+            {mode === 'player' ? (
+              PLAYER_REVIEW_STAGES.map((stage) => {
+                const disabled = stage.id === 'practice' && !reviewedPracticeClip
+                return (
+                  <button
+                    type="button"
+                    key={stage.id}
+                    className={`${styles.toolStageButton} ${selectedStage === stage.id ? styles.toolStageButtonActive : ''}`}
+                    disabled={disabled}
+                    onClick={() => switchStage(stage.id)}
+                  >
+                    {stage.label}
+                  </button>
+                )
+              })
+            ) : (
+              COACH_REVIEW_STAGES.map((stage) => (
+                <button
+                  type="button"
+                  key={stage.id}
+                  className={`${styles.toolStageButton} ${selectedStage === stage.id ? styles.toolStageButtonActive : ''}`}
+                  onClick={() => switchStage(stage.id)}
+                >
+                  {stage.label}
                 </button>
-                {storageSaverClips.length ? (
-                  <button type="button" className={styles.ghostButton} onClick={showStorageSavers}>
-                    Show space savers
-                  </button>
-                ) : null}
-                {quota.warningLevel !== 'ok' ? (
-                  <button type="button" className={styles.dangerButton} onClick={() => void deleteSuggestedCleanupClip()}>
-                    Delete suggestion
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-        </aside>
-      </section>
-
-      <section className={styles.stageTabs} aria-label="Video review steps">
-        {mode === 'player' ? (
-          PLAYER_REVIEW_STAGES.map((stage) => {
-            const disabled = stage.id === 'practice' && !reviewedPracticeClip
-            return (
-              <button
-                type="button"
-                key={stage.id}
-                className={`${styles.stageTab} ${selectedStage === stage.id ? styles.stageTabActive : ''}`}
-                disabled={disabled}
-                onClick={() => switchStage(stage.id)}
-              >
-                <strong>{stage.label}</strong>
-                <span>{disabled ? 'Feedback appears here after coach review.' : stage.body}</span>
-              </button>
-            )
-          })
-        ) : (
-          <button type="button" className={`${styles.stageTab} ${styles.stageTabActive}`} onClick={() => switchStage('review')}>
-            <strong>Coach review</strong>
-            <span>Open a clip, mark the key moment, and return one focus.</span>
-          </button>
-        )}
-      </section>
-
-      <details className={styles.utilityDrawer} open={visibleNotifications.length > 0}>
-        <summary className={styles.utilitySummary}>
-          <span>
-            <strong>{mode === 'coach' ? 'Coach notifications and files' : 'Notifications and review files'}</strong>
-            <em>{unreadNotificationCount} unread</em>
-          </span>
-          <span className={styles.utilitySummaryAction}>Share or import</span>
-        </summary>
-        <section id="video-review-sharing" className={styles.handoffPanel} aria-label="Video review notifications">
-        <div className={styles.panelHeader}>
-          <div>
-            <p className={styles.kicker}>Coach-player sharing</p>
-            <h2 className={styles.panelTitle}>{mode === 'coach' ? 'Coach notifications' : 'Player notifications'}</h2>
-            <p className={styles.smallText}>
-              Review alerts stay here on this device. Copy a link or share a review file when you want to send feedback by text or email.
-            </p>
+              ))
+            )}
           </div>
-          <span className={styles.statusBadge}>{unreadNotificationCount} unread</span>
-        </div>
-        <div className={styles.shareStrip}>
-          <div className={styles.shareCopy}>
-            <strong>Share a review file</strong>
-            <span>Send the selected clip for review, or add a file returned by your coach.</span>
-            <div className={styles.shareSteps} aria-label="Review file steps">
-              <span>
-                <strong>1</strong>
-                Export or share
-              </span>
-              <span>
-                <strong>2</strong>
-                Import on the other device
-              </span>
-              <span>
-                <strong>3</strong>
-                Review or practice
-              </span>
-            </div>
-          </div>
-          <div className={styles.actionRow}>
-            <button type="button" className={styles.primaryButton} disabled={!activeClip} onClick={() => void exportActivePackage()}>
-              Export review file
+          <div className={styles.toolMetaBar}>
+            <button
+              type="button"
+              className={styles.toolFilesButton}
+              onClick={() => openSupportPanel('video-review-sharing')}
+              aria-label={unreadNotificationCount ? `${unreadNotificationCount} unread review notifications` : 'Open review files'}
+            >
+              Files{unreadNotificationCount ? ` (${unreadNotificationCount})` : ''}
             </button>
-            <button type="button" className={styles.ghostButton} disabled={!activeClip} onClick={() => void shareActivePackage()}>
-              Share review file
-            </button>
-            <label className={styles.ghostButton}>
-              Import review file
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0] ?? null
-                  event.currentTarget.value = ''
-                  void importReviewPackage(file)
-                }}
-                style={{ display: 'none' }}
-              />
-            </label>
-            <button type="button" className={styles.ghostButton} disabled={!activeClip} onClick={() => void downloadActiveVideo()}>
-              Download video
-            </button>
+            <span className={styles.toolStoragePill}>
+              {quota.clipsRemaining} slots | {formatVideoReviewBytes(quota.bytesRemaining)} free
+            </span>
           </div>
         </div>
-        {visibleNotifications.length ? (
-          <div className={styles.notificationGrid}>
-            {visibleNotifications.slice(0, 4).map((notification) => (
-              <button
-                type="button"
-                key={notification.id}
-                className={`${styles.notificationCard} ${notification.readAt ? '' : styles.notificationUnread}`}
-                onClick={() => openNotification(notification)}
-              >
-                <span className={styles.noteTime}>{notification.readAt ? 'Read' : 'New'} | {new Date(notification.createdAt).toLocaleString()}</span>
-                <strong>{notification.title}</strong>
-                <span>{notification.body}</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className={styles.emptyState}>
-            {mode === 'coach'
-              ? 'Send a clip from Player capture to create the first coach review notification.'
-              : 'Coach feedback notifications appear here after a review is sent back.'}
-            </div>
-        )}
       </section>
-      </details>
 
       <section id="video-review-workspace" className={`${styles.workspace} ${showWorkspaceLibrary ? '' : styles.workspaceSolo}`}>
         {showWorkspaceLibrary ? (
@@ -2465,13 +2446,13 @@ export default function VideoReviewClient() {
           {queueSummary.latestNeedsReview ? (
             <section
               className={styles.inboxBanner}
-              aria-label={mode === 'coach' ? 'Coach inbox' : 'Player sent clip status'}
+              aria-label={mode === 'coach' ? 'Coach inbox' : 'Player shared clip status'}
             >
               <div className={styles.inboxCopy}>
                 <span className={styles.noteTime}>{mode === 'coach' ? 'Coach inbox' : 'With coach'}</span>
                 <strong>
                   {mode === 'coach'
-                    ? `${queueSummary.latestNeedsReview.playerName} sent ${queueSummary.latestNeedsReview.title}`
+                    ? `${queueSummary.latestNeedsReview.playerName} shared ${queueSummary.latestNeedsReview.title}`
                     : `${queueSummary.latestNeedsReview.title} is waiting for ${queueSummary.latestNeedsReview.coachName}`}
                 </strong>
                 <span>
@@ -2683,7 +2664,7 @@ export default function VideoReviewClient() {
               ) : mode === 'coach' ? (
                 <>
                   <strong>{queueSummary.reviewed ? 'All coach clips are returned.' : 'No clips are waiting yet.'}</strong>
-                  <span>{queueSummary.reviewed ? 'Open returned clips, add a review file, or wait for the next player send.' : 'Send a clip from Player capture, or add a review file your player shared.'}</span>
+                  <span>{queueSummary.reviewed ? 'Open returned clips, record for a player, or add a review file.' : 'Record for a linked player, start a guest clip, or add a review file your player shared.'}</span>
                   <div className={styles.emptyActions} aria-label="Empty coach queue actions">
                     {queueSummary.reviewed ? (
                       <button
@@ -2701,12 +2682,12 @@ export default function VideoReviewClient() {
                       <button
                         type="button"
                         className={styles.primaryButton}
-                        onClick={() => openMobilePanel('video-review-capture', 'player')}
+                        onClick={() => openMobilePanel('video-review-capture', 'coach')}
                       >
-                        Capture a clip
+                        Record for player
                       </button>
                     )}
-                    <button type="button" className={styles.ghostButton} onClick={() => scrollToVideoReviewPanel('video-review-sharing')}>
+                    <button type="button" className={styles.ghostButton} onClick={() => openSupportPanel('video-review-sharing')}>
                       Add review file
                     </button>
                   </div>
@@ -2714,12 +2695,12 @@ export default function VideoReviewClient() {
               ) : (
                 <>
                   <strong>Start with one clip.</strong>
-                  <span>Record or upload a serve, return, rally, or footwork clip, then send it to your coach.</span>
+                  <span>Record or upload a serve, return, rally, or footwork clip. Save it, mark it yourself, or share it when ready.</span>
                   <div className={styles.emptyActions} aria-label="Empty player library actions">
                     <button type="button" className={styles.primaryButton} onClick={() => openMobilePanel('video-review-capture', 'player')}>
                       Record first clip
                     </button>
-                    <button type="button" className={styles.ghostButton} onClick={() => scrollToVideoReviewPanel('video-review-sharing')}>
+                    <button type="button" className={styles.ghostButton} onClick={() => openSupportPanel('video-review-sharing')}>
                       Add review file
                     </button>
                   </div>
@@ -2730,6 +2711,8 @@ export default function VideoReviewClient() {
           <div className={styles.clipList} aria-label="Video library clips">
             {filteredClips.map((clip) => {
               const clipCoachMarks = getVideoReviewCoachAnnotations(clip)
+              const selfMarkCount = getVideoReviewSelfMarkCount(clip)
+              const ownershipLabel = getVideoReviewOwnershipLabel(clip, mode)
               const practiceRecord = practiceRecords[clip.id] ?? null
               const libraryNextAction = buildLibraryClipNextAction({
                 clip,
@@ -2749,6 +2732,14 @@ export default function VideoReviewClient() {
                       <span className={styles.clipTitle}>{clip.title}</span>
                       <span className={styles.clipMeta}>
                         {clip.playerName} | {getVideoReviewStrokeLabel(clip.stroke)} | {formatVideoReviewDuration(clip.durationSeconds)}
+                      </span>
+                      <span className={styles.clipBadgeRow}>
+                        <span className={`${styles.clipMiniBadge} ${clip.playerLinkTarget === 'guest' ? styles.clipMiniBadgeGuest : ''}`}>
+                          {ownershipLabel}
+                        </span>
+                        {selfMarkCount ? (
+                          <span className={styles.clipMiniBadge}>{selfMarkCount} self {selfMarkCount === 1 ? 'mark' : 'marks'}</span>
+                        ) : null}
                       </span>
                     </span>
                     <span
@@ -2776,6 +2767,7 @@ export default function VideoReviewClient() {
         <div className={styles.reviewPanel}>
           {showCaptureFlow ? (
             <PlayerCapture
+              mode={mode}
               draft={draft}
               setDraft={setDraft}
               selectedFileName={selectedFileName}
@@ -2807,6 +2799,7 @@ export default function VideoReviewClient() {
               onRecordAgain={recordAgain}
               onDiscardDraft={() => clearDraftClip()}
               onSave={() => void saveDraft('draft')}
+              onSaveAndMarkup={() => void saveDraft('draft', 'markup')}
               onSend={() => void saveDraft('sent')}
               quotaFull={quota.usedClips >= VIDEO_REVIEW_QUOTA.maxClips || quota.usedBytes >= VIDEO_REVIEW_QUOTA.maxBytes}
             />
@@ -2820,20 +2813,32 @@ export default function VideoReviewClient() {
                   <h2 className={styles.panelTitle}>{activeClip ? activeClip.title : 'Select a clip'}</h2>
                   <p className={styles.smallText}>
                     {activeClip
-                      ? `${activeClip.playerName} to ${activeClip.coachName} | ${getVideoReviewStrokeLabel(activeClip.stroke)}`
+                      ? mode === 'coach'
+                        ? `${activeClip.playerName} | ${getVideoReviewStrokeLabel(activeClip.stroke)}`
+                        : `${getVideoReviewStrokeLabel(activeClip.stroke)} | ${activeClip.status === 'draft' ? 'Saved to your videos' : `Shared with ${activeClip.coachName}`}`
                       : 'The review canvas appears after a clip is saved.'}
                   </p>
                 </div>
                 {activeClip ? (
                   <div className={styles.clipActions}>
-                    {activeClip.status === 'draft' ? (
-                      <button type="button" className={styles.primaryButton} onClick={() => void sendActiveClip()}>
-                        Send to coach
+                    {canEditMarks ? (
+                      <button type="button" className={styles.primaryButton} onClick={openMarkupTools}>
+                        Mark up
                       </button>
                     ) : null}
-                    {activeClip.status !== 'draft' ? (
-                      <button type="button" className={styles.ghostButton} onClick={() => void copyHandoffLink(mode === 'coach' ? 'player' : 'coach')}>
-                        Copy {mode === 'coach' ? 'player return' : 'coach review'} link
+                    {mode === 'coach' && activeClip.playerLinkTarget === 'guest' ? (
+                      <button type="button" className={styles.ghostButton} onClick={() => void copyGuestInvite()}>
+                        Copy guest invite
+                      </button>
+                    ) : null}
+                    {mode === 'coach' && activeClip.ownerRole === 'coach' ? (
+                      <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
+                        Share with player
+                      </button>
+                    ) : null}
+                    {activeClip.status === 'draft' && mode === 'player' ? (
+                      <button type="button" className={styles.ghostButton} onClick={() => void sendActiveClip()}>
+                        Share with coach
                       </button>
                     ) : null}
                     <button type="button" className={styles.dangerButton} onClick={() => void deleteActiveClip()}>
@@ -2850,63 +2855,60 @@ export default function VideoReviewClient() {
                     <h3 className={styles.clipTitle}>{activeNextStep.title}</h3>
                     <p>{activeNextStep.body}</p>
                   </div>
-                  <div className={styles.actionRow}>
-                    {mode === 'player' && activeClip.status === 'draft' ? (
-                      <button type="button" className={styles.primaryButton} onClick={() => void sendActiveClip()}>
-                        Send clip
-                      </button>
-                    ) : null}
-                    {mode === 'player' && activeClip.status === 'sent' ? (
-                      <>
-                        <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
-                          Copy coach link
-                        </button>
-                        <button type="button" className={styles.ghostButton} onClick={() => switchMode('coach')}>
-                          Open coach view
-                        </button>
-                      </>
-                    ) : null}
-                    {mode === 'player' && activeClip.status === 'reviewed' ? (
-                      <>
-                        <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
-                          {nextCoachMarkActionLabel}
-                        </button>
-                        <button type="button" className={styles.ghostButton} onClick={markPracticeDone}>
-                          {activePracticeRecord ? 'Practice again' : 'Mark practiced'}
-                        </button>
-                      </>
-                    ) : null}
-                    {mode === 'coach' && activeClip.status === 'sent' ? (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.primaryButton}
-                          onClick={() => {
-                            if (canSendReviewBack) {
-                              void sendReview()
-                            } else {
-                              seekTo(0)
-                            }
-                          }}
-                        >
-                          {canSendReviewBack ? 'Return to player' : 'Start review'}
-                        </button>
-                        <button type="button" className={styles.ghostButton} onClick={focusCoachReturnFocus}>
-                          Next focus
-                        </button>
-                      </>
-                    ) : null}
-                    {mode === 'coach' && activeClip.status === 'reviewed' ? (
-                      <>
-                        <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>
-                          Copy player link
-                        </button>
-                        <button type="button" className={styles.ghostButton} onClick={() => switchMode('player')}>
-                          Open player view
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
+                  {activeNextStepHasActions ? (
+                    <div className={styles.actionRow}>
+                      {mode === 'player' && activeClip.status === 'sent' ? (
+                        <>
+                          <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
+                            Copy coach link
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => switchMode('coach')}>
+                            Open coach view
+                          </button>
+                        </>
+                      ) : null}
+                      {mode === 'player' && activeClip.status === 'reviewed' ? (
+                        <>
+                          <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
+                            {nextCoachMarkActionLabel}
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={markPracticeDone}>
+                            {activePracticeRecord ? 'Practice again' : 'Mark practiced'}
+                          </button>
+                        </>
+                      ) : null}
+                      {mode === 'coach' && activeClip.status === 'sent' ? (
+                        <>
+                          <button
+                            type="button"
+                            className={styles.primaryButton}
+                            onClick={() => {
+                              if (canSendReviewBack) {
+                                void sendReview()
+                              } else {
+                                seekTo(0)
+                              }
+                            }}
+                          >
+                            {canSendReviewBack ? 'Return to player' : 'Start review'}
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={focusCoachReturnFocus}>
+                            Next focus
+                          </button>
+                        </>
+                      ) : null}
+                      {mode === 'coach' && activeClip.status === 'reviewed' ? (
+                        <>
+                          <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('player')}>
+                            Copy player link
+                          </button>
+                          <button type="button" className={styles.ghostButton} onClick={() => switchMode('player')}>
+                            Open player view
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -3088,16 +3090,48 @@ export default function VideoReviewClient() {
                 </section>
               ) : null}
 
+              {mode === 'coach' && activeClip?.playerLinkTarget === 'guest' ? (
+                <section className={styles.coachBriefPanel} aria-label="Guest player access">
+                  <div className={styles.lessonCopy}>
+                    <span className={styles.noteTime}>Guest player</span>
+                    <h3 className={styles.clipTitle}>{activeClip.playerName} needs to link with you</h3>
+                    <p>Save and mark up the clip here. The player can view the review after they link with you as their coach.</p>
+                  </div>
+                  <div className={styles.lessonStats} aria-label="Guest invite details">
+                    <span>
+                      <strong>{activeClip.guestContact || 'Add contact'}</strong>
+                      <span>invite</span>
+                    </span>
+                    <span>
+                      <strong>{formatVideoReviewDuration(activeClip.durationSeconds)}</strong>
+                      <span>clip</span>
+                    </span>
+                    <span>
+                      <strong>{getVideoReviewStrokeLabel(activeClip.stroke)}</strong>
+                      <span>stroke</span>
+                    </span>
+                  </div>
+                  <div className={styles.actionRow}>
+                    <button type="button" className={styles.primaryButton} onClick={() => void copyGuestInvite()}>
+                      Copy guest invite
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => void shareActivePackage()}>
+                      Share review file
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               {mode === 'player' && activeClip?.status === 'sent' ? (
                 <section className={styles.coachBriefPanel} aria-label="Coach handoff">
                   <div className={styles.lessonCopy}>
                     <span className={styles.noteTime}>Coach link ready</span>
-                    <h3 className={styles.clipTitle}>Send this clip to {activeClip.coachName}</h3>
+                    <h3 className={styles.clipTitle}>Share this clip with {activeClip.coachName}</h3>
                     <p>Copy the coach review link or share a review file. Your coach can open the clip, mark the key moment, and send one focus back.</p>
                   </div>
                   <div className={styles.lessonStats} aria-label="Coach handoff details">
                     <span>
-                      <strong>Sent</strong>
+                      <strong>Shared</strong>
                       <span>status</span>
                     </span>
                     <span>
@@ -3110,7 +3144,7 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                   <div className={styles.handoffGuide} aria-label="Coach sharing options">
-                    <span className={styles.noteTime}>Pick how to send it</span>
+                    <span className={styles.noteTime}>Pick how to share it</span>
                     <div className={styles.handoffChoiceGrid}>
                       <div className={styles.handoffChoice}>
                         <strong>Coach on another phone</strong>
@@ -3219,7 +3253,7 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                   <div className={styles.handoffGuide} aria-label="Player sharing options">
-                    <span className={styles.noteTime}>Pick how to send it</span>
+                    <span className={styles.noteTime}>Pick how to share it</span>
                     <div className={styles.handoffChoiceGrid}>
                       <div className={styles.handoffChoice}>
                         <strong>Player on another phone</strong>
@@ -3279,7 +3313,7 @@ export default function VideoReviewClient() {
                     <canvas
                       ref={canvasRef}
                       className={styles.canvas}
-                      aria-label="Coach markup canvas"
+                      aria-label="Video markup canvas"
                       onPointerDown={handlePointerDown}
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
@@ -3291,12 +3325,21 @@ export default function VideoReviewClient() {
                   </>
                 ) : (
                   <div className={styles.emptyState}>
-                    <strong>Choose a clip when you are ready to review.</strong>
-                    <span>Record or upload first, then this canvas will hold the video and coach marks.</span>
+                    <strong>{mode === 'coach' ? 'Choose a player clip to review.' : 'Choose a clip when you are ready to review.'}</strong>
+                    <span>
+                      {mode === 'coach'
+                        ? 'Open a shared clip, record for a player, or add a review file.'
+                        : 'Record or upload first, then this canvas will hold the video and saved marks.'}
+                    </span>
                     <span className={styles.emptyActions}>
-                      <button type="button" className={styles.primaryButton} onClick={() => openMobilePanel('video-review-capture', 'player')}>
-                        Start a clip
+                      <button type="button" className={styles.primaryButton} onClick={() => openMobilePanel('video-review-capture', mode)}>
+                        {mode === 'coach' ? 'Record for player' : 'Start a clip'}
                       </button>
+                      {mode === 'coach' ? (
+                        <button type="button" className={styles.ghostButton} onClick={() => openSupportPanel('video-review-sharing')}>
+                          Add review file
+                        </button>
+                      ) : null}
                       <button type="button" className={styles.ghostButton} onClick={() => openMobilePanel('video-review-library')}>
                         Open library
                       </button>
@@ -3344,14 +3387,61 @@ export default function VideoReviewClient() {
                         ))}
                       </select>
                     </label>
-                    <label className={styles.field}>
-                      <span className={styles.label}>Player</span>
-                      <input
-                        className={styles.input}
-                        defaultValue={activeClip.playerName}
-                        onBlur={(event) => void updateActiveClipDetails({ playerName: event.currentTarget.value })}
-                      />
-                    </label>
+                    {mode === 'coach' ? (
+                      <>
+                        <label className={styles.field}>
+                          <span className={styles.label}>Player for this video</span>
+                          <select
+                            className={styles.select}
+                            value={getCoachPlayerTargetIdForClip(activeClip)}
+                            onChange={(event) => {
+                              const target = getCoachPlayerTarget(event.target.value as CoachPlayerTargetId)
+                              void updateActiveClipDetails({
+                                playerName: target.name,
+                                playerLinkTarget: target.id === 'guest' ? 'guest' : 'linked',
+                                guestInviteRequired: target.id === 'guest',
+                                guestContact: target.id === 'guest' ? activeClip.guestContact ?? '' : '',
+                              })
+                            }}
+                          >
+                            {COACH_PLAYER_TARGETS.map((target) => (
+                              <option key={target.id} value={target.id}>{target.label} - {target.detail}</option>
+                            ))}
+                          </select>
+                        </label>
+                        {activeClip.playerLinkTarget === 'guest' ? (
+                          <>
+                            <label className={styles.field}>
+                              <span className={styles.label}>Guest name</span>
+                              <input
+                                className={styles.input}
+                                defaultValue={activeClip.playerName === 'Guest player' ? '' : activeClip.playerName}
+                                onBlur={(event) => void updateActiveClipDetails({
+                                  playerName: event.currentTarget.value || 'Guest player',
+                                  playerLinkTarget: 'guest',
+                                  guestInviteRequired: true,
+                                })}
+                                placeholder="Player name"
+                              />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.label}>Guest contact</span>
+                              <input
+                                className={styles.input}
+                                defaultValue={activeClip.guestContact ?? ''}
+                                onBlur={(event) => void updateActiveClipDetails({ guestContact: event.currentTarget.value, guestInviteRequired: true })}
+                                placeholder="Email or phone"
+                              />
+                            </label>
+                          </>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className={styles.nextActionStatus} aria-label="Saved clip owner">
+                        <span>Saved to your videos</span>
+                        <p>This clip belongs to your inventory. Mark it up here, then share it when you are ready.</p>
+                      </div>
+                    )}
                     <label className={styles.field}>
                       <span className={styles.label}>Coach</span>
                       <input
@@ -3421,14 +3511,16 @@ export default function VideoReviewClient() {
                 ) : null}
               </div>
 
-              {mode === 'coach' ? (
+              {canEditMarks ? (
                 <>
                   <div id="video-review-coach-tools" className={styles.panel}>
-                    <h3 className={styles.clipTitle}>Coach tools</h3>
+                    <h3 className={styles.clipTitle}>{mode === 'coach' ? 'Coach tools' : 'Mark up tools'}</h3>
                     <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
-                    <div className={styles.nextActionStatus} aria-label="Coach next step">
-                      <span>{coachActionTitle}</span>
-                      <p>{coachActionCopy}</p>
+                    <div className={styles.nextActionStatus} aria-label="Markup next step">
+                      <span>{mode === 'coach' ? coachActionTitle : activeReviewAnnotations.length ? 'Keep what helps' : 'Mark the key moment'}</span>
+                      <p>{mode === 'coach'
+                        ? coachActionCopy
+                        : 'Add lines, arrows, circles, or notes for your own review. You can share the clip later.'}</p>
                       {mode === 'coach' && activeClip?.status === 'sent' && activeCoachAnnotations.length ? (
                         <div className={styles.nextActionActions} aria-label="Coach next step actions">
                           {canSendReviewBack && hasWrittenCoachFocus ? (
@@ -3509,7 +3601,7 @@ export default function VideoReviewClient() {
                       <button
                         type="button"
                         className={styles.ghostButton}
-                        disabled={!latestCoachMark}
+                        disabled={!latestEditableMark}
                         onClick={() => void undoLatestCoachMark()}
                       >
                         Undo last mark
@@ -3517,6 +3609,7 @@ export default function VideoReviewClient() {
                     </div>
                   </div>
 
+                  {mode === 'coach' ? (
                   <div id="video-review-return-review" className={styles.panel}>
                     <h3 className={styles.clipTitle}>Return review</h3>
                     <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
@@ -3590,6 +3683,7 @@ export default function VideoReviewClient() {
                       Send review back
                     </button>
                   </div>
+                  ) : null}
                 </>
               ) : null}
 
@@ -3631,9 +3725,13 @@ export default function VideoReviewClient() {
                   <div>
                     <h3 className={styles.clipTitle}>Timeline marks</h3>
                     <p className={styles.formHelp}>
-                      {activeCoachAnnotations.length
-                        ? `${activeCoachAnnotations.length} ${activeCoachAnnotations.length === 1 ? 'mark' : 'marks'} saved. ${watchedCoachMarkCount} of ${activeCoachAnnotations.length} watched. ${nextCoachMarkCue}`
-                        : 'Coach markups will appear here by timestamp.'}
+                      {activeReviewAnnotations.length
+                        ? mode === 'player' && activeClip?.status === 'draft'
+                          ? `${activeReviewAnnotations.length} ${activeReviewAnnotations.length === 1 ? 'mark' : 'marks'} saved for your review.`
+                          : `${activeReviewAnnotations.length} ${activeReviewAnnotations.length === 1 ? 'mark' : 'marks'} saved. ${watchedCoachMarkCount} of ${activeCoachAnnotations.length} coach marks watched. ${nextCoachMarkCue}`
+                        : mode === 'player' && activeClip?.status === 'draft'
+                          ? 'Your markups will appear here by timestamp.'
+                          : 'Coach markups will appear here by timestamp.'}
                     </p>
                   </div>
                   {activeCoachAnnotations.length ? (
@@ -3655,11 +3753,13 @@ export default function VideoReviewClient() {
                     </div>
                   ) : null}
                 </div>
-                {activeCoachAnnotations.length ? (
+                {activeReviewAnnotations.length ? (
                   <div className={styles.noteList}>
-                    {activeCoachAnnotations.map((annotation, index) => {
+                    {activeReviewAnnotations.map((annotation, index) => {
                       const isVisibleOnVideo = visibleAnnotationIds.has(annotation.id)
                       const isWatched = watchedCoachMarkIds.has(annotation.id)
+                      const canDeleteMark = mode === 'coach'
+                        || (mode === 'player' && activeClip?.status === 'draft' && annotation.createdBy === 'player')
                       return (
                         <div
                           key={annotation.id}
@@ -3669,14 +3769,14 @@ export default function VideoReviewClient() {
                             <span className={styles.noteNumber}>Mark {index + 1}</span>
                             <span className={styles.noteTime}>{timeLabel(annotation.timestamp)} | {annotation.tool}</span>
                             {isVisibleOnVideo ? <span className={styles.noteNow}>On video now</span> : null}
-                            {isWatched ? <span className={styles.noteWatched}>Watched</span> : null}
+                            {annotation.createdBy === 'coach' && isWatched ? <span className={styles.noteWatched}>Watched</span> : null}
                           </span>
-                          <span>{annotation.text || 'Coach markup'}</span>
+                          <span>{annotation.text || (annotation.createdBy === 'coach' ? 'Coach markup' : 'My markup')}</span>
                           <span className={styles.noteActions}>
                             <button type="button" className={styles.ghostButton} onClick={() => openCoachMark(annotation, `Mark ${index + 1}`)}>
                               Open
                             </button>
-                            {canEditMarks ? (
+                            {canDeleteMark ? (
                               <button type="button" className={styles.dangerButton} onClick={() => void deleteAnnotation(annotation.id)}>
                                 Delete
                               </button>
@@ -3689,7 +3789,11 @@ export default function VideoReviewClient() {
                     })}
                   </div>
                 ) : (
-                  <p className={styles.formHelp}>Add the first coach note or drawing when you see the key moment.</p>
+                  <p className={styles.formHelp}>
+                    {canEditMarks
+                      ? 'Add the first note or drawing when you see the key moment.'
+                      : 'Marks appear here after the clip is reviewed.'}
+                  </p>
                 )}
               </div>
 
@@ -3704,23 +3808,244 @@ export default function VideoReviewClient() {
         </div>
       </section>
 
+      <details
+        className={styles.supportDrawer}
+        open={supportOpen}
+        onToggle={(event) => setSupportOpen(event.currentTarget.open)}
+      >
+        <summary className={styles.supportSummary}>
+          <span>
+            <strong>How this works</strong>
+            <em>Steps, storage, and review files</em>
+          </span>
+          <span className={styles.utilitySummaryAction}>Open guide</span>
+        </summary>
+        <div className={styles.supportStack}>
+          <section className={styles.stageTabs} aria-label="Video review stages">
+            {mode === 'player' ? (
+              PLAYER_REVIEW_STAGES.map((stage) => {
+                const disabled = stage.id === 'practice' && !reviewedPracticeClip
+                return (
+                  <button
+                    type="button"
+                    key={stage.id}
+                    className={`${styles.stageTab} ${selectedStage === stage.id ? styles.stageTabActive : ''}`}
+                    disabled={disabled}
+                    onClick={() => switchStage(stage.id)}
+                  >
+                    <strong>{stage.label}</strong>
+                    <span>{disabled ? 'Feedback appears here after coach review.' : stage.body}</span>
+                  </button>
+                )
+              })
+            ) : (
+              <button type="button" className={`${styles.stageTab} ${styles.stageTabActive}`} onClick={() => switchStage('review')}>
+                <strong>Coach review</strong>
+                <span>Open a clip, mark the key moment, and return one focus.</span>
+              </button>
+            )}
+          </section>
+
+          <aside className={styles.quotaPanel} aria-label="Free storage limits">
+            <div>
+              <p className={styles.kicker}>{VIDEO_REVIEW_QUOTA.label}</p>
+              <h2 className={styles.quotaTitle}>Keep the clip queue light.</h2>
+              <p className={styles.quotaCompactText}>
+                {quota.clipsRemaining} clip slots left | {formatVideoReviewBytes(quota.bytesRemaining)} free
+              </p>
+            </div>
+            <p className={styles.quotaText}>{VIDEO_REVIEW_QUOTA.storageCue}</p>
+            <div className={styles.meter} aria-label={`${quota.percentUsed}% of video space used`}>
+              <div className={styles.meterFill} style={{ width: `${quota.percentUsed}%` }} />
+            </div>
+            <div className={styles.statsGrid}>
+              <div className={styles.stat}>
+                <span className={styles.statValue}>{quota.usedClips}/{VIDEO_REVIEW_QUOTA.maxClips}</span>
+                <span className={styles.statLabel}>clips</span>
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statValue}>{formatVideoReviewBytes(quota.usedBytes)}</span>
+                <span className={styles.statLabel}>stored</span>
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statValue}>{quota.clipsRemaining}</span>
+                <span className={styles.statLabel}>clip slots left</span>
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statValue}>{formatVideoReviewBytes(quota.bytesRemaining)}</span>
+                <span className={styles.statLabel}>space left</span>
+              </div>
+            </div>
+            {cleanupCandidate ? (
+              <div className={`${styles.storageTip} ${quota.warningLevel === 'full' ? styles.storageFull : quota.warningLevel === 'tight' ? styles.storageTight : ''}`}>
+                <span className={styles.noteTime}>{storageStatusTitle}</span>
+                <span>{storageStatusCopy}</span>
+                <strong>{cleanupCandidate.title}</strong>
+                <span>{formatVideoReviewBytes(cleanupCandidate.sizeBytes)} | {statusLabel(cleanupCandidate.status)}</span>
+                {storageSaverClips.length ? (
+                  <div className={styles.storageCleanupSummary} aria-label="Storage cleanup summary">
+                    <span>
+                      <strong>{storageSaverClips.length}</strong>
+                      <em>reviewed or private</em>
+                    </span>
+                    <span>
+                      <strong>{formatVideoReviewBytes(storageSaverBytes)}</strong>
+                      <em>can be cleared</em>
+                    </span>
+                  </div>
+                ) : null}
+                <div className={styles.actionRow}>
+                  <button type="button" className={styles.ghostButton} onClick={() => openClip(cleanupCandidate.id)}>
+                    Open clip
+                  </button>
+                  {storageSaverClips.length ? (
+                    <button type="button" className={styles.ghostButton} onClick={showStorageSavers}>
+                      Show space savers
+                    </button>
+                  ) : null}
+                  {quota.warningLevel !== 'ok' ? (
+                    <button type="button" className={styles.dangerButton} onClick={() => void deleteSuggestedCleanupClip()}>
+                      Delete suggestion
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </aside>
+
+          <details className={styles.utilityDrawer} open={sharingOpen} onToggle={(event) => setSharingOpen(event.currentTarget.open)}>
+            <summary className={styles.utilitySummary}>
+              <span>
+                <strong>{mode === 'coach' ? 'Coach notifications and files' : 'Notifications and review files'}</strong>
+                <em>{unreadNotificationCount} unread</em>
+              </span>
+              <span className={styles.utilitySummaryAction}>Share or import</span>
+            </summary>
+            <section id="video-review-sharing" className={styles.handoffPanel} aria-label="Video review notifications">
+              <div className={styles.panelHeader}>
+                <div>
+                  <p className={styles.kicker}>Coach-player sharing</p>
+                  <h2 className={styles.panelTitle}>{mode === 'coach' ? 'Coach notifications' : 'Player notifications'}</h2>
+                  <p className={styles.smallText}>
+                    {mode === 'coach'
+                      ? 'Review alerts stay here on this device. Copy a link or share a review file when you want to return feedback.'
+                      : 'Review alerts stay here on this device. Copy a link or share a review file when you want coach feedback.'}
+                  </p>
+                </div>
+                <span className={styles.statusBadge}>{unreadNotificationCount} unread</span>
+              </div>
+              <div className={styles.shareStrip}>
+                <div className={styles.shareCopy}>
+                  <strong>{mode === 'coach' ? 'Share or return a review' : 'Share a review file'}</strong>
+                  <span>
+                    {mode === 'coach'
+                      ? 'Share the selected review with a player, or add a file a player shared.'
+                      : 'Share the selected clip for review, or add a file returned by your coach.'}
+                  </span>
+                  <div className={styles.shareSteps} aria-label="Review file steps">
+                    <span>
+                      <strong>1</strong>
+                      Export or share
+                    </span>
+                    <span>
+                      <strong>2</strong>
+                      Import on the other device
+                    </span>
+                    <span>
+                      <strong>3</strong>
+                      Review or practice
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.actionRow}>
+                  <button type="button" className={styles.primaryButton} disabled={!activeClip} onClick={() => void exportActivePackage()}>
+                    Export review file
+                  </button>
+                  <button type="button" className={styles.ghostButton} disabled={!activeClip} onClick={() => void shareActivePackage()}>
+                    Share review file
+                  </button>
+                  <label className={styles.ghostButton}>
+                    Import review file
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] ?? null
+                        event.currentTarget.value = ''
+                        void importReviewPackage(file)
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <button type="button" className={styles.ghostButton} disabled={!activeClip} onClick={() => void downloadActiveVideo()}>
+                    Download video
+                  </button>
+                </div>
+              </div>
+              {visibleNotifications.length ? (
+                <div className={styles.notificationGrid}>
+                  {visibleNotifications.slice(0, 4).map((notification) => (
+                    <button
+                      type="button"
+                      key={notification.id}
+                      className={`${styles.notificationCard} ${notification.readAt ? '' : styles.notificationUnread}`}
+                      onClick={() => openNotification(notification)}
+                    >
+                      <span className={styles.noteTime}>{notification.readAt ? 'Read' : 'New'} | {new Date(notification.createdAt).toLocaleString()}</span>
+                      <strong>{notification.title}</strong>
+                      <span>{notification.body}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.emptyState}>
+                  {mode === 'coach'
+                    ? 'Record for a player or import a shared review file to start coach notifications.'
+                    : 'Coach feedback notifications appear here after a review is sent back.'}
+                </div>
+              )}
+            </section>
+          </details>
+        </div>
+      </details>
+
       {message ? <p className={styles.toast} aria-live="polite">{message}</p> : null}
-      <nav className={styles.mobileDock} aria-label="Video review mobile shortcuts">
-        <button type="button" onClick={() => openStagePanel('record')}>
-          Record
-        </button>
-        <button type="button" onClick={() => openStagePanel('review')}>
-          Review
-        </button>
-        <button type="button" disabled={!reviewedPracticeClip} onClick={() => openStagePanel('practice')}>
-          Practice
-        </button>
+      <nav className={`${styles.mobileDock} ${mode === 'coach' ? styles.mobileDockCoach : ''}`} aria-label="Video review mobile shortcuts">
+        {mode === 'coach' ? (
+          <>
+            <button type="button" onClick={() => openStagePanel('record')}>
+              Record
+            </button>
+            <button type="button" onClick={() => openStagePanel('review')}>
+              Queue
+            </button>
+            <button type="button" onClick={() => openSupportPanel('video-review-sharing')}>
+              Files
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => openStagePanel('record')}>
+              Record
+            </button>
+            <button type="button" onClick={() => openStagePanel('review')}>
+              Review
+            </button>
+            <button type="button" disabled={!reviewedPracticeClip} onClick={() => openStagePanel('practice')}>
+              Practice
+            </button>
+            <button type="button" onClick={() => openSupportPanel('video-review-sharing')}>
+              Files
+            </button>
+          </>
+        )}
       </nav>
     </main>
   )
 }
 
 function PlayerCapture({
+  mode,
   draft,
   setDraft,
   selectedFileName,
@@ -3743,9 +4068,11 @@ function PlayerCapture({
   onRecordAgain,
   onDiscardDraft,
   onSave,
+  onSaveAndMarkup,
   onSend,
   quotaFull,
 }: {
+  mode: VideoReviewRole
   draft: DraftState
   setDraft: (draft: DraftState) => void
   selectedFileName: string
@@ -3768,11 +4095,15 @@ function PlayerCapture({
   onRecordAgain: () => void
   onDiscardDraft: () => void
   onSave: () => void
+  onSaveAndMarkup: () => void
   onSend: () => void
   quotaFull: boolean
 }) {
+  const isCoachCapture = mode === 'coach'
   const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
   const playerNoteText = draft.playerNote.trim()
+  const coachTarget = getCoachPlayerTarget(draft.playerTargetId)
+  const isGuestTarget = isCoachCapture && coachTarget.id === 'guest'
   const orientationLabel = getVideoShapeLabel(videoShape)
   const orientationCopy = getVideoShapeCopy(videoShape)
   const selectedIntent = getVideoReviewCaptureIntent(draft.captureIntent)
@@ -3796,7 +4127,9 @@ function PlayerCapture({
   const captureActionTitle = quotaFull
     ? 'Free space first'
     : draftPreviewUrl
-      ? playerNoteText ? 'Ready to save or send' : 'Add one coach question'
+      ? isCoachCapture
+        ? 'Ready to save or mark up'
+        : 'Ready to save, mark up, or share'
       : recording
         ? 'Finish the take'
         : cameraActive
@@ -3805,9 +4138,9 @@ function PlayerCapture({
   const captureActionCopy = quotaFull
     ? 'Delete an old clip before saving another video.'
     : draftPreviewUrl
-      ? playerNoteText
-        ? 'Play it once, then send it to your coach or keep it private.'
-        : 'Add one thing you want your coach to check before sending.'
+      ? isCoachCapture
+        ? 'Save it to your inventory, mark it now, or share it after the review is ready.'
+        : 'Play it once, then save it to your videos, mark it yourself, or share it with your coach.'
       : recording
         ? 'Stop recording when the stroke and recovery are captured.'
         : cameraActive
@@ -3846,12 +4179,148 @@ function PlayerCapture({
     }
   }
 
+  const clipDetailsFields = (
+    <>
+      <div className={styles.statsGrid}>
+        <label className={styles.field}>
+          <span className={styles.label}>Clip title</span>
+          <input
+            className={styles.input}
+            value={draft.title}
+            onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+            placeholder="Serve from deuce court"
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Stroke</span>
+          <select
+            className={styles.select}
+            value={draft.stroke}
+            onChange={(event) => setDraft({ ...draft, stroke: event.target.value as VideoStrokeTag })}
+          >
+            {VIDEO_REVIEW_STROKES.map((stroke) => (
+              <option key={stroke.id} value={stroke.id}>{stroke.label}</option>
+            ))}
+          </select>
+        </label>
+        {isCoachCapture ? (
+          <>
+            <label className={styles.field}>
+              <span className={styles.label}>Player for this video</span>
+              <select
+                className={styles.select}
+                value={draft.playerTargetId}
+                onChange={(event) => setDraft({ ...draft, playerTargetId: event.target.value as CoachPlayerTargetId })}
+              >
+                {COACH_PLAYER_TARGETS.map((target) => (
+                  <option key={target.id} value={target.id}>{target.label} - {target.detail}</option>
+                ))}
+              </select>
+            </label>
+            {isGuestTarget ? (
+              <>
+                <label className={styles.field}>
+                  <span className={styles.label}>Guest name</span>
+                  <input
+                    className={styles.input}
+                    value={draft.guestPlayerName}
+                    onChange={(event) => setDraft({ ...draft, guestPlayerName: event.target.value })}
+                    placeholder="Player name"
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.label}>Guest contact</span>
+                  <input
+                    className={styles.input}
+                    value={draft.guestContact}
+                    onChange={(event) => setDraft({ ...draft, guestContact: event.target.value })}
+                    placeholder="Email or phone"
+                  />
+                </label>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <div className={styles.nextActionStatus} aria-label="Player video owner">
+            <span>Saved to your videos</span>
+            <p>No player name needed. This clip starts in your inventory and can be marked up before you share it.</p>
+          </div>
+        )}
+        <label className={styles.field}>
+          <span className={styles.label}>Coach</span>
+          <input
+            className={styles.input}
+            value={draft.coachName}
+            onChange={(event) => setDraft({ ...draft, coachName: event.target.value })}
+            placeholder="Coach name"
+          />
+        </label>
+      </div>
+
+      {!isCoachCapture ? (
+        <div className={styles.noteCuePanel}>
+          <div>
+            <span className={styles.label}>Ask coach to check</span>
+            <p className={styles.formHelp}>Tap a cue or write your own note.</p>
+          </div>
+          <div className={styles.noteCueGrid}>
+            {PLAYER_NOTE_CUES.map((cue) => (
+              <button
+                type="button"
+                key={cue.label}
+                className={styles.noteCueButton}
+                onClick={() => applyPlayerNoteCue(cue.note)}
+                aria-label={`Ask coach to check ${cue.label}`}
+              >
+                {cue.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className={styles.nextActionStatus} aria-label="Coach player access">
+          <span>{isGuestTarget ? 'Guest needs your link' : `Linked to ${coachTarget.name}`}</span>
+          <p>
+            {isGuestTarget
+              ? 'Save and mark up the clip here. The player can view it after linking with you.'
+              : 'This recording is tied to the selected player and stays in your inventory until you share it.'}
+          </p>
+        </div>
+      )}
+
+      <label className={styles.field}>
+        <span className={styles.label}>{isCoachCapture ? 'Review note' : 'Player note'}</span>
+        <textarea
+          id="video-review-player-note"
+          className={styles.textarea}
+          value={draft.playerNote}
+          onChange={(event) => setDraft({ ...draft, playerNote: event.target.value })}
+          placeholder={isCoachCapture
+            ? 'This serve clip is for toss height and first-step recovery.'
+            : 'I want to know if my toss and contact point are in the right place.'}
+        />
+      </label>
+      {draftPreviewUrl ? (
+        <div className={styles.noteReturnActions} aria-label="Player note next step">
+          <span>{playerNoteText ? 'Note ready.' : isCoachCapture ? 'Optional note.' : 'Optional before sharing.'}</span>
+          <button type="button" className={styles.ghostButton} onClick={focusDraftActions}>
+            Review clip actions
+          </button>
+        </div>
+      ) : null}
+    </>
+  )
+
   return (
     <section id="video-review-capture" className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
           <h2 className={styles.panelTitle}>Capture or upload</h2>
-          <p className={styles.smallText}>Save a private clip or send it into the coach queue.</p>
+          <p className={styles.smallText}>
+            {isCoachCapture
+              ? 'Record for a linked player, a guest, or your own coach inventory.'
+              : 'Record once, save it to your videos, mark it yourself, or share when ready.'}
+          </p>
         </div>
       </div>
 
@@ -3867,7 +4336,7 @@ function PlayerCapture({
           </li>
           <li className={styles.captureStep}>
             <span>3</span>
-            <strong>Save or send</strong>
+            <strong>Save or share</strong>
           </li>
         </ol>
 
@@ -3945,74 +4414,90 @@ function PlayerCapture({
           </div>
         ) : null}
 
-        <div className={styles.orientationPanel} aria-label="Phone recording angle">
-          <span className={styles.noteTime}>{orientationLabel}</span>
-          <p>{orientationCopy}</p>
-          <div className={styles.angleChoiceGrid} aria-label="Camera view">
-            <button
-              type="button"
-              className={`${styles.angleChoiceButton} ${draft.captureIntent === 'full-court' ? styles.angleChoiceButtonActive : ''}`}
-              onClick={() => setDraft({ ...draft, captureIntent: 'full-court' })}
-            >
-              <strong>Horizontal court</strong>
-              <span>Serves, movement, full point</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.angleChoiceButton} ${draft.captureIntent === 'technique' ? styles.angleChoiceButtonActive : ''}`}
-              onClick={() => setDraft({ ...draft, captureIntent: 'technique' })}
-            >
-              <strong>Portrait close-up</strong>
-              <span>Grip, contact, swing path</span>
-            </button>
-          </div>
-        </div>
+        <details className={styles.compactSetupDrawer}>
+          <summary className={styles.compactSetupSummary}>
+            <span>
+              <strong>Recording setup</strong>
+              <em>{selectedIntent.label} | {angleCheck}</em>
+            </span>
+            <span>Open</span>
+          </summary>
 
-        <div className={styles.intentPanel} aria-label="Clip goal">
-          <div>
-            <span className={styles.label}>Clip goal</span>
-            <p className={styles.formHelp}>{selectedIntent.playerCopy}</p>
-          </div>
-          <div className={styles.intentGrid}>
-            {VIDEO_REVIEW_CAPTURE_INTENTS.map((intent) => (
-              <button
-                type="button"
-                key={intent.id}
-                aria-label={`Choose ${intent.label}`}
-                className={`${styles.intentButton} ${draft.captureIntent === intent.id ? styles.intentButtonActive : ''}`}
-                onClick={() => setDraft({ ...draft, captureIntent: intent.id })}
-              >
-                <strong>{intent.label}</strong>
-                <span>{intent.id === 'full-court' ? 'Spacing, movement, serve path' : 'Grip, contact, swing path'}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+          <div className={styles.compactSetupStack}>
+            <div className={styles.orientationPanel} aria-label="Phone recording angle">
+              <span className={styles.noteTime}>{orientationLabel}</span>
+              <p>{orientationCopy}</p>
+              <div className={styles.angleChoiceGrid} aria-label="Camera view">
+                <button
+                  type="button"
+                  className={`${styles.angleChoiceButton} ${draft.captureIntent === 'full-court' ? styles.angleChoiceButtonActive : ''}`}
+                  onClick={() => setDraft({ ...draft, captureIntent: 'full-court' })}
+                >
+                  <strong>Horizontal court</strong>
+                  <span>Serves, movement, full point</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.angleChoiceButton} ${draft.captureIntent === 'technique' ? styles.angleChoiceButtonActive : ''}`}
+                  onClick={() => setDraft({ ...draft, captureIntent: 'technique' })}
+                >
+                  <strong>Portrait close-up</strong>
+                  <span>Grip, contact, swing path</span>
+                </button>
+              </div>
+            </div>
 
-        <div className={styles.captureSetup} aria-label="Before recording">
-          <span className={styles.noteTime}>{captureReadyLabel}</span>
-          <div className={styles.readinessGrid}>
-            <span className={styles.readinessItem}>
-              <strong>Angle</strong>
-              <em>{angleCheck}</em>
-            </span>
-            <span className={styles.readinessItem}>
-              <strong>Frame</strong>
-              <em>{frameCheck}</em>
-            </span>
-            <span className={`${styles.readinessItem} ${playerNoteText ? styles.readinessItemReady : styles.readinessItemTodo}`}>
-              <strong>Question</strong>
-              <em>{playerNoteText ? 'Ready' : 'Add one cue'}</em>
-            </span>
+            <div className={styles.intentPanel} aria-label="Clip goal">
+              <div>
+                <span className={styles.label}>Clip goal</span>
+                <p className={styles.formHelp}>{selectedIntent.playerCopy}</p>
+              </div>
+              <div className={styles.intentGrid}>
+                {VIDEO_REVIEW_CAPTURE_INTENTS.map((intent) => (
+                  <button
+                    type="button"
+                    key={intent.id}
+                    aria-label={`Choose ${intent.label}`}
+                    className={`${styles.intentButton} ${draft.captureIntent === intent.id ? styles.intentButtonActive : ''}`}
+                    onClick={() => setDraft({ ...draft, captureIntent: intent.id })}
+                  >
+                    <strong>{intent.label}</strong>
+                    <span>{intent.id === 'full-court' ? 'Spacing, movement, serve path' : 'Grip, contact, swing path'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.captureSetup} aria-label="Before recording">
+              <span className={styles.noteTime}>{captureReadyLabel}</span>
+              <div className={styles.readinessGrid}>
+                <span className={styles.readinessItem}>
+                  <strong>Angle</strong>
+                  <em>{angleCheck}</em>
+                </span>
+                <span className={styles.readinessItem}>
+                  <strong>Frame</strong>
+                  <em>{frameCheck}</em>
+                </span>
+                <span className={`${styles.readinessItem} ${playerNoteText ? styles.readinessItemReady : styles.readinessItemTodo}`}>
+                  <strong>{isCoachCapture ? 'Player' : 'Note'}</strong>
+                  <em>{isCoachCapture ? (isGuestTarget ? 'Guest clip' : 'Linked') : playerNoteText ? 'Ready' : 'Optional'}</em>
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
 
         {draftPreviewUrl ? (
           <section id="video-review-draft-preview" className={styles.draftPreview} aria-label="Draft clip preview">
             <div className={styles.draftPreviewHeader}>
               <div>
                 <h3 className={styles.clipTitle}>Check this clip</h3>
-                <p className={styles.formHelp}>Play it back before saving or sending it to your coach.</p>
+                <p className={styles.formHelp}>
+                  {isCoachCapture
+                    ? 'Play it back before saving it to your inventory or marking it for the player.'
+                    : 'Play it back before saving it, marking it yourself, or sharing it with your coach.'}
+                </p>
               </div>
               <span className={styles.statusBadge}>{draftFileSizeLabel || 'Not saved yet'}</span>
             </div>
@@ -4027,24 +4512,29 @@ function PlayerCapture({
             <p className={styles.draftMeta}>{selectedFileName}</p>
             <div id="video-review-draft-actions" className={styles.draftActionPanel} aria-label="Draft clip actions" tabIndex={-1}>
               <p>
-                {playerNoteText
-                  ? 'Coach question attached. Send it now, save it private, or record again.'
-                  : 'Add one coach question before you send, or save this clip private.'}
+                {isCoachCapture
+                  ? isGuestTarget
+                    ? 'Guest clip selected. Save it, mark it up, then share when the player is ready to link.'
+                    : `Linked to ${coachTarget.name}. Save it, mark it up, or keep it in your inventory.`
+                  : 'Save this take to your videos, mark it yourself, or share it with your coach when you are ready.'}
               </p>
-              <span className={styles.unsavedDraftNotice}>Draft only. Send or save before leaving this page.</span>
+              <span className={styles.unsavedDraftNotice}>
+                {isCoachCapture
+                  ? 'Draft only. Save or discard before leaving this page.'
+                  : 'Draft only. Save, share, or discard before leaving this page.'}
+              </span>
               <div className={styles.actionRow}>
-                {playerNoteText ? (
-                  <button type="button" className={styles.primaryButton} disabled={quotaFull} onClick={onSend}>
-                    Send to coach
-                  </button>
-                ) : (
-                  <button type="button" className={styles.primaryButton} onClick={focusPlayerNote}>
-                    Add coach question
-                  </button>
-                )}
-                <button type="button" className={styles.ghostButton} disabled={quotaFull} onClick={onSave}>
-                  Save private
+                <button type="button" className={styles.primaryButton} disabled={quotaFull} onClick={onSaveAndMarkup}>
+                  {isCoachCapture ? 'Mark up now' : 'Mark up myself'}
                 </button>
+                <button type="button" className={styles.ghostButton} disabled={quotaFull} onClick={onSave}>
+                  Save to inventory
+                </button>
+                {!isCoachCapture ? (
+                  <button type="button" className={styles.ghostButton} disabled={quotaFull} onClick={onSend}>
+                    Share with coach
+                  </button>
+                ) : null}
                 <button type="button" className={styles.ghostButton} onClick={onRecordAgain}>
                   Record again
                 </button>
@@ -4053,8 +4543,8 @@ function PlayerCapture({
                 </button>
               </div>
             </div>
-            <div className={styles.sendReadiness} aria-label="Send readiness">
-              <span className={styles.noteTime}>{playerNoteText ? 'Ready to send' : 'Almost ready'}</span>
+            <div className={styles.sendReadiness} aria-label="Clip readiness">
+              <span className={styles.noteTime}>{isCoachCapture ? 'Ready for review' : playerNoteText ? 'Note ready' : 'Ready to save'}</span>
               <div className={styles.readinessGrid}>
                 <span className={styles.readinessItem}>
                   <strong>Video</strong>
@@ -4065,8 +4555,8 @@ function PlayerCapture({
                   <em>{selectedIntent.shortLabel}</em>
                 </span>
                 <span className={`${styles.readinessItem} ${playerNoteText ? styles.readinessItemReady : styles.readinessItemTodo}`}>
-                  <strong>Question</strong>
-                  <em>{playerNoteText ? 'Ready' : 'Add one cue'}</em>
+                  <strong>{isCoachCapture ? 'Player' : 'Note'}</strong>
+                  <em>{isCoachCapture ? (isGuestTarget ? 'Guest' : 'Linked') : playerNoteText ? 'Ready' : 'Optional'}</em>
                 </span>
                 <span className={styles.readinessItem}>
                   <strong>Size</strong>
@@ -4075,23 +4565,27 @@ function PlayerCapture({
               </div>
             </div>
             <div className={styles.draftCoachNote} aria-label="Draft coach question">
-              <span className={styles.noteTime}>{playerNoteText ? 'Coach question ready' : 'Coach question'}</span>
+              <span className={styles.noteTime}>{isCoachCapture ? 'Review note' : playerNoteText ? 'Coach note ready' : 'Coach note'}</span>
               <p>
-                {playerNoteText || 'Add one thing you want your coach to check before you send this.'}
+                {playerNoteText || (isCoachCapture
+                  ? 'Add an optional note for this player before you mark or share it.'
+                  : 'Add one thing you want your coach to check if you decide to share this.')}
               </p>
-              <div className={styles.draftNoteCueGrid} aria-label="Draft coach question prompts">
-                {PLAYER_NOTE_CUES.map((cue) => (
-                  <button
-                    type="button"
-                    key={cue.label}
-                    className={styles.noteCueButton}
-                    onClick={() => applyPlayerNoteCue(cue.note)}
-                    aria-label={`Add ${cue.label} question`}
-                  >
-                    {cue.label}
-                  </button>
-                ))}
-              </div>
+              {!isCoachCapture ? (
+                <div className={styles.draftNoteCueGrid} aria-label="Draft coach note prompts">
+                  {PLAYER_NOTE_CUES.map((cue) => (
+                    <button
+                      type="button"
+                      key={cue.label}
+                      className={styles.noteCueButton}
+                      onClick={() => applyPlayerNoteCue(cue.note)}
+                      aria-label={`Add ${cue.label} note`}
+                    >
+                      {cue.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <button type="button" className={styles.ghostButton} onClick={focusPlayerNote}>
                 {playerNoteText ? 'Edit note' : 'Add note'}
               </button>
@@ -4099,95 +4593,36 @@ function PlayerCapture({
           </section>
         ) : null}
 
-        <div className={styles.statsGrid}>
-          <label className={styles.field}>
-            <span className={styles.label}>Clip title</span>
-            <input
-              className={styles.input}
-              value={draft.title}
-              onChange={(event) => setDraft({ ...draft, title: event.target.value })}
-              placeholder="Serve from deuce court"
-            />
-          </label>
-          <label className={styles.field}>
-            <span className={styles.label}>Stroke</span>
-            <select
-              className={styles.select}
-              value={draft.stroke}
-              onChange={(event) => setDraft({ ...draft, stroke: event.target.value as VideoStrokeTag })}
-            >
-              {VIDEO_REVIEW_STROKES.map((stroke) => (
-                <option key={stroke.id} value={stroke.id}>{stroke.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span className={styles.label}>Player</span>
-            <input
-              className={styles.input}
-              value={draft.playerName}
-              onChange={(event) => setDraft({ ...draft, playerName: event.target.value })}
-              placeholder="Player name"
-            />
-          </label>
-          <label className={styles.field}>
-            <span className={styles.label}>Coach</span>
-            <input
-              className={styles.input}
-              value={draft.coachName}
-              onChange={(event) => setDraft({ ...draft, coachName: event.target.value })}
-              placeholder="Coach name"
-            />
-          </label>
-        </div>
-
-        <div className={styles.noteCuePanel}>
-          <div>
-            <span className={styles.label}>Ask coach to check</span>
-            <p className={styles.formHelp}>Tap a cue or write your own note.</p>
-          </div>
-          <div className={styles.noteCueGrid}>
-            {PLAYER_NOTE_CUES.map((cue) => (
-              <button
-                type="button"
-                key={cue.label}
-                className={styles.noteCueButton}
-                onClick={() => applyPlayerNoteCue(cue.note)}
-                aria-label={`Ask coach to check ${cue.label}`}
-              >
-                {cue.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className={styles.field}>
-          <span className={styles.label}>Player note</span>
-          <textarea
-            id="video-review-player-note"
-            className={styles.textarea}
-            value={draft.playerNote}
-            onChange={(event) => setDraft({ ...draft, playerNote: event.target.value })}
-            placeholder="I want to know if my toss and contact point are in the right place."
-          />
-        </label>
         {draftPreviewUrl ? (
-          <div className={styles.noteReturnActions} aria-label="Player note next step">
-            <span>{playerNoteText ? 'Question ready.' : 'Add one question, then send or save.'}</span>
-            <button type="button" className={styles.ghostButton} onClick={focusDraftActions}>
-              Review clip actions
-            </button>
-          </div>
-        ) : null}
+          clipDetailsFields
+        ) : (
+          <details className={styles.compactSetupDrawer}>
+            <summary className={styles.compactSetupSummary}>
+              <span>
+                <strong>Clip details</strong>
+                <em>Title, stroke, coach, and note</em>
+              </span>
+              <span>Open</span>
+            </summary>
+            <div className={styles.compactSetupStack}>
+              {clipDetailsFields}
+            </div>
+          </details>
+        )}
 
-        {!draftPreviewUrl ? (
+        {!draftPreviewUrl && selectedFileName ? (
           <div className={styles.actionRow}>
             <button type="button" className={styles.ghostButton} disabled={!selectedFileName || quotaFull} onClick={onSave}>
-              Save private
+              Save to inventory
             </button>
-            <button type="button" className={styles.primaryButton} disabled={!selectedFileName || quotaFull} onClick={onSend}>
-              Send to coach
+            <button type="button" className={styles.primaryButton} disabled={!selectedFileName || quotaFull} onClick={onSaveAndMarkup}>
+              {isCoachCapture ? 'Mark up now' : 'Mark up myself'}
             </button>
+            {!isCoachCapture ? (
+              <button type="button" className={styles.ghostButton} disabled={!selectedFileName || quotaFull} onClick={onSend}>
+                Share with coach
+              </button>
+            ) : null}
             <span className={styles.formHelp}>No clip selected yet.</span>
           </div>
         ) : null}

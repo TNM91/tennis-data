@@ -2078,7 +2078,7 @@ function sendCurrentScenarioToMessaging() {
 
   return (
     <div style={pageWrap}>
-         <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} />
+         {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={builderControlHeaderStyle}>
@@ -2394,7 +2394,7 @@ function sendCurrentScenarioToMessaging() {
                   planId="captain"
                   compact
                   headline="Need to save versions and track lineup decisions?"
-                  body="Captain turns this from a draft board into a real weekly workflow with saved scenarios, prediction tracking, and a cleaner path into comparison and messaging."
+                  body="Captain turns this from a draft board into a real weekly lineup plan with saved scenarios, prediction tracking, and a cleaner path into comparison and messaging."
                   ctaLabel="Unlock Captain"
                   ctaHref="/pricing"
                   secondaryLabel="See Captain plan"

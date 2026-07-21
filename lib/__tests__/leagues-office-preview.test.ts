@@ -4,6 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
 
+function styleBlock(name: string) {
+  const marker = `const ${name}: CSSProperties = {`
+  const start = source.indexOf(marker)
+  expect(start, `${name} style should exist`).toBeGreaterThanOrEqual(0)
+
+  const end = source.indexOf('\n}', start)
+  expect(end, `${name} style should close`).toBeGreaterThan(start)
+
+  return source.slice(start, end)
+}
+
 describe('Leagues Office preview', () => {
   it('makes League Office operations concrete without repeating preview sections', () => {
     expect(source).toContain('Season control board')
@@ -18,6 +29,11 @@ describe('Leagues Office preview', () => {
     expect(source).toContain("cta: 'Open Organizer Hub'")
     expect(source).toContain('Send Correction')
     expect(source).toContain('create a TIQ League Office tool')
+    expect(source).toContain('League data trust and starter path')
+    expect(source).toContain('What is refreshing')
+    expect(source).toContain('Show source checks')
+    expect(source).toContain('Show source needs')
+    expect(source).toContain('Show diagnostics')
     expect(source).not.toContain('League Office preview')
     expect(source).not.toContain('TiqActionCard')
     expect(source).not.toContain('TiqWorkspacePreview')
@@ -48,5 +64,27 @@ describe('Leagues Office preview', () => {
     expect(source).toContain('directoryControlFocusStyle')
     expect(source).toContain("outline: '2px solid transparent'")
     expect(source).not.toContain("outline: 'none'")
+  })
+
+  it('keeps the public league directory compact on phones', () => {
+    expect(source).toContain('const visibleLeagueCardLimit = isMobile ? 1 : LEAGUE_DEFAULT_CARD_LIMIT')
+    expect(source).toContain('filteredLeagues.slice(0, visibleLeagueCardLimit)')
+    expect(source).toContain('filteredLeagues.length > visibleLeagueCardLimit')
+    expect(source).toContain('aria-label="League filters"')
+    expect(source).toContain('Narrow the league list')
+    expect(source).toContain('mobileSummaryPillRowStyle')
+    expect(source).toContain('leagueCardDetailsSummaryStyle')
+    expect(source).toContain('Data check')
+    expect(source).toContain("aria-label={`${league.leagueName} data check`}")
+    expect(source).toContain("<strong>{league.latestMatchDate ? 'Match context' : 'Review pending'}</strong>")
+    expect(source).not.toContain('<span>Data trust</span>')
+    expect(source).not.toContain('<span>Show source</span>')
+    expect(source).toContain('className="leagueDetailsSection"')
+    expect(source).toContain('className="leagueDetailsBody"')
+    expect(styleBlock('leagueDetailsSectionStyle')).toContain("display: 'block'")
+    expect(styleBlock('leagueDetailsSectionStyle')).not.toContain("display: 'grid'")
+    expect(styleBlock('leagueCardDetailsSummaryStyle')).toContain('borderRadius: 8')
+    expect(styleBlock('cardGlow')).toContain('right: 0')
+    expect(styleBlock('cardGlow')).not.toContain("right: '-50px'")
   })
 })

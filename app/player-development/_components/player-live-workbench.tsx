@@ -1393,7 +1393,7 @@ export default function PlayerLiveWorkbench({
           <strong>{identityCourtsideRead.starterRep}</strong>
         </article>
         <article>
-          <span>Proof cue</span>
+          <span>Score it when</span>
           <strong>{identityCourtsideRead.starterProofCue}</strong>
         </article>
         <article data-state="watch">
@@ -1812,35 +1812,64 @@ export default function PlayerLiveWorkbench({
               <strong>{activeDrill.sourceCard?.cue ?? activeFocus.tracker[0] ?? 'Proof rating'}</strong>
               {activeDrill.sourceCard ? <p>{activeDrill.sourceCard.reward}</p> : null}
             </div>
-            {activeDrill.sourceCard ? (
-              <div className={styles.liveQualityGrid} aria-label="Quality standards for this activity">
+            <details className={styles.liveDrillDetails} aria-label="Drill details and choices">
+              <summary className={styles.liveDrillDetailsSummary}>
                 <div>
-                  <span>Work block</span>
-                  <strong>{getCardWorkBlock(activeDrill.sourceCard)}</strong>
+                  <span>More drill help</span>
+                  <strong>Standards, adjustments, and choices.</strong>
                 </div>
-                <div>
-                  <span>Counts when</span>
-                  <strong>{getCardQualityStandard(activeDrill.sourceCard)}</strong>
+                <small>Open</small>
+              </summary>
+              <div className={styles.liveDrillDetailsBody}>
+                {activeDrill.sourceCard ? (
+                  <div className={styles.liveQualityGrid} aria-label="Quality standards for this activity">
+                    <div>
+                      <span>Work block</span>
+                      <strong>{getCardWorkBlock(activeDrill.sourceCard)}</strong>
+                    </div>
+                    <div>
+                      <span>Counts when</span>
+                      <strong>{getCardQualityStandard(activeDrill.sourceCard)}</strong>
+                    </div>
+                    <div>
+                      <span>Fix first</span>
+                      <strong>{getCardCommonMiss(activeDrill.sourceCard)}</strong>
+                    </div>
+                  </div>
+                ) : null}
+                {activeDrill.sourceCard ? (
+                  <div className={styles.liveAdjustmentPanel}>
+                    <div>
+                      <span>Level up</span>
+                      <p>{activeDrill.sourceCard.progression}</p>
+                    </div>
+                    <div>
+                      <span>Scale down</span>
+                      <p>{activeDrill.sourceCard.regression}</p>
+                    </div>
+                    {activeDrill.sourceCard.safetyNote ? <small>{activeDrill.sourceCard.safetyNote}</small> : null}
+                  </div>
+                ) : null}
+                <div className={styles.liveDrillChoices}>
+                  {visibleDrills.map((drill) => (
+                    <button
+                      type="button"
+                      key={drill.id}
+                      data-active={drill.id === activeDrill.id ? 'true' : 'false'}
+                      onClick={() => chooseDrillOption(drill.id)}
+                    >
+                      <strong>{drill.title}</strong>
+                      <span>{drill.duration}</span>
+                      <small>{shortenDrillStep(drill.proof)}</small>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <span>Fix first</span>
-                  <strong>{getCardCommonMiss(activeDrill.sourceCard)}</strong>
+                <div className={styles.liveActionLinks}>
+                  <a className="button-primary" href={activeDrill.href}>Guide</a>
+                  <a className="button-secondary" href="/mylab#coach-assignments">Send to coach</a>
                 </div>
               </div>
-            ) : null}
-            {activeDrill.sourceCard ? (
-              <div className={styles.liveAdjustmentPanel}>
-                <div>
-                  <span>Level up</span>
-                  <p>{activeDrill.sourceCard.progression}</p>
-                </div>
-                <div>
-                  <span>Scale down</span>
-                  <p>{activeDrill.sourceCard.regression}</p>
-                </div>
-                {activeDrill.sourceCard.safetyNote ? <small>{activeDrill.sourceCard.safetyNote}</small> : null}
-              </div>
-            ) : null}
+            </details>
             {pressureRepeatCue ? (
               <div className={styles.livePressureRepeatCue} aria-label="Pressure repeat cue">
                 <div>
@@ -1892,24 +1921,6 @@ export default function PlayerLiveWorkbench({
                 Score now
               </button>
             </div>
-            <div className={styles.liveDrillChoices}>
-              {visibleDrills.map((drill) => (
-                <button
-                  type="button"
-                  key={drill.id}
-                  data-active={drill.id === activeDrill.id ? 'true' : 'false'}
-                  onClick={() => chooseDrillOption(drill.id)}
-                >
-                  <strong>{drill.title}</strong>
-                  <span>{drill.duration}</span>
-                  <small>{shortenDrillStep(drill.proof)}</small>
-                </button>
-              ))}
-            </div>
-            <div className={styles.liveActionLinks}>
-              <a className="button-primary" href={activeDrill.href}>Guide</a>
-              <a className="button-secondary" href="/mylab#coach-assignments">Send to coach</a>
-            </div>
           </article>
 
           <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
@@ -1932,81 +1943,92 @@ export default function PlayerLiveWorkbench({
                 </button>
               ))}
             </div>
-            <div className={styles.liveProofRubric} aria-label="Proof rating guide">
-              {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
-                <div key={item.value}>
-                  <span>{item.value}</span>
-                  <strong>{item.label}</strong>
+            <details className={styles.liveScoreDetails} aria-label="Manual scoring options">
+              <summary className={styles.liveDrillDetailsSummary}>
+                <div>
+                  <span>More scoring</span>
+                  <strong>Rating guide, note, and share choice.</strong>
                 </div>
-              ))}
-            </div>
-            <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
-              {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
-                <button
-                  type="button"
-                  key={feeling}
-                  data-active={draft.feeling === feeling ? 'true' : 'false'}
-                  onClick={() => setDraft({ ...draft, feeling })}
-                >
-                  {feelingLabels[feeling]}
-                </button>
-              ))}
-            </div>
-            <div className={styles.liveRatingButtons} aria-label="Rate this work from 0 to 5">
-              {[0, 1, 2, 3, 4, 5].map((value) => (
-                <button
-                  type="button"
-                  key={value}
-                  data-active={draft.rating === value ? 'true' : 'false'}
-                  onClick={() => setDraft({ ...draft, rating: value })}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-            <div className={styles.liveQuickNoteChips} aria-label="One tap tracking notes">
-              <span>Tap note</span>
-              <div>
-                {quickNoteChips.map((chip) => (
-                  <button
-                    type="button"
-                    key={chip}
-                    className="button-secondary"
-                    data-active={draft.note.includes(chip) ? 'true' : 'false'}
-                    onClick={() => addQuickNoteChip(chip)}
-                  >
-                    {chip}
+                <small>Open</small>
+              </summary>
+              <div className={styles.liveScoreDetailsBody}>
+                <div className={styles.liveProofRubric} aria-label="Proof rating guide">
+                  {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
+                    <div key={item.value}>
+                      <span>{item.value}</span>
+                      <strong>{item.label}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
+                  {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
+                    <button
+                      type="button"
+                      key={feeling}
+                      data-active={draft.feeling === feeling ? 'true' : 'false'}
+                      onClick={() => setDraft({ ...draft, feeling })}
+                    >
+                      {feelingLabels[feeling]}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.liveRatingButtons} aria-label="Rate this work from 0 to 5">
+                  {[0, 1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      data-active={draft.rating === value ? 'true' : 'false'}
+                      onClick={() => setDraft({ ...draft, rating: value })}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.liveQuickNoteChips} aria-label="One tap tracking notes">
+                  <span>Tap note</span>
+                  <div>
+                    {quickNoteChips.map((chip) => (
+                      <button
+                        type="button"
+                        key={chip}
+                        className="button-secondary"
+                        data-active={draft.note.includes(chip) ? 'true' : 'false'}
+                        onClick={() => addQuickNoteChip(chip)}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={draft.note}
+                  maxLength={220}
+                  onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+                  placeholder="Optional: what helped, what to repeat."
+                  aria-label="Tiny tracking note"
+                />
+                <label className={styles.liveShareToggle}>
+                  <input
+                    type="checkbox"
+                    checked={accessMode === 'coach_invited' ? draft.sharedWithCoach : false}
+                    disabled={accessMode !== 'coach_invited'}
+                    onChange={(event) => setDraft({ ...draft, sharedWithCoach: event.target.checked })}
+                  />
+                  <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
+                </label>
+                <div className={styles.liveDraftActions}>
+                  <button type="button" className="button-primary" disabled={draft.rating === null || hasActiveSaveReceipt} onClick={saveSession}>
+                    {hasActiveSaveReceipt ? 'Saved' : syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
                   </button>
-                ))}
+                  {hasUnsavedSessionDraft && !hasActiveSaveReceipt ? (
+                    <button type="button" className="button-secondary" aria-label="Clear saved scoring draft" onClick={discardSessionDraft}>
+                      Clear draft
+                    </button>
+                  ) : null}
+                </div>
+                <small>{hasActiveSaveReceipt ? 'Use Repeat or New focus before logging another proof.' : draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
               </div>
-            </div>
-            <textarea
-              value={draft.note}
-              maxLength={220}
-              onChange={(event) => setDraft({ ...draft, note: event.target.value })}
-              placeholder="Optional: what helped, what to repeat."
-              aria-label="Tiny tracking note"
-            />
-            <label className={styles.liveShareToggle}>
-              <input
-                type="checkbox"
-                checked={accessMode === 'coach_invited' ? draft.sharedWithCoach : false}
-                disabled={accessMode !== 'coach_invited'}
-                onChange={(event) => setDraft({ ...draft, sharedWithCoach: event.target.checked })}
-              />
-              <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
-            </label>
-            <div className={styles.liveDraftActions}>
-              <button type="button" className="button-primary" disabled={draft.rating === null || hasActiveSaveReceipt} onClick={saveSession}>
-                {hasActiveSaveReceipt ? 'Saved' : syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
-              </button>
-              {hasUnsavedSessionDraft && !hasActiveSaveReceipt ? (
-                <button type="button" className="button-secondary" aria-label="Clear saved scoring draft" onClick={discardSessionDraft}>
-                  Clear draft
-                </button>
-              ) : null}
-            </div>
-            <small>{hasActiveSaveReceipt ? 'Use Repeat or New focus before logging another proof.' : draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
+            </details>
           </aside>
         </div>
       </div>
@@ -2285,27 +2307,32 @@ export default function PlayerLiveWorkbench({
         </div>
       ) : null}
 
-      <aside className={styles.liveSyncProofPanel} aria-label="Level Up local sync proof">
-        <div>
-          <span>Level Up local sync proof</span>
-          <strong>Know what follows you.</strong>
+      <details className={styles.liveSyncProofPanel} aria-label="Level Up save and sync details">
+        <summary className={styles.liveSyncProofSummary}>
+          <div>
+            <span>Save and sync</span>
+            <strong>Know what stays on this phone.</strong>
+          </div>
+          <em>Details</em>
+        </summary>
+        <div className={styles.liveSyncProofBody}>
           <p>Level Up saves the court work first, then syncs only when the access path is connected.</p>
+          <div className={styles.liveSyncProofGrid}>
+            <article>
+              <span>Saved first</span>
+              <p>Rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
+            </article>
+            <article>
+              <span>Syncs when connected</span>
+              <p>{PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+            </article>
+            <article>
+              <span>Local-only in v1</span>
+              <p>Favorites and copied coach-update sent markers stay on this device for now.</p>
+            </article>
+          </div>
         </div>
-        <div className={styles.liveSyncProofGrid}>
-          <article>
-            <span>Saved first</span>
-            <p>Rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
-          </article>
-          <article>
-            <span>Syncs when connected</span>
-            <p>{PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
-          </article>
-          <article>
-            <span>Local-only in v1</span>
-            <p>Favorites and copied coach-update sent markers stay on this device for now.</p>
-          </article>
-        </div>
-      </aside>
+      </details>
 
       <div className={styles.liveProgressPanel} aria-label="Training progress summary">
         <article>
@@ -3066,7 +3093,7 @@ function getStarterProofNote(mode: TomorrowStarterCheckMode) {
 function getStarterReadNotes(starterRead: SavedSessionStarterRead) {
   return [
     getStarterReadNote('Starter rep', starterRead.starterRep),
-    getStarterReadNote('Starter proof cue', starterRead.starterProofCue),
+    getStarterReadNote('Starter cue', starterRead.starterProofCue),
     getStarterReadNote('Starter leak watch', starterRead.starterLeakWatch),
     getStarterReadNote('Starter smart next', starterRead.starterSmartNext),
   ]
@@ -3628,7 +3655,8 @@ function getSavedStarterCoachRead(session: SavedSession): SavedStarterCoachRead 
 
 function getSavedStarterReadFromNote(note: string): SavedSessionStarterRead | null {
   const starterRep = getSavedStarterReadMarkerValue(note, 'Starter rep')
-  const starterProofCue = getSavedStarterReadMarkerValue(note, 'Starter proof cue')
+  const starterProofCue = getSavedStarterReadMarkerValue(note, 'Starter cue')
+    || getSavedStarterReadMarkerValue(note, 'Starter proof cue')
   const starterLeakWatch = getSavedStarterReadMarkerValue(note, 'Starter leak watch')
   const starterSmartNext = getSavedStarterReadMarkerValue(note, 'Starter smart next')
 
@@ -3648,6 +3676,7 @@ function getPlayerProofNote(note: string) {
     .replace(/\[Pressure proof: [^\]]+\]/g, '')
     .replace(/\[Starter proof: [^\]]+\]/g, '')
     .replace(/\[Starter rep: [^\]]+\]/g, '')
+    .replace(/\[Starter cue: [^\]]+\]/g, '')
     .replace(/\[Starter proof cue: [^\]]+\]/g, '')
     .replace(/\[Starter leak watch: [^\]]+\]/g, '')
     .replace(/\[Starter smart next: [^\]]+\]/g, '')
@@ -3707,7 +3736,7 @@ function buildSavedProofRecap(
     `Drill: ${session.drillTitle}.`,
     `Score: ${session.rating}/5; time: ${formatClock(session.elapsedSeconds)}; feeling: ${feelingLabels[session.feeling].toLowerCase()}.`,
     starterRead ? `Starter rep: ${starterRead.starterRep}` : '',
-    starterRead ? `Starter proof cue: ${starterRead.starterProofCue}` : '',
+    starterRead ? `Starter cue: ${starterRead.starterProofCue}` : '',
     starterRead ? `Leak watch: ${starterRead.starterLeakWatch}` : '',
     starterRead ? `Smart next: ${starterRead.starterSmartNext}` : '',
     starterProof ? `Starter: ${starterProof}` : '',

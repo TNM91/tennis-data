@@ -48,6 +48,10 @@ describe('Captain scenario builder mobile layout guards', () => {
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(source).not.toContain("? '1fr'")
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"scenario\" teamLabel={teamFilter || 'Team week'} /> : null}")
+    expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('contentWrap'),
+    )
   })
 
   it('keeps verdict, compare panels, filters, form controls, and tables resilient', () => {

@@ -10,7 +10,7 @@ import CompetePageFrame, {
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
-import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqIndividualLeagueResults,
@@ -18,6 +18,7 @@ import {
 } from '@/lib/tiq-individual-results-service'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const emptyResultActions = [
   { href: '/league-coordinator/individual-results', label: 'Log player result' },
@@ -46,7 +47,7 @@ const resultsPathActions = [
     job: 'view_results',
     question: 'What happened?',
     title: 'View recent results',
-    body: 'Scan completed player results, readiness gaps, and the next useful matchup action.',
+    body: 'Check completed player results and the next useful matchup action.',
     cta: 'View activity',
   },
   {
@@ -54,7 +55,7 @@ const resultsPathActions = [
     job: 'log_player_result',
     question: 'Who won the player match?',
     title: 'Log a player result',
-    body: 'Use for ladders, round robins, challenge leagues, and one-on-one results.',
+    body: 'Use for ladders, round robins, challenge leagues, and singles results.',
     cta: 'Log result',
   },
   {
@@ -62,7 +63,7 @@ const resultsPathActions = [
     job: 'record_team_match',
     question: 'Which team match finished?',
     title: 'Record a team match',
-    body: 'Create the match event, add line scores, and keep team standings moving.',
+    body: 'Create the match, add line scores, and update team standings.',
     cta: 'Open team book',
   },
   {
@@ -70,7 +71,7 @@ const resultsPathActions = [
     job: 'upload_scorecard',
     question: 'How do I avoid retyping?',
     title: 'Upload a scorecard',
-    body: 'Send reviewed scorecards through Data Assist before results shape platform context.',
+    body: 'Upload reviewed scorecards before rankings and prep use the result.',
     cta: 'Upload source',
   },
 ] as const
@@ -98,8 +99,8 @@ export default function CompeteResultsPage() {
   return (
     <CompetePageFrame
       eyebrow="Results"
-      title="Results that feed the next match."
-      description="Recent outcomes, player impact, matchup links, and scorecard uploads stay close."
+      title="Use results without digging."
+      description="Review recent outcomes, log scores, compare the next matchup, or upload a scorecard."
     >
       <CompeteResultsContent />
     </CompetePageFrame>
@@ -151,64 +152,11 @@ function CompeteResultsContent() {
   return (
     <>
       <ResultsPathPanel />
-      <ResultPlayerIdProofPanel />
-
-      <CompeteGrid>
-        <CompeteCard
-          href="/league-coordinator/results"
-          meta="Team results"
-          title="Team book"
-          text="Record team match events, line scores, and standings-moving outcomes."
-          icon="reports"
-          action="Open team book"
-        />
-        <CompeteCard
-          href="/league-coordinator/individual-results"
-          meta="Player results"
-          title="Player book"
-          text="Log one-on-one results for ladders, round robins, and challenge leagues."
-          icon="playerRatings"
-          action="Open player book"
-        />
-        <CompeteCard
-          href="/explore/rankings"
-          meta="Movement"
-          title="Rankings"
-          text="Check leaderboard movement after results settle."
-          icon="teamRankings"
-          action="See movement"
-        />
-        <CompeteCard
-          href={DATA_ASSIST_STORY.href}
-          meta="Refresh"
-          title="Improve results data"
-          text="Upload reviewed scorecards before standings move."
-          icon="reports"
-          action="Upload data"
-        />
-      </CompeteGrid>
-
-      {authResolved && !access.canUseCaptainWorkflow ? (
-        <div style={upgradeWrapStyle}>
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Want results to turn into smarter next-week decisions?"
-            body="Unlock Captain to connect outcomes, availability, lineup planning, and team communication instead of reviewing results in isolation."
-            ctaLabel="Unlock Captain"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain value"
-            secondaryHref="/pricing"
-            footnote="Best for captains who want each week's results to feed the next lineup instead of starting over."
-          />
-        </div>
-      ) : null}
 
       <section id="tiq-results-activity" style={panelStyle}>
-        <div style={sectionEyebrowStyle}>TIQ individual activity</div>
+        <div style={sectionEyebrowStyle}>Recent player results</div>
         <div style={sectionTextStyle}>
-          Recent TIQ individual-league outcomes now live inside the weekly results loop instead of
-          hiding only on league detail pages.
+          Use recent singles results to check movement, open the league, compare a rematch, or fix missing player profiles.
         </div>
 
         {results.length === 0 ? (
@@ -248,7 +196,102 @@ function CompeteResultsContent() {
       </section>
 
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
+
+      <ResultsToolsDisclosure>
+        <CompeteGrid>
+          <CompeteCard
+            href="/league-coordinator/results"
+            meta="Team results"
+            title="Team book"
+            text="Record team match events, line scores, and standings-moving outcomes."
+            icon="reports"
+            action="Open team book"
+          />
+          <CompeteCard
+            href="/league-coordinator/individual-results"
+            meta="Player results"
+            title="Player book"
+            text="Log one-on-one results for ladders, round robins, and challenge leagues."
+            icon="playerRatings"
+            action="Open player book"
+          />
+          <CompeteCard
+            href="/explore/rankings"
+            meta="Movement"
+            title="Rankings"
+            text="Check leaderboard movement after results settle."
+            icon="teamRankings"
+            action="See movement"
+          />
+          <CompeteCard
+            href={DATA_ASSIST_STORY.href}
+            meta="Refresh"
+            title="Improve results data"
+            text="Upload reviewed scorecards before standings move."
+            icon="reports"
+            action="Upload data"
+          />
+        </CompeteGrid>
+      </ResultsToolsDisclosure>
+
+      <ResultsSupportDisclosure>
+        <ResultPlayerIdProofPanel />
+      </ResultsSupportDisclosure>
+
+      {authResolved && !access.canUseCaptainWorkflow ? (
+        <ResultsUpgradeDisclosure>
+          <div style={upgradeWrapStyle}>
+            <UpgradePrompt
+              planId="captain"
+              compact
+              headline="Want results to shape next week?"
+              body="Unlock Captain to connect results with availability, lineups, and team messages."
+              ctaLabel="Unlock Captain"
+              ctaHref="/pricing"
+              secondaryLabel="See Captain value"
+              secondaryHref="/pricing"
+              footnote="Best for captains who want each result to help with the next lineup."
+            />
+          </div>
+        </ResultsUpgradeDisclosure>
+      ) : null}
     </>
+  )
+}
+
+function ResultsSupportDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={resultsSupportDisclosureStyle}>
+      <summary style={resultsSupportSummaryStyle}>
+        <span style={resultsSupportSummaryCopyStyle}>Use Player ID after this result</span>
+        <span>Open</span>
+      </summary>
+      <div style={resultsSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function ResultsUpgradeDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={resultsSupportDisclosureStyle}>
+      <summary style={resultsSupportSummaryStyle}>
+        <span style={resultsSupportSummaryCopyStyle}>Need Captain tools for these results?</span>
+        <span>Open</span>
+      </summary>
+      <div style={resultsSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function ResultsToolsDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={resultsSupportDisclosureStyle}>
+      <summary style={resultsSupportSummaryStyle}>
+        <span style={resultsSupportSummaryCopyStyle}>More result tools</span>
+        <span>Open</span>
+      </summary>
+      <div style={resultsSupportBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -289,33 +332,55 @@ function ResultPlayerIdProofPanel() {
 }
 
 function ResultsPathPanel() {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <section style={resultsPathStyle} aria-labelledby="compete-results-path-title">
       <div style={resultsPathHeaderStyle}>
         <div>
           <span style={resultsPathEyebrowStyle}>Results path</span>
-          <h2 id="compete-results-path-title" style={resultsPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <h2 id="compete-results-path-title" style={resultsPathTitleStyle}>Choose what to do with a result</h2>
         </div>
-        <p style={resultsPathIntroStyle}>
-          Start with the result need, then open the smallest action that keeps prep, standings, or data moving.
+        <p style={{ ...resultsPathIntroStyle, display: isMobile ? 'none' : undefined }}>
+          Pick the action that matches the score in front of you.
         </p>
       </div>
-      <div style={resultsPathGridStyle}>
+      <div
+        style={{
+          ...resultsPathGridStyle,
+          gap: isMobile ? '8px' : resultsPathGridStyle.gap,
+        }}
+      >
         {resultsPathActions.map((action) => (
           <Link
             key={action.job}
             href={action.href}
-            style={resultsPathCardStyle}
+            style={{
+              ...resultsPathCardStyle,
+              minHeight: isMobile ? 76 : resultsPathCardStyle.minHeight,
+              padding: isMobile ? '10px' : resultsPathCardStyle.padding,
+              borderRadius: isMobile ? '14px' : resultsPathCardStyle.borderRadius,
+            }}
             data-compete-results-path-job={action.job}
             aria-label={`${action.cta}: ${action.question}`}
           >
             <span style={resultsPathQuestionStyle}>{action.question}</span>
             <strong style={resultsPathCardTitleStyle}>{action.title}</strong>
-            <span>{action.body}</span>
             <span style={resultsPathCtaStyle}>{action.cta}</span>
           </Link>
         ))}
       </div>
+      <details className="competeDetailsSection" style={resultsPathGuideStyle}>
+        <summary style={resultsPathGuideSummaryStyle}>Help me choose</summary>
+        <div style={resultsPathGuideGridStyle}>
+          {resultsPathActions.map((action) => (
+            <div key={action.job} style={resultsPathGuideItemStyle}>
+              <strong>{action.title}</strong>
+              <span>{action.body}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
@@ -515,7 +580,7 @@ const resultsPathIntroStyle: CSSProperties = {
 
 const resultsPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -524,7 +589,7 @@ const resultsPathCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   alignContent: 'start',
-  minHeight: 148,
+  minHeight: 92,
   minWidth: 0,
   padding: '12px',
   borderRadius: '16px',
@@ -559,6 +624,48 @@ const resultsPathCtaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const resultsPathGuideStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(2,8,23,0.24)',
+  overflow: 'hidden',
+}
+
+const resultsPathGuideSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 42,
+  padding: '0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathGuideGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
+const resultsPathGuideItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const resultPlayerIdProofStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -573,6 +680,39 @@ const resultPlayerIdProofStyle: CSSProperties = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const resultsSupportDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.62)',
+  boxShadow: '0 14px 36px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const resultsSupportSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 48,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const resultsSupportSummaryCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resultsSupportBodyStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 10px 10px',
 }
 
 const resultPlayerIdProofCopyStyle: CSSProperties = {

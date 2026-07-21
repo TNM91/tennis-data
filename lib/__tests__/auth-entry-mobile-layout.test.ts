@@ -2,11 +2,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const authEntryFiles = [
+const authPageFiles = [
   'app/login/page.tsx',
   'app/join/page.tsx',
   'app/reset-password/page.tsx',
   'app/forget-password/page.tsx',
+]
+
+const authEntryFiles = [
+  ...authPageFiles,
+  'app/components/site-shell.tsx',
+  'app/globals.css',
 ]
 
 const sources = new Map(
@@ -157,7 +163,7 @@ describe('auth entry mobile layout guards', () => {
       expect(source, file).not.toContain("? '1fr'")
     }
 
-    for (const file of authEntryFiles) {
+    for (const file of authPageFiles) {
       const source = sources.get(file)!
       expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
       expect(source).not.toContain(
@@ -173,7 +179,8 @@ describe('auth entry mobile layout guards', () => {
   })
 
   it('keeps auth shell, panel, and form containers shrinkable', () => {
-    for (const [file, source] of sources) {
+    for (const file of authPageFiles) {
+      const source = sources.get(file)!
       for (const styleName of ['heroShell', 'formCard']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain('minWidth: 0')
       }
@@ -202,6 +209,28 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'authLoadingIconStyle')).toContain(
       'width: 32',
     )
+    expect(sources.get('app/components/site-shell.tsx')!).toContain(
+      "const authRoutes = new Set(['/login', '/join', '/forget-password', '/reset-password'])",
+    )
+    expect(sources.get('app/components/site-shell.tsx')!).toContain(
+      "return 'brand-atmosphere-mark brand-atmosphere-mark--auth'",
+    )
+    expect(sources.get('app/globals.css')!).toContain('.brand-atmosphere-mark--auth')
+    expect(sources.get('app/globals.css')!).toContain('opacity: 0.055;')
+    expect(sources.get('app/globals.css')!).toContain('width: min(52vw, 560px);')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).toContain("width: 'min(310px, 62vw)'")
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).not.toContain("right: '-110px'")
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain("width: 'min(380px, 58vw)'")
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain('opacity: 0.14')
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).not.toContain('clamp(-42px')
+
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).toContain('right: 0')
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).toContain("width: 'min(310px, 62vw)'")
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).not.toContain('clamp(-90px')
+    }
 
     for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const source = sources.get(file)!
@@ -213,8 +242,60 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'formPanelGlow')).toContain('inset: 0')
   })
 
+  it('keeps Join account creation before optional selected-plan details', () => {
+    const source = sources.get('app/join/page.tsx')!
+    const formIndex = source.indexOf('<form onSubmit={handleSubmit}')
+    const selectedPlanIndex = source.indexOf('<details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>')
+
+    expect(formIndex).toBeGreaterThanOrEqual(0)
+    expect(selectedPlanIndex).toBeGreaterThanOrEqual(0)
+    expect(formIndex).toBeLessThan(selectedPlanIndex)
+    expect(source).toContain('className="authOptionalDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',
+    )
+    expect(source).toContain("const formCue = selectedPlanId === 'free'")
+    expect(source).toContain('Create Free access now. Add paid tools when you need them.')
+    expect(source).toContain('Create Free access</div>')
+  })
+
+  it('keeps Login sign-in before optional return-path details', () => {
+    const source = sources.get('app/login/page.tsx')!
+    const formIndex = source.indexOf('<form onSubmit={handleSubmit}')
+    const contextIndex = source.indexOf('<details className="authReturnDetailsSection" style={loginContextStyle}>')
+
+    expect(formIndex).toBeGreaterThanOrEqual(0)
+    expect(contextIndex).toBeGreaterThanOrEqual(0)
+    expect(formIndex).toBeLessThan(contextIndex)
+    expect(source).toContain('Show return path')
+    expect(source).toContain('className="authReturnDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authReturnDetailsSection:not([open]) > .authReturnDetailsBody',
+    )
+  })
+
+  it('keeps password recovery forms before optional path details', () => {
+    const forgotPassword = sources.get('app/forget-password/page.tsx')!
+    const resetPassword = sources.get('app/reset-password/page.tsx')!
+
+    expect(forgotPassword.indexOf('<form onSubmit={handleSubmit}')).toBeLessThan(
+      forgotPassword.indexOf('<details className="authOptionalDetailsSection" style={recoveryContextStyle}>'),
+    )
+    expect(resetPassword.indexOf('<form onSubmit={handleSubmit}')).toBeLessThan(
+      resetPassword.indexOf('<details className="authOptionalDetailsSection" style={resetContextStyle}>'),
+    )
+    expect(forgotPassword).toContain('Show recovery path')
+    expect(resetPassword).toContain('Show sign-in path')
+    expect(forgotPassword).toContain('className="authOptionalDetailsBody"')
+    expect(resetPassword).toContain('className="authOptionalDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',
+    )
+  })
+
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
-    for (const [file, source] of sources) {
+    for (const file of authPageFiles) {
+      const source = sources.get(file)!
       for (const styleName of ['heroTitle', 'heroText', 'formTitle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
       }

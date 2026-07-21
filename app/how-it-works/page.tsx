@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import type { CSSProperties, ReactNode } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
@@ -15,7 +16,7 @@ export const metadata: Metadata = buildRouteMetadata({
   path: '/how-it-works',
 })
 
-const workflowCards: InfoActionCard[] = [
+const toolCards: InfoActionCard[] = [
   {
     title: 'Explore',
     text: 'Use public tennis intelligence to understand who, where, and what level.',
@@ -46,56 +47,146 @@ export default function HowItWorksPage() {
       <InfoPage
         kicker="How It Works"
         title="Start with discovery. Upgrade when it saves time."
-        intro="TenAceIQ is organized by need: Free helps people explore the tennis landscape, My Lab makes the site personal, Team Hub supports weekly decisions, League Office helps organizers run seasons, and Full-Court brings the operation together."
+        intro="Search the tennis map first. Open My Lab, Team Hub, League Office, or Tournament Desk when your next tennis need calls for more than public context."
       >
-        <InfoActionGrid cards={workflowCards} />
+        <InfoActionGrid cards={toolCards} />
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>1. Free discovery</h2>
-          <p>
+        <HowItWorksDetails summary="Show the full path" title="How the tools fit together">
+          <HowItWorksStep title="1. Free discovery">
             Public pages like <Link href="/explore/players">Players</Link>, <Link href="/explore/rankings">Rankings</Link>,{' '}
             <Link href="/explore/teams">Teams</Link>, and <Link href="/explore/leagues">Leagues</Link> help players,
             captains, and organizers understand the landscape before choosing the right paid tools.
-          </p>
-        </div>
+          </HowItWorksStep>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>2. Player context</h2>
-          <p>
+          <HowItWorksStep title="2. Player context">
             Player unlocks <Link href="/mylab">My Lab</Link>, data refreshes, Matchup, and
-            Messages. The point is to turn broad discovery into something personally useful and
-            repeatable before the next match.
-          </p>
-        </div>
+            Messages so broad discovery becomes useful before the next match.
+          </HowItWorksStep>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>3. Team Hub and Captain Tools</h2>
-          <p>
+          <HowItWorksStep title="3. Team Hub and Captain Tools">
             Team Hub is built around actual weekly operations: availability, lineup planning,
-            scenario comparisons, messaging, and match preparation. That layer exists to reduce
-            scramble and make lineup choices easier to explain and repeat.
-          </p>
-        </div>
+            scenario comparisons, messaging, and match preparation.
+          </HowItWorksStep>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>4. League Office</h2>
-          <p>
-            League Office is for organizers running leagues of players or teams. It brings
-            setup, participants, schedules, standings, results, and communication closer together so
-            the season takes less manual effort to manage.
-          </p>
-        </div>
+          <HowItWorksStep title="4. League Office">
+            League Office is for organizers running leagues of players or teams. It keeps setup,
+            participants, schedules, standings, results, and communication closer together.
+          </HowItWorksStep>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Fix tennis info</h2>
-          <p>
-             When rosters, schedules, or scorecards need to be updated, players, captains, coordinators,
-             and admins can start with <Link href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</Link>.
-             {DATA_ASSIST_STORY.shortCue} Uploads are reviewed before they shape ratings, standings,
-             matchup context, team pages, or Team Hub.
-          </p>
-        </div>
+          <HowItWorksStep title="5. Fix tennis info">
+            When rosters, schedules, or scorecards need updates, start with{' '}
+            <Link href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</Link>. {DATA_ASSIST_STORY.shortCue}
+            Uploads are reviewed before they shape ratings, standings, matchup context, team pages, or Team Hub.
+          </HowItWorksStep>
+        </HowItWorksDetails>
       </InfoPage>
     </SiteShell>
   )
+}
+
+function HowItWorksDetails({
+  summary,
+  title,
+  children,
+}: {
+  summary: string
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <details className="publicInfoDetailsSection" style={detailsStyle}>
+      <summary style={summaryStyle}>
+        <span style={summaryCopyStyle}>
+          <span style={summaryKickerStyle}>Path details</span>
+          <strong>{title}</strong>
+        </span>
+        <span style={summaryActionStyle}>{summary}</span>
+      </summary>
+      <div style={detailsBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function HowItWorksStep({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={stepStyle}>
+      <h2 className="section-title" style={stepTitleStyle}>{title}</h2>
+      <p style={stepTextStyle}>{children}</p>
+    </section>
+  )
+}
+
+const detailsStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  overflow: 'hidden',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const summaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minHeight: 54,
+  padding: '10px 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const summaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const summaryKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const summaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 30,
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+}
+
+const detailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const stepStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '10px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const stepTitleStyle: CSSProperties = {
+  fontSize: '1.05rem',
+  marginBottom: 6,
+}
+
+const stepTextStyle: CSSProperties = {
+  margin: 0,
 }

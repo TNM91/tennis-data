@@ -1812,7 +1812,7 @@ export default function MyQuestClient() {
             <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
             <a href="#phone-mode">Phone</a>
-            <a href="#private-ops">Ops</a>
+            <a href="#private-ops">Sync</a>
           </div>
         </div>
         <div className={styles.levelPanel}>
@@ -2245,6 +2245,166 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="today-quests" className={styles.todayCommand}>
+        <div className={styles.todayHeader}>
+          <div>
+            <p className={styles.eyebrow}>Today&apos;s Quest</p>
+            <h2>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length} complete</h2>
+          </div>
+          <div className={styles.todayScore}>
+            <strong>{todayXp}</strong>
+            <span>XP today</span>
+          </div>
+        </div>
+        <div className={styles.modeToggle} aria-label="Quest mode">
+          <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
+            Morning
+          </button>
+          <button type="button" data-active={mode === 'evening' ? 'true' : 'false'} onClick={() => setMode('evening')}>
+            Evening
+          </button>
+          <button type="button" data-active={mode === 'recovery' ? 'true' : 'false'} onClick={() => setMode('recovery')}>
+            Recovery
+          </button>
+        </div>
+        <div className={styles.dayModeGrid}>
+          {dayModes.map((dayMode) => (
+            <button
+              key={dayMode.id}
+              type="button"
+              className={styles.dayModeCard}
+              data-recommended={dayMode.recommended ? 'true' : 'false'}
+              data-complete={dayMode.completed ? 'true' : 'false'}
+              onClick={() => void completeQuestStack({ label: dayMode.title, questIds: dayMode.questIds })}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <span>{dayMode.recommended ? 'Recommended mode' : `${dayMode.progress}%`}</span>
+              <strong>{pendingStack === dayMode.title ? 'Completing' : dayMode.title}</strong>
+              <small>{dayMode.detail}</small>
+              <ProgressBar value={dayMode.progress} label={dayMode.completed ? 'Mode complete' : `${dayMode.progress}% mode`} />
+            </button>
+          ))}
+        </div>
+        <div className={styles.smartQuestCard}>
+          <div>
+            <p className={styles.eyebrow}>Smart Next Quest</p>
+            <h3>{smartQuest.quest?.title ?? 'Daily board cleared'}</h3>
+            <p>{smartQuest.reason}</p>
+          </div>
+          {smartQuest.quest ? (
+            <button type="button" className={styles.primaryButton} onClick={() => void toggleQuest(smartQuest.quest!)} disabled={Boolean(pendingQuest)}>
+              {smartQuest.cta}
+            </button>
+          ) : null}
+        </div>
+        <div className={styles.loadoutGrid}>
+          {loadouts.map((loadout) => (
+            <button
+              key={loadout.id}
+              type="button"
+              className={styles.loadoutCard}
+              data-recommended={loadout.recommended ? 'true' : 'false'}
+              data-complete={loadout.completed ? 'true' : 'false'}
+              onClick={() => void completeQuestStack({ label: loadout.title, questIds: loadout.questIds })}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <span>{loadout.recommended ? 'Recommended' : `${loadout.progress}%`}</span>
+              <strong>{pendingStack === loadout.title ? 'Completing' : loadout.title}</strong>
+              <small>{loadout.detail}</small>
+              <ProgressBar value={loadout.progress} label={loadout.completed ? 'Loadout complete' : `${loadout.progress}% loadout`} />
+            </button>
+          ))}
+        </div>
+        <div className={styles.stackGrid}>
+          {QUEST_STACKS.map((stack) => (
+            <button
+              key={stack.id}
+              type="button"
+              className={styles.stackButton}
+              onClick={() => void completeQuestStack(stack)}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <strong>{pendingStack === stack.label ? 'Completing' : stack.label}</strong>
+              <span>{stack.hint}</span>
+            </button>
+          ))}
+        </div>
+        <div className={styles.comboGrid}>
+          {questCombos.map((combo) => (
+            <div key={combo.id} className={styles.comboCard} data-complete={combo.completed ? 'true' : 'false'}>
+              <div>
+                <strong>{combo.title}</strong>
+                <span>{combo.detail}</span>
+              </div>
+              <ProgressBar value={combo.progress} label={combo.completed ? 'Combo locked' : `${combo.progress}% combo`} />
+            </div>
+          ))}
+        </div>
+        <div className={styles.weeklyRuleCard}>
+          <label className={styles.field}>
+            <span>Today&apos;s rule</span>
+            <input
+              value={weeklyRule}
+              onChange={(event) => setWeeklyRule(event.target.value)}
+              onBlur={() => void saveWeeklyRule()}
+              aria-label="Today rule"
+            />
+          </label>
+          <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyRule()} disabled={savingRule}>
+            {savingRule ? 'Saving rule' : 'Lock rule'}
+          </button>
+        </div>
+        <div className={styles.reminderGrid}>
+          {reminders.map((reminder) => (
+            <div key={reminder.id} className={styles.reminderCard} data-active={reminder.active ? 'true' : 'false'}>
+              <span>{reminder.time}</span>
+              <strong>{reminder.title}</strong>
+              <small>{reminder.detail}</small>
+            </div>
+          ))}
+        </div>
+        <ProgressBar value={Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)} label={`${todayRemainingCount} quests left`} />
+        <div className={styles.todayQuickGrid}>
+          {PERSONAL_DAILY_QUESTS.map((quest) => {
+            const complete = completedToday.has(quest.id)
+            return (
+              <button
+                key={quest.id}
+                type="button"
+                className={`${styles.questCard} ${complete ? styles.questCardComplete : ''}`}
+                onClick={() => void toggleQuest(quest)}
+                disabled={Boolean(pendingQuest)}
+              >
+                <span className={styles.questCheck}>{complete ? 'OK' : '+'}</span>
+                <span>
+                  <strong>{quest.title}</strong>
+                  <small>+{quest.xp} XP</small>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.quickTrackerRow}>
+          <label className={styles.inlineStepper}>
+            <span>IPAs</span>
+            <div className={styles.stepper}>
+              <button type="button" onClick={() => void adjustIpa(-1)} aria-label="Decrease IPA count">-</button>
+              <input
+                value={ipaInput}
+                inputMode="numeric"
+                onChange={(event) => setIpaInput(event.target.value)}
+                onBlur={() => void saveDailyTrackers()}
+                aria-label="IPA count today"
+              />
+              <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count">+</button>
+            </div>
+          </label>
+          <button type="button" className={styles.primaryButton} onClick={() => void saveDailyTrackers()} disabled={savingTracker}>
+            {savingTracker ? 'Saving' : 'Save today'}
+          </button>
+        </div>
+      </section>
+
       <section className={styles.gamePlanPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -2369,9 +2529,9 @@ export default function MyQuestClient() {
 
       <details
         className={styles.mobileIntelDrawer}
-        open={!phoneCompact || intelOpen}
+        open={intelOpen}
         onToggle={(event) => {
-          if (phoneCompact) setIntelOpen(event.currentTarget.open)
+          setIntelOpen(event.currentTarget.open)
         }}
       >
         <summary>
@@ -2534,166 +2694,6 @@ export default function MyQuestClient() {
         />
       ) : null}
 
-      <section id="today-quests" className={styles.todayCommand}>
-        <div className={styles.todayHeader}>
-          <div>
-            <p className={styles.eyebrow}>Today&apos;s Quest</p>
-            <h2>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length} complete</h2>
-          </div>
-          <div className={styles.todayScore}>
-            <strong>{todayXp}</strong>
-            <span>XP today</span>
-          </div>
-        </div>
-        <div className={styles.modeToggle} aria-label="Quest mode">
-          <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
-            Morning
-          </button>
-          <button type="button" data-active={mode === 'evening' ? 'true' : 'false'} onClick={() => setMode('evening')}>
-            Evening
-          </button>
-          <button type="button" data-active={mode === 'recovery' ? 'true' : 'false'} onClick={() => setMode('recovery')}>
-            Recovery
-          </button>
-        </div>
-        <div className={styles.dayModeGrid}>
-          {dayModes.map((dayMode) => (
-            <button
-              key={dayMode.id}
-              type="button"
-              className={styles.dayModeCard}
-              data-recommended={dayMode.recommended ? 'true' : 'false'}
-              data-complete={dayMode.completed ? 'true' : 'false'}
-              onClick={() => void completeQuestStack({ label: dayMode.title, questIds: dayMode.questIds })}
-              disabled={Boolean(pendingStack || pendingQuest)}
-            >
-              <span>{dayMode.recommended ? 'Recommended mode' : `${dayMode.progress}%`}</span>
-              <strong>{pendingStack === dayMode.title ? 'Completing' : dayMode.title}</strong>
-              <small>{dayMode.detail}</small>
-              <ProgressBar value={dayMode.progress} label={dayMode.completed ? 'Mode complete' : `${dayMode.progress}% mode`} />
-            </button>
-          ))}
-        </div>
-        <div className={styles.smartQuestCard}>
-          <div>
-            <p className={styles.eyebrow}>Smart Next Quest</p>
-            <h3>{smartQuest.quest?.title ?? 'Daily board cleared'}</h3>
-            <p>{smartQuest.reason}</p>
-          </div>
-          {smartQuest.quest ? (
-            <button type="button" className={styles.primaryButton} onClick={() => void toggleQuest(smartQuest.quest!)} disabled={Boolean(pendingQuest)}>
-              {smartQuest.cta}
-            </button>
-          ) : null}
-        </div>
-        <div className={styles.loadoutGrid}>
-          {loadouts.map((loadout) => (
-            <button
-              key={loadout.id}
-              type="button"
-              className={styles.loadoutCard}
-              data-recommended={loadout.recommended ? 'true' : 'false'}
-              data-complete={loadout.completed ? 'true' : 'false'}
-              onClick={() => void completeQuestStack({ label: loadout.title, questIds: loadout.questIds })}
-              disabled={Boolean(pendingStack || pendingQuest)}
-            >
-              <span>{loadout.recommended ? 'Recommended' : `${loadout.progress}%`}</span>
-              <strong>{pendingStack === loadout.title ? 'Completing' : loadout.title}</strong>
-              <small>{loadout.detail}</small>
-              <ProgressBar value={loadout.progress} label={loadout.completed ? 'Loadout complete' : `${loadout.progress}% loadout`} />
-            </button>
-          ))}
-        </div>
-        <div className={styles.stackGrid}>
-          {QUEST_STACKS.map((stack) => (
-            <button
-              key={stack.id}
-              type="button"
-              className={styles.stackButton}
-              onClick={() => void completeQuestStack(stack)}
-              disabled={Boolean(pendingStack || pendingQuest)}
-            >
-              <strong>{pendingStack === stack.label ? 'Completing' : stack.label}</strong>
-              <span>{stack.hint}</span>
-            </button>
-          ))}
-        </div>
-        <div className={styles.comboGrid}>
-          {questCombos.map((combo) => (
-            <div key={combo.id} className={styles.comboCard} data-complete={combo.completed ? 'true' : 'false'}>
-              <div>
-                <strong>{combo.title}</strong>
-                <span>{combo.detail}</span>
-              </div>
-              <ProgressBar value={combo.progress} label={combo.completed ? 'Combo locked' : `${combo.progress}% combo`} />
-            </div>
-          ))}
-        </div>
-        <div className={styles.weeklyRuleCard}>
-          <label className={styles.field}>
-            <span>Today&apos;s rule</span>
-            <input
-              value={weeklyRule}
-              onChange={(event) => setWeeklyRule(event.target.value)}
-              onBlur={() => void saveWeeklyRule()}
-              aria-label="Today rule"
-            />
-          </label>
-          <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyRule()} disabled={savingRule}>
-            {savingRule ? 'Saving rule' : 'Lock rule'}
-          </button>
-        </div>
-        <div className={styles.reminderGrid}>
-          {reminders.map((reminder) => (
-            <div key={reminder.id} className={styles.reminderCard} data-active={reminder.active ? 'true' : 'false'}>
-              <span>{reminder.time}</span>
-              <strong>{reminder.title}</strong>
-              <small>{reminder.detail}</small>
-            </div>
-          ))}
-        </div>
-        <ProgressBar value={Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)} label={`${todayRemainingCount} quests left`} />
-        <div className={styles.todayQuickGrid}>
-          {PERSONAL_DAILY_QUESTS.map((quest) => {
-            const complete = completedToday.has(quest.id)
-            return (
-              <button
-                key={quest.id}
-                type="button"
-                className={`${styles.questCard} ${complete ? styles.questCardComplete : ''}`}
-                onClick={() => void toggleQuest(quest)}
-                disabled={Boolean(pendingQuest)}
-              >
-                <span className={styles.questCheck}>{complete ? 'OK' : '+'}</span>
-                <span>
-                  <strong>{quest.title}</strong>
-                  <small>+{quest.xp} XP</small>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <div className={styles.quickTrackerRow}>
-          <label className={styles.inlineStepper}>
-            <span>IPAs</span>
-            <div className={styles.stepper}>
-              <button type="button" onClick={() => void adjustIpa(-1)} aria-label="Decrease IPA count">-</button>
-              <input
-                value={ipaInput}
-                inputMode="numeric"
-                onChange={(event) => setIpaInput(event.target.value)}
-                onBlur={() => void saveDailyTrackers()}
-                aria-label="IPA count today"
-              />
-              <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count">+</button>
-            </div>
-          </label>
-          <button type="button" className={styles.primaryButton} onClick={() => void saveDailyTrackers()} disabled={savingTracker}>
-            {savingTracker ? 'Saving' : 'Save today'}
-          </button>
-        </div>
-      </section>
-
       <section id="repair-day" className={styles.repairPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -2842,9 +2842,9 @@ export default function MyQuestClient() {
 
       <details
         className={styles.mobileSupportDrawer}
-        open={!phoneCompact || supportOpen}
+        open={supportOpen}
         onToggle={(event) => {
-          if (phoneCompact) setSupportOpen(event.currentTarget.open)
+          setSupportOpen(event.currentTarget.open)
         }}
       >
         <summary>
@@ -2868,8 +2868,8 @@ export default function MyQuestClient() {
           <section id="private-ops" className={styles.privateOpsPanel}>
             <div className={styles.sectionHeader}>
               <div>
-                <p className={styles.eyebrow}>Private Ops</p>
-                <h2>Sync and privacy health</h2>
+                <p className={styles.eyebrow}>Sync health</p>
+                <h2>Device and privacy check</h2>
               </div>
               <span className={styles.scorePill}>{syncingOffline ? 'Syncing' : 'Ready'}</span>
             </div>
@@ -3005,7 +3005,7 @@ export default function MyQuestClient() {
               <p className={styles.eyebrow}>Progress Photos</p>
               <h2>Private vault</h2>
             </div>
-            <span className={styles.scorePill}>Signed URLs</span>
+            <span className={styles.scorePill}>Private</span>
           </div>
           <div className={styles.photoButtons}>
             {PHOTO_TYPES.map((type) => (

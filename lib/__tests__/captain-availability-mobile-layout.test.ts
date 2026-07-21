@@ -44,6 +44,8 @@ describe('Captain availability mobile layout guards', () => {
     expect(styleBlock('selectStyle')).toContain("flex: '1 1 min(100%, 220px)'")
     expect(styleBlock('selectStyle')).toContain('minWidth: 0')
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"availability\" teamLabel={selectedTeam || 'Team week'} /> : null}")
+    expect(source.indexOf('availabilityControlShellResponsive')).toBeLessThan(source.indexOf('decisionPanel'))
   })
 
   it('keeps decision cards, metrics, sections, and CTAs mobile-safe', () => {

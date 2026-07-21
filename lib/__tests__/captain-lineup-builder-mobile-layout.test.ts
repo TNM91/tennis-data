@@ -44,6 +44,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButtonSmallButton')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"lineup\" teamLabel={teamName || 'Team week'} /> : null}")
+    expect(source.indexOf('builderControlShellStyle(isMobile)')).toBeLessThan(source.indexOf('decisionBoardShellStyle'))
   })
 
   it('keeps saved scenarios, slot editors, and lineup rows mobile-safe', () => {

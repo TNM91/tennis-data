@@ -46,6 +46,10 @@ describe('Captain analytics mobile layout guards', () => {
     expect(functionBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('signalNoteStyle')).toContain("lineHeight: 1.5")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"analytics\" teamLabel={teamName || 'Team week'} /> : null}")
+    expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('decisionBoardStyle'),
+    )
   })
 
   it('keeps controls, toggles, cards, and player labels from forcing overflow', () => {

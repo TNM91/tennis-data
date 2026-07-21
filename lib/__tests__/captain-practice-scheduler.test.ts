@@ -12,6 +12,9 @@ describe('Captain practice scheduler', () => {
     expect(source).toContain('mode="captain-practice"')
     expect(source).toContain('triggerLabel="Schedule practice"')
     expect(source).toContain('defaultNotes={practiceNotes}')
+    expect(source.indexOf('aria-label="Practice scheduler setup"')).toBeLessThan(
+      source.indexOf('Plan practice without a separate thread.'),
+    )
     expect(source).toContain("router.replace('/login?next=/captain/practice')")
     expect(source).toContain('Unlock practice coordination with Captain')
   })

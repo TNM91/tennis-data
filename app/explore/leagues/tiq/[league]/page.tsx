@@ -2316,8 +2316,8 @@ function TiqLeagueDetailContent() {
                   <div style={sectionEyebrow}>Season pulse</div>
                   <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
-                    This page should feel like the league scoreboard first. Admin controls stay nearby, but results,
-                    standings, schedule, and the next useful tennis move lead the experience.
+                    Start with the scoreboard. Results, standings, schedule, and the next useful tennis move stay up front,
+                    with admin controls nearby when you need them.
                   </p>
                 </div>
                 <div style={leagueHubScoreStyle}>
@@ -2692,7 +2692,7 @@ function TiqLeagueDetailContent() {
 
             <div style={dynamicContentGrid}>
               <section id="league-requests" style={dynamicPanelCard}>
-                <div style={sectionEyebrow}>Entry workflow</div>
+                <div style={sectionEyebrow}>Entry request</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
                     ? 'Request team entry'
@@ -3155,7 +3155,7 @@ function TiqLeagueDetailContent() {
             {league.leagueFormat === 'individual' ? (
               <section style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Saved prompts</div>
-                <h2 style={sectionTitle}>Track TIQ suggestions as real workflow objects.</h2>
+                <h2 style={sectionTitle}>Save TIQ suggestions as next tennis moves.</h2>
                 <p style={sectionText}>
                   Saved TIQ prompts let the app remember which ladder targets, round-robin gaps, and
                   challenge peers you wanted to act on, even before a result is logged.
@@ -3164,7 +3164,7 @@ function TiqLeagueDetailContent() {
                 {savedSuggestions.length === 0 ? (
                   <div style={emptyCard}>
                     Save a prompt from the recommendation cards to keep that TIQ opportunity visible
-                    across your workflow surfaces.
+                    across your player and league tools.
                   </div>
                 ) : (
                   <div style={listWrap}>
@@ -3265,7 +3265,7 @@ function TiqLeagueDetailContent() {
                     ctaHref="/pricing"
                     secondaryLabel="Open Player Results"
                     secondaryHref={`/league-coordinator/individual-results?leagueId=${encodeURIComponent(league.id)}`}
-                    footnote="Players can still read standings, results, and prompts from this page."
+                    footnote="Players can still read standings, results, and prompts here."
                   />
                 ) : null}
 
@@ -3725,9 +3725,9 @@ const heroCard: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-118px',
-  width: '310px',
+  width: 'min(100%, 310px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

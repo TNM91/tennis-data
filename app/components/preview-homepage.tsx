@@ -89,7 +89,7 @@ const heroSearchFilters: Array<{
   {
     value: 'teams',
     label: 'Team',
-    hint: 'Results focus on team pages, league context, and captain workflows.',
+    hint: 'Results focus on team pages, league context, and captain tools.',
     placeholder: 'Search a team name...',
     links: [
       { href: '/explore/teams', label: 'Teams' },
@@ -506,7 +506,7 @@ const commandModeDetails: Record<
     subhead: 'Captain turns availability, practice, lineup building, and team messages into one practical match-week desk.',
     searchPlaceholder: 'Search player, opponent team, or lineup...',
     queue: ['Who can play', 'Plan practice', 'Build lineup', 'Send plan'],
-    unlockLine: 'Captain includes Player features plus availability, practice scheduling, lineup, and team message workflows.',
+    unlockLine: 'Captain includes Player features plus availability, practice scheduling, lineup, and team messages.',
   },
   league: {
     headline: 'Run the season with structure.',
@@ -801,7 +801,7 @@ function CommandCenterHome({
           </div>
 
           <nav
-            aria-label="Choose a TenAceIQ workflow"
+            aria-label="Choose a TenAceIQ tool"
             style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
@@ -2658,34 +2658,37 @@ function AppCommandDeck({ access, authenticated }: { access: ProductAccessState;
 }
 
 function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const useSinglePlanColumn = screenWidth < 360
 
   return (
     <section
       style={{
         display: 'grid',
-        gap: isMobile ? 12 : 13,
+        gap: isMobile ? 9 : 13,
       }}
     >
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          gap: 12,
-          alignItems: 'end',
+          gap: isMobile ? 10 : 12,
+          alignItems: isMobile ? 'stretch' : 'end',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
+        <div style={{ display: 'grid', gap: isMobile ? 5 : 7, maxWidth: 760 }}>
           <div style={sectionKicker}>Start with your tennis need</div>
-          <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
+          <h2 style={{ ...sectionTitle, fontSize: isMobile ? 28 : 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
             Explore, improve, compete, or manage with less chaos.
           </h2>
-          <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
+          <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 13 : 15, lineHeight: isMobile ? 1.4 : 1.55 }}>
+            {isMobile
+              ? 'Search first, then open the tool that fits your next match, team, or season.'
+              : 'Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.'}
           </p>
         </div>
-        <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
+        <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40, width: isMobile ? '100%' : undefined, justifyContent: 'center' }}>
           Full plan comparison
         </Link>
       </div>
@@ -2693,8 +2696,8 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
-          gap: 10,
+          gridTemplateColumns: useSinglePlanColumn ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gap: isMobile ? 8 : 10,
           alignItems: 'stretch',
           minWidth: 0,
         }}
@@ -2712,12 +2715,12 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
               style={{
                 position: 'relative',
                 display: 'grid',
-                gap: 10,
+                gap: isMobile ? 6 : 10,
                 alignContent: 'start',
-                minHeight: isSmallMobile ? 0 : 248,
-                padding: isSmallMobile ? 15 : 16,
+                minHeight: isMobile ? 0 : 248,
+                padding: isSmallMobile ? 12 : isMobile ? 11 : 16,
                 overflow: 'hidden',
-                borderRadius: 18,
+                borderRadius: isMobile ? 12 : 18,
                 border: featured ? '1px solid rgba(155,225,29,0.32)' : '1px solid rgba(116,190,255,0.12)',
                 borderTop: `3px solid ${theme.priceColor}`,
                 background: featured
@@ -2726,75 +2729,47 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                 boxShadow: featured ? '0 22px 48px rgba(155,225,29,0.10)' : 'var(--shadow-soft)',
               }}
             >
-              {featured ? (
+              {featured && !isMobile ? (
                 <div style={{ ...mostPopularBadgeStyle, width: 'fit-content' }}>Best team value</div>
               ) : null}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)', justifyContent: 'space-between', gap: 10, alignItems: 'start', minWidth: 0 }}>
-                <div style={{ display: 'grid', gap: 7, minWidth: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)', justifyContent: 'space-between', gap: isMobile ? 5 : 10, alignItems: 'start', minWidth: 0 }}>
+                <div style={{ display: 'grid', gap: isMobile ? 5 : 7, minWidth: 0 }}>
                   <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{dashboardLane.label}</span>
                   <h3
                     style={{
                       margin: 0,
                       color: 'var(--foreground-strong)',
-                      fontSize: 20,
+                      fontSize: isMobile ? 16 : 20,
                       lineHeight: 1.04,
-                      letterSpacing: '-0.04em',
+                      letterSpacing: 0,
                       fontWeight: 900,
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {dashboardLane.title}
                   </h3>
                 </div>
-                <div style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>
+                <div style={{ ...compactPriceLabelStyle, color: theme.priceColor, fontSize: isMobile ? 11 : compactPriceLabelStyle.fontSize }}>
                   {accessPresentation.priceLabel}
                 </div>
               </div>
 
-              <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.48 }}>
-                {dashboardLane.show}
-              </p>
+              {!isMobile ? (
+                <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.48 }}>
+                  {dashboardLane.show}
+                </p>
+              ) : null}
 
-              <div
-                style={{
-                  display: 'grid',
-                  gap: 6,
-                  padding: 10,
-                  borderRadius: 14,
-                  border: '1px solid rgba(116,190,255,0.10)',
-                  background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
-                }}
-              >
-                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>What it removes</div>
-                <div style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
-                  {dashboardLane.removes}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gap: 4,
-                  paddingLeft: 11,
-                  borderLeft: `2px solid ${theme.priceColor}`,
-                }}
-              >
-                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Next action</div>
-                <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.42, fontWeight: 700 }}>
-                  {dashboardLane.next}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gap: 6 }}>
-                {story.bullets.slice(0, 2).map((bullet) => (
-                  <div key={bullet} style={{ ...bulletRowStyle, fontSize: 12, lineHeight: 1.42 }}>
-                    <span style={{ ...bulletDotStyle, marginTop: 6, background: theme.priceColor }} />
-                    <span>{bullet}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 'auto' }}>
-                <Link href={accessPresentation.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? 6 : 8, marginTop: isMobile ? 2 : 'auto' }}>
+                <Link
+                  href={accessPresentation.primaryCta.href}
+                  style={{
+                    ...(featured ? theme.primaryButton : getTierSecondaryButton(theme)),
+                    minHeight: isMobile ? 34 : (featured ? theme.primaryButton : getTierSecondaryButton(theme)).minHeight,
+                    padding: isMobile ? '0 9px' : (featured ? theme.primaryButton : getTierSecondaryButton(theme)).padding,
+                    fontSize: isMobile ? 11 : (featured ? theme.primaryButton : getTierSecondaryButton(theme)).fontSize,
+                  }}
+                >
                   {accessPresentation.primaryCta.label}
                 </Link>
                 <span
@@ -2805,6 +2780,83 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                   {accessPresentation.active ? accessPresentation.statusLabel : <NavLockIcon size={13} />}
                 </span>
               </div>
+
+              {isMobile ? (
+                <details style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+                  <summary style={{ ...snapshotPanelLabelStyle, color: theme.priceColor, cursor: 'pointer' }}>
+                    Plan details
+                  </summary>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gap: 6,
+                      padding: 10,
+                      borderRadius: 14,
+                      border: '1px solid rgba(116,190,255,0.10)',
+                      background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                    }}
+                  >
+                    <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 700 }}>
+                      {dashboardLane.show}
+                    </div>
+                    <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>What it removes</div>
+                    <div style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
+                      {dashboardLane.removes}
+                    </div>
+                    <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Next action</div>
+                    <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.42, fontWeight: 700 }}>
+                      {dashboardLane.next}
+                    </div>
+                    {story.bullets.slice(0, 2).map((bullet) => (
+                      <div key={bullet} style={{ ...bulletRowStyle, fontSize: 12, lineHeight: 1.42 }}>
+                        <span style={{ ...bulletDotStyle, marginTop: 6, background: theme.priceColor }} />
+                        <span>{bullet}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gap: 6,
+                      padding: 10,
+                      borderRadius: 14,
+                      border: '1px solid rgba(116,190,255,0.10)',
+                      background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                    }}
+                  >
+                    <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>What it removes</div>
+                    <div style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
+                      {dashboardLane.removes}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gap: 4,
+                      paddingLeft: 11,
+                      borderLeft: `2px solid ${theme.priceColor}`,
+                    }}
+                  >
+                    <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Next action</div>
+                    <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.42, fontWeight: 700 }}>
+                      {dashboardLane.next}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {story.bullets.slice(0, 2).map((bullet) => (
+                      <div key={bullet} style={{ ...bulletRowStyle, fontSize: 12, lineHeight: 1.42 }}>
+                        <span style={{ ...bulletDotStyle, marginTop: 6, background: theme.priceColor }} />
+                        <span>{bullet}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </article>
           )
         })}
@@ -2827,6 +2879,71 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
     'Unlimited tournaments',
     'Awards',
   ]
+
+  if (isMobile) {
+    return (
+      <article
+        style={{
+          position: 'relative',
+          display: 'grid',
+          gap: 9,
+          minWidth: 0,
+          overflow: 'hidden',
+          padding: isSmallMobile ? 13 : 14,
+          borderRadius: 16,
+          border: '1px solid rgba(155,225,29,0.42)',
+          background:
+            'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(14,35,57,0.94) 46%, rgba(8,13,28,0.98) 100%)',
+          boxShadow: '0 18px 42px rgba(2,8,23,0.30), 0 0 0 1px rgba(116,190,255,0.08) inset',
+        }}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)', gap: 8, alignItems: 'start', minWidth: 0 }}>
+          <div style={{ display: 'grid', gap: 5, minWidth: 0 }}>
+            <span style={fullCourtFeaturedBadgeStyle}>Full-Court plan</span>
+            <h3
+              style={{
+                margin: 0,
+                color: 'var(--foreground-strong)',
+                fontSize: 19,
+                lineHeight: 1.05,
+                letterSpacing: 0,
+                fontWeight: 950,
+                overflowWrap: 'anywhere',
+              }}
+            >
+              Support every tennis role.
+            </h3>
+          </div>
+          <span style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>{accessPresentation.priceLabel}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Link href={accessPresentation.primaryCta.href} style={fullCourtPrimaryCtaStyle}>
+            {accessPresentation.primaryCta.label}
+          </Link>
+        </div>
+
+        <details style={{ display: 'grid', gap: 7, minWidth: 0 }}>
+          <summary style={{ ...snapshotPanelLabelStyle, color: theme.priceColor, cursor: 'pointer' }}>
+            What Full-Court includes
+          </summary>
+          <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+            <div style={fullCourtValueStripStyle}>
+              {suiteItems.map((item) => (
+                <span key={item} style={fullCourtValueChipStyle}>{item}</span>
+              ))}
+            </div>
+            <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
+              My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs stay ready from one account.
+            </p>
+            <Link href="/pricing#full_court" style={getTierSecondaryButton(theme)}>
+              Compare Full-Court
+            </Link>
+          </div>
+        </details>
+      </article>
+    )
+  }
 
   return (
     <article

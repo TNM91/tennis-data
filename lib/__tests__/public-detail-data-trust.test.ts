@@ -70,4 +70,18 @@ describe('public detail data trust panels', () => {
     expect(styleBlock(tournamentDetailSource, 'entryInputStyle')).toContain('outlineOffset: 2')
     expect(styleBlock(tournamentDetailSource, 'entryInputStyle')).not.toContain("outline: 'none'")
   })
+
+  it('keeps public detail watermarks inside phone-width heroes', () => {
+    for (const source of [teamDetailSource, leagueDetailSource]) {
+      const watermark = styleBlock(source, 'watermarkStyle')
+      expect(watermark).toContain('right: 0')
+      expect(watermark).toContain("width: 'min(100%, 310px)'")
+      expect(watermark).not.toContain("right: '-110px'")
+    }
+
+    const tournamentWatermark = styleBlock(tournamentDetailSource, 'watermarkStyle')
+    expect(tournamentWatermark).toContain('right: 0')
+    expect(tournamentWatermark).toContain("width: 'min(100%, 320px)'")
+    expect(tournamentWatermark).not.toContain("right: '-110px'")
+  })
 })

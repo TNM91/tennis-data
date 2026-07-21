@@ -962,7 +962,7 @@ function CaptainAnalyticsContent() {
 
   return (
     <div style={pageWrap}>
-        <CaptainSuitePanel active="analytics" teamLabel={teamName || 'Team week'} />
+        {!isMobile ? <CaptainSuitePanel active="analytics" teamLabel={teamName || 'Team week'} /> : null}
         <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Analytics controls">
         <div>
           <div style={toolControlHeaderStyle}>

@@ -6,12 +6,10 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
-import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
@@ -67,6 +65,7 @@ type TeamDirectoryEntry = {
 type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
 
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
+const TEAM_DEFAULT_CARD_LIMIT = 8
 
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`
@@ -115,6 +114,7 @@ export default function TeamsPage() {
   const [flightFilter, setFlightFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [browseAll, setBrowseAll] = useState(false)
+  const [showAllTeams, setShowAllTeams] = useState(false)
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
 
   const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -136,6 +136,7 @@ export default function TeamsPage() {
         setFlightFilter('')
         setSortBy('matches')
         setBrowseAll(false)
+        setShowAllTeams(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -442,7 +443,15 @@ export default function TeamsPage() {
   const hasActiveFilters =
     search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || sortBy !== 'matches'
   const shouldShowTeamResults = hasActiveFilters || browseAll
-  const visibleRows = shouldShowTeamResults ? filteredRows : []
+  const visibleRows = shouldShowTeamResults
+    ? showAllTeams
+      ? filteredRows
+      : filteredRows.slice(0, TEAM_DEFAULT_CARD_LIMIT)
+    : []
+  const hasMoreTeams = shouldShowTeamResults && filteredRows.length > TEAM_DEFAULT_CARD_LIMIT
+  const filterActionStyle = isMobile
+    ? { ...clearFilterButton, ...compactFilterActionStyle }
+    : clearFilterButton
 
   const totals = useMemo(() => {
     const rowsForTotals = shouldShowTeamResults ? filteredRows : rows
@@ -464,124 +473,34 @@ export default function TeamsPage() {
       <main style={pageWrap}>
         <JsonLd id="teams-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Teams', '/teams')} />
         <section style={contentWrap}>
-          <article style={publicIntroCardStyle(isMobile)}>
-            <div style={publicIntroCopyStyle(isMobile)}>
-              <p style={sectionKicker}>Teams</p>
-              <h1 style={publicIntroTitleStyle(isMobile, isSmallMobile)}>Team tennis without the group-text chaos.</h1>
-              <p style={publicIntroTextStyle(isMobile)}>
-                Find teams, follow rosters, scout opponents, collect availability, build lineups, and keep match week organized.
-              </p>
-              <div style={publicIntroActions}>
-                <button
-                  type="button"
-                  style={primaryIntroButton}
-                  onClick={() => {
-                    void trackProductUsageEvent({
-                      eventName: 'team_search_submitted',
-                      surface: 'teams',
-                      metadata: {
-                        location: 'teams_intro',
-                      },
-                    })
-                    document.getElementById('team-directory-search')?.focus()
-                  }}
-                >
-                  Find Teams
-                </button>
-                <TrackedProductLink
-                  href="/captain"
-                  style={secondaryIntroButton}
-                  event={{
-                    eventName: 'captain_tools_clicked',
-                    surface: 'teams',
-                    metadata: {
-                      location: 'teams_intro',
-                      label: 'Open Captain Tools',
-                    },
-                  }}
-                >
-                  Open Captain Tools
-                </TrackedProductLink>
-              </div>
-            </div>
-            <div style={publicIntroGridStyle(isTinyMobile)}>
-              <IntroMiniCard title="For players" body="Find your team, follow the schedule, see rosters, and stay connected." compact={compactIntroCards} />
-              <IntroMiniCard title="For captains" body="Collect availability, build smarter lineups, scout opponents, and prepare each court." compact={compactIntroCards} />
-              <IntroMiniCard title="For opponents" body="Scout team strength, recent results, roster depth, and matchup context." compact={compactIntroCards} />
-              <IntroMiniCard title="For leagues" body="Keep rosters, schedules, captains, scorecards, and team visibility easier to manage." compact={compactIntroCards} />
-            </div>
-          </article>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
-            <div style={sectionHeader}>
-              <div>
-                <p style={sectionKicker}>Captain decision path</p>
-                <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
-                <p style={sectionText}>
-                  Team Hub connects the public team record with Captain Tools, so availability, lineup choices, scouting, and the final team note reduce match-week chaos in one path.
-                </p>
-              </div>
-            </div>
-            <div style={teamWeekBoardStyle(isMobile, isTablet)}>
-              <div style={teamWeekLeftStackStyle}>
-                <TeamWeekSpotlight />
-                <TiqWorkspacePreview
-                  eyebrow="Opponent scouting"
-                  title="West County roster read"
-                  body="Scan roster depth, recent results, and matchup context before assigning courts."
-                  metrics={[
-                    { label: 'Roster', value: '12' },
-                    { label: 'Recent', value: '3-1' },
-                    { label: 'Watch', value: 'Doubles' },
-                  ]}
-                  href="/matchup"
-                  cta="Scout Opponent"
-                  event={{
-                    eventName: 'matchup_started',
-                    surface: 'matchup',
-                    metadata: {
-                      location: 'team_hub_preview',
-                    },
-                  }}
-                />
-              </div>
-              <div style={teamWeekStepListStyle}>
-                {teamNextActions.map((action, index) => (
-                  <TeamWeekStep key={action.title} action={action} step={index + 1} />
-                ))}
-              </div>
-            </div>
-          </section>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
+          <section style={{ ...filtersCard, padding: isMobile ? 12 : filtersCard.padding }}>
             <div aria-hidden="true" style={watermarkStyle} />
             <div style={sectionHeader}>
               <div>
                 <p style={sectionKicker}>Team discovery</p>
-                <h2 style={sectionTitle}>Find a team.</h2>
-                <p style={sectionText}>
+                <h1 style={sectionTitle}>Find a team.</h1>
+                <p style={{ ...sectionText, display: isMobile ? 'none' : undefined }}>
                   Search by team name, league, or flight, then open the team record.
                 </p>
               </div>
 
               <button
                 type="button"
-                style={resetButton}
+                style={{ ...resetButton, ...(isMobile ? compactFilterActionStyle : null) }}
                 onClick={() => {
                   setSearch('')
                   setLeagueFilter('')
                   setFlightFilter('')
                   setSortBy('matches')
                   setBrowseAll(false)
+                  setShowAllTeams(false)
                 }}
               >
                 Reset
               </button>
             </div>
 
-            <div style={summaryRow(isSmallMobile)}>
+            <div style={summaryRow(isSmallMobile, isMobile)}>
               <StatPill label="Teams" value={loading ? 'Refreshing' : String(totals.teams)} />
               <StatPill label="Leagues" value={loading ? 'Starter' : String(totals.leagues)} />
               <StatPill label="Flights" value={loading ? 'Reviewing' : String(totals.flights)} />
@@ -590,23 +509,27 @@ export default function TeamsPage() {
 
             <div style={filtersGrid(isMobile)}>
               <div>
-                <label htmlFor="team-directory-search" style={labelStyle}>Search</label>
+                <label htmlFor="team-directory-search" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Search</label>
                 <input
                   id="team-directory-search"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value)
+                    setShowAllTeams(false)
+                  }}
                   onFocus={() => setFocusedDirectoryControl('search')}
                   onBlur={() => setFocusedDirectoryControl(null)}
                   placeholder="Search teams"
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
                   }}
                 />
               </div>
 
               <div>
-                <label htmlFor="team-directory-league" style={labelStyle}>League</label>
+                <label htmlFor="team-directory-league" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>League</label>
                 <select
                   id="team-directory-league"
                   value={leagueFilter}
@@ -615,9 +538,11 @@ export default function TeamsPage() {
                   onChange={(event) => {
                     setLeagueFilter(event.target.value)
                     setFlightFilter('')
+                    setShowAllTeams(false)
                   }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: leagueFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: leagueFilter ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'league' ? directoryControlFocusStyle : null),
@@ -633,15 +558,19 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label htmlFor="team-directory-flight" style={labelStyle}>Flight</label>
+                <label htmlFor="team-directory-flight" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Flight</label>
                 <select
                   id="team-directory-flight"
                   value={flightFilter}
                   onFocus={() => setFocusedDirectoryControl('flight')}
                   onBlur={() => setFocusedDirectoryControl(null)}
-                  onChange={(event) => setFlightFilter(event.target.value)}
+                  onChange={(event) => {
+                    setFlightFilter(event.target.value)
+                    setShowAllTeams(false)
+                  }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: flightFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: flightFilter ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
@@ -657,15 +586,19 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label htmlFor="team-directory-sort" style={labelStyle}>Sort</label>
+                <label htmlFor="team-directory-sort" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Sort</label>
                 <select
                   id="team-directory-sort"
                   value={sortBy}
                   onFocus={() => setFocusedDirectoryControl('sort')}
                   onBlur={() => setFocusedDirectoryControl(null)}
-                  onChange={(event) => setSortBy(event.target.value as SortKey)}
+                  onChange={(event) => {
+                    setSortBy(event.target.value as SortKey)
+                    setShowAllTeams(false)
+                  }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: sortBy !== 'matches' ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: sortBy !== 'matches' ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'sort' ? directoryControlFocusStyle : null),
@@ -685,71 +618,59 @@ export default function TeamsPage() {
                 disabled={loading}
                 style={{
                   ...clearFilterButton,
+                  ...(isMobile ? compactFilterActionStyle : null),
                   ...(browseAll ? browseAllButtonActiveStyle : null),
                   ...(loading ? disabledButtonStyle : null),
                 }}
                 onClick={() => {
                   setBrowseAll(true)
                   setSortBy('matches')
+                  setShowAllTeams(false)
                 }}
               >
                 Browse teams
               </button>
+              <TrackedProductLink
+                href="/captain"
+                style={{ ...filterActionStyle, textDecoration: 'none' }}
+                event={{
+                  eventName: 'captain_tools_clicked',
+                  surface: 'teams',
+                  metadata: {
+                    location: 'teams_filters',
+                    label: 'Captain Tools',
+                  },
+                }}
+              >
+                Open Captain tools
+              </TrackedProductLink>
               {hasActiveFilters || browseAll ? (
                 <button
                   type="button"
-                  style={clearFilterButton}
+                  style={filterActionStyle}
                   onClick={() => {
                     setSearch('')
                     setLeagueFilter('')
                     setFlightFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
+                    setShowAllTeams(false)
                   }}
                 >
-                  Clear active filters
-                </button>
-              ) : null}
+                Clear active filters
+              </button>
+            ) : null}
             </div>
+            {loading ? (
+              <div style={{ ...loadingInlineStyle, ...(isMobile ? compactLoadingInlineStyle : null) }}>
+                <strong>Team records are loading.</strong>
+                <span>Search, filter, or open Captain tools while the reviewed team list refreshes.</span>
+              </div>
+            ) : null}
           </section>
 
           {loading ? (
-            <section style={surfaceCard}>
-              <div style={sectionKicker}>Team discovery</div>
-              <div style={emptyTitle}>Search for a team or browse by league.</div>
-              <p style={emptyText}>
-                Team pages help players, captains, opponents, and league organizers understand the week. The live directory is refreshing behind this starter view.
-              </p>
-              <DataTrustPanel
-                title="Team data trust"
-                signals={[
-                  { label: 'Source', value: 'Scorecards, rosters, team summaries' },
-                  { label: 'Freshness', value: 'Recent matches first' },
-                  { label: 'Confidence', value: 'Higher with reviewed scorecards' },
-                  { label: 'Status', value: 'Needs review when disputed' },
-                ]}
-              />
-              <TiqDirectoryFallbackCard
-                eyebrow="Featured team path"
-                title="Scout the next team before match week."
-                body="Start with a team name, league, or flight. Team pages help players and captains see roster context, recent form, and where Captain Tools can make the week cleaner."
-                chips={['Roster context', 'Recent results', 'Captain Tools']}
-                actions={[
-                  { href: '/captain', label: 'Open Captain Tools' },
-                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
-                ]}
-              />
-              <div style={teamStartGridStyle}>
-                <button type="button" style={teamStartActionStyle} onClick={() => setBrowseAll(true)}>
-                  <strong>Browse teams</strong>
-                  <span>Open the reviewed team board when it is ready.</span>
-                </button>
-                <Link href="/captain" style={{ ...teamStartActionStyle, textDecoration: 'none' }}>
-                  <strong>Captain Tools</strong>
-                  <span>Collect availability and build the week.</span>
-                </Link>
-              </div>
-            </section>
+            null
           ) : error ? (
             <section style={surfaceCard}>
               <div style={sectionKicker}>Directory error</div>
@@ -758,26 +679,7 @@ export default function TeamsPage() {
               <GhostBtn onClick={() => { void loadTeams() }}>Retry team load</GhostBtn>
             </section>
           ) : !shouldShowTeamResults ? (
-            <section style={teamStartPanelStyle}>
-              <div style={teamStartGridStyle}>
-                <button type="button" style={teamStartActionStyle} onClick={() => document.getElementById('team-directory-search')?.focus()}>
-                  <strong>Team name</strong>
-                  <span>Jump to search.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setSortBy('winpct')}>
-                  <strong>Best win %</strong>
-                  <span>Results signal.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setSortBy('recent')}>
-                  <strong>Most recent</strong>
-                  <span>Active context.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setBrowseAll(true)}>
-                  <strong>Browse</strong>
-                  <span>Full board.</span>
-                </button>
-              </div>
-            </section>
+            null
           ) : visibleRows.length === 0 ? (
             <section style={surfaceCard}>
               <div style={sectionKicker}>Directory reset</div>
@@ -785,10 +687,18 @@ export default function TeamsPage() {
               <p style={emptyText}>
                 Public discovery only shows reviewed team context. Try widening your filters, clearing the search box, or use Data Assist if this league and flight should already exist.
               </p>
-              <DataTrustPanel
-                title="Why a team may be missing"
-                body="Team pages need reviewed roster, scorecard, league, or team-summary context before they appear in public discovery."
-              />
+              <TeamsDetailsSection
+                eyebrow="Why a team may be missing"
+                title="Reviewed team context is needed."
+                compactTitle="Why no team?"
+                cue="Show reason"
+                compact={isMobile}
+              >
+                <DataTrustPanel
+                  title="Why a team may be missing"
+                  body="Team pages need reviewed roster, scorecard, league, or team-summary context before they appear in public discovery."
+                />
+              </TeamsDetailsSection>
               <div style={emptyActionRow}>
                 <button
                   type="button"
@@ -799,6 +709,7 @@ export default function TeamsPage() {
                     setFlightFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
+                    setShowAllTeams(false)
                   }}
                 >
                   Reset team filters
@@ -828,8 +739,88 @@ export default function TeamsPage() {
                   />
                 )
               })}
+              {hasMoreTeams || showAllTeams ? (
+                <div style={teamBoardLimitRowStyle}>
+                  <span style={teamBoardLimitTextStyle}>
+                    Showing {visibleRows.length} of {filteredRows.length} teams.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTeams((current) => !current)}
+                    style={clearFilterButton}
+                  >
+                    {showAllTeams ? 'Show top teams' : 'Show full directory'}
+                  </button>
+                </div>
+              ) : null}
             </section>
           )}
+        </section>
+        <section style={contentWrap}>
+          <TeamsDetailsSection
+            eyebrow="Team paths"
+            title="Players, captains, opponents, and leagues."
+            compactTitle="Open the right team path."
+            cue="Show team paths"
+            compact={isMobile}
+          >
+            <div style={publicIntroGridStyle(isTinyMobile)}>
+              <IntroMiniCard title="For players" body="Find your team, follow the schedule, see rosters, and stay connected." compact={compactIntroCards} />
+              <IntroMiniCard title="For captains" body="Collect availability, build smarter lineups, scout opponents, and prepare each court." compact={compactIntroCards} />
+              <IntroMiniCard title="For opponents" body="Scout team strength, recent results, roster depth, and matchup context." compact={compactIntroCards} />
+              <IntroMiniCard title="For leagues" body="Keep rosters, schedules, captains, scorecards, and team visibility easier to manage." compact={compactIntroCards} />
+            </div>
+          </TeamsDetailsSection>
+        </section>
+        <section style={contentWrap}>
+          <TeamsDetailsSection
+            eyebrow="Team Hub preview"
+            title="Availability, lineup, scouting, and team message."
+            compactTitle="Open Team Hub tools."
+            cue="Show Team Hub preview"
+            compact={isMobile}
+          >
+            <section style={filtersCard}>
+              <div style={sectionHeader}>
+                <div>
+                  <p style={sectionKicker}>Captain decision path</p>
+                  <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
+                  <p style={sectionText}>
+                    Team Hub connects the public team record with Captain Tools, so availability, lineup choices, scouting, and the final team note reduce match-week chaos in one path.
+                  </p>
+                </div>
+              </div>
+              <div style={teamWeekBoardStyle(isMobile, isTablet)}>
+                <div style={teamWeekLeftStackStyle}>
+                  <TeamWeekSpotlight />
+                  <TiqWorkspacePreview
+                    eyebrow="Opponent scouting"
+                    title="West County roster read"
+                    body="Scan roster depth, recent results, and matchup context before assigning courts."
+                    metrics={[
+                      { label: 'Roster', value: '12' },
+                      { label: 'Recent', value: '3-1' },
+                      { label: 'Watch', value: 'Doubles' },
+                    ]}
+                    href="/matchup"
+                    cta="Scout Opponent"
+                    event={{
+                      eventName: 'matchup_started',
+                      surface: 'matchup',
+                      metadata: {
+                        location: 'team_hub_preview',
+                      },
+                    }}
+                  />
+                </div>
+                <div style={teamWeekStepListStyle}>
+                  {teamNextActions.map((action, index) => (
+                    <TeamWeekStep key={action.title} action={action} step={index + 1} />
+                  ))}
+                </div>
+              </div>
+            </section>
+          </TeamsDetailsSection>
         </section>
       </main>
       {shouldShowAds ? (
@@ -937,6 +928,46 @@ const teamNextActions = [
 ] as const
 
 type TeamNextAction = (typeof teamNextActions)[number]
+
+function TeamsDetailsSection({
+  eyebrow,
+  title,
+  compactTitle,
+  cue,
+  compact = false,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  compactTitle?: string
+  cue: string
+  compact?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const summaryStyle = compact
+    ? { ...teamsDetailsSummaryStyle, flexWrap: 'nowrap' as const, gap: 8, padding: '10px 11px' }
+    : teamsDetailsSummaryStyle
+  const titleStyle = compact
+    ? { ...teamsDetailsTitleStyle, fontSize: 13, lineHeight: 1.15 }
+    : teamsDetailsTitleStyle
+  const cueStyle = compact
+    ? { ...teamsDetailsCueStyle, fontSize: 11 }
+    : teamsDetailsCueStyle
+
+  return (
+    <details style={teamsDetailsSectionStyle} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary style={summaryStyle}>
+        <span style={teamsDetailsSummaryCopyStyle}>
+          <span style={teamsDetailsEyebrowStyle}>{eyebrow}</span>
+          <strong style={titleStyle}>{compact && compactTitle ? compactTitle : title}</strong>
+        </span>
+        <span style={cueStyle}>{compact ? 'Open' : cue}</span>
+      </summary>
+      <div style={open ? teamsDetailsContentStyle : teamsDetailsContentClosedStyle}>{children}</div>
+    </details>
+  )
+}
 
 function TeamWeekSpotlight() {
   return (
@@ -1078,7 +1109,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
                 <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
               </div>
               <div style={teamRecordLegend}>
-                <span style={teamRecordWinText}>{row.wins}W · {winPct}%</span>
+                <span style={teamRecordWinText}>{row.wins}W - {winPct}%</span>
                 <span style={teamRecordLossText}>{row.losses}L</span>
               </div>
             </div>
@@ -1099,18 +1130,26 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
         <div style={metricsGrid}>
           <Metric label="Matches" value={String(row.matchCount)} />
           <Metric label="Players" value={String(row.playerIds.size)} />
-          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '—')} />
+          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
         </div>
-        <TiqTrustStrip
-          label={`${row.team} data trust signals`}
-          signals={[
-            { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
-            { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
-            { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
-            { label: 'Status', value: 'Reviewable', tone: 'good' },
-          ]}
-          reviewContext={`Team ${row.team}`}
-        />
+        <details style={teamCardTrustDetailsStyle}>
+          <summary style={teamCardTrustSummaryStyle}>
+            <span>Data check</span>
+            <strong>{row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
+          </summary>
+          <div style={teamCardTrustBodyStyle}>
+            <TiqTrustStrip
+              label={`${row.team} data trust signals`}
+              signals={[
+                { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
+                { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
+                { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
+                { label: 'Status', value: 'Reviewable', tone: 'good' },
+              ]}
+              reviewContext={`Team ${row.team}`}
+            />
+          </div>
+        </details>
     </article>
   )
 }
@@ -1176,98 +1215,89 @@ const contentWrap: CSSProperties = {
   minWidth: 0,
 }
 
-const publicIntroCard: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 18,
-  alignItems: 'stretch',
-  borderRadius: 26,
-  border: '1px solid rgba(116,190,255,0.15)',
-  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.88))',
-  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.40), inset 0 1px 0 rgba(255,255,255,0.05)',
-  padding: 20,
+const teamsDetailsSectionStyle: CSSProperties = {
+  display: 'block',
+  gap: 10,
   minWidth: 0,
-}
-
-const publicIntroCardStyle = (isMobile: boolean): CSSProperties => ({
-  ...publicIntroCard,
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : publicIntroCard.gridTemplateColumns,
-  gap: isMobile ? 12 : publicIntroCard.gap,
-  borderRadius: isMobile ? 20 : publicIntroCard.borderRadius,
-  padding: isMobile ? 15 : publicIntroCard.padding,
-})
-
-const publicIntroCopy: CSSProperties = {
-  display: 'grid',
-  alignContent: 'center',
-  gap: 12,
-  minWidth: 0,
-}
-
-const publicIntroCopyStyle = (isMobile: boolean): CSSProperties => ({
-  ...publicIntroCopy,
-  gap: isMobile ? 9 : publicIntroCopy.gap,
-})
-
-const publicIntroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2rem, 4vw, 4rem)',
-  lineHeight: 0.98,
-  fontWeight: 950,
-  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const publicIntroTitleStyle = (isMobile: boolean, isSmallMobile: boolean): CSSProperties => ({
-  ...publicIntroTitle,
-  fontSize: isSmallMobile ? '2rem' : isMobile ? '2.3rem' : publicIntroTitle.fontSize,
-  lineHeight: isMobile ? 1.04 : publicIntroTitle.lineHeight,
-})
-
-const publicIntroText: CSSProperties = {
-  margin: 0,
-  maxWidth: 720,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 'clamp(1rem, 1.3vw, 1.15rem)',
-  lineHeight: 1.7,
-  fontWeight: 700,
-}
-
-const publicIntroTextStyle = (isMobile: boolean): CSSProperties => ({
-  ...publicIntroText,
-  fontSize: isMobile ? '0.95rem' : publicIntroText.fontSize,
-  lineHeight: isMobile ? 1.5 : publicIntroText.lineHeight,
-})
-
-const publicIntroActions: CSSProperties = {
+const teamsDetailsSummaryStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: 10,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
   minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
 }
 
-const primaryIntroButton: CSSProperties = {
+const teamsDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsContentClosedStyle: CSSProperties = {
+  display: 'none',
+}
+
+const secondaryIntroButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
-  color: '#071226',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(7,17,33,0.72)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
   cursor: 'pointer',
-}
-
-const secondaryIntroButton: CSSProperties = {
-  ...primaryIntroButton,
-  background: 'rgba(7,17,33,0.72)',
-  color: 'var(--foreground-strong)',
-  border: '1px solid rgba(116,190,255,0.16)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const publicIntroGrid: CSSProperties = {
@@ -1495,9 +1525,9 @@ const introMiniCardStyle = (compact: boolean): CSSProperties => ({
   display: 'grid',
   gap: compact ? 5 : 7,
   alignContent: 'start',
-  minHeight: compact ? 104 : 132,
-  padding: compact ? 11 : 14,
-  borderRadius: compact ? 14 : 18,
+  minHeight: compact ? 84 : 132,
+  padding: compact ? 10 : 14,
+  borderRadius: compact ? 8 : 18,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
@@ -1508,26 +1538,27 @@ const introMiniCardStyle = (compact: boolean): CSSProperties => ({
   overflowWrap: 'anywhere',
 })
 
-const summaryRow = (isSmallMobile: boolean): CSSProperties => ({
+const summaryRow = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
-  gap: '12px',
-  marginTop: '18px',
+  gap: isMobile ? '6px' : '8px',
+  marginTop: isMobile ? '10px' : '14px',
   minWidth: 0,
 })
 
 const statPill: CSSProperties = {
-  borderRadius: '20px',
+  borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.7)',
-  padding: '16px 18px',
+  padding: '11px 12px',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const statValue: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: '20px',
+  lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -1546,11 +1577,11 @@ const statLabel: CSSProperties = {
 const filtersCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
-  borderRadius: '26px',
+  borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.15)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
   boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
-  padding: '20px',
+  padding: '16px',
   minWidth: 0,
 }
 
@@ -1617,6 +1648,27 @@ const filtersActionRow: CSSProperties = {
   minWidth: 0,
 }
 
+const compactLoadingInlineStyle: CSSProperties = {
+  marginTop: 10,
+  padding: '8px 10px',
+  fontSize: 12,
+}
+
+const loadingInlineStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  marginTop: 12,
+  padding: '10px 12px',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -1634,6 +1686,13 @@ const clearFilterButton: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+}
+
+const compactFilterActionStyle: CSSProperties = {
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: '12px',
+  fontSize: 12,
 }
 
 const browseAllButtonActiveStyle: CSSProperties = {
@@ -1686,10 +1745,10 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactN
 
 const filtersGrid = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? '8px' : '10px',
   minWidth: 0,
-  marginTop: '18px',
+  marginTop: isMobile ? '10px' : '14px',
 })
 
 const labelStyle: CSSProperties = {
@@ -1717,6 +1776,13 @@ const inputStyle: CSSProperties = {
   colorScheme: 'dark',
 }
 
+const compactDirectoryControlStyle: CSSProperties = {
+  height: '42px',
+  borderRadius: '10px',
+  padding: '0 10px',
+  fontSize: '13px',
+}
+
 const directoryControlFocusStyle: CSSProperties = {
   borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
   outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
@@ -1732,16 +1798,6 @@ const surfaceCard: CSSProperties = {
   padding: '22px',
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
-
-const teamStartPanelStyle: CSSProperties = {
-  ...surfaceCard,
-  position: 'relative',
-  overflow: 'hidden',
-  padding: '24px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background:
-    'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,16,34,0.78) 42%, rgba(8,16,34,0.86))',
 }
 
 const teamStartGridStyle: CSSProperties = {
@@ -1808,6 +1864,27 @@ const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   marginTop: '18px',
   minWidth: 0,
 })
+
+const teamBoardLimitRowStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+}
+
+const teamBoardLimitTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
 
 const teamCard: CSSProperties = {
   height: '100%',
@@ -2004,6 +2081,38 @@ const metricsGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const teamCardTrustDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  marginTop: '12px',
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.46)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const teamCardTrustSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minHeight: 42,
+  padding: '0 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  flexWrap: 'wrap',
+  overflowWrap: 'anywhere',
+}
+
+const teamCardTrustBodyStyle: CSSProperties = {
+  padding: '0 10px 10px',
+  minWidth: 0,
+}
+
 const metricCard: CSSProperties = {
   borderRadius: '16px',
   border: '1px solid rgba(116,190,255,0.13)',
@@ -2032,9 +2141,9 @@ const metricLabel: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

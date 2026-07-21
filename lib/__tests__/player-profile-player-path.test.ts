@@ -17,7 +17,7 @@ describe('player profile player path', () => {
     expect(source).toContain('playerPathIdentitySignals')
     expect(source).toContain('Player path')
     expect(source).toContain('Find the next useful move.')
-    expect(source).toContain('{PRODUCT_MOTTO}')
+    expect(source).not.toContain('PRODUCT_MOTTO')
     expect(source).toContain('Use this player ID to decide what to work on')
     expect(source).toContain('Player ID')
     expect(source).toContain('Level Up input')
@@ -75,5 +75,24 @@ describe('player profile player path', () => {
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
+  })
+
+  it('keeps profile explanations and empty panels out of the default path', () => {
+    expect(source).toContain('Show how this player page is checked')
+    expect(source).toContain('Show deeper player detail')
+    expect(source).toContain('const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0')
+    expect(source).toContain('const hasPlayerDetailPanels =')
+    expect(source).toContain('{ustaTeamMemberships.length > 0 ? (')
+    expect(source).toContain('{tiqParticipationCount > 0 || tiqParticipationWarning ? (')
+    expect(source).toContain('{hasPlayerHistoryData ? (')
+    expect(source).toContain('{chartPoints.length > 0 ? (')
+    expect(source).toContain('{filteredMatches.length > 0 ? (')
+    expect(source).toContain("display: isMobile ? 'none' : 'grid'")
+    expect(source).toContain("display: isMobile ? 'none' : 'flex'")
+    expect(source).toContain('{!isMobile ? (')
+    expect(styleBlock('detailDrawerStyle')).toContain('minWidth: 0')
+    expect(styleBlock('detailDrawerSummaryStyle')).toContain('flexWrap')
+    expect(styleBlock('detailDrawerTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('detailDrawerStackStyle')).toContain("display: 'grid'")
   })
 })

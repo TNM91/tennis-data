@@ -31,8 +31,10 @@ import {
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
+const LEAGUE_SECTION_DEFAULT_LIMIT = 1
 
 type LayerFilter = 'all' | CompetitionLayer
 
@@ -53,6 +55,7 @@ export default function ExploreLeaguesPage() {
 }
 
 function ExploreLeaguesContent() {
+  const { isMobile } = useViewportBreakpoints()
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -191,6 +194,25 @@ function ExploreLeaguesContent() {
   const seasons = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.season)), [decoratedLeagues])
   const genders = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.gender)), [decoratedLeagues])
   const ratings = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.rating)), [decoratedLeagues])
+  const activeSecondaryFilterCount = [yearFilter, seasonFilter, genderFilter, ratingFilter].filter((value) => value !== 'all').length
+  const dynamicHeroStyle = isMobile ? compactHeroStyle : heroStyle
+  const dynamicPanelHeaderStyle = isMobile ? compactPanelHeaderStyle : panelHeaderStyle
+  const dynamicHeroPillRowStyle = isMobile ? compactHeroPillRowStyle : heroPillRowStyle
+  const dynamicHeroPillBlueStyle = isMobile ? compactHeroPillBlueStyle : heroPillBlueStyle
+  const dynamicHeroPillGreenStyle = isMobile ? compactHeroPillGreenStyle : heroPillGreenStyle
+  const dynamicFilterBarStyle = isMobile ? compactFilterBarStyle : filterBarStyle
+  const dynamicMoreFiltersDetailsStyle = isMobile
+    ? compactMoreFiltersDetailsStyle
+    : moreFiltersDetailsStyle
+  const dynamicInputStyle = isMobile
+    ? { ...inputStyle, minHeight: '40px', padding: '0 12px', borderRadius: '12px' }
+    : inputStyle
+  const dynamicToggleStyle = isMobile
+    ? { ...toggleStyle, minHeight: '38px', padding: '0 12px', borderRadius: '12px', fontSize: '12px' }
+    : toggleStyle
+  const dynamicToggleActiveStyle = isMobile
+    ? { ...toggleActiveStyle, minHeight: '38px', padding: '0 12px', borderRadius: '12px', fontSize: '12px' }
+    : toggleActiveStyle
 
   const ustaLeagues = useMemo(
     () => filteredLeagues.filter((league) => league.competitionLayer === 'usta'),
@@ -228,26 +250,28 @@ function ExploreLeaguesContent() {
 
   return (
     <section style={wrapStyle}>
-        <div style={heroStyle} aria-label="League discovery controls">
+        <div style={dynamicHeroStyle} aria-label="League discovery controls">
           <div aria-hidden="true" style={watermarkStyle} />
-          <div style={panelHeaderStyle}>
+          <div style={dynamicPanelHeaderStyle}>
             <div>
               <div style={eyebrowStyle}>League discovery</div>
               <h1 style={titleStyle}>Find a league.</h1>
-              <p style={descriptionStyle}>
-                Search by league, flight, section, or district, then open the season view.
-              </p>
+              {!isMobile ? (
+                <p style={descriptionStyle}>
+                  Search by league, flight, section, or district, then open the season view.
+                </p>
+              ) : null}
             </div>
 
-            <div style={heroPillRowStyle}>
-              <span style={heroPillBlueStyle}>{loading ? 'USTA refreshing' : `${layerCounts.usta} USTA`}</span>
-              <span style={heroPillGreenStyle}>{loading ? 'TIQ refreshing' : `${layerCounts.tiq} TIQ`}</span>
-              <span style={heroPillBlueStyle}>{loading ? 'Flights pending' : `${summary.totalFlights} flights`}</span>
-              <span style={heroPillBlueStyle}>Latest: {loading ? 'Refreshing' : formatDate(summary.latestMatch)}</span>
+            <div style={dynamicHeroPillRowStyle}>
+              <span style={dynamicHeroPillBlueStyle}>{loading ? 'USTA refreshing' : `${layerCounts.usta} USTA`}</span>
+              <span style={dynamicHeroPillGreenStyle}>{loading ? 'TIQ refreshing' : `${layerCounts.tiq} TIQ`}</span>
+              {!isMobile ? <span style={dynamicHeroPillBlueStyle}>{loading ? 'Flights pending' : `${summary.totalFlights} flights`}</span> : null}
+              {!isMobile ? <span style={dynamicHeroPillBlueStyle}>Latest: {loading ? 'Refreshing' : formatDate(summary.latestMatch)}</span> : null}
             </div>
           </div>
 
-          <div style={filterBarStyle}>
+          <div style={dynamicFilterBarStyle}>
             <div style={searchGroupStyle}>
               <label htmlFor="explore-league-search" style={labelStyle}>
                 Search leagues
@@ -257,55 +281,65 @@ function ExploreLeaguesContent() {
                 id="explore-league-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by league, flight, section, or district"
-                style={inputStyle}
+                placeholder="League, flight, section, or district"
+                style={dynamicInputStyle}
               />
             </div>
-
-            <FilterSelect id="explore-league-year" label="Year" value={yearFilter} onChange={setYearFilter} options={years} />
-            <FilterSelect id="explore-league-season" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} />
-            <FilterSelect id="explore-league-gender" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} />
-            <FilterSelect id="explore-league-rating" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} />
 
             <div style={layerToggleGroupStyle}>
               <button
                 type="button"
                 onClick={() => setLayerFilter('all')}
-                style={layerFilter === 'all' ? toggleActiveStyle : toggleStyle}
+                style={layerFilter === 'all' ? dynamicToggleActiveStyle : dynamicToggleStyle}
               >
                 All Layers
               </button>
               <button
                 type="button"
                 onClick={() => setLayerFilter('usta')}
-                style={layerFilter === 'usta' ? toggleActiveStyle : toggleStyle}
+                style={layerFilter === 'usta' ? dynamicToggleActiveStyle : dynamicToggleStyle}
               >
                 USTA
               </button>
               <button
                 type="button"
                 onClick={() => setLayerFilter('tiq')}
-                style={layerFilter === 'tiq' ? toggleActiveStyle : toggleStyle}
+                style={layerFilter === 'tiq' ? dynamicToggleActiveStyle : dynamicToggleStyle}
               >
                 TIQ
               </button>
             </div>
           </div>
 
+          <details style={dynamicMoreFiltersDetailsStyle} open={!isMobile}>
+            <summary style={moreFiltersSummaryStyle}>
+              <span>More filters</span>
+              <span style={moreFiltersSummaryMetaStyle}>
+                {activeSecondaryFilterCount ? `${activeSecondaryFilterCount} active` : 'Year, season, rating'}
+              </span>
+            </summary>
+            <div style={moreFiltersGridStyle}>
+              <FilterSelect id="explore-league-year" label="Year" value={yearFilter} onChange={setYearFilter} options={years} />
+              <FilterSelect id="explore-league-season" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} />
+              <FilterSelect id="explore-league-gender" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} />
+              <FilterSelect id="explore-league-rating" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} />
+            </div>
+          </details>
+
           {notice ? <div style={noticeStyle}>{notice}</div> : null}
           {registryWarning ? <div style={noticeStyle}>{registryWarning}</div> : null}
         </div>
 
         {loading ? (
-          <div style={stateStyle}>
+          <div style={isMobile ? compactStateStyle : stateStyle}>
             <strong>Choose a league path.</strong>
             <div style={{ marginTop: 8, color: 'var(--shell-copy-muted)', lineHeight: 1.6 }}>
-              Find existing league context or create a TIQ League Office tool. The live league layer is refreshing behind this starter view.
+              Find existing league context or start a TIQ League Office season. The live league layer is refreshing behind this starter view.
             </div>
             <TiqDirectoryFallbackCard
               eyebrow="Featured league path"
               title="Search a flight, section, or district."
-              body="League cards become public after reviewed schedules, scorecards, or standings include enough season context to trust the view."
+              body={isMobile ? 'League cards appear after reviewed schedules, scorecards, or standings create enough season context.' : 'League cards become public after reviewed schedules, scorecards, or standings include enough season context to trust the view.'}
               chips={['USTA layer', 'TIQ layer', 'Data Assist']}
               actions={[
                 { href: '/leagues', label: 'Find Leagues' },
@@ -318,38 +352,47 @@ function ExploreLeaguesContent() {
 
         {!loading && !error ? (
           <>
-            <LeagueSection
-              title="USTA Leagues"
-              eyebrow={getCompetitionLayerLabel('usta')}
-              description={getCompetitionLayerDescription('usta')}
-              leagues={ustaLeagues}
-              emptyKind="usta"
-              emptyTitle="No imported TennisLink leagues matched this view."
-              emptyBody={`USTA league lanes come from reviewed TennisLink exports. Try widening the search, switch back to all layers, or upload through Data Assist if this season should already be visible. ${DATA_ASSIST_STORY.shortCue}`}
-            />
+            {layerFilter !== 'tiq' ? (
+              <LeagueSection
+                title="USTA Leagues"
+                eyebrow={getCompetitionLayerLabel('usta')}
+                description={getCompetitionLayerDescription('usta')}
+                leagues={ustaLeagues}
+                defaultOpen
+                emptyKind="usta"
+                emptyTitle="No imported TennisLink leagues matched this view."
+                emptyBody={`USTA league views come from reviewed TennisLink exports. Try widening the search, switch back to all layers, or upload through Data Assist if this season should already be visible. ${DATA_ASSIST_STORY.shortCue}`}
+              />
+            ) : null}
 
-            <LeagueSection
-              title="TIQ Team Leagues"
-              eyebrow="TIQ Team Competition"
-              description="Internal team-based leagues for captains, availability, lineups, doubles strategy, and seasonal team operations."
-              leagues={tiqTeamLeagues}
-              awardsByLeagueId={awardsByLeagueId}
-              emptyKind="tiq-team"
-              emptyTitle="Create the first team league."
-              emptyBody="Team seasons become schedule, standings, result book, and Captain handoff spaces once a coordinator creates the league."
-            />
+            {layerFilter !== 'usta' ? (
+              <>
+                <LeagueSection
+                  title="TIQ Team Leagues"
+                  eyebrow="TIQ Team Competition"
+                  description="Create and run team leagues with schedules, standings, results, lineups, and captain handoffs."
+                  leagues={tiqTeamLeagues}
+                  awardsByLeagueId={awardsByLeagueId}
+                  defaultOpen={layerFilter === 'tiq'}
+                  emptyKind="tiq-team"
+                  emptyTitle="Create the first team league."
+                  emptyBody="Team seasons become schedule, standings, result book, and Captain handoff spaces once a coordinator creates the league."
+                />
 
-            <LeagueSection
-              title="TIQ Individual Leagues"
-              eyebrow="TIQ Individual Competition"
-              description="Internal player-vs-player leagues for ladders, round robins, challenge formats, and standings without team or captain requirements."
-              leagues={tiqIndividualLeagues}
-              individualSummaries={individualLeagueSummaries}
-              awardsByLeagueId={awardsByLeagueId}
-              emptyKind="tiq-individual"
-              emptyTitle="Start a player-vs-player season."
-              emptyBody="Individual leagues power ladders, round robins, challenge formats, standings, result books, and award paths."
-            />
+                <LeagueSection
+                  title="TIQ Individual Leagues"
+                  eyebrow="TIQ Individual Competition"
+                  description="Run ladders, round robins, challenge formats, standings, results, and awards for individual players."
+                  leagues={tiqIndividualLeagues}
+                  individualSummaries={individualLeagueSummaries}
+                  awardsByLeagueId={awardsByLeagueId}
+                  defaultOpen={layerFilter === 'tiq'}
+                  emptyKind="tiq-individual"
+                  emptyTitle="Start a player-vs-player season."
+                  emptyBody="Individual leagues power ladders, round robins, challenge formats, standings, result books, and award paths."
+                />
+              </>
+            ) : null}
           </>
         ) : null}
     </section>
@@ -397,6 +440,7 @@ function LeagueSection({
   leagues,
   individualSummaries,
   awardsByLeagueId,
+  defaultOpen,
   emptyKind,
   emptyTitle,
   emptyBody,
@@ -413,19 +457,37 @@ function LeagueSection({
   >
   individualSummaries?: Map<string, TiqIndividualLeagueSummary>
   awardsByLeagueId?: Record<string, TiqAwardRecord[]>
+  defaultOpen?: boolean
   emptyKind: 'usta' | 'tiq-team' | 'tiq-individual'
   emptyTitle: string
   emptyBody: string
 }) {
+  const { isMobile } = useViewportBreakpoints()
+  const [showAllLeagues, setShowAllLeagues] = useState(false)
+  const visibleLeagues = showAllLeagues ? leagues : leagues.slice(0, LEAGUE_SECTION_DEFAULT_LIMIT)
+  const hasMoreLeagues = leagues.length > visibleLeagues.length
+  const dynamicSectionStyle = isMobile
+    ? { ...sectionStyle, margin: '8px auto 0', padding: '10px', borderRadius: '16px' }
+    : sectionStyle
+  const dynamicSectionSummaryStyle = isMobile
+    ? { ...sectionSummaryStyle, gap: '8px' }
+    : sectionSummaryStyle
+  const dynamicSectionTitleStyle = isMobile
+    ? { ...sectionTitleStyle, margin: '3px 0 0', fontSize: '1.05rem' }
+    : sectionTitleStyle
+
   return (
-    <section style={sectionStyle}>
-      <div style={sectionHeaderStyle}>
+    <details style={dynamicSectionStyle} open={defaultOpen && !isMobile}>
+      <summary style={dynamicSectionSummaryStyle}>
         <div>
           <div style={sectionEyebrowStyle}>{eyebrow}</div>
-          <h2 style={sectionTitleStyle}>{title}</h2>
+          <h2 style={dynamicSectionTitleStyle}>{title}</h2>
         </div>
-        <p style={sectionDescriptionStyle}>{description}</p>
-      </div>
+        <span style={sectionSummaryMetaStyle}>
+          {leagues.length ? `${leagues.length} leagues` : 'No matches'}
+        </span>
+      </summary>
+      {!isMobile ? <p style={sectionDescriptionStyle}>{description}</p> : null}
 
       {leagues.length === 0 ? (
         <div style={emptyCardStyle}>
@@ -451,8 +513,9 @@ function LeagueSection({
           </div>
         </div>
       ) : (
-        <div style={gridStyle}>
-          {leagues.map((league) => {
+        <>
+          <div style={gridStyle}>
+            {visibleLeagues.map((league) => {
             const leagueHref = buildExploreLeagueHref(league)
             const leagueAwards = awardsByLeagueId?.[league.leagueId || ''] || []
 
@@ -477,16 +540,22 @@ function LeagueSection({
                   <span>{league.teamCount} teams</span>
                   <span>{formatDate(league.latestMatchDate)}</span>
                 </div>
-                <TiqTrustStrip
-                  label={`${league.leagueName} data trust signals`}
-                  signals={[
-                    { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
-                    { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
-                    { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
-                    { label: 'Status', value: 'Reviewable', tone: 'good' },
-                  ]}
-                  reviewContext={`League ${league.leagueName}`}
-                />
+                <LeagueCardDetails
+                  eyebrow="Data check"
+                  title={`${league.matchCount} matches - ${league.latestMatchDate ? formatDate(league.latestMatchDate) : 'review pending'}`}
+                  cue="Show checks"
+                >
+                  <TiqTrustStrip
+                    label={`${league.leagueName} data trust signals`}
+                    signals={[
+                      { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
+                      { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
+                      { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
+                      { label: 'Status', value: 'Reviewable', tone: 'good' },
+                    ]}
+                    reviewContext={`League ${league.leagueName}`}
+                  />
+                </LeagueCardDetails>
                 {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
                   <div style={formatPreviewStyle}>
                     {getTiqIndividualCompetitionFormatPreview(
@@ -508,9 +577,51 @@ function LeagueSection({
               </article>
             )
           })}
-        </div>
+          </div>
+          {hasMoreLeagues || showAllLeagues ? (
+            <div style={leagueLaneLimitStyle}>
+              <span style={leagueLaneLimitTextStyle}>
+                {showAllLeagues
+                  ? `Showing all ${leagues.length} leagues.`
+                  : 'Showing the first league. Search, filter, or show more when you need another league.'}
+              </span>
+              <button
+                type="button"
+                style={leagueLaneLimitButtonStyle}
+                onClick={() => setShowAllLeagues((current) => !current)}
+              >
+                {showAllLeagues ? 'Show fewer leagues' : 'Show more leagues'}
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
-    </section>
+    </details>
+  )
+}
+
+function LeagueCardDetails({
+  eyebrow,
+  title,
+  cue,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  return (
+    <details style={leagueCardDetailsStyle}>
+      <summary style={leagueCardSummaryStyle}>
+        <span style={leagueCardSummaryCopyStyle}>
+          <span style={leagueCardSummaryEyebrowStyle}>{eyebrow}</span>
+          <strong style={leagueCardSummaryTitleStyle}>{title}</strong>
+        </span>
+        <span style={leagueCardSummaryCueStyle}>{cue}</span>
+      </summary>
+      <div style={leagueCardDetailsBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -554,6 +665,12 @@ const heroStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactHeroStyle: CSSProperties = {
+  ...heroStyle,
+  padding: '9px',
+  borderRadius: '16px',
+}
+
 const eyebrowStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
@@ -591,12 +708,24 @@ const panelHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactPanelHeaderStyle: CSSProperties = {
+  ...panelHeaderStyle,
+  display: 'grid',
+  gap: '7px',
+}
+
 const heroPillRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '6px',
   minWidth: 0,
+}
+
+const compactHeroPillRowStyle: CSSProperties = {
+  ...heroPillRowStyle,
+  gap: '6px',
+  marginTop: '4px',
 }
 
 const heroPillBlueStyle: CSSProperties = {
@@ -616,8 +745,21 @@ const heroPillBlueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactHeroPillBlueStyle: CSSProperties = {
+  ...heroPillBlueStyle,
+  minHeight: '26px',
+  padding: '0 9px',
+  fontSize: '11px',
+}
+
 const heroPillGreenStyle: CSSProperties = {
   ...heroPillBlueStyle,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.10)',
+}
+
+const compactHeroPillGreenStyle: CSSProperties = {
+  ...compactHeroPillBlueStyle,
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(155,225,29,0.10)',
 }
@@ -630,6 +772,70 @@ const filterBarStyle: CSSProperties = {
   gap: '12px',
   marginTop: '18px',
   minWidth: 0,
+}
+
+const compactFilterBarStyle: CSSProperties = {
+  ...filterBarStyle,
+  gap: '7px',
+  marginTop: '9px',
+}
+
+const moreFiltersDetailsStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  marginTop: '12px',
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.42)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const compactMoreFiltersDetailsStyle: CSSProperties = {
+  ...moreFiltersDetailsStyle,
+  marginTop: '7px',
+  borderRadius: '12px',
+}
+
+const moreFiltersSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+  padding: '12px 14px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const moreFiltersSummaryMetaStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  maxWidth: '100%',
+  minHeight: '28px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const moreFiltersGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '12px',
+  minWidth: 0,
+  padding: '0 14px 14px',
 }
 
 const searchGroupStyle: CSSProperties = {
@@ -706,21 +912,24 @@ const noticeStyle: CSSProperties = {
 
 const sectionStyle: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
-  margin: '18px auto 0',
-  padding: '22px',
-  borderRadius: '28px',
+  margin: '12px auto 0',
+  padding: '16px',
+  borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.74)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 
-const sectionHeaderStyle: CSSProperties = {
+const sectionSummaryStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-  gap: '22px',
-  alignItems: 'end',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: '12px',
+  alignItems: 'center',
   minWidth: 0,
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const sectionEyebrowStyle: CSSProperties = {
@@ -733,8 +942,8 @@ const sectionEyebrowStyle: CSSProperties = {
 }
 
 const sectionTitleStyle: CSSProperties = {
-  margin: '8px 0 0',
-  fontSize: '34px',
+  margin: '6px 0 0',
+  fontSize: 'clamp(1.45rem, 3vw, 1.9rem)',
   lineHeight: 1.05,
   letterSpacing: 0,
   color: '#f4f9ff',
@@ -742,27 +951,44 @@ const sectionTitleStyle: CSSProperties = {
 }
 
 const sectionDescriptionStyle: CSSProperties = {
-  margin: 0,
+  margin: '10px 0 0',
   color: 'rgba(214,228,246,0.72)',
-  fontSize: '15px',
-  lineHeight: 1.8,
+  fontSize: '14px',
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const sectionSummaryMetaStyle: CSSProperties = {
+  justifySelf: 'end',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-  gap: '16px',
-  marginTop: '20px',
+  gap: '12px',
+  marginTop: '14px',
   minWidth: 0,
 }
 
 const cardStyle: CSSProperties = {
   display: 'grid',
-  gap: '12px',
-  minHeight: '228px',
-  padding: '20px',
-  borderRadius: '24px',
+  gap: '10px',
+  minHeight: 0,
+  padding: '14px',
+  borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.66)',
   textDecoration: 'none',
@@ -890,6 +1116,100 @@ const individualSummaryStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const leagueCardDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(7,17,33,0.56)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const leagueCardSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minWidth: 0,
+  padding: '10px 12px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  color: 'var(--foreground-strong)',
+}
+
+const leagueCardSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+}
+
+const leagueCardSummaryEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '10px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leagueCardSummaryTitleStyle: CSSProperties = {
+  color: 'rgba(228,238,252,0.84)',
+  fontSize: '12px',
+  lineHeight: 1.25,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCardSummaryCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-lime)',
+  fontSize: '11px',
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const leagueCardDetailsBodyStyle: CSSProperties = {
+  padding: '0 12px 12px',
+  minWidth: 0,
+}
+
+const leagueLaneLimitStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '16px',
+  padding: '12px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+  minWidth: 0,
+}
+
+const leagueLaneLimitTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const leagueLaneLimitButtonStyle: CSSProperties = {
+  minHeight: '38px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const emptyCardStyle: CSSProperties = {
   marginTop: '20px',
   padding: '22px',
@@ -954,6 +1274,13 @@ const stateStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactStateStyle: CSSProperties = {
+  ...stateStyle,
+  margin: '10px auto 0',
+  padding: '10px',
+  borderRadius: '16px',
+}
+
 const errorStyle: CSSProperties = {
   ...stateStyle,
   color: '#ffd8d8',
@@ -976,9 +1303,9 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

@@ -343,18 +343,6 @@ function canUseBrowserStorage() {
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
             {selectedIntent.title}
           </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            {selectedIntent.body}
-          </p>
-
-          <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
-          {nextIntent ? (
-            <div aria-label="Login next action" style={nextIntentStyle}>
-              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
-              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
-              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
-            </div>
-          ) : null}
         </div>
 
         <div style={loginPanelResponsive}>
@@ -460,6 +448,25 @@ function canUseBrowserStorage() {
             </div>
           </div>
         </div>
+
+        <details className="authReturnDetailsSection" style={loginContextStyle}>
+          <summary style={loginContextSummaryStyle}>
+            <span>Show return path</span>
+          </summary>
+          <div className="authReturnDetailsBody" style={loginContextBodyStyle}>
+            <p style={{ ...loginContextTextStyle, fontSize: isSmallMobile ? '15px' : '16px' }}>
+              {selectedIntent.body}
+            </p>
+            <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
+            {nextIntent ? (
+              <div aria-label="Login next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+              </div>
+            ) : null}
+          </div>
+        </details>
     </section>
   )
 }
@@ -489,12 +496,12 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-42px, -4vw, -18px)',
-  bottom: 'clamp(-76px, -6vw, -30px)',
-  width: 'clamp(260px, 36vw, 500px)',
+  right: 0,
+  bottom: '-12px',
+  width: 'min(380px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.22,
+  opacity: 0.14,
   pointerEvents: 'none',
 }
 
@@ -544,6 +551,42 @@ const loginCopyRailStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
+}
+
+const loginContextStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(15,23,42,0.48)',
+  boxSizing: 'border-box',
+}
+
+const loginContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  maxWidth: '100%',
+  padding: '0 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const loginContextBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const loginContextTextStyle: CSSProperties = {
+  ...heroText,
+  margin: 0,
 }
 
 const destinationPillStyle: CSSProperties = {

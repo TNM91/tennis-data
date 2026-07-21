@@ -90,7 +90,14 @@ export default function TiqTacticalStudioGate() {
         </div>
       </section>
 
-      <section className={styles.tacticsPlayerIdTrail} aria-label={getGateStarterPathLabel(gateSource)}>
+      <details className={styles.tacticsPlayerIdTrail} aria-label={getGateStarterPathLabel(gateSource)}>
+        <summary className={styles.tacticsPlayerIdSummary}>
+          <span>
+            <span className={styles.tacticsPlayerIdEyebrow}>{getGateTrailEyebrow(gateSource)}</span>
+            <strong>{getGateTrailHeadline(gateSource)}</strong>
+          </span>
+          <small>Show path</small>
+        </summary>
         <div className={styles.tacticsPlayerIdHeader}>
           <div>
             <div className={styles.tacticsPlayerIdEyebrow}>{getGateTrailEyebrow(gateSource)}</div>
@@ -113,7 +120,7 @@ export default function TiqTacticalStudioGate() {
             </Link>
           ))}
         </div>
-      </section>
+      </details>
 
       <UpgradePrompt
         planId={gatePlanId}
@@ -124,6 +131,8 @@ export default function TiqTacticalStudioGate() {
         ctaHref={getPlanUnlockHref(gatePlanId, tacticsGateHref)}
         secondaryHref={getPlanUnlockHref('full_court', tacticsGateHref)}
         secondaryLabel="Unlock Full-Court"
+        compact
+        summaryOnly
         unlockSteps={tacticsUnlockSteps}
       />
     </div>

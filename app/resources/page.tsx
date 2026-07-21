@@ -155,84 +155,13 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
         <CommandHero
           eyebrow="Resources"
           title="The tennis resource hub for less chaos."
-          body="Find drills, skills, strategy, match prep, captain tools, coach tools, league and tournament tools, and player development modules in one approachable place."
+          body="Open the help you need now. Drills, match prep, captain tools, coach tools, organizer tools, and data fixes stay close."
           primary={{ href: '/player-development', label: 'Level Up My Game' }}
           secondary={{ href: '/matchup', label: 'Prep a Matchup' }}
+          searchCompact
+          showSearchResults={false}
+          showBoard={false}
         />
-        <section style={needPathStyle} aria-labelledby="resource-need-title">
-          <div style={needPathHeaderStyle}>
-            <p style={needPathEyebrowStyle}>I need to...</p>
-            <h2 id="resource-need-title" style={needPathTitleStyle}>
-              Get to the right tennis help fast.
-            </h2>
-            <p style={needPathTextStyle}>
-              Pick the tennis need you came with. TenAceIQ turns it into a practical resource path instead of another search spiral.
-            </p>
-          </div>
-          <div style={needPathGridStyle}>
-            {resourceNeedPaths.map((path) => (
-              <TrackedProductLink
-                key={path.job}
-                href={path.href}
-                style={needPathCardStyle}
-                ariaLabel={`${path.question}: ${path.cta}`}
-                event={path.event}
-              >
-                <span style={needPathQuestionStyle}>{path.question}</span>
-                <span style={needPathCtaStyle}>{path.cta}</span>
-              </TrackedProductLink>
-            ))}
-          </div>
-        </section>
-        <section style={resourcePlayerIdStarterStyle} aria-label="Resources Player ID starter path">
-          <div style={resourcePlayerIdHeaderStyle}>
-            <p style={resourcePlayerIdEyebrowStyle}>Player ID starter path</p>
-            <h2 style={resourcePlayerIdTitleStyle}>Start with one tennis identity, then choose the resource.</h2>
-            <p style={resourcePlayerIdTextStyle}>
-              {RESOURCE_PLAYER_IDENTITY_READ.levelUpNudge}
-            </p>
-          </div>
-          <div style={resourcePlayerIdReadGridStyle} aria-label="Resources Player ID starter read">
-            {resourcePlayerIdStarterRead.map((item) => (
-              <article key={item.label} style={resourcePlayerIdReadCardStyle}>
-                <span style={resourcePlayerIdLabelStyle}>{item.label}</span>
-                <strong style={resourcePlayerIdValueStyle}>{item.value}</strong>
-              </article>
-            ))}
-          </div>
-          <div style={resourcePlayerIdActionRowStyle}>
-            <TrackedProductLink
-              href={RESOURCE_LEVEL_UP_HREF}
-              style={resourcePlayerIdActionStyle}
-              event={{
-                eventName: 'search_result_clicked',
-                surface: 'public_site',
-                metadata: {
-                  location: 'resources_player_id_starter',
-                  job: 'start_level_up',
-                  identity: RESOURCE_PLAYER_IDENTITY.slug,
-                },
-              }}
-            >
-              Start Level Up
-            </TrackedProductLink>
-            <TrackedProductLink
-              href={RESOURCE_PLAYER_DEVELOPMENT_HREF}
-              style={resourcePlayerIdActionStyle}
-              event={{
-                eventName: 'search_result_clicked',
-                surface: 'public_site',
-                metadata: {
-                  location: 'resources_player_id_starter',
-                  job: 'read_player_id',
-                  identity: RESOURCE_PLAYER_IDENTITY.slug,
-                },
-              }}
-            >
-              Read Player ID
-            </TrackedProductLink>
-          </div>
-        </section>
         {resourceQuery ? (
           <section style={queryPanelStyle} aria-label="Resource search context">
             <div>
@@ -240,8 +169,8 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
               <h2 style={queryTitleStyle}>Showing useful paths for &quot;{resourceQuery}&quot;.</h2>
               <p style={queryTextStyle}>
                 {resourceMatches.length
-                  ? 'The most relevant resource paths are shown first, with the full hub still available below.'
-                  : 'No exact resource path matched that phrase yet, so the full hub is ready below.'}
+                  ? 'Open the matching resource now. The full hub stays available below when you want more choices.'
+                  : 'No exact resource path matched that phrase yet. Pick the closest tennis need below.'}
               </p>
             </div>
             {resourceMatches.length ? (
@@ -262,80 +191,183 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
             ) : null}
           </section>
         ) : null}
-        <section style={quickStartSectionStyle} aria-labelledby="resource-quick-start-title">
-          <SectionHeader
-            eyebrow="Quick starts"
-            title="Start with the tennis need, then open the right path."
-            body="These routes cover the most common reasons someone lands here: improving, preparing, captaining, coaching, organizing, or fixing the context that powers TenAceIQ."
-            titleId="resource-quick-start-title"
-          />
-          <div style={quickStartGridStyle}>
-            {resourceQuickStarts.map((quickStart) => (
-              <TiqActionCard
-                key={quickStart.title}
-                eyebrow={quickStart.eyebrow}
-                title={quickStart.title}
-                body={quickStart.body}
-                metrics={[...quickStart.metrics]}
-                href={quickStart.href}
-                cta={quickStart.cta}
-                event={quickStart.event}
-                trust={[...quickStart.trust]}
-              />
+        <section className="resourceNeedPath" style={needPathStyle} aria-labelledby="resource-need-title">
+          <div className="resourceNeedPathHeader" style={needPathHeaderStyle}>
+            <p style={needPathEyebrowStyle}>I need to...</p>
+          <h2 id="resource-need-title" style={needPathTitleStyle}>
+              Get to the right tennis help fast.
+            </h2>
+            <p className="resourceNeedPathText" style={needPathTextStyle}>
+              Pick the tennis need. Open the next tool.
+            </p>
+          </div>
+          <div className="resourceNeedPathGrid" style={needPathGridStyle}>
+            {resourceNeedPaths.map((path) => (
+              <TrackedProductLink
+                key={path.job}
+                href={path.href}
+                className="resourceNeedPathCard"
+                style={needPathCardStyle}
+                ariaLabel={`${path.question}: ${path.cta}`}
+                event={path.event}
+              >
+                <span className="resourceNeedPathQuestion" style={needPathQuestionStyle}>{path.question}</span>
+                <span className="resourceNeedPathCta" style={needPathCtaStyle}>{path.cta}</span>
+              </TrackedProductLink>
             ))}
           </div>
         </section>
-        <section style={{ display: 'grid', gap: 14 }}>
-          <SectionHeader
-            eyebrow="Resource Hub"
-            title="Drills, skills, strategy, tools, and development paths."
-            body="TenAceIQ should feel like a resource hub people can come back to when they need one clear next tennis move."
-          />
-          <div style={resourceGridStyle}>
-            {visibleGroups.map((group) => (
-              <div key={group.id} id={group.id}>
-                <TiqResourceCard
-                  eyebrow="Resource path"
-                  title={group.title}
-                  body={group.body}
-                  metrics={[
-                    { label: 'Actions', value: String(group.items.length) },
-                    { label: 'Path', value: group.title },
-                  ]}
-                >
-                  <div style={resourceListStyle}>
-                    {group.items.map((item) => (
-                      <TrackedProductLink
-                        key={item}
-                        href={resourceHref(item)}
-                        style={resourceLinkStyle}
-                        event={resourceClickEvent(item, group.title)}
-                      >
-                        {item}
-                      </TrackedProductLink>
-                    ))}
-                  </div>
-                </TiqResourceCard>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section style={{ display: 'grid', gap: 10 }}>
-          <SectionHeader
-            eyebrow="Fix Data / Data Assist"
-            title="The resource hub also explains what to trust."
-            body="Every tennis read should make source, freshness, confidence, and review status visible enough that players and organizers know what to do next."
-          />
-          <TrustStrip
-            context="Resources trust strip"
-            signals={[
-              { label: 'Source', value: 'USTA / TIQ / user upload', tone: 'info' },
-              { label: 'Freshness', value: 'Last refreshed shown', tone: 'info' },
-              { label: 'Confidence', value: 'High / medium / limited', tone: 'warn' },
-              { label: 'Status', value: 'Verified or needs review', tone: 'good' },
-            ]}
-          />
-        </section>
+        <details
+          className="publicInfoDetailsSection"
+          style={resourcePlayerIdDisclosureStyle}
+          aria-label="Resources Player ID starter path"
+        >
+          <summary className="resourceDetailsSummary" style={detailsSummaryStyle}>
+            <span className="resourceDetailsSummaryTitle" style={detailsSummaryTitleStyle}>Want a training path from your Player ID?</span>
+            <span style={detailsSummaryCueStyle}>Show Player ID path</span>
+          </summary>
+          <section style={resourcePlayerIdStarterStyle}>
+            <div style={resourcePlayerIdHeaderStyle}>
+              <p style={resourcePlayerIdEyebrowStyle}>Player ID starter path</p>
+              <h2 style={resourcePlayerIdTitleStyle}>Start with one tennis identity, then choose the resource.</h2>
+              <p style={resourcePlayerIdTextStyle}>
+                {RESOURCE_PLAYER_IDENTITY_READ.levelUpNudge}
+              </p>
+            </div>
+            <div style={resourcePlayerIdReadGridStyle} aria-label="Resources Player ID starter read">
+              {resourcePlayerIdStarterRead.map((item) => (
+                <article key={item.label} style={resourcePlayerIdReadCardStyle}>
+                  <span style={resourcePlayerIdLabelStyle}>{item.label}</span>
+                  <strong style={resourcePlayerIdValueStyle}>{item.value}</strong>
+                </article>
+              ))}
+            </div>
+            <div style={resourcePlayerIdActionRowStyle}>
+              <TrackedProductLink
+                href={RESOURCE_LEVEL_UP_HREF}
+                style={resourcePlayerIdActionStyle}
+                event={{
+                  eventName: 'search_result_clicked',
+                  surface: 'public_site',
+                  metadata: {
+                    location: 'resources_player_id_starter',
+                    job: 'start_level_up',
+                    identity: RESOURCE_PLAYER_IDENTITY.slug,
+                  },
+                }}
+              >
+                Start Level Up
+              </TrackedProductLink>
+              <TrackedProductLink
+                href={RESOURCE_PLAYER_DEVELOPMENT_HREF}
+                style={resourcePlayerIdActionStyle}
+                event={{
+                  eventName: 'search_result_clicked',
+                  surface: 'public_site',
+                  metadata: {
+                    location: 'resources_player_id_starter',
+                    job: 'read_player_id',
+                    identity: RESOURCE_PLAYER_IDENTITY.slug,
+                  },
+                }}
+              >
+                Read Player ID
+              </TrackedProductLink>
+            </div>
+          </section>
+        </details>
+        <details className="publicInfoDetailsSection" style={detailsSectionStyle}>
+          <summary className="resourceDetailsSummary" style={detailsSummaryStyle}>
+            <span className="resourceDetailsSummaryTitle" style={detailsSummaryTitleStyle}>More quick starts</span>
+            <span style={detailsSummaryCueStyle}>Show options</span>
+          </summary>
+          <section style={detailsContentStyle} aria-labelledby="resource-quick-start-title">
+            <SectionHeader
+              eyebrow="Quick starts"
+              title="Start with the tennis need, then open the right path."
+              body="Use these when you want a broader starting point."
+              titleId="resource-quick-start-title"
+            />
+            <div style={quickStartGridStyle}>
+              {resourceQuickStarts.map((quickStart) => (
+                <TiqActionCard
+                  key={quickStart.title}
+                  eyebrow={quickStart.eyebrow}
+                  title={quickStart.title}
+                  body={quickStart.body}
+                  metrics={[...quickStart.metrics]}
+                  href={quickStart.href}
+                  cta={quickStart.cta}
+                  event={quickStart.event}
+                  trust={[...quickStart.trust]}
+                />
+              ))}
+            </div>
+          </section>
+        </details>
+        <details className="publicInfoDetailsSection" style={detailsSectionStyle}>
+          <summary className="resourceDetailsSummary" style={detailsSummaryStyle}>
+            <span className="resourceDetailsSummaryTitle" style={detailsSummaryTitleStyle}>Browse all resource paths</span>
+            <span style={detailsSummaryCueStyle}>Show directory</span>
+          </summary>
+          <section style={detailsContentStyle}>
+            <SectionHeader
+              eyebrow="Resource Hub"
+              title="Drills, skills, strategy, tools, and development paths."
+              body="Come back when you need one clear next tennis move."
+            />
+            <div style={resourceGridStyle}>
+              {visibleGroups.map((group) => (
+                <div key={group.id} id={group.id}>
+                  <TiqResourceCard
+                    eyebrow="Resource path"
+                    title={group.title}
+                    body={group.body}
+                    metrics={[
+                      { label: 'Actions', value: String(group.items.length) },
+                      { label: 'Path', value: group.title },
+                    ]}
+                  >
+                    <div style={resourceListStyle}>
+                      {group.items.map((item) => (
+                        <TrackedProductLink
+                          key={item}
+                          href={resourceHref(item)}
+                          style={resourceLinkStyle}
+                          event={resourceClickEvent(item, group.title)}
+                        >
+                          {item}
+                        </TrackedProductLink>
+                      ))}
+                    </div>
+                  </TiqResourceCard>
+                </div>
+              ))}
+            </div>
+          </section>
+        </details>
+        <details className="publicInfoDetailsSection" style={detailsSectionStyle}>
+          <summary className="resourceDetailsSummary" style={detailsSummaryStyle}>
+            <span className="resourceDetailsSummaryTitle" style={detailsSummaryTitleStyle}>Check source and review status</span>
+            <span style={detailsSummaryCueStyle}>Show trust details</span>
+          </summary>
+          <section style={detailsContentStyle}>
+            <SectionHeader
+              eyebrow="Fix Data / Data Assist"
+              title="Know what to trust before you act."
+              body="Source, freshness, confidence, and review status help players and organizers decide what to do next."
+            />
+            <TrustStrip
+              context="Resources trust strip"
+              signals={[
+                { label: 'Source', value: 'USTA / TIQ / user upload', tone: 'info' },
+                { label: 'Freshness', value: 'Last refreshed shown', tone: 'info' },
+                { label: 'Confidence', value: 'High / medium / limited', tone: 'warn' },
+                { label: 'Status', value: 'Verified or needs review', tone: 'good' },
+              ]}
+            />
+          </section>
+        </details>
       </main>
     </PublicPageShell>
   )
@@ -511,8 +543,8 @@ const resourceQuickStarts = [
 const resourceNeedPaths = [
   {
     question: 'Work on my game',
-    cta: 'Open drills, skills, and development',
-    href: '/resources#player-development-modules',
+    cta: 'Open drills and skills',
+    href: '/player-development',
     job: 'improve_player_game',
     event: {
       eventName: 'search_result_clicked',
@@ -525,8 +557,8 @@ const resourceNeedPaths = [
   },
   {
     question: 'Prepare for a match',
-    cta: 'Open matchup and strategy help',
-    href: '/resources#match-prep',
+    cta: 'Open matchup prep',
+    href: '/matchup',
     job: 'prepare_match',
     event: {
       eventName: 'matchup_started',
@@ -539,8 +571,8 @@ const resourceNeedPaths = [
   },
   {
     question: 'Captain this week',
-    cta: 'Open availability and lineup tools',
-    href: '/resources#captain-tools',
+    cta: 'Open lineup tools',
+    href: '/captain',
     job: 'captain_week',
     event: {
       eventName: 'captain_tools_clicked',
@@ -554,7 +586,7 @@ const resourceNeedPaths = [
   {
     question: 'Support a player',
     cta: 'Open coach tools',
-    href: '/resources#coach-tools',
+    href: '/coaches',
     job: 'support_player',
     event: {
       eventName: 'find_coach_clicked',
@@ -566,9 +598,9 @@ const resourceNeedPaths = [
     },
   },
   {
-    question: 'Run a league or tournament',
-    cta: 'Open organizer tools',
-    href: '/resources#league-tournament-tools',
+    question: 'Run events',
+    cta: 'Open organizer',
+    href: '/leagues-and-tournaments',
     job: 'organize_competition',
     event: {
       eventName: 'league_office_clicked',
@@ -580,9 +612,9 @@ const resourceNeedPaths = [
     },
   },
   {
-    question: 'Fix missing or wrong data',
-    cta: 'Open Data Assist steps',
-    href: '/resources#fix-data',
+    question: 'Fix data',
+    cta: 'Open Data Assist',
+    href: '/data-assist?intent=report-issue&context=Resources%20need%20path',
     job: 'fix_tennis_context',
     event: {
       eventName: 'data_assist_opened',
@@ -719,12 +751,6 @@ const resourceGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const quickStartSectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  minWidth: 0,
-}
-
 const quickStartGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
@@ -732,22 +758,73 @@ const quickStartGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const detailsSectionStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 8,
+  background: 'var(--shell-panel-bg)',
+  overflow: 'hidden',
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  minHeight: 50,
+  padding: '12px 14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const detailsSummaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  fontWeight: 950,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const detailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '0 14px 14px',
+}
+
+const resourcePlayerIdDisclosureStyle: CSSProperties = {
+  ...detailsSectionStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+}
+
 const needPathStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 14,
+  gap: 10,
   alignItems: 'stretch',
   minWidth: 0,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   borderRadius: 8,
-  padding: 'clamp(14px, 3vw, 20px)',
+  padding: 'clamp(12px, 2.5vw, 16px)',
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%))',
 }
 
 const needPathHeaderStyle: CSSProperties = {
   display: 'grid',
-  gap: 7,
+  gap: 5,
   alignContent: 'center',
   minWidth: 0,
 }
@@ -764,7 +841,7 @@ const needPathEyebrowStyle: CSSProperties = {
 const needPathTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(21px, 3vw, 30px)',
+  fontSize: 'clamp(20px, 2.6vw, 27px)',
   lineHeight: 1.08,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -773,25 +850,25 @@ const needPathTitleStyle: CSSProperties = {
 const needPathTextStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.55,
+  fontSize: 13,
+  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 
 const needPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
 const needPathCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
-  minHeight: 100,
+  gap: 5,
+  minHeight: 74,
   minWidth: 0,
   alignContent: 'space-between',
-  padding: 13,
+  padding: 9,
   borderRadius: 8,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
@@ -801,16 +878,16 @@ const needPathCardStyle: CSSProperties = {
 
 const needPathQuestionStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
-  lineHeight: 1.25,
+  fontSize: 13,
+  lineHeight: 1.15,
   fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 
 const needPathCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
-  fontSize: 12,
-  lineHeight: 1.25,
+  fontSize: 11,
+  lineHeight: 1.15,
   fontWeight: 950,
   overflowWrap: 'anywhere',
 }

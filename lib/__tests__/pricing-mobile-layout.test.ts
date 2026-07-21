@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -40,6 +41,8 @@ describe('pricing mobile layout guards', () => {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
     expect(styleBlock('planGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
+    expect(source).toContain('style={isMobile ? compactPlanGridStyle : planGridStyle}')
+    expect(styleBlock('compactPlanGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock('jobChooserGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('workspaceGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
     expect(styleBlock('fullCourtPassStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
@@ -74,5 +77,15 @@ describe('pricing mobile layout guards', () => {
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
+  })
+
+  it('keeps closed pricing details out of measured layout', () => {
+    expect(source).toContain('className="pricingDetailsSection"')
+    expect(source).toContain('className="pricingDetailsBody"')
+    expect(source).toContain('className="pricingPlanDetails"')
+    expect(source).toContain('className="pricingPlanDetailsBody"')
+    expect(globalsSource).toContain('.pricingDetailsSection:not([open]) > .pricingDetailsBody')
+    expect(globalsSource).toContain('.pricingPlanDetails:not([open]) > .pricingPlanDetailsBody')
+    expect(globalsSource).toContain('display: none !important;')
   })
 })

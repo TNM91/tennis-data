@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
@@ -37,7 +37,6 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
@@ -279,13 +278,18 @@ function DataAssistWorkspace() {
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
   const showBulkScorecardResults = !hasPreparedScreenshots && !latestScan && bulkScorecardResults.length > 0
   const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
-  const scorecardImportType = importTypes.find((item) => item.id === 'scorecard') || importTypes[0]
-  const seasonSetupImportTypes = importTypes.filter((item) => item.id !== 'scorecard')
   const scorecardUploadsPaused = contributorStats?.canUploadScorecards === false
   const scorecardUploadPausedMessage =
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
   const scorecardUploadBlocked = importType === 'scorecard' && scorecardUploadsPaused
   const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
+  const isCompactViewport = isMobile || isTablet
+  const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
+  const dynamicSectionHeaderStyle = isCompactViewport ? compactSectionHeaderStyle : sectionHeaderStyle
+  const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
+  const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
+  const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
+  const dynamicStepDividerStyle = isCompactViewport ? compactStepDividerStyle : stepDividerStyle
   function resetUploadFlow() {
     scanRunRef.current += 1
     setSummary(null)
@@ -802,21 +806,6 @@ function DataAssistWorkspace() {
 
   return (
     <section style={pageStyle(isMobile)}>
-      <PlayerSuitePanel active="refresh" playerLabel="Data refresh" />
-      <section style={newPlayerActionPanelStyle} aria-label="New player next steps">
-        <div style={newPlayerActionCopyStyle}>
-          <strong>New player path</strong>
-          <span>Get enough verified tennis context for a useful TIQ read.</span>
-        </div>
-        <div style={newPlayerActionGridStyle}>
-          {newPlayerActions.map((action) => (
-            <Link key={action.href} href={action.href} style={newPlayerActionLinkStyle}>
-              <strong>{action.label}</strong>
-              <span>{action.detail}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       {intent ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
@@ -829,73 +818,39 @@ function DataAssistWorkspace() {
 
       <section style={workspaceStyle()}>
         {showUploadStep ? (
-          <section id="upload" style={panelStyle}>
-            <DataAssistSourcePathPanel
-              onSelectImportType={updateImportType}
-              issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
-            />
-            <DataAssistTrustEnginePanel />
-            <DataAssistReviewFlowPanel />
-
-            <div style={sectionHeaderStyle}>
+          <section id="upload" style={dynamicPanelStyle}>
+            <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
                 <StepBadge step={1} label="Select type" />
-                <h2 style={sectionTitleStyle}>Choose your import.</h2>
-                <p style={copyStyle}>Most weeks, upload scorecards. Add schedule and roster once per season for richer context.</p>
+                <h2 style={sectionTitleStyle}>Choose what you are uploading.</h2>
+                {!isCompactViewport ? (
+                  <p style={copyStyle}>Pick the source type, then choose the TennisLink export. Scorecards are the usual weekly upload.</p>
+                ) : null}
               </div>
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
             </div>
 
             <div style={uploadChoiceStackStyle}>
-              <button
-                type="button"
-                onClick={() => updateImportType(scorecardImportType.id)}
-                style={primaryTypeOptionStyle(importType === scorecardImportType.id)}
-              >
-                <span style={typeButtonHeaderStyle}>
-                  <strong>{scorecardImportType.label}</strong>
-                  <span style={typeBadgeRowStyle}>
-                    {scorecardUploadsPaused ? <small style={typePausedBadgeStyle}>Paused</small> : null}
-                    {scorecardImportType.badge ? <small style={typeRecommendedBadgeStyle}>{scorecardImportType.badge}</small> : null}
-                  </span>
-                </span>
-                <span>{scorecardImportType.detail}</span>
-                <small>{scorecardImportType.updates}</small>
-                <em style={typeCadenceStyle}>{scorecardUploadsPaused ? 'Scorecard uploads are temporarily paused for this account.' : scorecardImportType.cadence}</em>
-              </button>
-
-              <div style={seasonSetupGroupStyle}>
-                <div style={seasonSetupHeaderStyle}>
-                  <strong>Season setup</strong>
-                  <span>Usually once every few months</span>
-                </div>
-                <div style={typeOptionGridStyle}>
-                  {seasonSetupImportTypes.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => updateImportType(item.id)}
-                      style={typeOptionStyle(importType === item.id)}
-                    >
-                      <span style={typeButtonHeaderStyle}>
-                        <strong>{item.label}</strong>
-                        {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
-                      </span>
-                      <span>{item.detail}</span>
-                      <small>{item.updates}</small>
-                      <em style={typeCadenceStyle}>{item.cadence}</em>
-                    </button>
+              <label style={dynamicImportTypeSelectWrapStyle}>
+                <span style={dropzoneKickerStyle}>Source type</span>
+                <select
+                  value={importType}
+                  onChange={(event) => updateImportType(event.target.value as DataAssistImportType)}
+                  style={dynamicImportTypeSelectStyle}
+                >
+                  {importTypes.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}{item.badge ? ` - ${item.badge}` : ''}
+                    </option>
                   ))}
-                </div>
-              </div>
+                </select>
+                <small style={dynamicImportTypeSelectHintStyle}>
+                  {scorecardUploadBlocked ? 'Scorecard uploads are temporarily paused.' : isCompactViewport ? getCompactImportTypeHint(importType) : activeImportType.updates}
+                </small>
+              </label>
             </div>
 
-            <div style={seasonGuideStyle}>
-              <strong>Scorecards can stand alone</strong>
-              <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
-            </div>
-
-            <div style={stepDividerStyle}>
+            <div style={dynamicStepDividerStyle}>
               <StepBadge step={2} label="Upload export" />
               <strong>{activeImportType.exportHint}</strong>
             </div>
@@ -911,7 +866,7 @@ function DataAssistWorkspace() {
               <ScorecardUploadPausedPanel message={scorecardUploadPausedMessage} />
             ) : null}
 
-            <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '')}>
+            <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '', isMobile)}>
               <input
                 type="file"
                 multiple={importType === 'scorecard'}
@@ -922,16 +877,75 @@ function DataAssistWorkspace() {
               />
               <span style={dropzoneKickerStyle}>Supported Excel exports</span>
               <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
-              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded while admins review scorecard access.' : `${getUploadHint(importType)} Standard filenames are detected automatically.`}</small>
+              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded.' : isCompactViewport ? getCompactUploadHint(importType) : `${getUploadHint(importType)} Standard filenames are detected automatically.`}</small>
             </label>
 
             {!hasPreparedScreenshots ? (
+              isCompactViewport ? (
+                <DataAssistDetailsSection
+                  eyebrow="Export help"
+                  title="Need upload help?"
+                  cue="Show steps"
+                >
+                  <div style={mobileUploadHelpStackStyle}>
+                    <div style={simpleHelpStyle}>
+                      <strong>{getUploadHelpTitle(importType)}</strong>
+                      <span>{getUploadHelpText(importType)}</span>
+                    </div>
+                    <div style={seasonGuideStyle}>
+                      <strong>Scorecards can stand alone</strong>
+                      <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
+                    </div>
+                    <ExportHelpPanel importType={importType} />
+                    <DataAssistSourcePathPanel
+                      onSelectImportType={updateImportType}
+                      issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+                    />
+                    <DataAssistReviewFlowPanel />
+                    <DataAssistTrustEnginePanel />
+                  </div>
+                </DataAssistDetailsSection>
+              ) : (
+                <>
+                  <div style={simpleHelpStyle}>
+                    <strong>{getUploadHelpTitle(importType)}</strong>
+                    <span>{getUploadHelpText(importType)}</span>
+                  </div>
+                  <div style={seasonGuideStyle}>
+                    <strong>Scorecards can stand alone</strong>
+                    <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
+                  </div>
+                  <ExportHelpPanel importType={importType} />
+                </>
+              )
+            ) : null}
+
+            {!isCompactViewport ? (
               <>
-                <div style={simpleHelpStyle}>
-                  <strong>{getUploadHelpTitle(importType)}</strong>
-                  <span>{getUploadHelpText(importType)}</span>
-                </div>
-                <ExportHelpPanel importType={importType} />
+                <DataAssistDetailsSection
+                  eyebrow="Source choices"
+                  title="Need help choosing the right source?"
+                  cue="Show source choices"
+                >
+                  <DataAssistSourcePathPanel
+                    onSelectImportType={updateImportType}
+                    issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+                  />
+                </DataAssistDetailsSection>
+                <DataAssistDetailsSection
+                  eyebrow="Review-first upload"
+                  title="What happens after an upload?"
+                  cue="Show review steps"
+                >
+                  <DataAssistReviewFlowPanel />
+                </DataAssistDetailsSection>
+                <DataAssistDetailsSection
+                  eyebrow="Trust signals"
+                  title="Know what changes records."
+                  cue="Show data-quality details"
+                >
+                  <DataAssistTrustEnginePanel />
+                </DataAssistDetailsSection>
               </>
             ) : null}
 
@@ -941,7 +955,7 @@ function DataAssistWorkspace() {
       </section>
 
       {showOrderStep ? (
-      <section style={panelStyle}>
+      <section style={dynamicPanelStyle}>
         <div style={sectionHeaderStyle}>
           <div style={headerCopyStyle}>
             <StepBadge step={3} label="Scan setup" />
@@ -1018,7 +1032,7 @@ function DataAssistWorkspace() {
       ) : null}
 
       {showScanStep ? (
-        <section style={panelStyle}>
+        <section style={dynamicPanelStyle}>
           <div style={scanLoadingStyle}>
             <TiqLoader label="Preparing review" size="sm" />
             <p style={scanLoadingCopyStyle}>
@@ -1105,9 +1119,81 @@ function DataAssistWorkspace() {
         onRunImport={(submission, action) => void runSubmissionImport(submission, action)}
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
+        isMobile={isMobile}
       />
       ) : null}
+      {showUploadStep ? (
+        <DataAssistDetailsSection
+          eyebrow="Player tools"
+          title="Want the player path around this data?"
+          cue="Show player paths"
+        >
+          <PlayerSuitePanel active="refresh" playerLabel="Data refresh" />
+          <section style={newPlayerActionPanelStyle} aria-label="New player next steps">
+            <div style={newPlayerActionCopyStyle}>
+              <strong>New player path</strong>
+              <span>Get enough verified tennis context for a useful TIQ read.</span>
+            </div>
+            <div style={newPlayerActionGridStyle}>
+              {newPlayerActions.map((action) => (
+                <Link key={action.href} href={action.href} style={newPlayerActionLinkStyle}>
+                  <strong>{action.label}</strong>
+                  <span>{action.detail}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </DataAssistDetailsSection>
+      ) : null}
     </section>
+  )
+}
+
+function DataAssistDetailsSection({
+  eyebrow,
+  title,
+  cue,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicSummaryStyle: CSSProperties = {
+    ...dataAssistDetailsSummaryStyle,
+    display: isCompactViewport ? 'grid' : dataAssistDetailsSummaryStyle.display,
+    gridTemplateColumns: isCompactViewport ? 'minmax(0, 1fr) minmax(0, auto)' : undefined,
+    gap: isCompactViewport ? 7 : dataAssistDetailsSummaryStyle.gap,
+    padding: isCompactViewport ? '7px 8px' : dataAssistDetailsSummaryStyle.padding,
+    borderRadius: isCompactViewport ? 10 : dataAssistDetailsSummaryStyle.borderRadius,
+  }
+  const dynamicEyebrowStyle: CSSProperties = {
+    ...dataAssistDetailsEyebrowStyle,
+    fontSize: isCompactViewport ? 9 : dataAssistDetailsEyebrowStyle.fontSize,
+  }
+  const dynamicTitleStyle: CSSProperties = {
+    ...dataAssistDetailsTitleStyle,
+    fontSize: isCompactViewport ? 13 : dataAssistDetailsTitleStyle.fontSize,
+  }
+  const dynamicCueStyle: CSSProperties = {
+    ...dataAssistDetailsCueStyle,
+    fontSize: isCompactViewport ? 10 : dataAssistDetailsCueStyle.fontSize,
+  }
+
+  return (
+    <details className="dataAssistDetailsSection" style={dataAssistDetailsSectionStyle}>
+      <summary style={dynamicSummaryStyle}>
+        <span style={dataAssistDetailsSummaryCopyStyle}>
+          <span style={dynamicEyebrowStyle}>{eyebrow}</span>
+          <strong style={dynamicTitleStyle}>{title}</strong>
+        </span>
+        <span style={dynamicCueStyle}>{isCompactViewport ? 'Open' : cue}</span>
+      </summary>
+      <div className="dataAssistDetailsBody" style={dataAssistDetailsContentStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -1224,36 +1310,45 @@ function DataAssistSourcePathPanel({
   onSelectImportType: (importType: DataAssistImportType) => void
   issueHref: string
 }) {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicPanelStyle = isCompactViewport ? compactSourcePathPanelStyle : sourcePathPanelStyle
+  const dynamicHeaderStyle = isCompactViewport ? compactSourcePathHeaderStyle : sourcePathHeaderStyle
+  const dynamicTitleStyle = isCompactViewport ? compactSourcePathTitleStyle : sourcePathTitleStyle
+  const dynamicGridStyle = isCompactViewport ? compactSourcePathGridStyle : sourcePathGridStyle
+  const dynamicCardStyle = isCompactViewport ? compactSourcePathCardStyle : sourcePathCardStyle
+  const dynamicLinkCardStyle = isCompactViewport ? compactSourcePathLinkCardStyle : sourcePathLinkCardStyle
+
   return (
-    <section style={sourcePathPanelStyle} aria-labelledby="data-assist-source-path-title">
-      <div style={sourcePathHeaderStyle}>
+    <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
+      <div style={dynamicHeaderStyle}>
         <div>
           <span style={sourcePathEyebrowStyle}>Source refresh path</span>
-          <h2 id="data-assist-source-path-title" style={sourcePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>Choose the source you want to fix or import.</h2>
         </div>
-        <p style={sourcePathIntroStyle}>
+        {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           Choose the tennis need first. Data Assist will keep the upload review-first before records change.
-        </p>
+        </p> : null}
       </div>
-      <div style={sourcePathGridStyle}>
+      <div style={dynamicGridStyle}>
         {dataAssistSourcePathJobs.map((job) => (
           <button
             key={job.id}
             type="button"
-            style={sourcePathCardStyle}
+            style={dynamicCardStyle}
             onClick={() => onSelectImportType(job.id)}
             data-data-assist-source-path-job={job.id}
             aria-label={`${job.cta}: ${job.question}`}
           >
             <span style={sourcePathQuestionStyle}>{job.question}</span>
             <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
-            <span>{job.body}</span>
+            {!isCompactViewport ? <span>{job.body}</span> : null}
             <span style={sourcePathCtaStyle}>{job.cta}</span>
           </button>
         ))}
         <Link
           href={issueHref}
-          style={sourcePathLinkCardStyle}
+          style={dynamicLinkCardStyle}
           data-data-assist-source-path-job="report_or_review"
           aria-label="Report or request review: What looks wrong?"
           onClick={() => {
@@ -1268,7 +1363,7 @@ function DataAssistSourcePathPanel({
         >
           <span style={sourcePathQuestionStyle}>What looks wrong?</span>
           <strong style={sourcePathCardTitleStyle}>Report or request review</strong>
-          <span>Use this when a player, score, rating, team, draw, or source label needs a closer look.</span>
+          {!isCompactViewport ? <span>Use this when a player, score, rating, team, draw, or source label needs a closer look.</span> : null}
           <span style={sourcePathCtaStyle}>Open support report</span>
         </Link>
       </div>
@@ -1439,6 +1534,18 @@ function getUploadHint(importType: DataAssistImportType) {
   return `Use Score Card, then Send To Excel. Select up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards.`
 }
 
+function getCompactUploadHint(importType: DataAssistImportType) {
+  if (importType === 'schedule') return 'Upload the Match Schedule .xls export.'
+  if (importType === 'team_summary') return 'Upload the Team Summary .xls export.'
+  return `Upload Score Card .xls exports. Up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} at once.`
+}
+
+function getCompactImportTypeHint(importType: DataAssistImportType) {
+  if (importType === 'schedule') return 'Match dates, teams, times, and sites.'
+  if (importType === 'team_summary') return 'Roster players and starting ratings.'
+  return 'Players, scores, winners, and team result.'
+}
+
 function getDropzoneTitle(importType: DataAssistImportType) {
   if (importType === 'scorecard') return 'Tap to choose scorecard .xls exports'
   return 'Tap to choose .xls export'
@@ -1527,8 +1634,8 @@ function getExportFileExample(importType: DataAssistImportType) {
   return 'Scorecard_582026.xls'
 }
 
-function ExportHelpPanel({ importType }: { importType: DataAssistImportType }) {
-  const [open, setOpen] = useState(false)
+function ExportHelpPanel({ importType, defaultOpen = false }: { importType: DataAssistImportType; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   const steps = getExportHelpSteps(importType)
 
   return (
@@ -1786,6 +1893,7 @@ function MySubmissionsPanel({
   onRunImport,
   onDeleteSubmission,
   onDeleteAllDrafts,
+  isMobile,
 }: {
   authResolved: boolean
   userId: string | null
@@ -1803,6 +1911,7 @@ function MySubmissionsPanel({
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
+  isMobile: boolean
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
@@ -1811,6 +1920,23 @@ function MySubmissionsPanel({
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
+
+  if ((!authResolved || !userId) && isMobile) {
+    return (
+      <section id="history" style={mobileHistoryShellStyle}>
+        <DataAssistDetailsSection
+          eyebrow="History"
+          title="Saved uploads"
+          cue="Show history"
+        >
+          <div style={noticeStyle}>
+            Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
+            <Link href="/login?redirect=/data-assist" style={noticeLinkStyle}>Sign in</Link>
+          </div>
+        </DataAssistDetailsSection>
+      </section>
+    )
+  }
 
   return (
     <section id="history" style={panelStyle}>
@@ -2365,7 +2491,7 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
         <ReviewFact label="Players" value={String(parsedDraft.playerCount)} />
       </div>
       <p style={copyStyle}>
-        TenAceIQ is capturing roster player names and starting NTRP ratings for team and captain workflows.
+        TenAceIQ is capturing roster player names and starting NTRP ratings for teams and captains.
       </p>
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
@@ -2881,7 +3007,7 @@ function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   if (submission.status === 'imported') {
     return {
       label: 'Imported',
-      detail: 'Done. This result is now available to match, player, team, and rating workflows.',
+      detail: 'Done. This result is now available for matches, players, teams, and ratings.',
       tone: 'green' as const,
     }
   }
@@ -2961,6 +3087,13 @@ const sourcePathPanelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactSourcePathPanelStyle: CSSProperties = {
+  ...sourcePathPanelStyle,
+  borderRadius: 14,
+  padding: 9,
+  gap: 8,
+}
+
 const sourcePathHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-end',
@@ -2968,6 +3101,12 @@ const sourcePathHeaderStyle: CSSProperties = {
   gap: 12,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const compactSourcePathHeaderStyle: CSSProperties = {
+  ...sourcePathHeaderStyle,
+  display: 'grid',
+  gap: 6,
 }
 
 const sourcePathEyebrowStyle: CSSProperties = {
@@ -2989,6 +3128,12 @@ const sourcePathTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactSourcePathTitleStyle: CSSProperties = {
+  ...sourcePathTitleStyle,
+  fontSize: 18,
+  lineHeight: 1.12,
+}
+
 const sourcePathIntroStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
@@ -3004,6 +3149,11 @@ const sourcePathGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const compactSourcePathGridStyle: CSSProperties = {
+  ...sourcePathGridStyle,
+  gap: 7,
 }
 
 const sourcePathCardBaseStyle: CSSProperties = {
@@ -3029,8 +3179,24 @@ const sourcePathCardStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+const compactSourcePathCardStyle: CSSProperties = {
+  ...sourcePathCardStyle,
+  minHeight: 72,
+  borderRadius: 12,
+  padding: 8,
+  gap: 4,
+}
+
 const sourcePathLinkCardStyle: CSSProperties = {
   ...sourcePathCardBaseStyle,
+}
+
+const compactSourcePathLinkCardStyle: CSSProperties = {
+  ...sourcePathLinkCardStyle,
+  minHeight: 72,
+  borderRadius: 12,
+  padding: 8,
+  gap: 4,
 }
 
 const sourcePathQuestionStyle: CSSProperties = {
@@ -3053,6 +3219,69 @@ const sourcePathCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3483,6 +3712,12 @@ const sectionHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactSectionHeaderStyle: CSSProperties = {
+  ...sectionHeaderStyle,
+  display: 'grid',
+  gap: 7,
+}
+
 const headerCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
@@ -3499,85 +3734,72 @@ const sectionTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const typeOptionGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
 const uploadChoiceStackStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gap: 8,
   minWidth: 0,
 }
 
-const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
-  ...typeOptionStyle(selected),
-  minHeight: 142,
-  padding: 16,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-  border: selected
-    ? '1px solid color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border) 32%)'
-    : '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: selected
-    ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
-    : 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
-})
-
-const seasonSetupGroupStyle: CSSProperties = {
+const compactPanelStyle: CSSProperties = {
+  ...panelStyle,
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent)',
-  padding: 10,
-  display: 'grid',
-  gap: 10,
-  minWidth: 0,
+  padding: 8,
+  gap: 8,
 }
 
-const seasonSetupHeaderStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 10,
-  flexWrap: 'wrap',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.35,
-  fontWeight: 850,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const typeOptionStyle = (selected: boolean): CSSProperties => ({
-  borderRadius: 16,
-  border: selected
-    ? '1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)'
-    : '1px solid var(--shell-panel-border)',
-  background: selected
-    ? 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)'
-    : 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: 13,
-  minHeight: 128,
+const importTypeSelectWrapStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
-  alignContent: 'start',
-  textAlign: 'left',
-  cursor: 'pointer',
-  boxShadow: selected ? '0 14px 28px rgba(20, 184, 116, 0.16)' : 'none',
-  font: 'inherit',
   minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   overflowWrap: 'anywhere',
-})
+}
 
-const typeCadenceStyle: CSSProperties = {
+const compactImportTypeSelectWrapStyle: CSSProperties = {
+  ...importTypeSelectWrapStyle,
+  gap: 5,
+  padding: 8,
+  borderRadius: 12,
+}
+
+const importTypeSelectStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  fontSize: 15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const compactImportTypeSelectStyle: CSSProperties = {
+  ...importTypeSelectStyle,
+  minHeight: 40,
+  borderRadius: 10,
+  padding: '0 10px',
+  fontSize: 14,
+}
+
+const importTypeSelectHintStyle: CSSProperties = {
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  lineHeight: 1.35,
-  fontStyle: 'normal',
+  fontSize: 12,
+  lineHeight: 1.4,
   fontWeight: 850,
   overflowWrap: 'anywhere',
+}
+
+const compactImportTypeSelectHintStyle: CSSProperties = {
+  ...importTypeSelectHintStyle,
+  fontSize: 11,
+  lineHeight: 1.3,
 }
 
 const seasonGuideStyle: CSSProperties = {
@@ -3595,6 +3817,13 @@ const seasonGuideStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const mobileUploadHelpStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const stepDividerStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
   paddingTop: 14,
@@ -3603,6 +3832,13 @@ const stepDividerStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const compactStepDividerStyle: CSSProperties = {
+  ...stepDividerStyle,
+  paddingTop: 9,
+  gap: 5,
+  fontSize: 13,
 }
 
 const stepBadgeStyle: CSSProperties = {
@@ -3634,46 +3870,9 @@ const stepBadgeNumberStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const typeButtonHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 8,
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const typeBadgeRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const typeRecommendedBadgeStyle: CSSProperties = {
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
-  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-panel-bg) 86%)',
-  color: 'var(--foreground-strong)',
-  padding: '3px 7px',
-  fontSize: 10,
-  fontWeight: 950,
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const typePausedBadgeStyle: CSSProperties = {
-  ...typeRecommendedBadgeStyle,
-  border: '1px solid rgba(248,113,113,0.26)',
-  background: 'rgba(239,68,68,0.10)',
-  color: '#fecaca',
-}
-
-const dropzoneStyle = (status: string): CSSProperties => ({
-  minHeight: 150,
-  borderRadius: 16,
+const dropzoneStyle = (status: string, compact = false): CSSProperties => ({
+  minHeight: compact ? 82 : 150,
+  borderRadius: compact ? 14 : 16,
   border: status === 'rejected' || status === 'paused'
     ? '1px dashed rgba(248,113,113,0.55)'
     : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
@@ -3681,11 +3880,11 @@ const dropzoneStyle = (status: string): CSSProperties => ({
     ? 'rgba(239,68,68,0.08)'
     : 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
   color: 'var(--foreground-strong)',
-  padding: 18,
+  padding: compact ? 9 : 18,
   display: 'grid',
   placeItems: 'center',
   textAlign: 'center',
-  gap: 8,
+  gap: compact ? 4 : 8,
   cursor: status === 'paused' ? 'not-allowed' : 'pointer',
   opacity: status === 'paused' ? 0.82 : 1,
   minWidth: 0,
@@ -3814,6 +4013,12 @@ const historyCollapsedStyle: CSSProperties = {
   padding: 12,
   fontSize: 13,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileHistoryShellStyle: CSSProperties = {
+  display: 'grid',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }

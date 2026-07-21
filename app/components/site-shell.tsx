@@ -194,6 +194,7 @@ const portalRailScrollStyle: CSSProperties = {
 
 function getBrandAtmosphereClassName(pathname: string) {
   const hubRoutes = new Set(['/', '/mylab', '/coach', '/captain', '/league-coordinator', '/admin'])
+  const authRoutes = new Set(['/login', '/join', '/forget-password', '/reset-password'])
   const quietPrefixes = [
     '/admin/',
     '/coach/',
@@ -205,6 +206,10 @@ function getBrandAtmosphereClassName(pathname: string) {
     '/login',
     '/pricing',
   ]
+
+  if (authRoutes.has(pathname)) {
+    return 'brand-atmosphere-mark brand-atmosphere-mark--auth'
+  }
 
   if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
     return 'brand-atmosphere-mark brand-atmosphere-mark--quiet'

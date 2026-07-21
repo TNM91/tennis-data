@@ -11,6 +11,8 @@ const competeFrameSource = readFileSync(
 const competeLeaguesSource = readFileSync(join(process.cwd(), 'app/compete/leagues/page.tsx'), 'utf8')
 const competeResultsSource = readFileSync(join(process.cwd(), 'app/compete/results/page.tsx'), 'utf8')
 const competeScheduleSource = readFileSync(join(process.cwd(), 'app/compete/schedule/page.tsx'), 'utf8')
+const competeTeamsSource = readFileSync(join(process.cwd(), 'app/compete/teams/page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(source: string, styleName: string) {
@@ -29,6 +31,9 @@ describe('upgrade and compete mobile layout guards', () => {
     expect(competeFrameSource).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
     expect(competeFrameSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(competeFrameSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock(competeFrameSource, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(competeFrameSource, 'watermarkStyle')).toContain("width: 'min(100%, 340px)'")
+    expect(styleBlock(competeFrameSource, 'watermarkStyle')).not.toContain("right: '-86px'")
   })
 
   it('keeps upgrade tier cards and activation flows shrinkable', () => {
@@ -56,6 +61,22 @@ describe('upgrade and compete mobile layout guards', () => {
       "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'",
     )
     expect(upgradeSource).toContain("...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null)")
+    expect(styleBlock(upgradeSource, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(upgradeSource, 'watermarkStyle')).toContain("width: 'min(310px, 62vw)'")
+    expect(styleBlock(upgradeSource, 'watermarkStyle')).not.toContain("right: '-110px'")
+    expect(upgradeSource).toContain('className="upgradeDetailsSection"')
+    expect(globalsSource).toContain('.upgradeDetailsSection:not([open]) > :not(summary)')
+    expect(upgradeSource).toContain('const MOBILE_UNLOCK_COPY')
+    expect(upgradeSource).toContain("title: 'Unlock Team Hub.'")
+    expect(upgradeSource).toContain("body: 'Handle availability, lineups, scouting, and team updates for match week.'")
+    expect(upgradeSource).toContain("isMobile ? mobileCopy.title : copy.title")
+    expect(upgradeSource).toContain("isMobile ? mobileCopy.body : copy.body")
+    expect(upgradeSource).toContain("padding: isSmallMobile ? 16 : isMobile ? 18 : 26")
+    expect(upgradeSource).toContain("padding: isSmallMobile ? 10 : isMobile ? 12 : activationStyle.padding")
+    expect(upgradeSource).toContain("display: isMobile ? 'none' : selectedPlanStyle.display")
+    expect(upgradeSource).toContain("minHeight: isMobile ? 68 : textareaStyle.minHeight")
+    expect(upgradeSource).toContain("borderRadius: isMobile ? 22 : heroStyle.borderRadius")
+    expect(upgradeSource).toContain("{isMobile ? 'Plan details' : 'Show plan details'}")
     expect(shellSmokeSource).toContain('/upgrade?plan=captain&next=%2Fcaptain&shellqa=')
     expect(shellSmokeSource).toContain("type: 'upgrade-hero-too-tall'")
     expect(shellSmokeSource).toContain("type: 'upgrade-plan-card-too-tall'")
@@ -73,6 +94,18 @@ describe('upgrade and compete mobile layout guards', () => {
       "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
     )
     expect(upgradeSource).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
+  })
+
+  it('keeps the upgrade activation action before optional tool switching', () => {
+    const activationIndex = upgradeSource.indexOf('id="activation"')
+    const switcherIndex = upgradeSource.indexOf('aria-label="Choose TenAceIQ by tennis need"')
+
+    expect(activationIndex).toBeGreaterThanOrEqual(0)
+    expect(switcherIndex).toBeGreaterThanOrEqual(0)
+    expect(activationIndex).toBeLessThan(switcherIndex)
+    expect(upgradeSource).toContain('Choose another tennis tool')
+    expect(upgradeSource).toContain("{isMobile ? 'Need another tool?' : 'Switch tools'}")
+    expect(upgradeSource).toContain("{isMobile ? 'Switch plan' : 'Choose another tennis tool'}")
   })
 
   it('keeps shared locked plan gates shrink-safe', () => {
@@ -115,7 +148,13 @@ describe('upgrade and compete mobile layout guards', () => {
     expect(competeFrameSource).not.toContain('aria-label="Compete tools"')
     expect(competeFrameSource).not.toContain('function SubnavLink')
     expect(competeFrameSource).toContain("flexWrap: 'wrap'")
+    expect(competeFrameSource).toContain('className="competeDetailsSection"')
+    expect(globalsSource).toContain('.competeDetailsSection:not([open]) > :not(summary)')
     expect(styleBlock(competeFrameSource, 'cardCtaStyle')).toContain("whiteSpace: 'normal'")
+
+    for (const source of [competeFrameSource, competeLeaguesSource, competeResultsSource, competeScheduleSource, competeTeamsSource]) {
+      expect(source).toContain('className="competeDetailsSection"')
+    }
   })
 
   it('shows a shrink-safe captain bridge cue on Compete surfaces', () => {

@@ -439,7 +439,7 @@ function getActivationCue(request: UpgradeRequestRecord) {
       summary: tier.shortPromise,
       grants: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office'],
       excludes: ['Nothing in the current paid suite'],
-      note: 'Full-Court activation unlocks every current paid workspace for the account.',
+      note: 'Full-Court activation unlocks every current paid tool for the account.',
     }
   }
 

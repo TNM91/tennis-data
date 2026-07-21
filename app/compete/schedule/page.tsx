@@ -13,8 +13,8 @@ import CompetePageFrame, {
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { cleanText, formatWeekdayDate } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ScheduleMatch = {
   id: string
@@ -110,8 +110,8 @@ export default function CompeteSchedulePage() {
   return (
     <CompetePageFrame
       eyebrow="Schedule"
-      title="Next matches, next actions."
-      description="Dates, opponents, facilities, briefs, availability, lineups, and messages stay connected."
+      title="Find the next match fast."
+      description="Check dates, add schedules, prep the team week, or move finished matches to results."
     >
       <CompeteScheduleContent />
     </CompetePageFrame>
@@ -217,50 +217,6 @@ function CompeteScheduleContent() {
   return (
     <>
       <SchedulePathPanel />
-      <SchedulePlayerIdPrepPanel />
-
-      <CompeteGrid>
-        <CompeteCard
-          href="/league-coordinator#league-setup-form"
-          meta="League setup"
-          title="Publish dates"
-          text="Structure the season calendar before players and captains start chasing times."
-          icon="schedule"
-          action="Set schedule"
-        />
-        <CompeteCard
-          href="/league-coordinator/results"
-          meta="Scorebook"
-          title="Team book"
-          text="Move confirmed matches into score entry when results are ready."
-          icon="reports"
-          action="Open book"
-        />
-        <CompeteCard
-          href="/captain"
-          meta="Team handoff"
-          title="Team week"
-          text="Use the schedule as the handoff into availability, lineups, and messages."
-          icon="captainDashboard"
-          action="Open week"
-        />
-      </CompeteGrid>
-
-      {authResolved && !access.canUseCaptainWorkflow ? (
-        <div style={upgradeWrapStyle}>
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Turn the calendar into the team week."
-            body="Captain connects confirmed dates to availability, lineup planning, and team messages."
-            ctaLabel="Unlock Captain"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain plan"
-            secondaryHref="/pricing"
-            footnote="Best when schedule context needs to become team action."
-          />
-        </div>
-      ) : null}
 
       <section id="up-next-schedule" style={panelStyle}>
         <div style={sectionEyebrowStyle}>Up Next</div>
@@ -282,7 +238,11 @@ function CompeteScheduleContent() {
             ))}
           </div>
         </div>
-        <div style={calendarLayerPanelStyle} aria-label="Calendar layers">
+        <details className="competeDetailsSection" style={calendarLayerPanelStyle} aria-label="Calendar layers">
+          <summary style={calendarLayerSummaryStyle}>
+            <span>Calendar layers</span>
+            <span>Open</span>
+          </summary>
           <div style={calendarLayerHeaderStyle}>
             <div>
               <strong>Calendar layers</strong>
@@ -302,7 +262,7 @@ function CompeteScheduleContent() {
               </Link>
             ))}
           </div>
-        </div>
+        </details>
 
         {loading ? (
           <div style={emptyStyle}>Loading upcoming matches...</div>
@@ -318,7 +278,94 @@ function CompeteScheduleContent() {
           </div>
         )}
       </section>
+
+      <ScheduleToolsDisclosure>
+        <CompeteGrid>
+          <CompeteCard
+            href="/league-coordinator#league-setup-form"
+            meta="League setup"
+            title="Publish dates"
+            text="Structure the season calendar before players and captains start chasing times."
+            icon="schedule"
+            action="Set schedule"
+          />
+          <CompeteCard
+            href="/league-coordinator/results"
+            meta="Scorebook"
+            title="Team book"
+            text="Move confirmed matches into score entry when results are ready."
+            icon="reports"
+            action="Open book"
+          />
+          <CompeteCard
+            href="/captain"
+            meta="Team handoff"
+            title="Team week"
+            text="Use the schedule as the handoff into availability, lineups, and messages."
+            icon="captainDashboard"
+            action="Open week"
+          />
+        </CompeteGrid>
+      </ScheduleToolsDisclosure>
+
+      <ScheduleSupportDisclosure>
+        <SchedulePlayerIdPrepPanel />
+      </ScheduleSupportDisclosure>
+
+      {authResolved && !access.canUseCaptainWorkflow ? (
+        <ScheduleUpgradeDisclosure>
+          <div style={upgradeWrapStyle}>
+            <UpgradePrompt
+              planId="captain"
+              compact
+              headline="Turn the calendar into the team week."
+              body="Captain connects confirmed dates to availability, lineup planning, and team messages."
+              ctaLabel="Unlock Captain"
+              ctaHref="/pricing"
+              secondaryLabel="See Captain plan"
+              secondaryHref="/pricing"
+              footnote="Best when schedule context needs to become team action."
+            />
+          </div>
+        </ScheduleUpgradeDisclosure>
+      ) : null}
     </>
+  )
+}
+
+function ScheduleSupportDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={scheduleSupportDisclosureStyle}>
+      <summary style={scheduleSupportSummaryStyle}>
+        <span style={scheduleSupportSummaryCopyStyle}>Use Player ID for this match date</span>
+        <span>Open</span>
+      </summary>
+      <div style={scheduleSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function ScheduleUpgradeDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={scheduleSupportDisclosureStyle}>
+      <summary style={scheduleSupportSummaryStyle}>
+        <span style={scheduleSupportSummaryCopyStyle}>Need Captain tools for this calendar?</span>
+        <span>Open</span>
+      </summary>
+      <div style={scheduleSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function ScheduleToolsDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={scheduleSupportDisclosureStyle}>
+      <summary style={scheduleSupportSummaryStyle}>
+        <span style={scheduleSupportSummaryCopyStyle}>More schedule tools</span>
+        <span>Open</span>
+      </summary>
+      <div style={scheduleSupportBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -359,33 +406,55 @@ function SchedulePlayerIdPrepPanel() {
 }
 
 function SchedulePathPanel() {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <section style={schedulePathStyle} aria-labelledby="compete-schedule-path-title">
       <div style={schedulePathHeaderStyle}>
         <div>
           <span style={schedulePathEyebrowStyle}>Schedule path</span>
-          <h2 id="compete-schedule-path-title" style={schedulePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <h2 id="compete-schedule-path-title" style={schedulePathTitleStyle}>Choose what to do with the schedule</h2>
         </div>
-        <p style={schedulePathIntroStyle}>
-          Start with the calendar need, then open the smallest action that keeps match week moving.
+        <p style={{ ...schedulePathIntroStyle, display: isMobile ? 'none' : undefined }}>
+          Pick the action that matches the date or match in front of you.
         </p>
       </div>
-      <div style={schedulePathGridStyle}>
+      <div
+        style={{
+          ...schedulePathGridStyle,
+          gap: isMobile ? '8px' : schedulePathGridStyle.gap,
+        }}
+      >
         {schedulePathActions.map((action) => (
           <Link
             key={action.job}
             href={action.href}
-            style={schedulePathCardStyle}
+            style={{
+              ...schedulePathCardStyle,
+              minHeight: isMobile ? 76 : schedulePathCardStyle.minHeight,
+              padding: isMobile ? '10px' : schedulePathCardStyle.padding,
+              borderRadius: isMobile ? '14px' : schedulePathCardStyle.borderRadius,
+            }}
             data-compete-schedule-path-job={action.job}
             aria-label={`${action.cta}: ${action.question}`}
           >
             <span style={schedulePathQuestionStyle}>{action.question}</span>
             <strong style={schedulePathCardTitleStyle}>{action.title}</strong>
-            <span>{action.body}</span>
             <span style={schedulePathCtaStyle}>{action.cta}</span>
           </Link>
         ))}
       </div>
+      <details className="competeDetailsSection" style={schedulePathGuideStyle}>
+        <summary style={schedulePathGuideSummaryStyle}>Help me choose</summary>
+        <div style={schedulePathGuideGridStyle}>
+          {schedulePathActions.map((action) => (
+            <div key={action.job} style={schedulePathGuideItemStyle}>
+              <strong>{action.title}</strong>
+              <span>{action.body}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
@@ -606,7 +675,7 @@ const schedulePathIntroStyle: CSSProperties = {
 
 const schedulePathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -615,7 +684,7 @@ const schedulePathCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   alignContent: 'start',
-  minHeight: 148,
+  minHeight: 92,
   minWidth: 0,
   padding: '12px',
   borderRadius: '16px',
@@ -650,6 +719,48 @@ const schedulePathCtaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const schedulePathGuideStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(2,8,23,0.24)',
+  overflow: 'hidden',
+}
+
+const schedulePathGuideSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 42,
+  padding: '0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const schedulePathGuideGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
+const schedulePathGuideItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const schedulePlayerIdPrepStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -664,6 +775,39 @@ const schedulePlayerIdPrepStyle: CSSProperties = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const scheduleSupportDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.62)',
+  boxShadow: '0 14px 36px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const scheduleSupportSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 48,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const scheduleSupportSummaryCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const scheduleSupportBodyStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 10px 10px',
 }
 
 const schedulePlayerIdPrepCopyStyle: CSSProperties = {
@@ -834,12 +978,25 @@ const schedulerStatusItemStyle = {
 
 const calendarLayerPanelStyle = {
   display: 'grid',
-  gap: '12px',
   minWidth: 0,
-  padding: '14px',
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.52)',
+  overflow: 'hidden',
+} as const
+
+const calendarLayerSummaryStyle = {
+  cursor: 'pointer',
+  minHeight: 46,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
 } as const
 
 const calendarLayerHeaderStyle = {
@@ -853,6 +1010,7 @@ const calendarLayerHeaderStyle = {
   fontSize: '14px',
   lineHeight: 1.5,
   overflowWrap: 'anywhere',
+  padding: '0 14px 12px',
 } as const
 
 const calendarLayerGridStyle = {
@@ -860,6 +1018,7 @@ const calendarLayerGridStyle = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: '10px',
   minWidth: 0,
+  padding: '0 14px 14px',
 } as const
 
 const calendarLayerCardStyle = {

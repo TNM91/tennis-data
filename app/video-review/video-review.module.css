@@ -17,6 +17,118 @@
   margin-bottom: 18px;
 }
 
+.toolTop {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 12px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--shell-panel-bg) 92%, #020817 8%);
+  box-shadow: var(--shadow-card);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.toolTitleBlock {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.toolTop .kicker {
+  padding: 6px 10px;
+  font-size: 10px;
+}
+
+.toolTop .title {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.toolTopActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.toolStageBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.toolStageButton {
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--shell-panel-border);
+  background: var(--shell-chip-bg);
+  color: var(--shell-copy-muted);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.toolStageButtonActive {
+  border-color: color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%);
+  background: color-mix(in srgb, var(--brand-green) 15%, var(--shell-chip-bg) 85%);
+  color: var(--foreground-strong);
+}
+
+.toolStageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.toolMetaBar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolFilesButton {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-panel-border) 74%);
+  background: color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-chip-bg) 91%);
+  color: var(--foreground-strong);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.toolStoragePill {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%);
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%);
+  color: var(--foreground-strong);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
 .heroPanel,
 .panel,
 .reviewPanel,
@@ -407,9 +519,74 @@
 }
 
 .utilityDrawer {
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
+.supportDrawer {
+  margin-top: 12px;
+}
+
+.supportDrawer:not([open]) > .supportStack,
+.utilityDrawer:not([open]) > .handoffPanel,
+.compactSetupDrawer:not([open]) > .compactSetupStack {
+  display: none;
+}
+
+.compactSetupDrawer {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%);
+  background: color-mix(in srgb, var(--shell-chip-bg) 86%, transparent 14%);
+  overflow: hidden;
+}
+
+.compactSetupSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 12px;
+  color: var(--foreground-strong);
+  cursor: pointer;
+}
+
+.compactSetupSummary::-webkit-details-marker {
+  display: none;
+}
+
+.compactSetupSummary span:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.compactSetupSummary strong {
+  font-size: 14px;
+  line-height: 1.1;
+  font-weight: 950;
+}
+
+.compactSetupSummary em,
+.compactSetupSummary span:last-child {
+  color: var(--shell-copy-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  font-style: normal;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.compactSetupStack {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+  min-width: 0;
+}
+
+.supportSummary,
 .utilitySummary {
   display: flex;
   justify-content: space-between;
@@ -426,8 +603,39 @@
   list-style: none;
 }
 
+.supportSummary::-webkit-details-marker,
 .utilitySummary::-webkit-details-marker {
   display: none;
+}
+
+.supportSummary span,
+.utilitySummary span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.supportSummary strong,
+.utilitySummary strong {
+  font-size: 14px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.supportSummary em,
+.utilitySummary em {
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.supportStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .utilitySummary span {
@@ -968,6 +1176,37 @@
 
 .clipMeta {
   display: block;
+}
+
+.clipBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+  min-width: 0;
+}
+
+.clipMiniBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  background: rgba(116, 190, 255, 0.075);
+  color: var(--foreground-strong);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.clipMiniBadgeGuest {
+  border-color: rgba(255, 194, 87, 0.28);
+  background: rgba(255, 194, 87, 0.1);
+  color: #ffd891;
 }
 
 .clipNextStep {
@@ -2301,8 +2540,71 @@
   .shell {
     width: calc(100% - 28px);
     max-width: 1320px;
-    padding-top: 16px;
+    padding-top: 10px;
     padding-bottom: calc(116px + var(--safe-bottom));
+  }
+
+  .toolTop {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-bottom: 10px;
+    border-radius: 18px;
+    padding: 10px;
+  }
+
+  .toolTitleBlock {
+    gap: 4px;
+  }
+
+  .toolTop .kicker {
+    display: none;
+  }
+
+  .toolTop .title {
+    font-size: 22px;
+    line-height: 1.05;
+  }
+
+  .toolTopActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+    gap: 7px;
+  }
+
+  .toolTop .modeBar,
+  .toolStageBar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    width: 100%;
+  }
+
+  .toolStageBar {
+    display: none;
+  }
+
+  .toolMetaBar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    justify-content: stretch;
+    gap: 7px;
+  }
+
+  .toolTop .modeButton,
+  .toolStageButton,
+  .toolFilesButton {
+    min-height: 42px;
+    width: 100%;
+    justify-content: center;
+    padding-inline: 8px;
+  }
+
+  .toolStoragePill {
+    justify-content: center;
+    min-height: 42px;
+    padding-inline: 8px;
+    font-size: 11px;
   }
 
   .hero {
@@ -2430,6 +2732,27 @@
     line-height: 1.25;
   }
 
+  .supportDrawer {
+    margin-top: 10px;
+  }
+
+  .supportSummary,
+  .utilitySummary {
+    border-radius: 16px;
+    padding: 10px 11px;
+  }
+
+  .supportSummary strong,
+  .utilitySummary strong {
+    font-size: 13px;
+  }
+
+  .supportSummary em,
+  .utilitySummary em,
+  .utilitySummaryAction {
+    font-size: 11px;
+  }
+
   .storageCleanupSummary {
     grid-template-columns: 1fr;
   }
@@ -2457,7 +2780,26 @@
   }
 
   .captureSteps {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .captureStep {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 5px;
+    padding: 8px 5px;
+    text-align: center;
+  }
+
+  .captureStep span {
+    width: 22px;
+    height: 22px;
+  }
+
+  .captureStep strong {
+    font-size: 10.5px;
+    line-height: 1.15;
   }
 
   .filterGrid {
@@ -2502,7 +2844,7 @@
     left: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
     margin-top: 14px;
     border: 1px solid var(--shell-panel-border);
@@ -2510,6 +2852,10 @@
     background: color-mix(in srgb, var(--shell-panel-bg) 92%, #020817 8%);
     box-shadow: var(--shadow-card);
     padding: 8px;
+  }
+
+  .mobileDockCoach {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .mobileDock button {
@@ -2520,7 +2866,7 @@
     background: var(--shell-chip-bg);
     color: var(--foreground-strong);
     font: inherit;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 950;
   }
 

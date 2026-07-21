@@ -767,12 +767,13 @@ function ProfilePageInner() {
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
 
+          {signedIn ? (
           <section style={contentGridStyle}>
-            <div id="profile-identity" style={surfaceStyle}>
+            <div id="profile-identity" style={surfaceStyle(isMobile)}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
-                  <p style={sectionTextStyle}>
+                  <p style={sectionTextStyle(isMobile)}>
                     {profileComplete
                       ? 'Ratings, teams, leagues, and prep now start from this record.'
                       : 'Type your name, or choose an existing public record. Self-rated profiles show an S until verified data replaces it.'}
@@ -857,7 +858,7 @@ function ProfilePageInner() {
                 </div>
               </div>
 
-              <div style={ratingTileGridStyle}>
+              <div style={ratingTileGridStyle(isMobile)}>
                 {ratingTiles.map((tile) => (
                   <div key={tile.label} style={ratingTileStyle}>
                     <span>{tile.label}</span>
@@ -866,14 +867,17 @@ function ProfilePageInner() {
                 ))}
               </div>
 
-              <div style={playerIdPowersStyle}>
-                <div style={playerIdPowersHeaderStyle}>
+              <details className="profileDetailsSection" style={playerIdPowersStyle}>
+                <summary style={profileDetailsSummaryStyle}>
+                  <span style={playerIdPowersHeaderStyle}>
                   <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
                   <div style={playerIdPowersHeaderCopyStyle}>
                     <strong>Player ID powers</strong>
                     <span>One tennis identity keeps Level Up, My Lab, matchup prep, and public records aligned.</span>
                   </div>
-                </div>
+                  </span>
+                  <span style={profileDetailsCueStyle}>Show why</span>
+                </summary>
                 <div style={playerIdPowersGridStyle}>
                   {profilePlayerIdBenefits.map((benefit) => (
                     <div key={benefit.label} style={playerIdPowerCardStyle}>
@@ -909,7 +913,7 @@ function ProfilePageInner() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </details>
 
               {profileAwards.length ? (
                 <div style={profileAwardStripStyle}>
@@ -1082,6 +1086,40 @@ function ProfilePageInner() {
               {error ? <div style={errorStyle}>{error}</div> : null}
             </div>
           </section>
+          ) : !authPending ? (
+            <section style={contentGridStyle}>
+              <div id="profile-identity" style={surfaceStyle(isMobile)}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <h2 style={sectionTitleStyle}>Set up your player after sign in.</h2>
+                    <p style={sectionTextStyle(isMobile)}>
+                      Sign in once, then choose your public player record or create a self-rated profile.
+                    </p>
+                  </div>
+                  <TiqFeatureIcon name="accountSecurity" size="md" variant="ghost" />
+                </div>
+                <div style={newPlayerPathStyle}>
+                  <div style={newPlayerPathHeaderStyle}>
+                    <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
+                    <div>
+                      <strong>Your player tools start here</strong>
+                      <span>Profile powers My Lab, Matchup, Team, and League context.</span>
+                    </div>
+                  </div>
+                  <div style={newPlayerActionGridStyle}>
+                    <Link href="/login?next=%2Fprofile" style={newPlayerActionCardStyle}>
+                      <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
+                      <span>Sign in</span>
+                    </Link>
+                    <Link href="/explore/players" style={newPlayerActionCardStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+                      <span>Find players</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
     </section>
   )
 }
@@ -1125,7 +1163,7 @@ const profileIntroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties 
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-86px, -7vw, -32px)',
+  right: 0,
   bottom: 'clamp(-120px, -11vw, -54px)',
   width: 'clamp(210px, 29vw, 390px)',
   aspectRatio: '1045 / 490',
@@ -1248,16 +1286,16 @@ const contentGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const surfaceStyle: CSSProperties = {
+const surfaceStyle = (isMobile: boolean): CSSProperties => ({
   borderRadius: 24,
   border: '1px solid rgba(125,211,252,0.14)',
   background: 'rgba(8,13,28,0.64)',
-  padding: '18px 20px',
+  padding: isMobile ? '14px 12px' : '18px 20px',
   display: 'grid',
-  gap: 16,
+  gap: isMobile ? 12 : 16,
   minWidth: 0,
   boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
-}
+})
 
 const profileLoadingNoticeStyle: CSSProperties = {
   padding: '10px 12px',
@@ -1289,12 +1327,13 @@ const sectionTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const sectionTextStyle: CSSProperties = {
+const sectionTextStyle = (isMobile: boolean): CSSProperties => ({
+  display: isMobile ? 'none' : 'block',
   margin: '8px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   overflowWrap: 'anywhere',
-}
+})
 
 const formGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
@@ -1313,7 +1352,7 @@ const identityGridStyle = (isMobile: boolean): CSSProperties => ({
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: isMobile ? 8 : 10,
   minWidth: 0,
 })
@@ -1408,12 +1447,12 @@ const errorStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const ratingTileGridStyle: CSSProperties = {
+const ratingTileGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
   minWidth: 0,
-}
+})
 
 const ratingTileStyle: CSSProperties = {
   borderRadius: 16,
@@ -1434,6 +1473,28 @@ const playerIdPowersStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(155,225,29,0.07)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const profileDetailsSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  alignItems: 'center',
+  gap: 10,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+}
+
+const profileDetailsCueStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--shell-copy-muted)',
+  padding: '6px 9px',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.1,
   overflowWrap: 'anywhere',
 }
 

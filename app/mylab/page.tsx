@@ -43,7 +43,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
-import { DATA_ASSIST_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -329,7 +329,7 @@ const MY_LAB_ONBOARDING_GOALS: Array<{ label: string; template: GoalTemplate }> 
       goal: 'Captain a team',
       progressUpdate: 'Use team context to reduce availability, lineup, and scouting friction.',
       doingWell: 'Name the part of match week that is already organized.',
-      improveNext: 'Choose one captain workflow to move into Team Hub.',
+      improveNext: 'Choose one captain job to move into Team Hub.',
       notes: 'Team:\nAvailability gap:\nLineup question:',
     },
   },
@@ -919,10 +919,11 @@ function MyLabPageInner() {
   const [refreshTick, setRefreshTick] = useState(0)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
   const [levelUpCompletions, setLevelUpCompletions] = useState<LevelUpCompletion[]>([])
-  const { isTablet } = useViewportBreakpoints()
+  const { isMobile, isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
+  const showLockedMobileMyLabPreview = isMobile && !accessPending && !access.canUseAdvancedPlayerInsights
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
@@ -2759,6 +2760,8 @@ function MyLabPageInner() {
       job: 'video_review',
     },
   ] as const
+  const visiblePersonalLabPathCards = isMobile ? personalLabPathCards.slice(0, 2) : personalLabPathCards
+  const extraPersonalLabPathCards = isMobile ? personalLabPathCards.slice(2) : []
   const focusTemplates: Array<{ label: string } & GoalTemplate> = [
     {
       label: 'Next match plan',
@@ -3114,12 +3117,13 @@ function MyLabPageInner() {
       {!accessPending && !access.canUseAdvancedPlayerInsights ? (
         <UpgradePrompt
           planId="player_plus"
-          headline={MY_LAB_STORY.upgradeHeadline}
-          body={MY_LAB_STORY.upgradeBody}
+          headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}
+          body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}
           ctaLabel={MY_LAB_STORY.upgradeCta}
-          secondaryLabel={MY_LAB_STORY.upgradeSecondary}
-          footnote={MY_LAB_STORY.upgradeFootnote}
+          secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}
+          footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
           compact
+          summaryOnly={isMobile}
         />
       ) : null}
 
@@ -3130,10 +3134,12 @@ function MyLabPageInner() {
             <div style={sectionTitleClusterStyle}>
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
-                <p style={sectionKickerStyle}>You hub</p>
+                <p style={sectionKickerStyle}>Your tennis hub</p>
                 <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
                 <p style={sectionTextStyle}>
-                  My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.
+                  {isMobile
+                    ? 'Pick the next move, then keep the proof connected.'
+                    : 'My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.'}
                 </p>
               </div>
             </div>
@@ -3145,175 +3151,276 @@ function MyLabPageInner() {
           <section style={personalLabPathStyle} aria-label="My Lab next action path">
             <div style={personalLabPathHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>Personal lab path</p>
-                <h2 style={personalLabPathTitleStyle}>{PRODUCT_MOTTO}</h2>
-                <p style={sectionTextStyle}>Start with the one question that gets you back to useful tennis fastest.</p>
+                <p style={sectionKickerStyle}>My Lab tools</p>
+                <h2 style={personalLabPathTitleStyle}>Choose your next tennis move.</h2>
+                {!isMobile ? (
+                  <p style={sectionTextStyle}>Start with the tool that gets you back to useful tennis fastest.</p>
+                ) : null}
               </div>
             </div>
-            <div style={personalLabPathGridStyle(isTablet)}>
-              {personalLabPathCards.map((card) => (
+            <div style={personalLabPathGridStyle(isTablet, isMobile)}>
+              {visiblePersonalLabPathCards.map((card) => (
                 <Link
                   key={card.question}
                   href={card.href}
-                  style={personalLabPathCardStyle}
+                  style={isMobile ? mobilePersonalLabPathCardStyle : personalLabPathCardStyle}
                   aria-label={`${card.cta}: ${card.question}`}
                   data-my-lab-path-job={card.job}
                 >
                   <span style={personalLabPathQuestionStyle}>{card.question}</span>
                   <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
-                  <span style={personalLabPathCardTextStyle}>{card.body}</span>
+                  {!isMobile ? <span style={personalLabPathCardTextStyle}>{card.body}</span> : null}
                   <span style={miniActionLinkStyle}>{card.cta}</span>
                 </Link>
               ))}
             </div>
-          </section>
-
-          <section style={youHubPanelStyle}>
-            <div style={personalCommandGridStyle(isTablet)}>
-              {youHubCards.map((card) => (
-                <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
-                  <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
-                  <div style={metricLabelStyle}>{card.label}</div>
-                  <div style={personalHomeTitleStyle}>{card.value}</div>
-                  <div style={metricNoteStyle}>{card.note}</div>
-                  <span style={miniActionLinkStyle}>{card.cta}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section style={onboardingPanelStyle}>
-            <div style={sectionHeaderStyle}>
-              <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>First My Lab read</p>
-                <h2 style={compactSectionTitleStyle}>Find yourself, choose one focus, open the next useful card.</h2>
-                <p style={sectionTextStyle}>
-                  My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.
-                </p>
-              </div>
-              <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
-                {isProfileConfirmed ? 'Open first read' : 'Find yourself'}
-              </Link>
-            </div>
-
-            <div style={onboardingStepGridStyle(isTablet)}>
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>1</span>
-                <strong>Find yourself</strong>
-                <p>{isProfileConfirmed ? profileLink?.linked_player_name || linkedPlayer?.name || 'Player profile linked.' : 'Search for your player record or create a self-rated profile.'}</p>
-                <Link href="/profile" style={smallInlineLinkStyle}>{isProfileConfirmed ? 'Review profile' : 'Set profile'}</Link>
-              </div>
-
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>2</span>
-                <strong>Choose your tennis goal</strong>
-                <p>{activeGoal.goal.trim() || 'Pick one focus for the next two weeks.'}</p>
-                <div style={onboardingGoalGridStyle}>
-                  {MY_LAB_ONBOARDING_GOALS.map((option) => (
-                    <button
-                      key={option.label}
-                      type="button"
-                      onClick={() => applyGoalTemplate(option.template)}
-                      style={activeGoal.goal === option.template.goal ? onboardingGoalButtonActiveStyle : onboardingGoalButtonStyle}
+            {extraPersonalLabPathCards.length ? (
+              <details className="myLabDetailsSection" style={mobileLabMoveDetailsStyle}>
+                <summary style={mobileLabMoveSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>More lab moves</strong>
+                    <em style={labDrawerSummaryHintStyle}>Matchup, drills, video.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>{extraPersonalLabPathCards.length} moves</span>
+                </summary>
+                <div className="myLabDetailsBody" style={mobileLabMoveGridStyle}>
+                  {extraPersonalLabPathCards.map((card) => (
+                    <Link
+                      key={card.question}
+                      href={card.href}
+                      style={personalLabPathCardStyle}
+                      aria-label={`${card.cta}: ${card.question}`}
+                      data-my-lab-path-job={card.job}
                     >
-                      {option.label}
-                    </button>
+                      <span style={personalLabPathQuestionStyle}>{card.question}</span>
+                      <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
+                      <span style={personalLabPathCardTextStyle}>{card.body}</span>
+                      <span style={miniActionLinkStyle}>{card.cta}</span>
+                    </Link>
                   ))}
                 </div>
-              </div>
-
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>3</span>
-                <strong>Open your first read</strong>
-                <p>
-                  {topMatchupCandidate
-                    ? `Try the matchup read vs ${topMatchupCandidate.player.name}.`
-                    : isProfileConfirmed
-                      ? 'Upload data, follow a team, or build a matchup to sharpen the read.'
-                      : 'Set your profile first, then My Lab can suggest the next card.'}
-                </p>
-                <div style={onboardingReadListStyle}>
-                  <Link href={courtModeHref} style={miniActionPillStyle}>Open court mode</Link>
-                  <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
-                  <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
-                  <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
-                </div>
-              </div>
-            </div>
+              </details>
+            ) : null}
           </section>
 
-          <section style={personalReadPanelStyle}>
-            <div style={personalReadHeaderStyle}>
-              <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>Today&apos;s next move</p>
-                <h3 style={personalReadTitleStyle}>
-                  {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Set your profile to unlock your read'}
-                </h3>
-              </div>
-              <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
-                {nextMoveCta}
-              </Link>
-            </div>
-            <div style={personalReadGridStyle(isTablet)}>
-              {personalReadCards.map((card) => (
-                card.href ? (
-                  <Link key={card.label} href={card.href} style={personalReadCardLinkStyle}>
-                    <div style={metricLabelStyle}>{card.label}</div>
-                    <div style={personalReadValueStyle}>{card.value}</div>
-                    <div style={metricNoteStyle}>{card.note}</div>
-                  </Link>
-                ) : (
-                  <div key={card.label} style={personalReadCardStyle}>
-                    <div style={metricLabelStyle}>{card.label}</div>
-                    <div style={personalReadValueStyle}>{card.value}</div>
-                    <div style={metricNoteStyle}>{card.note}</div>
+          {!showLockedMobileMyLabPreview ? (
+            <details className="myLabDetailsSection" style={isMobile ? labDrawerDetailsStyle : desktopPassthroughDetailsStyle} open={!isMobile}>
+              <summary style={isMobile ? labDrawerSummaryStyle : desktopHiddenSummaryStyle}>
+                <span style={labDrawerSummaryCopyStyle}>
+                  <strong>Start here</strong>
+                  <em style={labDrawerSummaryHintStyle}>Find yourself and choose a focus.</em>
+                </span>
+                <span style={optionalContextCountStyle}>Open</span>
+              </summary>
+              <div className="myLabDetailsBody" style={isMobile ? labDrawerContentStyle : desktopPassthroughContentStyle}>
+                <section style={youHubPanelStyle}>
+                  <div style={personalCommandGridStyle(isTablet)}>
+                    {youHubCards.map((card) => (
+                      <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                        <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+                        <div style={metricLabelStyle}>{card.label}</div>
+                        <div style={personalHomeTitleStyle}>{card.value}</div>
+                        <div style={metricNoteStyle}>{card.note}</div>
+                        <span style={miniActionLinkStyle}>{card.cta}</span>
+                      </Link>
+                    ))}
                   </div>
-                )
-              ))}
-            </div>
-          </section>
+                </section>
 
-          <PlayerDevelopmentPathPanel
-            linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-            currentGoal={activeGoal?.goal || ''}
-            tacticsBoardHref={pathPanelTacticsHref}
-          />
+                <section style={onboardingPanelStyle}>
+                  <div style={sectionHeaderStyle}>
+                    <div style={sectionHeaderCopyStyle}>
+                      <p style={sectionKickerStyle}>First My Lab read</p>
+                      <h2 style={compactSectionTitleStyle}>Find yourself, choose one focus, open the next useful card.</h2>
+                      <p style={sectionTextStyle}>
+                        My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.
+                      </p>
+                    </div>
+                    <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
+                      {isProfileConfirmed ? 'Open first read' : 'Find yourself'}
+                    </Link>
+                  </div>
 
-          <LevelUpReturnStatePanel
-            proofs={levelUpProofs}
-            signedIn={Boolean(session?.access_token)}
-            playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-            nextMoveLabel={nextMoveCta}
-          />
+                  <div style={onboardingStepGridStyle(isTablet)}>
+                    <div style={onboardingStepCardStyle}>
+                      <span style={setupStepNumberStyle}>1</span>
+                      <strong>Find yourself</strong>
+                      <p>{isProfileConfirmed ? profileLink?.linked_player_name || linkedPlayer?.name || 'Player profile linked.' : 'Search for your player record or create a self-rated profile.'}</p>
+                      <Link href="/profile" style={smallInlineLinkStyle}>{isProfileConfirmed ? 'Review profile' : 'Set profile'}</Link>
+                    </div>
 
-          <MyLabCalendarPanel
-            personalItems={personalCalendarItems}
-            sharedCoachEvents={sharedCoachCalendarEvents}
-            syncLabel={personalCalendarSyncLabel}
-            calendarFeedUrl={personalCalendarFeedUrl}
-            calendarFeedActive={personalCalendarFeedStatus.active}
-            calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
-            coachFeedActiveCount={activeCoachCalendarFeeds.length}
-            coachFeedLastUsedAt={latestCoachCalendarFeedUse}
-            calendarFeedLoading={personalCalendarFeedLoading}
-            onCreateCalendarFeed={createPersonalCalendarFeedLink}
-            onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
-            onAddPersonalItem={addPersonalCalendarItem}
-            onRemovePersonalItem={removePersonalCalendarItem}
-          />
+                    <div style={onboardingStepCardStyle}>
+                      <span style={setupStepNumberStyle}>2</span>
+                      <strong>Choose your tennis goal</strong>
+                      <p>{activeGoal.goal.trim() || 'Pick one focus for the next two weeks.'}</p>
+                      <div style={onboardingGoalGridStyle}>
+                        {MY_LAB_ONBOARDING_GOALS.map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => applyGoalTemplate(option.template)}
+                            style={activeGoal.goal === option.template.goal ? onboardingGoalButtonActiveStyle : onboardingGoalButtonStyle}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-          <PlayerCoachAssignmentsPanel
-            assignments={coachAssignments}
-            coachLinks={coachLinks}
-            loading={coachAssignmentsLoading}
-            message={coachAssignmentsMessage}
-            onComplete={completeCoachAssignment}
-            calendarLinksByStudentId={coachCalendarLinkByStudentId}
-            calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
-            calendarLinkLoadingId={coachCalendarLinkLoadingId}
-            onCreateCalendarLink={createPlayerCoachCalendarLink}
-            onRevokeCalendarLink={revokePlayerCoachCalendarLink}
-          />
+                    <div style={onboardingStepCardStyle}>
+                      <span style={setupStepNumberStyle}>3</span>
+                      <strong>Open your first read</strong>
+                      <p>
+                        {topMatchupCandidate
+                          ? `Try the matchup read vs ${topMatchupCandidate.player.name}.`
+                          : isProfileConfirmed
+                            ? 'Upload data, follow a team, or build a matchup to sharpen the read.'
+                            : 'Set your profile first, then My Lab can suggest the next card.'}
+                      </p>
+                      <div style={onboardingReadListStyle}>
+                        <Link href={courtModeHref} style={miniActionPillStyle}>Open court mode</Link>
+                        <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
+                        <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
+                        <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section style={personalReadPanelStyle}>
+                  <div style={personalReadHeaderStyle}>
+                    <div style={sectionHeaderCopyStyle}>
+                      <p style={sectionKickerStyle}>Today&apos;s next move</p>
+                      <h3 style={personalReadTitleStyle}>
+                        {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Set your profile to unlock your read'}
+                      </h3>
+                    </div>
+                    <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
+                      {nextMoveCta}
+                    </Link>
+                  </div>
+                  <div style={personalReadGridStyle(isTablet)}>
+                    {personalReadCards.map((card) => (
+                      card.href ? (
+                        <Link key={card.label} href={card.href} style={personalReadCardLinkStyle}>
+                          <div style={metricLabelStyle}>{card.label}</div>
+                          <div style={personalReadValueStyle}>{card.value}</div>
+                          <div style={metricNoteStyle}>{card.note}</div>
+                        </Link>
+                      ) : (
+                        <div key={card.label} style={personalReadCardStyle}>
+                          <div style={metricLabelStyle}>{card.label}</div>
+                          <div style={personalReadValueStyle}>{card.value}</div>
+                          <div style={metricNoteStyle}>{card.note}</div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </details>
+          ) : null}
+
+          {isMobile ? (
+            !showLockedMobileMyLabPreview ? (
+              <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+                <summary style={labDrawerSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>More tools</strong>
+                    <em style={labDrawerSummaryHintStyle}>Progress, calendar, coach.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>Open</span>
+                </summary>
+                <div className="myLabDetailsBody" style={labDrawerContentStyle}>
+                  <PlayerDevelopmentPathPanel
+                    linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                    currentGoal={activeGoal?.goal || ''}
+                    tacticsBoardHref={pathPanelTacticsHref}
+                  />
+
+                  <LevelUpReturnStatePanel
+                    proofs={levelUpProofs}
+                    signedIn={Boolean(session?.access_token)}
+                    playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                    nextMoveLabel={nextMoveCta}
+                  />
+
+                  <MyLabCalendarPanel
+                    personalItems={personalCalendarItems}
+                    sharedCoachEvents={sharedCoachCalendarEvents}
+                    syncLabel={personalCalendarSyncLabel}
+                    calendarFeedUrl={personalCalendarFeedUrl}
+                    calendarFeedActive={personalCalendarFeedStatus.active}
+                    calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
+                    coachFeedActiveCount={activeCoachCalendarFeeds.length}
+                    coachFeedLastUsedAt={latestCoachCalendarFeedUse}
+                    calendarFeedLoading={personalCalendarFeedLoading}
+                    onCreateCalendarFeed={createPersonalCalendarFeedLink}
+                    onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
+                    onAddPersonalItem={addPersonalCalendarItem}
+                    onRemovePersonalItem={removePersonalCalendarItem}
+                  />
+
+                  <PlayerCoachAssignmentsPanel
+                    assignments={coachAssignments}
+                    coachLinks={coachLinks}
+                    loading={coachAssignmentsLoading}
+                    message={coachAssignmentsMessage}
+                    onComplete={completeCoachAssignment}
+                    calendarLinksByStudentId={coachCalendarLinkByStudentId}
+                    calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
+                    calendarLinkLoadingId={coachCalendarLinkLoadingId}
+                    onCreateCalendarLink={createPlayerCoachCalendarLink}
+                    onRevokeCalendarLink={revokePlayerCoachCalendarLink}
+                  />
+                </div>
+              </details>
+            ) : null
+          ) : (
+            <>
+              <PlayerDevelopmentPathPanel
+                linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                currentGoal={activeGoal?.goal || ''}
+                tacticsBoardHref={pathPanelTacticsHref}
+              />
+
+              <LevelUpReturnStatePanel
+                proofs={levelUpProofs}
+                signedIn={Boolean(session?.access_token)}
+                playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                nextMoveLabel={nextMoveCta}
+              />
+
+              <MyLabCalendarPanel
+                personalItems={personalCalendarItems}
+                sharedCoachEvents={sharedCoachCalendarEvents}
+                syncLabel={personalCalendarSyncLabel}
+                calendarFeedUrl={personalCalendarFeedUrl}
+                calendarFeedActive={personalCalendarFeedStatus.active}
+                calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
+                coachFeedActiveCount={activeCoachCalendarFeeds.length}
+                coachFeedLastUsedAt={latestCoachCalendarFeedUse}
+                calendarFeedLoading={personalCalendarFeedLoading}
+                onCreateCalendarFeed={createPersonalCalendarFeedLink}
+                onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
+                onAddPersonalItem={addPersonalCalendarItem}
+                onRemovePersonalItem={removePersonalCalendarItem}
+              />
+
+              <PlayerCoachAssignmentsPanel
+                assignments={coachAssignments}
+                coachLinks={coachLinks}
+                loading={coachAssignmentsLoading}
+                message={coachAssignmentsMessage}
+                onComplete={completeCoachAssignment}
+                calendarLinksByStudentId={coachCalendarLinkByStudentId}
+                calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
+                calendarLinkLoadingId={coachCalendarLinkLoadingId}
+                onCreateCalendarLink={createPlayerCoachCalendarLink}
+                onRevokeCalendarLink={revokePlayerCoachCalendarLink}
+              />
+            </>
+          )}
 
           {linkedPlayer ? (
             <>
@@ -3475,7 +3582,7 @@ function MyLabPageInner() {
                 )}
               </section>
 
-              <details style={labDrawerDetailsStyle}>
+              <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
                 <summary style={labDrawerSummaryStyle}>
                   <span style={labDrawerSummaryCopyStyle}>
                     <strong>Deeper lab read</strong>
@@ -3605,6 +3712,52 @@ function MyLabPageInner() {
                 </div>
               </details>
             </>
+          ) : isMobile ? (
+            <section style={setupCompactPanelStyle}>
+              <div style={setupCompactHeroStyle}>
+                <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
+                <div>
+                  <p style={sectionKickerStyle}>Finish setup</p>
+                  <h3 style={setupCompactTitleStyle}>Set your player profile.</h3>
+                </div>
+              </div>
+              <div style={setupActionRowStyle}>
+                <Link href="/profile" style={matchupPrimaryLinkStyle}>
+                  Set profile
+                </Link>
+                <Link href="/explore/players" style={secondaryButtonStyle}>
+                  Find player
+                </Link>
+              </div>
+              <details className="myLabDetailsSection" style={mobileLabMoveDetailsStyle}>
+                <summary style={mobileLabMoveSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>Setup steps</strong>
+                    <em style={labDrawerSummaryHintStyle}>Profile, context, lab.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>3 steps</span>
+                </summary>
+                <div className="myLabDetailsBody" style={labDrawerContentStyle}>
+                  <div style={setupStepGridStyle(isTablet)}>
+                    <div style={setupStepCardStyle}>
+                      <span style={setupStepNumberStyle}>1</span>
+                      <strong>Match identity</strong>
+                      <p>Choose your player record in Profile.</p>
+                    </div>
+                    <div style={setupStepCardStyle}>
+                      <span style={setupStepNumberStyle}>2</span>
+                      <strong>Pull tennis context</strong>
+                      <p>Ratings, teams, leagues, and history connect automatically.</p>
+                    </div>
+                    <div style={setupStepCardStyle}>
+                      <span style={setupStepNumberStyle}>3</span>
+                      <strong>Open your lab</strong>
+                      <p>Scorecard, matchup queue, goals, and recent matches unlock here.</p>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </section>
           ) : (
             <section style={setupPanelStyle(isTablet)}>
               <div style={setupHeroStyle}>
@@ -3654,16 +3807,16 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-        <details id="player-tools" style={labDrawerDetailsStyle}>
+        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle}>
           <summary style={labDrawerSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>Notebook and match history</strong>
-              <em style={labDrawerSummaryHintStyle}>Open for notes, reports, and wider tennis context.</em>
+              <em style={labDrawerSummaryHintStyle}>Notes, reports, tennis context.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
 
-          <section style={profileLinkSectionStyle}>
+          <section className="myLabDetailsBody" style={profileLinkSectionStyle}>
           <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
@@ -3844,9 +3997,9 @@ function MyLabPageInner() {
                   ))}
                 </div>
 
-                <details style={goalEditorDetailsStyle}>
+                <details className="myLabDetailsSection" style={goalEditorDetailsStyle}>
                   <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
-                  <div style={goalEditorStyle}>
+                  <div className="myLabDetailsBody" style={goalEditorStyle}>
                     <div style={inputWrapStyle}>
                       <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
                       <input
@@ -4059,21 +4212,22 @@ function MyLabPageInner() {
         </details>
       ) : null}
 
-      <details style={optionalContextDetailsStyle}>
-        <summary style={optionalContextSummaryStyle}>
-          <span>
-            <strong>Watchlist</strong>
-            <em>Follows and updates when you want the wider picture.</em>
-          </span>
-          <span style={optionalContextCountStyle}>
-            {follows.length} follows
-          </span>
-        </summary>
+      {!showLockedMobileMyLabPreview ? (
+        <details className="myLabDetailsSection" style={optionalContextDetailsStyle}>
+          <summary style={optionalContextSummaryStyle}>
+            <span>
+              <strong>Watchlist</strong>
+              <em>Follows and updates.</em>
+            </span>
+            <span style={optionalContextCountStyle}>
+              {follows.length} follows
+            </span>
+          </summary>
 
-        <section style={contentGridStyle(isTablet)}>
-          <div style={leftColumnStyle}>
-            {followedPlayerSignals.length > 0 ? (
-              <section style={compactSignalsPanelStyle}>
+          <section className="myLabDetailsBody" style={contentGridStyle(isTablet)}>
+            <div style={leftColumnStyle}>
+              {followedPlayerSignals.length > 0 ? (
+                <section style={compactSignalsPanelStyle}>
                 <div style={compactSignalsHeaderStyle}>
                   <span>Player signals</span>
                   <strong>{followedPlayerSignals.length}</strong>
@@ -4100,8 +4254,8 @@ function MyLabPageInner() {
                     )
                   })}
                 </div>
-              </section>
-            ) : null}
+                </section>
+              ) : null}
 
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
@@ -4326,9 +4480,10 @@ function MyLabPageInner() {
               </div>
             ) : null}
           </section>
-        </div>
-        </section>
-      </details>
+            </div>
+          </section>
+        </details>
+      ) : null}
     </section>
   )
 }
@@ -4732,9 +4887,9 @@ function LevelUpReturnStatePanel({
         </span>
       </div>
 
-      <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh proof cue">
+      <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh check">
         <div style={myLabRefreshProofHeaderStyle}>
-          <span style={metricLabelStyle}>My Lab refresh proof cue</span>
+          <span style={metricLabelStyle}>Refresh check</span>
           <strong style={levelUpReturnStorageNoteStrongStyle}>What should still be clear after refresh?</strong>
         </div>
         <div style={myLabRefreshProofGridStyle}>
@@ -5440,7 +5595,7 @@ function PlayerCoachAssignmentsPanel({
             <strong>Coach connection is ready.</strong>
             <span>
               You are linked to {activeCoachLink.playerName}. Ask for one measurable assignment so My Lab can track the work,
-              recap, and coach feedback in this section.
+              recap, and coach feedback here.
             </span>
           </div>
           <div style={coachInviteLandingStepGridStyle} aria-label="Coach invite accepted next steps">
@@ -7668,9 +7823,9 @@ const profileLinkCardStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-92px, -7vw, -34px)',
+  right: 0,
   top: 'clamp(-112px, -10vw, -52px)',
-  width: 'clamp(230px, 30vw, 420px)',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -7984,12 +8139,24 @@ const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
+const setupCompactPanelStyle: CSSProperties = {
+  ...setupPanelStyle(true),
+  marginTop: 14,
+  padding: 14,
+  gap: 12,
+}
+
 const setupHeroStyle: CSSProperties = {
   display: 'flex',
   gap: 14,
   alignItems: 'center',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const setupCompactHeroStyle: CSSProperties = {
+  ...setupHeroStyle,
+  gap: 10,
 }
 
 const setupTitleStyle: CSSProperties = {
@@ -7999,6 +8166,12 @@ const setupTitleStyle: CSSProperties = {
   lineHeight: 1.06,
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const setupCompactTitleStyle: CSSProperties = {
+  ...setupTitleStyle,
+  margin: '3px 0 0',
+  fontSize: '1.24rem',
 }
 
 const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -8506,10 +8679,10 @@ const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const personalLabPathStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
-  padding: 16,
-  borderRadius: 22,
+  padding: 12,
+  borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
   overflowWrap: 'anywhere',
@@ -8526,21 +8699,23 @@ const personalLabPathHeaderStyle: CSSProperties = {
 }
 
 const personalLabPathTitleStyle: CSSProperties = {
-  margin: '6px 0 0',
+  margin: '4px 0 0',
   color: 'var(--foreground-strong)',
-  fontSize: '1.28rem',
+  fontSize: '1.16rem',
   lineHeight: 1.15,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const personalLabPathGridStyle = (isTablet: boolean): CSSProperties => ({
+const personalLabPathGridStyle = (isTablet: boolean, isMobile = false): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(4, minmax(0, 1fr))',
-  gap: 10,
+  gridTemplateColumns: isMobile
+    ? 'repeat(2, minmax(0, 1fr))'
+    : isTablet
+      ? 'minmax(0, 1fr)'
+      : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? 7 : 10,
   minWidth: 0,
 })
 
@@ -8559,9 +8734,17 @@ const personalLabPathCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const mobilePersonalLabPathCardStyle: CSSProperties = {
+  ...personalLabPathCardStyle,
+  gridTemplateRows: 'auto auto auto',
+  gap: 5,
+  minHeight: 98,
+  padding: 9,
+}
+
 const personalLabPathQuestionStyle: CSSProperties = {
   color: 'var(--brand-lime)',
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 950,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
@@ -8570,8 +8753,8 @@ const personalLabPathQuestionStyle: CSSProperties = {
 
 const personalLabPathCardTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
-  lineHeight: 1.25,
+  fontSize: 13,
+  lineHeight: 1.16,
   fontWeight: 950,
   overflowWrap: 'anywhere',
 }
@@ -8582,6 +8765,37 @@ const personalLabPathCardTextStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const mobileLabMoveDetailsStyle: CSSProperties = {
+  marginTop: 8,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 78%, transparent)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const mobileLabMoveSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '9px 10px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLabMoveGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: '0 12px 12px',
+  minWidth: 0,
 }
 
 const personalCommandCardStyle: CSSProperties = {
@@ -9307,8 +9521,8 @@ const optionalContextDetailsStyle: CSSProperties = {
 }
 
 const labDrawerDetailsStyle: CSSProperties = {
-  marginTop: 14,
-  borderRadius: 22,
+  marginTop: 10,
+  borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
   padding: 0,
@@ -9321,8 +9535,8 @@ const labDrawerSummaryStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 14,
-  padding: '14px 16px',
+  gap: 8,
+  padding: '10px 12px',
   cursor: 'pointer',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
@@ -9340,7 +9554,7 @@ const labDrawerSummaryCopyStyle: CSSProperties = {
 
 const labDrawerSummaryHintStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
+  fontSize: 12,
   fontStyle: 'normal',
   fontWeight: 800,
   lineHeight: 1.35,
@@ -9348,17 +9562,33 @@ const labDrawerSummaryHintStyle: CSSProperties = {
 
 const labDrawerContentStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
-  padding: '0 14px 14px',
+  gap: 10,
+  padding: '0 12px 12px',
   minWidth: 0,
+}
+
+const desktopPassthroughDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const desktopPassthroughContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const desktopHiddenSummaryStyle: CSSProperties = {
+  display: 'none',
 }
 
 const optionalContextSummaryStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 14,
-  padding: '16px 18px',
+  gap: 8,
+  padding: '12px 14px',
   cursor: 'pointer',
   color: 'var(--foreground-strong)',
   fontWeight: 900,

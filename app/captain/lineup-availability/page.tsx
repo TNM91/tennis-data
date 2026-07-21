@@ -1060,7 +1060,7 @@ function LineupAvailabilityContent() {
           <section style={surfaceCard}>
             <h3 style={sectionTitleSmall}>Start by selecting a league and team</h3>
             <p style={mutedTextStyle}>
-              Once selected, this page will load the roster usage history and let you set availability for the chosen match date.
+              Choose a league and team to load roster usage history and set availability for the match date.
             </p>
           </section>
         ) : rosterLoading ? (

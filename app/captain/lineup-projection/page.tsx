@@ -804,7 +804,7 @@ function LineupProjectionContent() {
 
   return (
     <div style={pageWrap}>
-      <CaptainSuitePanel active="projection" teamLabel={selectedTeam || 'Team week'} />
+      {!isMobile ? <CaptainSuitePanel active="projection" teamLabel={selectedTeam || 'Team week'} /> : null}
       <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Projection controls">
         <span aria-hidden="true" style={watermarkStyle} />
         <div>

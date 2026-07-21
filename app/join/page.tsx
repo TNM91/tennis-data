@@ -161,6 +161,9 @@ function JoinContent() {
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
+  const formCue = selectedPlanId === 'free'
+    ? 'Create Free access now. Add paid tools when you need them.'
+    : `Create Free access now. Activate ${selectedTier.name} next.`
 
   useEffect(() => {
     if (!authResolved) return
@@ -311,44 +314,17 @@ function JoinContent() {
             {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
           </p>
 
-          <div style={selectedPlanCardStyle}>
-            <div style={selectedPlanLabelStyle}>Selected start</div>
-            <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
-            <div style={selectedPlanTextStyle}>
-              {JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
-            </div>
-            {selectedPlanId !== 'free' ? (
-              <div style={entitlementNoticeStyle}>
-                Account creation starts Free access first.
-              </div>
-            ) : null}
-            {nextIntent ? (
-              <div aria-label="Join next action" style={nextIntentStyle}>
-                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
-                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
-                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
-              </div>
-            ) : null}
-            <div style={selectedPlanActionRowResponsive}>
-              <Link href="/pricing" style={selectedPlanLinkResponsive}>
-                Compare tiers
-              </Link>
-              <Link href={selectedNextRoute} style={selectedPlanLinkResponsive}>
-                Preview next step
-              </Link>
-            </div>
-          </div>
         </div>
 
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>More Tennis. Less Chaos.</div>
+              <div style={formLabel}>Create Free access</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
               <div style={identityCueStyle}>
                 <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
-                <span>{selectedIntent.formCue}</span>
+                <span>{formCue}</span>
               </div>
 
               <label htmlFor="email" style={inputLabel}>
@@ -475,6 +451,41 @@ function JoinContent() {
             </form>
           </div>
         </div>
+
+        <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
+          <summary style={selectedPlanSummaryStyle}>
+            <span style={selectedPlanSummaryTextStyle}>
+              <span style={selectedPlanLabelStyle}>Selected start</span>
+              <span style={selectedPlanTitleStyle}>{selectedTier.name}</span>
+            </span>
+            <span style={selectedPlanSummaryActionStyle}>Show plan path</span>
+          </summary>
+          <div className="authOptionalDetailsBody" style={selectedPlanDetailBodyStyle}>
+            <div style={selectedPlanTextStyle}>
+              {JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
+            </div>
+            {selectedPlanId !== 'free' ? (
+              <div style={entitlementNoticeStyle}>
+                Account creation starts Free access first.
+              </div>
+            ) : null}
+            {nextIntent ? (
+              <div aria-label="Join next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+              </div>
+            ) : null}
+            <div style={selectedPlanActionRowResponsive}>
+              <Link href="/pricing" style={selectedPlanLinkResponsive}>
+                Compare tiers
+              </Link>
+              <Link href={selectedNextRoute} style={selectedPlanLinkResponsive}>
+                Preview next step
+              </Link>
+            </div>
+          </div>
+        </details>
     </section>
   )
 }
@@ -496,9 +507,9 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-118px',
-  width: 'clamp(220px, 24vw, 310px)',
+  right: 0,
+  top: '-72px',
+  width: 'min(310px, 62vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -552,15 +563,55 @@ const joinCopyRailStyle: CSSProperties = {
 }
 
 const selectedPlanCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '6px',
+  display: 'block',
   width: '100%',
   minWidth: 0,
-  margin: '2px 0 0',
-  padding: '12px',
+  margin: 0,
+  padding: '10px 12px',
   borderRadius: '18px',
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(34,211,238,0.08))',
+  boxSizing: 'border-box',
+}
+
+const selectedPlanSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: '10px',
+  minWidth: 0,
+  alignItems: 'center',
+  listStyle: 'none',
+  cursor: 'pointer',
+}
+
+const selectedPlanSummaryTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+}
+
+const selectedPlanSummaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '32px',
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const selectedPlanDetailBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  paddingTop: '10px',
 }
 
 const selectedPlanLabelStyle: CSSProperties = {

@@ -3129,6 +3129,19 @@
   min-width: 0;
 }
 
+.levelUpLibraryDrawer,
+.levelUpLibraryDrawerBody {
+  display: contents;
+}
+
+.levelUpLibraryDrawerSummary {
+  display: none;
+}
+
+.levelUpLibraryDrawer:not([open]) > .levelUpLibraryDrawerBody {
+  display: contents;
+}
+
 .levelUpFocusTraining:not([open]) > :not(summary) {
   display: none;
 }
@@ -3157,6 +3170,7 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpSafetyNote,
 .levelUpPortalApp[data-session-focus='active'] .levelUpIntentPresets,
 .levelUpPortalApp[data-session-focus='active'] .levelUpFilters,
+.levelUpPortalApp[data-session-focus='active'] .levelUpLibraryDrawer,
 .levelUpPortalApp[data-session-focus='active'] .levelUpModuleGrid,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCardGrid {
   display: none;
@@ -18152,6 +18166,78 @@
     display: grid;
     gap: 10px;
     padding: 11px;
+  }
+
+  .levelUpLibraryDrawer {
+    display: grid;
+    min-width: 0;
+    border: 1px solid var(--card-border-soft);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    color: var(--foreground);
+    overflow: hidden;
+  }
+
+  .levelUpLibraryDrawerSummary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    align-items: center;
+    min-width: 0;
+    min-height: 52px;
+    padding: 11px 12px;
+    cursor: pointer;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+
+  .levelUpLibraryDrawerSummary::-webkit-details-marker {
+    display: none;
+  }
+
+  .levelUpLibraryDrawerSummary span {
+    color: var(--brand-green);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .levelUpLibraryDrawerSummary strong {
+    min-width: 0;
+    color: var(--foreground-strong);
+    font-size: 0.9rem;
+    font-weight: 950;
+    line-height: 1.14;
+    overflow-wrap: anywhere;
+  }
+
+  .levelUpLibraryDrawerSummary small {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    border: 1px solid rgba(155, 225, 29, 0.26);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.1);
+    color: var(--foreground-strong);
+    padding: 6px 8px;
+    font-size: 0.64rem;
+    font-weight: 950;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .levelUpLibraryDrawer:not([open]) > .levelUpLibraryDrawerBody {
+    display: none;
+  }
+
+  .levelUpLibraryDrawer[open] > .levelUpLibraryDrawerBody {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 0 10px 10px;
   }
 
   .levelUpStartList .levelUpRailHeader {

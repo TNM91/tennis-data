@@ -24,7 +24,6 @@ import {
 import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import {
   formatDynamicPointsForSides,
   getDynamicPointsRulesSummary,
@@ -63,7 +62,7 @@ const pageWrap: CSSProperties = {
   overflowX: 'clip',
   boxSizing: 'border-box',
 }
-const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, margin: 0, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
 const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
@@ -193,7 +192,7 @@ const resultPathIntro: CSSProperties = {
 }
 const resultPathCommandStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
@@ -202,7 +201,7 @@ const resultPathStatusPanelStyle: CSSProperties = {
   alignContent: 'start',
   gap: 10,
   minWidth: 0,
-  minHeight: 154,
+  minHeight: 112,
   padding: 14,
   borderRadius: 18,
   border: '1px solid rgba(155,225,29,0.18)',
@@ -241,7 +240,7 @@ const resultPathCard: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
-  minHeight: 154,
+  minHeight: 112,
   padding: 14,
   borderRadius: 18,
   border: '1px solid rgba(223,248,194,0.13)',
@@ -1236,8 +1235,8 @@ function NewEventForm({
     if (event) {
       setMessage(
         scheduleCompletion
-          ? 'Match created and schedule marked complete. Expand below to add lines.'
-          : 'Match created. Expand below to add lines.',
+          ? 'Match created and schedule marked complete. Open the match card to add lines.'
+          : 'Match created. Open the match card to add lines.',
       )
       setForm(defaultEventForLeague(leagues, defaultLeagueId))
       onCreated(event)
@@ -1688,58 +1687,17 @@ function TeamLeagueResultsWorkspaceInner({
   return (
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
-        <LeagueSuitePanel active="team-results" leagueLabel={selectedFilterLeague?.leagueName || 'League season'} />
-        <div style={introCard}>
-          <span aria-hidden="true" style={portalWatermarkStyle} />
-          <div style={portalPanelContentStyle}>
-            <div style={heading}>Enter team results.</div>
-            <div style={subheading}>Create the match, add each line, and keep standings current without spreadsheet cleanup.</div>
-            <div style={scorekeeperGrid}>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Leagues</div>
-                <div style={tileValue}>{leagues.length}</div>
-                <div style={tileText}>Available result groups</div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Matches</div>
-                <div style={tileValue}>{visibleEvents.length}</div>
-                <div style={tileText}>
-                  {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
-                </div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Latest</div>
-                <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
-                <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'Create the first match'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <section style={resultPathStyle} aria-labelledby="team-result-path-title">
           <div style={resultPathHeader}>
             <div>
               <div style={tileLabel}>Team Results path</div>
-              <h2 id="team-result-path-title" style={resultPathTitle}>{PRODUCT_MOTTO}</h2>
+              <h1 id="team-result-path-title" style={resultPathTitle}>Add or review team results</h1>
             </div>
             <p style={resultPathIntro}>
-              Scan the book, then open the smallest action that keeps standings moving.
+              Create the match, add lines, check the book, or upload scorecards.
             </p>
           </div>
           <div style={resultPathCommandStyle} aria-label="Team result command center">
-            <div style={resultPathStatusPanelStyle}>
-              <span style={resultPathQuestion}>Scorekeeper scan</span>
-              <strong style={resultPathCardTitle}>{teamResultCue.title}</strong>
-              <span>{teamResultCue.detail}</span>
-              <div style={resultPathStatusGridStyle} aria-label="Team result readiness scan">
-                {teamResultCue.items.map((item) => (
-                  <div key={item.label} style={resultPathStatusItemStyle}>
-                    <span style={item.complete ? pillGreen : pill}>{item.label}</span>
-                    <strong>{item.detail}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
             <div style={resultPathGrid}>
               <button
                 type="button"
@@ -1817,6 +1775,22 @@ function TeamLeagueResultsWorkspaceInner({
                 </Link>
               )}
             </div>
+            <details style={resultPathStatusPanelStyle}>
+              <summary style={detailsSummary}>
+                <span style={resultPathQuestion}>Scorekeeper scan</span>
+                <span style={pill}>Open when needed</span>
+              </summary>
+              <strong style={resultPathCardTitle}>{teamResultCue.title}</strong>
+              <span>{teamResultCue.detail}</span>
+              <div style={resultPathStatusGridStyle} aria-label="Team result readiness scan">
+                {teamResultCue.items.map((item) => (
+                  <div key={item.label} style={resultPathStatusItemStyle}>
+                    <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                    <strong>{item.detail}</strong>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
         </section>
 
@@ -1959,6 +1933,39 @@ function TeamLeagueResultsWorkspaceInner({
             />
           ))
         )}
+
+        <LeagueSuitePanel active="team-results" leagueLabel={selectedFilterLeague?.leagueName || 'League season'} />
+        <details style={introCard}>
+          <summary style={detailsSummary}>
+            <div>
+              <div style={heading}>Season snapshot</div>
+              <div style={subheading}>Open this when you want the quick count before making changes.</div>
+            </div>
+            <span style={pill}>Details</span>
+          </summary>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={scorekeeperGrid}>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Leagues</div>
+                <div style={tileValue}>{leagues.length}</div>
+                <div style={tileText}>Available result groups</div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Matches</div>
+                <div style={tileValue}>{visibleEvents.length}</div>
+                <div style={tileText}>
+                  {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Latest</div>
+                <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
+                <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'Create the first match'}</div>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </SiteShell>
   )

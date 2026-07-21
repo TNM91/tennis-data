@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, ReactNode, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -78,6 +78,7 @@ type RankedPlayer = Player & {
 }
 
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
+const RANKINGS_DEFAULT_ROW_LIMIT = 6
 const RANKINGS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const RANKINGS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RANKINGS_PLAYER_IDENTITY)
 const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}#level-up-flow`
@@ -147,10 +148,13 @@ export default function RankingsPage() {
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const [showFullRankings, setShowFullRankings] = useState(false)
+  const { isMobile, isSmallMobile, isTablet } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const ratingViewLabel = getRatingViewLabel(ratingView)
+  const useCompactLeaderboard = isMobile || isTablet
+  const rankingDefaultRowLimit = isMobile ? 2 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT
 
   useEffect(() => {
     void loadPlayers()
@@ -166,6 +170,10 @@ export default function RankingsPage() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  useEffect(() => {
+    setShowFullRankings(false)
+  }, [searchText, locationFilter, ratingView, hideInactive, sortCol, sortDir])
 
   async function loadPlayers() {
     setLoading(true)
@@ -457,19 +465,95 @@ export default function RankingsPage() {
     return rows
   }, [rankedPlayers, sortedPlayers, sortCol])
 
+  const displayedTieredRows = useMemo(() => {
+    if (showFullRankings) return tieredRows
+
+    const rows: typeof tieredRows = []
+    let shownPlayers = 0
+    let pendingDivider: (typeof tieredRows)[number] | null = null
+
+    for (const row of tieredRows) {
+      if (row.type === 'divider') {
+        pendingDivider = row
+        continue
+      }
+
+      if (shownPlayers >= rankingDefaultRowLimit) break
+      if (pendingDivider) {
+        rows.push(pendingDivider)
+        pendingDivider = null
+      }
+      rows.push(row)
+      shownPlayers += 1
+    }
+
+    return rows
+  }, [rankingDefaultRowLimit, showFullRankings, tieredRows])
+
   const dynamicControlsCard: CSSProperties = {
     ...controlsCard,
+    ...(isMobile
+      ? {
+          padding: isSmallMobile ? '8px' : '10px',
+          borderRadius: '16px',
+          boxShadow: '0 16px 42px rgba(2, 8, 23, 0.36), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }
+      : null),
+  }
+
+  const dynamicRankingPanelHeader: CSSProperties = {
+    ...rankingPanelHeader,
+    ...(isMobile ? compactRankingPanelHeader : null),
   }
 
   const dynamicControlsTopRow: CSSProperties = {
     ...controlsTopRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'flex-start' : 'center',
+    gap: isMobile ? 7 : controlsTopRow.gap,
+    marginBottom: isMobile ? '7px' : controlsTopRow.marginBottom,
+  }
+
+  const dynamicSegmentWrap: CSSProperties = {
+    ...segmentWrap,
+    ...(isMobile ? compactSegmentWrap : null),
+  }
+
+  const dynamicSegmentButton: CSSProperties = {
+    ...segmentButton,
+    ...(isMobile ? compactSegmentButton : null),
   }
 
   const dynamicControlsGrid: CSSProperties = {
     ...controlsGrid,
     gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(min(100%, 220px), 0.75fr)',
+    gap: isMobile ? '8px' : controlsGrid.gap,
+    marginBottom: isMobile ? '8px' : controlsGrid.marginBottom,
+  }
+
+  const dynamicInputLabel: CSSProperties = {
+    ...inputLabel,
+    ...(isMobile ? compactInputLabel : null),
+  }
+
+  const dynamicSearchInput: CSSProperties = {
+    ...searchInput,
+    ...(isMobile ? compactSearchInput : null),
+  }
+
+  const dynamicSelectStyle: CSSProperties = {
+    ...selectStyle,
+    ...(isMobile ? compactSelectStyle : null),
+  }
+
+  const dynamicFilterRowStyle: CSSProperties = {
+    ...filterRowStyle,
+    ...(isMobile ? compactFilterRowStyle : null),
+  }
+
+  const dynamicCompactRankingSummaryStrip: CSSProperties = {
+    ...compactRankingSummaryStrip,
+    ...(isMobile ? compactRankingSummaryStripPhone : null),
   }
 
   const dynamicPodiumGrid: CSSProperties = {
@@ -479,7 +563,8 @@ export default function RankingsPage() {
 
   const dynamicTableCard: CSSProperties = {
     ...tableCard,
-    padding: isSmallMobile ? 14 : isMobile ? 16 : 20,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : 20,
+    borderRadius: isMobile ? '20px' : tableCard.borderRadius,
   }
 
   const topPlayer = topThree[0] ?? null
@@ -493,11 +578,13 @@ export default function RankingsPage() {
     ? 'Locations pending'
     : locations.length
       ? `${locations.length} locations`
-      : 'Location filters appear after review'
+      : 'Search every location'
   const leaderboardSummary = loading
     ? 'Preparing board'
     : rankedPlayers.length
-      ? `Showing ${rankedPlayers.length}`
+      ? showFullRankings
+        ? `Showing ${rankedPlayers.length}`
+        : `Top ${Math.min(rankedPlayers.length, rankingDefaultRowLimit)} of ${rankedPlayers.length}`
       : 'Board starts after verified context'
   const playersShownValue = loading
     ? 'Reviewing'
@@ -514,6 +601,12 @@ export default function RankingsPage() {
     : rankedPlayers.length
       ? formatRating(avgSelected)
       : 'Needs data'
+  const compactBoardSummary = loading
+    ? 'Building the board'
+    : rankedPlayers.length
+      ? `${rankedPlayers.length} players - ${ratingViewLabel} - ${topTiqValue} top TIQ`
+      : 'Search players or locations to build a board'
+  const rankingSignalCount = risers.length + fallers.length + hotFormPlayers.length + weeklyMovers.length + breakthroughPlayers.length
 
   return (
     <SiteShell active="rankings">
@@ -521,24 +614,28 @@ export default function RankingsPage() {
       <section style={contentWrap}>
         <div style={dynamicControlsCard}>
           <div aria-hidden="true" style={watermarkStyle} />
-          <div style={rankingPanelHeader}>
+          <div style={dynamicRankingPanelHeader}>
             <div>
               <div style={sectionKicker}>Ranking discovery</div>
               <h1 style={rankingPanelTitle}>Check the field.</h1>
             </div>
-            <div style={heroHintRow}>
-              <span style={heroHintPill}>{rankedPlayerSummary}</span>
-              <span style={heroHintPill}>{locationSummary}</span>
-              <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
-            </div>
+            {!isMobile ? (
+              <div style={heroHintRow}>
+                <span style={heroHintPill}>{rankedPlayerSummary}</span>
+                <span style={heroHintPill}>{locationSummary}</span>
+                <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
+              </div>
+            ) : null}
           </div>
 
                 <div style={dynamicControlsTopRow}>
-                  <div>
+                  {!isMobile ? (
+                    <div>
                     <div style={controlsLabel}>Rankings board</div>
-                  </div>
+                    </div>
+                  ) : null}
 
-                  <div style={segmentWrap}>
+                  <div style={dynamicSegmentWrap}>
                     <button
                       type="button"
                       aria-pressed={ratingView === 'overall'}
@@ -546,7 +643,7 @@ export default function RankingsPage() {
                       onFocus={() => setFocusedDirectoryControl('overall')}
                       onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
-                      ...segmentButton,
+                      ...dynamicSegmentButton,
                       ...(ratingView === 'overall' ? segmentButtonActive : {}),
                       ...(focusedDirectoryControl === 'overall' ? directoryControlFocusStyle : {}),
                     }}
@@ -560,7 +657,7 @@ export default function RankingsPage() {
                       onFocus={() => setFocusedDirectoryControl('singles')}
                       onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
-                      ...segmentButton,
+                      ...dynamicSegmentButton,
                       ...(ratingView === 'singles' ? segmentButtonActive : {}),
                       ...(focusedDirectoryControl === 'singles' ? directoryControlFocusStyle : {}),
                     }}
@@ -574,7 +671,7 @@ export default function RankingsPage() {
                       onFocus={() => setFocusedDirectoryControl('doubles')}
                       onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
-                      ...segmentButton,
+                      ...dynamicSegmentButton,
                       ...(ratingView === 'doubles' ? segmentButtonActive : {}),
                       ...(focusedDirectoryControl === 'doubles' ? directoryControlFocusStyle : {}),
                     }}
@@ -586,7 +683,7 @@ export default function RankingsPage() {
 
                 <div style={dynamicControlsGrid}>
                 <div>
-                  <label htmlFor="rankings-search" style={inputLabel}>Search</label>
+                  <label htmlFor="rankings-search" style={dynamicInputLabel}>Search</label>
                   <div style={searchWrap}>
                     <div style={searchIconWrap}>
                       <SearchIcon />
@@ -600,7 +697,7 @@ export default function RankingsPage() {
                       onBlur={() => setFocusedDirectoryControl(null)}
                       placeholder="Search players or location..."
                       style={{
-                        ...searchInput,
+                        ...dynamicSearchInput,
                         ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : {}),
                       }}
                     />
@@ -608,7 +705,7 @@ export default function RankingsPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="rankings-location" style={inputLabel}>Location</label>
+                  <label htmlFor="rankings-location" style={dynamicInputLabel}>Location</label>
                   <select
                       id="rankings-location"
                       aria-describedby="rankings-filter-helper"
@@ -618,6 +715,7 @@ export default function RankingsPage() {
                       onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
                         ...selectStyle,
+                        ...dynamicSelectStyle,
                         borderColor: locationFilter ? 'rgba(155,225,29,0.42)' : undefined,
                         boxShadow: locationFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
                         ...(focusedDirectoryControl === 'location' ? directoryControlFocusStyle : {}),
@@ -637,19 +735,19 @@ export default function RankingsPage() {
                 <div style={errorBanner}>{error}</div>
               ) : null}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, marginTop: 6 }}>
+              <div style={dynamicFilterRowStyle}>
                 <button
                   type="button"
                   onClick={() => setHideInactive((v) => !v)}
                   style={{
-                    padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    ...(isMobile ? compactActiveFilterButton : activeFilterButton),
                     background: hideInactive ? 'rgba(155,225,29,0.12)' : 'transparent',
                     border: `1px solid ${hideInactive ? 'rgba(155,225,29,0.28)' : 'rgba(255,255,255,0.12)'}`,
                     color: hideInactive ? '#d9f84a' : 'var(--shell-copy-muted)',
                     transition: 'all 140ms ease',
                   }}
                 >
-                  {hideInactive ? 'Active only' : `Active (90d)${inactiveCount > 0 ? ` -${inactiveCount}` : ''}`}
+                  {hideInactive ? 'Showing active only' : inactiveCount > 0 ? `Hide inactive (${inactiveCount})` : 'Active in 90d'}
                 </button>
 
                 {hasActiveFilters ? (
@@ -667,76 +765,142 @@ export default function RankingsPage() {
                 ) : null}
               </div>
 
-              <div style={summaryStatsGrid}>
-                <StatChip label="Players shown" value={playersShownValue} />
-                <StatChip label="Top TIQ" value={topTiqValue} accent />
-                <StatChip label="Average TIQ" value={averageTiqValue} />
-                <StatChip label="Basis" value={ratingViewLabel} />
-              </div>
+              {isMobile ? (
+                <div style={dynamicCompactRankingSummaryStrip}>{compactBoardSummary}</div>
+              ) : (
+                <div style={summaryStatsGrid}>
+                  <StatChip label="Players shown" value={playersShownValue} />
+                  <StatChip label="Top TIQ" value={topTiqValue} accent />
+                  <StatChip label="Average TIQ" value={averageTiqValue} />
+                  <StatChip label="Basis" value={ratingViewLabel} />
+                </div>
+              )}
         </div>
       </section>
 
       {!loading && !error && topThree.length > 0 ? (
         <section style={contentWrap}>
-          <div style={dynamicPodiumGrid}>
-            {topThree.map((player, index) => {
-              const theme = getMeterTheme(player.status)
-              const isHovered = hoveredPodium === player.id
+          {isMobile ? (
+            <details className="rankingDetailsSection" style={mobileTopFieldDetailsStyle} aria-label="Top of the rankings field">
+              <summary style={mobileTopFieldSummaryStyle}>
+                <span style={mobileTopFieldSummaryCopyStyle}>
+                  <span style={sectionKicker}>Top field</span>
+                  <span style={mobileTopFieldTitleStyle}>
+                    #{topThree[0] ? `1 ${topThree[0].name}` : '1 player'}
+                  </span>
+                </span>
+                <span style={mobileTopFieldMetaStyle}>Open top 3</span>
+              </summary>
+              <div className="rankingDetailsBody" style={mobileTopFieldListStyle}>
+                {topThree.map((player, index) => {
+                  const theme = getMeterTheme(player.status)
+                  const compareHref = buildRankingCompareHref(player, topPlayer, topRival)
 
-              return (
-                <Link
-                  key={player.id}
-                  href={`/players/${player.id}`}
-                  onMouseEnter={() => setHoveredPodium(player.id)}
-                  onMouseLeave={() => setHoveredPodium(null)}
-                  style={{
-                    ...podiumCard,
-                    ...(index === 0 ? podiumFirst : index === 1 ? podiumSecond : podiumThird),
-                    transform: isHovered ? 'translateY(-4px)' : 'none',
-                    boxShadow: isHovered
-                      ? '0 24px 50px rgba(9,25,54,0.24), inset 0 1px 0 rgba(255,255,255,0.08)'
-                      : '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-                    transition: 'transform 160ms ease, box-shadow 160ms ease',
-                  }}
-                >
-                  <div style={podiumRank}>#{index + 1}</div>
-                  <div style={podiumName}>{player.name}</div>
-                  <div style={podiumLocation}>{player.location || 'No location'}</div>
-                  <div style={podiumRating}>{formatPublicRating(player.selectedRating, player)}</div>
-                  <div style={podiumSubtext}>TIQ {ratingViewLabel.toLowerCase()} rating</div>
+                  return (
+                    <article key={player.id} style={mobileTopFieldRowStyle}>
+                      <div style={mobileTopFieldRankStyle}>#{index + 1}</div>
+                      <div style={mobileTopFieldPlayerStyle}>
+                        <Link href={`/players/${player.id}`} style={mobileTopFieldNameStyle}>
+                          {player.name}
+                        </Link>
+                        <span style={mobileTopFieldSubtextStyle}>
+                          {formatPublicRating(player.selectedRating, player)} TIQ - {player.location || 'No location'}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          ...mobileTopFieldStatusStyle,
+                          background: theme.pillBackground,
+                          color: theme.pillColor,
+                          border: `1px solid ${theme.pillBorder}`,
+                        }}
+                      >
+                        {player.status}
+                      </span>
+                      <div style={mobileTopFieldActionRowStyle}>
+                        <Link href={`/players/${player.id}`} style={mobileTopFieldActionStyle}>
+                          Profile
+                        </Link>
+                        <Link href={compareHref} style={mobileTopFieldActionSecondaryStyle}>
+                          Compare
+                        </Link>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </details>
+          ) : (
+            <div style={dynamicPodiumGrid}>
+              {topThree.map((player, index) => {
+                const theme = getMeterTheme(player.status)
+                const isHovered = hoveredPodium === player.id
+                const compareHref = buildRankingCompareHref(player, topPlayer, topRival)
 
-                  <div
+                return (
+                  <article
+                    key={player.id}
+                    onMouseEnter={() => setHoveredPodium(player.id)}
+                    onMouseLeave={() => setHoveredPodium(null)}
                     style={{
-                      ...statusPill,
-                      marginTop: '14px',
-                      background: theme.pillBackground,
-                      color: theme.pillColor,
-                      border: `1px solid ${theme.pillBorder}`,
+                      ...podiumCard,
+                      ...(index === 0 ? podiumFirst : index === 1 ? podiumSecond : podiumThird),
+                      transform: isHovered ? 'translateY(-4px)' : 'none',
+                      boxShadow: isHovered
+                        ? '0 24px 50px rgba(9,25,54,0.24), inset 0 1px 0 rgba(255,255,255,0.08)'
+                        : '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+                      transition: 'transform 160ms ease, box-shadow 160ms ease',
                     }}
                   >
-                    {player.status}
-                  </div>
+                    <div style={podiumRank}>#{index + 1}</div>
+                    <Link href={`/players/${player.id}`} style={podiumName}>
+                      {player.name}
+                    </Link>
+                    <div style={podiumLocation}>{player.location || 'No location'}</div>
+                    <div style={podiumRating}>{formatPublicRating(player.selectedRating, player)}</div>
+                    <div style={podiumSubtext}>TIQ {ratingViewLabel.toLowerCase()} rating</div>
 
-                  <div style={podiumMetaRow}>
-                    <span
+                    <div
                       style={{
-                        ...trendPill,
-                        background: theme.trendBackground,
-                        color: theme.trendColor,
-                        border: `1px solid ${theme.trendBorder}`,
+                        ...statusPill,
+                        justifySelf: 'start',
+                        background: theme.pillBackground,
+                        color: theme.pillColor,
+                        border: `1px solid ${theme.pillBorder}`,
                       }}
                     >
-                      {getTrendIcon(player.trendDirection)} {getTrendShortLabel(player.trendDirection)}{' '}
-                      {player.trendDelta >= 0 ? '+' : ''}
-                      {player.trendDelta.toFixed(2)}
-                    </span>
+                      {player.status}
+                    </div>
 
-                    <span style={confidencePill}>{player.confidence}</span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+                    <div style={podiumMetaRow}>
+                      <span
+                        style={{
+                          ...trendPill,
+                          background: theme.trendBackground,
+                          color: theme.trendColor,
+                          border: `1px solid ${theme.trendBorder}`,
+                        }}
+                      >
+                        {getTrendIcon(player.trendDirection)} {getTrendShortLabel(player.trendDirection)}{' '}
+                        {player.trendDelta >= 0 ? '+' : ''}
+                        {player.trendDelta.toFixed(2)}
+                      </span>
+
+                      <span style={confidencePill}>{player.confidence}</span>
+                    </div>
+                    <div style={podiumActionRowStyle}>
+                      <Link href={`/players/${player.id}`} style={podiumActionPrimaryStyle}>
+                        View profile
+                      </Link>
+                      <Link href={compareHref} style={podiumActionSecondaryStyle}>
+                        Compare
+                      </Link>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -964,7 +1128,7 @@ export default function RankingsPage() {
             </>
           ) : null}
 
-          {isMobile ? (
+          {useCompactLeaderboard ? (
             <div style={compactLeaderboardStyle}>
               {loading ? (
                 <div style={emptyCell}>
@@ -976,8 +1140,10 @@ export default function RankingsPage() {
                     ? 'No players matched the current search or location filter. Clear filters to widen the board.'
                     : `Search to build the board. Rankings appear when enough verified player and match context is available. ${DATA_ASSIST_STORY.shortCue}`}
                 </div>
+              ) : displayedTieredRows.length === 0 ? (
+                null
               ) : (
-                tieredRows.map((row) => {
+                displayedTieredRows.map((row) => {
                   if (row.type === 'divider') {
                     return (
                       <div key={row.key} style={compactTierDividerStyle}>
@@ -995,6 +1161,7 @@ export default function RankingsPage() {
                       ratingViewLabel={ratingViewLabel}
                       trendPoints={snapshotMap.get(`${row.player.id}:${ratingView}`) ?? []}
                       compareHref={buildRankingCompareHref(row.player, topPlayer, topRival)}
+                      showDetails={!isMobile}
                     />
                   )
                 })
@@ -1037,7 +1204,7 @@ export default function RankingsPage() {
                       </td>
                     </tr>
                   ) : (
-                    tieredRows.map((row) => {
+                    displayedTieredRows.map((row) => {
                       if (row.type === 'divider') {
                         return (
                           <tr key={row.key}>
@@ -1195,34 +1362,60 @@ export default function RankingsPage() {
               </table>
             </div>
           )}
+
+          {!loading && rankedPlayers.length > rankingDefaultRowLimit ? (
+            <div style={rankingBoardLimitStyle}>
+              <span style={rankingBoardLimitTextStyle}>
+                {showFullRankings
+                  ? `Showing all ${rankedPlayers.length} players.`
+                  : `Showing the first ${rankingDefaultRowLimit} players. Search, filter, or open the full board when you need more.`}
+              </span>
+              <button
+                type="button"
+                style={rankingBoardLimitButtonStyle}
+                onClick={() => setShowFullRankings((current) => !current)}
+              >
+                {showFullRankings ? 'Show top board' : 'Show full board'}
+              </button>
+            </div>
+          ) : null}
         </article>
       </section>
 
       {!error ? (
         <section style={contentWrap}>
-          <RankingNextActionRail
-            topPlayer={topPlayer}
-            topRival={topRival}
-            loading={loading}
-            hasRankedPlayers={rankedPlayers.length > 0}
-          />
+          <details className="rankingDetailsSection" style={insightDetails}>
+            <summary style={insightSummary}>
+              <span>
+                <span style={sectionKicker}>Ranking next actions</span>
+                <span style={insightSummaryTitle}>Open matchup, player, league, and data checks</span>
+              </span>
+              <span style={insightSummaryMeta}>4 checks</span>
+            </summary>
+            <div className="rankingDetailsBody" style={insightBody}>
+              <RankingNextActionRail
+                topPlayer={topPlayer}
+                topRival={topRival}
+                loading={loading}
+                hasRankedPlayers={rankedPlayers.length > 0}
+              />
+            </div>
+          </details>
         </section>
       ) : null}
 
-      {!loading && !error ? (
+      {!loading && !error && rankingSignalCount > 0 ? (
         <section style={contentWrap}>
-          <details style={insightDetails}>
+          <details className="rankingDetailsSection" style={insightDetails}>
             <summary style={insightSummary}>
               <span>
                 <span style={sectionKicker}>More board signals</span>
                 <span style={insightSummaryTitle}>Open deeper ranking context</span>
               </span>
-              <span style={insightSummaryMeta}>
-                {risers.length + fallers.length + hotFormPlayers.length + weeklyMovers.length + breakthroughPlayers.length} signals
-              </span>
+              <span style={insightSummaryMeta}>{rankingSignalCount} signals</span>
             </summary>
 
-            <div style={insightBody}>
+            <div className="rankingDetailsBody" style={insightBody}>
               <div style={editorialGrid}>
                 <div style={editorialCard}>
                   <div style={editorialCardLabel}>Average TIQ rating</div>
@@ -1583,6 +1776,7 @@ function RankingCompactCard({
   ratingViewLabel,
   trendPoints,
   compareHref,
+  showDetails,
 }: {
   player: RankedPlayer
   rank: number
@@ -1590,7 +1784,9 @@ function RankingCompactCard({
   ratingViewLabel: string
   trendPoints: Array<{ dynamic_rating: number }>
   compareHref: string
+  showDetails: boolean
 }) {
+  const dense = !showDetails
   const theme = getMeterTheme(player.status)
   const selectedRating =
     ratingView === 'singles'
@@ -1600,8 +1796,8 @@ function RankingCompactCard({
         : player.overall_dynamic_rating
 
   return (
-    <article style={compactRankingCardStyle}>
-      <div style={compactRankingTopStyle}>
+    <article style={dense ? compactRankingCardDenseStyle : compactRankingCardStyle}>
+      <div style={dense ? compactRankingTopDenseStyle : compactRankingTopStyle}>
         <span style={rankBadge}>{rank}</span>
         <div style={compactPlayerCopyStyle}>
           <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactPlayerNameStyle}>
@@ -1610,84 +1806,113 @@ function RankingCompactCard({
           <RankingAwardBadges player={player} compact />
           <span style={compactPlayerMetaStyle}>{player.location || 'No location'} | top {player.percentile}%</span>
         </div>
-        <div style={compactRatingStackStyle}>
+        <div style={dense ? compactRatingStackDenseStyle : compactRatingStackStyle}>
           <strong>{formatPublicRating(selectedRating, player)}</strong>
           <span>{ratingViewLabel}</span>
         </div>
       </div>
 
-      <div style={compactSignalRowStyle}>
-        <span
-          style={{
-            ...statusPill,
-            background: theme.pillBackground,
-            color: theme.pillColor,
-            border: `1px solid ${theme.pillBorder}`,
-          }}
-        >
-          {player.status}
-        </span>
-        <span
-          style={{
-            ...trendPill,
-            background: theme.trendBackground,
-            color: theme.trendColor,
-            border: `1px solid ${theme.trendBorder}`,
-          }}
-        >
-          {getTrendIcon(player.trendDirection)} {player.trendDelta >= 0 ? '+' : ''}
-          {player.trendDelta.toFixed(2)}
-        </span>
-        <span style={confidencePill}>{player.confidence}</span>
-      </div>
-      <TiqTrustStrip
-        label={`${player.name} ranking data trust signals`}
-        signals={[
-          { label: 'Source', value: 'Reviewed matches', tone: 'info' },
-          { label: 'Freshness', value: trendPoints.length ? 'Snapshot history' : 'Review pending', tone: trendPoints.length ? 'good' : 'warn' },
-          { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
-          { label: 'Status', value: player.status, tone: player.status === 'Holding' || player.status === 'Trending Up' ? 'good' : 'warn' },
-        ]}
-        reviewContext={`Ranking ${player.name}`}
-      />
-
-      <div style={compactBottomGridStyle}>
-        <div>
-          <span style={compactMiniLabelStyle}>Trend</span>
-          <MiniSparkline points={trendPoints} direction={player.trendDirection} />
-        </div>
-        <div>
-          <span style={compactMiniLabelStyle}>W-L</span>
-          <strong style={compactMiniValueStyle}>
-            {player.winRate !== null ? `${player.winRate}%` : '--'}
-          </strong>
-        </div>
-        <div>
-          <span style={compactMiniLabelStyle}>Form</span>
-          <strong
+      {!dense ? (
+        <div style={compactSignalRowStyle}>
+          <span
             style={{
-              ...compactMiniValueStyle,
-              color:
-                player.formScore > 0.02
-                  ? '#9be11d'
-                  : player.formScore < -0.02
-                    ? '#f87171'
-                    : 'var(--foreground-strong)',
+              ...statusPill,
+              background: theme.pillBackground,
+              color: theme.pillColor,
+              border: `1px solid ${theme.pillBorder}`,
             }}
           >
-            {player.formScore > 0 ? '+' : ''}{player.formScore.toFixed(2)}
-          </strong>
+            {player.status}
+          </span>
+          <span
+            style={{
+              ...trendPill,
+              background: theme.trendBackground,
+              color: theme.trendColor,
+              border: `1px solid ${theme.trendBorder}`,
+            }}
+          >
+            {getTrendIcon(player.trendDirection)} {player.trendDelta >= 0 ? '+' : ''}
+            {player.trendDelta.toFixed(2)}
+          </span>
+          <span style={confidencePill}>{player.confidence}</span>
         </div>
-      </div>
+      ) : null}
       <div style={compactActionRowStyle}>
         <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactActionPrimaryStyle}>
-          View profile
+          Profile
         </Link>
         <Link href={compareHref} aria-label={`Compare ${player.name} in Matchup`} style={compactActionSecondaryStyle}>
           Compare
         </Link>
       </div>
+      {showDetails ? (
+        <CompactRankingDetails
+          title="Rating checks"
+          cue={`${player.winRate !== null ? `${player.winRate}% W-L` : 'W-L pending'} - ${player.formScore > 0 ? '+' : ''}${player.formScore.toFixed(2)} form`}
+        >
+          <TiqTrustStrip
+            label={`${player.name} ranking data trust signals`}
+            signals={[
+              { label: 'Source', value: 'Reviewed matches', tone: 'info' },
+              { label: 'Freshness', value: trendPoints.length ? 'Snapshot history' : 'Review pending', tone: trendPoints.length ? 'good' : 'warn' },
+              { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
+              { label: 'Status', value: player.status, tone: player.status === 'Holding' || player.status === 'Trending Up' ? 'good' : 'warn' },
+            ]}
+            reviewContext={`Ranking ${player.name}`}
+          />
+
+          <div style={compactBottomGridStyle}>
+            <div>
+              <span style={compactMiniLabelStyle}>Trend</span>
+              <MiniSparkline points={trendPoints} direction={player.trendDirection} />
+            </div>
+            <div>
+              <span style={compactMiniLabelStyle}>W-L</span>
+              <strong style={compactMiniValueStyle}>
+                {player.winRate !== null ? `${player.winRate}%` : '--'}
+              </strong>
+            </div>
+            <div>
+              <span style={compactMiniLabelStyle}>Form</span>
+              <strong
+                style={{
+                  ...compactMiniValueStyle,
+                  color:
+                    player.formScore > 0.02
+                      ? '#9be11d'
+                      : player.formScore < -0.02
+                        ? '#f87171'
+                        : 'var(--foreground-strong)',
+                }}
+              >
+                {player.formScore > 0 ? '+' : ''}{player.formScore.toFixed(2)}
+              </strong>
+            </div>
+          </div>
+        </CompactRankingDetails>
+      ) : null}
     </article>
+  )
+}
+
+function CompactRankingDetails({
+  title,
+  cue,
+  children,
+}: {
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  return (
+    <details style={compactRankingDetailsStyle}>
+      <summary style={compactRankingSummaryStyle}>
+        <span style={compactRankingSummaryTitleStyle}>{title}</span>
+        <span style={compactRankingSummaryCueStyle}>{cue}</span>
+      </summary>
+      <div style={compactRankingDetailsBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -1898,6 +2123,12 @@ const rankingPanelHeader: CSSProperties = {
   marginBottom: '16px',
 }
 
+const compactRankingPanelHeader: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  marginBottom: '8px',
+}
+
 const rankingPanelTitle: CSSProperties = {
   margin: '8px 0 0',
   color: 'var(--foreground-strong)',
@@ -1941,6 +2172,13 @@ const segmentWrap: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const compactSegmentWrap: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  width: '100%',
+}
+
 const segmentButton: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.13)',
   borderRadius: '16px',
@@ -1951,6 +2189,14 @@ const segmentButton: CSSProperties = {
   fontSize: '14px',
   fontWeight: 800,
   cursor: 'pointer',
+}
+
+const compactSegmentButton: CSSProperties = {
+  minHeight: '40px',
+  borderRadius: '12px',
+  padding: '0 8px',
+  fontSize: '12px',
+  minWidth: 0,
 }
 
 const segmentButtonActive: CSSProperties = {
@@ -1975,6 +2221,11 @@ const inputLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: 0,
   textTransform: 'uppercase',
+}
+
+const compactInputLabel: CSSProperties = {
+  marginBottom: '5px',
+  fontSize: '10px',
 }
 
 const searchWrap: CSSProperties = {
@@ -2004,6 +2255,12 @@ const searchInput: CSSProperties = {
   colorScheme: 'dark',
 }
 
+const compactSearchInput: CSSProperties = {
+  borderRadius: '13px',
+  padding: '11px 12px 11px 40px',
+  fontSize: '14px',
+}
+
 const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
@@ -2018,6 +2275,13 @@ const selectStyle: CSSProperties = {
   outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
   colorScheme: 'dark',
+}
+
+const compactSelectStyle: CSSProperties = {
+  height: '42px',
+  borderRadius: '13px',
+  padding: '0 10px',
+  fontSize: '13px',
 }
 
 const directoryControlFocusStyle: CSSProperties = {
@@ -2042,6 +2306,24 @@ const summaryStatsGrid: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
+}
+
+const compactRankingSummaryStrip: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '16px',
+  padding: '10px 12px',
+  background: 'rgba(8,16,34,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const compactRankingSummaryStripPhone: CSSProperties = {
+  borderRadius: '12px',
+  padding: '7px 9px',
+  fontSize: '11px',
 }
 
 const chipStat: CSSProperties = {
@@ -2091,12 +2373,15 @@ const podiumGrid: CSSProperties = {
 }
 
 const podiumCard: CSSProperties = {
-  textDecoration: 'none',
+  display: 'grid',
+  gap: '8px',
   borderRadius: '24px',
-  padding: '20px',
+  padding: '16px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.74)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const podiumFirst: CSSProperties = {
@@ -2117,43 +2402,219 @@ const podiumRank: CSSProperties = {
 }
 
 const podiumName: CSSProperties = {
-  marginTop: '8px',
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: '23px',
   lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const podiumLocation: CSSProperties = {
-  marginTop: '8px',
   color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
+  fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const podiumRating: CSSProperties = {
-  marginTop: '16px',
   color: 'var(--foreground-strong)',
-  fontSize: '34px',
+  fontSize: '30px',
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
 }
 
 const podiumSubtext: CSSProperties = {
-  marginTop: '6px',
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const podiumMetaRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '14px',
+  gap: '8px',
   alignItems: 'center',
+  minWidth: 0,
+}
+
+const podiumActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 124px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const podiumActionPrimaryStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 0,
+  minHeight: '38px',
+  padding: '0 10px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const podiumActionSecondaryStyle: CSSProperties = {
+  ...podiumActionPrimaryStyle,
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
+}
+
+const mobileTopFieldDetailsStyle: CSSProperties = {
+  marginBottom: '12px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 14px 34px rgba(2,10,24,0.14)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const mobileTopFieldSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  alignItems: 'center',
+  gap: '12px',
+  padding: '12px 14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+}
+
+const mobileTopFieldSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+}
+
+const mobileTopFieldTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '17px',
+  lineHeight: 1.12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldMetaStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '32px',
+  padding: '0 10px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-lime) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '0 12px 12px',
+  minWidth: 0,
+}
+
+const mobileTopFieldRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)',
+  gap: '8px 10px',
+  alignItems: 'center',
+  padding: '10px',
+  borderRadius: '16px',
+  background: 'rgba(7,17,33,0.66)',
+  border: '1px solid rgba(116,190,255,0.10)',
+  minWidth: 0,
+}
+
+const mobileTopFieldRankStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '13px',
+  fontWeight: 900,
+  textAlign: 'center',
+}
+
+const mobileTopFieldPlayerStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+}
+
+const mobileTopFieldNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldSubtextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldStatusStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  justifySelf: 'start',
+  borderRadius: 999,
+  padding: '5px 9px',
+  fontSize: '11px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldActionRowStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const mobileTopFieldActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 0,
+  minHeight: '34px',
+  padding: '0 10px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const mobileTopFieldActionSecondaryStyle: CSSProperties = {
+  ...mobileTopFieldActionStyle,
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const tableCard: CSSProperties = {
@@ -2213,6 +2674,79 @@ const panelChip: CSSProperties = {
   fontSize: '13px',
 }
 
+const rankingBoardLimitStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  marginTop: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.62)',
+  overflowWrap: 'anywhere',
+}
+
+const rankingBoardLimitTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const rankingBoardLimitButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 38,
+  padding: '8px 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  font: 'inherit',
+  fontSize: 12,
+  fontWeight: 950,
+  cursor: 'pointer',
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const filterRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 6,
+  minWidth: 0,
+}
+
+const compactFilterRowStyle: CSSProperties = {
+  gap: 7,
+  marginTop: 3,
+}
+
+const activeFilterButton: CSSProperties = {
+  minHeight: 34,
+  padding: '7px 13px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
+const compactActiveFilterButton: CSSProperties = {
+  ...activeFilterButton,
+  minHeight: 32,
+  padding: '5px 10px',
+  fontSize: 11,
+}
+
 const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -2246,7 +2780,7 @@ const tableWrap: CSSProperties = {
 
 const compactLeaderboardStyle: CSSProperties = {
   display: 'grid',
-  gap: '12px',
+  gap: '8px',
   minWidth: 0,
 }
 
@@ -2262,8 +2796,8 @@ const compactTierDividerStyle: CSSProperties = {
 
 const compactRankingCardStyle: CSSProperties = {
   display: 'grid',
-  gap: '14px',
-  padding: '15px',
+  gap: '10px',
+  padding: '13px',
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(6,16,32,0.58)',
@@ -2273,6 +2807,13 @@ const compactRankingCardStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const compactRankingCardDenseStyle: CSSProperties = {
+  ...compactRankingCardStyle,
+  gap: '7px',
+  padding: '9px',
+  borderRadius: '15px',
+}
+
 const compactRankingTopStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
@@ -2280,6 +2821,12 @@ const compactRankingTopStyle: CSSProperties = {
   gap: '12px',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const compactRankingTopDenseStyle: CSSProperties = {
+  ...compactRankingTopStyle,
+  gridTemplateColumns: 'minmax(0, 28px) minmax(0, 1fr) minmax(0, 72px)',
+  gap: '8px',
 }
 
 const compactPlayerCopyStyle: CSSProperties = {
@@ -2321,12 +2868,30 @@ const compactRatingStackStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactRatingStackDenseStyle: CSSProperties = {
+  ...compactRatingStackStyle,
+  display: 'grid',
+  gap: '2px',
+  justifyItems: 'end',
+  padding: '6px 7px',
+  fontSize: '16px',
+  lineHeight: 1.05,
+  gridColumn: 'auto',
+  textAlign: 'right',
+}
+
 const compactSignalRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
   gap: '8px',
   alignItems: 'center',
   minWidth: 0,
+}
+
+const compactSignalRowDenseStyle: CSSProperties = {
+  ...compactSignalRowStyle,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '6px',
 }
 
 const compactBottomGridStyle: CSSProperties = {
@@ -2337,11 +2902,52 @@ const compactBottomGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactRankingDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.52)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const compactRankingSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: '8px',
+  minWidth: 0,
+  padding: '9px 10px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const compactRankingSummaryTitleStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const compactRankingSummaryCueStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 800,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const compactRankingDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
 const compactActionRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
-  gap: '9px',
-  paddingTop: '2px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '7px',
   minWidth: 0,
 }
 
@@ -2350,8 +2956,8 @@ const compactActionPrimaryStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   flex: '1 1 130px',
-  minHeight: '40px',
-  padding: '0 11px',
+  minHeight: '34px',
+  padding: '0 9px',
   borderRadius: 999,
   background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
@@ -2392,7 +2998,8 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 1180,
+  minWidth: 0,
+  tableLayout: 'fixed',
 }
 
 const tableHead: CSSProperties = {
@@ -2405,8 +3012,8 @@ const tableHead: CSSProperties = {
   fontWeight: 800,
   borderBottom: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(6,16,32,0.78)',
-  whiteSpace: 'nowrap',
-  overflowWrap: 'normal',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const activeTableHead: CSSProperties = {
@@ -2436,9 +3043,10 @@ const rowActionPrimaryStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 88,
+  width: '100%',
+  minWidth: 0,
   minHeight: '32px',
-  padding: '0 11px',
+  padding: '0 8px',
   borderRadius: 999,
   background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
@@ -2447,9 +3055,8 @@ const rowActionPrimaryStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   maxWidth: '100%',
-  whiteSpace: 'nowrap',
-  overflowWrap: 'normal',
-  wordBreak: 'keep-all',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   textAlign: 'center',
 }
 
@@ -2917,7 +3524,9 @@ const playerLink: CSSProperties = {
 const rankingPlayerIdentityStyle: CSSProperties = {
   display: 'grid',
   gap: '6px',
-  minWidth: 88,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const rankingAwardBadgeRowStyle: CSSProperties = {
@@ -3039,9 +3648,11 @@ const statusPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  whiteSpace: 'nowrap',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
   textAlign: 'center',
   overflowWrap: 'anywhere',
+  lineHeight: 1.15,
   minWidth: 0,
 }
 
@@ -3095,9 +3706,9 @@ const tierDividerLabel: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
+  width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,

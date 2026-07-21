@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -19,6 +19,7 @@ import {
   type TiqTournamentMatchSchedule,
   type TiqTournamentRecord,
 } from '@/lib/tiq-tournament-registry'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,7 @@ export default function TournamentPublicPage() {
 function TournamentPublicInner() {
   const params = useParams<{ id: string }>()
   const tournamentId = decodeURIComponent(params?.id || '')
+  const { isMobile } = useViewportBreakpoints()
   const [record, setRecord] = useState<TiqTournamentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -266,187 +268,6 @@ function TournamentPublicInner() {
         </div>
       </section>
 
-      <section style={eventDayCommandStyle} aria-label="Event-day command board">
-        <div style={eventDayCommandCopyStyle}>
-          <div style={eyebrowStyle}>Event-day command board</div>
-          <h2 style={eventDayCommandTitleStyle}>Check the next move before you scroll.</h2>
-          <p style={eventDayCommandTextStyle}>
-            Alerts, profile, draw, schedule, results, and awards stay close to the tournament status so players can act from one place.
-          </p>
-        </div>
-        {tournamentStatus ? (
-          <div style={statusRailStyle} aria-label="Tournament status">
-            <div style={statusHeroStyle}>
-              <span style={statusDotStyle} />
-              <div>
-                <div style={eyebrowStyle}>Status</div>
-                <strong>{tournamentStatus.label}</strong>
-                <span>{tournamentStatus.detail}</span>
-              </div>
-            </div>
-            <div style={statusGridStyle}>
-              <Stat label="Scheduled" value={`${scheduledMatches.length}/${summary?.totalMatches ?? 0}`} />
-              <Stat label="Results" value={`${summary?.completedMatches ?? 0}/${summary?.totalMatches ?? 0}`} />
-              <Stat label="Awards" value={awards.length ? `${awards.length}` : 'TBD'} />
-            </div>
-          </div>
-        ) : null}
-        <section style={publicReadinessStyle} aria-label="Tournament readiness">
-          {publicReadinessItems.map((item) => (
-            <div key={item.label} style={publicReadinessItemStyle}>
-              <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
-              <strong>{item.label}</strong>
-              <em>{item.value}</em>
-            </div>
-          ))}
-        </section>
-        <section style={playerRailStyle} aria-label="Match-day actions">
-          {matchDayActions.map((action) => {
-            const content = (
-              <>
-                <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
-                <span style={playerRailCopyStyle}>
-                  <strong>{action.label}</strong>
-                  <em>{action.value}</em>
-                </span>
-              </>
-            )
-
-            return action.href.startsWith('/') ? (
-              <Link key={action.label} href={action.href} style={playerRailCardStyle}>
-                {content}
-              </Link>
-            ) : (
-              <a key={action.label} href={action.href} style={playerRailCardStyle}>
-                {content}
-              </a>
-            )
-          })}
-        </section>
-      </section>
-
-      <DataTrustPanel
-        title="Tournament data trust"
-        body="Tournament pages combine Tournament Desk setup, director-posted schedules, entries, scorebook results, and awards when available. Use Data Assist when a draw, result, player entry, or award needs review."
-        signals={[
-          { label: 'Source', value: 'Tournament Desk, director updates, scorebook results' },
-          { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Device preview or pending sync' },
-          { label: 'Confidence', value: 'Higher after scorebook and awards review' },
-          { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
-        ]}
-      />
-      <TiqTrustStrip
-        label={`${record.name} compact data trust signals`}
-        signals={[
-          { label: 'Source', value: source === 'cloud' ? 'Tournament Desk' : 'Device preview', tone: source === 'cloud' ? 'good' : 'warn' },
-          { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Pending sync', tone: source === 'cloud' ? 'good' : 'warn' },
-          { label: 'Confidence', value: summary?.completedMatches ? 'Results reviewed' : 'Limited until scores', tone: summary?.completedMatches ? 'good' : 'warn' },
-          { label: 'Status', value: record.isPublic ? 'Public / reviewable' : 'Director view', tone: record.isPublic ? 'good' : 'info' },
-        ]}
-        reviewContext={`Tournament ${record.name}`}
-      />
-
-      <section style={tournamentDetailPlayerIdStyle} aria-label="Tournament detail Player ID match-day read">
-        <div style={tournamentDetailPlayerIdCopyStyle}>
-          <span style={tournamentDetailPlayerIdEyebrowStyle}>Match day to Player ID</span>
-          <h2 style={tournamentDetailPlayerIdTitleStyle}>Leave the tournament with one clearer rep.</h2>
-          <p style={tournamentDetailPlayerIdTextStyle}>
-            {TOURNAMENT_DETAIL_PLAYER_IDENTITY_READ.levelUpNudge} Use this read after checking the draw, court, or result so the next match has one pressure cue.
-          </p>
-        </div>
-        <div style={tournamentDetailPlayerIdGridStyle} aria-label="Tournament detail Player ID starter read">
-          {tournamentDetailPlayerIdItems.map((item) => (
-            <div key={item.label} style={tournamentDetailPlayerIdCardStyle}>
-              <span style={tournamentDetailPlayerIdLabelStyle}>{item.label}</span>
-              <strong style={tournamentDetailPlayerIdValueStyle}>{item.value}</strong>
-            </div>
-          ))}
-        </div>
-        <div style={tournamentDetailPlayerIdActionRowStyle}>
-          {tournamentDetailPlayerIdActions.map((action, index) => (
-            <Link
-              key={action.href}
-              href={action.href}
-              style={index === 0 ? { ...tournamentDetailPlayerIdActionStyle, ...tournamentDetailPlayerIdPrimaryActionStyle } : tournamentDetailPlayerIdActionStyle}
-            >
-              {action.label}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {standings.length ? (
-        <section style={bracketShellStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <div style={eyebrowStyle}>Standings</div>
-              <h2 style={sectionTitleStyle}>Round-robin table</h2>
-            </div>
-            <span style={pillStyle}>{summary?.completedMatches ?? 0} results</span>
-          </div>
-          <div style={standingsListStyle}>
-            {standings.map((row, index) => (
-              <div key={row.entrant} style={standingsRowStyle}>
-                <span style={standingsRankStyle}>{index + 1}</span>
-                <strong>{row.entrant}</strong>
-                <span>{row.wins}-{row.losses}</span>
-                <span>{row.winPct}%</span>
-                <span>{formatGameDiff(row.gameDiff)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {awards.length ? (
-        <section id="podium" style={bracketShellStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <div style={eyebrowStyle}>Podium</div>
-              <h2 style={sectionTitleStyle}>Tournament honors</h2>
-            </div>
-            <div style={sectionActionStyle}>
-              <a href={buildTournamentPodiumMailto(record, awards)} style={podiumLinkStyle}>
-                Share results
-              </a>
-              <span style={pillStyle}>{awards.length} issued</span>
-            </div>
-          </div>
-          <div style={podiumSummaryStyle} aria-label="Tournament podium summary">
-            <Stat label="Champion" value={podiumSummary.champion} compact />
-            <Stat label="Finalist" value={podiumSummary.finalist} compact />
-            <Stat label="Certificates" value={String(awards.length)} compact />
-          </div>
-          <div style={podiumGridStyle}>
-            {awards.map((award) => (
-              <article key={award.id} style={podiumCardStyle}>
-                <div style={podiumBadgeStyle}>{award.badgeCode}</div>
-                <div style={podiumCopyStyle}>
-                  <strong>{award.recipientName}</strong>
-                  <span>{award.title}</span>
-                  <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
-                </div>
-                <div style={podiumActionRowStyle}>
-                  <Link href={`/awards/${encodeURIComponent(award.id)}`} style={podiumLinkStyle}>
-                    Certificate
-                  </Link>
-                  {award.recipientPlayerId ? (
-                    <Link
-                      href={`/players/${encodeURIComponent(award.recipientPlayerId)}#profile-trophy-case`}
-                      style={podiumLinkStyle}
-                    >
-                      Trophy case
-                    </Link>
-                  ) : (
-                    <span style={podiumMetaStyle}>Trophy case starts when the player profile is linked.</span>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {record.isPublic ? (
         <section id="enter-tournament" style={entryShellStyle}>
           <div style={sectionHeaderStyle}>
@@ -528,6 +349,221 @@ function TournamentPublicInner() {
             </button>
             {entryNotice ? <div style={entryNoticeStyle}>{entryNotice}</div> : null}
           </form>
+        </section>
+      ) : null}
+
+      <section
+        style={{
+          ...eventDayCommandStyle,
+          gap: isMobile ? 8 : eventDayCommandStyle.gap,
+          padding: isMobile ? 10 : eventDayCommandStyle.padding,
+          borderRadius: isMobile ? 16 : eventDayCommandStyle.borderRadius,
+        }}
+        aria-label="Event-day command board"
+      >
+        <div style={{ ...eventDayCommandCopyStyle, ...(isMobile ? compactEventDayCopyStyle : null) }}>
+          <div style={eyebrowStyle}>Event-day command board</div>
+          <h2 style={eventDayCommandTitleStyle}>Check the next move before you scroll.</h2>
+          <p style={{ ...eventDayCommandTextStyle, display: isMobile ? 'none' : undefined }}>
+            Alerts, profile, draw, schedule, results, and awards stay close to the tournament status so players can act from one place.
+          </p>
+        </div>
+        {tournamentStatus ? (
+          <div style={{ ...statusRailStyle, ...(isMobile ? compactStatusRailStyle : null) }} aria-label="Tournament status">
+            <div style={statusHeroStyle}>
+              <span style={statusDotStyle} />
+              <div>
+                <div style={eyebrowStyle}>Status</div>
+                <strong>{tournamentStatus.label}</strong>
+                <span>{tournamentStatus.detail}</span>
+              </div>
+            </div>
+            <div style={{ ...statusGridStyle, gap: isMobile ? 6 : statusGridStyle.gap }}>
+              <Stat label="Scheduled" value={`${scheduledMatches.length}/${summary?.totalMatches ?? 0}`} />
+              <Stat label="Results" value={`${summary?.completedMatches ?? 0}/${summary?.totalMatches ?? 0}`} />
+              <Stat label="Awards" value={awards.length ? `${awards.length}` : 'TBD'} />
+            </div>
+          </div>
+        ) : null}
+        <section
+          style={{
+            ...publicReadinessStyle,
+            gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : publicReadinessStyle.gridTemplateColumns,
+            gap: isMobile ? 6 : publicReadinessStyle.gap,
+          }}
+          aria-label="Tournament readiness"
+        >
+          {publicReadinessItems.map((item) => (
+            <div key={item.label} style={{ ...publicReadinessItemStyle, ...(isMobile ? compactPublicReadinessItemStyle : null) }}>
+              <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
+              <strong>{item.label}</strong>
+              <em>{item.value}</em>
+            </div>
+          ))}
+        </section>
+        <section
+          style={{
+            ...playerRailStyle,
+            gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : playerRailStyle.gridTemplateColumns,
+            gap: isMobile ? 6 : playerRailStyle.gap,
+          }}
+          aria-label="Match-day actions"
+        >
+          {matchDayActions.map((action) => {
+            const content = (
+              <>
+                <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
+                <span style={playerRailCopyStyle}>
+                  <strong>{action.label}</strong>
+                  <em style={{ display: isMobile ? 'none' : undefined }}>{action.value}</em>
+                </span>
+              </>
+            )
+
+            return action.href.startsWith('/') ? (
+              <Link key={action.label} href={action.href} style={{ ...playerRailCardStyle, ...(isMobile ? compactPlayerRailCardStyle : null) }}>
+                {content}
+              </Link>
+            ) : (
+              <a key={action.label} href={action.href} style={{ ...playerRailCardStyle, ...(isMobile ? compactPlayerRailCardStyle : null) }}>
+                {content}
+              </a>
+            )
+          })}
+        </section>
+      </section>
+
+      <TournamentDetailsSection
+        eyebrow="Data quality"
+        title="Know how this tournament page is checked."
+        cue="Show trust signals"
+      >
+        <DataTrustPanel
+          title="Tournament data trust"
+          body="Tournament pages combine Tournament Desk setup, director-posted schedules, entries, scorebook results, and awards when available. Use Data Assist when a draw, result, player entry, or award needs review."
+          signals={[
+            { label: 'Source', value: 'Tournament Desk, director updates, scorebook results' },
+            { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Device preview or pending sync' },
+            { label: 'Confidence', value: 'Higher after scorebook and awards review' },
+            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+          ]}
+        />
+        <TiqTrustStrip
+          label={`${record.name} compact data trust signals`}
+          signals={[
+            { label: 'Source', value: source === 'cloud' ? 'Tournament Desk' : 'Device preview', tone: source === 'cloud' ? 'good' : 'warn' },
+            { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Pending sync', tone: source === 'cloud' ? 'good' : 'warn' },
+            { label: 'Confidence', value: summary?.completedMatches ? 'Results reviewed' : 'Limited until scores', tone: summary?.completedMatches ? 'good' : 'warn' },
+            { label: 'Status', value: record.isPublic ? 'Public / reviewable' : 'Director view', tone: record.isPublic ? 'good' : 'info' },
+          ]}
+          reviewContext={`Tournament ${record.name}`}
+        />
+      </TournamentDetailsSection>
+
+      <TournamentDetailsSection
+        eyebrow="Player prep"
+        title="Leave with one clearer rep."
+        cue="Show Player ID prep"
+      >
+        <section style={tournamentDetailPlayerIdStyle} aria-label="Tournament detail Player ID match-day read">
+          <div style={tournamentDetailPlayerIdCopyStyle}>
+            <span style={tournamentDetailPlayerIdEyebrowStyle}>Match day to Player ID</span>
+            <h2 style={tournamentDetailPlayerIdTitleStyle}>Leave the tournament with one clearer rep.</h2>
+            <p style={tournamentDetailPlayerIdTextStyle}>
+              {TOURNAMENT_DETAIL_PLAYER_IDENTITY_READ.levelUpNudge} Use this read after checking the draw, court, or result so the next match has one pressure cue.
+            </p>
+          </div>
+          <div style={tournamentDetailPlayerIdGridStyle} aria-label="Tournament detail Player ID starter read">
+            {tournamentDetailPlayerIdItems.map((item) => (
+              <div key={item.label} style={tournamentDetailPlayerIdCardStyle}>
+                <span style={tournamentDetailPlayerIdLabelStyle}>{item.label}</span>
+                <strong style={tournamentDetailPlayerIdValueStyle}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div style={tournamentDetailPlayerIdActionRowStyle}>
+            {tournamentDetailPlayerIdActions.map((action, index) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                style={index === 0 ? { ...tournamentDetailPlayerIdActionStyle, ...tournamentDetailPlayerIdPrimaryActionStyle } : tournamentDetailPlayerIdActionStyle}
+              >
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+      </TournamentDetailsSection>
+
+      {standings.length ? (
+        <section style={bracketShellStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>Standings</div>
+              <h2 style={sectionTitleStyle}>Round-robin table</h2>
+            </div>
+            <span style={pillStyle}>{summary?.completedMatches ?? 0} results</span>
+          </div>
+          <div style={standingsListStyle}>
+            {standings.map((row, index) => (
+              <div key={row.entrant} style={standingsRowStyle}>
+                <span style={standingsRankStyle}>{index + 1}</span>
+                <strong>{row.entrant}</strong>
+                <span>{row.wins}-{row.losses}</span>
+                <span>{row.winPct}%</span>
+                <span>{formatGameDiff(row.gameDiff)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {awards.length ? (
+        <section id="podium" style={bracketShellStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>Podium</div>
+              <h2 style={sectionTitleStyle}>Tournament honors</h2>
+            </div>
+            <div style={sectionActionStyle}>
+              <a href={buildTournamentPodiumMailto(record, awards)} style={podiumLinkStyle}>
+                Share results
+              </a>
+              <span style={pillStyle}>{awards.length} issued</span>
+            </div>
+          </div>
+          <div style={podiumSummaryStyle} aria-label="Tournament podium summary">
+            <Stat label="Champion" value={podiumSummary.champion} compact />
+            <Stat label="Finalist" value={podiumSummary.finalist} compact />
+            <Stat label="Certificates" value={String(awards.length)} compact />
+          </div>
+          <div style={podiumGridStyle}>
+            {awards.map((award) => (
+              <article key={award.id} style={podiumCardStyle}>
+                <div style={podiumBadgeStyle}>{award.badgeCode}</div>
+                <div style={podiumCopyStyle}>
+                  <strong>{award.recipientName}</strong>
+                  <span>{award.title}</span>
+                  <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
+                </div>
+                <div style={podiumActionRowStyle}>
+                  <Link href={`/awards/${encodeURIComponent(award.id)}`} style={podiumLinkStyle}>
+                    Certificate
+                  </Link>
+                  {award.recipientPlayerId ? (
+                    <Link
+                      href={`/players/${encodeURIComponent(award.recipientPlayerId)}#profile-trophy-case`}
+                      style={podiumLinkStyle}
+                    >
+                      Trophy case
+                    </Link>
+                  ) : (
+                    <span style={podiumMetaStyle}>Trophy case starts when the player profile is linked.</span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -674,6 +710,33 @@ function getPublicTournamentStatus(record: TiqTournamentRecord, completedMatches
   return { label: 'Draw building', detail: 'The director is preparing the field.' }
 }
 
+function TournamentDetailsSection({
+  eyebrow,
+  title,
+  cue,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  const { isMobile } = useViewportBreakpoints()
+
+  return (
+    <details style={detailDisclosureStyle}>
+      <summary style={isMobile ? { ...detailDisclosureSummaryStyle, ...compactDetailDisclosureSummaryStyle } : detailDisclosureSummaryStyle}>
+        <span style={detailDisclosureCopyStyle}>
+          <span style={detailDisclosureEyebrowStyle}>{eyebrow}</span>
+          <strong style={detailDisclosureTitleStyle}>{title}</strong>
+        </span>
+        <span style={isMobile ? { ...detailDisclosureCueStyle, display: 'none' } : detailDisclosureCueStyle}>{cue}</span>
+      </summary>
+      <div style={detailDisclosureContentStyle}>{children}</div>
+    </details>
+  )
+}
+
 const pageStyle: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
@@ -682,6 +745,75 @@ const pageStyle: CSSProperties = {
   gap: 16,
   minWidth: 0,
   overflowX: 'clip',
+}
+
+const detailDisclosureStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDisclosureSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(15,23,42,0.52)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailDisclosureSummaryStyle: CSSProperties = {
+  flexWrap: 'nowrap',
+  gap: 8,
+  padding: '9px 10px',
+  borderRadius: 10,
+}
+
+const detailDisclosureCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDisclosureEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const detailDisclosureTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const detailDisclosureCueStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const detailDisclosureContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroStyle: CSSProperties = {
@@ -701,9 +833,9 @@ const heroStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-120px',
-  width: 320,
+  width: 'min(100%, 320px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -868,6 +1000,12 @@ const eventDayCommandCopyStyle: CSSProperties = {
   background: 'rgba(7,17,33,0.58)',
 }
 
+const compactEventDayCopyStyle: CSSProperties = {
+  gap: 5,
+  padding: 10,
+  borderRadius: 14,
+}
+
 const eventDayCommandTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
@@ -897,6 +1035,12 @@ const statusRailStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(7,17,33,0.64)',
+}
+
+const compactStatusRailStyle: CSSProperties = {
+  gap: 8,
+  padding: 10,
+  borderRadius: 14,
 }
 
 const statusHeroStyle: CSSProperties = {
@@ -953,6 +1097,16 @@ const playerRailCardStyle: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const compactPlayerRailCardStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'center',
+  gap: 6,
+  minHeight: 50,
+  padding: '8px 6px',
+  borderRadius: 10,
+  textAlign: 'center',
 }
 
 const playerRailCopyStyle: CSSProperties = {
@@ -1101,6 +1255,14 @@ const publicReadinessItemStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const compactPublicReadinessItemStyle: CSSProperties = {
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 6,
+  padding: 8,
+  borderRadius: 10,
+  fontSize: 11,
 }
 
 const readinessDotReadyStyle: CSSProperties = {

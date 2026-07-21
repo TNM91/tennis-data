@@ -48,7 +48,6 @@ import {
   getPlayerDevelopmentIdentity,
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
@@ -1703,7 +1702,7 @@ function CoachContent() {
     ]
 
     return (
-      <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
+      <div style={mobileBenchCommandCenterStyle} aria-label={`Active player tools for ${card.student.playerName}`}>
         <div style={mobileBenchCommandHeaderStyle}>
           <div style={mobileBenchCommandTitleStyle}>
             <span>Active player</span>
@@ -2715,7 +2714,7 @@ function CoachContent() {
             <div style={coachSupportPathHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Coach support path</div>
-                <h2 id="coach-support-path-title" style={coachSupportPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+                <h2 id="coach-support-path-title" style={coachSupportPathTitleStyle}>Choose the coaching question to move next.</h2>
               </div>
               <p style={coachSupportPathIntroStyle}>
                 Start with the coaching question that keeps a player moving between sessions.
@@ -2742,7 +2741,7 @@ function CoachContent() {
             </div>
           </section>
 
-          <section style={commandGridStyle} aria-label="Coach workflow">
+          <section style={commandGridStyle} aria-label="Coach tools">
             {COACH_WORKSPACE_COMMANDS.map((command) => (
               <Link key={command.title} href={command.href} style={commandCardStyle}>
                 <TiqFeatureIcon name={command.icon} size="md" variant="ghost" />

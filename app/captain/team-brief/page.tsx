@@ -93,7 +93,7 @@ export default function CaptainTeamBriefPage() {
 
 function CaptainTeamBriefContent() {
   const { role, entitlements, authResolved } = useAuth()
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialContext()
 
   const [loading, setLoading] = useState(false)
@@ -381,7 +381,7 @@ function CaptainTeamBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
-          <CaptainSuitePanel active="team-brief" teamLabel={team || 'Team week'} />
+          {!isMobile ? <CaptainSuitePanel active="team-brief" teamLabel={team || 'Team week'} /> : null}
           <section style={heroCard} aria-label="Team brief controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>

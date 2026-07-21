@@ -19,18 +19,18 @@ describe('league coordinator action deduplication', () => {
 
     const sharedSchedulerSection = source.slice(
       source.indexOf('<section id="shared-calendar"'),
-      source.indexOf('<details style={dataAssistOpsPanelStyle}>'),
+      source.indexOf('<details className="leagueCoordinatorDetailsSection" style={dataAssistOpsPanelStyle}>'),
     )
-    const seasonReadinessSection = source.slice(
-      source.indexOf('<section style={leagueOpsPanelStyle}>'),
-      source.indexOf('<div style={responsiveLayoutGrid}>'),
-    )
+    const seasonReadinessSection = source.slice(source.indexOf('<details className="leagueCoordinatorDetailsSection" style={leagueOpsPanelStyle}>'))
 
     expect(sharedSchedulerSection).not.toContain('responsiveHeroActionRowStyle')
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/compete/leagues">View leagues</GhostLink>')
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/explore/rankings">View rankings</GhostLink>')
     expect(seasonReadinessSection).not.toContain('responsiveHeroActionRowStyle')
     expect(seasonReadinessSection).not.toContain('leagueOpsChecks.map')
+    expect(source.indexOf('<div style={responsiveLayoutGrid}>')).toBeLessThan(
+      source.indexOf('<section style={leaguePathStyle}'),
+    )
   })
 
   it('keeps the empty league registry actionable', () => {

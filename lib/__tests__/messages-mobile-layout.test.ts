@@ -28,6 +28,8 @@ describe('Messages mobile layout guards', () => {
     expect(styleBlock('pageStyle')).toContain('minWidth: 0')
     expect(styleBlock('panelStyle')).toContain('minWidth: 0')
     expect(functionBlock('workspaceGridStyle')).toContain('minWidth: 0')
+    expect(styleBlock('watermarkStyle')).toContain('right: 0')
+    expect(styleBlock('watermarkStyle')).not.toContain("right: '-92px'")
   })
 
   it('keeps thread, alert, and message rows wrap-safe', () => {

@@ -139,17 +139,6 @@ export default function ResetPasswordPage() {
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
             Set your new password.
           </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            Secure the account, then return to your saved tennis work.
-          </p>
-          <div style={destinationPillStyle}>Next step: sign back in</div>
-          {nextIntent ? (
-            <div aria-label="Reset password next action" style={nextIntentStyle}>
-              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
-              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
-              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
-            </div>
-          ) : null}
         </div>
 
         <div style={formPanelResponsive}>
@@ -237,6 +226,25 @@ export default function ResetPasswordPage() {
             </form>
           </div>
         </div>
+
+        <details className="authOptionalDetailsSection" style={resetContextStyle}>
+          <summary style={resetContextSummaryStyle}>
+            <span>Show sign-in path</span>
+          </summary>
+          <div className="authOptionalDetailsBody" style={resetContextBodyStyle}>
+            <p style={{ ...resetContextTextStyle, fontSize: isSmallMobile ? '15px' : '16px' }}>
+              Secure the account, then return to your saved tennis work.
+            </p>
+            <div style={destinationPillStyle}>Next step: sign back in</div>
+            {nextIntent ? (
+              <div aria-label="Reset password next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+              </div>
+            ) : null}
+          </div>
+        </details>
       </section>
     </SiteShell>
   )
@@ -259,9 +267,9 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-90px, -7vw, -34px)',
-  bottom: 'clamp(-120px, -10vw, -46px)',
-  width: 'clamp(220px, 31vw, 430px)',
+  right: 0,
+  bottom: '-12px',
+  width: 'min(310px, 62vw)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -312,6 +320,42 @@ const heroText: CSSProperties = {
   lineHeight: 1.45,
   maxWidth: '760px',
   overflowWrap: 'anywhere',
+}
+
+const resetContextStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(15,23,42,0.48)',
+  boxSizing: 'border-box',
+}
+
+const resetContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  maxWidth: '100%',
+  padding: '0 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const resetContextBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const resetContextTextStyle: CSSProperties = {
+  ...heroText,
+  margin: 0,
 }
 
 const destinationPillStyle: CSSProperties = {

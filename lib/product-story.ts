@@ -167,6 +167,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     valueProps: [
       'Unlock My Lab',
       'Use Level Up cards and Tactics Tools to improve your game',
+      'Save serve and stroke clips for coach review',
       'Improve the data behind your tennis read',
       'Prep matchups before you play',
       'Review tennis messages in one place',
@@ -184,6 +185,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
       'Plan lessons and practice blocks',
       'Track player development and training groups',
       'Assign drills, proof, and next steps',
+      'Review player video with timestamped notes and markups',
       'Use TIQ Tactical Studio for drill boards',
       'Communicate with Player students',
     ],
@@ -348,6 +350,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
     bullets: [
       'Make My Lab your tennis home',
       'Use Level Up to choose and track focused court work',
+      'Capture serve and stroke clips for review',
       'Refresh player and match context',
       'Prep matchups before you play',
     ],
@@ -361,6 +364,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
     bullets: [
       'Build lesson plans and drill assignments',
       'Track player development and review proof',
+      'Return video feedback with timestamped notes',
       'Use TIQ Tactical Studio for practical court work',
     ],
     primaryCta: { label: 'Unlock Coach', href: '/pricing#coach' },
@@ -526,9 +530,9 @@ export const LEAGUE_COORDINATOR_STORY = {
   draftUpgradeHeadline: 'Need this draft to become active League Office tools?',
   draftUpgradeBody:
     'League Office turns setup into season tools where requests, scheduling, results, and standings stay together.',
-  registryTitle: 'Current TIQ league definitions',
+  registryTitle: 'Saved league seasons',
   registryBody:
-    'Manage the league records that power participants, uploaded schedules, score tracking, standings, and organizer follow-through.',
+    'Manage the seasons that power participants, uploaded schedules, score tracking, standings, and organizer follow-through.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'League Office turns league records into one cleaner system for schedules, participants, scores, standings, and league-wide clarity.',

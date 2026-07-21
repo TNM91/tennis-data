@@ -24,9 +24,10 @@ import {
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
-import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const leaguePathActions = [
   {
@@ -118,108 +119,151 @@ export default function CompeteLeaguesPage() {
   return (
     <CompetePageFrame
       eyebrow="League Office directory"
-      title="Open the right league room."
-      description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League Office lane."
+      title="Open the league room you need."
+      description="Run a season, find a league, refresh data, or move into team-week work."
     >
-      <LeaguePathPanel />
-      <LeaguePlayerIdPrepPanel />
-
-      <CompeteGrid>
-        <CompeteCard
-          href="/league-coordinator"
-          meta="League tool"
-          title="League Office"
-          text="Set up seasons, approve entries, publish pages, and record results."
-          icon="teamRankings"
-          action="Open League Office"
-        />
-        <CompeteCard
-          href="/explore/leagues"
-          meta="Public map"
-          title="Browse leagues"
-          text="USTA history, TIQ team leagues, and TIQ individual leagues in one search surface."
-          icon="opponentScouting"
-          action="Browse leagues"
-        />
-        <CompeteCard
-          href={DATA_ASSIST_STORY.href}
-          meta="Refresh"
-          title="Improve league data"
-          text="Upload schedules, rosters, and scorecards when league context changes."
-          icon="accountSecurity"
-          action="Upload data"
-        />
-        <CompeteCard
-          href="/captain"
-          meta="Team handoff"
-          title="Team week"
-          text="Move into lineup, availability, scenario, and team messages."
-          icon="captainDashboard"
-          action="Open week"
-        />
-      </CompeteGrid>
-
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
-
-      <div style={upgradeWrapStyle}>
-        <div style={upgradeIntroStyle}>
-          <div style={sectionEyebrowStyle}>Unlock path</div>
-          <div style={upgradeTitleStyle}>Open the path that matches the tennis need.</div>
-          <div style={sectionTextStyle}>
-            Player handles personal prep, Captain handles team week, and League Office handles seasons, scorebooks, and public league rooms.
-          </div>
-        </div>
-
-        <div style={upgradeGridStyle}>
-          <UpgradePrompt
-            planId="player_plus"
-            compact
-            headline={MY_LAB_STORY.upgradeHeadline}
-            body={MY_LAB_STORY.upgradeBody}
-            ctaLabel="Unlock Player"
-            ctaHref="/pricing"
-            secondaryLabel="See plans"
-            secondaryHref="/pricing"
-          />
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Still building lineups manually?"
-            body="Captain helps you save time, reduce stress, and move from availability to smarter lineups and team communication."
-            ctaLabel="Unlock Captain"
-            ctaHref="/pricing"
-            secondaryLabel="See plans"
-            secondaryHref="/pricing"
-          />
-          <UpgradePrompt
-            planId="league"
-            compact
-            headline={LEAGUE_COORDINATOR_STORY.finalUpgradeHeadline}
-            body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
-            ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
-            ctaHref="/pricing"
-            secondaryLabel="See plans"
-            secondaryHref="/pricing"
-          />
-        </div>
-      </div>
 
       <div style={sectionWrap}>
         <LeagueListSection
           title="Team Leagues"
-          body="These TIQ team leagues are the captain-owned competition containers that can feed lineups, availability, messaging, and seasonal operations."
+          body="Captain-owned league rooms for results, schedules, team context, and weekly decisions."
           records={teamLeagues}
         />
         <LeagueListSection
           title="Individual Leagues"
-          body="These TIQ individual leagues are the player-vs-player containers that stay separate from captain-led team workflows."
+          body="Player-vs-player league rooms for standings, results, prompts, and next-match prep."
           records={individualLeagues}
           individualSummaries={individualLeagueSummaries}
           individualSuggestionSummaries={individualSuggestionSummaries}
         />
       </div>
 
+      <LeaguePathPanel />
+
+      <LeagueToolsDisclosure>
+        <CompeteGrid>
+          <CompeteCard
+            href="/league-coordinator"
+            meta="Run"
+            title="League Office"
+            text="Set up seasons, approve entries, publish pages, and record results."
+            icon="teamRankings"
+            action="Open League Office"
+          />
+          <CompeteCard
+            href="/explore/leagues"
+            meta="Find"
+            title="Browse leagues"
+            text="Search USTA history, TIQ team leagues, and TIQ individual leagues."
+            icon="opponentScouting"
+            action="Browse leagues"
+          />
+          <CompeteCard
+            href={DATA_ASSIST_STORY.href}
+            meta="Refresh"
+            title="Improve league data"
+            text="Upload schedules, rosters, and scorecards when league context changes."
+            icon="accountSecurity"
+            action="Upload data"
+          />
+          <CompeteCard
+            href="/captain"
+            meta="Captain"
+            title="Team week"
+            text="Move into lineup, availability, scenario, and team messages."
+            icon="captainDashboard"
+            action="Open week"
+          />
+        </CompeteGrid>
+      </LeagueToolsDisclosure>
+
+      <LeagueSupportDisclosure>
+        <LeaguePlayerIdPrepPanel />
+      </LeagueSupportDisclosure>
+
+      <LeagueUpgradeDisclosure>
+        <div style={upgradeWrapStyle}>
+          <div style={upgradeIntroStyle}>
+            <div style={sectionEyebrowStyle}>Unlock path</div>
+            <div style={upgradeTitleStyle}>Open the path that matches the tennis need.</div>
+            <div style={sectionTextStyle}>
+              Player handles personal prep, Captain handles team week, and League Office handles seasons, scorebooks, and public league rooms.
+            </div>
+          </div>
+
+          <div style={upgradeGridStyle}>
+            <UpgradePrompt
+              planId="player_plus"
+              compact
+              headline={MY_LAB_STORY.upgradeHeadline}
+              body={MY_LAB_STORY.upgradeBody}
+              ctaLabel="Unlock Player"
+              ctaHref="/pricing"
+              secondaryLabel="See plans"
+              secondaryHref="/pricing"
+            />
+            <UpgradePrompt
+              planId="captain"
+              compact
+              headline="Still building lineups manually?"
+              body="Captain helps you save time, reduce stress, and move from availability to smarter lineups and team communication."
+              ctaLabel="Unlock Captain"
+              ctaHref="/pricing"
+              secondaryLabel="See plans"
+              secondaryHref="/pricing"
+            />
+            <UpgradePrompt
+              planId="league"
+              compact
+              headline={LEAGUE_COORDINATOR_STORY.finalUpgradeHeadline}
+              body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
+              ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
+              ctaHref="/pricing"
+              secondaryLabel="See plans"
+              secondaryHref="/pricing"
+            />
+          </div>
+        </div>
+      </LeagueUpgradeDisclosure>
+
     </CompetePageFrame>
+  )
+}
+
+function LeagueToolsDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={leagueSupportDisclosureStyle}>
+      <summary style={leagueSupportSummaryStyle}>
+        <span style={leagueSupportSummaryCopyStyle}>More league tools</span>
+        <span>Open</span>
+      </summary>
+      <div style={leagueSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function LeagueSupportDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={leagueSupportDisclosureStyle}>
+      <summary style={leagueSupportSummaryStyle}>
+        <span style={leagueSupportSummaryCopyStyle}>Use Player ID inside this league room</span>
+        <span>Open</span>
+      </summary>
+      <div style={leagueSupportBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function LeagueUpgradeDisclosure({ children }: { children: ReactNode }) {
+  return (
+    <details className="competeDetailsSection" style={leagueSupportDisclosureStyle}>
+      <summary style={leagueSupportSummaryStyle}>
+        <span style={leagueSupportSummaryCopyStyle}>Need Player, Captain, or League tools?</span>
+        <span>Open</span>
+      </summary>
+      <div style={leagueSupportBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -243,33 +287,55 @@ function RowLink({ href, children }: { href: string; children: ReactNode }) {
 }
 
 function LeaguePathPanel() {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <section style={leaguePathStyle} aria-labelledby="compete-league-path-title">
       <div style={leaguePathHeaderStyle}>
         <div>
           <span style={leaguePathEyebrowStyle}>League path</span>
-          <h2 id="compete-league-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <h2 id="compete-league-path-title" style={leaguePathTitleStyle}>Choose what to do with a league.</h2>
         </div>
-        <p style={leaguePathIntroStyle}>
-          Start with the league need, then open the smallest action that keeps seasons, teams, and results organized.
+        <p style={{ ...leaguePathIntroStyle, display: isMobile ? 'none' : undefined }}>
+          Start with the league need, then open the shortest path to the next action.
         </p>
       </div>
-      <div style={leaguePathGridStyle}>
+      <div
+        style={{
+          ...leaguePathGridStyle,
+          gap: isMobile ? '8px' : leaguePathGridStyle.gap,
+        }}
+      >
         {leaguePathActions.map((action) => (
           <Link
             key={action.job}
             href={action.href}
-            style={leaguePathCardStyle}
+            style={{
+              ...leaguePathCardStyle,
+              minHeight: isMobile ? 76 : leaguePathCardStyle.minHeight,
+              padding: isMobile ? '10px' : leaguePathCardStyle.padding,
+              borderRadius: isMobile ? '14px' : leaguePathCardStyle.borderRadius,
+            }}
             data-compete-league-path-job={action.job}
             aria-label={`${action.cta}: ${action.question}`}
           >
             <span style={leaguePathQuestionStyle}>{action.question}</span>
             <strong style={leaguePathCardTitleStyle}>{action.title}</strong>
-            <span>{action.body}</span>
             <span style={leaguePathCtaStyle}>{action.cta}</span>
           </Link>
         ))}
       </div>
+      <details className="competeDetailsSection" style={leaguePathHelpStyle}>
+        <summary style={leaguePathHelpSummaryStyle}>Help me choose</summary>
+        <div style={leaguePathHelpGridStyle}>
+          {leaguePathActions.map((action) => (
+            <div key={action.job} style={leaguePathHelpItemStyle}>
+              <strong>{action.title}</strong>
+              <span>{action.body}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
@@ -550,7 +616,7 @@ const leaguePathIntroStyle: CSSProperties = {
 
 const leaguePathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -559,7 +625,7 @@ const leaguePathCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   alignContent: 'start',
-  minHeight: 148,
+  minHeight: 92,
   minWidth: 0,
   padding: '12px',
   borderRadius: '16px',
@@ -594,6 +660,48 @@ const leaguePathCtaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const leaguePathHelpStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(8,16,34,0.54)',
+  overflow: 'hidden',
+}
+
+const leaguePathHelpSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 42,
+  padding: '0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathHelpGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const leaguePathHelpItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '10px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const leaguePlayerIdPrepStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -610,6 +718,39 @@ const leaguePlayerIdPrepStyle: CSSProperties = {
   minWidth: 0,
   overflow: 'hidden',
   overflowWrap: 'anywhere',
+}
+
+const leagueSupportDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.62)',
+  boxShadow: '0 14px 36px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const leagueSupportSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  minHeight: 48,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leagueSupportSummaryCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueSupportBodyStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 10px 10px',
 }
 
 const leaguePlayerIdPrepCopyStyle: CSSProperties = {

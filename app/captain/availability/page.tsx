@@ -514,7 +514,7 @@ function CaptainAvailabilityContent() {
         withinShell
         planId="captain"
         headline="Still chasing availability one player at a time?"
-        body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."
+        body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication together instead of rebuilding the process every week."
         ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
@@ -524,7 +524,7 @@ function CaptainAvailabilityContent() {
 
   return (
     <div style={pageWrap}>
-        <CaptainSuitePanel active="availability" teamLabel={selectedTeam || 'Team week'} />
+        {!isMobile ? <CaptainSuitePanel active="availability" teamLabel={selectedTeam || 'Team week'} /> : null}
         <section style={availabilityControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div>

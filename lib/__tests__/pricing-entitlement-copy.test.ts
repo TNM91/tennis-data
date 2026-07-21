@@ -8,7 +8,7 @@ describe('pricing entitlement copy', () => {
     expect(source).toContain('Creating an account opens Free access for public tennis intelligence and data contributions.')
     expect(source).toContain('My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.')
     expect(source).toContain("const active = !accessPending && isPlanActive(plan.id, access)")
-    expect(source).toContain("{accessPending ? 'View tiers' : getPlanCta(plan.id, active)}")
+    expect(source).toContain("{accessPending ? 'View tiers' : isMobile ? getCompactPlanCta(plan.id, active) : getPlanCta(plan.id, active)}")
     expect(source).not.toContain('Paid workspaces open only after the matching plan is active.')
   })
 

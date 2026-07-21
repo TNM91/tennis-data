@@ -1656,7 +1656,7 @@ export default function AdminImportPage() {
                   disabled={isRunningPreview || isRunningCommit}
                   onClick={() => void handleRun('preview')}
                 >
-                  {isRunningPreview ? 'Running preview…' : 'Preview import'}
+                  {isRunningPreview ? 'Running preview...' : 'Preview import'}
                 </button>
               </div>
             </div>
@@ -2063,12 +2063,12 @@ export default function AdminImportPage() {
                 disabled={isRunningPreview || isRunningCommit}
                 onClick={() => void handleRun('preview')}
               >
-                {isRunningPreview ? 'Running preview…' : 'Preview import'}
+                {isRunningPreview ? 'Running preview...' : 'Preview import'}
               </button>
             ) : null}
           </div>
 
-          {/* Raw JSON — debug */}
+          {/* Raw JSON import payload */}
           <details style={{ marginTop: 16 }}>
             <summary
               style={{
@@ -2079,7 +2079,7 @@ export default function AdminImportPage() {
                 padding: '4px 0',
               }}
             >
-              Raw JSON{jsonInput ? ` · ${jsonInput.length.toLocaleString()} chars` : ''}
+              Raw JSON{jsonInput ? ` - ${jsonInput.length.toLocaleString()} chars` : ''}
             </summary>
             <div style={{ marginTop: 8 }}>
               <textarea
@@ -2529,7 +2529,7 @@ export default function AdminImportPage() {
             </div>
 
             {ledgerLoading ? (
-              <div style={{ ...subtleTextStyle }}>Loading upload ledger…</div>
+              <div style={{ ...subtleTextStyle }}>Loading upload ledger...</div>
             ) : ledgerError ? (
               <div
                 role="alert"

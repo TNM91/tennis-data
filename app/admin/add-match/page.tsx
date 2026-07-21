@@ -263,7 +263,7 @@ export default function AddMatchPage() {
               <h2 className="section-title">Match Details</h2>
               <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
                 Enter the match metadata first, then assign players to Side A and Side B.
-                This page checks for duplicate matches before inserting.
+                Duplicate checks run before the match is inserted.
               </p>
             </div>
 
@@ -276,7 +276,7 @@ export default function AddMatchPage() {
               }}
             >
               <span className="badge badge-blue">
-                {playersLoading ? 'Loading players…' : `${players.length} players loaded`}
+                {playersLoading ? 'Loading players...' : `${players.length} players loaded`}
               </span>
               <span className="badge badge-slate">
                 {matchType === 'singles' ? 'Singles mode' : 'Doubles mode'}
@@ -301,7 +301,7 @@ export default function AddMatchPage() {
 
           {playersLoading ? (
             <div className="subtle-text" style={{ marginTop: 16 }}>
-              Loading the player directory for autocomplete and validation.
+              Loading players for search and score entry.
             </div>
           ) : null}
 

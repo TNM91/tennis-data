@@ -31,7 +31,7 @@ import {
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
-import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -283,6 +283,8 @@ function TeamPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
+  const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
+  const [showFullRoster, setShowFullRoster] = useState(false)
   const [selectedRosterPlayerIds, setSelectedRosterPlayerIds] = useState<string[]>([])
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
@@ -520,7 +522,7 @@ function TeamPageContent() {
         return
       }
 
-      // ── Line matches: fetch individual court results for player records ──
+      // Line matches: fetch individual court results for player records.
       const parentExternalIds = scopedMatches
         .map((m) => cleanText(m.external_match_id))
         .filter((id): id is string => id !== null)
@@ -793,9 +795,9 @@ function TeamPageContent() {
     const useLineData = linePlayers.length > 0
 
     if (useLineData) {
-      // ── New data path: individual court outcomes from line matches ──
+      // New data path: individual court outcomes from line matches.
       const lineMatchLookup = new Map(lineMatches.map((lm) => [lm.id, lm]))
-      // Map parent external_match_id prefix → parent TeamMatch for team-side lookup
+      // Map the parent external_match_id prefix to its parent TeamMatch.
       const parentByExternalId = new Map(
         matches.map((m) => [cleanText(m.external_match_id) ?? '', m]),
       )
@@ -841,7 +843,7 @@ function TeamPageContent() {
         else if (lineMatch.winner_side !== null) current.losses += 1
       })
     } else {
-      // ── Legacy data path: match_players linked directly to parent matches ──
+      // Legacy data path: match_players linked directly to parent matches.
       const matchLookup = new Map(matches.map((match) => [match.id, match]))
 
       players.forEach((entry) => {
@@ -893,6 +895,7 @@ function TeamPageContent() {
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
   const teamExistsFromSummary = summaryTeams.length > 0
+  const hasTeamAnalysisData = matches.length > 0 || roster.length > 0 || tiqParticipations.length > 0 || teamAwards.length > 0
 
   const hotPlayers = useMemo(() => {
     return roster.filter((p) => {
@@ -952,6 +955,7 @@ function TeamPageContent() {
 
     return nextRoster
   }, [roster, rosterFilter])
+  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, 12)
 
   const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => [
     { key: 'all', label: 'All', count: roster.length },
@@ -1304,7 +1308,7 @@ function TeamPageContent() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              {PRODUCT_MOTTO} See the roster, recent form, singles strength, doubles options, and the Team Hub context that helps captains plan the week.
+              See the roster, recent form, singles strength, doubles options, and the Team Hub context that helps captains plan the week.
             </p>
 
             <div style={heroBadgeRow}>
@@ -1443,16 +1447,27 @@ function TeamPageContent() {
           </div>
         </section>
 
-        <DataTrustPanel
-          title="Team data trust"
-          body="Team pages combine reviewed team summaries, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
-          signals={[
-            { label: 'Source', value: 'Team summaries, scorecards, TIQ league entries' },
-            { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
-            { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
-            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
-          ]}
-        />
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Data quality</span>
+              <strong style={detailDrawerTitleStyle}>Show how this team page is checked</strong>
+            </span>
+            <span style={panelCountPill}>Details</span>
+          </summary>
+          <div style={detailDrawerContentStyle}>
+            <DataTrustPanel
+              title="Team data trust"
+              body="Team pages combine reviewed team summaries, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
+              signals={[
+                { label: 'Source', value: 'Team summaries, scorecards, TIQ league entries' },
+                { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
+                { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
+                { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+              ]}
+            />
+          </div>
+        </details>
 
         {error ? (
           <section style={surfaceCard}>
@@ -1479,6 +1494,7 @@ function TeamPageContent() {
           </section>
         ) : null}
 
+        {hasTeamAnalysisData ? (
         <section style={dynamicMetricGrid}>
           <section style={signalGridStyle(isSmallMobile)}>
             {teamSignals.map((signal) => (
@@ -1516,6 +1532,7 @@ function TeamPageContent() {
             </span>
           </article>
         </section>
+        ) : null}
 
         {teamAwards.length > 0 ? (
           <section style={surfaceCard} id="team-awards">
@@ -1539,6 +1556,7 @@ function TeamPageContent() {
           </section>
         ) : null}
 
+        {tiqParticipations.length || tiqParticipationWarning ? (
         <section style={surfaceCard}>
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
@@ -1595,7 +1613,9 @@ function TeamPageContent() {
             </div>
           ) : null}
         </section>
+        ) : null}
 
+        {roster.length || bestSingles.length || pairings.length ? (
         <section style={dynamicCardGrid}>
           <article style={surfaceCardStrong}>
             <div style={sectionHeadingRow}>
@@ -1616,7 +1636,7 @@ function TeamPageContent() {
                           {index + 1}. {player.name}
                         </strong>
                         <div style={mutedText}>
-                          {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
+                          {player.singlesAppearances} singles starts - {player.wins}-{player.losses} record
                         </div>
                       </div>
                       <div style={ratingStackStyle}>
@@ -1665,31 +1685,10 @@ function TeamPageContent() {
             )}
           </article>
         </section>
+        ) : null}
 
+        {bestDoubles.length ? (
         <section style={dynamicCardGrid}>
-          <article style={surfaceCard}>
-            <div style={sectionHeadingRow}>
-              <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>Captain tools</p>
-                <h2 style={sectionTitle}>Next Best Actions</h2>
-              </div>
-            </div>
-
-            <div style={stackList}>
-              {captainLinks.map((item) => (
-                <CaptainListCard
-                  key={item.question}
-                  href={item.href}
-                  question={item.question}
-                  title={item.title}
-                  description={item.description}
-                  cta={item.cta}
-                  job={item.job}
-                />
-              ))}
-            </div>
-          </article>
-
           <article style={surfaceCard}>
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
@@ -1709,7 +1708,7 @@ function TeamPageContent() {
                           {index + 1}. {player.name}
                         </strong>
                         <div style={mutedText}>
-                          {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
+                          {player.doublesAppearances} doubles starts - {player.wins}-{player.losses} record
                         </div>
                       </div>
                       <div style={ratingStackStyle}>
@@ -1728,7 +1727,9 @@ function TeamPageContent() {
             )}
           </article>
         </section>
+        ) : null}
 
+        {matches.length ? (
         <section style={surfaceCard} id="team-roster">
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
@@ -1784,6 +1785,7 @@ function TeamPageContent() {
             const filteredCards = seasonFilter === 'all'
               ? matchCards
               : matchCards.filter((m) => (m.match_date || '').startsWith(seasonFilter))
+            const visibleCards = showFullMatchHistory ? filteredCards : filteredCards.slice(0, 8)
             return (
             <>
             {seasonOptions.length > 1 ? (
@@ -1809,19 +1811,19 @@ function TeamPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCards.map((match) => {
+                  {visibleCards.map((match) => {
                     const existingReport = myMatchReportByMatchId.get(match.id) || null
                     return (
                     <tr key={match.id}>
                       <td style={tableCell}>{formatDate(match.match_date)}</td>
-                      <td style={tableCell}>{match.opponent ?? '—'}</td>
+                      <td style={tableCell}>{match.opponent ?? '--'}</td>
                       <td style={tableCell}>{match.venueLabel}</td>
                       <td style={tableCell}>
-                        {match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}
+                        {match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '--'}
                       </td>
                       <td style={tableCell}>
                         <div style={scoreCellStackStyle}>
-                          <span>{match.score ?? '—'}</span>
+                          <span>{match.score ?? '--'}</span>
                           {existingReport ? (
                             <span style={reportStatusBadgeStyle(existingReport.status)}>
                               {getReportStatusLabel(existingReport.status)}
@@ -1851,7 +1853,7 @@ function TeamPageContent() {
                       </td>
                       <td style={tableCell}>
                         <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
-                          {match.won === true ? 'Win' : match.won === false ? 'Loss' : '—'}
+                          {match.won === true ? 'Win' : match.won === false ? 'Loss' : '--'}
                         </span>
                       </td>
                     </tr>
@@ -1860,6 +1862,13 @@ function TeamPageContent() {
                 </tbody>
               </table>
             </div>
+            {filteredCards.length > 8 ? (
+              <div style={tableControlRowStyle}>
+                <button type="button" onClick={() => setShowFullMatchHistory((value) => !value)} style={tableToggleButtonStyle}>
+                  {showFullMatchHistory ? 'Show fewer matches' : `Show all ${filteredCards.length} matches`}
+                </button>
+              </div>
+            ) : null}
             </>
             )
           })() : (
@@ -1869,7 +1878,9 @@ function TeamPageContent() {
             </div>
           )}
         </section>
+        ) : null}
 
+        {roster.length ? (
         <section style={surfaceCard}>
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
@@ -1878,7 +1889,7 @@ function TeamPageContent() {
             </div>
             {roster.length ? (
               <span style={panelCountPill}>
-                {filteredRoster.length} shown
+                {visibleRoster.length} of {filteredRoster.length} shown
               </span>
             ) : null}
           </div>
@@ -1995,7 +2006,7 @@ function TeamPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRoster.map((player) => (
+                    {visibleRoster.map((player) => (
                       <tr key={player.id}>
                         <td style={tableCell}>
                           {player.id.startsWith('summary:') ? (
@@ -2056,6 +2067,13 @@ function TeamPageContent() {
                   </tbody>
                 </table>
               </div>
+              {filteredRoster.length > 12 ? (
+                <div style={tableControlRowStyle}>
+                  <button type="button" onClick={() => setShowFullRoster((value) => !value)} style={tableToggleButtonStyle}>
+                    {showFullRoster ? 'Show fewer players' : `Show all ${filteredRoster.length} players`}
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : (
             <div style={emptyStateBlock}>
@@ -2067,11 +2085,12 @@ function TeamPageContent() {
               <p style={mutedText}>
                 {teamExistsFromSummary
                   ? `The last team summary can create the ${team} team shell from standings, but roster players only import for the roster team shown in that capture. Open ${team}'s roster/team-summary page in TennisLink and capture that roster, or import scorecards to build usage history.`
-                  : 'Import a team summary with this team selected as the roster team, or capture scorecards to enrich this page with player usage.'}
+                  : 'Import a team summary with this team selected as the roster team, or capture scorecards to add player usage.'}
               </p>
             </div>
           )}
         </section>
+        ) : null}
       </section>
   )
 }
@@ -2248,9 +2267,9 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-118px',
-  width: '310px',
+  width: 'min(100%, 310px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -2721,6 +2740,42 @@ const surfaceCard: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   ...surfaceCard,
   background: 'rgba(8, 13, 28, 0.76)',
+}
+
+const detailDrawerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerSummaryStyle: CSSProperties = {
+  ...surfaceCard,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const detailDrawerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerContentStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHeadingRow: CSSProperties = {
@@ -3203,6 +3258,23 @@ const seasonFilterButtonStyle: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+}
+
+const tableControlRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginTop: 12,
+  minWidth: 0,
+}
+
+const tableToggleButtonStyle: CSSProperties = {
+  ...seasonFilterButtonStyle,
+  minHeight: 36,
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'rgba(15, 23, 42, 0.72)',
+  color: 'var(--foreground-strong)',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const listLinkCard: CSSProperties = {

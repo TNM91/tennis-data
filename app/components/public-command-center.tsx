@@ -7,7 +7,6 @@ import {
   MEMBERSHIP_TIERS,
   PLATFORM_PILLARS,
   PRODUCT_MODE_LANGUAGE,
-  PRODUCT_MOTTO,
 } from '@/lib/product-story'
 
 export type PublicActionCard = {
@@ -314,7 +313,7 @@ export function PublicPageShell({ active, children }: { active?: string; childre
 
 export function CommandHero({
   eyebrow = 'TenAceIQ',
-  title = PRODUCT_MOTTO,
+  title = 'Start with the tennis tool you need next.',
   body,
   primary,
   secondary,
@@ -440,13 +439,14 @@ export function PlatformPillarGrid() {
 
 export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?: HomeSnapshotItem[] }) {
   return (
-    <section style={sectionStyle} aria-labelledby="home-intelligence-snapshot-title">
-      <SectionHeader
-        eyebrow="Tennis intelligence snapshot"
-        title="See what TenAceIQ can tell you."
-        body="Use these tennis reads to understand the player, match, team week, league, or data source before you move."
-        titleId="home-intelligence-snapshot-title"
-      />
+    <details style={homeDisclosureStyle} aria-labelledby="home-intelligence-snapshot-title">
+      <summary style={homeDisclosureSummaryStyle}>
+        <span style={homeDisclosureCopyStyle}>
+          <span style={eyebrowStyle}>Tennis intelligence snapshot</span>
+          <strong id="home-intelligence-snapshot-title" style={homeDisclosureTitleStyle}>Open reads before you choose a tool.</strong>
+        </span>
+        <span style={homeDisclosureCueStyle}>Show reads</span>
+      </summary>
       <div style={snapshotBoardStyle}>
         <div style={snapshotHeaderStyle}>
           <span style={snapshotKickerStyle}>Signals before tools</span>
@@ -459,7 +459,10 @@ export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?
                 <span style={snapshotLabelStyle}>{item.label}</span>
                 <div style={snapshotCopyBlockStyle}>
                   <h3 style={snapshotTitleStyle}>{item.title}</h3>
-                  <p style={snapshotBodyStyle}>{item.body}</p>
+                  <details style={compactDetailsStyle}>
+                    <summary style={compactSummaryStyle}>Use when</summary>
+                    <p style={snapshotBodyStyle}>{item.body}</p>
+                  </details>
                 </div>
               </div>
               <p aria-label={`${item.label} signals`} style={snapshotSignalStyle}>
@@ -477,23 +480,24 @@ export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?
           ))}
         </div>
       </div>
-    </section>
+    </details>
   )
 }
 
 export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard[] }) {
   return (
-    <section style={sectionStyle} aria-labelledby="home-mode-router-title">
-      <SectionHeader
-        eyebrow="Choose your mode"
-        title="One clean path from here."
-        body="Start with the role closest to today&apos;s tennis need: explore the landscape, build your player path, run a team week, or organize competition."
-        titleId="home-mode-router-title"
-      />
+    <details style={homeDisclosureStyle} aria-labelledby="home-mode-router-title">
+      <summary style={homeDisclosureSummaryStyle}>
+        <span style={homeDisclosureCopyStyle}>
+          <span style={eyebrowStyle}>Choose your mode</span>
+          <strong id="home-mode-router-title" style={homeDisclosureTitleStyle}>Open role paths.</strong>
+        </span>
+        <span style={homeDisclosureCueStyle}>Show paths</span>
+      </summary>
       <div style={modeRouterStyle}>
         <div style={modeHeaderStyle}>
           <span style={modeKickerStyle}>Role paths</span>
-          <p style={modeCopyStyle}>Start with the role closest to today&apos;s tennis work.</p>
+          <p style={modeCopyStyle}>Open the right tool first. Details stay one tap away.</p>
         </div>
         <div role="list" style={modeGridStyle}>
           {modes.map((mode) => (
@@ -501,7 +505,10 @@ export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard
               <div style={modeCardMainStyle}>
                 <span style={modeLabelStyle}>{mode.label}</span>
                 <h3 style={modeTitleStyle}>{mode.title}</h3>
-                <p style={modeDetailStyle}>{mode.detail}</p>
+                <details style={compactDetailsStyle}>
+                  <summary style={compactSummaryStyle}>What opens</summary>
+                  <p style={modeDetailStyle}>{mode.detail}</p>
+                </details>
               </div>
               <TrackedProductLink
                 href={mode.href}
@@ -514,7 +521,7 @@ export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard
           ))}
         </div>
       </div>
-    </section>
+    </details>
   )
 }
 
@@ -606,7 +613,7 @@ export function HomeClosingBand() {
       <div style={closingCopyStyle}>
         <span style={closingKickerStyle}>Keep moving</span>
         <h2 id="home-closing-title" style={closingTitleStyle}>Start with tennis context, then act.</h2>
-        <p style={closingBodyStyle}>Search the public tennis map first, compare the next matchup, or move into the team week when decisions need structure.</p>
+        <p style={closingBodyStyle}>Search the public tennis map, prep a matchup, or move into the team week.</p>
       </div>
       <div style={closingActionRowStyle}>
         <TrackedProductLink href="/explore" style={primaryButtonStyle} event={getPublicLinkEvent('Start Exploring', '/explore', 'home-closing')}>
@@ -930,6 +937,49 @@ const sectionBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 15,
   lineHeight: 1.55,
+}
+
+const homeDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.70)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const homeDisclosureSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const homeDisclosureCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  flex: '1 1 220px',
+  minWidth: 0,
+}
+
+const homeDisclosureTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.15rem, 2.4vw, 1.55rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const homeDisclosureCueStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  minHeight: 34,
+  padding: '0 11px',
 }
 
 const actionBoardStyle: CSSProperties = {
@@ -1431,6 +1481,22 @@ const snapshotTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const compactSummaryStyle: CSSProperties = {
+  width: 'fit-content',
+  cursor: 'pointer',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
 const snapshotBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
@@ -1518,7 +1584,7 @@ const modeCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'space-between',
   gap: 9,
-  minHeight: 172,
+  minHeight: 138,
   minWidth: 0,
   padding: 10,
   borderRadius: 8,

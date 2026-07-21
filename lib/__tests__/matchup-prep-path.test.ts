@@ -13,13 +13,14 @@ function styleBlock(styleName: string) {
 
 describe('matchup prep path', () => {
   it('frames Matchup as a quick compete prep path', () => {
-    expect(source).toContain('PRODUCT_MOTTO')
+    expect(source).not.toContain('PRODUCT_MOTTO')
+    expect(source).toContain('Matchup prep')
     expect(source).toContain('Matchup prep path')
     expect(source).toContain('Know what matters before match time.')
     expect(source).toContain('What matchup matters?')
     expect(source).toContain('What should I watch first?')
     expect(source).toContain('What do I do next?')
-    expect(source).toContain('Matchup is a quick prep read')
+    expect(source).toContain('Pick the court, read the lean, then choose the next tennis action.')
     expect(source).toContain('data-matchup-prep-job={item.job}')
   })
 
@@ -27,6 +28,7 @@ describe('matchup prep path', () => {
     expect(source).toContain('matchupPlayerIdSignals')
     expect(source).toContain('Matchup player ID trail')
     expect(source).toContain('Make the read part of the player record.')
+    expect(source).toContain('Save the read to your player record.')
     expect(source).toContain('Player ID')
     expect(source).toContain('Opponent slot')
     expect(source).toContain('Next use')
@@ -47,7 +49,16 @@ describe('matchup prep path', () => {
   })
 
   it('keeps the prep path compact and mobile-safe', () => {
+    expect(source).toContain('const matchupSupportDetails = isMobile ? (')
+    expect(source).toContain('Matchup help')
+    expect(source).toContain('Prep path and player context.')
+    expect(source).toContain('Show help')
+    expect(source).toContain('className="matchupDetailsSection"')
+    expect(source).toContain('className="matchupDetailsBody"')
+    expect(source).toContain('matchupMobileSupportStackStyle')
     expect(source).toContain('matchupPrepGridStyle(isSmallMobile)')
+    expect(styleBlock('matchupMobileSupportStackStyle')).toContain('minWidth: 0')
+    expect(styleBlock('matchupMobileSupportStackStyle')).toContain("overflow: 'hidden'")
     expect(styleBlock('matchupPrepPathStyle')).toContain('minWidth: 0')
     expect(styleBlock('matchupPrepPathStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('matchupPrepGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))'")
@@ -66,5 +77,24 @@ describe('matchup prep path', () => {
     expect(styleBlock('matchupPlayerIdStarterItemStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('matchupPlayerIdStarterActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('matchupPlayerIdStarterLinkStyle')).toContain('minWidth: 0')
+  })
+
+  it('shows the next matchup action before demo preview content', () => {
+    const loadingStart = source.indexOf('{loading ? (')
+    expect(loadingStart).toBeGreaterThanOrEqual(0)
+    const loadingGuidance = source.indexOf('Search Player A and Player B above.', loadingStart)
+    const loadingDemo = source.indexOf('{demoMatchupPreview}', loadingStart)
+    expect(loadingGuidance).toBeGreaterThanOrEqual(0)
+    expect(loadingDemo).toBeGreaterThanOrEqual(0)
+    expect(loadingGuidance).toBeLessThan(loadingDemo)
+
+    const noPlayersStart = source.indexOf(') : !players.length && !error ? (', loadingStart)
+    expect(noPlayersStart).toBeGreaterThanOrEqual(0)
+    const noPlayersAction = source.indexOf('{DATA_ASSIST_STORY.cta}', noPlayersStart)
+    const noPlayersDemo = source.indexOf('{demoMatchupPreview}', noPlayersStart)
+    expect(noPlayersAction).toBeGreaterThanOrEqual(0)
+    expect(noPlayersDemo).toBeGreaterThanOrEqual(0)
+    expect(noPlayersAction).toBeLessThan(noPlayersDemo)
+    expect(source).not.toContain('show the product shape')
   })
 })

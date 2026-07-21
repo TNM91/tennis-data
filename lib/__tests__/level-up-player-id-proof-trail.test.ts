@@ -44,6 +44,7 @@ describe('Level Up Player ID proof trail', () => {
 
   it('keeps the proof trail compact and mobile-safe', () => {
     expect(normalizedStyles).toContain('.playerIdProofTrail')
+    expect(normalizedStyles).toContain('.levelUpMorePanel:not([open]) > .levelUpMoreBody')
     expect(cssBlock('.playerIdProofTrail')).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr))')
     expect(cssBlock('.playerIdProofTrail')).toContain('min-width: 0')
     expect(cssBlock('.playerIdProofTrail article')).toContain('min-width: 0')

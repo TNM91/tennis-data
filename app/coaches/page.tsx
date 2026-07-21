@@ -12,7 +12,6 @@ import {
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqCoachAssignmentCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -40,171 +39,210 @@ export default function CoachesPage() {
         <CommandHero
           eyebrow="Coaches"
           title="Help every player leave with a next step."
-          body={`${PRODUCT_MOTTO} for coaching means goals, drills, lesson notes, progress, and follow-through stay connected so development does not disappear between sessions.`}
+          body="Keep goals, drills, lesson notes, progress, and follow-through connected so player development does not disappear between sessions."
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
           searchPlaceholder="Search coaches, player goals, drills, or lesson notes"
+          showSearchResults={false}
+          showBoard={false}
         />
-        <section style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
-          <div style={coachQuickPathHeaderStyle}>
+        <section className="coachQuickPath" style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
+          <div className="coachQuickPathHeader" style={coachQuickPathHeaderStyle}>
             <p style={coachQuickPathEyebrowStyle}>Coach quick path</p>
             <h2 id="coach-quick-path-title" style={coachQuickPathTitleStyle}>
               What does the player need next?
             </h2>
-            <p style={coachQuickPathTextStyle}>
+            <p className="coachQuickPathText" style={coachQuickPathTextStyle}>
               Start with the player in front of you, then open the smallest action that keeps development moving.
             </p>
           </div>
-          <div style={coachQuickPathGridStyle}>
+          <div className="coachQuickPathGrid" style={coachQuickPathGridStyle}>
             {coachQuickPaths.map((path) => (
               <TrackedProductLink
                 key={path.job}
                 href={path.href}
+                className="coachQuickPathCard"
                 style={coachQuickPathCardStyle}
                 ariaLabel={`${path.cta}: ${path.question}`}
                 event={path.event}
               >
-                <span style={coachQuickPathQuestionStyle}>{path.question}</span>
-                <span style={coachQuickPathCtaStyle}>{path.cta}</span>
+                <span className="coachQuickPathQuestion" style={coachQuickPathQuestionStyle}>{path.question}</span>
+                <span className="coachQuickPathCta" style={coachQuickPathCtaStyle}>{path.cta}</span>
               </TrackedProductLink>
             ))}
           </div>
         </section>
-        <TwoColumnStory
-          leftTitle="For players"
-          leftBody="Bring your goals, match questions, progress, and practice proof into every lesson."
-          rightTitle="For coaches"
-          rightBody="Assign drills, track player development, recommend resources, and support players between sessions."
-        />
-        <section style={developmentLoopSectionStyle} aria-labelledby="coach-development-loop-title">
-          <SectionHeader
-            eyebrow="Coach development loop"
-            title="Assess, assign, track, and follow up without losing the thread."
-            body="Coach Hub should make the next coaching move obvious before the player leaves the court, then keep that move visible between sessions."
-            titleId="coach-development-loop-title"
-          />
-          <div style={developmentLoopGridStyle}>
-            {coachDevelopmentLoop.map((step) => (
-              <TiqActionCard
-                key={step.title}
-                eyebrow={step.eyebrow}
-                title={step.title}
-                body={step.body}
-                metrics={[...step.metrics]}
-                href={step.href}
-                cta={step.cta}
-                event={step.event}
-                trust={[...step.trust]}
-              >
-                <p style={coachLoopQuestionStyle}>{step.question}</p>
-              </TiqActionCard>
-            ))}
+        <details className="coachDetailsSection" style={detailsSectionStyle} aria-labelledby="coach-fit-title">
+          <summary className="coachDetailsSummary" style={detailsSummaryStyle}>
+            <span style={detailsSummaryEyebrowStyle}>Player and coach fit</span>
+            <strong className="coachDetailsSummaryTitle" id="coach-fit-title" style={detailsSummaryTitleStyle}>See how lessons stay connected.</strong>
+            <span style={detailsSummaryCueStyle}>Show fit</span>
+          </summary>
+          <div className="coachDetailsBody" style={detailsContentStyle}>
+            <TwoColumnStory
+              leftTitle="For players"
+              leftBody="Bring your goals, match questions, progress, and practice proof into every lesson."
+              rightTitle="For coaches"
+              rightBody="Assign drills, track player development, recommend resources, and support players between sessions."
+            />
           </div>
-        </section>
-        <section style={lessonLoopSectionStyle} aria-labelledby="coach-lesson-loop-title">
-          <SectionHeader
-            eyebrow="Lesson loop"
-            title="Give every lesson a before, during, and after."
-            body="Keep the loop simple: know what the player needs, coach the court work, assign the proof, and review what came back."
-            titleId="coach-lesson-loop-title"
-          />
-          <div style={lessonLoopGridStyle}>
-            {coachLessonLoop.map((step) => (
-              <article key={step.title} style={lessonLoopCardStyle}>
-                <div style={lessonLoopStepStyle}>{step.step}</div>
-                <h2 style={lessonLoopTitleStyle}>{step.title}</h2>
-                <p style={lessonLoopBodyStyle}>{step.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section style={nextActionSectionStyle} aria-labelledby="coach-next-actions-title">
-          <SectionHeader
-            eyebrow="Coach path"
-            title="Assign, track, recommend, follow up."
-            body="Coach Hub keeps the post-lesson handoff simple: give the player clear work, watch development, point them to the right resource, and keep support visible between sessions."
-            titleId="coach-next-actions-title"
-          />
-          <div style={nextActionGridStyle}>
-            {coachNextActions.map((action) => (
-              <TiqActionCard
-                key={action.title}
-                eyebrow={action.eyebrow}
-                title={action.title}
-                body={action.body}
-                metrics={[...action.metrics]}
-                href={action.href}
-                cta={action.cta}
-                event={action.event}
-                trust={[...action.trust]}
+        </details>
+        <details className="coachDetailsSection" style={detailsSectionStyle} aria-labelledby="coach-development-loop-title">
+          <summary className="coachDetailsSummary" style={detailsSummaryStyle}>
+            <span style={detailsSummaryEyebrowStyle}>Coach development loop</span>
+            <strong className="coachDetailsSummaryTitle" id="coach-development-loop-title" style={detailsSummaryTitleStyle}>Assess, assign, track, and follow up.</strong>
+            <span style={detailsSummaryCueStyle}>Show loop</span>
+          </summary>
+          <div className="coachDetailsBody" style={detailsContentStyle}>
+            <section style={developmentLoopSectionStyle} aria-labelledby="coach-development-loop-detail-title">
+              <SectionHeader
+                eyebrow="Coach development loop"
+                title="Assess, assign, track, and follow up without losing the thread."
+                body="Coach Hub makes the next coaching move obvious before the player leaves the court, then keeps that move visible between sessions."
+                titleId="coach-development-loop-detail-title"
               />
-            ))}
+              <div style={developmentLoopGridStyle}>
+                {coachDevelopmentLoop.map((step) => (
+                  <TiqActionCard
+                    key={step.title}
+                    eyebrow={step.eyebrow}
+                    title={step.title}
+                    body={step.body}
+                    metrics={[...step.metrics]}
+                    href={step.href}
+                    cta={step.cta}
+                    event={step.event}
+                    trust={[...step.trust]}
+                  >
+                    <p style={coachLoopQuestionStyle}>{step.question}</p>
+                  </TiqActionCard>
+                ))}
+              </div>
+            </section>
+            <section style={lessonLoopSectionStyle} aria-labelledby="coach-lesson-loop-title">
+              <SectionHeader
+                eyebrow="Lesson loop"
+                title="Give every lesson a before, during, and after."
+                body="Keep the loop simple: know what the player needs, coach the court work, assign the proof, and review what came back."
+                titleId="coach-lesson-loop-title"
+              />
+              <div style={lessonLoopGridStyle}>
+                {coachLessonLoop.map((step) => (
+                  <article key={step.title} style={lessonLoopCardStyle}>
+                    <div style={lessonLoopStepStyle}>{step.step}</div>
+                    <h2 style={lessonLoopTitleStyle}>{step.title}</h2>
+                    <p style={lessonLoopBodyStyle}>{step.body}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-        <section style={{ display: 'grid', gap: 14 }}>
-          <SectionHeader
-            eyebrow="Coach Hub preview"
-            title="Goal to lesson to proof to next step."
-            body="Coach Hub keeps assignments, player proof, reviews, and the next lesson close enough to act on."
-          />
-          <div style={previewGridStyle}>
-            <TiqWorkspacePreview
-              eyebrow="Coach Hub"
-              title="Students"
-              body="See linked players, lesson focus, due assignments, proof to review, and the next useful touch."
-              metrics={[
-                { label: 'Players', value: '12' },
-                { label: 'Due', value: '4' },
-                { label: 'Review', value: '2' },
-              ]}
-              href="/coach"
-              cta="Open Coach Hub"
-              event={{
-                eventName: 'coach_hub_clicked',
-                surface: 'coach',
-                metadata: {
-                  location: 'coaches_preview',
-                  job: 'review_students',
-                },
-              }}
-            />
-            <TiqCoachAssignmentCard
-              title="Serve target routine"
-              body="Assign a drill, name the proof, and give the player something useful to bring back."
-              metrics={[
-                { label: 'Due', value: 'Friday' },
-                { label: 'Evidence', value: '3 points' },
-                { label: 'Status', value: 'Active' },
-              ]}
-              href="/player-development"
-              cta="Open Paths"
-              event={{
-                eventName: 'coach_assignment_preview_clicked',
-                surface: 'coach',
-                metadata: {
-                  location: 'coaches_preview',
-                  job: 'assign_drills',
-                },
-              }}
-            />
+        </details>
+        <details className="coachDetailsSection" style={detailsSectionStyle} aria-labelledby="coach-next-actions-title">
+          <summary className="coachDetailsSummary" style={detailsSummaryStyle}>
+            <span style={detailsSummaryEyebrowStyle}>Coach path</span>
+            <strong className="coachDetailsSummaryTitle" id="coach-next-actions-title" style={detailsSummaryTitleStyle}>Assign, track, recommend, follow up.</strong>
+            <span style={detailsSummaryCueStyle}>Show actions</span>
+          </summary>
+          <div className="coachDetailsBody" style={detailsContentStyle}>
+            <section style={nextActionSectionStyle} aria-labelledby="coach-next-actions-detail-title">
+              <SectionHeader
+                eyebrow="Coach path"
+                title="Assign, track, recommend, follow up."
+                body="Coach Hub keeps the post-lesson handoff simple: give the player clear work, watch development, point them to the right resource, and keep support visible between sessions."
+                titleId="coach-next-actions-detail-title"
+              />
+              <div style={nextActionGridStyle}>
+                {coachNextActions.map((action) => (
+                  <TiqActionCard
+                    key={action.title}
+                    eyebrow={action.eyebrow}
+                    title={action.title}
+                    body={action.body}
+                    metrics={[...action.metrics]}
+                    href={action.href}
+                    cta={action.cta}
+                    event={action.event}
+                    trust={[...action.trust]}
+                  />
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-        <section style={{ display: 'grid', gap: 10 }}>
-          <SectionHeader
-            eyebrow="Trust and safety"
-            title="Coach profiles should be clear about verification."
-            body="Future coach profiles can show coaching location, player fit, availability, provided credentials, and clear verification labels."
-          />
-          <TrustStrip
-            context="Coaches trust strip"
-            signals={[
-              { label: 'Source', value: 'Coach profile', tone: 'info' },
-              { label: 'Freshness', value: 'Owner updated', tone: 'info' },
-              { label: 'Confidence', value: 'Provided fields', tone: 'warn' },
-              { label: 'Status', value: 'Not verified by TenAceIQ', tone: 'warn' },
-            ]}
-          />
-        </section>
+        </details>
+        <details className="coachDetailsSection" style={detailsSectionStyle}>
+          <summary className="coachDetailsSummary" style={detailsSummaryStyle}>
+            <span style={detailsSummaryEyebrowStyle}>Coach Hub preview</span>
+            <strong className="coachDetailsSummaryTitle" style={detailsSummaryTitleStyle}>See the handoff and profile details.</strong>
+            <span style={detailsSummaryCueStyle}>Show preview</span>
+          </summary>
+          <div className="coachDetailsBody" style={detailsContentStyle}>
+            <section style={{ display: 'grid', gap: 14 }}>
+              <SectionHeader
+                eyebrow="Coach Hub preview"
+                title="Goal to lesson to proof to next step."
+                body="Coach Hub keeps assignments, player proof, reviews, and the next lesson close enough to act on."
+              />
+              <div style={previewGridStyle}>
+                <TiqWorkspacePreview
+                  eyebrow="Coach Hub"
+                  title="Students"
+                  body="See linked players, lesson focus, due assignments, proof to review, and the next useful touch."
+                  metrics={[
+                    { label: 'Players', value: '12' },
+                    { label: 'Due', value: '4' },
+                    { label: 'Review', value: '2' },
+                  ]}
+                  href="/coach"
+                  cta="Open Coach Hub"
+                  event={{
+                    eventName: 'coach_hub_clicked',
+                    surface: 'coach',
+                    metadata: {
+                      location: 'coaches_preview',
+                      job: 'review_students',
+                    },
+                  }}
+                />
+                <TiqCoachAssignmentCard
+                  title="Serve target routine"
+                  body="Assign a drill, name the proof, and give the player something useful to bring back."
+                  metrics={[
+                    { label: 'Due', value: 'Friday' },
+                    { label: 'Evidence', value: '3 points' },
+                    { label: 'Status', value: 'Active' },
+                  ]}
+                  href="/player-development"
+                  cta="Open Paths"
+                  event={{
+                    eventName: 'coach_assignment_preview_clicked',
+                    surface: 'coach',
+                    metadata: {
+                      location: 'coaches_preview',
+                      job: 'assign_drills',
+                    },
+                  }}
+                />
+              </div>
+            </section>
+            <section style={{ display: 'grid', gap: 10 }}>
+              <SectionHeader
+                eyebrow="Trust and safety"
+                title="Check coach fit and verification details."
+                body="Use coach profiles to compare location, player fit, availability, provided credentials, and clear verification labels."
+              />
+              <TrustStrip
+                context="Coaches trust strip"
+                signals={[
+                  { label: 'Source', value: 'Coach profile', tone: 'info' },
+                  { label: 'Freshness', value: 'Owner updated', tone: 'info' },
+                  { label: 'Confidence', value: 'Provided fields', tone: 'warn' },
+                  { label: 'Status', value: 'Not verified by TenAceIQ', tone: 'warn' },
+                ]}
+              />
+            </section>
+          </div>
+        </details>
       </main>
     </PublicPageShell>
   )
@@ -557,18 +595,18 @@ const coachQuickPathTextStyle: CSSProperties = {
 
 const coachQuickPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
 
 const coachQuickPathCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
-  minHeight: 104,
+  gap: 6,
+  minHeight: 84,
   minWidth: 0,
   alignContent: 'space-between',
-  padding: 13,
+  padding: 11,
   borderRadius: 8,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
@@ -578,7 +616,7 @@ const coachQuickPathCardStyle: CSSProperties = {
 
 const coachQuickPathQuestionStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
+  fontSize: 14,
   lineHeight: 1.25,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -675,4 +713,78 @@ const coachLoopQuestionStyle: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const detailsSectionStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 8,
+  background: 'var(--shell-panel-bg)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 50,
+  padding: '10px 12px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const detailsSummaryEyebrowStyle: CSSProperties = {
+  order: 1,
+  flex: '1 1 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  lineHeight: 1.1,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryTitleStyle: CSSProperties = {
+  order: 3,
+  flex: '1 1 100%',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(15px, 2.6vw, 24px)',
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryCueStyle: CSSProperties = {
+  order: 2,
+  flex: '0 0 auto',
+  marginLeft: 'auto',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 28,
+  maxWidth: '100%',
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const detailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: '0 16px 16px',
 }

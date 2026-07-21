@@ -13,7 +13,7 @@ function styleBlock(styleName: string) {
 
 describe('team detail week path', () => {
   it('answers the captain match-week questions on team detail pages', () => {
-    expect(source).toContain('PRODUCT_MOTTO')
+    expect(source).not.toContain('PRODUCT_MOTTO')
     expect(source).toContain('Team Hub context that helps captains plan the week')
     expect(source).toContain('Team week path')
     expect(source).toContain('Answer match week from your phone.')
@@ -70,5 +70,30 @@ describe('team detail week path', () => {
     expect(styleBlock('rosterPlayerIdStarterItemStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('rosterPlayerIdStarterActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('rosterPlayerIdStarterLinkStyle')).toContain('minWidth: 0')
+  })
+
+  it('keeps long team detail tables short by default with user-opened detail', () => {
+    expect(source).toContain('const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)')
+    expect(source).toContain('const [showFullRoster, setShowFullRoster] = useState(false)')
+    expect(source).toContain('const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, 12)')
+    expect(source).toContain('const visibleCards = showFullMatchHistory ? filteredCards : filteredCards.slice(0, 8)')
+    expect(source).toContain('Show how this team page is checked')
+    expect(source).toContain('detailDrawerStyle')
+    expect(source).toContain('tableControlRowStyle')
+    expect(source).toContain('tableToggleButtonStyle')
+    expect(source).toContain('Show fewer matches')
+    expect(source).toContain('Show fewer players')
+    expect(styleBlock('detailDrawerSummaryStyle')).toContain("cursor: 'pointer'")
+    expect(styleBlock('tableToggleButtonStyle')).toContain("whiteSpace: 'normal'")
+  })
+
+  it('does not render empty analysis sections before the team has usable data', () => {
+    expect(source).toContain('const hasTeamAnalysisData = matches.length > 0 || roster.length > 0 || tiqParticipations.length > 0 || teamAwards.length > 0')
+    expect(source).toContain('{hasTeamAnalysisData ? (')
+    expect(source).toContain('{tiqParticipations.length || tiqParticipationWarning ? (')
+    expect(source).toContain('{roster.length || bestSingles.length || pairings.length ? (')
+    expect(source).toContain('{matches.length ? (')
+    expect(source).toContain('{roster.length ? (')
+    expect(source).not.toContain('Next Best Actions')
   })
 })

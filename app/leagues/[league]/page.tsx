@@ -371,6 +371,7 @@ export default function LeagueDetailPage() {
       missingScorecards,
     }
   }, [validRows, teamSummaries])
+  const hasLeagueData = validRows.length > 0
 
   const [topPerformers, setTopPerformers] = useState<Array<{ id: string; name: string; wins: number; losses: number; appearances: number }>>([])
 
@@ -662,17 +663,29 @@ export default function LeagueDetailPage() {
           </div>
         </section>
 
-        <DataTrustPanel
-          title="League data trust"
-          body="League pages combine reviewed schedule rows, scorecards, team summaries, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
-          signals={[
-            { label: 'Source', value: 'Schedules, scorecards, team summaries' },
-            { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
-            { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
-            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
-          ]}
-        />
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Data quality</span>
+              <strong style={detailDrawerTitleStyle}>Show how this league page is checked</strong>
+            </span>
+            <span style={miniPillGreen}>Details</span>
+          </summary>
+          <div style={detailDrawerContentStyle}>
+            <DataTrustPanel
+              title="League data trust"
+              body="League pages combine reviewed schedule rows, scorecards, team summaries, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
+              signals={[
+                { label: 'Source', value: 'Schedules, scorecards, team summaries' },
+                { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
+                { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
+                { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+              ]}
+            />
+          </div>
+        </details>
 
+        {hasLeagueData ? (
         <div style={dynamicMetricGrid}>
           <MetricCard label="Completed" value={String(stats.completed)} />
           <MetricCard label="Scheduled" value={String(stats.scheduled)} />
@@ -680,6 +693,7 @@ export default function LeagueDetailPage() {
           <MetricCard label="Teams" value={String(stats.teams)} />
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
+        ) : null}
 
         {matchQualityStats.total > 0 ? (
           <div style={matchQualityRowStyle}>
@@ -697,6 +711,7 @@ export default function LeagueDetailPage() {
           </div>
         ) : null}
 
+        {hasLeagueData ? (
         <section style={signalGridStyle(isSmallMobile)}>
           {leagueSignals.map((signal) => (
             <article key={signal.label} style={signalCardStyle}>
@@ -706,6 +721,7 @@ export default function LeagueDetailPage() {
             </article>
           ))}
         </section>
+        ) : null}
 
         <article style={panelCard} id="league-teams">
           {loading ? (
@@ -731,12 +747,11 @@ export default function LeagueDetailPage() {
             <div style={stateBox}>
               Match data is not available for this league segment yet.
               <div style={stateHelperText}>
-                This usually means the season scope exists, but reviewed match rows do not yet include both team names
-                for this exact league, flight, or district slice.
+                The season is here, but reviewed match rows do not include both team names for this exact league, flight, or district yet.
               </div>
               {nearbyScopeDiagnostic ? (
                 <div style={{ ...stateHelperText, marginTop: 12 }}>
-                  I did find {nearbyScopeDiagnostic.totalRows} nearby rows in the same flight/section/district scope.
+                  Found {nearbyScopeDiagnostic.totalRows} nearby rows in the same flight, section, or district.
                   {nearbyScopeDiagnostic.leagueNames.length > 0
                     ? ` Nearby league names: ${nearbyScopeDiagnostic.leagueNames.slice(0, 5).join(' | ')}`
                     : ' Those rows are also missing a visible league name.'}
@@ -1089,9 +1104,9 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-118px',
-  width: '310px',
+  width: 'min(100%, 310px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
@@ -1326,6 +1341,47 @@ const metricGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const detailDrawerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const detailDrawerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerContentStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
@@ -1514,7 +1570,7 @@ const teamCard: CSSProperties = {
 const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
-  right: '-50px',
+  right: 0,
   width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',

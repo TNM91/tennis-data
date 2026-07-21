@@ -4,6 +4,12 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
 
+function styleBlock(styleName: string) {
+  const match = source.match(new RegExp(`const ${styleName}: CSSProperties = \\{[\\s\\S]*?\\n\\}`))
+  expect(match, `${styleName} style block`).not.toBeNull()
+  return match![0]
+}
+
 describe('Teams Hub preview', () => {
   it('makes Team Hub and Captain Tools concrete before directory results', () => {
     expect(source).toContain('TeamWeekSpotlight')
@@ -56,5 +62,32 @@ describe('Teams Hub preview', () => {
     expect(source).toContain('directoryControlFocusStyle')
     expect(source).toContain("outline: '2px solid transparent'")
     expect(source).not.toContain("outline: 'none'")
+  })
+
+  it('caps team directory cards before showing the full board', () => {
+    expect(source).toContain('const TEAM_DEFAULT_CARD_LIMIT = 8')
+    expect(source).toContain('const [showAllTeams, setShowAllTeams]')
+    expect(source).toContain('filteredRows.slice(0, TEAM_DEFAULT_CARD_LIMIT)')
+    expect(source).toContain('const hasMoreTeams = shouldShowTeamResults && filteredRows.length > TEAM_DEFAULT_CARD_LIMIT')
+    expect(source).toContain('Showing {visibleRows.length} of {filteredRows.length} teams.')
+    expect(source).toContain("{showAllTeams ? 'Show top teams' : 'Show full directory'}")
+    expect(source).toContain('setShowAllTeams(false)')
+    expect(styleBlock('teamBoardLimitRowStyle')).toContain("gridColumn: '1 / -1'")
+    expect(styleBlock('teamBoardLimitRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('teamBoardLimitTextStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('keeps repeated team-card trust details on request', () => {
+    expect(source).toContain('<details style={teamCardTrustDetailsStyle}>')
+    expect(source).toContain('<summary style={teamCardTrustSummaryStyle}>')
+    expect(source).toContain('Data check')
+    expect(source).toContain("row.mostRecentMatchDate ? 'Match context' : 'Review pending'")
+    expect(source).toContain('<div style={teamCardTrustBodyStyle}>')
+    expect(source).toContain("formatShortDate(row.mostRecentMatchDate, '--')")
+    expect(source).toContain("{row.wins}W - {winPct}%")
+    expect(styleBlock('teamCardTrustDetailsStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamCardTrustSummaryStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('teamCardTrustSummaryStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamCardTrustBodyStyle')).toContain('minWidth: 0')
   })
 })

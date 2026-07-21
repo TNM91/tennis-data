@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/rankings/page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const match = source.match(new RegExp(`const ${styleName}: CSSProperties = \\{[\\s\\S]*?\\n\\}`))
@@ -15,6 +16,9 @@ describe('rankings next actions', () => {
     expect(source).toContain('RankingNextActionRail')
     expect(source).toContain('Ranking next actions')
     expect(source).toContain('Turn the board into a next check.')
+    expect(source).toContain('const rankingDefaultRowLimit = isMobile ? 2 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT')
+    expect(source).not.toContain('Top three are in the field drawer.')
+    expect(source).not.toContain('Top 3 in field drawer')
     expect(source).toContain('rankingDecisionBoardStyle')
     expect(source).toContain('Compare')
     expect(source).toContain('Find the player record')
@@ -67,5 +71,35 @@ describe('rankings next actions', () => {
     expect(styleBlock('rankingPlayerIdStarterLinkStyle')).toContain('minWidth: 0')
     expect(styleBlock('rankingNextActionGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))'")
     expect(styleBlock('rankingNextActionCard')).toContain("minHeight: '88px'")
+    expect(source).toContain('compactRankingCardDenseStyle')
+    expect(source).toContain('compactRankingTopDenseStyle')
+    expect(source).toContain('compactRatingStackDenseStyle')
+    expect(source).toContain('compactSignalRowDenseStyle')
+  })
+
+  it('keeps closed ranking drawers out of measured layout', () => {
+    expect(source).toContain('className="rankingDetailsSection"')
+    expect(source).toContain('className="rankingDetailsBody"')
+    expect(globalsSource).toContain('.rankingDetailsSection:not([open]) > .rankingDetailsBody')
+    expect(globalsSource).toContain('display: none !important;')
+  })
+
+  it('keeps the mobile rankings filter card compact', () => {
+    expect(source).toContain("padding: isSmallMobile ? '8px' : '10px'")
+    expect(source).toContain('const dynamicRankingPanelHeader: CSSProperties')
+    expect(source).toContain('const dynamicSegmentWrap: CSSProperties')
+    expect(source).toContain('const dynamicSegmentButton: CSSProperties')
+    expect(source).toContain('const dynamicInputLabel: CSSProperties')
+    expect(source).toContain('const dynamicSearchInput: CSSProperties')
+    expect(source).toContain('const dynamicSelectStyle: CSSProperties')
+    expect(source).toContain('const dynamicFilterRowStyle: CSSProperties')
+    expect(styleBlock('compactRankingPanelHeader')).toContain("marginBottom: '8px'")
+    expect(styleBlock('compactSegmentWrap')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('compactSegmentButton')).toContain("minHeight: '40px'")
+    expect(styleBlock('compactInputLabel')).toContain("fontSize: '10px'")
+    expect(styleBlock('compactSearchInput')).toContain("padding: '11px 12px 11px 40px'")
+    expect(styleBlock('compactSelectStyle')).toContain("height: '42px'")
+    expect(styleBlock('compactFilterRowStyle')).toContain('marginTop: 3')
+    expect(styleBlock('compactRankingSummaryStripPhone')).toContain("padding: '7px 9px'")
   })
 })

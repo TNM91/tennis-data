@@ -17,7 +17,7 @@ export default function DisclaimerPage() {
       <JsonLd id="disclaimer-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Disclaimer', '/legal/disclaimer')} />
       <LegalPage title="Platform Disclaimer" effectiveDate="April 10, 2026">
         <p>
-          TenAceIQ provides analytical, informational, and workflow tools designed to help
+          TenAceIQ provides analytical, informational, and tennis tools designed to help
           users interpret tennis data and prepare for matches. The platform does not provide
           guaranteed outcomes or professional sports advice.
         </p>

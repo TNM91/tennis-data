@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           </p>
           <p>
             Tennis-related information may include player names, match records, team
-            information, lineup details, availability inputs, messaging workflows, league
+            information, lineup details, availability inputs, team messages, league
             context, and similar platform data.
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>2. How we use information</h2>
           <p>We use information to operate, maintain, and improve TenAceIQ, including to:</p>
-          <p>Provide ratings, matchup analysis, lineup tools, messaging workflows, and member features.</p>
+          <p>Provide ratings, matchup analysis, lineup tools, messages, and member features.</p>
           <p>Personalize user experience and improve platform performance.</p>
           <p>Maintain platform security, prevent abuse, and investigate suspicious activity.</p>
           <p>Communicate with you about your account, updates, support, and service-related notices.</p>

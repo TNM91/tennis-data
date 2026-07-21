@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Suspense } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import PlayerLiveWorkbench from '@/app/player-development/_components/player-live-workbench'
@@ -293,7 +293,28 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           ))}
         </nav>
 
-        <section className={styles.levelUpNextRepCommand} aria-label="Level Up next best rep command">
+        <Suspense fallback={<div className={styles.liveAccessPanel}>Loading Level Up.</div>}>
+          <PlayerLiveWorkbench
+            identitySlug={identity.slug}
+            identityTitle={identity.title}
+            mantra={identity.mantra}
+            identityCourtsideRead={courtsideRead}
+            focuses={identity.sections}
+            solo={trainingMenus.solo}
+            partner={trainingMenus.partner}
+            offCourt={trainingMenus.offCourt}
+            performance={trainingMenus.performance}
+          />
+        </Suspense>
+
+        <details className={styles.levelUpNextRepCommand} aria-label="Level Up next best rep command">
+          <summary className={styles.levelUpNextRepCommandDrawerSummary}>
+            <div>
+              <span>Next best rep</span>
+              <strong>Start with one card, one proof score, one next cue.</strong>
+            </div>
+            <em>Open</em>
+          </summary>
           <div className={styles.levelUpNextRepCommandCopy}>
             <span>Next best rep</span>
             <h2>Start with one card, one proof score, one next cue.</h2>
@@ -304,20 +325,110 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             <strong>{firstRecommendedCard?.title ?? actionRead.trainingPriority}</strong>
             <small>{firstRecommendedCard?.useWhen ?? actionRead.matchTrigger}</small>
           </div>
-          <div className={styles.levelUpNextRepCommandSignals} aria-label="Level Up next best rep proof signals">
-            {nextBestRepSignals.map(([label, value]) => (
-              <article key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </article>
-            ))}
-          </div>
           <div className={styles.levelUpNextRepCommandActions}>
             <Link className="button-primary" href="#level-up-flow">Start rep</Link>
             <Link className="button-secondary" href="/mylab#level-up-proof">View proof</Link>
           </div>
-        </section>
+          <details className={styles.levelUpNextRepCommandSignals} aria-label="Level Up next rep save details">
+            <summary className={styles.levelUpNextRepCommandSummary}>
+              <div>
+                <span>What gets saved</span>
+                <strong>Rep, proof, and My Lab.</strong>
+              </div>
+              <em>Details</em>
+            </summary>
+            <div className={styles.levelUpNextRepCommandSignalGrid}>
+              {nextBestRepSignals.map(([label, value]) => (
+                <article key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </article>
+              ))}
+            </div>
+          </details>
+        </details>
 
+        <LevelUpMorePanel label="Path finder" title="Find a path">
+          <HabitPathWizardClient paths={habitPathWizardOptions} />
+        </LevelUpMorePanel>
+
+        <LevelUpMorePanel label="Quest Builder" title="Build a quest">
+          <section id="quest-builder" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
+            <div className={styles.levelUpQuestBuilderHeader}>
+              <div>
+                <span>Quest Builder</span>
+                <h2 id="quest-builder-title">Build a tennis habit you can score.</h2>
+                <p>Pick the habit, attach a drill, and save the proof when you finish.</p>
+              </div>
+              <div className={styles.levelUpQuestBuilderStats}>
+                <strong>{questBuilder.categories.length}</strong>
+                <span>quest lanes</span>
+              </div>
+            </div>
+
+            <div className={styles.levelUpQuestBuilderFlow} aria-label="Quest Builder flow">
+              <article>
+                <span>1</span>
+                <strong>Pick the habit</strong>
+                <small>Choose tennis skill, fitness, nutrition, mindset, recovery, or match prep.</small>
+              </article>
+              <article>
+                <span>2</span>
+                <strong>Attach a drill</strong>
+                <small>Link the habit to a Level Up Card with proof, timing, setting, and equipment.</small>
+              </article>
+              <article>
+                <span>3</span>
+                <strong>Score the proof</strong>
+                <small>Complete the drill, rate the proof, earn XP, and keep the streak alive.</small>
+              </article>
+            </div>
+
+            <LevelUpMorePanel label="Templates" title="Show starter quest templates">
+              <div className={styles.levelUpQuestTemplateGrid}>
+                {questBuilder.templates.map((template) => (
+                  <article key={template.id}>
+                    <div>
+                      <span>{formatHabitCategory(template.category)}</span>
+                      <strong>{template.title}</strong>
+                      <p>{template.description}</p>
+                    </div>
+                    <dl>
+                      <div>
+                        <dt>Cadence</dt>
+                        <dd>{template.cadence.replaceAll('-', ' ')}</dd>
+                      </div>
+                      <div>
+                        <dt>XP</dt>
+                        <dd>{template.xp}</dd>
+                      </div>
+                      <div>
+                        <dt>Drill</dt>
+                        <dd>{template.primaryCard.title}</dd>
+                      </div>
+                    </dl>
+                    <small>Starter habit: {template.starterHabit}</small>
+                    <small>Proof: {template.proof}</small>
+                    <Link className="button-primary" href={template.drillHref}>
+                      Start linked drill
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            </LevelUpMorePanel>
+
+            <LevelUpMorePanel label="Quest tool" title="Open Quest Builder tool">
+              <QuestBuilderClient
+                identitySlug={identity.slug}
+                cardOptions={questBuilderCardOptions}
+                templates={questBuilderTemplateOptions}
+                paths={questBuilderPathOptions}
+              />
+            </LevelUpMorePanel>
+          </section>
+        </LevelUpMorePanel>
+
+        <LevelUpMorePanel label="Player ID" title="Player ID proof">
         <section className={styles.playerIdSnapshot} aria-labelledby="level-up-player-id-title">
           <div className={styles.playerIdSnapshotHeader}>
             <span className={styles.kicker}>Level Up player ID</span>
@@ -368,7 +479,9 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
+        </LevelUpMorePanel>
 
+        <LevelUpMorePanel label="Library" title="Cards and assignments">
         <section className={styles.levelUpPortal} aria-labelledby="level-up-portal-title">
           <div className={styles.levelUpPortalHeader}>
             <div>
@@ -433,7 +546,9 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
+        </LevelUpMorePanel>
 
+        <LevelUpMorePanel label="Habit packs" title="Player, coach, team">
         <section className={styles.levelUpQuestPackPreview} aria-labelledby="quest-pack-preview-title">
           <div className={styles.levelUpQuestPackPreviewHeader}>
             <span>Quest pack preview</span>
@@ -468,7 +583,9 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
+        </LevelUpMorePanel>
 
+        <LevelUpMorePanel label="Starter paths" title="Level paths">
         <section className={styles.levelUpHabitPaths} aria-labelledby="habit-paths-title">
           <div className={styles.levelUpQuestPackPreviewHeader}>
             <span>Habit paths</span>
@@ -522,9 +639,9 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
+        </LevelUpMorePanel>
 
-        <HabitPathWizardClient paths={habitPathWizardOptions} />
-
+        <LevelUpMorePanel label="Access" title="Access paths">
         <section className={styles.levelUpFeatureFrame} aria-labelledby="level-up-feature-frame-title">
           <div className={styles.levelUpQuestPackPreviewHeader}>
             <span>Level Up product loop</span>
@@ -549,90 +666,8 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             </article>
           </div>
         </section>
+        </LevelUpMorePanel>
 
-        <section id="quest-builder" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
-          <div className={styles.levelUpQuestBuilderHeader}>
-            <div>
-              <span>Quest Builder</span>
-              <h2 id="quest-builder-title">Turn tennis habits into drill-backed quests.</h2>
-              <p>Create a repeatable habit, attach the right Level Up Card, and use drill proof to score the quest. This keeps skill work, fitness, hydration, recovery, and mindset tied to better tennis.</p>
-            </div>
-            <div className={styles.levelUpQuestBuilderStats}>
-              <strong>{questBuilder.categories.length}</strong>
-              <span>quest lanes</span>
-            </div>
-          </div>
-
-          <div className={styles.levelUpQuestBuilderFlow} aria-label="Quest Builder flow">
-            <article>
-              <span>1</span>
-              <strong>Pick the habit</strong>
-              <small>Choose tennis skill, fitness, nutrition, mindset, recovery, or match prep.</small>
-            </article>
-            <article>
-              <span>2</span>
-              <strong>Attach a drill</strong>
-              <small>Link the habit to a Level Up Card with proof, timing, setting, and equipment.</small>
-            </article>
-            <article>
-              <span>3</span>
-              <strong>Score the proof</strong>
-              <small>Complete the drill, rate the proof, earn XP, and keep the streak alive.</small>
-            </article>
-          </div>
-
-          <div className={styles.levelUpQuestTemplateGrid}>
-            {questBuilder.templates.map((template) => (
-              <article key={template.id}>
-                <div>
-                  <span>{formatHabitCategory(template.category)}</span>
-                  <strong>{template.title}</strong>
-                  <p>{template.description}</p>
-                </div>
-                <dl>
-                  <div>
-                    <dt>Cadence</dt>
-                    <dd>{template.cadence.replaceAll('-', ' ')}</dd>
-                  </div>
-                  <div>
-                    <dt>XP</dt>
-                    <dd>{template.xp}</dd>
-                  </div>
-                  <div>
-                    <dt>Drill</dt>
-                    <dd>{template.primaryCard.title}</dd>
-                  </div>
-                </dl>
-                <small>Starter habit: {template.starterHabit}</small>
-                <small>Proof: {template.proof}</small>
-                <Link className="button-primary" href={template.drillHref}>
-                  Start linked drill
-                </Link>
-              </article>
-            ))}
-          </div>
-
-          <QuestBuilderClient
-            identitySlug={identity.slug}
-            cardOptions={questBuilderCardOptions}
-            templates={questBuilderTemplateOptions}
-            paths={questBuilderPathOptions}
-          />
-        </section>
-
-        <Suspense fallback={<div className={styles.liveAccessPanel}>Loading Level Up.</div>}>
-          <PlayerLiveWorkbench
-            identitySlug={identity.slug}
-            identityTitle={identity.title}
-            mantra={identity.mantra}
-            identityCourtsideRead={courtsideRead}
-            focuses={identity.sections}
-            solo={trainingMenus.solo}
-            partner={trainingMenus.partner}
-            offCourt={trainingMenus.offCourt}
-            performance={trainingMenus.performance}
-          />
-        </Suspense>
       </main>
     </SiteShell>
   )
@@ -663,6 +698,19 @@ function LevelUpTrainingCard({ card }: { card: LevelUpCard }) {
       <small>Proof: {card.proof}</small>
       <a className="button-primary" href="#level-up-flow">Start</a>
     </article>
+  )
+}
+
+function LevelUpMorePanel({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+  return (
+    <details className={styles.levelUpMorePanel}>
+      <summary className={styles.levelUpMoreSummary}>
+        <span>{label}</span>
+        <strong>{title}</strong>
+        <small>Open</small>
+      </summary>
+      <div className={styles.levelUpMoreBody}>{children}</div>
+    </details>
   )
 }
 

@@ -362,9 +362,9 @@ function ExploreSearchContent() {
         <section
           style={{
             ...surfaceCardStrong,
-            padding: isSmallMobile ? 18 : isMobile ? 22 : 28,
+            padding: isSmallMobile ? 12 : isMobile ? 14 : 28,
             display: 'grid',
-            gap: isMobile ? 14 : 16,
+            gap: isMobile ? 9 : 16,
             overflow: 'hidden',
             position: 'relative',
             border: '1px solid rgba(116,190,255,0.15)',
@@ -396,7 +396,7 @@ function ExploreSearchContent() {
               alignItems: isMobile ? 'stretch' : 'end',
             }}
           >
-            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+            <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>Search by</span>
               <select
                 className="tiq-focus-ring"
@@ -406,7 +406,7 @@ function ExploreSearchContent() {
                   setScope(nextScope)
                   syncUrl(query, nextScope)
                 }}
-                style={getSearchSelectStyle()}
+                style={getSearchSelectStyle(isMobile)}
                 aria-label="Search by scope"
               >
                 {searchScopes.map((item) => (
@@ -417,9 +417,9 @@ function ExploreSearchContent() {
               </select>
             </label>
 
-            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+            <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>Search term</span>
-              <div style={getSearchInputWrapStyle()}>
+              <div style={getSearchInputWrapStyle(isMobile)}>
                 <SearchIcon />
                 <input
                   className="tiq-focus-ring"
@@ -427,7 +427,7 @@ function ExploreSearchContent() {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={selectedScopeGuide.placeholder}
                   aria-label={`Search ${selectedScopeLabel.toLowerCase()}`}
-                  style={getSearchInputStyle()}
+                  style={getSearchInputStyle(isMobile)}
                 />
               </div>
             </label>
@@ -436,7 +436,7 @@ function ExploreSearchContent() {
               type="submit"
               style={{
                 ...buttonPrimary,
-                minHeight: isSmallMobile ? 52 : 56,
+                minHeight: isMobile ? 42 : 56,
                 minWidth: 0,
                 maxWidth: '100%',
                 width: isMobile ? '100%' : undefined,
@@ -495,20 +495,20 @@ function ExploreSearchContent() {
         </section>
 
         <section style={searchNextActionsStyle} aria-label="Search next actions">
-          <div style={searchNextActionsHeaderStyle}>
-            <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+          <div style={isMobile ? compactSearchNextActionsHeaderStyle : searchNextActionsHeaderStyle}>
+            {!isMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
             <div style={searchNextActionsCopyStyle}>
               <span style={searchNextActionsKickerStyle}>After search</span>
               <h2 style={searchNextActionsTitleStyle}>Open the record, then act on it.</h2>
             </div>
           </div>
-          <div style={searchNextActionsGridStyle}>
+          <div style={isMobile ? compactSearchNextActionsGridStyle : searchNextActionsGridStyle}>
             {searchNextActions.map((action) => (
-              <article key={action.label} style={searchNextActionCardStyle}>
+              <article key={action.label} style={isMobile ? compactSearchNextActionCardStyle : searchNextActionCardStyle}>
                 <span style={searchNextActionsLabelStyle}>{action.label}</span>
                 <strong style={searchNextActionsValueStyle}>{action.value}</strong>
-                <span style={searchNextActionsTextStyle}>{action.body}</span>
-                <Link href={action.href} style={searchNextActionLinkStyle}>
+                {!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}
+                <Link href={action.href} style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}>
                   {action.cta}
                 </Link>
               </article>
@@ -1095,16 +1095,16 @@ const searchLabelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-function getSearchSelectStyle(): CSSProperties {
+function getSearchSelectStyle(compact = false): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
-    minHeight: 56,
-    padding: '0 14px',
+    minHeight: compact ? 42 : 56,
+    padding: compact ? '0 10px' : '0 14px',
     border: '1px solid var(--home-input-border)',
     background: 'var(--home-input-bg)',
     color: 'var(--foreground-strong)',
-    fontSize: 14,
+    fontSize: compact ? 13 : 14,
     fontWeight: 700,
     outline: '2px solid transparent',
     outlineOffset: 2,
@@ -1124,15 +1124,15 @@ function getSearchOptionStyle(): CSSProperties {
   }
 }
 
-function getSearchInputWrapStyle(): CSSProperties {
+function getSearchInputWrapStyle(compact = false): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
-    minHeight: 56,
-    padding: '0 16px',
+    minHeight: compact ? 42 : 56,
+    padding: compact ? '0 11px' : '0 16px',
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: compact ? 8 : 12,
     border: '1px solid var(--home-input-border)',
     background: 'var(--home-input-bg)',
     color: 'var(--muted-strong)',
@@ -1140,14 +1140,14 @@ function getSearchInputWrapStyle(): CSSProperties {
   }
 }
 
-function getSearchInputStyle(): CSSProperties {
+function getSearchInputStyle(compact = false): CSSProperties {
   return {
     flex: 1,
     minWidth: 0,
     border: 'none',
     background: 'transparent',
     color: 'var(--foreground-strong)',
-    fontSize: 15,
+    fontSize: compact ? 14 : 15,
     outline: '2px solid transparent',
     outlineOffset: 2,
   }
@@ -1205,6 +1205,11 @@ const searchNextActionsHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const compactSearchNextActionsHeaderStyle: CSSProperties = {
+  ...searchNextActionsHeaderStyle,
+  gap: 6,
+}
+
 const searchNextActionsCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 3,
@@ -1238,6 +1243,12 @@ const searchNextActionsGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactSearchNextActionsGridStyle: CSSProperties = {
+  ...searchNextActionsGridStyle,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+}
+
 const searchNextActionCardStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
@@ -1247,6 +1258,14 @@ const searchNextActionCardStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.68)',
   overflowWrap: 'anywhere',
+}
+
+const compactSearchNextActionCardStyle: CSSProperties = {
+  ...searchNextActionCardStyle,
+  gap: 4,
+  padding: 8,
+  borderRadius: 12,
+  minHeight: 94,
 }
 
 const searchNextActionLinkStyle: CSSProperties = {
@@ -1259,6 +1278,14 @@ const searchNextActionLinkStyle: CSSProperties = {
   fontSize: 12,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const compactSearchNextActionLinkStyle: CSSProperties = {
+  ...searchNextActionLinkStyle,
+  minHeight: 30,
+  paddingInline: 8,
+  fontSize: 10,
+  justifySelf: 'stretch',
 }
 
 const searchNextActionsLabelStyle: CSSProperties = {
@@ -1447,7 +1474,7 @@ const filterJumpStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
   width: '340px',
   aspectRatio: '1045 / 490',

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
@@ -11,7 +11,6 @@ import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -82,6 +81,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const [searchOpen, setSearchOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
+  const mountedPathnameRef = useRef<string | null>(null)
   const authenticated = Boolean(userId) || role !== 'public'
   const authPending = !authResolved
   const accessPending = authenticated && (authPending || entitlements === null)
@@ -89,6 +89,14 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
 
   useEffect(() => {
+    if (mountedPathnameRef.current === null) {
+      mountedPathnameRef.current = pathname
+      return
+    }
+
+    if (mountedPathnameRef.current === pathname) return
+    mountedPathnameRef.current = pathname
+
     const timeout = window.setTimeout(() => {
       setMenuOpen(false)
       setSearchOpen(false)
@@ -427,7 +435,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               </>
             ) : (
               <>
-                <p style={desktopMenuCueStyle}>{PRODUCT_MOTTO} Explore public tennis context, then save your own work.</p>
+                <p style={desktopMenuCueStyle}>Search public tennis context first, then open the tool that fits your next match, team, or season.</p>
                 <Link href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Sign in
                 </Link>
@@ -470,7 +478,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
               <p style={mobileMenuCueStyle}>
-                {PRODUCT_MOTTO} Pick the tennis support you need next.
+                Pick the tennis support you need next.
               </p>
 
               {authPending ? null : authenticated ? (

@@ -16,6 +16,7 @@ import {
   PRICING_PLANS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
@@ -34,6 +35,15 @@ const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
   captain: 'Captain - Team Hub for match week',
   league: 'League - League Office for a season',
   full_court: 'Full-Court - Every tennis role, including Tournament Desk',
+}
+
+const PLAN_MOBILE_NAMES: Record<PricingPlanId, string> = {
+  free: 'Free',
+  player_plus: 'Player',
+  coach: 'Coach',
+  captain: 'Captain',
+  league: 'League',
+  full_court: 'Full-Court',
 }
 
 const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
@@ -134,19 +144,19 @@ const FULL_COURT_WORKSPACE_FIT_PROOF = [
 const FULL_COURT_ROLE_SWITCHING_PROOF = [
   {
     label: 'Start',
-    body: 'Begin on Pricing with the Full-Court plan marked active and the access pass visible.',
+    body: 'Start with Full-Court active and every paid tool available from Pricing.',
   },
   {
     label: 'Open',
-    body: 'Visit My Lab, Coach Hub, Team Hub, and League Office from the pass without upgrade prompts.',
+    body: 'Visit My Lab, Coach Hub, Team Hub, and League Office from the pass.',
   },
   {
     label: 'Check',
-    body: 'Confirm each tool opens for the role it supports and does not show stale locks.',
+    body: 'Open each tool for the player, coach, captain, or league task in front of you.',
   },
   {
     label: 'Return',
-    body: 'Come back to Pricing and choose the next role path without role-switching confusion.',
+    body: 'Come back to Pricing when you need the next role path.',
   },
 ] as const
 
@@ -269,6 +279,7 @@ export default function PricingPage() {
 }
 
 function PricingContent() {
+  const { isMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -279,81 +290,112 @@ function PricingContent() {
 
   return (
     <main style={pageWrapStyle}>
-      <section style={heroStyle}>
+      <section style={isMobile ? compactHeroStyle : heroStyle}>
         <div style={eyebrowStyle}>Pricing</div>
-        <h1 style={heroTitleStyle}>Choose your role.</h1>
-        <p style={heroTextStyle}>
-          Start free, then unlock the right TenAceIQ tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.
+        <h1 style={isMobile ? compactHeroTitleStyle : heroTitleStyle}>Choose your role.</h1>
+        <p style={isMobile ? compactHeroTextStyle : heroTextStyle}>
+          {isMobile
+            ? 'Start free. Unlock the tools for your role when you are ready.'
+            : 'Start free, then unlock the right TenAceIQ tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.'}
         </p>
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
-          <Link href="#compare" style={secondaryButtonStyle}>Compare what unlocks</Link>
-        </div>
-      </section>
-
-      <section id="job-chooser" style={sectionStyle} aria-labelledby="job-chooser-title">
-        <SectionHeader
-          eyebrow="Choose by tennis need"
-          title="Start from what you are trying to do."
-          body="The fastest pricing decision is not a feature hunt. Pick the tennis need, then open the matching tool."
-        />
-        <div style={jobChooserGridStyle}>
-          {JOB_CHOOSER.map((item) => {
-            const plan = getPricingPlan(item.planId)
-            return (
-              <Link key={item.job} href={item.href} style={jobChooserCardStyle}>
-                <span style={workspaceLabelStyle}>{plan.name}</span>
-                <strong style={jobChooserTitleStyle}>{item.job}</strong>
-                <span style={jobChooserCueStyle}>{item.cue}</span>
-                <span style={jobChooserPriceStyle}>{plan.priceLabel}</span>
-              </Link>
-            )
-          })}
+          <Link href="#choose" style={secondaryButtonStyle}>See plans</Link>
         </div>
       </section>
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
-        <SectionHeader eyebrow="Choose your role" title="Pick the tennis support you need." body="Each tier is role-based. Free stays useful for discovery; paid plans unlock the right tools when the work gets specific." />
-        <div style={planGridStyle}>
+        <SectionHeader
+          eyebrow="Choose your role"
+          title="Pick the tennis support you need."
+          body={isMobile ? 'Choose the role, then start.' : 'Each tier is role-based. Free stays useful for discovery; paid plans unlock the right tools when the work gets specific.'}
+        />
+        <div style={isMobile ? compactPlanGridStyle : planGridStyle}>
           {PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
+            const planCta = (
+              <Link
+                href={accessPending ? '#choose' : getPlanHref(plan.id, active)}
+                style={
+                  plan.id === 'captain'
+                    ? isMobile ? compactPrimaryPlanButtonStyle : primaryButtonStyle
+                    : isMobile ? compactSecondaryPlanButtonStyle : secondaryButtonStyle
+                }
+              >
+                {accessPending ? 'View tiers' : isMobile ? getCompactPlanCta(plan.id, active) : getPlanCta(plan.id, active)}
+              </Link>
+            )
 
             return (
-              <article key={plan.id} id={plan.id} style={{ ...planCardStyle, ...(recommended ? recommendedCardStyle : null), ...(active ? activeCardStyle : null) }}>
-                <div style={planTopStyle}>
-                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size="lg" variant="surface" />
+              <article key={plan.id} id={plan.id} style={{ ...(isMobile ? compactPlanCardStyle : planCardStyle), ...(recommended ? recommendedCardStyle : null), ...(active ? activeCardStyle : null) }}>
+                <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
+                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size={isMobile ? 'md' : 'lg'} variant="surface" />
                   <div style={planBadgeRowStyle}>
-                    <span style={planNameStyle}>{PLAN_PUBLIC_NAMES[plan.id]}</span>
+                    <span style={planNameStyle}>{isMobile ? PLAN_MOBILE_NAMES[plan.id] : PLAN_PUBLIC_NAMES[plan.id]}</span>
                     {recommended ? <span style={badgeStyle}>Recommended</span> : null}
                     {active ? <span style={badgeStyle}>Active</span> : null}
                     {accessPending ? <span style={badgeStyle}>Checking access</span> : null}
                   </div>
                 </div>
-                <div style={priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
-                {!active ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
-                <p style={cardTextStyle}>{plan.outcome}</p>
-                <div style={fitBoxStyle}>
-                  <strong>Best for</strong>
-                  <span>{PLAN_JOB_FIT[plan.id]}</span>
-                </div>
-                <ul style={featureListStyle}>
-                  {plan.valueProps.slice(0, 3).map((valueProp) => (
-                    <li key={valueProp}>{valueProp}</li>
-                  ))}
-                </ul>
-                <Link href={accessPending ? '#pricing-plans' : getPlanHref(plan.id, active)} style={plan.id === 'captain' ? primaryButtonStyle : secondaryButtonStyle}>
-                  {accessPending ? 'View tiers' : getPlanCta(plan.id, active)}
-                </Link>
+                <div style={isMobile ? compactPriceStyle : priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
+                {!active && !isMobile ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
+                {!isMobile ? <p style={cardTextStyle}>{plan.outcome}</p> : null}
+                {isMobile ? planCta : null}
+                {!isMobile ? (
+                  <details className="pricingPlanDetails" style={planDetailsStyle}>
+                    <summary style={planDetailsSummaryStyle}>Best for and what opens</summary>
+                    <div className="pricingPlanDetailsBody" style={planDetailsBodyStyle}>
+                      <div style={fitBoxStyle}>
+                        <strong>Best for</strong>
+                        <span>{PLAN_JOB_FIT[plan.id]}</span>
+                      </div>
+                      <ul style={featureListStyle}>
+                        {plan.valueProps.slice(0, 3).map((valueProp) => (
+                          <li key={valueProp}>{valueProp}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                ) : null}
+                {!isMobile ? planCta : null}
               </article>
             )
           })}
         </div>
       </section>
 
-      <section id="workspace" style={sectionStyle} aria-labelledby="workspace-title">
-        <SectionHeader eyebrow="See the tools" title="Know what opens before you upgrade." body="TenAceIQ pricing is easier when each tier names the tennis support it unlocks." />
-        <div style={workspaceGridStyle}>
+      <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Choose by tennis need</span> : null}
+          <strong id="job-chooser-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Need help choosing?' : 'Not sure which plan fits?'}</strong>
+          <span style={detailsSummaryCueStyle}>Show plan helper</span>
+        </summary>
+        <div className="pricingDetailsBody" style={detailsBodyStyle}>
+          <p style={sectionBodyStyle}>Start from what you are trying to do. Open the matching plan when you are ready.</p>
+          <div style={jobChooserGridStyle}>
+            {JOB_CHOOSER.map((item) => {
+              const plan = getPricingPlan(item.planId)
+              return (
+                <Link key={item.job} href={item.href} style={jobChooserCardStyle}>
+                  <span style={workspaceLabelStyle}>{plan.name}</span>
+                  <strong style={jobChooserTitleStyle}>{item.job}</strong>
+                  <span style={jobChooserCueStyle}>{item.cue}</span>
+                  <span style={jobChooserPriceStyle}>{plan.priceLabel}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      </details>
+
+      <details id="workspace" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="workspace-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>See the tools</span> : null}
+          <strong id="workspace-title" style={detailsSummaryTitleStyle}>{isMobile ? 'See what opens.' : 'Know what opens before you upgrade.'}</strong>
+          <span style={detailsSummaryCueStyle}>Show tool guide</span>
+        </summary>
+        <div className="pricingDetailsBody" style={workspaceGridStyle}>
           {WORKSPACE_PREVIEWS.map((preview) => (
             <article key={preview.planId} style={workspaceCardStyle}>
               <span style={workspaceLabelStyle}>{getPricingPlan(preview.planId).name}</span>
@@ -365,7 +407,7 @@ function PricingContent() {
             </article>
           ))}
         </div>
-      </section>
+      </details>
 
       {fullCourtActive ? (
         <section id="full-court-access-pass" style={fullCourtPassStyle} aria-labelledby="full-court-access-pass-title">
@@ -373,7 +415,7 @@ function PricingContent() {
             <div style={sectionEyebrowStyle}>Full-Court access pass</div>
             <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid tools are active.</h2>
             <p style={heroTextStyle}>
-              Use this pass to capture My Lab, Coach Hub, Team Hub, and League Office without stale locks or repeated upgrade prompts.
+              Use this pass to open My Lab, Coach Hub, Team Hub, and League Office from one account.
             </p>
           </div>
           <div style={fullCourtPassGridStyle}>
@@ -401,7 +443,7 @@ function PricingContent() {
           <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching">
             <div style={fullCourtWorkspaceFitHeaderStyle}>
               <span style={sectionEyebrowStyle}>Full-Court role switching</span>
-              <strong>Move between paid tools without stale locks.</strong>
+              <strong>Move between paid tools from one account.</strong>
             </div>
             <div style={fullCourtRoleSwitchingProofGridStyle}>
               {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
@@ -415,9 +457,13 @@ function PricingContent() {
         </section>
       ) : null}
 
-      <section id="compare" style={sectionStyle} aria-labelledby="compare-title">
-        <SectionHeader eyebrow="Compare what unlocks" title="Compare by tennis need, not feature noise." body="Full-Court includes all focused tools and unlimited Tournament Desk operations." />
-        <div style={tableWrapStyle}>
+      <details id="compare" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="compare-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Compare what unlocks</span> : null}
+          <strong id="compare-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Compare plans.' : 'Compare by tennis need.'}</strong>
+          <span style={detailsSummaryCueStyle}>Compare</span>
+        </summary>
+        <div className="pricingDetailsBody" style={tableWrapStyle}>
           <table style={compareTableStyle}>
             <thead>
               <tr>
@@ -445,12 +491,15 @@ function PricingContent() {
             </tbody>
           </table>
         </div>
-      </section>
+      </details>
 
-      <section id="billing" style={billingBandStyle} aria-label="Billing clarity">
-        <div>
-          <div style={sectionEyebrowStyle}>Billing clarity</div>
-          <h2 style={billingTitleStyle}>Monthly plans renew until canceled. League is a season fee.</h2>
+      <details id="billing" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="billing-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Billing clarity</span> : null}
+          <strong id="billing-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Billing basics.' : 'Monthly plans renew until canceled. League is a season fee.'}</strong>
+          <span style={detailsSummaryCueStyle}>Show billing</span>
+        </summary>
+        <div className="pricingDetailsBody" style={billingDetailsBodyStyle}>
           <p style={heroTextStyle}>
             Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season for one bounded league, ladder, or tournament.
           </p>
@@ -459,24 +508,26 @@ function PricingContent() {
           </p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
           <p style={smallTextStyle}>Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.</p>
+          <div style={heroActionRowStyle}>
+            <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>
+            <Link href={BILLING_SUPPORT_PATH} style={secondaryButtonStyle}>Open support thread</Link>
+          </div>
         </div>
-        <div style={heroActionRowStyle}>
-          <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>
-          <Link href={BILLING_SUPPORT_PATH} style={secondaryButtonStyle}>Open support thread</Link>
-        </div>
-      </section>
+      </details>
 
-      <section id="start" style={finalCtaStyle}>
-        <div>
-          <div style={sectionEyebrowStyle}>Start free / upgrade</div>
-          <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
-          <p style={heroTextStyle}>Search the tennis landscape for free, then choose the right tools when your game, team, players, league, or tournament needs more support.</p>
-        </div>
-        <div style={heroActionRowStyle}>
-          <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
-          <Link href={getPlanSignupHref(recommendedPlanId)} style={secondaryButtonStyle}>Upgrade</Link>
-        </div>
-      </section>
+      {!isMobile ? (
+        <section id="start" style={finalCtaStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Start free / upgrade</div>
+            <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
+            <p style={heroTextStyle}>Search the tennis landscape for free, then choose the right tools when your game, team, players, league, or tournament needs more support.</p>
+          </div>
+          <div style={heroActionRowStyle}>
+            <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
+            <Link href={getPlanSignupHref(recommendedPlanId)} style={secondaryButtonStyle}>Upgrade</Link>
+          </div>
+        </section>
+      ) : null}
     </main>
   )
 }
@@ -527,6 +578,12 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   return 'Unlock Full-Court'
 }
 
+function getCompactPlanCta(planId: PricingPlanId, active: boolean) {
+  if (active) return 'Open'
+  if (planId === 'free') return 'Start'
+  return 'Unlock'
+}
+
 const pageWrapStyle: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(20px, 5vw, 28px)))',
   margin: '0 auto',
@@ -547,6 +604,13 @@ const heroStyle: CSSProperties = {
   boxShadow: '0 24px 70px rgba(2, 8, 23, 0.42)',
 }
 
+const compactHeroStyle: CSSProperties = {
+  ...heroStyle,
+  gap: 8,
+  padding: 14,
+  borderRadius: 18,
+}
+
 const eyebrowStyle: CSSProperties = {
   width: 'fit-content',
   color: 'var(--brand-blue-2)',
@@ -564,6 +628,12 @@ const heroTitleStyle: CSSProperties = {
   lineHeight: 0.95,
   fontWeight: 950,
   letterSpacing: 0,
+}
+
+const compactHeroTitleStyle: CSSProperties = {
+  ...heroTitleStyle,
+  fontSize: '2.25rem',
+  lineHeight: 1,
 }
 
 const heroTextStyle: CSSProperties = {
@@ -610,6 +680,64 @@ const sectionStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const detailsSectionStyle: CSSProperties = {
+  ...sectionStyle,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.58)',
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailsSectionStyle: CSSProperties = {
+  ...detailsSectionStyle,
+  padding: 9,
+  borderRadius: 14,
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailsSummaryStyle: CSSProperties = {
+  ...detailsSummaryStyle,
+  gap: 6,
+}
+
+const detailsSummaryTitleStyle: CSSProperties = {
+  flex: '1 1 320px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.4vw, 2rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryCueStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 30,
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
@@ -649,6 +777,19 @@ const planGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactPlanGridStyle: CSSProperties = {
+  ...planGridStyle,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+}
+
+const detailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  paddingTop: 12,
+}
+
 const jobChooserGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
@@ -660,9 +801,9 @@ const jobChooserCardStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
   alignContent: 'start',
-  minHeight: 174,
-  padding: 16,
-  borderRadius: 20,
+  minHeight: 142,
+  padding: 14,
+  borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
   color: 'inherit',
@@ -710,6 +851,13 @@ const planCardStyle: CSSProperties = {
   scrollMarginTop: 120,
 }
 
+const compactPlanCardStyle: CSSProperties = {
+  ...planCardStyle,
+  gap: 6,
+  padding: 8,
+  borderRadius: 14,
+}
+
 const recommendedCardStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.36)',
   background: 'linear-gradient(180deg, rgba(155,225,29,0.10), rgba(8, 13, 28, 0.72))',
@@ -724,6 +872,14 @@ const planTopStyle: CSSProperties = {
   gap: 9,
 }
 
+const compactPlanTopStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
 const planBadgeRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -733,9 +889,9 @@ const planBadgeRowStyle: CSSProperties = {
 
 const planNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 950,
-  letterSpacing: '0.05em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -759,10 +915,17 @@ const priceStyle: CSSProperties = {
   fontWeight: 950,
 }
 
+const compactPriceStyle: CSSProperties = {
+  ...priceStyle,
+  fontSize: 16,
+  lineHeight: 1.08,
+}
+
 const billingCueStyle: CSSProperties = {
   color: 'rgba(226,232,240,0.78)',
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 850,
+  lineHeight: 1.3,
 }
 
 const cardTextStyle: CSSProperties = {
@@ -773,9 +936,34 @@ const cardTextStyle: CSSProperties = {
   fontWeight: 700,
 }
 
+const compactHeroTextStyle: CSSProperties = {
+  ...heroTextStyle,
+  fontSize: 14,
+  lineHeight: 1.5,
+}
+
+const compactPrimaryPlanButtonStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  width: '100%',
+  minHeight: 30,
+  padding: '0 7px',
+  borderRadius: 10,
+  fontSize: 10,
+}
+
+const compactSecondaryPlanButtonStyle: CSSProperties = {
+  ...secondaryButtonStyle,
+  width: '100%',
+  minHeight: 30,
+  padding: '0 7px',
+  borderRadius: 10,
+  fontSize: 10,
+}
+
 const fitBoxStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
+  margin: '0 12px',
   padding: 12,
   borderRadius: 16,
   border: '1px solid rgba(116,190,255,0.13)',
@@ -785,8 +973,36 @@ const fitBoxStyle: CSSProperties = {
   lineHeight: 1.5,
 }
 
+const planDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(15,23,42,0.42)',
+  overflow: 'hidden',
+}
+
+const planDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const planDetailsSummaryStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '10px 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 13,
+  fontWeight: 950,
+  lineHeight: 1.25,
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
 const featureListStyle: CSSProperties = {
-  margin: 0,
+  margin: '0 12px 12px',
   paddingLeft: 18,
   color: 'var(--foreground)',
   fontSize: 14,
@@ -1000,6 +1216,14 @@ const billingBandStyle: CSSProperties = {
   borderRadius: 24,
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'rgba(155,225,29,0.08)',
+}
+
+const billingDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  paddingTop: 14,
+  overflowWrap: 'anywhere',
 }
 
 const billingTitleStyle: CSSProperties = {

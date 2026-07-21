@@ -670,15 +670,15 @@ export default function AdminAccessPage() {
           </AdminStatusPanel>
 
           <AdminReviewPanel
-            ariaLabel="Admin access repair proof cue"
+            ariaLabel="Access repair check"
             style={{ marginTop: 18 }}
           >
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ color: 'var(--foreground)', fontSize: '1rem', fontWeight: 900 }}>
-                Admin access repair proof cue
+                Access repair check
               </div>
               <p className="subtle-text" style={{ margin: 0 }}>
-                Prove the access repair uses a test profile and changes only the intended tennis workspace.
+                Check the test profile first, then update only the intended tennis access.
               </p>
             </div>
             <div
@@ -846,10 +846,10 @@ export default function AdminAccessPage() {
             </AdminActionRow>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
-              This page is the monetization control point for TenAceIQ. League Office access can be
-              granted by itself, without enabling Player or Captain tools. Use Billing filter for
+              Manage TenAceIQ access and billing follow-up here. League Office access can be
+              granted by itself, without enabling Player or Captain tools. Use the Billing filter for
               failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
-              Use Profile link filter to find accounts that are only display-name linked or missing a
+              Use the Profile link filter to find accounts that are only display-name linked or missing a
               cloud player link.
               {convertedRequestsAvailable
                 ? ' Converted checkout requests are shown beside each profile when available.'

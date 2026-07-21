@@ -2034,7 +2034,7 @@ function importScenarioToLineup() {
 
   return (
     <section style={pageContentStyle}>
-         <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} />
+         {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
          <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
               <div style={messageControlHeaderStyle}>
@@ -2047,6 +2047,7 @@ function importScenarioToLineup() {
                 </span>
               </div>
               <div style={messageControlButtonRowStyle}>
+                <PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>
                 <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
                 <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
                 <GhostLink href="/captain">Back to Captain</GhostLink>
@@ -2596,7 +2597,7 @@ function importScenarioToLineup() {
                         })}
                       </div>
                     ) : (
-                      <p style={mutedTextStyle}>No obvious blockers right now. Your captain workflow is clean enough to move toward communication.</p>
+                      <p style={mutedTextStyle}>No obvious blockers right now. This week is clean enough to move toward communication.</p>
                     )}
                   </section>
 
@@ -2657,7 +2658,7 @@ function importScenarioToLineup() {
                     </div>
                   </section>
 
-                  <section style={surfaceCard}>
+                  <section id="captain-message-composer" style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Smart follow-ups</p>
@@ -2686,7 +2687,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={intelligenceTextStyle}>
                           {finalizationReadiness.ready
-                            ? 'The workflow is stable enough to move from planning into communication.'
+                            ? 'The week is stable enough to move from planning into communication.'
                             : 'Use the follow-up queue and blocker list to remove uncertainty before messaging the full team.'}
                         </div>
                       </div>
@@ -2783,7 +2784,7 @@ function importScenarioToLineup() {
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Weekly command snapshot</p>
-                        <h3 style={sectionTitleSmall}>Where this captain workflow stands right now</h3>
+                        <h3 style={sectionTitleSmall}>Where this captain week stands right now</h3>
                       </div>
                       <span
                         style={
@@ -3061,7 +3062,7 @@ function importScenarioToLineup() {
                           {selectedScenario?.scenario_name || 'None selected'}
                         </div>
                         <div style={launchSnapshotTextStyle}>
-                          Saved scenario currently tied to the weekly lineup workflow.
+                          Saved scenario currently tied to the weekly lineup plan.
                         </div>
                       </div>
 
@@ -3182,7 +3183,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={sendGateTextStyle}>
                           {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-                            ? 'The weekly workflow is stable enough that the current send should move the week forward.'
+                            ? 'The week is stable enough that the current send should move it forward.'
                             : 'There is still at least one missing ingredient preventing the cleanest possible captain send.'}
                         </div>
                       </div>
@@ -3369,7 +3370,7 @@ function importScenarioToLineup() {
                         <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasLineupContext ? 'Anchored' : 'Light'}</div>
                         <div style={deliveryReadinessTextStyle}>
                           {deliveryReadiness.hasLineupContext
-                            ? 'A lineup or scenario is connected to this workflow.'
+                            ? 'A lineup or scenario is connected to this send.'
                             : 'Load a scenario or weekly lineup to strengthen captain communication.'}
                         </div>
                       </div>
@@ -3492,7 +3493,7 @@ function importScenarioToLineup() {
                       <Field
                         label="Message title"
                         htmlFor="message-title"
-                        hint="Use a short internal label so you can find or save this message later."
+                        hint="Use a short private label so you can find or save this message later."
                       >
                         <input id="message-title" aria-describedby="captain-messaging-composer-helper" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
                       </Field>

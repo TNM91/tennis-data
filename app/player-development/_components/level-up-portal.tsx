@@ -611,7 +611,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const quickStartCard = favoriteCards[0] ?? quickWins[0] ?? todayCard
   const recentCard = completedCards[0]
   const activeFilterCount = countActiveFilters(filters)
-  const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
+  const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 6)
   const sessionRead = getSessionReadLabel(completionSummaryByCardId)
   const recentProofRead = getRecentProofRead(completions, recentCard)
   const nextBestRep = buildNextBestRep({
@@ -779,6 +779,22 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         onStartCard={startCardFromPlan}
       />
       <LevelUpLocalSyncProof />
+
+      <LevelUpStartList
+        startListRef={startListRef}
+        intent={selectedIntent}
+        cards={startCards}
+        recommendationByCardId={recommendationByCardId}
+        completionSummaryByCardId={completionSummaryByCardId}
+        favorites={favorites}
+        onFavorite={toggleFavorite}
+        onComplete={logCompletion}
+        onActivityChange={setActiveCardTitle}
+        onStartCard={startCardFromPlan}
+        identitySlug={identitySlug}
+        nextBestRep={nextBestRep}
+      />
+
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
 
       <LevelUpCoachAssignmentBanner
@@ -935,21 +951,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpStartList
-        startListRef={startListRef}
-        intent={selectedIntent}
-        cards={startCards}
-        recommendationByCardId={recommendationByCardId}
-        completionSummaryByCardId={completionSummaryByCardId}
-        favorites={favorites}
-        onFavorite={toggleFavorite}
-        onComplete={logCompletion}
-        onActivityChange={setActiveCardTitle}
-        onStartCard={startCardFromPlan}
-        identitySlug={identitySlug}
-        nextBestRep={nextBestRep}
-      />
-
       <LevelUpFilters
         filters={filters}
         resultCount={filteredCards.length}
@@ -968,68 +969,78 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={coachAssignedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} defaultOpen />
-      {focusTrainingLanes.map((lane) => (
-        <LevelUpSmartRail key={`${lane.key}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} defaultOpen={lane.defaultOpen} />
-      ))}
-      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
-      <LevelUpSmartRail id="recently-completed" title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
-
-      <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
-        <div className={styles.levelUpRailHeader}>
-          <span>Modules</span>
-          <h2>Curated blocks coaches can assign.</h2>
-        </div>
-        <div className={styles.levelUpRailGrid}>
-          {featuredModules.map((module) => (
-            <LevelUpModuleTile
-              key={module.id}
-              module={module}
-              identitySlug={identitySlug}
-              completionSummaryByCardId={completionSummaryByCardId}
-              onStartCard={startCardFromPlan}
-            />
+      <details className={styles.levelUpLibraryDrawer} aria-label="More Level Up tools">
+        <summary className={styles.levelUpLibraryDrawerSummary}>
+          <span>More tools</span>
+          <strong>Open training rails, modules, and all cards.</strong>
+          <small>{focusTrainingLanes.length + 9} paths</small>
+        </summary>
+        <div className={styles.levelUpLibraryDrawerBody}>
+          <LevelUpSmartRail title="Coach Assigned" cards={coachAssignedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
+          {focusTrainingLanes.map((lane) => (
+            <LevelUpSmartRail key={`${lane.key}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
           ))}
-        </div>
-      </section>
+          <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
+          <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
+          <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
+          <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} identitySlug={identitySlug} />
+          <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
+          <LevelUpSmartRail id="recently-completed" title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} onStartNextCard={startCardFromPlan} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
 
-      <section id="all-cards" className={styles.levelUpCardGrid} aria-label="All cards">
-        <div className={styles.levelUpRailHeader}>
-          <span>All Cards</span>
-          <h2>{filteredCards.length} tools match your filters.</h2>
-          <p>Showing {visibleAllCards.length}. Start with the top matches, then expand only if you need the full library.</p>
+          <details className={styles.levelUpModuleGrid} aria-label="Level Up modules">
+            <summary className={styles.levelUpRailSummary}>
+              <span>Modules</span>
+              <strong>Curated blocks coaches can assign.</strong>
+              <small>{featuredModules.length} modules</small>
+            </summary>
+            <div className={styles.levelUpRailGrid}>
+              {featuredModules.map((module) => (
+                <LevelUpModuleTile
+                  key={module.id}
+                  module={module}
+                  identitySlug={identitySlug}
+                  completionSummaryByCardId={completionSummaryByCardId}
+                  onStartCard={startCardFromPlan}
+                />
+              ))}
+            </div>
+          </details>
+
+          <details id="all-cards" className={styles.levelUpCardGrid} aria-label="All cards">
+            <summary className={styles.levelUpRailSummary}>
+              <span>All Cards</span>
+              <strong>{filteredCards.length} tools match your filters.</strong>
+              <small>Showing {visibleAllCards.length}</small>
+            </summary>
+            <div className={styles.levelUpRailGrid}>
+              {visibleAllCards.map((card) => (
+                <LevelUpCardTile
+                  key={card.id}
+                  card={card}
+                  reason={recommendationByCardId.get(card.id)?.reason}
+                  favorite={favorites.includes(card.id)}
+                  completionSummary={completionSummaryByCardId.get(card.id)}
+                  onFavorite={toggleFavorite}
+                  onComplete={logCompletion}
+                  onActivityChange={setActiveCardTitle}
+                  nextCardCandidate={getNextCardInList(visibleAllCards, card)}
+                  onStartNextCard={startCardFromPlan}
+                  startHref={buildCardStartHref(identitySlug, card)}
+                />
+              ))}
+            </div>
+            {filteredCards.length > visibleAllCards.length ? (
+              <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(true)}>
+                Show all {filteredCards.length} cards
+              </button>
+            ) : showAllCards && filteredCards.length > 12 ? (
+              <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(false)}>
+                Show fewer cards
+              </button>
+            ) : null}
+          </details>
         </div>
-        <div className={styles.levelUpRailGrid}>
-          {visibleAllCards.map((card) => (
-            <LevelUpCardTile
-              key={card.id}
-              card={card}
-              reason={recommendationByCardId.get(card.id)?.reason}
-              favorite={favorites.includes(card.id)}
-              completionSummary={completionSummaryByCardId.get(card.id)}
-              onFavorite={toggleFavorite}
-              onComplete={logCompletion}
-              onActivityChange={setActiveCardTitle}
-              nextCardCandidate={getNextCardInList(visibleAllCards, card)}
-              onStartNextCard={startCardFromPlan}
-              startHref={buildCardStartHref(identitySlug, card)}
-            />
-          ))}
-        </div>
-        {filteredCards.length > visibleAllCards.length ? (
-          <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(true)}>
-            Show all {filteredCards.length} cards
-          </button>
-        ) : showAllCards && filteredCards.length > 12 ? (
-          <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(false)}>
-            Show fewer cards
-          </button>
-        ) : null}
-      </section>
+      </details>
     </section>
   )
 }
@@ -2510,15 +2521,27 @@ function LevelUpSmartRail({
 }) {
   const railId = id ?? (title === 'Favorites' ? 'favorites' : undefined)
   const uniqueRailCards = uniqueCards(cards)
+  const [open, setOpen] = useState(Boolean(defaultOpen))
+  const [renderRailBody, setRenderRailBody] = useState(Boolean(defaultOpen))
 
   return (
-    <details id={railId} className={styles.levelUpRail} aria-label={title} open={defaultOpen}>
+    <details
+      id={railId}
+      className={styles.levelUpRail}
+      aria-label={title}
+      open={open}
+      onToggle={(event) => {
+        const nextOpen = event.currentTarget.open
+        setOpen(nextOpen)
+        if (nextOpen) setRenderRailBody(true)
+      }}
+    >
       <summary className={styles.levelUpRailSummary}>
         <span>{title}</span>
         <strong>{title}</strong>
         <small>{uniqueRailCards.length ? `${uniqueRailCards.length} cards` : 'Empty'}</small>
       </summary>
-      {uniqueRailCards.length ? (
+      {renderRailBody && uniqueRailCards.length ? (
         <div className={styles.levelUpRailGrid}>
           {uniqueRailCards.map((card) => (
             <LevelUpCardTile
@@ -2536,7 +2559,7 @@ function LevelUpSmartRail({
             />
           ))}
         </div>
-      ) : <p>{emptyText ?? 'No cards in this rail yet.'}</p>}
+      ) : renderRailBody ? <p>{emptyText ?? 'No cards in this rail yet.'}</p> : null}
     </details>
   )
 }
@@ -2575,12 +2598,12 @@ function LevelUpFocusTrainingLane({
     : undefined
 
   return (
-    <section id={`level-up-lane-${laneKey}`} className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
-      <div className={styles.levelUpRailHeader}>
+    <details id={`level-up-lane-${laneKey}`} className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
+      <summary className={styles.levelUpRailSummary}>
         <span>{eyebrow}</span>
-        <h2>{title}</h2>
-        <p>{copy}</p>
-      </div>
+        <strong>{title}</strong>
+        <small>{copy}</small>
+      </summary>
       {station && activeStationTab ? (
         <div className={styles.levelUpLaneStation} aria-label={`${station.label} station`}>
           <div className={styles.levelUpLaneStationTabs} aria-label={`${station.label} station tabs`}>
@@ -2654,7 +2677,7 @@ function LevelUpFocusTrainingLane({
       <p className={styles.levelUpReturnCoachingCue}>
         {coachingCue}
       </p>
-    </section>
+    </details>
   )
 }
 
@@ -2691,7 +2714,9 @@ function LevelUpLaneChooser({ lanes }: { lanes: FocusTrainingLane[] }) {
 }
 
 function scrollToLane(laneKey: string) {
-  document.getElementById(`level-up-lane-${laneKey}`)?.scrollIntoView({
+  const lane = document.getElementById(`level-up-lane-${laneKey}`)
+  if (lane instanceof HTMLDetailsElement) lane.open = true
+  lane?.scrollIntoView({
     behavior: 'smooth',
     block: 'start',
   })
@@ -9027,10 +9052,10 @@ function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
 
 function LevelUpLocalSyncProof() {
   return (
-    <aside className={styles.levelUpLocalSyncProof} aria-label="Level Up local sync proof">
+    <aside className={styles.levelUpLocalSyncProof} aria-label="Level Up save and sync details">
       <div>
-        <span>Level Up local sync proof</span>
-        <strong>Know what follows you.</strong>
+        <span>Save and sync</span>
+        <strong>Know what stays on this phone.</strong>
       </div>
       <div>
         <p>Saved first: rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>

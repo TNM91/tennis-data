@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   getTiqIndividualCompetitionFormatDescription,
@@ -292,7 +292,7 @@ function buildTeamResultLineSummaryMap(
 
 export function LeagueCoordinatorWorkspace() {
   const searchParams = useSearchParams()
-  const { isMobile } = useViewportBreakpoints()
+  const { isMobile, isTablet } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
@@ -831,7 +831,7 @@ export function LeagueCoordinatorWorkspace() {
           ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need work`
           : publicReadyLeagueCount > 0
             ? `${publicReadyLeagueCount} page${publicReadyLeagueCount === 1 ? '' : 's'} ready`
-            : 'Public proof starts after setup',
+            : 'Public pages start after setup',
       body:
         publicPageNeedsWorkCount > 0
           ? 'Check participants and results before sharing pages with players, captains, or league guests.'
@@ -841,6 +841,11 @@ export function LeagueCoordinatorWorkspace() {
       complete: publicPageReadinessRows.length > 0 && publicPageNeedsWorkCount === 0,
     },
   ] as const
+  const primaryLeagueDeskItem = leagueDeskItems.find((item) => !item.complete) ?? leagueDeskItems[0]
+  const visibleLeagueDeskItems =
+    isMobile && primaryLeagueDeskItem ? [primaryLeagueDeskItem] : leagueDeskItems
+  const extraLeagueDeskItems =
+    isMobile && primaryLeagueDeskItem ? leagueDeskItems.filter((item) => item.job !== primaryLeagueDeskItem.job) : []
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -1054,8 +1059,8 @@ export function LeagueCoordinatorWorkspace() {
     setLastSavedRecord(saved.record)
     setStatus(
       editingId
-        ? `${saved.record.leagueName} was updated in the TIQ season registry.`
-        : `${saved.record.leagueName} was added to the TIQ season registry.`,
+        ? `${saved.record.leagueName} was updated in your season list.`
+        : `${saved.record.leagueName} was added to your season list.`,
     )
     setStorageSource(saved.source)
     setStorageWarning(saved.warning || '')
@@ -1158,8 +1163,8 @@ export function LeagueCoordinatorWorkspace() {
     if (lastSavedRecord?.id === id) setLastSavedRecord(null)
     setStatus(
       result.source === 'supabase'
-        ? 'The TIQ league was removed from the TIQ season registry.'
-        : 'The TIQ league was removed from the local TIQ season registry.',
+        ? 'The league was removed from your season list.'
+        : 'The league was removed from your local season list.',
     )
     setStorageSource(result.source)
     setStorageWarning(result.warning || '')
@@ -1232,12 +1237,27 @@ export function LeagueCoordinatorWorkspace() {
     )
   }
 
+  const isCompactViewport = isMobile || isTablet
   const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
-  const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
+  const responsiveStartPanelStyle = isCompactViewport ? { ...startPanelStyle, ...compactStartPanelStyle } : startPanelStyle
+  const responsivePanelCard = isCompactViewport ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle } : panelCard
+  const responsiveRegistryPanel = isCompactViewport
+    ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
+    : panelCard
+  const responsiveCommandCard = isCompactViewport ? { ...commandCard, ...compactCommandCardStyle } : commandCard
+  const responsiveResultBookPanel = isCompactViewport
+    ? { ...resultBookPanelStyle, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
+    : resultBookPanelStyle
+  const responsiveLeagueAwardPanel = isCompactViewport
+    ? { ...leagueAwardPanelStyle, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
+    : leagueAwardPanelStyle
   const responsiveLayoutGrid = singleColumnGrid
   const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
   const responsiveOutcomeInfoGrid = isMobile ? singleColumnGrid : outcomeInfoGrid
-  const responsiveDetailsSummary = isMobile ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
+  const responsiveDetailsSummary = isCompactViewport ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
+  const responsiveOptionalSummary = isCompactViewport ? responsiveDetailsSummary : desktopHiddenSummaryStyle
+  const responsiveSectionTitleStyle = isCompactViewport ? compactSectionTitleStyle : sectionTitle
+  const responsiveLeagueOpsTitleStyle = isCompactViewport ? compactLeagueOpsTitleStyle : leagueOpsTitleStyle
   const responsiveHeroActionRowStyle = isMobile ? { ...heroActionRow, ...mobileStackedActionRowStyle } : heroActionRow
   const responsiveButtonRowStyle = isMobile ? { ...buttonRow, ...mobileStackedActionRowStyle } : buttonRow
   const responsiveParticipantBuilderStyle = isMobile
@@ -1250,6 +1270,7 @@ export function LeagueCoordinatorWorkspace() {
   const responsiveStartScoreStyle = isMobile ? { ...startScoreStyle, ...mobileScoreStyle } : startScoreStyle
   const responsiveLeagueOpsScoreStyle = isMobile ? { ...leagueOpsScoreStyle, ...mobileScoreStyle } : leagueOpsScoreStyle
   const responsiveStartActionRowStyle = isMobile ? { ...startActionRowStyle, ...mobileActionRowStyle } : startActionRowStyle
+  const showMobileUnlockOnly = isMobile && !access.canUseLeagueTools
   const calculatedEndsOn = calculateTiqLeagueEndsOn(draft.startsOn, draft.maxWeeks)
   const seasonWindowText = draft.startsOn
     ? calculatedEndsOn
@@ -1361,12 +1382,79 @@ export function LeagueCoordinatorWorkspace() {
                 }
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
+  const leagueDeskContent = (
+    <>
+      <div style={leaguePathHeaderStyle}>
+        <div>
+          <div style={sectionEyebrow}>Today&apos;s league desk</div>
+          <h2 id="league-office-desk-title" style={leaguePathTitleStyle}>Run the season from the thing that needs attention.</h2>
+        </div>
+        {!isMobile ? (
+          <p style={leaguePathIntroStyle}>
+            Start with the season item that needs attention, then keep setup, approvals, results, and public pages easy to check.
+          </p>
+        ) : null}
+      </div>
+      <div style={leaguePathGridStyle}>
+        {visibleLeagueDeskItems.map((path) => (
+          <Link
+            key={path.job}
+            href={path.href}
+            style={path.complete ? leagueDeskCardCompleteStyle : leaguePathCardStyle}
+            data-league-desk-job={path.job}
+            aria-label={`${path.cta}: ${path.title}`}
+          >
+            <span style={path.complete ? leagueDeskMarkerReadyStyle : leaguePathMarkerStyle} aria-hidden="true" />
+            <span style={leaguePathCopyStyle}>
+              <em>{path.label}</em>
+              <strong>{path.title}</strong>
+              <span>{path.body}</span>
+              <span style={leaguePathCtaStyle}>{path.cta}</span>
+            </span>
+          </Link>
+        ))}
+        {extraLeagueDeskItems.length > 0 ? (
+          <details className="leagueCoordinatorDetailsSection" style={leagueDeskMoreDetailsStyle}>
+            <summary style={leagueDeskMoreSummaryStyle}>
+              <span style={leaguePathCopyStyle}>
+                <em>Season checks</em>
+                <strong>Show other season jobs.</strong>
+                {!isMobile ? (
+                  <span>Setup, participants, results, and public pages stay close when you need them.</span>
+                ) : null}
+              </span>
+              <span style={pillSlate}>{extraLeagueDeskItems.length} more</span>
+            </summary>
+            <div style={leagueDeskMoreBodyStyle}>
+              {extraLeagueDeskItems.map((path) => (
+                <Link
+                  key={path.job}
+                  href={path.href}
+                  style={path.complete ? leagueDeskCardCompleteStyle : leaguePathCardStyle}
+                  data-league-desk-job={path.job}
+                  aria-label={`${path.cta}: ${path.title}`}
+                >
+                  <span style={path.complete ? leagueDeskMarkerReadyStyle : leaguePathMarkerStyle} aria-hidden="true" />
+                  <span style={leaguePathCopyStyle}>
+                    <em>{path.label}</em>
+                    <strong>{path.title}</strong>
+                    <span>{path.body}</span>
+                    <span style={leaguePathCtaStyle}>{path.cta}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </>
+  )
 
   return (
       <section style={responsivePageWrap}>
         {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
-        <section style={startPanelStyle}>
+        <section style={responsiveStartPanelStyle} data-league-start-panel>
           <span aria-hidden="true" style={portalWatermarkStyle} />
           <div style={portalPanelContentStyle}>
             <div style={leagueOpsHeaderStyle}>
@@ -1383,641 +1471,78 @@ export function LeagueCoordinatorWorkspace() {
                   {nextLeagueOpsStep.detail}
                 </p>
               </div>
-              <div style={responsiveStartScoreStyle}>
-                <span>{leagueOpsReadinessScore}% ready</span>
-                <span style={leagueOpsTrackStyle}>
-                  <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
-                </span>
-              </div>
+              {!showMobileUnlockOnly ? (
+                <div style={responsiveStartScoreStyle}>
+                  <span>{leagueOpsReadinessScore}% ready</span>
+                  <span style={leagueOpsTrackStyle}>
+                    <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div style={responsiveStartActionRowStyle}>
               <div style={leagueOpsHeaderCopyStyle}>
                 <span style={startActionLabelStyle}>Next action</span>
-                <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
+                <strong style={startActionTitleStyle}>{showMobileUnlockOnly ? 'League Office access' : nextLeagueOpsStep.label}</strong>
               </div>
               <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
             </div>
 
-            <div style={startCardGridStyle}>
-              {coordinatorStartCards.map((item) => (
-                <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
-                  <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
-                  <strong style={startCardTitleStyle}>{item.title}</strong>
-                  <span style={startCardTextStyle}>{item.detail}</span>
-                  <span style={startCardCtaStyle}>{item.cta}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section style={leaguePathStyle} aria-labelledby="league-office-desk-title">
-          <div style={leaguePathHeaderStyle}>
-            <div>
-              <div style={sectionEyebrow}>Today&apos;s league desk</div>
-              <h2 id="league-office-desk-title" style={leaguePathTitleStyle}>Run the season from the thing that needs attention.</h2>
-            </div>
-            <p style={leaguePathIntroStyle}>
-              {PRODUCT_MOTTO} Setup, approvals, results, and public proof stay separate enough to scan quickly.
-            </p>
-          </div>
-          <div style={leaguePathGridStyle}>
-            {leagueDeskItems.map((path) => (
-              <Link
-                key={path.job}
-                href={path.href}
-                style={path.complete ? leagueDeskCardCompleteStyle : leaguePathCardStyle}
-                data-league-desk-job={path.job}
-                aria-label={`${path.cta}: ${path.title}`}
-              >
-                <span style={path.complete ? leagueDeskMarkerReadyStyle : leaguePathMarkerStyle} aria-hidden="true" />
-                <span style={leaguePathCopyStyle}>
-                  <em>{path.label}</em>
-                  <strong>{path.title}</strong>
-                  <span>{path.body}</span>
-                  <span style={leaguePathCtaStyle}>{path.cta}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section id="shared-calendar" style={commandCard}>
-          <span aria-hidden="true" style={portalWatermarkStyle} />
-          <div style={portalPanelContentStyle}>
-            <div>
-              <div style={sectionEyebrow}>League Office</div>
-              <h2 style={sectionTitle}>{records.length ? 'Your season home is ready.' : 'Create the first League Office season.'}</h2>
-              <p style={sectionText}>
-                Approve players or teams, keep schedules visible, track scores, review uploads, and let standings update around the season.
-              </p>
-            </div>
-            <div style={commandGrid}>
-              <div style={commandTile}>
-                <span style={commandLabel}>Leagues</span>
-                <strong style={commandValue}>{records.length}</strong>
-                <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
-              </div>
-              <div style={commandTile}>
-                <span style={commandLabel}>Requests</span>
-                <strong style={commandValue}>{pendingEntryRequestCount}</strong>
-                <span style={commandText}>Waiting for review</span>
-              </div>
-              <div style={commandTile}>
-                <span style={commandLabel}>Participants</span>
-                <strong style={commandValue}>{activeParticipantCount}</strong>
-                <span style={commandText}>Teams and players tracked</span>
-              </div>
-              <div style={commandTile}>
-                <span style={commandLabel}>Latest</span>
-                <strong style={commandValue}>{latestRecord?.leagueName || 'None yet'}</strong>
-                <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
-              </div>
-            </div>
-            <div style={sharedCalendarStripStyle} aria-label="Shared league scheduler">
-              <div style={sharedCalendarStripCopyStyle}>
-                <div style={sectionEyebrow}>Shared scheduler</div>
-                <strong>Dates, courts, confirmations, and scores stay in one lane.</strong>
-              </div>
-              <div style={sharedCalendarReadinessGridStyle}>
-                {sharedSchedulerItems.map((item) => (
-                  <div key={item.label} style={sharedCalendarReadinessItemStyle}>
-                    <span style={item.ready ? readinessDotStyle : readinessDotMutedStyle} />
-                    <strong>{item.label}</strong>
-                    <em>{item.value}</em>
+            {showMobileUnlockOnly ? null : isMobile ? (
+              <details className="leagueCoordinatorDetailsSection" style={startChecklistDetailsStyle}>
+                <summary style={startChecklistSummaryStyle}>
+                  <div style={leagueOpsHeaderCopyStyle}>
+                    <span style={startActionLabelStyle}>Readiness checklist</span>
+                    <strong style={startActionTitleStyle}>Open setup, participants, results, and visibility checks.</strong>
                   </div>
+                  <span style={pillSlate}>{coordinatorStartCards.length} checks</span>
+                </summary>
+                <div style={startChecklistBodyStyle}>
+                  <div style={startCardGridStyle}>
+                    {coordinatorStartCards.map((item) => (
+                      <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
+                        <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
+                        <strong style={startCardTitleStyle}>{item.title}</strong>
+                        <span style={startCardTextStyle}>{item.detail}</span>
+                        <span style={startCardCtaStyle}>{item.cta}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            ) : (
+              <div style={startCardGridStyle}>
+                {coordinatorStartCards.map((item) => (
+                  <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
+                    <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
+                    <strong style={startCardTitleStyle}>{item.title}</strong>
+                    <span style={startCardTextStyle}>{item.detail}</span>
+                    <span style={startCardCtaStyle}>{item.cta}</span>
+                  </Link>
                 ))}
               </div>
-              <Link href={sharedSchedulerNextMove.href} style={sharedCalendarNextMoveStyle}>
-                <span style={sharedCalendarNextLabelStyle}>Next</span>
-                <span style={sharedCalendarNextCopyStyle}>
-                  <strong>{sharedSchedulerNextMove.label}</strong>
-                  <small>{sharedSchedulerNextMove.detail}</small>
-                </span>
-                <em>{sharedSchedulerNextMove.cta}</em>
-              </Link>
-              <div style={sharedCalendarStepGridStyle}>
-                <GhostLink href="#league-setup-form">Pending dates</GhostLink>
-                <GhostLink href="/compete/schedule">Confirmed calendar</GhostLink>
-                <GhostLink href={resultEntryHref}>Post results</GhostLink>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <details style={dataAssistOpsPanelStyle}>
-          <summary style={responsiveDetailsSummary}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
-              <h2 style={leagueOpsTitleStyle}>Data refresh path</h2>
-              <p style={leagueOpsTextStyle}>Open when schedules, rosters, players, teams, or scorecards need to refresh the season.</p>
-            </div>
-            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
-          </summary>
-          <div style={leagueOpsHeaderStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
-              <h2 style={leagueOpsTitleStyle}>Use uploads to refresh the season.</h2>
-              <p style={leagueOpsTextStyle}>
-                {DATA_ASSIST_STORY.shortCue} Setup stays reviewable; Data Assist brings in schedules, rosters, players, teams, and official scorecards when the season changes.
-              </p>
-            </div>
-            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
-          </div>
-          <div style={dataAssistOpsGridStyle}>
-            <div style={dataAssistOpsCardStyle}>
-              <span style={pillBlue}>Schedules</span>
-              <strong>Upload match weeks and sites</strong>
-              <span>Use reviewed schedule files to keep dates, facilities, and match windows visible for players.</span>
-            </div>
-            <div style={dataAssistOpsCardStyle}>
-              <span style={pillGreen}>Rosters</span>
-              <strong>Refresh teams or players</strong>
-              <span>Bring participant lists into League Office, then approve what becomes active league structure.</span>
-            </div>
-            <div style={dataAssistOpsCardStyle}>
-              <span style={pillSlate}>Scorecards</span>
-              <strong>Review before standings move</strong>
-              <span>Uploaded scorecards should land in review before they update result books and public standings.</span>
-            </div>
-          </div>
-        </details>
-
-        <details id="league-public-pages" style={publicReadinessPanelStyle}>
-          <summary style={responsiveDetailsSummary}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Public page readiness</div>
-              <h2 style={leagueOpsTitleStyle}>
-                {records.length === 0
-                  ? 'Public pages unlock after setup.'
-                  : publicPageNeedsWorkCount > 0
-                    ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data.`
-                    : 'Public pages are ready.'}
-              </h2>
-            </div>
-            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
-              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
-            </span>
-          </summary>
-          <div style={leagueOpsHeaderStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Public page readiness</div>
-              <h2 style={leagueOpsTitleStyle}>
-                {records.length === 0
-                  ? 'Create a league before sharing a public page.'
-                  : publicPageNeedsWorkCount > 0
-                    ? `${publicPageNeedsWorkCount} public page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data before sharing.`
-                    : 'Public league pages are ready to share.'}
-              </h2>
-              <p style={leagueOpsTextStyle}>
-                Check whether each saved league has enough participants and results for the public TIQ page to feel useful.
-              </p>
-            </div>
-            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
-              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
-            </span>
-          </div>
-
-          <div style={sourceToPublicProofStyle} aria-label="League source to public proof cue">
-            {SOURCE_TO_PUBLIC_PROOF_STEPS.map((step) => (
-              <div key={step.title} style={sourceToPublicProofStepStyle}>
-                <strong>{step.title}</strong>
-                <span>{step.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={publicReadinessFilterRowStyle} aria-label="Public page readiness filter">
-            {[
-              { value: 'all', label: 'All', count: publicPageReadinessRows.length },
-              { value: 'ready', label: 'Ready', count: publicReadyLeagueCount },
-              { value: 'needs_work', label: 'Needs work', count: publicPageNeedsWorkCount },
-            ].map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                style={publicPageFilter === item.value ? publicReadinessFilterActiveStyle : publicReadinessFilterButtonStyle}
-                onClick={() => setPublicPageFilter(item.value as PublicPageReadinessFilter)}
-              >
-                {item.label} {item.count}
-              </button>
-            ))}
-          </div>
-
-          {visiblePublicPageReadinessRows.length > 0 ? (
-            <div style={publicReadinessGridStyle}>
-              {visiblePublicPageReadinessRows.slice(0, 4).map((row) => (
-                <div key={row.league.id} style={row.publicReady ? publicReadinessCardReadyStyle : publicReadinessCardStyle}>
-                  <div style={registryMetaRow}>
-                    <span style={row.publicReady ? pillGreen : pillSlate}>{row.statusText}</span>
-                    <span style={row.league.leagueFormat === 'team' ? pillGreen : pillBlue}>
-                      {row.league.leagueFormat === 'team' ? 'Team' : 'Individual'}
-                    </span>
-                  </div>
-                  <strong style={publicReadinessTitleStyle}>{row.league.leagueName}</strong>
-                  <span style={registryText}>{row.detail}</span>
-                  <div style={publicReadinessCheckGridStyle}>
-                    <span style={row.participantsReady ? pillGreen : pillSlate}>Participants</span>
-                    <span style={row.resultsReady ? pillGreen : pillSlate}>Results</span>
-                  </div>
-                  <LeagueActionRow
-                    league={row.league}
-                    resultLabel={getLeagueResultEntryLabel(row.league)}
-                    onCopyShare={copyPublicLeagueLink}
-                    includeManage
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyPublicReadinessPanel hasLeagueRows={publicPageReadinessRows.length > 0} />
-          )}
-        </details>
-
-        <details style={reviewQueuePanelStyle}>
-          <summary style={responsiveDetailsSummary}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Result review queue</div>
-              <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
-            </div>
-            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
-              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
-            </span>
-          </summary>
-          <div style={leagueOpsHeaderStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Result review queue</div>
-              <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
-              <p style={leagueOpsTextStyle}>
-                Use the correct result tool: Team Results for team match events and line scores; Player Results for individual matches. Reviewed Data Assist scorecards can support updates before standings move.
-              </p>
-            </div>
-            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
-              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
-            </span>
-          </div>
-          <div style={resultHandoffGridStyle}>
-            {RESULT_ENTRY_HANDOFF_STEPS.map((step) => (
-              <div key={step.title} style={resultHandoffStepStyle}>
-                <strong>{step.title}</strong>
-                <span>{step.text}</span>
-              </div>
-            ))}
-          </div>
-          <div style={reviewQueueGridStyle}>
-            <div style={reviewCueCardStyle}>
-              <div style={registryMetaRow}>
-                <span style={pillGreen}>Team Results</span>
-                {teamResultBooksNeedAttention > 0 ? (
-                  <span style={pillSlate}>{teamResultBooksNeedAttention} books need review</span>
-                ) : (
-                  <span style={pillGreen}>Ready</span>
-                )}
-              </div>
-              <div style={reviewCueValueStyle}>
-                {teamResultReviewCueCount}
-              </div>
-              <div style={reviewCueTitleStyle}>team matches need line review</div>
-              <div style={registryText}>
-                {teamLeagues.length > 0
-                  ? [
-                      `${teamCompletedEventCount}/${teamResultEventCount} complete matches`,
-                      `${teamCompletedLineCount}/${teamTotalLineCount} lines complete`,
-                      teamEmptyLineEventCount ? `${teamEmptyLineEventCount} matches with no lines` : null,
-                      teamScoreReviewLineCount ? `${teamScoreReviewLineCount} dynamic scores need review` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' | ')
-                  : 'Create a team league before opening Team Results. Team result entry needs teams, match date, line winners, and scores.'}
-              </div>
-              <div style={responsiveButtonRowStyle}>
-                {teamLeagues.length > 0 ? (
-                  <GhostLink href={teamResultEntryHref}>Review team results</GhostLink>
-                ) : (
-                  <GhostBtn onClick={() => beginNewLeague('team')}>Add team league</GhostBtn>
-                )}
-              </div>
-            </div>
-
-            <div style={reviewCueCardStyle}>
-              <div style={registryMetaRow}>
-                <span style={pillBlue}>Player Results</span>
-                {resultBookNeedsAttention > 0 ? (
-                  <span style={pillSlate}>{resultBookNeedsAttention} books need review</span>
-                ) : (
-                  <span style={pillGreen}>Ready</span>
-                )}
-              </div>
-              <div style={reviewCueValueStyle}>
-                {resultBookNeedsAttention}
-              </div>
-              <div style={reviewCueTitleStyle}>individual books need activity</div>
-              <div style={registryText}>
-                {individualLeagues.length > 0
-                  ? [
-                      `${individualResultCount} player results`,
-                      `${individualRecentResultCount} recent`,
-                      individualPossiblePairCount > 0
-                        ? `${individualLoggedPairCount}/${individualPossiblePairCount} pairings logged`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' | ')
-                  : 'Create an individual league before opening Player Results. Player result entry needs two players, result date, winner, and score.'}
-              </div>
-              <div style={responsiveButtonRowStyle}>
-                {individualLeagues.length > 0 ? (
-                  <GhostLink href={individualResultEntryHref}>Review player results</GhostLink>
-                ) : (
-                  <GhostBtn onClick={() => beginNewLeague('individual')}>Add individual league</GhostBtn>
-                )}
-              </div>
-            </div>
-
-            <div style={reviewCueCardStyle}>
-              <div style={registryMetaRow}>
-                <span style={pillSlate}>Corrections</span>
-                {individualCorrectionCount > 0 ? (
-                  <span style={pillSlate}>{individualCorrectionCount} edited</span>
-                ) : (
-                  <span style={pillGreen}>No edits pending</span>
-                )}
-              </div>
-              <div style={reviewCueValueStyle}>
-                {individualCorrectionCount}
-              </div>
-              <div style={reviewCueTitleStyle}>player result corrections</div>
-              <div style={registryText}>
-                Manual edits and reviewed Data Assist scorecards stay visible here so a coordinator can double-check standings after edited scores.
-              </div>
-              <div style={responsiveButtonRowStyle}>
-                <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : resultEntryHref}>
-                  Open review
-                </GhostLink>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        {teamLeagues.length > 0 ? (
-          <section style={resultBookPanelStyle}>
-            <div style={leagueOpsHeaderStyle}>
-              <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>Team result books</div>
-                <h2 style={leagueOpsTitleStyle}>
-                  {teamResultBooksNeedAttention > 0
-                    ? `${teamResultBooksNeedAttention} team league${teamResultBooksNeedAttention === 1 ? '' : 's'} need match activity.`
-                    : 'Team result books are active.'}
-                </h2>
-                <p style={leagueOpsTextStyle}>
-                  Track match events, standings leaders, recent activity, and completed team results before opening Team Results.
-                </p>
-              </div>
-              <span style={pillGreen}>Team results</span>
-            </div>
-            {teamResultWarning ? <div style={statusBanner}>{teamResultWarning}</div> : null}
-            <div style={resultBookGridStyle}>
-              {teamResultBookRows.slice(0, 4).map((row) => (
-                <div key={row.league.id} style={resultBookCardStyle}>
-                  <div style={registryMetaRow}>
-                    <span style={pillGreen}>Team league</span>
-                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent matches</span>}
-                    {row.missingLineEvents > 0 ? (
-                      <span style={pillSlate}>{row.missingLineEvents} need lines</span>
-                    ) : row.events.length > 0 ? (
-                      <span style={pillGreen}>Lines complete</span>
-                    ) : null}
-                    {row.scoreReviewEvents > 0 ? <span style={pillSlate}>{row.scoreReviewEvents} score review</span> : null}
-                  </div>
-                  <div style={registryTitle}>{row.league.leagueName}</div>
-                  <div style={registryText}>
-                    {[
-                      `${row.league.teams.length} teams`,
-                      `${row.events.length} match events`,
-                      row.latestEvent ? `Latest ${formatDateTime(row.latestEvent.matchDate)}` : 'No matches logged',
-                    ].join(' | ')}
-                  </div>
-                  <div style={resultBookMetricRowStyle}>
-                    <div style={resultBookMetricStyle}>
-                      <span>Leader</span>
-                      <strong>{row.leader?.teamName || '-'}</strong>
-                      <small>
-                        {row.leader
-                          ? `${row.leader.wins}-${row.leader.losses}-${row.leader.ties}`
-                          : 'Standings start after results'}
-                      </small>
-                    </div>
-                    <div style={resultBookMetricStyle}>
-                      <span>Line review</span>
-                      <strong>
-                        {row.totalLines > 0 ? `${row.completedLines}/${row.totalLines}` : '0'}
-                      </strong>
-                      <small>
-                        {row.scoreReviewLines > 0
-                          ? `${row.scoreReviewLines} dynamic scores need review`
-                          : row.missingLineEvents > 0
-                          ? `${row.missingLineEvents} matches need work`
-                          : row.events.length > 0
-                            ? 'Matches complete'
-                            : 'Awaiting lines'}
-                      </small>
-                    </div>
-                  </div>
-                  <LeagueActionRow
-                    league={row.league}
-                    resultHref={buildTeamResultEntryHref(row.league.id)}
-                    resultLabel="Open Team Results"
-                    publicLabel="League page"
-                    onCopyShare={copyPublicLeagueLink}
-                  />
-                </div>
-              ))}
-            </div>
-            <div style={responsiveHeroActionRowStyle}>
-              <GhostLink href={teamResultEntryHref}>Review all team results</GhostLink>
-            </div>
-          </section>
-        ) : null}
-
-        {individualLeagues.length > 0 ? (
-          <section style={resultBookPanelStyle}>
-            <div style={leagueOpsHeaderStyle}>
-              <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>Player result books</div>
-                <h2 style={leagueOpsTitleStyle}>
-                  {resultBookNeedsAttention > 0
-                    ? `${resultBookNeedsAttention} individual league${resultBookNeedsAttention === 1 ? '' : 's'} need result attention.`
-                    : 'Individual result books are moving.'}
-                </h2>
-                <p style={leagueOpsTextStyle}>
-                  Review recent player results, pair coverage, leaders, and corrections before opening Player Results.
-                </p>
-              </div>
-              <span style={resultStorageSource === 'supabase' ? pillGreen : pillSlate}>
-                {resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}
-              </span>
-            </div>
-            {resultStorageWarning ? <div style={statusBanner}>{resultStorageWarning}</div> : null}
-            <div style={resultBookGridStyle}>
-              {individualResultBookRows.slice(0, 4).map((row) => (
-                <div key={row.league.id} style={resultBookCardStyle}>
-                  <div style={registryMetaRow}>
-                    <span style={pillBlue}>
-                      {getTiqIndividualCompetitionFormatLabel(row.league.individualCompetitionFormat)}
-                    </span>
-                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent results</span>}
-                    {row.correctionCount > 0 ? <span style={pillSlate}>{row.correctionCount} corrections</span> : null}
-                  </div>
-                  <div style={registryTitle}>{row.league.leagueName}</div>
-                  <div style={registryText}>
-                    {[
-                      `${row.league.players.length} players`,
-                      `${row.resultCount} results`,
-                      row.coverageRate !== null ? `${Math.round(row.coverageRate * 100)}% coverage` : 'Coverage pending',
-                    ].join(' | ')}
-                  </div>
-                  <div style={resultBookMetricRowStyle}>
-                    <div style={resultBookMetricStyle}>
-                      <span>Leader</span>
-                      <strong>{row.summary?.leaderName || '-'}</strong>
-                      <small>{row.summary?.leaderRecord || '0-0'}</small>
-                    </div>
-                    <div style={resultBookMetricStyle}>
-                      <span>Pairs</span>
-                      <strong>{row.uniquePairs}/{row.possiblePairs}</strong>
-                      <small>{row.possiblePairs > 0 ? 'Logged pairings' : 'Add players'}</small>
-                    </div>
-                  </div>
-                  <LeagueActionRow
-                    league={row.league}
-                    resultHref={buildIndividualResultEntryHref(row.league.id)}
-                    resultLabel="Open Player Results"
-                    publicLabel="League page"
-                    onCopyShare={copyPublicLeagueLink}
-                  />
-                </div>
-              ))}
-            </div>
-            <div style={responsiveHeroActionRowStyle}>
-              <GhostLink href={individualResultEntryHref}>Review all player results</GhostLink>
-            </div>
-          </section>
-        ) : null}
-
-        {leagueAwardRows.length > 0 ? (
-          <section style={leagueAwardPanelStyle}>
-            <div style={leagueOpsHeaderStyle}>
-              <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>League award studio</div>
-                <h2 style={leagueOpsTitleStyle}>Turn standings into certificates.</h2>
-                <p style={leagueOpsTextStyle}>
-                  Issue 1st, 2nd, and 3rd place league honors from team standings or individual results, then share the certificate or send players into their trophy case.
-                </p>
-              </div>
-              <span style={pillGreen}>Awards</span>
-            </div>
-            <div style={leagueAwardGridStyle}>
-              {leagueAwardRows.slice(0, 4).map((row) => (
-                <div key={row.league.id} style={leagueAwardCardStyle}>
-                  <div style={registryMetaRow}>
-                    <span style={row.mode === 'Team' ? pillGreen : pillBlue}>{row.mode} league</span>
-                    <span style={row.issuedAwards.length ? pillGreen : pillSlate}>
-                      {row.issuedAwards.length ? `${row.issuedAwards.length} issued` : 'Ready'}
-                    </span>
-                  </div>
-                  <div style={registryTitle}>{row.league.leagueName}</div>
-                  <div style={registryText}>
-                    {[row.league.seasonLabel, row.league.flight, row.league.locationLabel].filter(Boolean).join(' | ') || 'League season'}
-                  </div>
-                  <div style={leagueAwardCandidateGridStyle}>
-                    {row.candidates.map((candidate) => {
-                      const issuedAward = row.issuedAwards.find((award) => award.placement === candidate.placement)
-                      return (
-                        <div key={`${row.league.id}-${candidate.placement}`} style={leagueAwardCandidateStyle}>
-                          <div style={leagueAwardCandidateCopyStyle}>
-                            <span style={pillSlate}>{candidate.label}</span>
-                            <strong>{candidate.recipientName || 'Needs results'}</strong>
-                            <small>{candidate.helperText}</small>
-                          </div>
-                          {issuedAward ? (
-                            <div style={responsiveButtonRowStyle}>
-                              <GhostLink href={`/awards/${encodeURIComponent(issuedAward.id)}`}>Certificate</GhostLink>
-                              <GhostLink href={buildLeagueAwardMailto(issuedAward)}>Email</GhostLink>
-                              {issuedAward.recipientPlayerId ? (
-                                <GhostLink href={`/players/${encodeURIComponent(issuedAward.recipientPlayerId)}#profile-trophy-case`}>
-                                  Trophy case
-                                </GhostLink>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>
-                              Create award
-                            </GhostBtn>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <section style={leagueOpsPanelStyle}>
-          <div style={leagueOpsHeaderStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Season readiness</div>
-              <h2 style={leagueOpsTitleStyle}>
-                {leagueOpsReadinessScore === 100 ? 'This league is ready to operate.' : 'Tighten setup before the season moves.'}
-              </h2>
-              <p style={leagueOpsTextStyle}>
-                {leagueOpsReadinessScore === 100
-                  ? 'Setup, participants, sync, and result entry are all in usable shape.'
-                  : `Next: ${nextLeagueOpsStep.label.toLowerCase()}. ${nextLeagueOpsStep.detail}`}
-              </p>
-            </div>
-            <div style={responsiveLeagueOpsScoreStyle}>
-              <strong>{leagueOpsReadinessScore}%</strong>
-              <span>{leagueOpsCompleteCount}/{leagueOpsChecks.length} ready</span>
-            </div>
-          </div>
-          <div style={leagueOpsTrackStyle} aria-label={`League season readiness ${leagueOpsReadinessScore} percent`}>
-            <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
-          </div>
-          <div style={leagueOfficeOperationProofStyle} aria-label="League Office operation proof cue">
-            <div style={leagueOfficeOperationProofHeaderStyle}>
-              <span style={sectionEyebrow}>League Office operation proof cue</span>
-              <strong>Prove the office changes the same season reality members see.</strong>
-            </div>
-            <div style={leagueOfficeOperationProofGridStyle}>
-              {LEAGUE_OFFICE_OPERATION_PROOF_STEPS.map((step) => (
-                <article key={step.title} style={leagueOfficeOperationProofStepStyle}>
-                  <strong>{step.title}</strong>
-                  <span>{step.text}</span>
-                </article>
-              ))}
-            </div>
+            )}
           </div>
         </section>
 
         <div style={responsiveLayoutGrid}>
           <details
+            className="leagueCoordinatorDetailsSection"
             id="league-setup-form"
             style={responsivePanelCard}
-            open={setupOpen || !!editingId || records.length === 0}
+            open={setupOpen || !!editingId}
             onToggle={(event) => setSetupOpen(event.currentTarget.open)}
           >
             <summary style={responsiveDetailsSummary}>
               <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
-                <h2 style={sectionTitle}>
+                <h2 style={responsiveSectionTitleStyle}>
                   {editingId ? 'Edit league setup' : 'Add a league'}
                 </h2>
-                <p style={sectionText}>
+                {!isCompactViewport ? <p style={sectionText}>
                   Use only the fields needed to create the structure. Uploads, results, and rankings come after the league record is clear.
-                </p>
+                </p> : null}
               </div>
               <span style={pillSlate}>{editingId ? 'Editing' : 'Open form'}</span>
             </summary>
@@ -2711,12 +2236,21 @@ export function LeagueCoordinatorWorkspace() {
             ) : null}
           </details>
 
-          <section id="league-registry" style={responsivePanelCard}>
-            <div style={sectionEyebrow}>League registry</div>
-            <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
-            <p style={sectionText}>
-              {LEAGUE_COORDINATOR_STORY.registryBody}
-            </p>
+          <details className="leagueCoordinatorDetailsSection" id="league-registry" style={responsiveRegistryPanel} open={!isCompactViewport}>
+            <summary style={responsiveOptionalSummary}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>League registry</div>
+                <h2 style={responsiveSectionTitleStyle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
+              </div>
+              <span style={pillSlate}>{records.length} leagues</span>
+            </summary>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>League registry</div>
+              <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
+              <p style={sectionText}>
+                {LEAGUE_COORDINATOR_STORY.registryBody}
+              </p>
+            </div>
 
             <div style={entryRequestPanelStyle}>
               <div style={registryMetaRow}>
@@ -2907,9 +2441,654 @@ export function LeagueCoordinatorWorkspace() {
                 />
               </div>
             ) : null}
-          </section>
+          </details>
         </div>
+
+        {isMobile ? (
+          <details className="leagueCoordinatorDetailsSection" style={leaguePathMobileDetailsStyle} aria-label="Today's League Office desk">
+            <summary style={leaguePathMobileSummaryStyle}>
+              <span style={leaguePathCopyStyle}>
+                <em>Today&apos;s league desk</em>
+                <strong>Show season jobs.</strong>
+              </span>
+              <span style={pillSlate}>{leagueDeskItems.length} jobs</span>
+            </summary>
+            <div style={leaguePathMobileBodyStyle}>{leagueDeskContent}</div>
+          </details>
+        ) : (
+          <section style={leaguePathStyle} aria-labelledby="league-office-desk-title">
+            {leagueDeskContent}
+          </section>
+        )}
+
+        <details className="leagueCoordinatorDetailsSection" id="shared-calendar" style={responsiveCommandCard} open={!isCompactViewport}>
+          <summary style={responsiveOptionalSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>League Office</div>
+              <h2 style={responsiveSectionTitleStyle}>{records.length ? 'Open season home' : 'Open season setup'}</h2>
+              {!isMobile ? <p style={sectionText}>Schedules, requests, participants, and the next calendar move.</p> : null}
+            </div>
+            <span style={pillSlate}>Show season home</span>
+          </summary>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div>
+              <div style={sectionEyebrow}>League Office</div>
+              <h2 style={sectionTitle}>{records.length ? 'Your season home is ready.' : 'Create the first League Office season.'}</h2>
+              <p style={sectionText}>
+                Approve players or teams, keep schedules visible, track scores, review uploads, and let standings update around the season.
+              </p>
+            </div>
+            <div style={commandGrid}>
+              <div style={commandTile}>
+                <span style={commandLabel}>Leagues</span>
+                <strong style={commandValue}>{records.length}</strong>
+                <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Requests</span>
+                <strong style={commandValue}>{pendingEntryRequestCount}</strong>
+                <span style={commandText}>Waiting for review</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Participants</span>
+                <strong style={commandValue}>{activeParticipantCount}</strong>
+                <span style={commandText}>Teams and players tracked</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Latest</span>
+                <strong style={commandValue}>{latestRecord?.leagueName || 'None yet'}</strong>
+                <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
+              </div>
+            </div>
+            <div style={sharedCalendarStripStyle} aria-label="Shared league scheduler">
+              <div style={sharedCalendarStripCopyStyle}>
+                <div style={sectionEyebrow}>Shared scheduler</div>
+                <strong>Dates, courts, confirmations, and scores stay in one lane.</strong>
+              </div>
+              <div style={sharedCalendarReadinessGridStyle}>
+                {sharedSchedulerItems.map((item) => (
+                  <div key={item.label} style={sharedCalendarReadinessItemStyle}>
+                    <span style={item.ready ? readinessDotStyle : readinessDotMutedStyle} />
+                    <strong>{item.label}</strong>
+                    <em>{item.value}</em>
+                  </div>
+                ))}
+              </div>
+              <Link href={sharedSchedulerNextMove.href} style={sharedCalendarNextMoveStyle}>
+                <span style={sharedCalendarNextLabelStyle}>Next</span>
+                <span style={sharedCalendarNextCopyStyle}>
+                  <strong>{sharedSchedulerNextMove.label}</strong>
+                  <small>{sharedSchedulerNextMove.detail}</small>
+                </span>
+                <em>{sharedSchedulerNextMove.cta}</em>
+              </Link>
+              <div style={sharedCalendarStepGridStyle}>
+                <GhostLink href="#league-setup-form">Pending dates</GhostLink>
+                <GhostLink href="/compete/schedule">Confirmed calendar</GhostLink>
+                <GhostLink href={resultEntryHref}>Post results</GhostLink>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details className="leagueCoordinatorDetailsSection" style={dataAssistOpsPanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
+              <h2 style={responsiveLeagueOpsTitleStyle}>Data refresh path</h2>
+              {!isMobile ? (
+                <p style={leagueOpsTextStyle}>Open when schedules, rosters, players, teams, or scorecards need to refresh the season.</p>
+              ) : null}
+            </div>
+            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
+          </summary>
+          <div style={leagueOpsHeaderStyle}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
+              <h2 style={leagueOpsTitleStyle}>Use uploads to refresh the season.</h2>
+              <p style={leagueOpsTextStyle}>
+                {DATA_ASSIST_STORY.shortCue} Keep setup easy to review; Data Assist brings in schedules, rosters, players, teams, and official scorecards when the season changes.
+              </p>
+            </div>
+            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
+          </div>
+          <div style={dataAssistOpsGridStyle}>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillBlue}>Schedules</span>
+              <strong>Upload match weeks and sites</strong>
+              <span>Use reviewed schedule files to keep dates, facilities, and match windows visible for players.</span>
+            </div>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillGreen}>Rosters</span>
+              <strong>Refresh teams or players</strong>
+              <span>Bring participant lists into League Office, then approve what becomes active league structure.</span>
+            </div>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillSlate}>Scorecards</span>
+              <strong>Review before standings move</strong>
+              <span>Uploaded scorecards should land in review before they update result books and public standings.</span>
+            </div>
+          </div>
+        </details>
+
+        <LeagueSecondaryToolsGroup isMobile={isMobile}>
+        <details className="leagueCoordinatorDetailsSection" id="league-public-pages" style={publicReadinessPanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Public page readiness</div>
+              <h2 style={responsiveLeagueOpsTitleStyle}>
+                {records.length === 0
+                  ? 'Public pages unlock after setup.'
+                  : publicPageNeedsWorkCount > 0
+                    ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data.`
+                    : 'Public pages are ready.'}
+              </h2>
+            </div>
+            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
+              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
+            </span>
+          </summary>
+          <div style={leagueOpsHeaderStyle}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Public page readiness</div>
+              <h2 style={leagueOpsTitleStyle}>
+                {records.length === 0
+                  ? 'Create a league before sharing a public page.'
+                  : publicPageNeedsWorkCount > 0
+                    ? `${publicPageNeedsWorkCount} public page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data before sharing.`
+                    : 'Public league pages are ready to share.'}
+              </h2>
+              <p style={leagueOpsTextStyle}>
+                Check whether each saved league has enough participants and results for the public TIQ page to feel useful.
+              </p>
+            </div>
+            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
+              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
+            </span>
+          </div>
+
+          <div style={sourceToPublicProofStyle} aria-label="League source to public check">
+            {SOURCE_TO_PUBLIC_PROOF_STEPS.map((step) => (
+              <div key={step.title} style={sourceToPublicProofStepStyle}>
+                <strong>{step.title}</strong>
+                <span>{step.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={publicReadinessFilterRowStyle} aria-label="Public page readiness filter">
+            {[
+              { value: 'all', label: 'All', count: publicPageReadinessRows.length },
+              { value: 'ready', label: 'Ready', count: publicReadyLeagueCount },
+              { value: 'needs_work', label: 'Needs work', count: publicPageNeedsWorkCount },
+            ].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                style={publicPageFilter === item.value ? publicReadinessFilterActiveStyle : publicReadinessFilterButtonStyle}
+                onClick={() => setPublicPageFilter(item.value as PublicPageReadinessFilter)}
+              >
+                {item.label} {item.count}
+              </button>
+            ))}
+          </div>
+
+          {visiblePublicPageReadinessRows.length > 0 ? (
+            <div style={publicReadinessGridStyle}>
+              {visiblePublicPageReadinessRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={row.publicReady ? publicReadinessCardReadyStyle : publicReadinessCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={row.publicReady ? pillGreen : pillSlate}>{row.statusText}</span>
+                    <span style={row.league.leagueFormat === 'team' ? pillGreen : pillBlue}>
+                      {row.league.leagueFormat === 'team' ? 'Team' : 'Individual'}
+                    </span>
+                  </div>
+                  <strong style={publicReadinessTitleStyle}>{row.league.leagueName}</strong>
+                  <span style={registryText}>{row.detail}</span>
+                  <div style={publicReadinessCheckGridStyle}>
+                    <span style={row.participantsReady ? pillGreen : pillSlate}>Participants</span>
+                    <span style={row.resultsReady ? pillGreen : pillSlate}>Results</span>
+                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultLabel={getLeagueResultEntryLabel(row.league)}
+                    onCopyShare={copyPublicLeagueLink}
+                    includeManage
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyPublicReadinessPanel hasLeagueRows={publicPageReadinessRows.length > 0} />
+          )}
+        </details>
+
+        <details className="leagueCoordinatorDetailsSection" style={reviewQueuePanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Result review queue</div>
+              <h2 style={responsiveLeagueOpsTitleStyle}>{resultQueueHeadline}</h2>
+            </div>
+            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
+              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
+            </span>
+          </summary>
+          <div style={leagueOpsHeaderStyle}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Result review queue</div>
+              <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
+              <p style={leagueOpsTextStyle}>
+                Use the correct result tool: Team Results for team match events and line scores; Player Results for individual matches. Reviewed Data Assist scorecards can support updates before standings move.
+              </p>
+            </div>
+            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
+              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
+            </span>
+          </div>
+          <div style={resultHandoffGridStyle}>
+            {RESULT_ENTRY_HANDOFF_STEPS.map((step) => (
+              <div key={step.title} style={resultHandoffStepStyle}>
+                <strong>{step.title}</strong>
+                <span>{step.text}</span>
+              </div>
+            ))}
+          </div>
+          <div style={reviewQueueGridStyle}>
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillGreen}>Team Results</span>
+                {teamResultBooksNeedAttention > 0 ? (
+                  <span style={pillSlate}>{teamResultBooksNeedAttention} books need review</span>
+                ) : (
+                  <span style={pillGreen}>Ready</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {teamResultReviewCueCount}
+              </div>
+              <div style={reviewCueTitleStyle}>team matches need line review</div>
+              <div style={registryText}>
+                {teamLeagues.length > 0
+                  ? [
+                      `${teamCompletedEventCount}/${teamResultEventCount} complete matches`,
+                      `${teamCompletedLineCount}/${teamTotalLineCount} lines complete`,
+                      teamEmptyLineEventCount ? `${teamEmptyLineEventCount} matches with no lines` : null,
+                      teamScoreReviewLineCount ? `${teamScoreReviewLineCount} dynamic scores need review` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' | ')
+                  : 'Create a team league before opening Team Results. Team result entry needs teams, match date, line winners, and scores.'}
+              </div>
+              <div style={responsiveButtonRowStyle}>
+                {teamLeagues.length > 0 ? (
+                  <GhostLink href={teamResultEntryHref}>Review team results</GhostLink>
+                ) : (
+                  <GhostBtn onClick={() => beginNewLeague('team')}>Add team league</GhostBtn>
+                )}
+              </div>
+            </div>
+
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillBlue}>Player Results</span>
+                {resultBookNeedsAttention > 0 ? (
+                  <span style={pillSlate}>{resultBookNeedsAttention} books need review</span>
+                ) : (
+                  <span style={pillGreen}>Ready</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {resultBookNeedsAttention}
+              </div>
+              <div style={reviewCueTitleStyle}>individual books need activity</div>
+              <div style={registryText}>
+                {individualLeagues.length > 0
+                  ? [
+                      `${individualResultCount} player results`,
+                      `${individualRecentResultCount} recent`,
+                      individualPossiblePairCount > 0
+                        ? `${individualLoggedPairCount}/${individualPossiblePairCount} pairings logged`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' | ')
+                  : 'Create an individual league before opening Player Results. Player result entry needs two players, result date, winner, and score.'}
+              </div>
+              <div style={responsiveButtonRowStyle}>
+                {individualLeagues.length > 0 ? (
+                  <GhostLink href={individualResultEntryHref}>Review player results</GhostLink>
+                ) : (
+                  <GhostBtn onClick={() => beginNewLeague('individual')}>Add individual league</GhostBtn>
+                )}
+              </div>
+            </div>
+
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillSlate}>Corrections</span>
+                {individualCorrectionCount > 0 ? (
+                  <span style={pillSlate}>{individualCorrectionCount} edited</span>
+                ) : (
+                  <span style={pillGreen}>No edits pending</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {individualCorrectionCount}
+              </div>
+              <div style={reviewCueTitleStyle}>player result corrections</div>
+              <div style={registryText}>
+                Manual edits and reviewed Data Assist scorecards stay visible here so a coordinator can double-check standings after edited scores.
+              </div>
+              <div style={responsiveButtonRowStyle}>
+                <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : resultEntryHref}>
+                  Open review
+                </GhostLink>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {teamLeagues.length > 0 ? (
+          <details className="leagueCoordinatorDetailsSection" style={responsiveResultBookPanel} open={!isCompactViewport}>
+            <summary style={responsiveOptionalSummary}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>Team result books</div>
+                <h2 style={responsiveLeagueOpsTitleStyle}>
+                  {teamResultBooksNeedAttention > 0
+                    ? `${teamResultBooksNeedAttention} team league${teamResultBooksNeedAttention === 1 ? '' : 's'} need match activity.`
+                    : 'Team result books are active.'}
+                </h2>
+              </div>
+              <span style={pillGreen}>Show books</span>
+            </summary>
+            <div style={leagueOpsHeaderStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>Team result books</div>
+                <h2 style={leagueOpsTitleStyle}>
+                  {teamResultBooksNeedAttention > 0
+                    ? `${teamResultBooksNeedAttention} team league${teamResultBooksNeedAttention === 1 ? '' : 's'} need match activity.`
+                    : 'Team result books are active.'}
+                </h2>
+                <p style={leagueOpsTextStyle}>
+                  Track match events, standings leaders, recent activity, and completed team results before opening Team Results.
+                </p>
+              </div>
+              <span style={pillGreen}>Team results</span>
+            </div>
+            {teamResultWarning ? <div style={statusBanner}>{teamResultWarning}</div> : null}
+            <div style={resultBookGridStyle}>
+              {teamResultBookRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={resultBookCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={pillGreen}>Team league</span>
+                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent matches</span>}
+                    {row.missingLineEvents > 0 ? (
+                      <span style={pillSlate}>{row.missingLineEvents} need lines</span>
+                    ) : row.events.length > 0 ? (
+                      <span style={pillGreen}>Lines complete</span>
+                    ) : null}
+                    {row.scoreReviewEvents > 0 ? <span style={pillSlate}>{row.scoreReviewEvents} score review</span> : null}
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[
+                      `${row.league.teams.length} teams`,
+                      `${row.events.length} match events`,
+                      row.latestEvent ? `Latest ${formatDateTime(row.latestEvent.matchDate)}` : 'No matches logged',
+                    ].join(' | ')}
+                  </div>
+                  <div style={resultBookMetricRowStyle}>
+                    <div style={resultBookMetricStyle}>
+                      <span>Leader</span>
+                      <strong>{row.leader?.teamName || '-'}</strong>
+                      <small>
+                        {row.leader
+                          ? `${row.leader.wins}-${row.leader.losses}-${row.leader.ties}`
+                          : 'Standings start after results'}
+                      </small>
+                    </div>
+                    <div style={resultBookMetricStyle}>
+                      <span>Line review</span>
+                      <strong>
+                        {row.totalLines > 0 ? `${row.completedLines}/${row.totalLines}` : '0'}
+                      </strong>
+                      <small>
+                        {row.scoreReviewLines > 0
+                          ? `${row.scoreReviewLines} dynamic scores need review`
+                          : row.missingLineEvents > 0
+                          ? `${row.missingLineEvents} matches need work`
+                          : row.events.length > 0
+                            ? 'Matches complete'
+                            : 'Awaiting lines'}
+                      </small>
+                    </div>
+                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultHref={buildTeamResultEntryHref(row.league.id)}
+                    resultLabel="Open Team Results"
+                    publicLabel="League page"
+                    onCopyShare={copyPublicLeagueLink}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={responsiveHeroActionRowStyle}>
+              <GhostLink href={teamResultEntryHref}>Review all team results</GhostLink>
+            </div>
+          </details>
+        ) : null}
+
+        {individualLeagues.length > 0 ? (
+          <details className="leagueCoordinatorDetailsSection" style={responsiveResultBookPanel} open={!isCompactViewport}>
+            <summary style={responsiveOptionalSummary}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>Player result books</div>
+                <h2 style={responsiveLeagueOpsTitleStyle}>
+                  {resultBookNeedsAttention > 0
+                    ? `${resultBookNeedsAttention} individual league${resultBookNeedsAttention === 1 ? '' : 's'} need result attention.`
+                    : 'Individual result books are moving.'}
+                </h2>
+              </div>
+              <span style={pillBlue}>Show books</span>
+            </summary>
+            <div style={leagueOpsHeaderStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>Player result books</div>
+                <h2 style={leagueOpsTitleStyle}>
+                  {resultBookNeedsAttention > 0
+                    ? `${resultBookNeedsAttention} individual league${resultBookNeedsAttention === 1 ? '' : 's'} need result attention.`
+                    : 'Individual result books are moving.'}
+                </h2>
+                <p style={leagueOpsTextStyle}>
+                  Review recent player results, pair coverage, leaders, and corrections before opening Player Results.
+                </p>
+              </div>
+              <span style={resultStorageSource === 'supabase' ? pillGreen : pillSlate}>
+                {resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}
+              </span>
+            </div>
+            {resultStorageWarning ? <div style={statusBanner}>{resultStorageWarning}</div> : null}
+            <div style={resultBookGridStyle}>
+              {individualResultBookRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={resultBookCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={pillBlue}>
+                      {getTiqIndividualCompetitionFormatLabel(row.league.individualCompetitionFormat)}
+                    </span>
+                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent results</span>}
+                    {row.correctionCount > 0 ? <span style={pillSlate}>{row.correctionCount} corrections</span> : null}
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[
+                      `${row.league.players.length} players`,
+                      `${row.resultCount} results`,
+                      row.coverageRate !== null ? `${Math.round(row.coverageRate * 100)}% coverage` : 'Coverage pending',
+                    ].join(' | ')}
+                  </div>
+                  <div style={resultBookMetricRowStyle}>
+                    <div style={resultBookMetricStyle}>
+                      <span>Leader</span>
+                      <strong>{row.summary?.leaderName || '-'}</strong>
+                      <small>{row.summary?.leaderRecord || '0-0'}</small>
+                    </div>
+                    <div style={resultBookMetricStyle}>
+                      <span>Pairs</span>
+                      <strong>{row.uniquePairs}/{row.possiblePairs}</strong>
+                      <small>{row.possiblePairs > 0 ? 'Logged pairings' : 'Add players'}</small>
+                    </div>
+                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultHref={buildIndividualResultEntryHref(row.league.id)}
+                    resultLabel="Open Player Results"
+                    publicLabel="League page"
+                    onCopyShare={copyPublicLeagueLink}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={responsiveHeroActionRowStyle}>
+              <GhostLink href={individualResultEntryHref}>Review all player results</GhostLink>
+            </div>
+          </details>
+        ) : null}
+
+        {leagueAwardRows.length > 0 ? (
+          <details className="leagueCoordinatorDetailsSection" style={responsiveLeagueAwardPanel} open={!isCompactViewport}>
+            <summary style={responsiveOptionalSummary}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>League award studio</div>
+                <h2 style={responsiveLeagueOpsTitleStyle}>Open certificates and honors.</h2>
+              </div>
+              <span style={pillGreen}>Show awards</span>
+            </summary>
+            <div style={leagueOpsHeaderStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>League award studio</div>
+                <h2 style={leagueOpsTitleStyle}>Turn standings into certificates.</h2>
+                <p style={leagueOpsTextStyle}>
+                  Issue 1st, 2nd, and 3rd place league honors from team standings or individual results, then share the certificate or send players into their trophy case.
+                </p>
+              </div>
+              <span style={pillGreen}>Awards</span>
+            </div>
+            <div style={leagueAwardGridStyle}>
+              {leagueAwardRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={leagueAwardCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={row.mode === 'Team' ? pillGreen : pillBlue}>{row.mode} league</span>
+                    <span style={row.issuedAwards.length ? pillGreen : pillSlate}>
+                      {row.issuedAwards.length ? `${row.issuedAwards.length} issued` : 'Ready'}
+                    </span>
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[row.league.seasonLabel, row.league.flight, row.league.locationLabel].filter(Boolean).join(' | ') || 'League season'}
+                  </div>
+                  <div style={leagueAwardCandidateGridStyle}>
+                    {row.candidates.map((candidate) => {
+                      const issuedAward = row.issuedAwards.find((award) => award.placement === candidate.placement)
+                      return (
+                        <div key={`${row.league.id}-${candidate.placement}`} style={leagueAwardCandidateStyle}>
+                          <div style={leagueAwardCandidateCopyStyle}>
+                            <span style={pillSlate}>{candidate.label}</span>
+                            <strong>{candidate.recipientName || 'Needs results'}</strong>
+                            <small>{candidate.helperText}</small>
+                          </div>
+                          {issuedAward ? (
+                            <div style={responsiveButtonRowStyle}>
+                              <GhostLink href={`/awards/${encodeURIComponent(issuedAward.id)}`}>Certificate</GhostLink>
+                              <GhostLink href={buildLeagueAwardMailto(issuedAward)}>Email</GhostLink>
+                              {issuedAward.recipientPlayerId ? (
+                                <GhostLink href={`/players/${encodeURIComponent(issuedAward.recipientPlayerId)}#profile-trophy-case`}>
+                                  Trophy case
+                                </GhostLink>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>
+                              Create award
+                            </GhostBtn>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
+
+        <details className="leagueCoordinatorDetailsSection" style={leagueOpsPanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Season readiness</div>
+              <h2 style={responsiveLeagueOpsTitleStyle}>
+                {leagueOpsReadinessScore === 100 ? 'This league is ready to operate.' : 'Tighten setup before the season moves.'}
+              </h2>
+              {!isMobile ? (
+                <p style={leagueOpsTextStyle}>
+                  {leagueOpsReadinessScore === 100
+                    ? 'Setup, participants, sync, and result entry are all in usable shape.'
+                    : `Next: ${nextLeagueOpsStep.label.toLowerCase()}. ${nextLeagueOpsStep.detail}`}
+                </p>
+              ) : null}
+            </div>
+            <div style={responsiveLeagueOpsScoreStyle}>
+              <strong>{leagueOpsReadinessScore}%</strong>
+              <span>{leagueOpsCompleteCount}/{leagueOpsChecks.length} ready</span>
+            </div>
+          </summary>
+          <div style={leagueOpsTrackStyle} aria-label={`League season readiness ${leagueOpsReadinessScore} percent`}>
+            <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
+          </div>
+          <div style={leagueOfficeOperationProofStyle} aria-label="League Office member-view check">
+            <div style={leagueOfficeOperationProofHeaderStyle}>
+              <span style={sectionEyebrow}>Member-view check</span>
+              <strong>Make sure League Office changes match what members see.</strong>
+            </div>
+            <div style={leagueOfficeOperationProofGridStyle}>
+              {LEAGUE_OFFICE_OPERATION_PROOF_STEPS.map((step) => (
+                <article key={step.title} style={leagueOfficeOperationProofStepStyle}>
+                  <strong>{step.title}</strong>
+                  <span>{step.text}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        </LeagueSecondaryToolsGroup>
+
+
     </section>
+  )
+}
+
+function LeagueSecondaryToolsGroup({
+  isMobile,
+  children,
+}: {
+  isMobile: boolean
+  children: ReactNode
+}) {
+  if (!isMobile) return <>{children}</>
+
+  return (
+    <details className="leagueCoordinatorDetailsSection" style={leagueSecondaryToolsDetailsStyle}>
+      <summary style={leagueSecondaryToolsSummaryStyle}>
+        <span style={leaguePathCopyStyle}>
+          <em>Season tools</em>
+          <strong>Open public pages, result books, awards, and readiness.</strong>
+        </span>
+        <span style={pillSlate}>5 tools</span>
+      </summary>
+      <div style={leagueSecondaryToolsBodyStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -3311,6 +3490,33 @@ const leaguePathStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const leaguePathMobileDetailsStyle: CSSProperties = {
+  ...leaguePathStyle,
+  gap: 0,
+  padding: 0,
+  borderRadius: '20px',
+  minWidth: 0,
+}
+
+const leaguePathMobileSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathMobileBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
 const leaguePathHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'end',
@@ -3343,6 +3549,64 @@ const leaguePathGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
   minWidth: 0,
+}
+
+const leagueDeskMoreDetailsStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  overflow: 'hidden',
+}
+
+const leagueDeskMoreSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '13px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const leagueDeskMoreBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const leagueSecondaryToolsDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 0,
+  minWidth: 0,
+  borderRadius: '22px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const leagueSecondaryToolsSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '16px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const leagueSecondaryToolsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '0 12px 12px',
+  overflowWrap: 'anywhere',
 }
 
 const leaguePathCardStyle: CSSProperties = {
@@ -3601,11 +3865,17 @@ const startPanelStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const compactStartPanelStyle: CSSProperties = {
+  gap: '10px',
+  padding: '14px',
+  borderRadius: '20px',
+}
+
 const portalWatermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-72px',
+  right: 0,
   top: '-88px',
-  width: '260px',
+  width: 'min(220px, 52vw)',
   aspectRatio: '1 / 1',
   borderRadius: '999px',
   border: '28px solid rgba(155,225,29,0.07)',
@@ -3887,6 +4157,13 @@ const leagueOpsTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactLeagueOpsTitleStyle: CSSProperties = {
+  ...leagueOpsTitleStyle,
+  margin: '2px 0 0',
+  fontSize: '1.08rem',
+  lineHeight: 1.12,
+}
+
 const leagueOpsTextStyle: CSSProperties = {
   margin: '8px 0 0',
   color: 'var(--shell-copy-muted)',
@@ -3979,6 +4256,34 @@ const startCardGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: '10px',
+  minWidth: 0,
+}
+
+const startChecklistDetailsStyle: CSSProperties = {
+  borderRadius: '18px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, transparent)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const startChecklistSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  padding: '13px 14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const startChecklistBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '0 12px 12px',
   minWidth: 0,
 }
 
@@ -4085,6 +4390,25 @@ const mobilePanelCard: CSSProperties = {
   gap: '14px',
 }
 
+const compactDetailsPanelStyle: CSSProperties = {
+  padding: '12px',
+  borderRadius: '18px',
+  gap: '10px',
+}
+
+const mobileScrollablePanelStyle: CSSProperties = {
+  maxHeight: 'min(680px, 82vh)',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  scrollbarWidth: 'thin',
+}
+
+const compactCommandCardStyle: CSSProperties = {
+  gap: '10px',
+  padding: '12px',
+  borderRadius: '18px',
+}
+
 const detailsSummary: CSSProperties = {
   cursor: 'pointer',
   listStyle: 'none',
@@ -4098,7 +4422,13 @@ const detailsSummary: CSSProperties = {
 
 const mobileDetailsSummary: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  alignItems: 'center',
+  gap: '8px',
+}
+
+const desktopHiddenSummaryStyle: CSSProperties = {
+  display: 'none',
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -4117,6 +4447,12 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.08,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
+}
+
+const compactSectionTitleStyle: CSSProperties = {
+  ...sectionTitle,
+  fontSize: '1.05rem',
+  lineHeight: 1.12,
 }
 
 const sectionText: CSSProperties = {
