@@ -208,6 +208,17 @@ type CaptainPlayerReadinessItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainNudgeDraft = {
+  label: string
+  state: string
+  detail: string
+  body: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainDecisionPath = {
   label: string
   question: string
@@ -563,6 +574,7 @@ function CaptainHubContent() {
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
+  const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1468,6 +1480,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : playerReadinessPulseGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainNudgeComposerShell: CSSProperties = {
+    ...captainNudgeComposerShell,
+    gap: isMobile ? 12 : captainNudgeComposerShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainNudgeComposerShell.padding,
+    borderRadius: isMobile ? 20 : captainNudgeComposerShell.borderRadius,
+  }
+
+  const dynamicCaptainNudgeComposerGrid: CSSProperties = {
+    ...captainNudgeComposerGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainNudgeComposerGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -1943,6 +1967,73 @@ function CaptainHubContent() {
   ])
   const playerReadinessReadyCount = playerReadinessPulseChecks.filter((item) => item.tone === 'good').length
 
+  const captainNudgeOpenReplyCount = Math.max(matchDayNotConfirmedCount, workspaceState.pendingResponseCount)
+  const captainNudgeMatchLabel = `${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`
+  const captainNudgeArrivalLabel = safeText(matchDayArrivalLabel, 'arrival time')
+  const captainNudgeLocationLabel = safeText(matchDayLocationLabel, 'the courts')
+  const captainNudgeDrafts = useMemo<CaptainNudgeDraft[]>(() => [
+    {
+      label: 'Confirm availability',
+      state: captainNudgeOpenReplyCount > 0 ? `${captainNudgeOpenReplyCount} waiting` : 'Ready anytime',
+      detail: captainNudgeOpenReplyCount > 0
+        ? 'Use this when replies are still open.'
+        : 'Keep this ready for late schedule changes.',
+      body: `Team, please confirm availability for ${captainNudgeMatchLabel}. If anything changed, reply today so I can lock courts and backup coverage.`,
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: captainNudgeOpenReplyCount > 0 ? 'warn' : 'info',
+      cta: 'Open availability',
+    },
+    {
+      label: 'Running late',
+      state: matchDaySubRiskCount > 0 ? `${matchDaySubRiskCount} flagged` : 'Standby',
+      detail: 'Send when arrival timing starts to affect warm-up or court order.',
+      body: `If you are running late for ${captainNudgeMatchLabel}, reply with your ETA now. Meet at ${captainNudgeLocationLabel}; target arrival is ${captainNudgeArrivalLabel}.`,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: matchDaySubRiskCount > 0 ? 'warn' : 'info',
+      cta: 'Open messaging',
+    },
+    {
+      label: 'Need sub',
+      state: playerReadinessRiskCount > 0 ? `${playerReadinessRiskCount} watch` : 'Backup ready',
+      detail: playerReadinessRiskCount > 0
+        ? 'Use this before the court plan gets brittle.'
+        : 'Keep a clean backup ask ready for match day.',
+      body: `Quick sub check for ${captainNudgeMatchLabel}: I may need backup coverage. Reply if you can be ready on short notice and what window works for you.`,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: playerReadinessRiskCount > 0 ? 'warn' : 'good',
+      cta: 'Open messaging',
+    },
+    {
+      label: 'Final lineup posted',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Lineup first',
+      detail: workspaceState.lineupReady
+        ? 'Send after courts are saved.'
+        : 'Build courts first, then send the final note.',
+      body: `Lineup is posted for ${captainNudgeMatchLabel}. Please check your court, arrive by ${captainNudgeArrivalLabel}, and reply if anything looks off.`,
+      href: workspaceState.lineupReady ? messagingHref : lineupBuilderHref,
+      stage: workspaceState.lineupReady ? 'messaging' : 'lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'info',
+      cta: workspaceState.lineupReady ? 'Open messaging' : 'Build lineup',
+    },
+  ], [
+    captainNudgeArrivalLabel,
+    captainNudgeLocationLabel,
+    captainNudgeMatchLabel,
+    captainNudgeOpenReplyCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDaySubRiskCount,
+    messagingHref,
+    playerReadinessRiskCount,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainNudgePrimaryDraft = captainNudgeDrafts.find((item) => item.tone === 'warn') ?? captainNudgeDrafts[0]
+  const captainNudgeReadyCount = captainNudgeDrafts.filter((item) => item.tone === 'good' || item.tone === 'warn').length
+
   const postMatchCloseoutRows = matchDayLineupRows.slice(0, isMobile ? 2 : 3)
   const postMatchUploadedState = selectedFromCaptainScope ? 'Refresh data' : 'Upload needed'
   const postMatchClosed = weekStatus === 'finalized'
@@ -2402,6 +2493,22 @@ function CaptainHubContent() {
 
     rememberCaptainResume(stage)
     router.push(href)
+  }
+
+  async function handleCopyCaptainNudge(draft: CaptainNudgeDraft) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(draft.body)
+      setCopiedCaptainNudgeLabel(draft.label)
+    } catch {
+      setCopiedCaptainNudgeLabel('')
+    }
   }
 
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
@@ -2930,6 +3037,72 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainNudgeComposer = (
+    <section style={dynamicCaptainNudgeComposerShell} aria-label="Captain nudge composer">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Nudge composer</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Send the right nudge.' : 'Send the right nudge before replies drift.'}</h2>
+        </div>
+        <span style={captainNudgePrimaryDraft.tone === 'warn' ? warnBadge : captainNudgeReadyCount > 1 ? badgeGreen : badgeBlue}>
+          {captainNudgePrimaryDraft.label}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Pick the message that matches the week, copy the draft, then open Messaging with the same team context.
+      </div>
+
+      <div style={dynamicCaptainNudgeComposerGrid}>
+        <div style={captainNudgeFeaturedDraft}>
+          <div style={captainNudgeFeaturedTop}>
+            <div>
+              <div style={commandCenterLabel}>Best next send</div>
+              <div style={captainNudgeFeaturedTitle}>{captainNudgePrimaryDraft.label}</div>
+            </div>
+            <span style={captainNudgePrimaryDraft.tone === 'warn' ? warnBadge : captainNudgePrimaryDraft.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainNudgePrimaryDraft.state}
+            </span>
+          </div>
+          <p style={captainNudgeDraftBody}>{captainNudgePrimaryDraft.body}</p>
+          <div style={captainNudgeActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainNudge(captainNudgePrimaryDraft)}>
+              {copiedCaptainNudgeLabel === captainNudgePrimaryDraft.label ? 'Copied' : 'Copy draft'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainNudgePrimaryDraft.href, captainNudgePrimaryDraft.stage)}>
+              {captainNudgePrimaryDraft.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainNudgeDraftList}>
+          <div style={commandCenterLabel}>Ready-to-send drafts</div>
+          <div style={captainNudgeDraftGrid}>
+            {captainNudgeDrafts.map((draft) => (
+              <article key={draft.label} style={captainNudgeDraftCard}>
+                <div style={captainNudgeDraftTop}>
+                  <strong>{draft.label}</strong>
+                  <span style={draft.tone === 'good' ? badgeGreen : draft.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {draft.state}
+                  </span>
+                </div>
+                <span>{draft.detail}</span>
+                <p style={captainNudgeDraftBody}>{draft.body}</p>
+                <div style={captainNudgeMiniActionRow}>
+                  <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainNudge(draft)}>
+                    {copiedCaptainNudgeLabel === draft.label ? 'Copied' : 'Copy'}
+                  </SecondarySmallBtn>
+                  <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(draft.href, draft.stage)}>
+                    {draft.cta}
+                  </SecondarySmallBtn>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -3171,6 +3344,8 @@ function CaptainHubContent() {
         {captainOpponentScoutPocket}
 
         {captainPlayerReadinessPulse}
+
+        {captainNudgeComposer}
 
         {captainMatchDaySheet}
 
@@ -5301,6 +5476,123 @@ const playerReadinessActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
+}
+
+const captainNudgeComposerShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(8,13,28,0.76) 42%, rgba(26,36,55,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const captainNudgeComposerGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.82fr) minmax(min(100%, 340px), 1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainNudgeFeaturedDraft: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNudgeFeaturedTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainNudgeFeaturedTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainNudgeDraftBody: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainNudgeDraftList: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNudgeDraftGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainNudgeDraftCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainNudgeDraftTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainNudgeActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainNudgeMiniActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
   minWidth: 0,
 }
 
