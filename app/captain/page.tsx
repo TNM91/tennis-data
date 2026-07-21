@@ -239,6 +239,15 @@ type CaptainMatchDayCommandAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPreSendCheck = {
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainCourtConfidenceItem = {
   label: string
   players: string
@@ -1569,6 +1578,18 @@ function CaptainHubContent() {
     gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
   }
 
+  const dynamicCaptainPreSendReviewShell: CSSProperties = {
+    ...captainPreSendReviewShell,
+    gap: isMobile ? 12 : captainPreSendReviewShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainPreSendReviewShell.padding,
+    borderRadius: isMobile ? 20 : captainPreSendReviewShell.borderRadius,
+  }
+
+  const dynamicCaptainPreSendReviewGrid: CSSProperties = {
+    ...captainPreSendReviewGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPreSendReviewGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainCourtConfidenceShell: CSSProperties = {
     ...captainCourtConfidenceShell,
     gap: isMobile ? 12 : captainCourtConfidenceShell.gap,
@@ -2445,6 +2466,74 @@ function CaptainHubContent() {
   ])
   const captainMatchDayPrimaryCommand = captainMatchDayCommandActions.find((item) => item.tone === 'warn') ?? captainMatchDayCommandActions[0]
 
+  const captainPreSendChecks = useMemo<CaptainPreSendCheck[]>(() => [
+    {
+      label: 'Lineup completeness',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady
+        ? 'Saved courts are ready to carry into the team note.'
+        : 'Build the lineup before sending players a plan.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Arrival details',
+      state: workspaceState.messagingReady ? 'Ready' : 'Missing detail',
+      detail: workspaceState.messagingReady
+        ? `${matchDayArrivalLabel} at ${matchDayLocationLabel}`
+        : 'Add arrival time, location, or notes before the message goes out.',
+      href: messagingHref,
+      stage: 'messaging',
+      tone: workspaceState.messagingReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Reply gaps',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : matchDayResponseRows.length ? 'Clear' : 'Not collected',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Chase open replies before locking the note.'
+        : matchDayResponseRows.length
+          ? 'No saved reply gaps are blocking send.'
+          : 'Collect player availability before match-day texts tighten.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      label: 'Backup coverage',
+      state: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapNeedsCount} move`
+        : captainBenchReadyCount > 0
+          ? `${captainBenchReadyCount} ready`
+          : 'Review',
+      detail: captainCourtSwapNeedsCount > 0
+        ? 'Handle the exposed court before sending the lineup.'
+        : captainBenchReadyCount > 0
+          ? `${captainBenchPrimaryItem.name} is your first bench call.`
+          : 'Review bench depth before players arrive.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+    },
+  ], [
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainPreSendIssueCount = captainPreSendChecks.filter((item) => item.tone === 'warn').length
+  const captainPreSendReadyCount = captainPreSendChecks.filter((item) => item.tone === 'good').length
+  const captainPreSendPrimaryCheck = captainPreSendChecks.find((item) => item.tone === 'warn') ?? captainPreSendChecks[0]
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -2987,6 +3076,60 @@ function CaptainHubContent() {
             </button>
           )
         })}
+      </div>
+    </section>
+  )
+
+  const captainPreSendReview = (
+    <section style={dynamicCaptainPreSendReviewShell} aria-label="Captain pre-send review">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Pre-send review</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Send with confidence.' : 'Send the lineup after one final check.'}</h2>
+        </div>
+        <span style={captainPreSendIssueCount > 0 ? warnBadge : captainPreSendReadyCount >= 3 ? badgeGreen : badgeBlue}>
+          {captainPreSendIssueCount > 0 ? `${captainPreSendIssueCount} fix` : `${captainPreSendReadyCount}/${captainPreSendChecks.length} ready`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Confirm courts, arrival details, reply gaps, and backup coverage before the team note goes out.
+      </div>
+
+      <div style={captainPreSendHero}>
+        <div>
+          <div style={commandCenterLabel}>Top send check</div>
+          <div style={captainPreSendTitle}>{captainPreSendPrimaryCheck.label}</div>
+          <p style={captainPreSendDetail}>{captainPreSendPrimaryCheck.detail}</p>
+        </div>
+        <span style={captainPreSendPrimaryCheck.tone === 'good' ? badgeGreen : captainPreSendPrimaryCheck.tone === 'warn' ? warnBadge : badgeBlue}>
+          {captainPreSendPrimaryCheck.state}
+        </span>
+      </div>
+
+      <div style={dynamicCaptainPreSendReviewGrid}>
+        {captainPreSendChecks.map((item) => (
+          <article key={item.label} style={captainPreSendCheckCard}>
+            <div style={captainPreSendCheckTop}>
+              <strong>{item.label}</strong>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <span>{item.detail}</span>
+          </article>
+        ))}
+      </div>
+
+      <div style={captainPreSendActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || captainPreSendIssueCount > 0} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+          Send lineup note
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainPreSendPrimaryCheck.href, captainPreSendPrimaryCheck.stage)}>
+          Fix top check
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+          Review courts
+        </SecondarySmallBtn>
       </div>
     </section>
   )
@@ -4063,6 +4206,8 @@ function CaptainHubContent() {
         </section>
 
         {captainMatchDayCommandStripSurface}
+
+        {captainPreSendReview}
 
         {captainCommandCenter}
 
@@ -5809,6 +5954,90 @@ const captainMatchDayCommandDetail: CSSProperties = {
   lineHeight: 1.4,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainPreSendReviewShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.76) 44%, rgba(12,22,38,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainPreSendHero: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreSendTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreSendDetail: CSSProperties = {
+  margin: '7px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreSendReviewGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPreSendCheckCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreSendCheckTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainPreSendActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const commandCenterShell: CSSProperties = {
