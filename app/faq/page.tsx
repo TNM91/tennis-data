@@ -159,9 +159,9 @@ const faqDetailsSummaryStyle: CSSProperties = {
   flexWrap: 'wrap',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 12,
+  gap: 8,
   minWidth: 0,
-  padding: '12px 14px',
+  padding: '9px 11px',
   borderRadius: 8,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -196,9 +196,16 @@ const faqDetailsTitleStyle: CSSProperties = {
 }
 
 const faqDetailsCueStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   flex: '0 1 auto',
+  minHeight: 28,
+  padding: '0 8px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 12%, transparent)',
   color: 'var(--brand-green)',
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 950,
   textAlign: 'right',
   overflowWrap: 'anywhere',
@@ -206,11 +213,11 @@ const faqDetailsCueStyle: CSSProperties = {
 
 const faqDetailsContentStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
-  paddingTop: 10,
+  paddingTop: 8,
   color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.6,
+  fontSize: 13,
+  lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }

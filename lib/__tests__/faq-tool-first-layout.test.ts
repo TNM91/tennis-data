@@ -33,8 +33,11 @@ describe('FAQ tool-first layout', () => {
     expect(faqSource).toContain('className="publicInfoDetailsSection"')
     expect(globalsSource).toContain('.publicInfoDetailsSection:not([open]) > :not(summary)')
     expect(styleBlock(faqSource, 'faqDetailsSummaryStyle')).toContain('borderRadius: 8')
-    expect(styleBlock(faqSource, 'faqDetailsContentStyle')).toContain('fontSize: 14')
-    expect(styleBlock(faqSource, 'faqDetailsContentStyle')).toContain('lineHeight: 1.6')
+    expect(styleBlock(faqSource, 'faqDetailsSummaryStyle')).toContain("padding: '9px 11px'")
+    expect(styleBlock(faqSource, 'faqDetailsCueStyle')).toContain('minHeight: 28')
+    expect(styleBlock(faqSource, 'faqDetailsCueStyle')).toContain('fontSize: 11')
+    expect(styleBlock(faqSource, 'faqDetailsContentStyle')).toContain('fontSize: 13')
+    expect(styleBlock(faqSource, 'faqDetailsContentStyle')).toContain('lineHeight: 1.5')
 
     expect(styleBlock(actionGridSource, 'gridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
     expect(styleBlock(actionGridSource, 'gridStyle')).toContain('gap: 10')
