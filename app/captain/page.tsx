@@ -633,6 +633,7 @@ function CaptainHubContent() {
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
+  const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -2534,6 +2535,53 @@ function CaptainHubContent() {
   const captainPreSendReadyCount = captainPreSendChecks.filter((item) => item.tone === 'good').length
   const captainPreSendPrimaryCheck = captainPreSendChecks.find((item) => item.tone === 'warn') ?? captainPreSendChecks[0]
 
+  const captainQuickCopyLineupRows = useMemo(() => {
+    if (!matchDayLineupRows.length) return ['No saved courts yet']
+
+    return matchDayLineupRows.map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const playerLabel = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+      const slotLabel = safeText(row.slot_type)
+
+      return `${courtLabel}: ${playerLabel}${slotLabel ? ` (${slotLabel})` : ''}`
+    })
+  }, [matchDayLineupRows])
+
+  const captainQuickCopySummary = useMemo(() => {
+    const replyLine = matchDayNotConfirmedCount > 0
+      ? `Replies: ${matchDayNotConfirmedCount} still need a clear answer`
+      : matchDayResponseRows.length
+        ? 'Replies: clear from saved responses'
+        : 'Replies: not collected yet'
+    const backupLine = captainBenchReadyCount > 0
+      ? `Backup: ${captainBenchPrimaryItem.name} - ${captainBenchPrimaryItem.fit}`
+      : 'Backup: review bench coverage'
+    const notesLine = safeText(matchDayEventDetail?.notes)
+
+    return [
+      `Team update: ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+      `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+      'Lineup:',
+      ...captainQuickCopyLineupRows,
+      replyLine,
+      backupLine,
+      notesLine ? `Notes: ${notesLine}` : '',
+    ].filter(Boolean).join('\n')
+  }, [
+    captainBenchPrimaryItem.fit,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainQuickCopyLineupRows,
+    matchDayArrivalLabel,
+    matchDayEventDetail?.notes,
+    matchDayLocationLabel,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainQuickCopyPreviewLines = captainQuickCopySummary.split('\n').slice(0, isMobile ? 5 : 7)
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -3008,6 +3056,22 @@ function CaptainHubContent() {
     }
   }
 
+  async function handleCopyCaptainLineupSummary() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainQuickCopySummary)
+      setCopiedCaptainLineupSummary(true)
+    } catch {
+      setCopiedCaptainLineupSummary(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -3104,6 +3168,31 @@ function CaptainHubContent() {
         <span style={captainPreSendPrimaryCheck.tone === 'good' ? badgeGreen : captainPreSendPrimaryCheck.tone === 'warn' ? warnBadge : badgeBlue}>
           {captainPreSendPrimaryCheck.state}
         </span>
+      </div>
+
+      <div style={captainQuickCopySummaryCard} aria-label="Captain quick-copy lineup summary">
+        <div style={captainQuickCopySummaryHeader}>
+          <div>
+            <div style={commandCenterLabel}>Quick-copy lineup summary</div>
+            <div style={captainQuickCopySummaryTitle}>Copy the team note.</div>
+          </div>
+          <span style={copiedCaptainLineupSummary ? badgeGreen : badgeBlue}>
+            {copiedCaptainLineupSummary ? 'Copied' : `${captainQuickCopyLineupRows.length} line${captainQuickCopyLineupRows.length === 1 ? '' : 's'}`}
+          </span>
+        </div>
+        <div style={captainQuickCopySummaryPreview}>
+          {captainQuickCopyPreviewLines.map((line, index) => (
+            <span key={`${line}-${index}`}>{line}</span>
+          ))}
+        </div>
+        <div style={captainQuickCopySummaryActionRow}>
+          <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainLineupSummary()}>
+            {copiedCaptainLineupSummary ? 'Copied summary' : 'Copy lineup summary'}
+          </PrimarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+            Open Messages
+          </SecondarySmallBtn>
+        </div>
       </div>
 
       <div style={dynamicCaptainPreSendReviewGrid}>
@@ -5998,6 +6087,59 @@ const captainPreSendDetail: CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 800,
   overflowWrap: 'anywhere',
+}
+
+const captainQuickCopySummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.065)',
+  overflowWrap: 'anywhere',
+}
+
+const captainQuickCopySummaryHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainQuickCopySummaryTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainQuickCopySummaryPreview: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainQuickCopySummaryActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const captainPreSendReviewGrid: CSSProperties = {
