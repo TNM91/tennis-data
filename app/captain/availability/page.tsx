@@ -366,7 +366,7 @@ function CaptainAvailabilityContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/availability')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Favailability')
   }, [authResolved, role, router])
 
   useEffect(() => {

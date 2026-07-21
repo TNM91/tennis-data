@@ -8,7 +8,9 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
+import type { MembershipTierId } from '@/lib/product-story'
 import {
   getTiqLeagueById,
   listTiqLeagues,
@@ -722,6 +724,7 @@ function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeag
 type IndividualLeagueResultsWorkspaceProps = {
   activeRoute?: string
   loginNextHref?: string
+  loginPlanId?: MembershipTierId
   resultsHref?: string
 }
 
@@ -736,6 +739,7 @@ export function IndividualLeagueResultsWorkspace(props: IndividualLeagueResultsW
 function IndividualLeagueResultsWorkspaceInner({
   activeRoute = '/league-coordinator',
   loginNextHref = '/league-coordinator/individual-results',
+  loginPlanId = 'league',
   resultsHref = '/league-coordinator/individual-results',
 }: IndividualLeagueResultsWorkspaceProps) {
   const router = useRouter()
@@ -913,9 +917,9 @@ function IndividualLeagueResultsWorkspaceInner({
     if (!authResolved) return
 
     if (!userId) {
-      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
+      router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))
     }
-  }, [authResolved, loginNextHref, router, userId])
+  }, [authResolved, loginNextHref, loginPlanId, router, userId])
 
   const refreshResults = useCallback(async (leagueId: string) => {
     const result = await listTiqIndividualLeagueResults({ leagueId: leagueId || null })

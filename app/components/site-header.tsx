@@ -7,6 +7,7 @@ import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
@@ -189,7 +190,15 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const showMobileAccountPill = Boolean(accountLabel && (firstName || profilePhotoUrl || accountLabel !== roleLabel))
-  const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
+  const signInNextHref = pathname || '/'
+  const signInPlanId = signInNextHref.startsWith('/captain')
+    ? 'captain'
+    : signInNextHref.startsWith('/league-coordinator')
+      ? 'league'
+      : 'free'
+  const signInHref = buildAuthEntryHref('/login', signInPlanId, signInNextHref, true)
+  const joinHref =
+    signInPlanId === 'free' ? '/join' : buildAuthEntryHref('/join', signInPlanId, signInNextHref, true)
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
   const compactMenuId = 'site-header-compact-menu'
   const canOpenPersonalQuest = isPersonalQuestOwner({
@@ -439,7 +448,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 <Link href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Sign in
                 </Link>
-                <Link href="/join" onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
+                <Link href={joinHref} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
                   Start Free
                 </Link>
               </>
@@ -532,7 +541,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
-                    href="/join"
+                    href={joinHref}
                     onClick={() => setMenuOpen(false)}
                     style={{
                       ...mobileItemStyle,

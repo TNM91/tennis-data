@@ -152,7 +152,7 @@ function CaptainWeeklyBriefContent() {
       return
     }
     const next = encodeURIComponent('/captain/weekly-brief')
-    window.location.href = `/login?next=${next}`
+    window.location.href = `/login?plan=captain&next=${next}`
   }, [authResolved, role])
 
   useEffect(() => {

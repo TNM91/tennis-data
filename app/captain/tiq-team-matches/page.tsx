@@ -7,6 +7,7 @@ export default function CaptainTiqTeamMatchesPage() {
     <TeamLeagueResultsWorkspace
       activeRoute="/league-coordinator"
       loginNextHref="/captain/tiq-team-matches"
+      loginPlanId="league"
       resultsHref="/captain/tiq-team-matches"
     />
   )

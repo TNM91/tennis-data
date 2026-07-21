@@ -240,6 +240,7 @@ function UpgradeContent({
   const [requestError, setRequestError] = useState('')
   const [submittedRequest, setSubmittedRequest] = useState<UpgradeRequestRecord | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [requestTakingLonger, setRequestTakingLonger] = useState(false)
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [checkoutSuccessMessage, setCheckoutSuccessMessage] = useState('')
@@ -559,7 +560,11 @@ function UpgradeContent({
     }
 
     setRequestSubmitting(true)
+    setRequestTakingLonger(false)
     setRequestError('')
+    const requestSlowTimer = window.setTimeout(() => {
+      setRequestTakingLonger(true)
+    }, 2500)
 
     const record: UpgradeRequestRecord = {
       id: `${planId}-${Math.round(event.timeStamp)}`,
@@ -617,7 +622,9 @@ function UpgradeContent({
         setRequestError('This browser could not save the request. Open a support thread and we will handle it inside TenAceIQ.')
       }
     } finally {
+      window.clearTimeout(requestSlowTimer)
       setRequestSubmitting(false)
+      setRequestTakingLonger(false)
     }
   }
 
@@ -864,6 +871,7 @@ function UpgradeContent({
               </div>
             ) : (
               <form
+                noValidate
                 style={{
                   ...requestFormStyle,
                   gap: isMobile ? 8 : requestFormStyle.gap,
@@ -881,45 +889,58 @@ function UpgradeContent({
                     Name
                     <input
                       className="tiq-focus-ring"
-                    value={requestName}
-                    onChange={(event) => setRequestName(event.target.value)}
-                    placeholder="Your name"
-                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
-                  />
-                </label>
-                <label style={fieldStyle}>
+                      value={requestName}
+                      onChange={(event) => setRequestName(event.target.value)}
+                      placeholder="Your name"
+                      style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                    />
+                  </label>
+                  <label style={fieldStyle}>
                     Email
                     <input
                       className="tiq-focus-ring"
                       type="email"
-                    value={requestEmail}
-                    onChange={(event) => setRequestEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
-                  />
-                </label>
+                      aria-invalid={requestError.includes('email')}
+                      aria-describedby={requestError ? 'upgrade-request-error' : undefined}
+                      value={requestEmail}
+                      onChange={(event) => setRequestEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                    />
+                  </label>
                 </div>
                 <label style={fieldStyle}>
                   Team, player, or league
                   <input
                     className="tiq-focus-ring"
-                  value={requestOrganization}
-                  onChange={(event) => setRequestOrganization(event.target.value)}
-                  placeholder="Optional"
-                  style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
-                />
-              </label>
+                    value={requestOrganization}
+                    onChange={(event) => setRequestOrganization(event.target.value)}
+                    placeholder="Optional"
+                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                  />
+                </label>
                 <label style={fieldStyle}>
                   Which tennis need do you want help with first?
                   <textarea
                     className="tiq-focus-ring"
+                    aria-invalid={requestError.includes('help with first')}
+                    aria-describedby={requestError ? 'upgrade-request-error' : undefined}
                     value={requestGoal}
                     onChange={(event) => setRequestGoal(event.target.value)}
                     placeholder="Example: compare a lineup, prep for a match, or run league standings."
                     style={{ ...textareaStyle, minHeight: isMobile ? 68 : textareaStyle.minHeight }}
                   />
                 </label>
-                {requestError ? <p style={errorTextStyle}>{requestError}</p> : null}
+                {requestError ? (
+                  <p id="upgrade-request-error" role="alert" aria-live="assertive" style={errorTextStyle}>
+                    {requestError}
+                  </p>
+                ) : null}
+                {requestSubmitting && requestTakingLonger ? (
+                  <p role="status" aria-live="polite" style={successMetaStyle}>
+                    Still saving your Team Hub request. Ask support keeps these details attached if service is spotty.
+                  </p>
+                ) : null}
                 <div style={formActionRowStyle}>
                   <button type="submit" disabled={requestSubmitting} style={submitButtonStyle}>
                     {requestSubmitting ? 'Saving request...' : `Request ${getPlanDestinationLabel(planId)}`}

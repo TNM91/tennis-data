@@ -34,7 +34,7 @@ function CaptainPracticeContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/practice')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Fpractice')
   }, [authResolved, role, router])
 
   if (!authResolved || role === 'public') {

@@ -48,7 +48,7 @@ describe('Teams and Leagues public intros', () => {
     expect(teamsSource).toContain("display: isMobile ? 'none' : undefined")
     expect(teamsSource).toContain("padding: isMobile ? 12 : filtersCard.padding")
     expect(teamsSource).toContain('filtersGrid(isMobile)')
-    expect(teamsSource).toContain('teamStartGridStyle')
+    expect(teamsSource).toContain('const compactIntroCards = isMobile')
     expect(teamsSource).toContain('publicIntroGridStyle(isTinyMobile)')
     expect(teamsSource).toContain("gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'")
     expect(teamsSource).toContain('introMiniCardStyle(compact)')

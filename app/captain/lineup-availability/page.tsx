@@ -216,7 +216,7 @@ function LineupAvailabilityContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/lineup-availability')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Flineup-availability')
   }, [authResolved, role, router])
 
   useEffect(() => {

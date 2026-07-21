@@ -8,7 +8,21 @@ const joinSource = readFileSync(join(process.cwd(), 'app/join/page.tsx'), 'utf8'
 const loginSource = readFileSync(join(process.cwd(), 'app/login/page.tsx'), 'utf8')
 const forgotPasswordSource = readFileSync(join(process.cwd(), 'app/forget-password/page.tsx'), 'utf8')
 const resetPasswordSource = readFileSync(join(process.cwd(), 'app/reset-password/page.tsx'), 'utf8')
+const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
 const intentSource = readFileSync(join(process.cwd(), 'lib/auth-entry-next-intent.ts'), 'utf8')
+const captainRouteSources = [
+  'app/captain/page.tsx',
+  'app/captain/availability/page.tsx',
+  'app/captain/lineup-availability/page.tsx',
+  'app/captain/lineup-builder/page.tsx',
+  'app/captain/lineup-projection/page.tsx',
+  'app/captain/messaging/page.tsx',
+  'app/captain/practice/page.tsx',
+  'app/captain/scenario-builder/page.tsx',
+  'app/captain/analytics/page.tsx',
+  'app/captain/team-brief/page.tsx',
+  'app/captain/weekly-brief/page.tsx',
+].map((file) => readFileSync(join(process.cwd(), file), 'utf8')).join('\n')
 
 describe('auth entry next intent', () => {
   it('recognizes the Improve starter tactic board through the upgrade handoff', () => {
@@ -63,6 +77,27 @@ describe('auth entry next intent', () => {
     expect(loginSource).toContain("buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)")
     expect(loginSource).toContain('href={createAccountHref}')
     expect(loginSource).not.toContain("href={selectedPlanId === 'free' ? '/join' : `/join?plan=${selectedPlanId}`}")
+  })
+
+  it('keeps protected Captain routes on the Team Hub login path', () => {
+    expect(captainRouteSources).toContain('/login?plan=captain&next=%2Fcaptain')
+    expect(captainRouteSources).toContain('/login?plan=captain&next=%2Fcaptain%2Favailability')
+    expect(captainRouteSources).toContain('/login?plan=captain&next=%2Fcaptain%2Flineup-builder')
+    expect(captainRouteSources).toContain('/login?plan=captain&next=${next}')
+    expect(captainRouteSources).not.toContain('/login?next=/captain')
+    expect(captainRouteSources).not.toContain('/login?next=${next}')
+  })
+
+  it('keeps shared header sign-in intent aligned with Captain and League Office paths', () => {
+    expect(siteHeaderSource).toContain("import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'")
+    expect(siteHeaderSource).toContain("const signInNextHref = pathname || '/'")
+    expect(siteHeaderSource).toContain("signInNextHref.startsWith('/captain')")
+    expect(siteHeaderSource).toContain("signInNextHref.startsWith('/league-coordinator')")
+    expect(siteHeaderSource).toContain("const signInHref = buildAuthEntryHref('/login', signInPlanId, signInNextHref, true)")
+    expect(siteHeaderSource).toContain("signInPlanId === 'free' ? '/join' : buildAuthEntryHref('/join', signInPlanId, signInNextHref, true)")
+    expect(siteHeaderSource).toContain('href={joinHref}')
+    expect(siteHeaderSource).not.toContain('const signInHref = `/login?next=${encodeURIComponent(pathname || \'/\')}`')
+    expect(siteHeaderSource).not.toContain('href="/join"')
   })
 
   it('builds safe auth entry hrefs with plan and next when requested', () => {

@@ -333,7 +333,7 @@ function CaptainAnalyticsContent() {
     }
 
     const next = encodeURIComponent('/captain/analytics')
-    window.location.href = `/login?next=${next}`
+    window.location.href = `/login?plan=captain&next=${next}`
   }, [authResolved, role])
 
   useEffect(() => {

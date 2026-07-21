@@ -386,7 +386,7 @@ function ScenarioComparisonContent() {
     if (!authResolved || role !== 'public') {
       return
     }
-    router.replace('/login?next=/captain/scenario-builder')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Fscenario-builder')
   }, [authResolved, role, router])
 
   useEffect(() => {

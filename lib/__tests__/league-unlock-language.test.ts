@@ -10,6 +10,9 @@ const tiqLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leag
 const productStorySource = readFileSync(join(process.cwd(), 'lib/product-story.ts'), 'utf8')
 const leagueLayoutSource = readFileSync(join(process.cwd(), 'app/league-coordinator/layout.tsx'), 'utf8')
 const seasonDashboardLayoutSource = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/layout.tsx'), 'utf8')
+const captainTeamMatchesSource = readFileSync(join(process.cwd(), 'app/captain/tiq-team-matches/page.tsx'), 'utf8')
+const leagueResultsRouteSource = readFileSync(join(process.cwd(), 'app/league-coordinator/results/page.tsx'), 'utf8')
+const individualResultsRouteSource = readFileSync(join(process.cwd(), 'app/league-coordinator/individual-results/page.tsx'), 'utf8')
 
 describe('League unlock language', () => {
   it('uses the visible League mode for locked tool CTAs and state labels', () => {
@@ -91,5 +94,19 @@ describe('League unlock language', () => {
       expect(source).not.toContain('League Coordinator | TenAceIQ')
       expect(source).not.toContain('Use TIQ League Coordinator')
     }
+  })
+
+  it('keeps result-entry login handoffs on the League Office path', () => {
+    for (const source of [teamResultsSource, individualResultsSource]) {
+      expect(source).toContain("import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'")
+      expect(source).toContain("loginPlanId = 'league'")
+      expect(source).toContain("router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))")
+      expect(source).not.toContain('router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)')
+    }
+
+    expect(captainTeamMatchesSource).toContain('loginNextHref="/captain/tiq-team-matches"')
+    expect(captainTeamMatchesSource).toContain('loginPlanId="league"')
+    expect(leagueResultsRouteSource).toContain('loginPlanId="league"')
+    expect(individualResultsRouteSource).toContain('loginPlanId="league"')
   })
 })

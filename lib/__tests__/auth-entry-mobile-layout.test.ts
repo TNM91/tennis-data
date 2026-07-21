@@ -250,6 +250,7 @@ describe('auth entry mobile layout guards', () => {
     expect(formIndex).toBeGreaterThanOrEqual(0)
     expect(selectedPlanIndex).toBeGreaterThanOrEqual(0)
     expect(formIndex).toBeLessThan(selectedPlanIndex)
+    expect(source).toContain('<form onSubmit={handleSubmit} noValidate')
     expect(source).toContain('className="authOptionalDetailsBody"')
     expect(sources.get('app/globals.css')!).toContain(
       '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',

@@ -559,7 +559,7 @@ function CaptainMessagingContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/messaging')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Fmessaging')
   }, [authResolved, role, router])
 
   useEffect(() => {

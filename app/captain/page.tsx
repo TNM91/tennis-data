@@ -769,7 +769,7 @@ function CaptainHubContent() {
       return
     }
 
-    router.replace('/login?next=/captain')
+    router.replace('/login?plan=captain&next=%2Fcaptain')
   }, [authResolved, role, router])
 
   useEffect(() => {
