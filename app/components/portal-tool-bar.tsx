@@ -1368,8 +1368,7 @@ const mobilePortalPaletteStyle: CSSProperties = {
   overflowX: 'auto',
   overflowY: 'hidden',
   paddingBottom: 8,
-  scrollbarWidth: 'thin',
-  scrollbarColor: 'rgba(155,225,29,0.72) rgba(116,190,255,0.12)',
+  scrollbarWidth: 'none',
   WebkitOverflowScrolling: 'touch',
   scrollSnapType: 'x proximity',
 }

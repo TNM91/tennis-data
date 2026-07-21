@@ -334,22 +334,15 @@ footer {
 }
 
 [data-mobile-portal-palette] {
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
 }
 
 [data-mobile-portal-palette]::-webkit-scrollbar {
-  height: 7px;
-}
-
-[data-mobile-portal-palette]::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(116, 190, 255, 0.1), rgba(155, 225, 29, 0.08));
-}
-
-[data-mobile-portal-palette]::-webkit-scrollbar-thumb {
-  border: 2px solid rgba(7, 13, 27, 0.96);
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(155, 225, 29, 0.92), rgba(116, 190, 255, 0.78));
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .brand-atmosphere-mark {
@@ -1476,15 +1469,15 @@ hr {
 
 @media (max-width: 767px) {
   .tournamentDiscoveryCard {
-    min-height: 66px !important;
+    min-height: 54px !important;
+    padding: 8px !important;
   }
 
   .tournamentDiscoveryTitle {
-    font-size: 15px !important;
+    font-size: 14px !important;
     line-height: 1.12 !important;
   }
 
-  .tournamentDiscoveryLabel,
   .tournamentDiscoveryCta {
     font-size: 11px !important;
     line-height: 1.15 !important;
@@ -1498,7 +1491,7 @@ hr {
   }
 
   .tournamentDetailsSection > summary {
-    padding: 9px 10px !important;
+    padding: 8px 10px !important;
   }
 
   .tournamentDetailsSection > summary strong {
@@ -1642,26 +1635,35 @@ hr {
 @media (max-width: 767px) {
   .organizerQuickPath {
     grid-template-columns: minmax(0, 1fr) !important;
-    gap: 8px !important;
-    padding: 10px !important;
+    gap: 7px !important;
+    padding: 9px !important;
   }
 
   .organizerQuickPathHeader {
-    gap: 4px !important;
+    gap: 3px !important;
+  }
+
+  .organizerQuickPathHeader > p {
+    display: none !important;
+  }
+
+  .organizerQuickPathHeader > h2 {
+    font-size: 19px !important;
+    line-height: 1.04 !important;
   }
 
   .organizerQuickPathGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
+    gap: 7px !important;
   }
 
   .organizerQuickPathCard {
-    min-height: 54px !important;
-    padding: 9px !important;
+    min-height: 50px !important;
+    padding: 8px !important;
   }
 
   .organizerQuickPathQuestion {
-    font-size: 13px !important;
+    font-size: 12px !important;
     line-height: 1.18 !important;
   }
 
@@ -1677,7 +1679,7 @@ hr {
   }
 
   .organizerDetailsSection > summary {
-    padding: 9px 10px !important;
+    padding: 8px 10px !important;
   }
 
   .organizerDetailsSection > summary strong {
@@ -1778,16 +1780,21 @@ hr {
 @media (max-width: 767px) {
   .resourceNeedPath {
     grid-template-columns: minmax(0, 1fr) !important;
-    gap: 8px !important;
-    padding: 10px !important;
+    gap: 7px !important;
+    padding: 9px !important;
   }
 
   .resourceNeedPathCard {
-    min-height: 56px !important;
+    min-height: 50px !important;
+    padding: 8px !important;
+  }
+
+  .resourceNeedPathQuestion {
+    font-size: 12px !important;
   }
 
   .resourceDetailsSummary {
-    padding: 9px 10px !important;
+    padding: 8px 10px !important;
   }
 
   .resourceDetailsSummaryTitle {
