@@ -380,6 +380,13 @@ type CaptainSeasonLaunchItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainOpponentScoutItem = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1430,6 +1437,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchGrid.gridTemplateColumns,
   }
 
+  const dynamicOpponentScoutShell: CSSProperties = {
+    ...opponentScoutShell,
+    gap: isMobile ? 12 : opponentScoutShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : opponentScoutShell.padding,
+    borderRadius: isMobile ? 20 : opponentScoutShell.borderRadius,
+  }
+
+  const dynamicOpponentScoutGrid: CSSProperties = {
+    ...opponentScoutGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : opponentScoutGrid.gridTemplateColumns,
+  }
+
   const dynamicPostMatchCloseoutShell: CSSProperties = {
     ...postMatchCloseoutShell,
     gap: isMobile ? 12 : postMatchCloseoutShell.gap,
@@ -2091,6 +2110,52 @@ function CaptainHubContent() {
   ])
   const captainSeasonLaunchReadyCount = captainSeasonLaunchItems.filter((item) => item.tone === 'good').length
 
+  const opponentScoutNoteReady = opponentScoutNotes.trim().length > 0
+  const opponentScoutHomeAwayLabel = nextMatch ? (nextMatch.home ? 'Home' : 'Away') : 'Venue TBD'
+  const opponentScoutChecks = useMemo<CaptainOpponentScoutItem[]>(() => [
+    {
+      label: 'Opponent',
+      state: weekAtGlance.opponentLabel === 'Opponent not set' ? 'Needs opponent' : weekAtGlance.opponentLabel,
+      detail: weekAtGlance.opponentLabel === 'Opponent not set'
+        ? 'Add schedule context before making the matchup call.'
+        : `Scout ${weekAtGlance.opponentLabel} before you lock court order.`,
+      tone: weekAtGlance.opponentLabel === 'Opponent not set' ? 'warn' : 'good',
+    },
+    {
+      label: 'Venue',
+      state: opponentScoutHomeAwayLabel,
+      detail: nextMatch?.facility
+        ? `${nextMatch.facility}${nextMatch.time ? ` - ${nextMatch.time}` : ''}`
+        : 'Add site and time so the team note has the match-day details.',
+      tone: nextMatch?.facility || nextMatch?.time ? 'good' : 'info',
+    },
+    {
+      label: 'Notes',
+      state: opponentScoutNoteReady ? 'Saved' : 'Add notes',
+      detail: opponentScoutNoteReady
+        ? 'Opponent notes are ready for the weekly brief.'
+        : 'Capture tendencies, likely pairings, and matchup traps before lineup work.',
+      tone: opponentScoutNoteReady ? 'good' : 'info',
+    },
+    {
+      label: 'Pairing read',
+      state: pairings.length > 0 ? `${pairings.length} pairs` : 'Needs evidence',
+      detail: pairings.length > 0
+        ? `Best saved pair win rate: ${quickStats.topPairWinPct}.`
+        : 'Upload scorecards or review match history before choosing doubles pairs.',
+      tone: pairings.length > 0 ? 'good' : 'warn',
+    },
+  ], [
+    nextMatch?.facility,
+    nextMatch?.time,
+    opponentScoutHomeAwayLabel,
+    opponentScoutNoteReady,
+    pairings.length,
+    quickStats.topPairWinPct,
+    weekAtGlance.opponentLabel,
+  ])
+  const opponentScoutReadyCount = opponentScoutChecks.filter((item) => item.tone === 'good').length
+
   const captainCommandSnapshots = [
     {
       label: 'Match',
@@ -2643,6 +2708,80 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainOpponentScoutPocket = (
+    <section style={dynamicOpponentScoutShell} aria-label="Captain opponent scout pocket">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Opponent scout pocket</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Know the other side.' : 'Know the other side before you set courts.'}</h2>
+        </div>
+        <span style={opponentScoutReadyCount >= 3 ? badgeGreen : opponentScoutReadyCount >= 2 ? badgeBlue : warnBadge}>
+          {opponentScoutReadyCount}/{opponentScoutChecks.length} ready
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Keep opponent, venue, scout notes, and pairing evidence close before the lineup decision gets rushed.
+      </div>
+
+      <div style={dynamicOpponentScoutGrid}>
+        <div style={opponentScoutMain}>
+          <div style={opponentScoutHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Next opponent</div>
+              <div style={opponentScoutTitle}>{weekAtGlance.opponentLabel}</div>
+            </div>
+            <span style={nextMatch?.home ? badgeGreen : nextMatch ? badgeBlue : warnBadge}>
+              {opponentScoutHomeAwayLabel}
+            </span>
+          </div>
+          <div style={opponentScoutMetaGrid}>
+            <div style={opponentScoutMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Date</span>
+              <strong style={commandCenterSnapshotValue}>{weekAtGlance.eventDateLabel}</strong>
+            </div>
+            <div style={opponentScoutMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Site</span>
+              <strong style={commandCenterSnapshotValue}>{nextMatch?.facility || matchDayLocationLabel}</strong>
+            </div>
+          </div>
+          <div style={opponentScoutNoteCard}>
+            <span style={commandCenterLabel}>Scout note</span>
+            <span>{opponentScoutNoteReady ? opponentScoutNotes.trim().slice(0, 180) : 'Add patterns to exploit, likely pairings, pressure points, or court tendencies before you build the lineup.'}</span>
+          </div>
+        </div>
+
+        <div style={opponentScoutChecklist}>
+          <div style={commandCenterLabel}>Scout checks</div>
+          <div style={opponentScoutList}>
+            {opponentScoutChecks.map((item) => (
+              <div key={item.label} style={opponentScoutItem}>
+                <div style={opponentScoutItemTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={opponentScoutActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(teamBriefHref, 'brief')}>
+          Open scout brief
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupProjectionHref, 'projection')}>
+          Check pairings
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>
+          Review patterns
+        </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -2880,6 +3019,8 @@ function CaptainHubContent() {
         {captainCommandCenter}
 
         {captainSeasonLaunchChecklist}
+
+        {captainOpponentScoutPocket}
 
         {captainMatchDaySheet}
 
@@ -4758,6 +4899,138 @@ const seasonLaunchCardDetail: CSSProperties = {
 }
 
 const seasonLaunchActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const opponentScoutShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.08), rgba(8,13,28,0.76) 44%, rgba(23,32,51,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+  minWidth: 0,
+}
+
+const opponentScoutGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 310px), 0.88fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const opponentScoutMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const opponentScoutTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const opponentScoutMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutNoteCard: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutChecklist: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutList: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const opponentScoutItem: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const opponentScoutItemTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const opponentScoutActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,

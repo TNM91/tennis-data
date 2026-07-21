@@ -169,6 +169,15 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Season tools')
     expect(source).toContain('captainSeasonLaunchItems')
     expect(source).toContain('captainSeasonLaunchReadyCount')
+    expect(source).toContain('Captain opponent scout pocket')
+    expect(source).toContain('Opponent scout pocket')
+    expect(source).toContain('Know the other side.')
+    expect(source).toContain('Know the other side before you set courts.')
+    expect(source).toContain('Scout checks')
+    expect(source).toContain('Open scout brief')
+    expect(source).toContain('Review patterns')
+    expect(source).toContain('opponentScoutChecks')
+    expect(source).toContain('opponentScoutReadyCount')
     expect(source).toContain('Captain match day sheet')
     expect(source).toContain('Match day sheet')
     expect(source).toContain('Carry the court plan.')
@@ -208,6 +217,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainSeasonLaunchChecklist}'),
     )
     expect(source.indexOf('{captainSeasonLaunchChecklist}')).toBeLessThan(
+      source.indexOf('{captainOpponentScoutPocket}'),
+    )
+    expect(source.indexOf('{captainOpponentScoutPocket}')).toBeLessThan(
       source.indexOf('{captainMatchDaySheet}'),
     )
     expect(source.indexOf('<section style={dynamicMatchDaySheetShell} aria-label="Captain match day sheet">')).toBeLessThan(
@@ -239,6 +251,21 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('seasonLaunchCardTop')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('seasonLaunchCardDetail')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('seasonLaunchActionRow')).toContain("flexWrap: 'wrap'")
+    expect(source).toContain('const dynamicOpponentScoutShell: CSSProperties')
+    expect(source).toContain('const dynamicOpponentScoutGrid: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : opponentScoutGrid.gridTemplateColumns")
+    expect(styleBlock('opponentScoutShell')).toContain('minWidth: 0')
+    expect(styleBlock('opponentScoutGrid')).toContain('minmax(min(100%, 310px), 0.88fr)')
+    expect(styleBlock('opponentScoutMain')).toContain('minWidth: 0')
+    expect(styleBlock('opponentScoutHeroTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('opponentScoutTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('opponentScoutMetaGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('opponentScoutMetaCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('opponentScoutNoteCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('opponentScoutChecklist')).toContain('minWidth: 0')
+    expect(styleBlock('opponentScoutItem')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('opponentScoutItemTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('opponentScoutActionRow')).toContain("flexWrap: 'wrap'")
     expect(source).toContain('const dynamicMatchDaySheetShell: CSSProperties')
     expect(source).toContain('const dynamicMatchDaySheetGrid: CSSProperties')
     expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : matchDaySheetGrid.gridTemplateColumns")
