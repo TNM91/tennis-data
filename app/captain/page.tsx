@@ -419,6 +419,7 @@ const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY = 'tenaceiq_captain_message_contacts'
+const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -451,6 +452,16 @@ type CaptainMessageContact = {
   phone?: string
   is_active?: boolean
   opt_in_text?: boolean
+}
+
+type CaptainDecisionLogEntry = {
+  id?: string
+  event_key?: string
+  label?: string
+  detail?: string
+  action?: string
+  tone?: 'good' | 'warn' | 'info'
+  created_at?: string
 }
 
 type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
@@ -691,6 +702,7 @@ function CaptainHubContent() {
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
+  const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1658,6 +1670,18 @@ function CaptainHubContent() {
   const dynamicCaptainSendQueueGrid: CSSProperties = {
     ...captainSendQueueGrid,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainSendQueueGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainDecisionLogShell: CSSProperties = {
+    ...captainDecisionLogShell,
+    gap: isMobile ? 12 : captainDecisionLogShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainDecisionLogShell.padding,
+    borderRadius: isMobile ? 20 : captainDecisionLogShell.borderRadius,
+  }
+
+  const dynamicCaptainDecisionLogGrid: CSSProperties = {
+    ...captainDecisionLogGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainDecisionLogGrid.gridTemplateColumns,
   }
 
   const dynamicCaptainPreSendReviewShell: CSSProperties = {
@@ -2993,6 +3017,26 @@ function CaptainHubContent() {
   const captainSendQueueReadyCount = captainSendQueueItems.filter((item) => item.tone === 'good').length
   const captainSendQueueActionCount = captainSendQueueItems.filter((item) => item.tone === 'warn').length
   const captainSendQueuePrimaryItem = captainSendQueueItems.find((item) => item.tone === 'warn') ?? captainSendQueueItems[0]
+  const captainDecisionLogEntries = useMemo<CaptainDecisionLogEntry[]>(() => {
+    if (!workspaceState.currentEventKey) return []
+    if (captainDecisionLogVersion < 0) return []
+
+    return readLocalArray<CaptainDecisionLogEntry>(CAPTAIN_DECISION_LOG_STORAGE_KEY)
+      .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+      .sort((a, b) => safeText(b.created_at).localeCompare(safeText(a.created_at)))
+      .slice(0, isMobile ? 4 : 6)
+  }, [captainDecisionLogVersion, isMobile, workspaceState.currentEventKey])
+  const captainDecisionLogPrimaryEntry = captainDecisionLogEntries[0] ?? {
+    id: 'decision-log-empty',
+    label: 'No decisions logged',
+    detail: 'Copy a note, mark sent, chase replies, or log a lineup call to start the trail.',
+    action: 'Start log',
+    tone: 'info' as const,
+    created_at: '',
+  }
+  const captainDecisionLogStatus = captainDecisionLogEntries.length
+    ? `${captainDecisionLogEntries.length} saved`
+    : 'Start log'
 
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
@@ -3452,6 +3496,68 @@ function CaptainHubContent() {
     router.push(href)
   }
 
+  function appendCaptainDecisionLog(entry: Omit<CaptainDecisionLogEntry, 'id' | 'event_key' | 'created_at'>) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainDecisionLogEntry>(CAPTAIN_DECISION_LOG_STORAGE_KEY)
+    const nextEntry: CaptainDecisionLogEntry = {
+      ...entry,
+      id: `captain-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      event_key: workspaceState.currentEventKey,
+      created_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((row) => safeText(row.id) !== safeText(nextEntry.id)),
+    ].slice(0, 80)
+
+    window.localStorage.setItem(CAPTAIN_DECISION_LOG_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainDecisionLogVersion((value) => value + 1)
+  }
+
+  function handleLogCaptainDecision(kind: 'lineup' | 'reply' | 'backup') {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (kind === 'lineup') {
+      appendCaptainDecisionLog({
+        label: 'Lineup call',
+        detail: workspaceState.lineupReady
+          ? `${workspaceState.lineupCount} courts saved for ${weekAtGlance.eventDateLabel}.`
+          : 'Lineup still needs a saved court plan.',
+        action: workspaceState.lineupReady ? 'Courts reviewed' : 'Build lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+      })
+      return
+    }
+
+    if (kind === 'reply') {
+      appendCaptainDecisionLog({
+        label: 'Reply chase',
+        detail: matchDayNotConfirmedCount > 0
+          ? `${matchDayNotConfirmedCount} open replies still need attention.`
+          : 'No open reply chase is saved right now.',
+        action: matchDayNotConfirmedCount > 0 ? 'Chase replies' : 'Replies clear',
+        tone: matchDayNotConfirmedCount > 0 ? 'warn' : 'good',
+      })
+      return
+    }
+
+    appendCaptainDecisionLog({
+      label: 'Backup call',
+      detail: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapPrimaryItem.inPlayer} is the cover option for ${captainCourtSwapPrimaryItem.courtLabel}.`
+        : captainBenchReadyCount > 0
+          ? `${captainBenchPrimaryItem.name} is the first bench read.`
+          : 'Backup coverage still needs review.',
+      action: captainCourtSwapNeedsCount > 0 ? 'Cover needed' : captainBenchReadyCount > 0 ? 'Bench ready' : 'Review bench',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+    })
+  }
+
   async function handleCopyCaptainNudge(draft: CaptainNudgeDraft) {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
@@ -3479,6 +3585,12 @@ function CaptainHubContent() {
     try {
       await navigator.clipboard.writeText(captainQuickCopySummary)
       setCopiedCaptainLineupSummary(true)
+      appendCaptainDecisionLog({
+        label: 'Lineup note copied',
+        detail: `${captainQuickCopyLineupRows.length} lineup line${captainQuickCopyLineupRows.length === 1 ? '' : 's'} copied for the team note.`,
+        action: 'Copy lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+      })
     } catch {
       setCopiedCaptainLineupSummary(false)
     }
@@ -3495,6 +3607,12 @@ function CaptainHubContent() {
     try {
       await navigator.clipboard.writeText(template.body)
       setCopiedCaptainReplyReminderId(template.id)
+      appendCaptainDecisionLog({
+        label: 'Reply reminder copied',
+        detail: template.detail,
+        action: template.label,
+        tone: template.tone,
+      })
     } catch {
       setCopiedCaptainReplyReminderId('')
     }
@@ -3511,6 +3629,12 @@ function CaptainHubContent() {
     try {
       await navigator.clipboard.writeText(item.body)
       setCopiedCaptainSendQueueId(item.id)
+      appendCaptainDecisionLog({
+        label: `${item.label} copied`,
+        detail: item.detail,
+        action: item.state,
+        tone: item.tone,
+      })
     } catch {
       setCopiedCaptainSendQueueId('')
     }
@@ -3519,6 +3643,16 @@ function CaptainHubContent() {
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
+    appendCaptainDecisionLog({
+      label: 'Week status changed',
+      detail: nextStatus === 'ready-to-send'
+        ? 'Lineup note marked ready or sent.'
+        : nextStatus === 'finalized'
+          ? 'Match week marked finalized.'
+          : 'Match week moved back to draft.',
+      action: nextStatus === 'draft-lineup' ? 'Draft lineup' : nextStatus === 'ready-to-send' ? 'Ready to send' : 'Finalized',
+      tone: nextStatus === 'draft-lineup' ? 'info' : 'good',
+    })
   }
 
   if (!authResolved) {
@@ -3725,6 +3859,75 @@ function CaptainHubContent() {
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  )
+
+  const captainDecisionLog = (
+    <section style={dynamicCaptainDecisionLogShell} aria-label="Captain decision log">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Decision log</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Track the calls.' : 'Keep the captain trail clear.'}</h2>
+        </div>
+        <span style={captainDecisionLogEntries.length ? badgeGreen : badgeBlue}>
+          {captainDecisionLogStatus}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Save lineup calls, sent notes, reply chases, and backup decisions so match-day context stays easy to retrace.
+      </div>
+
+      <div style={dynamicCaptainDecisionLogGrid}>
+        <div style={captainDecisionLogHero}>
+          <div style={captainDecisionLogHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Latest call</div>
+              <div style={captainDecisionLogTitle}>{safeText(captainDecisionLogPrimaryEntry.label, 'Decision log')}</div>
+            </div>
+            <span style={captainDecisionLogPrimaryEntry.tone === 'good' ? badgeGreen : captainDecisionLogPrimaryEntry.tone === 'warn' ? warnBadge : badgeBlue}>
+              {safeText(captainDecisionLogPrimaryEntry.action, 'Open')}
+            </span>
+          </div>
+          <p style={captainDecisionLogDetail}>{safeText(captainDecisionLogPrimaryEntry.detail, 'No saved captain decisions for this event yet.')}</p>
+          <div style={captainDecisionLogActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleLogCaptainDecision('lineup')}>
+              Log lineup call
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleLogCaptainDecision('reply')}>
+              Log reply chase
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleLogCaptainDecision('backup')}>
+              Log backup call
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainDecisionLogPanel}>
+          <div style={captainDecisionLogList}>
+            {captainDecisionLogEntries.length ? captainDecisionLogEntries.map((entry) => (
+              <article key={entry.id || `${entry.label}-${entry.created_at}`} style={captainDecisionLogEntryCard}>
+                <div style={captainDecisionLogEntryTop}>
+                  <strong>{safeText(entry.label, 'Captain call')}</strong>
+                  <span style={entry.tone === 'good' ? badgeGreen : entry.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {formatDateTimeShort(entry.created_at || '') || 'Saved'}
+                  </span>
+                </div>
+                <span>{safeText(entry.detail, 'Decision saved for this match week.')}</span>
+                <small>{safeText(entry.action, 'Captain action')}</small>
+              </article>
+            )) : (
+              <article style={captainDecisionLogEntryCard}>
+                <div style={captainDecisionLogEntryTop}>
+                  <strong>No saved calls yet</strong>
+                  <span style={badgeBlue}>Ready</span>
+                </div>
+                <span>Use quick-log buttons or copy send queue notes to build the trail.</span>
+                <small>{weekAtGlance.eventDateLabel}</small>
+              </article>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -4997,6 +5200,8 @@ function CaptainHubContent() {
         {captainMorningBrief}
 
         {captainSendQueue}
+
+        {captainDecisionLog}
 
         {captainPreSendReview}
 
@@ -7013,6 +7218,111 @@ const captainSendQueueActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 9,
   minWidth: 0,
+}
+
+const captainDecisionLogShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(8,13,28,0.80) 44%, rgba(21,28,44,0.88))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainDecisionLogGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.82fr) minmax(min(100%, 360px), 1.18fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainDecisionLogHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionLogHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDecisionLogTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionLogDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionLogActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainDecisionLogPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainDecisionLogList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainDecisionLogEntryCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionLogEntryTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
 }
 
 const captainPreSendReviewShell: CSSProperties = {
