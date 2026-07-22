@@ -427,6 +427,7 @@ const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY = 'tenaceiq_captain_message_contacts'
 const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
+const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -469,6 +470,18 @@ type CaptainDecisionLogEntry = {
   action?: string
   tone?: 'good' | 'warn' | 'info'
   created_at?: string
+}
+
+type CaptainScoreCaptureStatus = 'pending' | 'score-captured' | 'issue' | 'complete'
+
+type CaptainScoreCaptureEntry = {
+  id?: string
+  event_key?: string
+  court_key?: string
+  court_label?: string
+  players?: string
+  status?: CaptainScoreCaptureStatus
+  updated_at?: string
 }
 
 type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
@@ -711,6 +724,7 @@ function CaptainHubContent() {
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
+  const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1776,6 +1790,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : postMatchCloseoutGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainScoreCaptureShell: CSSProperties = {
+    ...captainScoreCaptureShell,
+    gap: isMobile ? 12 : captainScoreCaptureShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainScoreCaptureShell.padding,
+    borderRadius: isMobile ? 20 : captainScoreCaptureShell.borderRadius,
+  }
+
+  const dynamicCaptainScoreCaptureGrid: CSSProperties = {
+    ...captainScoreCaptureGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainScoreCaptureGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainDecisionPathShell: CSSProperties = {
     ...captainDecisionPathShellStyle,
     gap: isMobile ? 10 : captainDecisionPathShellStyle.gap,
@@ -2312,6 +2338,61 @@ function CaptainHubContent() {
   const captainNudgeReadyCount = captainNudgeDrafts.filter((item) => item.tone === 'good' || item.tone === 'warn').length
 
   const postMatchCloseoutRows = matchDayLineupRows.slice(0, isMobile ? 2 : 3)
+  const captainScoreCaptureSaved = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainScoreCaptureEntry>()
+    if (captainScoreCaptureVersion < 0) return new Map<string, CaptainScoreCaptureEntry>()
+
+    return new Map(
+      readLocalArray<CaptainScoreCaptureEntry>(CAPTAIN_SCORE_CAPTURE_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.court_key), entry] as const)
+        .filter(([courtKey]) => Boolean(courtKey)),
+    )
+  }, [captainScoreCaptureVersion, workspaceState.currentEventKey])
+  const captainScoreCaptureRows = useMemo(() => (
+    matchDayLineupRows.map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+      const playerLabel = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+      const saved = captainScoreCaptureSaved.get(courtKey)
+      const status = saved?.status || 'pending'
+      const statusLabel = status === 'complete'
+        ? 'Complete'
+        : status === 'score-captured'
+          ? 'Score captured'
+          : status === 'issue'
+            ? 'Issue noted'
+            : 'Needs score'
+
+      return {
+        row,
+        index,
+        courtKey,
+        courtLabel,
+        playerLabel,
+        status,
+        statusLabel,
+        updatedLabel: formatDateTimeShort(saved?.updated_at || ''),
+        tone: status === 'issue' ? 'warn' as const : status === 'pending' ? 'info' as const : 'good' as const,
+      }
+    })
+  ), [captainScoreCaptureSaved, matchDayLineupRows])
+  const captainScoreCaptureCompleteCount = captainScoreCaptureRows.filter((row) => row.status === 'complete').length
+  const captainScoreCaptureIssueCount = captainScoreCaptureRows.filter((row) => row.status === 'issue').length
+  const captainScoreCapturePendingCount = captainScoreCaptureRows.filter((row) => row.status === 'pending').length
+  const captainScoreCaptureLoggedCount = captainScoreCaptureRows.filter((row) => row.status === 'score-captured' || row.status === 'complete').length
+  const captainScoreCapturePrimaryRow = captainScoreCaptureRows.find((row) => row.status === 'issue')
+    ?? captainScoreCaptureRows.find((row) => row.status === 'pending')
+    ?? captainScoreCaptureRows[0]
+  const captainScoreCaptureStatusLabel = captainScoreCaptureRows.length
+    ? captainScoreCaptureIssueCount > 0
+      ? `${captainScoreCaptureIssueCount} issue`
+      : captainScoreCapturePendingCount > 0
+        ? `${captainScoreCapturePendingCount} open`
+        : captainScoreCaptureCompleteCount === captainScoreCaptureRows.length
+          ? 'Complete'
+          : 'Captured'
+    : 'Needs courts'
   const postMatchUploadedState = selectedFromCaptainScope ? 'Refresh data' : 'Upload needed'
   const postMatchClosed = weekStatus === 'finalized'
   const captainWeekTimelineItems = useMemo<CaptainWeekTimelineItem[]>(() => [
@@ -3682,6 +3763,53 @@ function CaptainHubContent() {
     })
   }
 
+  function handleCaptainScoreCapture(row: CaptainLineupAssignment, index: number, status: CaptainScoreCaptureStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+    const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+    const playerLabel = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+    const now = new Date().toISOString()
+    const statusLabel = status === 'complete'
+      ? 'Complete'
+      : status === 'score-captured'
+        ? 'Score captured'
+        : status === 'issue'
+          ? 'Issue noted'
+          : 'Needs score'
+    const rows = readLocalArray<CaptainScoreCaptureEntry>(CAPTAIN_SCORE_CAPTURE_STORAGE_KEY)
+    const nextEntry: CaptainScoreCaptureEntry = {
+      id: `captain-score-${workspaceState.currentEventKey}-${courtKey}`,
+      event_key: workspaceState.currentEventKey,
+      court_key: courtKey,
+      court_label: courtLabel,
+      players: playerLabel,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.court_key) === courtKey
+      )),
+    ].slice(0, 120)
+
+    window.localStorage.setItem(CAPTAIN_SCORE_CAPTURE_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainScoreCaptureVersion((value) => value + 1)
+    appendCaptainDecisionLog({
+      label: 'Score capture updated',
+      detail: `${courtLabel}: ${statusLabel.toLowerCase()} for ${playerLabel}.`,
+      action: statusLabel,
+      tone: status === 'issue' ? 'warn' : status === 'pending' ? 'info' : 'good',
+    })
+  }
+
   async function handleCopyCaptainNudge(draft: CaptainNudgeDraft) {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
@@ -4838,6 +4966,109 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainScoreCaptureChecklist = (
+    <section style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Score capture</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Tap each court.' : 'Capture each court before the details fade.'}</h2>
+        </div>
+        <span style={captainScoreCaptureIssueCount > 0 ? warnBadge : captainScoreCapturePendingCount > 0 ? badgeBlue : captainScoreCaptureRows.length ? badgeGreen : warnBadge}>
+          {captainScoreCaptureStatusLabel}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Mark scores, issues, and completed courts from the saved lineup so the scorecard trail stays clean after play.
+      </div>
+
+      <div style={captainScoreCaptureSummaryGrid} aria-label="Score capture summary">
+        <div style={captainScoreCaptureSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Logged</span>
+          <strong style={commandCenterSnapshotValue}>{captainScoreCaptureLoggedCount}/{captainScoreCaptureRows.length || workspaceState.lineupCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Score captured or complete</span>
+        </div>
+        <div style={captainScoreCaptureSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Open</span>
+          <strong style={commandCenterSnapshotValue}>{captainScoreCapturePendingCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Still needs a tap</span>
+        </div>
+        <div style={captainScoreCaptureSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Issues</span>
+          <strong style={commandCenterSnapshotValue}>{captainScoreCaptureIssueCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Needs captain note</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainScoreCaptureGrid}>
+        <div style={captainScoreCaptureHero}>
+          <div style={captainScoreCaptureHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Next court</div>
+              <div style={captainScoreCaptureTitle}>{captainScoreCapturePrimaryRow?.courtLabel || 'No courts saved'}</div>
+            </div>
+            <span style={captainScoreCapturePrimaryRow?.tone === 'warn' ? warnBadge : captainScoreCapturePrimaryRow?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainScoreCapturePrimaryRow?.statusLabel || 'Build lineup'}
+            </span>
+          </div>
+          <p style={captainScoreCaptureDetail}>
+            {captainScoreCapturePrimaryRow
+              ? captainScoreCapturePrimaryRow.playerLabel
+              : 'Save lineup courts first, then score capture becomes a court-by-court checklist.'}
+          </p>
+          <div style={captainScoreCaptureActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainScoreCapturePrimaryRow} onClick={() => captainScoreCapturePrimaryRow ? handleCaptainScoreCapture(captainScoreCapturePrimaryRow.row, captainScoreCapturePrimaryRow.index, 'score-captured') : undefined}>
+              Mark score
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainScoreCapturePrimaryRow} onClick={() => captainScoreCapturePrimaryRow ? handleCaptainScoreCapture(captainScoreCapturePrimaryRow.row, captainScoreCapturePrimaryRow.index, 'issue') : undefined}>
+              Note issue
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainScoreCapturePrimaryRow} onClick={() => captainScoreCapturePrimaryRow ? handleCaptainScoreCapture(captainScoreCapturePrimaryRow.row, captainScoreCapturePrimaryRow.index, 'complete') : undefined}>
+              Mark complete
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainScoreCapturePanel}>
+          <div style={captainScoreCaptureList}>
+            {captainScoreCaptureRows.length ? captainScoreCaptureRows.map((item) => (
+              <article key={item.courtKey} style={captainScoreCaptureCard}>
+                <div style={captainScoreCaptureCardTop}>
+                  <div>
+                    <span style={matchDayCourtLabel}>{item.courtLabel}</span>
+                    <strong style={captainScoreCapturePlayers}>{item.playerLabel}</strong>
+                  </div>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.statusLabel}
+                  </span>
+                </div>
+                <div style={captainScoreCaptureButtonGrid}>
+                  <button type="button" disabled={!hasTeamScope || !premiumEnabled} style={item.status === 'score-captured' ? captainScoreCaptureChoiceActive : captainScoreCaptureChoice} onClick={() => handleCaptainScoreCapture(item.row, item.index, 'score-captured')}>
+                    Score
+                  </button>
+                  <button type="button" disabled={!hasTeamScope || !premiumEnabled} style={item.status === 'issue' ? captainScoreCaptureChoiceWarn : captainScoreCaptureChoice} onClick={() => handleCaptainScoreCapture(item.row, item.index, 'issue')}>
+                    Issue
+                  </button>
+                  <button type="button" disabled={!hasTeamScope || !premiumEnabled} style={item.status === 'complete' ? captainScoreCaptureChoiceActive : captainScoreCaptureChoice} onClick={() => handleCaptainScoreCapture(item.row, item.index, 'complete')}>
+                    Done
+                  </button>
+                </div>
+                <small>{item.updatedLabel || 'Not tapped yet'}</small>
+              </article>
+            )) : (
+              <article style={captainScoreCaptureCard}>
+                <div style={captainScoreCaptureCardTop}>
+                  <strong>No courts saved yet</strong>
+                  <span style={warnBadge}>Draft</span>
+                </div>
+                <span>Build the lineup first so score capture starts with named courts.</span>
+              </article>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainSeasonLaunchChecklist = (
     <section style={dynamicSeasonLaunchShell} aria-label="Captain season launch checklist">
       <div style={commandCenterHeader}>
@@ -5440,6 +5671,8 @@ function CaptainHubContent() {
         {captainCourtSwapAssistant}
 
         {captainMatchDaySheet}
+
+        {captainScoreCaptureChecklist}
 
         {captainPostMatchCloseout}
 
@@ -9448,6 +9681,176 @@ const postMatchActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const captainScoreCaptureShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(74,222,128,0.16)',
+  background: 'linear-gradient(135deg, rgba(74,222,128,0.075), rgba(8,13,28,0.78) 43%, rgba(16,30,46,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainScoreCaptureSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainScoreCaptureSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.78fr) minmax(min(100%, 380px), 1.22fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainScoreCaptureHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(74,222,128,0.16)',
+  background: 'rgba(5,11,22,0.31)',
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainScoreCaptureTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainScoreCapturePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainScoreCaptureList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainScoreCaptureCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainScoreCapturePlayers: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.32,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const captainScoreCaptureChoice: CSSProperties = {
+  minWidth: 0,
+  minHeight: 42,
+  padding: '9px 7px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: 0,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainScoreCaptureChoiceActive: CSSProperties = {
+  ...captainScoreCaptureChoice,
+  border: '1px solid rgba(74,222,128,0.28)',
+  background: 'rgba(74,222,128,0.14)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainScoreCaptureChoiceWarn: CSSProperties = {
+  ...captainScoreCaptureChoice,
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.13)',
+  color: 'var(--foreground-strong)',
 }
 
 const nextActionShell: CSSProperties = {
