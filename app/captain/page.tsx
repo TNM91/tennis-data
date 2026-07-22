@@ -314,6 +314,23 @@ type CaptainArrivalRiskTarget = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainCourtHandoffStatus = 'prep' | 'warmup' | 'ready'
+
+type CaptainCourtHandoffItem = {
+  id: string
+  courtKey: string
+  courtLabel: string
+  players: string
+  status: CaptainCourtHandoffStatus
+  state: string
+  phase: string
+  detail: string
+  timerLabel: string
+  ackLabel: string
+  arrivalLabel: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -463,6 +480,7 @@ const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
 const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
 const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
 const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
+const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -534,6 +552,15 @@ type CaptainArrivalRiskEntry = {
   target_key?: string
   name?: string
   status?: CaptainArrivalRiskStatus
+  updated_at?: string
+}
+
+type CaptainCourtHandoffEntry = {
+  id?: string
+  event_key?: string
+  court_key?: string
+  court_label?: string
+  status?: CaptainCourtHandoffStatus
   updated_at?: string
 }
 
@@ -780,10 +807,12 @@ function CaptainHubContent() {
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
   const [copiedCaptainArrivalRiskMessage, setCopiedCaptainArrivalRiskMessage] = useState(false)
+  const [copiedCaptainCourtHandoff, setCopiedCaptainCourtHandoff] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
   const [captainArrivalRiskVersion, setCaptainArrivalRiskVersion] = useState(0)
+  const [captainCourtHandoffVersion, setCaptainCourtHandoffVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1778,6 +1807,24 @@ function CaptainHubContent() {
     ...captainArrivalRiskList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainArrivalRiskList.gridTemplateColumns,
     gap: isMobile ? 8 : captainArrivalRiskList.gap,
+  }
+
+  const dynamicCaptainCourtHandoffShell: CSSProperties = {
+    ...captainCourtHandoffShell,
+    gap: isMobile ? 12 : captainCourtHandoffShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainCourtHandoffShell.padding,
+    borderRadius: isMobile ? 20 : captainCourtHandoffShell.borderRadius,
+  }
+
+  const dynamicCaptainCourtHandoffGrid: CSSProperties = {
+    ...captainCourtHandoffGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainCourtHandoffGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainCourtHandoffList: CSSProperties = {
+    ...captainCourtHandoffList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainCourtHandoffList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainCourtHandoffList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -3188,6 +3235,106 @@ function CaptainHubContent() {
     captainArrivalRiskTargets,
     captainBenchPrimaryItem.name,
     captainBenchReadyCount,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainCourtHandoffEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainCourtHandoffEntry>()
+    if (captainCourtHandoffVersion < 0) return new Map<string, CaptainCourtHandoffEntry>()
+
+    return new Map(
+      readLocalArray<CaptainCourtHandoffEntry>(CAPTAIN_COURT_HANDOFF_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.court_key), entry] as const)
+        .filter(([courtKey]) => Boolean(courtKey)),
+    )
+  }, [captainCourtHandoffVersion, workspaceState.currentEventKey])
+
+  const captainCourtHandoffItems = useMemo<CaptainCourtHandoffItem[]>(() => {
+    const ackByName = new Map(captainChangeAckTargets.map((target) => [target.id, target.status] as const))
+    const arrivalByName = new Map(captainArrivalRiskTargets.map((target) => [target.id, target.status] as const))
+    const sourceRows = matchDayLineupRows.length
+      ? matchDayLineupRows
+      : [{
+          id: 'court-handoff-empty',
+          court_label: 'Court plan',
+          players: captainArrivalRiskTargets.slice(0, isMobile ? 2 : 4).map((target) => target.name),
+        }]
+
+    return sourceRows.slice(0, isMobile ? 4 : 6).map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+      const playerNames = (row.players ?? []).map((name) => safeText(name)).filter(Boolean)
+      const playerKeys = playerNames.map((name) => safeKey(name))
+      const pendingAckCount = playerKeys.filter((key) => ackByName.get(key) === 'pending').length
+      const lateCount = playerKeys.filter((key) => arrivalByName.get(key) === 'running-late').length
+      const etaCount = playerKeys.filter((key) => arrivalByName.get(key) === 'eta-needed').length
+      const savedStatus = captainCourtHandoffEntryMap.get(courtKey)?.status
+      const blocked = pendingAckCount > 0 || lateCount > 0 || etaCount > 0 || !playerNames.length
+      const status: CaptainCourtHandoffStatus = savedStatus || (blocked ? 'prep' : 'warmup')
+      const state = status === 'ready' ? 'Ready' : status === 'warmup' ? 'Warm-up' : blocked ? 'Hold' : 'Prep'
+      const timerLabel = status === 'ready'
+        ? 'Handoff'
+        : status === 'warmup'
+          ? 'T-5'
+          : lateCount > 0
+            ? 'T-10'
+            : 'T-15'
+      const detail = !playerNames.length
+        ? 'Save the court plan before starting handoff.'
+        : lateCount > 0
+          ? `${lateCount} player${lateCount === 1 ? '' : 's'} still marked late.`
+          : etaCount > 0
+            ? `${etaCount} ETA check${etaCount === 1 ? '' : 's'} still open.`
+            : pendingAckCount > 0
+              ? `${pendingAckCount} confirmation${pendingAckCount === 1 ? '' : 's'} still waiting.`
+              : status === 'ready'
+                ? 'Court is ready to hand to the players.'
+                : 'Confirm balls, court order, and warm-up start.'
+
+      return {
+        id: courtKey,
+        courtKey,
+        courtLabel,
+        players: playerNames.join(' / ') || 'Players not set',
+        status,
+        state,
+        phase: status === 'ready' ? 'Handoff' : status === 'warmup' ? 'Warm-up' : 'Prep',
+        detail,
+        timerLabel,
+        ackLabel: pendingAckCount > 0 ? `${pendingAckCount} ack` : 'Ack clear',
+        arrivalLabel: lateCount > 0 ? `${lateCount} late` : etaCount > 0 ? `${etaCount} ETA` : 'Arrival clear',
+        tone: status === 'ready' ? 'good' : blocked ? 'warn' : 'info',
+      }
+    })
+  }, [
+    captainArrivalRiskTargets,
+    captainChangeAckTargets,
+    captainCourtHandoffEntryMap,
+    isMobile,
+    matchDayLineupRows,
+  ])
+  const captainCourtHandoffReadyCount = captainCourtHandoffItems.filter((item) => item.status === 'ready').length
+  const captainCourtHandoffWatchCount = captainCourtHandoffItems.filter((item) => item.tone === 'warn').length
+  const captainCourtHandoffPrimaryItem = captainCourtHandoffItems.find((item) => item.tone === 'warn')
+    ?? captainCourtHandoffItems.find((item) => item.status !== 'ready')
+    ?? captainCourtHandoffItems[0]
+  const captainCourtHandoffStatus = captainCourtHandoffItems.length
+    ? captainCourtHandoffWatchCount > 0
+      ? `${captainCourtHandoffWatchCount} hold`
+      : `${captainCourtHandoffReadyCount}/${captainCourtHandoffItems.length} ready`
+    : 'No courts'
+  const captainCourtHandoffMessage = useMemo(() => [
+    `Court handoff for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+    `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+    ...captainCourtHandoffItems.slice(0, isMobile ? 4 : 6).map((item) => (
+      `${item.courtLabel}: ${item.state} - ${item.players} (${item.ackLabel}, ${item.arrivalLabel})`
+    )),
+  ].join('\n'), [
+    captainCourtHandoffItems,
     isMobile,
     matchDayArrivalLabel,
     matchDayLocationLabel,
@@ -4686,6 +4833,88 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainCourtHandoffEntry(item: CaptainCourtHandoffItem, status: CaptainCourtHandoffStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainCourtHandoffEntry>(CAPTAIN_COURT_HANDOFF_STORAGE_KEY)
+    const nextEntry: CaptainCourtHandoffEntry = {
+      id: `captain-court-handoff-${workspaceState.currentEventKey}-${item.courtKey}`,
+      event_key: workspaceState.currentEventKey,
+      court_key: item.courtKey,
+      court_label: item.courtLabel,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.court_key) === item.courtKey
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_COURT_HANDOFF_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainCourtHandoffVersion((value) => value + 1)
+  }
+
+  function handleCaptainCourtHandoffStatus(item: CaptainCourtHandoffItem, status: CaptainCourtHandoffStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainCourtHandoffEntry(item, status)
+    appendCaptainDecisionLog({
+      label: 'Court handoff updated',
+      detail: `${item.courtLabel} marked ${status === 'ready' ? 'ready for handoff' : status === 'warmup' ? 'in warm-up' : 'in prep'} for ${item.players}.`,
+      action: status === 'ready' ? 'Ready' : status === 'warmup' ? 'Warm-up' : 'Prep',
+      tone: status === 'ready' ? 'good' : status === 'prep' && item.tone === 'warn' ? 'warn' : 'info',
+    })
+  }
+
+  function handleMarkCaptainCourtHandoffReady() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const openItems = captainCourtHandoffItems.filter((item) => item.status !== 'ready' && item.tone !== 'warn')
+    if (!openItems.length) return
+
+    openItems.forEach((item) => writeCaptainCourtHandoffEntry(item, 'ready'))
+    appendCaptainDecisionLog({
+      label: 'Court handoff ready',
+      detail: `${openItems.length} court${openItems.length === 1 ? '' : 's'} marked ready for handoff.`,
+      action: 'Ready courts',
+      tone: 'good',
+    })
+  }
+
+  async function handleCopyCaptainCourtHandoff() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!captainCourtHandoffItems.length || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainCourtHandoffMessage)
+      setCopiedCaptainCourtHandoff(true)
+      appendCaptainDecisionLog({
+        label: 'Court handoff copied',
+        detail: captainCourtHandoffWatchCount > 0
+          ? `${captainCourtHandoffWatchCount} court handoff hold${captainCourtHandoffWatchCount === 1 ? '' : 's'} included.`
+          : 'Court handoff copied with no hold items.',
+        action: 'Copy handoff',
+        tone: captainCourtHandoffWatchCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainCourtHandoff(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -5043,6 +5272,132 @@ function CaptainHubContent() {
                   <span style={badgeBlue}>Setup</span>
                 </div>
                 <span style={captainArrivalRiskCardDetail}>Build a lineup or add captain contacts to track late players and backup arrivals.</span>
+              </article>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainCourtHandoffTimer = (
+    <section style={dynamicCaptainCourtHandoffShell} aria-label="Captain court handoff timer">
+      <div style={captainCourtHandoffHeader}>
+        <div>
+          <div style={sectionKicker}>Court handoff</div>
+          <h2 style={captainCourtHandoffTitle}>{isMobile ? 'Start courts.' : 'Run the court handoff timer.'}</h2>
+        </div>
+        <span style={captainCourtHandoffWatchCount > 0 ? warnBadge : captainCourtHandoffReadyCount === captainCourtHandoffItems.length && captainCourtHandoffItems.length ? badgeGreen : badgeBlue}>
+          {captainCourtHandoffStatus}
+        </span>
+      </div>
+      <div style={captainCourtHandoffSub}>
+        Turn confirmations, arrival status, and backup coverage into a quick court-by-court warm-up handoff.
+      </div>
+
+      <div style={captainCourtHandoffSummaryGrid}>
+        <div style={captainCourtHandoffSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Ready</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtHandoffReadyCount}/{captainCourtHandoffItems.length || workspaceState.lineupCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Court handoff</span>
+        </div>
+        <div style={captainCourtHandoffSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Hold</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtHandoffWatchCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainCourtHandoffWatchCount ? 'Check first' : 'No blocks'}</span>
+        </div>
+        <div style={captainCourtHandoffSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Next</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtHandoffPrimaryItem?.timerLabel ?? 'T-15'}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainCourtHandoffPrimaryItem?.courtLabel ?? 'Build lineup'}</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainCourtHandoffGrid}>
+        <div style={captainCourtHandoffMain}>
+          <div style={captainCourtHandoffTop}>
+            <div>
+              <div style={commandCenterLabel}>Next court</div>
+              <div style={captainCourtHandoffFocus}>{captainCourtHandoffPrimaryItem?.courtLabel ?? 'No court plan'}</div>
+            </div>
+            <span style={captainCourtHandoffPrimaryItem?.tone === 'warn' ? warnBadge : captainCourtHandoffPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainCourtHandoffPrimaryItem?.state ?? 'Prep'}
+            </span>
+          </div>
+          <p style={captainCourtHandoffDetail}>{captainCourtHandoffPrimaryItem?.detail ?? 'Save courts before starting the handoff timer.'}</p>
+          <div style={captainCourtHandoffMetaGrid}>
+            <div style={captainCourtHandoffMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Timer</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtHandoffPrimaryItem?.timerLabel ?? 'T-15'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainCourtHandoffPrimaryItem?.phase ?? 'Prep'}</span>
+            </div>
+            <div style={captainCourtHandoffMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Signals</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtHandoffPrimaryItem?.ackLabel ?? 'Ack'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainCourtHandoffPrimaryItem?.arrivalLabel ?? 'Arrival'}</span>
+            </div>
+          </div>
+          <div style={captainCourtHandoffActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainCourtHandoffItems.some((item) => item.status !== 'ready' && item.tone !== 'warn')} onClick={handleMarkCaptainCourtHandoffReady}>
+              Mark clear courts ready
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainCourtHandoffItems.length} onClick={() => void handleCopyCaptainCourtHandoff()}>
+              {copiedCaptainCourtHandoff ? 'Copied handoff' : 'Copy court handoff'}
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+              Review courts
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainCourtHandoffPanel}>
+          <div style={commandCenterLabel}>Court timer board</div>
+          <div style={dynamicCaptainCourtHandoffList}>
+            {captainCourtHandoffItems.length ? captainCourtHandoffItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainCourtHandoffCard,
+                  ...(item.tone === 'warn' ? captainCourtHandoffCardWarn : item.tone === 'good' ? captainCourtHandoffCardGood : captainCourtHandoffCardInfo),
+                }}
+              >
+                <div style={captainCourtHandoffCardTop}>
+                  <strong>{item.courtLabel}</strong>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.timerLabel}
+                  </span>
+                </div>
+                <span style={captainCourtHandoffPlayers}>{item.players}</span>
+                {!isSmallMobile ? <span style={captainCourtHandoffCardDetail}>{item.detail}</span> : null}
+                <div style={captainCourtHandoffSignalRow}>
+                  <span>{item.ackLabel}</span>
+                  <span>{item.arrivalLabel}</span>
+                </div>
+                <div style={captainCourtHandoffButtonGrid}>
+                  {(['prep', 'warmup', 'ready'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainCourtHandoffButton,
+                        ...(item.status === status ? captainCourtHandoffButtonActive : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainCourtHandoffStatus(item, status)}
+                    >
+                      {status === 'prep' ? 'Prep' : status === 'warmup' ? 'Warm-up' : 'Ready'}
+                    </button>
+                  ))}
+                </div>
+              </article>
+            )) : (
+              <article style={captainCourtHandoffCard}>
+                <div style={captainCourtHandoffCardTop}>
+                  <strong>No court handoff yet</strong>
+                  <span style={badgeBlue}>Setup</span>
+                </div>
+                <span style={captainCourtHandoffCardDetail}>Build a lineup before starting the court-by-court warm-up handoff.</span>
               </article>
             )}
           </div>
@@ -6790,6 +7145,8 @@ function CaptainHubContent() {
         {captainChangeAckTracker}
 
         {captainArrivalRiskTracker}
+
+        {captainCourtHandoffTimer}
 
         {captainMorningBrief}
 
@@ -9119,6 +9476,252 @@ const captainArrivalRiskStatusButton: CSSProperties = {
 }
 
 const captainArrivalRiskStatusButtonActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainCourtHandoffShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.075), rgba(8,13,28,0.78) 42%, rgba(16,29,46,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainCourtHandoffHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtHandoffTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtHandoffSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 380px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainCourtHandoffMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtHandoffFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtHandoffMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtHandoffPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtHandoffCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 148,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainCourtHandoffCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainCourtHandoffCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainCourtHandoffCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffPlayers: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.3,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffSignalRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainCourtHandoffButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtHandoffButtonActive: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.26)',
   background: 'rgba(155,225,29,0.12)',
   color: 'var(--foreground-strong)',
