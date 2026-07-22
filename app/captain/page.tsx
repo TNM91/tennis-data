@@ -374,6 +374,25 @@ type CaptainPlayerBriefItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainAfterPointResetStatus = 'watch' | 'issue' | 'captured' | 'update'
+
+type CaptainAfterPointResetItem = {
+  id: string
+  courtKey: string
+  courtLabel: string
+  players: string
+  row: CaptainLineupAssignment
+  index: number
+  status: CaptainAfterPointResetStatus
+  scoreStatus: CaptainScoreCaptureStatus
+  state: string
+  detail: string
+  prompt: string
+  nextAction: string
+  updateBody: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -526,6 +545,7 @@ const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
 const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
 const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_queue'
 const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
+const CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY = 'tenaceiq_captain_after_point_reset'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -624,6 +644,15 @@ type CaptainPlayerBriefEntry = {
   court_key?: string
   court_label?: string
   status?: CaptainPlayerBriefStatus
+  updated_at?: string
+}
+
+type CaptainAfterPointResetEntry = {
+  id?: string
+  event_key?: string
+  court_key?: string
+  court_label?: string
+  status?: CaptainAfterPointResetStatus
   updated_at?: string
 }
 
@@ -873,6 +902,7 @@ function CaptainHubContent() {
   const [copiedCaptainCourtHandoff, setCopiedCaptainCourtHandoff] = useState(false)
   const [copiedCaptainNotificationQueueId, setCopiedCaptainNotificationQueueId] = useState('')
   const [copiedCaptainPlayerBriefId, setCopiedCaptainPlayerBriefId] = useState('')
+  const [copiedCaptainAfterPointResetId, setCopiedCaptainAfterPointResetId] = useState('')
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
@@ -880,6 +910,7 @@ function CaptainHubContent() {
   const [captainCourtHandoffVersion, setCaptainCourtHandoffVersion] = useState(0)
   const [captainNotificationQueueVersion, setCaptainNotificationQueueVersion] = useState(0)
   const [captainPlayerBriefVersion, setCaptainPlayerBriefVersion] = useState(0)
+  const [captainAfterPointResetVersion, setCaptainAfterPointResetVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1941,6 +1972,24 @@ function CaptainHubContent() {
     ...captainPlayerBriefList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainPlayerBriefList.gridTemplateColumns,
     gap: isMobile ? 8 : captainPlayerBriefList.gap,
+  }
+
+  const dynamicCaptainAfterPointResetShell: CSSProperties = {
+    ...captainAfterPointResetShell,
+    gap: isMobile ? 12 : captainAfterPointResetShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainAfterPointResetShell.padding,
+    borderRadius: isMobile ? 20 : captainAfterPointResetShell.borderRadius,
+  }
+
+  const dynamicCaptainAfterPointResetGrid: CSSProperties = {
+    ...captainAfterPointResetGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainAfterPointResetGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainAfterPointResetList: CSSProperties = {
+    ...captainAfterPointResetList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainAfterPointResetList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainAfterPointResetList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -3722,6 +3771,114 @@ function CaptainHubContent() {
     : captainPlayerBriefReadyCount > 0
       ? `${captainPlayerBriefReadyCount} ready`
       : `${captainPlayerBriefedCount} briefed`
+  const captainAfterPointResetEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainAfterPointResetEntry>()
+    if (captainAfterPointResetVersion < 0) return new Map<string, CaptainAfterPointResetEntry>()
+
+    return new Map(
+      readLocalArray<CaptainAfterPointResetEntry>(CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.court_key), entry] as const)
+        .filter(([courtKey]) => Boolean(courtKey)),
+    )
+  }, [captainAfterPointResetVersion, workspaceState.currentEventKey])
+
+  const captainAfterPointResetItems = useMemo<CaptainAfterPointResetItem[]>(() => {
+    const sourceRows = matchDayLineupRows.length
+      ? matchDayLineupRows
+      : [{
+          id: 'after-point-reset-empty',
+          court_label: 'Court reset',
+          slot_type: 'doubles',
+          players: [],
+        }]
+
+    return sourceRows.slice(0, isMobile ? 4 : 6).map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+      const players = row.players?.filter(Boolean).join(' / ') || 'Players not set'
+      const savedResetStatus = captainAfterPointResetEntryMap.get(courtKey)?.status
+      const scoreStatus = captainScoreCaptureSaved.get(courtKey)?.status || 'pending'
+      const brief = captainPlayerBriefItems.find((item) => item.courtKey === courtKey)
+      const handoff = captainCourtHandoffItems.find((item) => item.courtKey === courtKey || item.courtLabel === courtLabel)
+      const status: CaptainAfterPointResetStatus = savedResetStatus
+        || (scoreStatus === 'issue'
+          ? 'issue'
+          : scoreStatus === 'score-captured' || scoreStatus === 'complete'
+            ? 'captured'
+            : 'watch')
+      const needsPlayers = players === 'Players not set'
+      const prompt = status === 'issue'
+        ? 'Log the issue before the court detail disappears.'
+        : status === 'captured'
+          ? 'Send the short court update or mark the next scorecard step.'
+          : brief?.status === 'briefed'
+            ? 'Watch the first two games and note one adjustment.'
+            : 'Give one simple reset before the next two games.'
+      const nextAction = status === 'issue'
+        ? 'Log issue'
+        : status === 'captured'
+          ? 'Send post-court update'
+          : status === 'update'
+            ? 'Send post-court update'
+            : 'Watch this court'
+      const state = status === 'issue'
+        ? 'Issue'
+        : status === 'captured'
+          ? 'Captured'
+          : status === 'update'
+            ? 'Update'
+            : 'Watch'
+      const detail = needsPlayers
+        ? 'Save players before tracking the court reset.'
+        : handoff?.status === 'ready'
+          ? `${handoff.courtLabel} is on court. Keep the first reset simple.`
+          : brief?.detail || 'Use this rail once the court starts.'
+      const updateBody = [
+        `Post-court update for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+        `${courtLabel}: ${players}`,
+        `Reset: ${prompt}`,
+        `Next: ${nextAction}`,
+      ].join('\n')
+
+      return {
+        id: courtKey,
+        courtKey,
+        courtLabel,
+        players,
+        row,
+        index,
+        status,
+        scoreStatus,
+        state,
+        detail,
+        prompt,
+        nextAction,
+        updateBody,
+        tone: status === 'issue' ? 'warn' : status === 'captured' || status === 'update' ? 'good' : 'info',
+      }
+    })
+  }, [
+    captainAfterPointResetEntryMap,
+    captainCourtHandoffItems,
+    captainPlayerBriefItems,
+    captainScoreCaptureSaved,
+    isMobile,
+    matchDayLineupRows,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainAfterPointWatchCount = captainAfterPointResetItems.filter((item) => item.status === 'watch').length
+  const captainAfterPointIssueCount = captainAfterPointResetItems.filter((item) => item.status === 'issue').length
+  const captainAfterPointCapturedCount = captainAfterPointResetItems.filter((item) => item.status === 'captured' || item.status === 'update').length
+  const captainAfterPointPrimaryItem = captainAfterPointResetItems.find((item) => item.status === 'issue')
+    ?? captainAfterPointResetItems.find((item) => item.status === 'watch')
+    ?? captainAfterPointResetItems[0]
+  const captainAfterPointStatus = captainAfterPointIssueCount > 0
+    ? `${captainAfterPointIssueCount} issue`
+    : captainAfterPointWatchCount > 0
+      ? `${captainAfterPointWatchCount} watch`
+      : `${captainAfterPointCapturedCount} updated`
   const captainMatchDayLockSignals = useMemo<CaptainMatchDayLockSignal[]>(() => [
     {
       id: 'late-change',
@@ -3787,7 +3944,21 @@ function CaptainHubContent() {
       cta: 'Review briefs',
       tone: captainPlayerBriefReviewCount > 0 ? 'warn' : captainPlayerBriefReadyCount > 0 ? 'info' : 'good',
     },
+    {
+      id: 'after-point-reset',
+      label: 'Reset',
+      state: captainAfterPointStatus,
+      detail: captainAfterPointPrimaryItem?.detail ?? 'Start courts before the reset rail is useful.',
+      href: '#captain-after-point-reset-rail',
+      stage: 'analytics',
+      cta: 'Review resets',
+      tone: captainAfterPointIssueCount > 0 ? 'warn' : captainAfterPointWatchCount > 0 ? 'info' : 'good',
+    },
   ], [
+    captainAfterPointIssueCount,
+    captainAfterPointPrimaryItem?.detail,
+    captainAfterPointStatus,
+    captainAfterPointWatchCount,
     captainArrivalRiskStatus,
     captainArrivalRiskTargets.length,
     captainArrivalRiskWatchCount,
@@ -5557,6 +5728,80 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainAfterPointResetEntry(item: CaptainAfterPointResetItem, status: CaptainAfterPointResetStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainAfterPointResetEntry>(CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY)
+    const nextEntry: CaptainAfterPointResetEntry = {
+      id: `captain-after-point-reset-${workspaceState.currentEventKey}-${item.courtKey}`,
+      event_key: workspaceState.currentEventKey,
+      court_key: item.courtKey,
+      court_label: item.courtLabel,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.court_key) === item.courtKey
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainAfterPointResetVersion((value) => value + 1)
+  }
+
+  function handleCaptainAfterPointResetStatus(item: CaptainAfterPointResetItem, status: CaptainAfterPointResetStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainAfterPointResetEntry(item, status)
+
+    if (status === 'issue') {
+      handleCaptainScoreCapture(item.row, item.index, 'issue')
+      return
+    }
+
+    if (status === 'captured') {
+      handleCaptainScoreCapture(item.row, item.index, 'score-captured')
+      return
+    }
+
+    appendCaptainDecisionLog({
+      label: 'After-point reset updated',
+      detail: `${item.courtLabel}: ${status === 'update' ? 'post-court update ready' : 'watch reset marked'} for ${item.players}.`,
+      action: status === 'update' ? 'Update ready' : 'Watch reset',
+      tone: status === 'update' ? 'good' : 'info',
+    })
+  }
+
+  async function handleCopyCaptainAfterPointReset(item: CaptainAfterPointResetItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.updateBody || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.updateBody)
+      setCopiedCaptainAfterPointResetId(item.id)
+      writeCaptainAfterPointResetEntry(item, 'update')
+      appendCaptainDecisionLog({
+        label: 'Post-court update copied',
+        detail: `${item.courtLabel} reset update copied for ${item.players}.`,
+        action: 'Copy reset update',
+        tone: item.tone === 'warn' ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainAfterPointResetId('')
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -6359,6 +6604,135 @@ function CaptainHubContent() {
                 </div>
                 <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainPlayerBrief(item)}>
                   {copiedCaptainPlayerBriefId === item.id ? 'Copied brief' : 'Copy brief'}
+                </PrimarySmallBtn>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainAfterPointResetRail = (
+    <section id="captain-after-point-reset-rail" style={dynamicCaptainAfterPointResetShell} aria-label="Captain after point reset rail">
+      <div style={captainAfterPointResetHeader}>
+        <div>
+          <div style={sectionKicker}>After this point</div>
+          <h2 style={captainAfterPointResetTitle}>{isMobile ? 'Reset next.' : 'Reset after the court starts.'}</h2>
+        </div>
+        <span style={captainAfterPointIssueCount > 0 ? warnBadge : captainAfterPointWatchCount > 0 ? badgeBlue : badgeGreen}>
+          {captainAfterPointStatus}
+        </span>
+      </div>
+      <div style={captainAfterPointResetSub}>
+        Keep a quick watch, issue, result, or update action ready once players are on court.
+      </div>
+
+      <div style={captainAfterPointResetSummaryGrid}>
+        <div style={captainAfterPointResetSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Watch</span>
+          <strong style={commandCenterSnapshotValue}>{captainAfterPointWatchCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Needs eyes</span>
+        </div>
+        <div style={captainAfterPointResetSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Issues</span>
+          <strong style={commandCenterSnapshotValue}>{captainAfterPointIssueCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainAfterPointIssueCount ? 'Log first' : 'Clear'}</span>
+        </div>
+        <div style={captainAfterPointResetSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Updated</span>
+          <strong style={commandCenterSnapshotValue}>{captainAfterPointCapturedCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Captured or copied</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainAfterPointResetGrid}>
+        <div style={captainAfterPointResetMain}>
+          <div style={captainAfterPointResetTop}>
+            <div>
+              <div style={commandCenterLabel}>Next reset</div>
+              <div style={captainAfterPointResetFocus}>{captainAfterPointPrimaryItem?.courtLabel ?? 'No reset yet'}</div>
+            </div>
+            <span style={captainAfterPointPrimaryItem?.tone === 'warn' ? warnBadge : captainAfterPointPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainAfterPointPrimaryItem?.state ?? 'Watch'}
+            </span>
+          </div>
+          <p style={captainAfterPointResetDetail}>{captainAfterPointPrimaryItem?.detail ?? 'Start with a saved lineup, then this becomes your after-point rail.'}</p>
+          <div style={captainAfterPointResetMetaGrid}>
+            <div style={captainAfterPointResetMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Players</span>
+              <strong style={commandCenterSnapshotValue}>{captainAfterPointPrimaryItem?.players ?? 'Not set'}</strong>
+              <span style={commandCenterSnapshotDetail}>Court group</span>
+            </div>
+            <div style={captainAfterPointResetMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Next tap</span>
+              <strong style={commandCenterSnapshotValue}>{captainAfterPointPrimaryItem?.nextAction ?? 'Watch this court'}</strong>
+              <span style={commandCenterSnapshotDetail}>Thumb-ready action</span>
+            </div>
+          </div>
+          <div style={captainAfterPointResetPreview}>
+            {captainAfterPointPrimaryItem?.updateBody || 'No reset update ready yet.'}
+          </div>
+          <div style={captainAfterPointResetActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainAfterPointPrimaryItem?.updateBody} onClick={() => captainAfterPointPrimaryItem ? void handleCopyCaptainAfterPointReset(captainAfterPointPrimaryItem) : undefined}>
+              {copiedCaptainAfterPointResetId === captainAfterPointPrimaryItem?.id ? 'Copied reset' : 'Copy reset update'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainAfterPointPrimaryItem} onClick={() => captainAfterPointPrimaryItem ? handleCaptainAfterPointResetStatus(captainAfterPointPrimaryItem, 'captured') : undefined}>
+              Capture result
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainAfterPointPrimaryItem} onClick={() => captainAfterPointPrimaryItem ? handleCaptainAfterPointResetStatus(captainAfterPointPrimaryItem, 'issue') : undefined}>
+              Flag issue
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainAfterPointResetPanel}>
+          <div style={commandCenterLabel}>Court reset rail</div>
+          <div style={dynamicCaptainAfterPointResetList}>
+            {captainAfterPointResetItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainAfterPointResetCard,
+                  ...(item.tone === 'warn' ? captainAfterPointResetCardWarn : item.tone === 'good' ? captainAfterPointResetCardGood : captainAfterPointResetCardInfo),
+                }}
+              >
+                <div style={captainAfterPointResetCardTop}>
+                  <div>
+                    <strong>{item.courtLabel}</strong>
+                    <span>{item.players}</span>
+                  </div>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span style={captainAfterPointResetCardDetail}>{item.prompt}</span>
+                {!isSmallMobile ? (
+                  <div style={captainAfterPointResetPromptCard}>
+                    <span>{item.detail}</span>
+                    <strong>{item.nextAction}</strong>
+                  </div>
+                ) : null}
+                <div style={captainAfterPointResetButtonGrid}>
+                  {(['watch', 'issue', 'captured', 'update'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainAfterPointResetButton,
+                        ...(item.status === status ? captainAfterPointResetButtonActive : null),
+                        ...(status === 'issue' && item.status === status ? captainAfterPointResetButtonWarn : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainAfterPointResetStatus(item, status)}
+                    >
+                      {status === 'watch' ? 'Watch' : status === 'issue' ? 'Issue' : status === 'captured' ? 'Result' : 'Update'}
+                    </button>
+                  ))}
+                </div>
+                <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.updateBody} onClick={() => void handleCopyCaptainAfterPointReset(item)}>
+                  {copiedCaptainAfterPointResetId === item.id ? 'Copied update' : 'Copy update'}
                 </PrimarySmallBtn>
               </article>
             ))}
@@ -8115,6 +8489,8 @@ function CaptainHubContent() {
         {captainNotificationQueue}
 
         {captainPlayerBriefCards}
+
+        {captainAfterPointResetRail}
 
         {captainMorningBrief}
 
@@ -11357,6 +11733,267 @@ const captainPlayerBriefButton: CSSProperties = {
 const captainPlayerBriefButtonActive: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.26)',
   background: 'rgba(155,225,29,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainAfterPointResetShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.17)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.075), rgba(8,13,28,0.78) 42%, rgba(18,30,48,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainAfterPointResetHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainAfterPointResetTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainAfterPointResetSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 390px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainAfterPointResetMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainAfterPointResetFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainAfterPointResetMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 112,
+  maxHeight: 220,
+  overflow: 'auto',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainAfterPointResetPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainAfterPointResetCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 190,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainAfterPointResetCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainAfterPointResetCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainAfterPointResetCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetPromptCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainAfterPointResetButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainAfterPointResetButtonActive: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(125,211,252,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainAfterPointResetButtonWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.30)',
+  background: 'rgba(251,191,36,0.14)',
   color: 'var(--foreground-strong)',
 }
 
