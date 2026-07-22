@@ -239,6 +239,16 @@ type CaptainMatchDayCommandAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainEmergencyAction = {
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainMorningBriefItem = {
   label: string
   value: string
@@ -724,6 +734,7 @@ function CaptainHubContent() {
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
+  const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
 
@@ -1669,6 +1680,22 @@ function CaptainHubContent() {
     ...captainMatchDayCommandGrid,
     gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : captainMatchDayCommandGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
+  }
+
+  const dynamicCaptainEmergencyModeShell: CSSProperties = {
+    ...captainEmergencyModeShell,
+    position: isMobile ? 'sticky' : 'relative',
+    top: isMobile ? 104 : 'auto',
+    zIndex: isMobile ? 11 : 1,
+    gap: isMobile ? 10 : captainEmergencyModeShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainEmergencyModeShell.padding,
+    borderRadius: isMobile ? 18 : captainEmergencyModeShell.borderRadius,
+  }
+
+  const dynamicCaptainEmergencyModeGrid: CSSProperties = {
+    ...captainEmergencyModeGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainEmergencyModeGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainEmergencyModeGrid.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -2702,6 +2729,110 @@ function CaptainHubContent() {
     workspaceState.messagingReady,
   ])
   const captainMatchDayPrimaryCommand = captainMatchDayCommandActions.find((item) => item.tone === 'warn') ?? captainMatchDayCommandActions[0]
+  const captainEmergencyAlertCount = matchDaySubRiskCount + matchDayNotConfirmedCount + captainCourtSwapNeedsCount
+  const captainEmergencyModeActions = useMemo<CaptainEmergencyAction[]>(() => [
+    {
+      label: 'Chase reply',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : 'Clear',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Get the missing In, Out, or ETA before moving courts.'
+        : 'No open reply chase is blocking the lineup.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : 'good',
+      cta: 'Chase',
+    },
+    {
+      label: 'Call backup',
+      state: captainCourtSwapNeedsCount > 0
+        ? 'Cover now'
+        : captainBenchReadyCount > 0
+          ? 'Bench ready'
+          : 'Review',
+      detail: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapPrimaryItem.inPlayer} for ${captainCourtSwapPrimaryItem.courtLabel}.`
+        : captainBenchReadyCount > 0
+          ? `${captainBenchPrimaryItem.name} is the first backup read.`
+          : 'Pick the first backup before changing the lineup.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+      cta: 'Backup',
+    },
+    {
+      label: 'Move court',
+      state: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapNeedsCount} move`
+        : workspaceState.lineupReady
+          ? 'Stable'
+          : 'Build',
+      detail: captainCourtSwapNeedsCount > 0
+        ? captainCourtSwapPrimaryItem.detail
+        : workspaceState.lineupReady
+          ? 'Court order is stable after current replies.'
+          : 'Build courts before emergency changes can land cleanly.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : workspaceState.lineupReady ? 'good' : 'info',
+      cta: 'Lineup',
+    },
+    {
+      label: 'Send change',
+      state: captainEmergencyAlertCount > 0 ? 'Urgent' : workspaceState.messagingReady ? 'Ready' : 'Prep',
+      detail: captainEmergencyAlertCount > 0
+        ? 'Copy the emergency note, then send the lineup change.'
+        : workspaceState.messagingReady
+          ? 'Messages are ready if anything changes.'
+          : 'Add event details before sending player updates.',
+      href: messagingHref,
+      stage: 'messaging',
+      tone: captainEmergencyAlertCount > 0 ? 'warn' : workspaceState.messagingReady ? 'good' : 'info',
+      cta: 'Message',
+    },
+  ], [
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.detail,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainEmergencyAlertCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayNotConfirmedCount,
+    messagingHref,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainEmergencyPrimaryAction = captainEmergencyModeActions.find((item) => item.tone === 'warn') ?? captainEmergencyModeActions[0]
+  const captainEmergencyModeStatus = captainEmergencyAlertCount > 0
+    ? `${captainEmergencyAlertCount} alert`
+    : workspaceState.lineupReady
+      ? 'Standby'
+      : 'Build first'
+  const captainEmergencyModeMessage = useMemo(() => [
+    `Late change: ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+    matchDayNotConfirmedCount > 0 ? `Reply gap: ${matchDayNotConfirmedCount} open.` : 'Reply gap: clear.',
+    captainCourtSwapNeedsCount > 0
+      ? `Backup: ${captainCourtSwapPrimaryItem.inPlayer} for ${captainCourtSwapPrimaryItem.courtLabel}.`
+      : captainBenchReadyCount > 0
+        ? `Backup: ${captainBenchPrimaryItem.name} is ready.`
+        : 'Backup: still reviewing cover.',
+    captainCourtSwapNeedsCount > 0 ? `Lineup move: ${captainCourtSwapPrimaryItem.detail}` : 'Lineup move: no urgent court move saved.',
+    `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+  ].join('\n'), [
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.detail,
+    captainCourtSwapPrimaryItem.inPlayer,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayNotConfirmedCount,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
   const captainMorningBriefItems = useMemo<CaptainMorningBriefItem[]>(() => [
     {
       label: 'Court plan',
@@ -4003,6 +4134,30 @@ function CaptainHubContent() {
     }
   }
 
+  async function handleCopyCaptainEmergencyMode() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainEmergencyModeMessage)
+      setCopiedCaptainEmergencyMode(true)
+      appendCaptainDecisionLog({
+        label: 'Emergency note copied',
+        detail: captainEmergencyAlertCount > 0
+          ? `${captainEmergencyAlertCount} late-change alert${captainEmergencyAlertCount === 1 ? '' : 's'} included.`
+          : 'Emergency standby note copied.',
+        action: 'Copy emergency',
+        tone: captainEmergencyAlertCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainEmergencyMode(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -4081,6 +4236,70 @@ function CaptainHubContent() {
             </button>
           )
         })}
+      </div>
+    </section>
+  )
+
+  const captainEmergencyMode = (
+    <section style={dynamicCaptainEmergencyModeShell} aria-label="Captain late-change emergency mode">
+      <div style={captainEmergencyModeHeader}>
+        <div>
+          <div style={sectionKicker}>Late-change mode</div>
+          <h2 style={captainEmergencyModeTitle}>{isMobile ? 'Fix late change.' : 'Fix a late lineup change fast.'}</h2>
+        </div>
+        <span style={captainEmergencyAlertCount > 0 ? warnBadge : workspaceState.lineupReady ? badgeGreen : badgeBlue}>
+          {captainEmergencyModeStatus}
+        </span>
+      </div>
+      <div style={captainEmergencyModeSub}>
+        Put reply chase, backup call, lineup move, and change message in one thumb-ready lane when match day gets messy.
+      </div>
+
+      <div style={captainEmergencyModeHero}>
+        <div>
+          <div style={commandCenterLabel}>Emergency focus</div>
+          <div style={captainEmergencyModeFocus}>{captainEmergencyPrimaryAction.label}</div>
+          <p style={captainEmergencyModeDetail}>{captainEmergencyPrimaryAction.detail}</p>
+        </div>
+        <span style={captainEmergencyPrimaryAction.tone === 'warn' ? warnBadge : captainEmergencyPrimaryAction.tone === 'good' ? badgeGreen : badgeBlue}>
+          {captainEmergencyPrimaryAction.state}
+        </span>
+      </div>
+
+      <div style={captainEmergencyModeActionRow}>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainEmergencyMode()}>
+          {copiedCaptainEmergencyMode ? 'Copied emergency' : 'Copy emergency note'}
+        </PrimarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainEmergencyPrimaryAction.href, captainEmergencyPrimaryAction.stage)}>
+          {captainEmergencyPrimaryAction.cta}
+        </SecondarySmallBtn>
+        <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleLogCaptainDecision('backup')}>
+          Log backup call
+        </SecondarySmallBtn>
+      </div>
+
+      <div style={dynamicCaptainEmergencyModeGrid}>
+        {captainEmergencyModeActions.map((action) => (
+          <button
+            key={action.label}
+            type="button"
+            disabled={!hasTeamScope || !premiumEnabled}
+            style={{
+              ...captainEmergencyModeAction,
+              ...(action.tone === 'warn'
+                ? captainEmergencyModeActionWarn
+                : action.tone === 'good'
+                  ? captainEmergencyModeActionGood
+                  : captainEmergencyModeActionInfo),
+              ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+            }}
+            onClick={() => handleCaptainNav(action.href, action.stage)}
+          >
+            <span style={captainEmergencyModeActionLabel}>{action.label}</span>
+            <strong style={captainEmergencyModeActionState}>{action.state}</strong>
+            {!isSmallMobile ? <span style={captainEmergencyModeActionDetail}>{action.detail}</span> : null}
+          </button>
+        ))}
       </div>
     </section>
   )
@@ -5818,6 +6037,8 @@ function CaptainHubContent() {
         </section>
 
         {captainMatchDayCommandStripSurface}
+
+        {captainEmergencyMode}
 
         {captainMorningBrief}
 
@@ -7575,6 +7796,149 @@ const captainMatchDayCommandState: CSSProperties = {
 }
 
 const captainMatchDayCommandDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(251,191,36,0.22)',
+  background: 'rgba(20,16,29,0.90)',
+  boxShadow: '0 16px 40px rgba(2,8,23,0.30)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainEmergencyModeHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainEmergencyModeTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeHero: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'rgba(251,191,36,0.08)',
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeDetail: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainEmergencyModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainEmergencyModeAction: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 78,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeActionWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.30)',
+  background: 'rgba(251,191,36,0.12)',
+}
+
+const captainEmergencyModeActionGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.09)',
+}
+
+const captainEmergencyModeActionInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainEmergencyModeActionLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeActionState: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainEmergencyModeActionDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.4,
