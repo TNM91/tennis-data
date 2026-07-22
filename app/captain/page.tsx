@@ -239,6 +239,17 @@ type CaptainMatchDayCommandAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainMatchDayLockSignal = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainEmergencyAction = {
   label: string
   state: string
@@ -1812,6 +1823,19 @@ function CaptainHubContent() {
     ...captainMatchDayCommandGrid,
     gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : captainMatchDayCommandGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
+  }
+
+  const dynamicCaptainMatchDayLockScreen: CSSProperties = {
+    ...captainMatchDayLockScreen,
+    gap: isMobile ? 10 : captainMatchDayLockScreen.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainMatchDayLockScreen.padding,
+    borderRadius: isMobile ? 18 : captainMatchDayLockScreen.borderRadius,
+  }
+
+  const dynamicCaptainMatchDayLockGrid: CSSProperties = {
+    ...captainMatchDayLockGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainMatchDayLockGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainMatchDayLockGrid.gap,
   }
 
   const dynamicCaptainEmergencyModeShell: CSSProperties = {
@@ -3698,6 +3722,106 @@ function CaptainHubContent() {
     : captainPlayerBriefReadyCount > 0
       ? `${captainPlayerBriefReadyCount} ready`
       : `${captainPlayerBriefedCount} briefed`
+  const captainMatchDayLockSignals = useMemo<CaptainMatchDayLockSignal[]>(() => [
+    {
+      id: 'late-change',
+      label: 'Late change',
+      state: captainEmergencyModeStatus,
+      detail: captainEmergencyPrimaryAction.detail,
+      href: '#captain-late-change-mode',
+      stage: captainEmergencyPrimaryAction.stage,
+      cta: 'Open late change',
+      tone: captainEmergencyAlertCount > 0 ? 'warn' : workspaceState.lineupReady ? 'good' : 'info',
+    },
+    {
+      id: 'change-ack',
+      label: 'Confirmations',
+      state: captainChangeAckStatus,
+      detail: captainChangeAckPendingCount > 0
+        ? `${captainChangeAckPendingCount} player${captainChangeAckPendingCount === 1 ? '' : 's'} still need the latest court or backup update.`
+        : 'Visible change confirmations are clear.',
+      href: '#captain-change-ack-tracker',
+      stage: 'messaging',
+      cta: 'Review ACKs',
+      tone: captainChangeAckPendingCount > 0 ? 'warn' : captainChangeAckTargets.length ? 'good' : 'info',
+    },
+    {
+      id: 'arrival',
+      label: 'Arrivals',
+      state: captainArrivalRiskStatus,
+      detail: captainArrivalRiskWatchCount > 0
+        ? `${captainArrivalRiskWatchCount} arrival watch target${captainArrivalRiskWatchCount === 1 ? '' : 's'} need attention before warm-up.`
+        : 'Arrival board is clear for the visible court plan.',
+      href: '#captain-arrival-risk-tracker',
+      stage: 'messaging',
+      cta: 'Review arrivals',
+      tone: captainArrivalRiskWatchCount > 0 ? 'warn' : captainArrivalRiskTargets.length ? 'good' : 'info',
+    },
+    {
+      id: 'court-handoff',
+      label: 'Court handoff',
+      state: captainCourtHandoffStatus,
+      detail: captainCourtHandoffPrimaryItem?.detail ?? 'Build courts before starting handoff.',
+      href: '#captain-court-handoff-timer',
+      stage: 'lineup',
+      cta: 'Review courts',
+      tone: captainCourtHandoffWatchCount > 0 ? 'warn' : captainCourtHandoffItems.length ? 'good' : 'info',
+    },
+    {
+      id: 'notifications',
+      label: 'Texts',
+      state: captainNotificationQueueStatus,
+      detail: captainNotificationQueuePrimaryItem?.detail ?? 'No match-day text is queued yet.',
+      href: '#captain-notification-queue',
+      stage: 'messaging',
+      cta: 'Review texts',
+      tone: captainNotificationQueueHoldCount > 0 ? 'warn' : captainNotificationQueueReadyCount > 0 ? 'info' : 'good',
+    },
+    {
+      id: 'player-briefs',
+      label: 'Briefs',
+      state: captainPlayerBriefStatus,
+      detail: captainPlayerBriefPrimaryItem?.detail ?? 'No court brief is ready yet.',
+      href: '#captain-player-brief-cards',
+      stage: 'lineup',
+      cta: 'Review briefs',
+      tone: captainPlayerBriefReviewCount > 0 ? 'warn' : captainPlayerBriefReadyCount > 0 ? 'info' : 'good',
+    },
+  ], [
+    captainArrivalRiskStatus,
+    captainArrivalRiskTargets.length,
+    captainArrivalRiskWatchCount,
+    captainChangeAckPendingCount,
+    captainChangeAckStatus,
+    captainChangeAckTargets.length,
+    captainCourtHandoffItems.length,
+    captainCourtHandoffPrimaryItem?.detail,
+    captainCourtHandoffStatus,
+    captainCourtHandoffWatchCount,
+    captainEmergencyAlertCount,
+    captainEmergencyModeStatus,
+    captainEmergencyPrimaryAction.detail,
+    captainEmergencyPrimaryAction.stage,
+    captainNotificationQueueHoldCount,
+    captainNotificationQueuePrimaryItem?.detail,
+    captainNotificationQueueReadyCount,
+    captainNotificationQueueStatus,
+    captainPlayerBriefPrimaryItem?.detail,
+    captainPlayerBriefReadyCount,
+    captainPlayerBriefReviewCount,
+    captainPlayerBriefStatus,
+    workspaceState.lineupReady,
+  ])
+  const captainMatchDayLockWarnCount = captainMatchDayLockSignals.filter((item) => item.tone === 'warn').length
+  const captainMatchDayLockReadyCount = captainMatchDayLockSignals.filter((item) => item.tone === 'good').length
+  const captainMatchDayLockPrimarySignal = captainMatchDayLockSignals.find((item) => item.tone === 'warn')
+    ?? captainMatchDayLockSignals.find((item) => item.tone === 'info')
+    ?? captainMatchDayLockSignals[0]
+  const captainMatchDayLockStatus = captainMatchDayLockWarnCount > 0
+    ? `${captainMatchDayLockWarnCount} needs you`
+    : captainMatchDayLockReadyCount >= captainMatchDayLockSignals.length
+      ? 'Match ready'
+      : 'Review next'
   const captainMorningBriefItems = useMemo<CaptainMorningBriefItem[]>(() => [
     {
       label: 'Court plan',
@@ -5470,8 +5594,66 @@ function CaptainHubContent() {
     return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" />
   }
 
+  const captainMatchDayLockScreenSurface = (
+    <section style={dynamicCaptainMatchDayLockScreen} aria-label="Captain match-day lock screen">
+      <div style={captainMatchDayLockHeader}>
+        <div>
+          <div style={sectionKicker}>Match-day lock screen</div>
+          <h2 style={captainMatchDayLockTitle}>{isMobile ? 'Handle this now.' : 'Know what needs you right now.'}</h2>
+        </div>
+        <span style={captainMatchDayLockWarnCount > 0 ? warnBadge : captainMatchDayLockReadyCount >= captainMatchDayLockSignals.length ? badgeGreen : badgeBlue}>
+          {captainMatchDayLockStatus}
+        </span>
+      </div>
+
+      <div style={captainMatchDayLockHero}>
+        <div style={captainMatchDayLockHeroCopy}>
+          <div style={commandCenterLabel}>Top captain action</div>
+          <div style={captainMatchDayLockFocus}>{captainMatchDayLockPrimarySignal.label}</div>
+          <p style={captainMatchDayLockDetail}>{captainMatchDayLockPrimarySignal.detail}</p>
+        </div>
+        <div style={captainMatchDayLockHeroAction}>
+          <span style={captainMatchDayLockPrimarySignal.tone === 'warn' ? warnBadge : captainMatchDayLockPrimarySignal.tone === 'good' ? badgeGreen : badgeBlue}>
+            {captainMatchDayLockPrimarySignal.state}
+          </span>
+          <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainMatchDayLockPrimarySignal.href, captainMatchDayLockPrimarySignal.stage)}>
+            {captainMatchDayLockPrimarySignal.cta}
+          </PrimarySmallBtn>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainMatchDayLockGrid}>
+        {captainMatchDayLockSignals.map((signal) => (
+          <button
+            key={signal.id}
+            type="button"
+            disabled={!hasTeamScope || !premiumEnabled}
+            style={{
+              ...captainMatchDayLockSignal,
+              ...(signal.tone === 'warn'
+                ? captainMatchDayLockSignalWarn
+                : signal.tone === 'good'
+                  ? captainMatchDayLockSignalGood
+                  : captainMatchDayLockSignalInfo),
+              ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+            }}
+            onClick={() => handleCaptainAction(signal.href, signal.stage)}
+          >
+            <span style={captainMatchDayLockSignalTop}>
+              <strong>{signal.label}</strong>
+              <span style={signal.tone === 'warn' ? warnBadge : signal.tone === 'good' ? badgeGreen : badgeBlue}>
+                {signal.state}
+              </span>
+            </span>
+            {!isSmallMobile ? <span style={captainMatchDayLockSignalDetail}>{signal.detail}</span> : null}
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+
   const captainMatchDayCommandStripSurface = (
-    <section style={dynamicCaptainMatchDayCommandStrip} aria-label="Captain match day command strip">
+    <section id="captain-match-day-command-strip" style={dynamicCaptainMatchDayCommandStrip} aria-label="Captain match day command strip">
       <div style={captainMatchDayCommandHeader}>
         <div>
           <div style={sectionKicker}>Match-day command strip</div>
@@ -5516,7 +5698,7 @@ function CaptainHubContent() {
   )
 
   const captainEmergencyMode = (
-    <section style={dynamicCaptainEmergencyModeShell} aria-label="Captain late-change emergency mode">
+    <section id="captain-late-change-mode" style={dynamicCaptainEmergencyModeShell} aria-label="Captain late-change emergency mode">
       <div style={captainEmergencyModeHeader}>
         <div>
           <div style={sectionKicker}>Late-change mode</div>
@@ -5580,7 +5762,7 @@ function CaptainHubContent() {
   )
 
   const captainChangeAckTracker = (
-    <section style={dynamicCaptainChangeAckShell} aria-label="Captain change acknowledgment tracker">
+    <section id="captain-change-ack-tracker" style={dynamicCaptainChangeAckShell} aria-label="Captain change acknowledgment tracker">
       <div style={captainChangeAckHeader}>
         <div>
           <div style={sectionKicker}>Change confirmations</div>
@@ -5677,7 +5859,7 @@ function CaptainHubContent() {
   )
 
   const captainArrivalRiskTracker = (
-    <section style={dynamicCaptainArrivalRiskShell} aria-label="Captain arrival risk tracker">
+    <section id="captain-arrival-risk-tracker" style={dynamicCaptainArrivalRiskShell} aria-label="Captain arrival risk tracker">
       <div style={captainArrivalRiskHeader}>
         <div>
           <div style={sectionKicker}>Arrival tracker</div>
@@ -5799,7 +5981,7 @@ function CaptainHubContent() {
   )
 
   const captainCourtHandoffTimer = (
-    <section style={dynamicCaptainCourtHandoffShell} aria-label="Captain court handoff timer">
+    <section id="captain-court-handoff-timer" style={dynamicCaptainCourtHandoffShell} aria-label="Captain court handoff timer">
       <div style={captainCourtHandoffHeader}>
         <div>
           <div style={sectionKicker}>Court handoff</div>
@@ -5925,7 +6107,7 @@ function CaptainHubContent() {
   )
 
   const captainNotificationQueue = (
-    <section style={dynamicCaptainNotificationQueueShell} aria-label="Captain match-day notification queue">
+    <section id="captain-notification-queue" style={dynamicCaptainNotificationQueueShell} aria-label="Captain match-day notification queue">
       <div style={captainNotificationQueueHeader}>
         <div>
           <div style={sectionKicker}>Notification queue</div>
@@ -6053,7 +6235,7 @@ function CaptainHubContent() {
   )
 
   const captainPlayerBriefCards = (
-    <section style={dynamicCaptainPlayerBriefShell} aria-label="Captain player brief cards">
+    <section id="captain-player-brief-cards" style={dynamicCaptainPlayerBriefShell} aria-label="Captain player brief cards">
       <div style={captainPlayerBriefHeader}>
         <div>
           <div style={sectionKicker}>Player brief cards</div>
@@ -7918,6 +8100,8 @@ function CaptainHubContent() {
           </div>
         </section>
 
+        {captainMatchDayLockScreenSurface}
+
         {captainMatchDayCommandStripSurface}
 
         {captainEmergencyMode}
@@ -9598,6 +9782,137 @@ const captainDecisionHandoffProofTopStyle: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const captainMatchDayLockScreen: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(8,13,28,0.92) 44%, rgba(12,22,38,0.94))',
+  boxShadow: '0 18px 46px rgba(2,8,23,0.34)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainMatchDayLockHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchDayLockTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockHero: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 170px), 0.34fr)',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockHeroCopy: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockFocus: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockHeroAction: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  justifyItems: 'stretch',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainMatchDayLockGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainMatchDayLockSignal: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 76,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockSignalGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.09)',
+}
+
+const captainMatchDayLockSignalWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainMatchDayLockSignalInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainMatchDayLockSignalTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchDayLockSignalDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const captainMatchDayCommandStrip: CSSProperties = {
