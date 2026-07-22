@@ -291,6 +291,16 @@ type CaptainPostSendTrackerItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainChangeAckTarget = {
+  id: string
+  name: string
+  court: string
+  state: string
+  detail: string
+  status: 'pending' | 'acknowledged'
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -438,6 +448,7 @@ const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY = 'tenaceiq_captain_message_contacts'
 const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
 const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
+const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -491,6 +502,15 @@ type CaptainScoreCaptureEntry = {
   court_label?: string
   players?: string
   status?: CaptainScoreCaptureStatus
+  updated_at?: string
+}
+
+type CaptainChangeAckEntry = {
+  id?: string
+  event_key?: string
+  target_key?: string
+  name?: string
+  status?: 'pending' | 'acknowledged'
   updated_at?: string
 }
 
@@ -735,8 +755,10 @@ function CaptainHubContent() {
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
+  const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
+  const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1696,6 +1718,23 @@ function CaptainHubContent() {
     ...captainEmergencyModeGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainEmergencyModeGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainEmergencyModeGrid.gap,
+  }
+  const dynamicCaptainChangeAckShell: CSSProperties = {
+    ...captainChangeAckShell,
+    gap: isMobile ? 12 : captainChangeAckShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainChangeAckShell.padding,
+    borderRadius: isMobile ? 20 : captainChangeAckShell.borderRadius,
+  }
+
+  const dynamicCaptainChangeAckGrid: CSSProperties = {
+    ...captainChangeAckGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainChangeAckGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainChangeAckList: CSSProperties = {
+    ...captainChangeAckList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainChangeAckList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainChangeAckList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -2830,6 +2869,115 @@ function CaptainHubContent() {
     matchDayArrivalLabel,
     matchDayLocationLabel,
     matchDayNotConfirmedCount,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainChangeAckEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainChangeAckEntry>()
+    if (captainChangeAckVersion < 0) return new Map<string, CaptainChangeAckEntry>()
+
+    return new Map(
+      readLocalArray<CaptainChangeAckEntry>(CAPTAIN_CHANGE_ACK_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.target_key), entry] as const)
+        .filter(([targetKey]) => Boolean(targetKey)),
+    )
+  }, [captainChangeAckVersion, workspaceState.currentEventKey])
+
+  const captainChangeAckTargets = useMemo<CaptainChangeAckTarget[]>(() => {
+    const targetMap = new Map<string, { name: string; court: string }>()
+    matchDayLineupRows.forEach((row, index) => {
+      const court = safeText(row.court_label, `Court ${index + 1}`)
+      ;(row.players ?? []).forEach((playerName) => {
+        const name = safeText(playerName)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court })
+      })
+    })
+
+    if (!targetMap.size) {
+      captainMessageContactRows.forEach((contact) => {
+        if (contact.is_active === false) return
+        const name = safeText(contact.full_name)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court: safeText(contact.phone) ? 'Text contact' : 'Roster contact' })
+      })
+    }
+
+    if (!targetMap.size) {
+      roster.forEach((player) => {
+        const name = safeText(player.name)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court: 'Roster' })
+      })
+    }
+
+    return Array.from(targetMap.entries()).slice(0, isMobile ? 6 : 8).map(([targetKey, target]) => {
+      const ackEntry = captainChangeAckEntryMap.get(targetKey)
+      const acknowledged = ackEntry?.status === 'acknowledged'
+      const updatedLabel = formatDateTimeShort(ackEntry?.updated_at || '')
+      return {
+        id: targetKey,
+        name: target.name,
+        court: target.court,
+        status: acknowledged ? 'acknowledged' : 'pending',
+        state: acknowledged ? 'Acked' : 'Waiting',
+        detail: acknowledged
+          ? `Confirmed${updatedLabel ? ` ${updatedLabel}` : ''}.`
+          : captainEmergencyAlertCount > 0
+            ? 'Needs the updated court or backup note.'
+            : 'Needs a quick thumbs-up on the latest plan.',
+        tone: acknowledged ? 'good' : captainEmergencyAlertCount > 0 ? 'warn' : 'info',
+      }
+    })
+  }, [
+    captainChangeAckEntryMap,
+    captainEmergencyAlertCount,
+    captainMessageContactRows,
+    isMobile,
+    matchDayLineupRows,
+    roster,
+  ])
+  const captainChangeAckPendingCount = captainChangeAckTargets.filter((target) => target.status === 'pending').length
+  const captainChangeAckConfirmedCount = captainChangeAckTargets.length - captainChangeAckPendingCount
+  const captainChangeAckPrimaryTarget = captainChangeAckTargets.find((target) => target.status === 'pending') ?? captainChangeAckTargets[0]
+  const captainChangeAckStatus = captainChangeAckTargets.length
+    ? captainChangeAckPendingCount > 0
+      ? `${captainChangeAckPendingCount} waiting`
+      : 'All acked'
+    : 'No targets'
+  const captainChangeAckChaseMessage = useMemo(() => {
+    const pendingNames = captainChangeAckTargets
+      .filter((target) => target.status === 'pending')
+      .map((target) => target.name)
+    const targetNames = pendingNames.length
+      ? pendingNames.slice(0, isMobile ? 4 : 6).join(', ')
+      : 'everyone'
+    const changeLine = captainCourtSwapNeedsCount > 0
+      ? `${captainCourtSwapPrimaryItem.courtLabel}: ${captainCourtSwapPrimaryItem.outPlayer} -> ${captainCourtSwapPrimaryItem.inPlayer}.`
+      : captainEmergencyAlertCount > 0
+        ? 'Please confirm you saw the latest court and arrival update.'
+        : 'Please confirm you saw the latest lineup note.'
+
+    return [
+      `Quick confirmation for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}:`,
+      changeLine,
+      `Need ack from: ${targetNames}.`,
+      `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+    ].join('\n')
+  }, [
+    captainChangeAckTargets,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainCourtSwapPrimaryItem.outPlayer,
+    captainEmergencyAlertCount,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
     weekAtGlance.eventDateLabel,
     weekAtGlance.opponentLabel,
   ])
@@ -4158,6 +4306,90 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainChangeAckEntries(targets: CaptainChangeAckTarget[], status: 'pending' | 'acknowledged') {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey || !targets.length) return
+
+    const now = new Date().toISOString()
+    const targetIds = new Set(targets.map((target) => target.id))
+    const rows = readLocalArray<CaptainChangeAckEntry>(CAPTAIN_CHANGE_ACK_STORAGE_KEY)
+    const nextEntries: CaptainChangeAckEntry[] = targets.map((target) => ({
+      id: `captain-change-ack-${workspaceState.currentEventKey}-${target.id}`,
+      event_key: workspaceState.currentEventKey,
+      target_key: target.id,
+      name: target.name,
+      status,
+      updated_at: now,
+    }))
+    const nextRows = [
+      ...nextEntries,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        targetIds.has(safeText(entry.target_key))
+      )),
+    ].slice(0, 160)
+
+    window.localStorage.setItem(CAPTAIN_CHANGE_ACK_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainChangeAckVersion((value) => value + 1)
+  }
+
+  function handleCaptainChangeAck(target: CaptainChangeAckTarget) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const nextStatus = target.status === 'acknowledged' ? 'pending' : 'acknowledged'
+    writeCaptainChangeAckEntries([target], nextStatus)
+    appendCaptainDecisionLog({
+      label: 'Change confirmation',
+      detail: `${target.name} marked ${nextStatus === 'acknowledged' ? 'acknowledged' : 'waiting'} for ${target.court}.`,
+      action: nextStatus === 'acknowledged' ? 'Acked' : 'Waiting',
+      tone: nextStatus === 'acknowledged' ? 'good' : 'info',
+    })
+  }
+
+  function handleMarkAllCaptainChangeAck() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const pendingTargets = captainChangeAckTargets.filter((target) => target.status === 'pending')
+    if (!pendingTargets.length) return
+
+    writeCaptainChangeAckEntries(pendingTargets, 'acknowledged')
+    appendCaptainDecisionLog({
+      label: 'Change confirmations closed',
+      detail: `${pendingTargets.length} pending confirmation${pendingTargets.length === 1 ? '' : 's'} marked acknowledged.`,
+      action: 'All acked',
+      tone: 'good',
+    })
+  }
+
+  async function handleCopyCaptainChangeAckChase() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!captainChangeAckTargets.length || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainChangeAckChaseMessage)
+      setCopiedCaptainChangeAckChase(true)
+      appendCaptainDecisionLog({
+        label: 'Ack chase copied',
+        detail: captainChangeAckPendingCount > 0
+          ? `${captainChangeAckPendingCount} player${captainChangeAckPendingCount === 1 ? '' : 's'} still need to acknowledge the late change.`
+          : 'Confirmation chase copied after all visible players acknowledged.',
+        action: 'Copy ack chase',
+        tone: captainChangeAckPendingCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainChangeAckChase(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -4300,6 +4532,103 @@ function CaptainHubContent() {
             {!isSmallMobile ? <span style={captainEmergencyModeActionDetail}>{action.detail}</span> : null}
           </button>
         ))}
+      </div>
+    </section>
+  )
+
+  const captainChangeAckTracker = (
+    <section style={dynamicCaptainChangeAckShell} aria-label="Captain change acknowledgment tracker">
+      <div style={captainChangeAckHeader}>
+        <div>
+          <div style={sectionKicker}>Change confirmations</div>
+          <h2 style={captainChangeAckTitle}>{isMobile ? 'Who confirmed?' : 'See who confirmed the late change.'}</h2>
+        </div>
+        <span style={captainChangeAckPendingCount > 0 ? warnBadge : captainChangeAckTargets.length ? badgeGreen : badgeBlue}>
+          {captainChangeAckStatus}
+        </span>
+      </div>
+      <div style={captainChangeAckSub}>
+        Tap each player as they reply so the captain knows who has seen the latest court, backup, or arrival change.
+      </div>
+
+      <div style={captainChangeAckSummaryGrid}>
+        <div style={captainChangeAckSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Acked</span>
+          <strong style={commandCenterSnapshotValue}>{captainChangeAckConfirmedCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainChangeAckTargets.length ? `${captainChangeAckTargets.length} visible target${captainChangeAckTargets.length === 1 ? '' : 's'}` : 'No target list yet'}</span>
+        </div>
+        <div style={captainChangeAckSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Waiting</span>
+          <strong style={commandCenterSnapshotValue}>{captainChangeAckPendingCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainChangeAckPendingCount > 0 ? 'Send one more chase' : 'No visible gap'}</span>
+        </div>
+        <div style={captainChangeAckSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Change</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtSwapNeedsCount > 0 ? captainCourtSwapPrimaryItem.courtLabel : captainEmergencyAlertCount > 0 ? 'Late note' : 'Lineup note'}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainCourtSwapNeedsCount > 0 ? captainCourtSwapPrimaryItem.inPlayer : weekAtGlance.eventDateLabel}</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainChangeAckGrid}>
+        <div style={captainChangeAckMain}>
+          <div style={captainChangeAckTop}>
+            <div>
+              <div style={commandCenterLabel}>Next confirmation</div>
+              <div style={captainChangeAckFocus}>{captainChangeAckPrimaryTarget?.name ?? 'No player targets'}</div>
+            </div>
+            <span style={captainChangeAckPrimaryTarget?.tone === 'good' ? badgeGreen : captainChangeAckPrimaryTarget?.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainChangeAckPrimaryTarget?.state ?? 'Ready'}
+            </span>
+          </div>
+          <p style={captainChangeAckDetail}>{captainChangeAckPrimaryTarget?.detail ?? 'Save a lineup or contact list before tracking confirmations.'}</p>
+          <div style={captainChangeAckActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainChangeAckPendingCount} onClick={handleMarkAllCaptainChangeAck}>
+              {captainChangeAckPendingCount ? 'Mark all acked' : 'All acked'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainChangeAckTargets.length} onClick={() => void handleCopyCaptainChangeAckChase()}>
+              {copiedCaptainChangeAckChase ? 'Copied chase' : 'Copy ack chase'}
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainChangeAckPanel}>
+          <div style={commandCenterLabel}>Player acknowledgments</div>
+          <div style={dynamicCaptainChangeAckList}>
+            {captainChangeAckTargets.length ? captainChangeAckTargets.map((target) => (
+              <button
+                key={target.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainChangeAckCard,
+                  ...(target.status === 'acknowledged' ? captainChangeAckCardGood : target.tone === 'warn' ? captainChangeAckCardWarn : captainChangeAckCardInfo),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainChangeAck(target)}
+              >
+                <span style={captainChangeAckCardTop}>
+                  <strong>{target.name}</strong>
+                  <span style={target.status === 'acknowledged' ? badgeGreen : target.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {target.state}
+                  </span>
+                </span>
+                <span style={captainChangeAckCourt}>{target.court}</span>
+                {!isSmallMobile ? <span style={captainChangeAckCardDetail}>{target.detail}</span> : null}
+              </button>
+            )) : (
+              <article style={captainChangeAckCard}>
+                <span style={captainChangeAckCardTop}>
+                  <strong>No targets yet</strong>
+                  <span style={badgeBlue}>Setup</span>
+                </span>
+                <span style={captainChangeAckCardDetail}>Build a lineup or add captain message contacts to track who saw the change.</span>
+              </article>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -6039,6 +6368,8 @@ function CaptainHubContent() {
         {captainMatchDayCommandStripSurface}
 
         {captainEmergencyMode}
+
+        {captainChangeAckTracker}
 
         {captainMorningBrief}
 
@@ -7943,6 +8274,198 @@ const captainEmergencyModeActionDetail: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.4,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.78) 44%, rgba(18,28,46,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainChangeAckHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainChangeAckTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainChangeAckSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 350px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainChangeAckMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainChangeAckFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainChangeAckPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 205px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainChangeAckCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 92,
+  width: '100%',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  textAlign: 'left',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainChangeAckCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainChangeAckCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainChangeAckCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckCourt: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainChangeAckCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
