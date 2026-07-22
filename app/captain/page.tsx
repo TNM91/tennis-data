@@ -301,6 +301,19 @@ type CaptainChangeAckTarget = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainArrivalRiskStatus = 'eta-needed' | 'on-time' | 'running-late' | 'backup-ready'
+
+type CaptainArrivalRiskTarget = {
+  id: string
+  name: string
+  court: string
+  role: string
+  status: CaptainArrivalRiskStatus
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -449,6 +462,7 @@ const CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY = 'tenaceiq_captain_message_contacts'
 const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
 const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
 const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
+const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -511,6 +525,15 @@ type CaptainChangeAckEntry = {
   target_key?: string
   name?: string
   status?: 'pending' | 'acknowledged'
+  updated_at?: string
+}
+
+type CaptainArrivalRiskEntry = {
+  id?: string
+  event_key?: string
+  target_key?: string
+  name?: string
+  status?: CaptainArrivalRiskStatus
   updated_at?: string
 }
 
@@ -756,9 +779,11 @@ function CaptainHubContent() {
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
+  const [copiedCaptainArrivalRiskMessage, setCopiedCaptainArrivalRiskMessage] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
+  const [captainArrivalRiskVersion, setCaptainArrivalRiskVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1735,6 +1760,24 @@ function CaptainHubContent() {
     ...captainChangeAckList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainChangeAckList.gridTemplateColumns,
     gap: isMobile ? 8 : captainChangeAckList.gap,
+  }
+
+  const dynamicCaptainArrivalRiskShell: CSSProperties = {
+    ...captainArrivalRiskShell,
+    gap: isMobile ? 12 : captainArrivalRiskShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainArrivalRiskShell.padding,
+    borderRadius: isMobile ? 20 : captainArrivalRiskShell.borderRadius,
+  }
+
+  const dynamicCaptainArrivalRiskGrid: CSSProperties = {
+    ...captainArrivalRiskGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainArrivalRiskGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainArrivalRiskList: CSSProperties = {
+    ...captainArrivalRiskList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainArrivalRiskList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainArrivalRiskList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -2975,6 +3018,176 @@ function CaptainHubContent() {
     captainCourtSwapPrimaryItem.inPlayer,
     captainCourtSwapPrimaryItem.outPlayer,
     captainEmergencyAlertCount,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+
+  const captainArrivalRiskEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainArrivalRiskEntry>()
+    if (captainArrivalRiskVersion < 0) return new Map<string, CaptainArrivalRiskEntry>()
+
+    return new Map(
+      readLocalArray<CaptainArrivalRiskEntry>(CAPTAIN_ARRIVAL_RISK_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.target_key), entry] as const)
+        .filter(([targetKey]) => Boolean(targetKey)),
+    )
+  }, [captainArrivalRiskVersion, workspaceState.currentEventKey])
+
+  const captainArrivalRiskTargets = useMemo<CaptainArrivalRiskTarget[]>(() => {
+    const contactNameById = new Map(
+      captainMessageContactRows
+        .map((contact) => [safeText(contact.id), safeText(contact.full_name)] as const)
+        .filter(([id, name]) => Boolean(id && name)),
+    )
+    const responseStatusByName = new Map<string, string>()
+    matchDayResponseRows.forEach((row) => {
+      const contactName = contactNameById.get(safeText(row.contact_id))
+      const nameKey = safeKey(contactName || '')
+      if (!nameKey) return
+      responseStatusByName.set(nameKey, safeText(row.status).toLowerCase())
+    })
+
+    const targetMap = new Map<string, { name: string; court: string; role: string }>()
+    matchDayLineupRows.forEach((row, index) => {
+      const court = safeText(row.court_label, `Court ${index + 1}`)
+      ;(row.players ?? []).forEach((playerName) => {
+        const name = safeText(playerName)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court, role: 'Lineup' })
+      })
+    })
+
+    const backupName = captainCourtSwapNeedsCount > 0
+      ? safeText(captainCourtSwapPrimaryItem.inPlayer)
+      : captainBenchReadyCount > 0
+        ? safeText(captainBenchPrimaryItem.name)
+        : ''
+    if (backupName) {
+      const backupKey = safeKey(backupName)
+      if (!targetMap.has(backupKey)) {
+        targetMap.set(backupKey, {
+          name: backupName,
+          court: captainCourtSwapNeedsCount > 0 ? captainCourtSwapPrimaryItem.courtLabel : 'Backup',
+          role: 'Backup',
+        })
+      }
+    }
+
+    if (!targetMap.size) {
+      captainMessageContactRows.forEach((contact) => {
+        const name = safeText(contact.full_name)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court: safeText(contact.phone) ? 'Text contact' : 'Roster contact', role: 'Contact' })
+      })
+    }
+
+    if (!targetMap.size) {
+      roster.forEach((player) => {
+        const name = safeText(player.name)
+        const key = safeKey(name)
+        if (!name || targetMap.has(key)) return
+        targetMap.set(key, { name, court: 'Roster', role: 'Roster' })
+      })
+    }
+
+    return Array.from(targetMap.entries()).slice(0, isMobile ? 6 : 8).map(([targetKey, target]) => {
+      const savedStatus = captainArrivalRiskEntryMap.get(targetKey)?.status
+      const responseStatus = responseStatusByName.get(targetKey)
+      const inferredStatus: CaptainArrivalRiskStatus =
+        responseStatus === 'confirmed'
+          ? 'on-time'
+          : responseStatus === 'running-late'
+            ? 'running-late'
+            : responseStatus === 'need-sub'
+              ? 'backup-ready'
+              : target.role === 'Backup'
+                ? 'backup-ready'
+                : 'eta-needed'
+      const status = savedStatus || inferredStatus
+      const updatedLabel = formatDateTimeShort(captainArrivalRiskEntryMap.get(targetKey)?.updated_at || '')
+      const state = status === 'on-time'
+        ? 'On time'
+        : status === 'running-late'
+          ? 'Late'
+          : status === 'backup-ready'
+            ? 'Backup ready'
+            : 'Need ETA'
+      const detail = status === 'on-time'
+        ? `Arrival covered${updatedLabel ? ` ${updatedLabel}` : ''}.`
+        : status === 'running-late'
+          ? `Ask for ETA before ${target.court} warms up.`
+          : status === 'backup-ready'
+            ? 'Keep close until the court is stable.'
+            : `Confirm arrival by ${matchDayArrivalLabel}.`
+
+      return {
+        id: targetKey,
+        name: target.name,
+        court: target.court,
+        role: target.role,
+        status,
+        state,
+        detail,
+        tone: status === 'on-time' || status === 'backup-ready' ? 'good' : status === 'running-late' ? 'warn' : 'info',
+      }
+    })
+  }, [
+    captainArrivalRiskEntryMap,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainMessageContactRows,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLineupRows,
+    matchDayResponseRows,
+    roster,
+  ])
+  const captainArrivalRiskWatchCount = captainArrivalRiskTargets.filter((target) => target.status === 'eta-needed' || target.status === 'running-late').length
+  const captainArrivalRiskLateCount = captainArrivalRiskTargets.filter((target) => target.status === 'running-late').length
+  const captainArrivalRiskOnTimeCount = captainArrivalRiskTargets.filter((target) => target.status === 'on-time').length
+  const captainArrivalRiskBackupCount = captainArrivalRiskTargets.filter((target) => target.status === 'backup-ready').length
+  const captainArrivalRiskPrimaryTarget = captainArrivalRiskTargets.find((target) => target.status === 'running-late')
+    ?? captainArrivalRiskTargets.find((target) => target.status === 'eta-needed')
+    ?? captainArrivalRiskTargets.find((target) => target.status === 'backup-ready')
+    ?? captainArrivalRiskTargets[0]
+  const captainArrivalRiskStatus = captainArrivalRiskTargets.length
+    ? captainArrivalRiskWatchCount > 0
+      ? `${captainArrivalRiskWatchCount} watch`
+      : 'Arrival clear'
+    : 'No targets'
+  const captainArrivalRiskMessage = useMemo(() => {
+    const watchNames = captainArrivalRiskTargets
+      .filter((target) => target.status === 'eta-needed' || target.status === 'running-late')
+      .map((target) => target.name)
+    const targetNames = watchNames.length
+      ? watchNames.slice(0, isMobile ? 4 : 6).join(', ')
+      : 'everyone'
+    const backupLine = captainArrivalRiskBackupCount > 0
+      ? `Backup ready: ${captainArrivalRiskTargets.filter((target) => target.status === 'backup-ready').map((target) => target.name).slice(0, 3).join(', ')}.`
+      : captainBenchReadyCount > 0
+        ? `Backup: ${captainBenchPrimaryItem.name} can stay close.`
+        : 'Backup: still reviewing cover.'
+
+    return [
+      `ETA check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}:`,
+      `Target arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`,
+      `Need ETA from: ${targetNames}.`,
+      backupLine,
+    ].join('\n')
+  }, [
+    captainArrivalRiskBackupCount,
+    captainArrivalRiskTargets,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
     isMobile,
     matchDayArrivalLabel,
     matchDayLocationLabel,
@@ -4390,6 +4603,89 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainArrivalRiskEntries(targets: CaptainArrivalRiskTarget[], status: CaptainArrivalRiskStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey || !targets.length) return
+
+    const now = new Date().toISOString()
+    const targetIds = new Set(targets.map((target) => target.id))
+    const rows = readLocalArray<CaptainArrivalRiskEntry>(CAPTAIN_ARRIVAL_RISK_STORAGE_KEY)
+    const nextEntries: CaptainArrivalRiskEntry[] = targets.map((target) => ({
+      id: `captain-arrival-risk-${workspaceState.currentEventKey}-${target.id}`,
+      event_key: workspaceState.currentEventKey,
+      target_key: target.id,
+      name: target.name,
+      status,
+      updated_at: now,
+    }))
+    const nextRows = [
+      ...nextEntries,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        targetIds.has(safeText(entry.target_key))
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_ARRIVAL_RISK_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainArrivalRiskVersion((value) => value + 1)
+  }
+
+  function handleCaptainArrivalRiskStatus(target: CaptainArrivalRiskTarget, status: CaptainArrivalRiskStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainArrivalRiskEntries([target], status)
+    appendCaptainDecisionLog({
+      label: 'Arrival status updated',
+      detail: `${target.name} marked ${status === 'on-time' ? 'on time' : status === 'running-late' ? 'running late' : status === 'backup-ready' ? 'backup ready' : 'ETA needed'} for ${target.court}.`,
+      action: status === 'on-time' ? 'On time' : status === 'running-late' ? 'Late' : status === 'backup-ready' ? 'Backup ready' : 'ETA needed',
+      tone: status === 'running-late' ? 'warn' : status === 'eta-needed' ? 'info' : 'good',
+    })
+  }
+
+  function handleMarkAllCaptainArrivalOnTime() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const openTargets = captainArrivalRiskTargets.filter((target) => target.status !== 'on-time' && target.status !== 'backup-ready')
+    if (!openTargets.length) return
+
+    writeCaptainArrivalRiskEntries(openTargets, 'on-time')
+    appendCaptainDecisionLog({
+      label: 'Arrival watch cleared',
+      detail: `${openTargets.length} arrival watch target${openTargets.length === 1 ? '' : 's'} marked on time.`,
+      action: 'Arrival clear',
+      tone: 'good',
+    })
+  }
+
+  async function handleCopyCaptainArrivalRiskMessage() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!captainArrivalRiskTargets.length || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainArrivalRiskMessage)
+      setCopiedCaptainArrivalRiskMessage(true)
+      appendCaptainDecisionLog({
+        label: 'ETA chase copied',
+        detail: captainArrivalRiskWatchCount > 0
+          ? `${captainArrivalRiskWatchCount} arrival watch target${captainArrivalRiskWatchCount === 1 ? '' : 's'} included.`
+          : 'Arrival status message copied with no open watch targets.',
+        action: 'Copy ETA',
+        tone: captainArrivalRiskWatchCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainArrivalRiskMessage(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -4625,6 +4921,128 @@ function CaptainHubContent() {
                   <span style={badgeBlue}>Setup</span>
                 </span>
                 <span style={captainChangeAckCardDetail}>Build a lineup or add captain message contacts to track who saw the change.</span>
+              </article>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainArrivalRiskTracker = (
+    <section style={dynamicCaptainArrivalRiskShell} aria-label="Captain arrival risk tracker">
+      <div style={captainArrivalRiskHeader}>
+        <div>
+          <div style={sectionKicker}>Arrival tracker</div>
+          <h2 style={captainArrivalRiskTitle}>{isMobile ? 'Who is late?' : 'Track ETA and backup arrivals.'}</h2>
+        </div>
+        <span style={captainArrivalRiskLateCount > 0 ? warnBadge : captainArrivalRiskWatchCount > 0 ? badgeBlue : captainArrivalRiskTargets.length ? badgeGreen : badgeBlue}>
+          {captainArrivalRiskStatus}
+        </span>
+      </div>
+      <div style={captainArrivalRiskSub}>
+        Keep late players, ETA gaps, and backup arrival coverage in one quick lane before warm-up starts.
+      </div>
+
+      <div style={captainArrivalRiskSummaryGrid}>
+        <div style={captainArrivalRiskSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>On time</span>
+          <strong style={commandCenterSnapshotValue}>{captainArrivalRiskOnTimeCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{matchDayArrivalLabel}</span>
+        </div>
+        <div style={captainArrivalRiskSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Watch</span>
+          <strong style={commandCenterSnapshotValue}>{captainArrivalRiskWatchCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainArrivalRiskLateCount > 0 ? `${captainArrivalRiskLateCount} late` : 'Need ETA'}</span>
+        </div>
+        <div style={captainArrivalRiskSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Backup</span>
+          <strong style={commandCenterSnapshotValue}>{captainArrivalRiskBackupCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainBenchReadyCount > 0 ? captainBenchPrimaryItem.name : 'Review bench'}</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainArrivalRiskGrid}>
+        <div style={captainArrivalRiskMain}>
+          <div style={captainArrivalRiskTop}>
+            <div>
+              <div style={commandCenterLabel}>Next arrival text</div>
+              <div style={captainArrivalRiskFocus}>{captainArrivalRiskPrimaryTarget?.name ?? 'No arrival targets'}</div>
+            </div>
+            <span style={captainArrivalRiskPrimaryTarget?.tone === 'warn' ? warnBadge : captainArrivalRiskPrimaryTarget?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainArrivalRiskPrimaryTarget?.state ?? 'Ready'}
+            </span>
+          </div>
+          <p style={captainArrivalRiskDetail}>{captainArrivalRiskPrimaryTarget?.detail ?? 'Save a lineup, contacts, or roster before tracking arrival status.'}</p>
+          <div style={captainArrivalRiskMetaGrid}>
+            <div style={captainArrivalRiskMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Arrival</span>
+              <strong style={commandCenterSnapshotValue}>{matchDayArrivalLabel}</strong>
+              <span style={commandCenterSnapshotDetail}>{matchDayLocationLabel}</span>
+            </div>
+            <div style={captainArrivalRiskMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Court risk</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtSwapNeedsCount > 0 ? captainCourtSwapPrimaryItem.courtLabel : 'Stable'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainCourtSwapNeedsCount > 0 ? captainCourtSwapPrimaryItem.inPlayer : 'No urgent move'}</span>
+            </div>
+          </div>
+          <div style={captainArrivalRiskActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainArrivalRiskWatchCount} onClick={handleMarkAllCaptainArrivalOnTime}>
+              {captainArrivalRiskWatchCount ? 'Mark watch on time' : 'Arrival clear'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainArrivalRiskTargets.length} onClick={() => void handleCopyCaptainArrivalRiskMessage()}>
+              {copiedCaptainArrivalRiskMessage ? 'Copied ETA' : 'Copy ETA chase'}
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainArrivalRiskPanel}>
+          <div style={commandCenterLabel}>Arrival board</div>
+          <div style={dynamicCaptainArrivalRiskList}>
+            {captainArrivalRiskTargets.length ? captainArrivalRiskTargets.map((target) => (
+              <article
+                key={target.id}
+                style={{
+                  ...captainArrivalRiskCard,
+                  ...(target.status === 'running-late' ? captainArrivalRiskCardWarn : target.status === 'eta-needed' ? captainArrivalRiskCardInfo : captainArrivalRiskCardGood),
+                }}
+              >
+                <div style={captainArrivalRiskCardTop}>
+                  <strong>{target.name}</strong>
+                  <span style={target.tone === 'warn' ? warnBadge : target.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {target.state}
+                  </span>
+                </div>
+                <span style={captainArrivalRiskCourt}>{target.court} - {target.role}</span>
+                {!isSmallMobile ? <span style={captainArrivalRiskCardDetail}>{target.detail}</span> : null}
+                <div style={captainArrivalRiskStatusGrid}>
+                  {(['on-time', 'running-late', 'backup-ready'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainArrivalRiskStatusButton,
+                        ...(target.status === status ? captainArrivalRiskStatusButtonActive : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainArrivalRiskStatus(target, status)}
+                    >
+                      {status === 'on-time' ? 'On time' : status === 'running-late' ? 'Late' : 'Backup'}
+                    </button>
+                  ))}
+                </div>
+              </article>
+            )) : (
+              <article style={captainArrivalRiskCard}>
+                <div style={captainArrivalRiskCardTop}>
+                  <strong>No arrival targets yet</strong>
+                  <span style={badgeBlue}>Setup</span>
+                </div>
+                <span style={captainArrivalRiskCardDetail}>Build a lineup or add captain contacts to track late players and backup arrivals.</span>
               </article>
             )}
           </div>
@@ -6370,6 +6788,8 @@ function CaptainHubContent() {
         {captainEmergencyMode}
 
         {captainChangeAckTracker}
+
+        {captainArrivalRiskTracker}
 
         {captainMorningBrief}
 
@@ -8467,6 +8887,241 @@ const captainChangeAckCardDetail: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 750,
   overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(251,191,36,0.17)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.075), rgba(8,13,28,0.78) 44%, rgba(24,30,45,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainArrivalRiskHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainArrivalRiskTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainArrivalRiskSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 360px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainArrivalRiskMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainArrivalRiskFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainArrivalRiskMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainArrivalRiskPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 215px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainArrivalRiskCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 132,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainArrivalRiskCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainArrivalRiskCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainArrivalRiskCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskCourt: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskStatusGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainArrivalRiskStatusButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainArrivalRiskStatusButtonActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--foreground-strong)',
 }
 
 const captainMorningBriefShell: CSSProperties = {
