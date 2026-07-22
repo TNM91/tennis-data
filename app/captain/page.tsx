@@ -246,6 +246,17 @@ type CaptainMorningBriefItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainSendQueueItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  body: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreSendCheck = {
   label: string
   state: string
@@ -679,6 +690,7 @@ function CaptainHubContent() {
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
+  const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1634,6 +1646,18 @@ function CaptainHubContent() {
   const dynamicCaptainMorningBriefGrid: CSSProperties = {
     ...captainMorningBriefGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainMorningBriefGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainSendQueueShell: CSSProperties = {
+    ...captainSendQueueShell,
+    gap: isMobile ? 12 : captainSendQueueShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainSendQueueShell.padding,
+    borderRadius: isMobile ? 20 : captainSendQueueShell.borderRadius,
+  }
+
+  const dynamicCaptainSendQueueGrid: CSSProperties = {
+    ...captainSendQueueGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainSendQueueGrid.gridTemplateColumns,
   }
 
   const dynamicCaptainPreSendReviewShell: CSSProperties = {
@@ -2896,6 +2920,79 @@ function CaptainHubContent() {
   ])
   const captainReplyReminderPrimaryTemplate = captainReplyReminderTemplates[0]
   const captainReplyReminderGroupTemplate = captainReplyReminderTemplates[1] ?? captainReplyReminderTemplates[0]
+  const captainBackupSendBody = captainCourtSwapNeedsCount > 0
+    ? `${captainCourtSwapPrimaryItem.inPlayer}, can you stay ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapPrimaryItem.courtLabel} may need cover. I will confirm before warm-up.`
+    : captainBenchReadyCount > 0
+      ? `${captainBenchPrimaryItem.name}, can you stay close for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? You are my first backup call if anything changes.`
+      : `Team backup check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I am reviewing bench coverage and will text if a court opens.`
+  const captainArrivalSendBody = `Match detail for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: arrive by ${matchDayArrivalLabel} at ${matchDayLocationLabel}. Reply if anything changes with your status.`
+  const captainSendQueueItems = useMemo<CaptainSendQueueItem[]>(() => [
+    {
+      id: 'lineup-note',
+      label: 'Lineup note',
+      state: workspaceState.lineupReady ? 'Ready' : 'Build first',
+      detail: workspaceState.lineupReady ? `${captainQuickCopyLineupRows.length} lineup line${captainQuickCopyLineupRows.length === 1 ? '' : 's'} ready.` : 'Save courts before sending a lineup note.',
+      body: captainQuickCopySummary,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      id: 'reply-reminder',
+      label: 'Reply reminder',
+      state: captainReplyReminderTargets.length ? `${captainReplyReminderTargets.length} target${captainReplyReminderTargets.length === 1 ? '' : 's'}` : 'Clear',
+      detail: captainReplyReminderPrimaryTemplate.detail,
+      body: captainReplyReminderPrimaryTemplate.body,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: captainReplyReminderTargets.length ? 'warn' : 'good',
+    },
+    {
+      id: 'backup-text',
+      label: 'Backup text',
+      state: captainCourtSwapNeedsCount > 0 ? 'Cover needed' : captainBenchReadyCount > 0 ? 'Bench ready' : 'Optional',
+      detail: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapPrimaryItem.courtLabel} has the first coverage risk.`
+        : captainBenchReadyCount > 0
+          ? `${captainBenchPrimaryItem.name} is the first backup call.`
+          : 'No urgent backup text is blocking the lineup.',
+      body: captainBackupSendBody,
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+    },
+    {
+      id: 'arrival-note',
+      label: 'Arrival note',
+      state: workspaceState.messagingReady ? 'Ready' : 'Add detail',
+      detail: `${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+      body: captainArrivalSendBody,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ], [
+    captainArrivalSendBody,
+    captainBackupSendBody,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainQuickCopyLineupRows.length,
+    captainQuickCopySummary,
+    captainReplyReminderPrimaryTemplate.body,
+    captainReplyReminderPrimaryTemplate.detail,
+    captainReplyReminderTargets.length,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    messagingHref,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainSendQueueReadyCount = captainSendQueueItems.filter((item) => item.tone === 'good').length
+  const captainSendQueueActionCount = captainSendQueueItems.filter((item) => item.tone === 'warn').length
+  const captainSendQueuePrimaryItem = captainSendQueueItems.find((item) => item.tone === 'warn') ?? captainSendQueueItems[0]
 
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
@@ -3403,6 +3500,22 @@ function CaptainHubContent() {
     }
   }
 
+  async function handleCopyCaptainSendQueueItem(item: CaptainSendQueueItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.body)
+      setCopiedCaptainSendQueueId(item.id)
+    } catch {
+      setCopiedCaptainSendQueueId('')
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -3556,6 +3669,62 @@ function CaptainHubContent() {
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  )
+
+  const captainSendQueue = (
+    <section style={dynamicCaptainSendQueueShell} aria-label="Captain send queue">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Send queue</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Send in order.' : 'Send each captain note without rebuilding it.'}</h2>
+        </div>
+        <span style={captainSendQueueActionCount > 0 ? warnBadge : captainSendQueueReadyCount >= 3 ? badgeGreen : badgeBlue}>
+          {captainSendQueueActionCount > 0 ? `${captainSendQueueActionCount} action` : `${captainSendQueueReadyCount}/${captainSendQueueItems.length} ready`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Work down the lineup note, reply reminder, backup text, and arrival note from one phone-friendly checklist.
+      </div>
+
+      <div style={captainSendQueueHero}>
+        <div>
+          <div style={commandCenterLabel}>Next send</div>
+          <div style={captainSendQueueTitle}>{captainSendQueuePrimaryItem.label}</div>
+          <p style={captainSendQueueDetail}>{captainSendQueuePrimaryItem.detail}</p>
+        </div>
+        <span style={captainSendQueuePrimaryItem.tone === 'good' ? badgeGreen : captainSendQueuePrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+          {captainSendQueuePrimaryItem.state}
+        </span>
+      </div>
+
+      <div style={dynamicCaptainSendQueueGrid}>
+        {captainSendQueueItems.map((item, index) => (
+          <article key={item.id} style={captainSendQueueCard}>
+            <div style={captainSendQueueCardTop}>
+              <div>
+                <span style={captainSendQueueStep}>Step {index + 1}</span>
+                <strong>{item.label}</strong>
+              </div>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <span style={captainSendQueueCardDetail}>{item.detail}</span>
+            <div style={captainSendQueuePreview}>
+              {item.body || 'No message needed for this step right now.'}
+            </div>
+            <div style={captainSendQueueActionRow}>
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainSendQueueItem(item)}>
+                {copiedCaptainSendQueueId === item.id ? 'Copied note' : 'Copy note'}
+              </PrimarySmallBtn>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                Open tool
+              </SecondarySmallBtn>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )
@@ -4826,6 +4995,8 @@ function CaptainHubContent() {
         {captainMatchDayCommandStripSurface}
 
         {captainMorningBrief}
+
+        {captainSendQueue}
 
         {captainPreSendReview}
 
@@ -6727,6 +6898,121 @@ const captainMorningBriefLineupRow: CSSProperties = {
   lineHeight: 1.4,
   fontWeight: 800,
   overflowWrap: 'anywhere',
+}
+
+const captainSendQueueShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.78) 43%, rgba(16,24,39,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainSendQueueHero: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueDetail: CSSProperties = {
+  margin: '7px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const captainSendQueueCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 9,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainSendQueueStep: CSSProperties = {
+  display: 'block',
+  marginBottom: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueuePreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 86,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.26)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendQueueActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  minWidth: 0,
 }
 
 const captainPreSendReviewShell: CSSProperties = {
