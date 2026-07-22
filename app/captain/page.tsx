@@ -331,6 +331,21 @@ type CaptainCourtHandoffItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainNotificationQueueStatus = 'queued' | 'sent' | 'hold'
+
+type CaptainNotificationQueueItem = {
+  id: string
+  label: string
+  audience: string
+  state: string
+  detail: string
+  timing: string
+  source: string
+  body: string
+  queueStatus: CaptainNotificationQueueStatus
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -481,6 +496,7 @@ const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
 const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
 const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
 const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
+const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_queue'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -561,6 +577,15 @@ type CaptainCourtHandoffEntry = {
   court_key?: string
   court_label?: string
   status?: CaptainCourtHandoffStatus
+  updated_at?: string
+}
+
+type CaptainNotificationQueueEntry = {
+  id?: string
+  event_key?: string
+  item_key?: string
+  label?: string
+  status?: CaptainNotificationQueueStatus
   updated_at?: string
 }
 
@@ -808,11 +833,13 @@ function CaptainHubContent() {
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
   const [copiedCaptainArrivalRiskMessage, setCopiedCaptainArrivalRiskMessage] = useState(false)
   const [copiedCaptainCourtHandoff, setCopiedCaptainCourtHandoff] = useState(false)
+  const [copiedCaptainNotificationQueueId, setCopiedCaptainNotificationQueueId] = useState('')
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
   const [captainArrivalRiskVersion, setCaptainArrivalRiskVersion] = useState(0)
   const [captainCourtHandoffVersion, setCaptainCourtHandoffVersion] = useState(0)
+  const [captainNotificationQueueVersion, setCaptainNotificationQueueVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1825,6 +1852,24 @@ function CaptainHubContent() {
     ...captainCourtHandoffList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainCourtHandoffList.gridTemplateColumns,
     gap: isMobile ? 8 : captainCourtHandoffList.gap,
+  }
+
+  const dynamicCaptainNotificationQueueShell: CSSProperties = {
+    ...captainNotificationQueueShell,
+    gap: isMobile ? 12 : captainNotificationQueueShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainNotificationQueueShell.padding,
+    borderRadius: isMobile ? 20 : captainNotificationQueueShell.borderRadius,
+  }
+
+  const dynamicCaptainNotificationQueueGrid: CSSProperties = {
+    ...captainNotificationQueueGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainNotificationQueueGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainNotificationQueueList: CSSProperties = {
+    ...captainNotificationQueueList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainNotificationQueueList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainNotificationQueueList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -3341,6 +3386,169 @@ function CaptainHubContent() {
     weekAtGlance.eventDateLabel,
     weekAtGlance.opponentLabel,
   ])
+  const captainNotificationQueueEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainNotificationQueueEntry>()
+    if (captainNotificationQueueVersion < 0) return new Map<string, CaptainNotificationQueueEntry>()
+
+    return new Map(
+      readLocalArray<CaptainNotificationQueueEntry>(CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.item_key), entry] as const)
+        .filter(([itemKey]) => Boolean(itemKey)),
+    )
+  }, [captainNotificationQueueVersion, workspaceState.currentEventKey])
+
+  const captainNotificationQueueItems = useMemo<CaptainNotificationQueueItem[]>(() => {
+    const pendingAckNames = captainChangeAckTargets
+      .filter((target) => target.status === 'pending')
+      .map((target) => target.name)
+    const arrivalWatchNames = captainArrivalRiskTargets
+      .filter((target) => target.status === 'eta-needed' || target.status === 'running-late')
+      .map((target) => target.name)
+    const readyCourtItems = captainCourtHandoffItems.filter((item) => item.status === 'ready')
+    const warmupItem = captainCourtHandoffPrimaryItem
+    const backupName = captainCourtSwapNeedsCount > 0
+      ? captainCourtSwapPrimaryItem.inPlayer
+      : captainBenchReadyCount > 0
+        ? captainBenchPrimaryItem.name
+        : ''
+    const backupBody = backupName
+      ? `${backupName}, can you stay close for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapNeedsCount > 0 ? `${captainCourtSwapPrimaryItem.courtLabel} may need cover.` : 'You are my first backup call if anything changes.'} I will confirm before warm-up.`
+      : `Team backup check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I am reviewing bench coverage and will text if a court opens.`
+    const readyCourtBody = readyCourtItems.length
+      ? [
+          `Courts ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}:`,
+          ...readyCourtItems.slice(0, isMobile ? 4 : 6).map((item) => `${item.courtLabel}: ${item.players}`),
+          `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+        ].join('\n')
+      : captainCourtHandoffMessage
+    const warmupBody = warmupItem
+      ? [
+          `${warmupItem.courtLabel}: ${warmupItem.state} for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+          `Players: ${warmupItem.players}.`,
+          warmupItem.tone === 'warn'
+            ? `Hold for ${warmupItem.detail.toLowerCase()}`
+            : `Start ${warmupItem.phase.toLowerCase()} and be ready for handoff.`,
+        ].join('\n')
+      : captainCourtHandoffMessage
+
+    const drafts: Omit<CaptainNotificationQueueItem, 'queueStatus'>[] = [
+      {
+        id: 'ack-chase',
+        label: 'Ack chase',
+        audience: pendingAckNames.length ? pendingAckNames.slice(0, isMobile ? 3 : 5).join(', ') : 'Confirmed players',
+        state: captainChangeAckPendingCount > 0 ? `${captainChangeAckPendingCount} waiting` : 'Ack clear',
+        detail: captainChangeAckPendingCount > 0
+          ? 'Send this before the updated court plan gets missed.'
+          : 'No open change confirmations need a chase.',
+        timing: captainChangeAckPendingCount > 0 ? 'Send now' : 'Standby',
+        source: 'Change confirmations',
+        body: captainChangeAckPendingCount > 0 ? captainChangeAckChaseMessage : '',
+        tone: captainChangeAckPendingCount > 0 ? 'warn' : 'good',
+      },
+      {
+        id: 'eta-chase',
+        label: 'ETA chase',
+        audience: arrivalWatchNames.length ? arrivalWatchNames.slice(0, isMobile ? 3 : 5).join(', ') : 'Arrivals clear',
+        state: captainArrivalRiskWatchCount > 0 ? `${captainArrivalRiskWatchCount} watch` : 'Arrival clear',
+        detail: captainArrivalRiskWatchCount > 0
+          ? 'Ask for ETA before the first warm-up window closes.'
+          : 'No saved ETA chase is blocking courts.',
+        timing: captainArrivalRiskWatchCount > 0 ? 'Send now' : 'Standby',
+        source: 'Arrival tracker',
+        body: captainArrivalRiskWatchCount > 0 ? captainArrivalRiskMessage : '',
+        tone: captainArrivalRiskWatchCount > 0 ? 'warn' : 'good',
+      },
+      {
+        id: 'backup-standby',
+        label: 'Backup standby',
+        audience: backupName || 'Bench',
+        state: captainCourtSwapNeedsCount > 0 ? 'Cover needed' : captainBenchReadyCount > 0 ? 'Ready' : 'Review',
+        detail: captainCourtSwapNeedsCount > 0
+          ? `${captainCourtSwapPrimaryItem.courtLabel} needs a fast cover text.`
+          : captainBenchReadyCount > 0
+            ? 'Keep the first backup close until courts settle.'
+            : 'Use this if you want the bench on alert.',
+        timing: captainCourtSwapNeedsCount > 0 ? 'Send now' : 'Next',
+        source: 'Backup coverage',
+        body: backupBody,
+        tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+      },
+      {
+        id: 'warmup-court',
+        label: 'Warm-up court',
+        audience: warmupItem?.players ?? 'Court group',
+        state: warmupItem?.state ?? 'Prep',
+        detail: warmupItem?.detail ?? 'Build a court plan before sending a warm-up note.',
+        timing: warmupItem?.tone === 'warn' ? 'Hold' : warmupItem?.status === 'ready' ? 'Send now' : 'Next',
+        source: 'Court handoff',
+        body: warmupBody,
+        tone: warmupItem?.tone ?? 'info',
+      },
+      {
+        id: 'ready-courts',
+        label: 'Ready courts',
+        audience: readyCourtItems.length ? `${readyCourtItems.length} court${readyCourtItems.length === 1 ? '' : 's'}` : 'No ready courts',
+        state: readyCourtItems.length ? `${readyCourtItems.length} ready` : 'Not ready',
+        detail: readyCourtItems.length
+          ? 'Send the clean handoff once courts are stable.'
+          : 'Mark courts ready before sending a ready-court note.',
+        timing: readyCourtItems.length ? 'Send now' : 'Hold',
+        source: 'Court handoff',
+        body: readyCourtItems.length ? readyCourtBody : '',
+        tone: readyCourtItems.length ? 'good' : 'info',
+      },
+    ]
+
+    return drafts.map((draft) => {
+      const savedStatus = captainNotificationQueueEntryMap.get(draft.id)?.status
+      const queueStatus: CaptainNotificationQueueStatus = savedStatus || (draft.tone === 'warn' || draft.timing === 'Hold' ? 'hold' : 'queued')
+      return {
+        ...draft,
+        queueStatus,
+      }
+    }).sort((a, b) => {
+      const rank = (item: CaptainNotificationQueueItem) => (
+        item.queueStatus === 'hold' && item.tone === 'warn' ? 0 :
+        item.queueStatus === 'queued' ? 1 :
+        item.queueStatus === 'hold' ? 2 :
+        3
+      )
+      return rank(a) - rank(b)
+    })
+  }, [
+    captainArrivalRiskMessage,
+    captainArrivalRiskTargets,
+    captainArrivalRiskWatchCount,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainChangeAckChaseMessage,
+    captainChangeAckPendingCount,
+    captainChangeAckTargets,
+    captainCourtHandoffItems,
+    captainCourtHandoffMessage,
+    captainCourtHandoffPrimaryItem,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainNotificationQueueEntryMap,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainNotificationQueueSentCount = captainNotificationQueueItems.filter((item) => item.queueStatus === 'sent').length
+  const captainNotificationQueueHoldCount = captainNotificationQueueItems.filter((item) => item.queueStatus === 'hold' && item.tone === 'warn').length
+  const captainNotificationQueueReadyCount = captainNotificationQueueItems.filter((item) => item.queueStatus === 'queued' && item.body).length
+  const captainNotificationQueuePrimaryItem = captainNotificationQueueItems.find((item) => item.queueStatus === 'hold' && item.tone === 'warn')
+    ?? captainNotificationQueueItems.find((item) => item.queueStatus === 'queued' && item.body)
+    ?? captainNotificationQueueItems[0]
+  const captainNotificationQueueStatus = captainNotificationQueueHoldCount > 0
+    ? `${captainNotificationQueueHoldCount} hold`
+    : captainNotificationQueueReadyCount > 0
+      ? `${captainNotificationQueueReadyCount} queued`
+      : `${captainNotificationQueueSentCount} sent`
   const captainMorningBriefItems = useMemo<CaptainMorningBriefItem[]>(() => [
     {
       label: 'Court plan',
@@ -4915,6 +5123,87 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainNotificationQueueEntry(item: CaptainNotificationQueueItem, status: CaptainNotificationQueueStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainNotificationQueueEntry>(CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY)
+    const nextEntry: CaptainNotificationQueueEntry = {
+      id: `captain-notification-${workspaceState.currentEventKey}-${item.id}`,
+      event_key: workspaceState.currentEventKey,
+      item_key: item.id,
+      label: item.label,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.item_key) === item.id
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainNotificationQueueVersion((value) => value + 1)
+  }
+
+  function handleCaptainNotificationQueueStatus(item: CaptainNotificationQueueItem, status: CaptainNotificationQueueStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainNotificationQueueEntry(item, status)
+    appendCaptainDecisionLog({
+      label: 'Notification queue updated',
+      detail: `${item.label} marked ${status} for ${item.audience}.`,
+      action: status === 'sent' ? 'Sent' : status === 'hold' ? 'Hold' : 'Queued',
+      tone: status === 'sent' ? 'good' : status === 'hold' && item.tone === 'warn' ? 'warn' : 'info',
+    })
+  }
+
+  function handleMarkCaptainNotificationQueueSent() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const readyItems = captainNotificationQueueItems.filter((item) => item.queueStatus === 'queued' && item.body)
+    if (!readyItems.length) return
+
+    readyItems.forEach((item) => writeCaptainNotificationQueueEntry(item, 'sent'))
+    appendCaptainDecisionLog({
+      label: 'Notification queue sent',
+      detail: `${readyItems.length} queued notification${readyItems.length === 1 ? '' : 's'} marked sent.`,
+      action: 'Sent queue',
+      tone: 'good',
+    })
+  }
+
+  async function handleCopyCaptainNotificationQueueItem(item: CaptainNotificationQueueItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.body)
+      setCopiedCaptainNotificationQueueId(item.id)
+      writeCaptainNotificationQueueEntry(item, 'queued')
+      appendCaptainDecisionLog({
+        label: 'Notification copied',
+        detail: `${item.label} copied for ${item.audience}.`,
+        action: item.timing,
+        tone: item.tone,
+      })
+    } catch {
+      setCopiedCaptainNotificationQueueId('')
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -5400,6 +5689,134 @@ function CaptainHubContent() {
                 <span style={captainCourtHandoffCardDetail}>Build a lineup before starting the court-by-court warm-up handoff.</span>
               </article>
             )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainNotificationQueue = (
+    <section style={dynamicCaptainNotificationQueueShell} aria-label="Captain match-day notification queue">
+      <div style={captainNotificationQueueHeader}>
+        <div>
+          <div style={sectionKicker}>Notification queue</div>
+          <h2 style={captainNotificationQueueTitle}>{isMobile ? 'Text next.' : 'Send the next match-day text.'}</h2>
+        </div>
+        <span style={captainNotificationQueueHoldCount > 0 ? warnBadge : captainNotificationQueueReadyCount > 0 ? badgeBlue : badgeGreen}>
+          {captainNotificationQueueStatus}
+        </span>
+      </div>
+      <div style={captainNotificationQueueSub}>
+        Pick the next text for late players, backups, confirmed courts, and warm-up groups without rebuilding the message.
+      </div>
+
+      <div style={captainNotificationQueueSummaryGrid}>
+        <div style={captainNotificationQueueSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Queued</span>
+          <strong style={commandCenterSnapshotValue}>{captainNotificationQueueReadyCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Ready to copy</span>
+        </div>
+        <div style={captainNotificationQueueSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Hold</span>
+          <strong style={commandCenterSnapshotValue}>{captainNotificationQueueHoldCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainNotificationQueueHoldCount ? 'Check first' : 'No blocks'}</span>
+        </div>
+        <div style={captainNotificationQueueSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Sent</span>
+          <strong style={commandCenterSnapshotValue}>{captainNotificationQueueSentCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Saved here</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainNotificationQueueGrid}>
+        <div style={captainNotificationQueueMain}>
+          <div style={captainNotificationQueueTop}>
+            <div>
+              <div style={commandCenterLabel}>Top text</div>
+              <div style={captainNotificationQueueFocus}>{captainNotificationQueuePrimaryItem?.label ?? 'No text ready'}</div>
+            </div>
+            <span style={captainNotificationQueuePrimaryItem?.tone === 'warn' ? warnBadge : captainNotificationQueuePrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainNotificationQueuePrimaryItem?.timing ?? 'Standby'}
+            </span>
+          </div>
+          <p style={captainNotificationQueueDetail}>{captainNotificationQueuePrimaryItem?.detail ?? 'Build a lineup, arrival plan, or handoff before sending match-day texts.'}</p>
+          <div style={captainNotificationQueueMetaGrid}>
+            <div style={captainNotificationQueueMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Audience</span>
+              <strong style={commandCenterSnapshotValue}>{captainNotificationQueuePrimaryItem?.audience ?? 'Team'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainNotificationQueuePrimaryItem?.source ?? 'Captain'}</span>
+            </div>
+            <div style={captainNotificationQueueMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Status</span>
+              <strong style={commandCenterSnapshotValue}>{captainNotificationQueuePrimaryItem?.queueStatus === 'sent' ? 'Sent' : captainNotificationQueuePrimaryItem?.queueStatus === 'hold' ? 'Hold' : 'Queued'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainNotificationQueuePrimaryItem?.state ?? 'Ready'}</span>
+            </div>
+          </div>
+          <div style={captainNotificationQueuePreview}>
+            {captainNotificationQueuePrimaryItem?.body || 'No message needed for this step right now.'}
+          </div>
+          <div style={captainNotificationQueueActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainNotificationQueuePrimaryItem?.body} onClick={() => captainNotificationQueuePrimaryItem ? void handleCopyCaptainNotificationQueueItem(captainNotificationQueuePrimaryItem) : undefined}>
+              {copiedCaptainNotificationQueueId === captainNotificationQueuePrimaryItem?.id ? 'Copied text' : 'Copy top text'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainNotificationQueueReadyCount} onClick={handleMarkCaptainNotificationQueueSent}>
+              Mark queued sent
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainNotificationQueuePanel}>
+          <div style={commandCenterLabel}>Match-day texts</div>
+          <div style={dynamicCaptainNotificationQueueList}>
+            {captainNotificationQueueItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainNotificationQueueCard,
+                  ...(item.tone === 'warn' ? captainNotificationQueueCardWarn : item.tone === 'good' ? captainNotificationQueueCardGood : captainNotificationQueueCardInfo),
+                }}
+              >
+                <div style={captainNotificationQueueCardTop}>
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>{item.audience}</span>
+                  </div>
+                  <span style={item.queueStatus === 'sent' ? badgeGreen : item.queueStatus === 'hold' ? warnBadge : badgeBlue}>
+                    {item.queueStatus === 'sent' ? 'Sent' : item.queueStatus === 'hold' ? 'Hold' : 'Queued'}
+                  </span>
+                </div>
+                <span style={captainNotificationQueueCardDetail}>{item.detail}</span>
+                {!isSmallMobile ? (
+                  <div style={captainNotificationQueueCardPreview}>
+                    {item.body || 'No text needed now.'}
+                  </div>
+                ) : null}
+                <div style={captainNotificationQueueSignalRow}>
+                  <span>{item.timing}</span>
+                  <span>{item.source}</span>
+                </div>
+                <div style={captainNotificationQueueButtonGrid}>
+                  {(['queued', 'sent', 'hold'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainNotificationQueueButton,
+                        ...(item.queueStatus === status ? captainNotificationQueueButtonActive : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainNotificationQueueStatus(item, status)}
+                    >
+                      {status === 'queued' ? 'Queue' : status === 'sent' ? 'Sent' : 'Hold'}
+                    </button>
+                  ))}
+                </div>
+                <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainNotificationQueueItem(item)}>
+                  {copiedCaptainNotificationQueueId === item.id ? 'Copied text' : 'Copy text'}
+                </PrimarySmallBtn>
+              </article>
+            ))}
           </div>
         </div>
       </div>
@@ -7147,6 +7564,8 @@ function CaptainHubContent() {
         {captainArrivalRiskTracker}
 
         {captainCourtHandoffTimer}
+
+        {captainNotificationQueue}
 
         {captainMorningBrief}
 
@@ -9724,6 +10143,278 @@ const captainCourtHandoffButton: CSSProperties = {
 const captainCourtHandoffButtonActive: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.26)',
   background: 'rgba(155,225,29,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainNotificationQueueShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.17)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.78) 42%, rgba(21,28,44,0.88))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainNotificationQueueHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainNotificationQueueTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainNotificationQueueSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 390px), 1.1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainNotificationQueueMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainNotificationQueueFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainNotificationQueueMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueuePreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 100,
+  maxHeight: 210,
+  overflow: 'auto',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainNotificationQueuePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainNotificationQueueCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 190,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.21)',
+  background: 'rgba(155,225,29,0.075)',
+}
+
+const captainNotificationQueueCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainNotificationQueueCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.17)',
+  background: 'rgba(125,211,252,0.065)',
+}
+
+const captainNotificationQueueCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueCardPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 74,
+  maxHeight: 120,
+  overflow: 'auto',
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.45,
+  fontWeight: 740,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueSignalRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainNotificationQueueButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainNotificationQueueButtonActive: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(125,211,252,0.12)',
   color: 'var(--foreground-strong)',
 }
 
