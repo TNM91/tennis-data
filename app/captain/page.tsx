@@ -256,6 +256,23 @@ type CaptainPostSendTrackerItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainReplyReminderTarget = {
+  id: string
+  name: string
+  status: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
+type CaptainReplyReminderTemplate = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  body: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainCourtConfidenceItem = {
   label: string
   players: string
@@ -383,6 +400,8 @@ const CAPTAIN_EMPTY_STATE_ACTIONS = [
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
+const CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY = 'tenaceiq_captain_message_contacts'
+const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
   id?: string
@@ -400,10 +419,20 @@ type CaptainEventDetail = {
 }
 
 type CaptainWeeklyResponse = {
+  id?: string
   event_key?: string
+  contact_id?: string
   status?: string
   note?: string
   updated_at?: string
+}
+
+type CaptainMessageContact = {
+  id?: string
+  full_name?: string
+  phone?: string
+  is_active?: boolean
+  opt_in_text?: boolean
 }
 
 type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
@@ -642,6 +671,7 @@ function CaptainHubContent() {
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
+  const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1945,6 +1975,11 @@ function CaptainHubContent() {
       .filter((row) => safeText(row.event_key) === workspaceState.currentEventKey)
   }, [workspaceState.currentEventKey])
 
+  const captainMessageContactRows = useMemo(() => (
+    readLocalArray<CaptainMessageContact>(CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY)
+      .filter((contact) => safeText(contact.full_name) && contact.is_active !== false)
+  ), [])
+
   const matchDayConfirmedCount = matchDayResponseRows.filter((row) => safeText(row.status).toLowerCase() === 'confirmed').length
   const matchDayNotConfirmedCount = matchDayResponseRows.filter((row) => {
     const status = safeText(row.status).toLowerCase()
@@ -2664,6 +2699,115 @@ function CaptainHubContent() {
     : captainPostSendSent
       ? 'Monitor replies'
       : 'Mark sent'
+  const captainReplyReminderTargets = useMemo<CaptainReplyReminderTarget[]>(() => {
+    const responseByContactId = new Map(
+      matchDayResponseRows
+        .map((row) => [safeText(row.contact_id), row] as const)
+        .filter(([contactId]) => Boolean(contactId)),
+    )
+    const contactTargets = captainMessageContactRows.flatMap((contact) => {
+      const contactId = safeText(contact.id)
+      const response = contactId ? responseByContactId.get(contactId) : undefined
+      const status = safeText(response?.status).toLowerCase()
+
+      if (response && !CAPTAIN_REPLY_OPEN_STATUSES.has(status)) return []
+      if (!response && matchDayResponseRows.length) return []
+
+      const name = safeText(contact.full_name)
+      if (!name) return []
+
+      const phone = safeText(contact.phone)
+      const isRisk = status === 'running-late' || status === 'need-sub'
+      return [{
+        id: contactId || safeKey(name),
+        name,
+        status: status === 'running-late' ? 'Running late' : status === 'need-sub' ? 'Needs sub' : status === 'viewed' ? 'Viewed' : 'No response',
+        detail: safeText(response?.note) || (phone ? 'Text-ready contact' : 'Name saved only'),
+        tone: isRisk ? 'warn' as const : 'info' as const,
+      }]
+    })
+
+    if (contactTargets.length) return contactTargets.slice(0, isMobile ? 4 : 6)
+
+    const fallbackNames = Array.from(new Set(
+      (matchDayLineupRows.length
+        ? matchDayLineupRows.flatMap((row) => row.players ?? [])
+        : roster.map((player) => player.name))
+        .map((name) => safeText(name))
+        .filter(Boolean),
+    ))
+    const fallbackLimit = matchDayNotConfirmedCount > 0 ? matchDayNotConfirmedCount : matchDayResponseRows.length ? 0 : Math.min(fallbackNames.length, isMobile ? 4 : 6)
+
+    return fallbackNames.slice(0, fallbackLimit).map((name) => ({
+      id: safeKey(name),
+      name,
+      status: matchDayResponseRows.length ? 'Open reply' : 'Needs ask',
+      detail: matchDayResponseRows.length ? 'Saved reply gap' : 'Start reply chase',
+      tone: 'info' as const,
+    }))
+  }, [
+    captainMessageContactRows,
+    isMobile,
+    matchDayLineupRows,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows,
+    roster,
+  ])
+  const captainReplyReminderNames = captainReplyReminderTargets.map((target) => target.name)
+  const captainReplyReminderRiskTarget = captainReplyReminderTargets.find((target) => target.tone === 'warn')
+  const captainReplyReminderNameList = captainReplyReminderNames.slice(0, isMobile ? 4 : 6).join(', ')
+  const captainReplyReminderTemplates = useMemo<CaptainReplyReminderTemplate[]>(() => {
+    if (!captainReplyReminderTargets.length) {
+      return [
+        {
+          id: 'reply-reminder-clear',
+          label: 'No reminder needed',
+          state: 'Clear',
+          detail: 'No open reply targets are saved for this event.',
+          body: '',
+          tone: 'good',
+        },
+      ]
+    }
+
+    const targetCount = captainReplyReminderTargets.length
+    const firstTarget = captainReplyReminderTargets[0]
+    const firstName = safeText(firstTarget.name.split(' ')[0], firstTarget.name)
+    const dateLabel = weekAtGlance.eventDateLabel
+    const opponentLabel = weekAtGlance.opponentLabel
+    const groupNames = captainReplyReminderNameList || `${targetCount} players`
+    const primaryBody = captainReplyReminderRiskTarget
+      ? `${safeText(captainReplyReminderRiskTarget.name.split(' ')[0], captainReplyReminderRiskTarget.name)}, I saw your ${captainReplyReminderRiskTarget.status.toLowerCase()} note for ${dateLabel}. Can you confirm if you can still play, need a sub, or just need arrival help?`
+      : `${firstName}, quick follow-up for ${dateLabel} vs ${opponentLabel}. I still need your lineup reply so I can keep courts and backup calls clean. Please reply In, Out, or Maybe when you can.`
+    const groupBody = `Quick follow-up for ${dateLabel} vs ${opponentLabel}. I still need replies from ${groupNames} so I can keep courts and backup calls clean. Please reply In, Out, or Maybe when you can.`
+
+    return [
+      {
+        id: 'reply-reminder-primary',
+        label: captainReplyReminderRiskTarget ? 'Risk follow-up' : 'Player follow-up',
+        state: captainReplyReminderRiskTarget?.status || firstTarget.status,
+        detail: captainReplyReminderRiskTarget ? captainReplyReminderRiskTarget.name : firstTarget.name,
+        body: primaryBody,
+        tone: captainReplyReminderRiskTarget ? 'warn' : 'info',
+      },
+      {
+        id: 'reply-reminder-group',
+        label: 'Group chase',
+        state: `${targetCount} target${targetCount === 1 ? '' : 's'}`,
+        detail: groupNames,
+        body: groupBody,
+        tone: targetCount > 1 ? 'warn' : 'info',
+      },
+    ]
+  }, [
+    captainReplyReminderNameList,
+    captainReplyReminderRiskTarget,
+    captainReplyReminderTargets,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainReplyReminderPrimaryTemplate = captainReplyReminderTemplates[0]
+  const captainReplyReminderGroupTemplate = captainReplyReminderTemplates[1] ?? captainReplyReminderTemplates[0]
 
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
@@ -3155,6 +3299,22 @@ function CaptainHubContent() {
     }
   }
 
+  async function handleCopyCaptainReplyReminder(template: CaptainReplyReminderTemplate) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!template.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(template.body)
+      setCopiedCaptainReplyReminderId(template.id)
+    } catch {
+      setCopiedCaptainReplyReminderId('')
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -3378,6 +3538,41 @@ function CaptainHubContent() {
                 <span>{item.detail}</span>
               </article>
             ))}
+          </div>
+        </div>
+
+        <div style={captainReplyReminderPanel} aria-label="Captain reply reminder templates">
+          <div style={captainReplyReminderHeader}>
+            <div>
+              <div style={commandCenterLabel}>Reply reminder</div>
+              <div style={captainReplyReminderTitle}>Copy the next follow-up.</div>
+            </div>
+            <span style={captainReplyReminderTargets.length ? warnBadge : badgeGreen}>
+              {captainReplyReminderTargets.length ? `${captainReplyReminderTargets.length} target${captainReplyReminderTargets.length === 1 ? '' : 's'}` : 'Clear'}
+            </span>
+          </div>
+          <div style={captainReplyReminderTargetList}>
+            {captainReplyReminderTargets.length ? captainReplyReminderTargets.map((target) => (
+              <span key={target.id} style={target.tone === 'warn' ? captainReplyReminderTargetWarn : captainReplyReminderTarget}>
+                {target.name} - {target.status}
+              </span>
+            )) : (
+              <span style={captainReplyReminderTarget}>No open reply chase saved.</span>
+            )}
+          </div>
+          <div style={captainReplyReminderPreview}>
+            {captainReplyReminderPrimaryTemplate.body || captainReplyReminderPrimaryTemplate.detail}
+          </div>
+          <div style={captainReplyReminderActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainReplyReminderPrimaryTemplate.body} onClick={() => void handleCopyCaptainReplyReminder(captainReplyReminderPrimaryTemplate)}>
+              {copiedCaptainReplyReminderId === captainReplyReminderPrimaryTemplate.id ? 'Copied reminder' : 'Copy reminder'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainReplyReminderGroupTemplate.body} onClick={() => void handleCopyCaptainReplyReminder(captainReplyReminderGroupTemplate)}>
+              {copiedCaptainReplyReminderId === captainReplyReminderGroupTemplate.id ? 'Copied group' : 'Copy group chase'}
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
           </div>
         </div>
       </div>
@@ -6471,6 +6666,87 @@ const captainPostSendChangeTop: CSSProperties = {
   flexWrap: 'wrap',
   minWidth: 0,
   color: 'var(--foreground-strong)',
+}
+
+const captainReplyReminderPanel: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  gridColumn: '1 / -1',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(96,165,250,0.18)',
+  background: 'rgba(15,23,42,0.42)',
+  overflowWrap: 'anywhere',
+}
+
+const captainReplyReminderHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainReplyReminderTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainReplyReminderTargetList: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainReplyReminderTarget: CSSProperties = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainReplyReminderTargetWarn: CSSProperties = {
+  ...captainReplyReminderTarget,
+  border: '1px solid rgba(251,191,36,0.26)',
+  background: 'rgba(251,191,36,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainReplyReminderPreview: CSSProperties = {
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainReplyReminderActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const commandCenterShell: CSSProperties = {
