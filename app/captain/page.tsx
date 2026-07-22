@@ -246,6 +246,13 @@ type CaptainMorningBriefItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHandoffSheetItem = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainSendQueueItem = {
   id: string
   label: string
@@ -702,6 +709,7 @@ function CaptainHubContent() {
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
+  const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
@@ -1682,6 +1690,18 @@ function CaptainHubContent() {
   const dynamicCaptainDecisionLogGrid: CSSProperties = {
     ...captainDecisionLogGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainDecisionLogGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainHandoffSheetShell: CSSProperties = {
+    ...captainHandoffSheetShell,
+    gap: isMobile ? 12 : captainHandoffSheetShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainHandoffSheetShell.padding,
+    borderRadius: isMobile ? 20 : captainHandoffSheetShell.borderRadius,
+  }
+
+  const dynamicCaptainHandoffSheetGrid: CSSProperties = {
+    ...captainHandoffSheetGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainHandoffSheetGrid.gridTemplateColumns,
   }
 
   const dynamicCaptainPreSendReviewShell: CSSProperties = {
@@ -3037,6 +3057,110 @@ function CaptainHubContent() {
   const captainDecisionLogStatus = captainDecisionLogEntries.length
     ? `${captainDecisionLogEntries.length} saved`
     : 'Start log'
+  const captainHandoffSheetItems = useMemo<CaptainHandoffSheetItem[]>(() => [
+    {
+      label: 'First action',
+      state: captainMorningBriefPrimaryAction.state,
+      detail: captainMorningBriefPrimaryAction.detail,
+      tone: captainMorningBriefPrimaryAction.tone,
+    },
+    {
+      label: 'Court plan',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build lineup',
+      detail: workspaceState.lineupReady
+        ? safeText(captainQuickCopyLineupRows[0], 'Saved courts are ready.')
+        : 'Save courts before players arrive.',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Reply gaps',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : matchDayResponseRows.length ? 'Clear' : 'Collect',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Chase open replies before warm-up.'
+        : matchDayResponseRows.length
+          ? `${matchDayConfirmedCount} confirmed for this event.`
+          : 'Collect In, Out, or Maybe from the roster.',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      label: 'Backup call',
+      state: captainCourtSwapNeedsCount > 0
+        ? 'Cover needed'
+        : captainBenchReadyCount > 0
+          ? 'Bench ready'
+          : 'Review',
+      detail: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapPrimaryItem.courtLabel}: ${captainCourtSwapPrimaryItem.inPlayer}`
+        : captainBenchReadyCount > 0
+          ? `${captainBenchPrimaryItem.name} is the first backup call.`
+          : 'Pick one backup before warm-up starts.',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+    },
+    {
+      label: 'Decision trail',
+      state: captainDecisionLogEntries.length ? `${captainDecisionLogEntries.length} saved` : 'None yet',
+      detail: safeText(captainDecisionLogPrimaryEntry.detail, 'Log the last captain call before handoff.'),
+      tone: captainDecisionLogEntries.length ? 'good' : 'info',
+    },
+  ], [
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainDecisionLogEntries.length,
+    captainDecisionLogPrimaryEntry.detail,
+    captainMorningBriefPrimaryAction.detail,
+    captainMorningBriefPrimaryAction.state,
+    captainMorningBriefPrimaryAction.tone,
+    captainQuickCopyLineupRows,
+    matchDayConfirmedCount,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainHandoffReadyCount = captainHandoffSheetItems.filter((item) => item.tone === 'good').length
+  const captainHandoffIssueCount = captainHandoffSheetItems.filter((item) => item.tone === 'warn').length
+  const captainHandoffPrimaryItem = captainHandoffSheetItems.find((item) => item.tone === 'warn') ?? captainHandoffSheetItems[0]
+  const captainHandoffSheetSummary = useMemo(() => {
+    const recentCalls = captainDecisionLogEntries.slice(0, 3).map((entry) => (
+      `${safeText(entry.label, 'Captain call')}: ${safeText(entry.action, 'Saved')}`
+    ))
+
+    return [
+      `Captain handoff: ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+      `Arrival: ${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+      `First action: ${captainMorningBriefPrimaryAction.label} - ${captainMorningBriefPrimaryAction.state}`,
+      'Lineup:',
+      ...captainQuickCopyLineupRows,
+      matchDayNotConfirmedCount > 0 ? `Replies: ${matchDayNotConfirmedCount} open` : matchDayResponseRows.length ? 'Replies: clear' : 'Replies: not collected',
+      captainCourtSwapNeedsCount > 0
+        ? `Backup: ${captainCourtSwapPrimaryItem.inPlayer} for ${captainCourtSwapPrimaryItem.courtLabel}`
+        : captainBenchReadyCount > 0
+          ? `Backup: ${captainBenchPrimaryItem.name}`
+          : 'Backup: review bench',
+      recentCalls.length ? 'Recent calls:' : '',
+      ...recentCalls,
+    ].filter(Boolean).join('\n')
+  }, [
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainDecisionLogEntries,
+    captainMorningBriefPrimaryAction.label,
+    captainMorningBriefPrimaryAction.state,
+    captainQuickCopyLineupRows,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainHandoffPreviewLines = captainHandoffSheetSummary.split('\n').slice(0, isMobile ? 7 : 10)
 
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
@@ -3640,6 +3764,30 @@ function CaptainHubContent() {
     }
   }
 
+  async function handleCopyCaptainHandoffSheet() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainHandoffSheetSummary)
+      setCopiedCaptainHandoffSheet(true)
+      appendCaptainDecisionLog({
+        label: 'Handoff sheet copied',
+        detail: captainHandoffIssueCount > 0
+          ? `${captainHandoffIssueCount} handoff item${captainHandoffIssueCount === 1 ? '' : 's'} still need attention.`
+          : 'Match-day handoff copied with no warning items.',
+        action: 'Copy handoff',
+        tone: captainHandoffIssueCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainHandoffSheet(false)
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -3926,6 +4074,70 @@ function CaptainHubContent() {
                 <small>{weekAtGlance.eventDateLabel}</small>
               </article>
             )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainHandoffSheet = (
+    <section style={dynamicCaptainHandoffSheetShell} aria-label="Captain handoff sheet">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Handoff sheet</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Carry this.' : 'Carry one match-day handoff.'}</h2>
+        </div>
+        <span style={captainHandoffIssueCount > 0 ? warnBadge : captainHandoffReadyCount >= 4 ? badgeGreen : badgeBlue}>
+          {captainHandoffIssueCount > 0 ? `${captainHandoffIssueCount} fix` : `${captainHandoffReadyCount}/${captainHandoffSheetItems.length} ready`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Copy the at-court version of your lineup, reply gaps, backup call, and latest captain decisions before players arrive.
+      </div>
+
+      <div style={dynamicCaptainHandoffSheetGrid}>
+        <div style={captainHandoffSheetHero}>
+          <div style={captainHandoffSheetHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Handoff focus</div>
+              <div style={captainHandoffSheetTitle}>{captainHandoffPrimaryItem.label}</div>
+            </div>
+            <span style={captainHandoffPrimaryItem.tone === 'good' ? badgeGreen : captainHandoffPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainHandoffPrimaryItem.state}
+            </span>
+          </div>
+          <p style={captainHandoffSheetDetail}>{captainHandoffPrimaryItem.detail}</p>
+          <div style={captainHandoffSheetPreview}>
+            {captainHandoffPreviewLines.map((line, index) => (
+              <span key={`${line}-${index}`}>{line}</span>
+            ))}
+          </div>
+          <div style={captainHandoffSheetActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainHandoffSheet()}>
+              {copiedCaptainHandoffSheet ? 'Copied handoff' : 'Copy handoff'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+              Open lineup
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(levelUpAvailabilityHref, 'availability')}>
+              Chase replies
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainHandoffSheetPanel}>
+          <div style={captainHandoffSheetCheckGrid}>
+            {captainHandoffSheetItems.map((item) => (
+              <article key={item.label} style={captainHandoffSheetCheckCard}>
+                <div style={captainHandoffSheetCheckTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </article>
+            ))}
           </div>
         </div>
       </div>
@@ -5202,6 +5414,8 @@ function CaptainHubContent() {
         {captainSendQueue}
 
         {captainDecisionLog}
+
+        {captainHandoffSheet}
 
         {captainPreSendReview}
 
@@ -7316,6 +7530,127 @@ const captainDecisionLogEntryCard: CSSProperties = {
 }
 
 const captainDecisionLogEntryTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainHandoffSheetShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.075), rgba(8,13,28,0.80) 43%, rgba(17,28,44,0.88))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainHandoffSheetGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.92fr) minmax(min(100%, 340px), 1.08fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainHandoffSheetHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.31)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHandoffSheetHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHandoffSheetTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHandoffSheetDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainHandoffSheetPreview: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHandoffSheetActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainHandoffSheetPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainHandoffSheetCheckGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 185px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainHandoffSheetCheckCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainHandoffSheetCheckTop: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'space-between',
