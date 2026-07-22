@@ -346,6 +346,23 @@ type CaptainNotificationQueueItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPlayerBriefStatus = 'review' | 'briefed'
+
+type CaptainPlayerBriefItem = {
+  id: string
+  courtKey: string
+  courtLabel: string
+  players: string
+  status: CaptainPlayerBriefStatus
+  state: string
+  detail: string
+  firstJob: string
+  betweenSets: string
+  ifTrouble: string
+  body: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainReplyReminderTarget = {
   id: string
   name: string
@@ -497,6 +514,7 @@ const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
 const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
 const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
 const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_queue'
+const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -586,6 +604,15 @@ type CaptainNotificationQueueEntry = {
   item_key?: string
   label?: string
   status?: CaptainNotificationQueueStatus
+  updated_at?: string
+}
+
+type CaptainPlayerBriefEntry = {
+  id?: string
+  event_key?: string
+  court_key?: string
+  court_label?: string
+  status?: CaptainPlayerBriefStatus
   updated_at?: string
 }
 
@@ -834,12 +861,14 @@ function CaptainHubContent() {
   const [copiedCaptainArrivalRiskMessage, setCopiedCaptainArrivalRiskMessage] = useState(false)
   const [copiedCaptainCourtHandoff, setCopiedCaptainCourtHandoff] = useState(false)
   const [copiedCaptainNotificationQueueId, setCopiedCaptainNotificationQueueId] = useState('')
+  const [copiedCaptainPlayerBriefId, setCopiedCaptainPlayerBriefId] = useState('')
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
   const [captainArrivalRiskVersion, setCaptainArrivalRiskVersion] = useState(0)
   const [captainCourtHandoffVersion, setCaptainCourtHandoffVersion] = useState(0)
   const [captainNotificationQueueVersion, setCaptainNotificationQueueVersion] = useState(0)
+  const [captainPlayerBriefVersion, setCaptainPlayerBriefVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -1870,6 +1899,24 @@ function CaptainHubContent() {
     ...captainNotificationQueueList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainNotificationQueueList.gridTemplateColumns,
     gap: isMobile ? 8 : captainNotificationQueueList.gap,
+  }
+
+  const dynamicCaptainPlayerBriefShell: CSSProperties = {
+    ...captainPlayerBriefShell,
+    gap: isMobile ? 12 : captainPlayerBriefShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainPlayerBriefShell.padding,
+    borderRadius: isMobile ? 20 : captainPlayerBriefShell.borderRadius,
+  }
+
+  const dynamicCaptainPlayerBriefGrid: CSSProperties = {
+    ...captainPlayerBriefGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainPlayerBriefGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainPlayerBriefList: CSSProperties = {
+    ...captainPlayerBriefList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainPlayerBriefList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainPlayerBriefList.gap,
   }
 
   const dynamicCaptainMorningBriefShell: CSSProperties = {
@@ -3549,6 +3596,108 @@ function CaptainHubContent() {
     : captainNotificationQueueReadyCount > 0
       ? `${captainNotificationQueueReadyCount} queued`
       : `${captainNotificationQueueSentCount} sent`
+  const captainPlayerBriefEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainPlayerBriefEntry>()
+    if (captainPlayerBriefVersion < 0) return new Map<string, CaptainPlayerBriefEntry>()
+
+    return new Map(
+      readLocalArray<CaptainPlayerBriefEntry>(CAPTAIN_PLAYER_BRIEF_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.court_key), entry] as const)
+        .filter(([courtKey]) => Boolean(courtKey)),
+    )
+  }, [captainPlayerBriefVersion, workspaceState.currentEventKey])
+
+  const captainPlayerBriefItems = useMemo<CaptainPlayerBriefItem[]>(() => {
+    const sourceRows = matchDayLineupRows.length
+      ? matchDayLineupRows
+      : [{
+          id: 'player-brief-empty',
+          court_label: 'Court brief',
+          slot_type: 'doubles',
+          players: [],
+        }]
+
+    return sourceRows.slice(0, isMobile ? 4 : 6).map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+      const slotType = safeText(row.slot_type).toLowerCase()
+      const playerNames = (row.players ?? []).map((name) => safeText(name)).filter(Boolean)
+      const players = playerNames.join(' / ') || 'Players not set'
+      const confidence = captainCourtConfidenceItems.find((item) => item.label === courtLabel)
+      const handoff = captainCourtHandoffItems.find((item) => item.courtLabel === courtLabel)
+      const pendingAck = handoff?.ackLabel && handoff.ackLabel !== 'Ack clear'
+      const arrivalOpen = handoff?.arrivalLabel && handoff.arrivalLabel !== 'Arrival clear'
+      const needsReview = !playerNames.length || confidence?.tone === 'warn' || handoff?.tone === 'warn'
+      const savedStatus = captainPlayerBriefEntryMap.get(courtKey)?.status
+      const status: CaptainPlayerBriefStatus = needsReview ? 'review' : savedStatus || 'review'
+      const isSingles = slotType.includes('single') || playerNames.length === 1
+      const firstJob = isSingles
+        ? 'Serve targets, return depth, and first-ball margin.'
+        : 'Return lanes, first poach call, and middle-ball owner.'
+      const betweenSets = confidence?.tone === 'info'
+        ? 'Name one safer pattern before the next set starts.'
+        : 'Pick one adjustment and keep the next two games simple.'
+      const ifTrouble = pendingAck || arrivalOpen
+        ? 'Hold the brief until the court group is fully confirmed.'
+        : needsReview
+          ? 'Keep roles simple and call backup coverage early.'
+          : 'Reset to high-percentage patterns before changing the lineup.'
+      const detail = !playerNames.length
+        ? 'Save the court players before briefing this court.'
+        : pendingAck
+          ? `${handoff?.ackLabel} still open before the court talk.`
+          : arrivalOpen
+            ? `${handoff?.arrivalLabel} still open before warm-up.`
+            : confidence?.detail || 'Give this court one clear job before warm-up.'
+      const state = status === 'briefed'
+        ? 'Briefed'
+        : needsReview
+          ? 'Review'
+          : 'Ready brief'
+      const body = [
+        `${courtLabel} brief for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+        `Players: ${players}`,
+        `First job: ${firstJob}`,
+        `Between sets: ${betweenSets}`,
+        `If trouble: ${ifTrouble}`,
+      ].join('\n')
+
+      return {
+        id: courtKey,
+        courtKey,
+        courtLabel,
+        players,
+        status,
+        state,
+        detail,
+        firstJob,
+        betweenSets,
+        ifTrouble,
+        body,
+        tone: status === 'briefed' ? 'good' : needsReview ? 'warn' : 'info',
+      }
+    })
+  }, [
+    captainCourtConfidenceItems,
+    captainCourtHandoffItems,
+    captainPlayerBriefEntryMap,
+    isMobile,
+    matchDayLineupRows,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainPlayerBriefedCount = captainPlayerBriefItems.filter((item) => item.status === 'briefed').length
+  const captainPlayerBriefReviewCount = captainPlayerBriefItems.filter((item) => item.status !== 'briefed' && item.tone === 'warn').length
+  const captainPlayerBriefReadyCount = captainPlayerBriefItems.filter((item) => item.status !== 'briefed' && item.tone !== 'warn').length
+  const captainPlayerBriefPrimaryItem = captainPlayerBriefItems.find((item) => item.status !== 'briefed' && item.tone === 'warn')
+    ?? captainPlayerBriefItems.find((item) => item.status !== 'briefed')
+    ?? captainPlayerBriefItems[0]
+  const captainPlayerBriefStatus = captainPlayerBriefReviewCount > 0
+    ? `${captainPlayerBriefReviewCount} review`
+    : captainPlayerBriefReadyCount > 0
+      ? `${captainPlayerBriefReadyCount} ready`
+      : `${captainPlayerBriefedCount} briefed`
   const captainMorningBriefItems = useMemo<CaptainMorningBriefItem[]>(() => [
     {
       label: 'Court plan',
@@ -5204,6 +5353,86 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainPlayerBriefEntry(item: CaptainPlayerBriefItem, status: CaptainPlayerBriefStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainPlayerBriefEntry>(CAPTAIN_PLAYER_BRIEF_STORAGE_KEY)
+    const nextEntry: CaptainPlayerBriefEntry = {
+      id: `captain-player-brief-${workspaceState.currentEventKey}-${item.courtKey}`,
+      event_key: workspaceState.currentEventKey,
+      court_key: item.courtKey,
+      court_label: item.courtLabel,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.court_key) === item.courtKey
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_PLAYER_BRIEF_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainPlayerBriefVersion((value) => value + 1)
+  }
+
+  function handleCaptainPlayerBriefStatus(item: CaptainPlayerBriefItem, status: CaptainPlayerBriefStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainPlayerBriefEntry(item, status)
+    appendCaptainDecisionLog({
+      label: 'Court brief updated',
+      detail: `${item.courtLabel} marked ${status === 'briefed' ? 'briefed' : 'for review'} for ${item.players}.`,
+      action: status === 'briefed' ? 'Briefed' : 'Review',
+      tone: status === 'briefed' ? 'good' : item.tone === 'warn' ? 'warn' : 'info',
+    })
+  }
+
+  function handleMarkCaptainPlayerBriefed() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    const readyItems = captainPlayerBriefItems.filter((item) => item.status !== 'briefed' && item.tone !== 'warn')
+    if (!readyItems.length) return
+
+    readyItems.forEach((item) => writeCaptainPlayerBriefEntry(item, 'briefed'))
+    appendCaptainDecisionLog({
+      label: 'Court briefs completed',
+      detail: `${readyItems.length} ready court brief${readyItems.length === 1 ? '' : 's'} marked briefed.`,
+      action: 'Briefed courts',
+      tone: 'good',
+    })
+  }
+
+  async function handleCopyCaptainPlayerBrief(item: CaptainPlayerBriefItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.body)
+      setCopiedCaptainPlayerBriefId(item.id)
+      appendCaptainDecisionLog({
+        label: 'Court brief copied',
+        detail: `${item.courtLabel} player brief copied for ${item.players}.`,
+        action: 'Copy brief',
+        tone: item.tone,
+      })
+    } catch {
+      setCopiedCaptainPlayerBriefId('')
+    }
+  }
+
   function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
     setWeekStatus(nextStatus)
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
@@ -5814,6 +6043,140 @@ function CaptainHubContent() {
                 </div>
                 <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainNotificationQueueItem(item)}>
                   {copiedCaptainNotificationQueueId === item.id ? 'Copied text' : 'Copy text'}
+                </PrimarySmallBtn>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainPlayerBriefCards = (
+    <section style={dynamicCaptainPlayerBriefShell} aria-label="Captain player brief cards">
+      <div style={captainPlayerBriefHeader}>
+        <div>
+          <div style={sectionKicker}>Player brief cards</div>
+          <h2 style={captainPlayerBriefTitle}>{isMobile ? 'Brief courts.' : 'Give every court the same clear brief.'}</h2>
+        </div>
+        <span style={captainPlayerBriefReviewCount > 0 ? warnBadge : captainPlayerBriefReadyCount > 0 ? badgeBlue : badgeGreen}>
+          {captainPlayerBriefStatus}
+        </span>
+      </div>
+      <div style={captainPlayerBriefSub}>
+        Turn lineup confidence, arrival status, and handoff state into one simple court talk before players start.
+      </div>
+
+      <div style={captainPlayerBriefSummaryGrid}>
+        <div style={captainPlayerBriefSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Briefed</span>
+          <strong style={commandCenterSnapshotValue}>{captainPlayerBriefedCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Done here</span>
+        </div>
+        <div style={captainPlayerBriefSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Review</span>
+          <strong style={commandCenterSnapshotValue}>{captainPlayerBriefReviewCount}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainPlayerBriefReviewCount ? 'Check first' : 'No blocks'}</span>
+        </div>
+        <div style={captainPlayerBriefSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Ready</span>
+          <strong style={commandCenterSnapshotValue}>{captainPlayerBriefReadyCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Can brief</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainPlayerBriefGrid}>
+        <div style={captainPlayerBriefMain}>
+          <div style={captainPlayerBriefTop}>
+            <div>
+              <div style={commandCenterLabel}>Next court talk</div>
+              <div style={captainPlayerBriefFocus}>{captainPlayerBriefPrimaryItem?.courtLabel ?? 'No court brief'}</div>
+            </div>
+            <span style={captainPlayerBriefPrimaryItem?.tone === 'warn' ? warnBadge : captainPlayerBriefPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainPlayerBriefPrimaryItem?.state ?? 'Review'}
+            </span>
+          </div>
+          <p style={captainPlayerBriefDetail}>{captainPlayerBriefPrimaryItem?.detail ?? 'Save a lineup before briefing courts.'}</p>
+          <div style={captainPlayerBriefMetaGrid}>
+            <div style={captainPlayerBriefMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Players</span>
+              <strong style={commandCenterSnapshotValue}>{captainPlayerBriefPrimaryItem?.players ?? 'Not set'}</strong>
+              <span style={commandCenterSnapshotDetail}>Court group</span>
+            </div>
+            <div style={captainPlayerBriefMetaCard}>
+              <span style={commandCenterSnapshotLabel}>First job</span>
+              <strong style={commandCenterSnapshotValue}>{captainPlayerBriefPrimaryItem?.firstJob ?? 'Set roles'}</strong>
+              <span style={commandCenterSnapshotDetail}>Say this first</span>
+            </div>
+          </div>
+          <div style={captainPlayerBriefPreview}>
+            {captainPlayerBriefPrimaryItem?.body || 'No court brief ready yet.'}
+          </div>
+          <div style={captainPlayerBriefActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainPlayerBriefPrimaryItem?.body} onClick={() => captainPlayerBriefPrimaryItem ? void handleCopyCaptainPlayerBrief(captainPlayerBriefPrimaryItem) : undefined}>
+              {copiedCaptainPlayerBriefId === captainPlayerBriefPrimaryItem?.id ? 'Copied brief' : 'Copy court brief'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainPlayerBriefReadyCount} onClick={handleMarkCaptainPlayerBriefed}>
+              Mark ready briefed
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+              Review lineup
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainPlayerBriefPanel}>
+          <div style={commandCenterLabel}>Court brief cards</div>
+          <div style={dynamicCaptainPlayerBriefList}>
+            {captainPlayerBriefItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainPlayerBriefCard,
+                  ...(item.tone === 'warn' ? captainPlayerBriefCardWarn : item.tone === 'good' ? captainPlayerBriefCardGood : captainPlayerBriefCardInfo),
+                }}
+              >
+                <div style={captainPlayerBriefCardTop}>
+                  <div>
+                    <strong>{item.courtLabel}</strong>
+                    <span>{item.players}</span>
+                  </div>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span style={captainPlayerBriefCardDetail}>{item.detail}</span>
+                {!isSmallMobile ? (
+                  <div style={captainPlayerBriefPromptGrid}>
+                    <div style={captainPlayerBriefPromptGridItem}>
+                      <span>First</span>
+                      <strong>{item.firstJob}</strong>
+                    </div>
+                    <div style={captainPlayerBriefPromptGridItem}>
+                      <span>If trouble</span>
+                      <strong>{item.ifTrouble}</strong>
+                    </div>
+                  </div>
+                ) : null}
+                <div style={captainPlayerBriefButtonGrid}>
+                  {(['review', 'briefed'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainPlayerBriefButton,
+                        ...(item.status === status ? captainPlayerBriefButtonActive : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainPlayerBriefStatus(item, status)}
+                    >
+                      {status === 'briefed' ? 'Briefed' : 'Review'}
+                    </button>
+                  ))}
+                </div>
+                <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainPlayerBrief(item)}>
+                  {copiedCaptainPlayerBriefId === item.id ? 'Copied brief' : 'Copy brief'}
                 </PrimarySmallBtn>
               </article>
             ))}
@@ -7566,6 +7929,8 @@ function CaptainHubContent() {
         {captainCourtHandoffTimer}
 
         {captainNotificationQueue}
+
+        {captainPlayerBriefCards}
 
         {captainMorningBrief}
 
@@ -10415,6 +10780,268 @@ const captainNotificationQueueButton: CSSProperties = {
 const captainNotificationQueueButtonActive: CSSProperties = {
   border: '1px solid rgba(125,211,252,0.28)',
   background: 'rgba(125,211,252,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainPlayerBriefShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.075), rgba(8,13,28,0.78) 42%, rgba(20,32,54,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainPlayerBriefHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPlayerBriefTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPlayerBriefSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 390px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainPlayerBriefMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPlayerBriefFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPlayerBriefMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 112,
+  maxHeight: 220,
+  overflow: 'auto',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPlayerBriefPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPlayerBriefCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 180,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainPlayerBriefCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainPlayerBriefCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainPlayerBriefCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefPromptGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const captainPlayerBriefPromptGridItem: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 8,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainPlayerBriefButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerBriefButtonActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.12)',
   color: 'var(--foreground-strong)',
 }
 
