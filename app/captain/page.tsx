@@ -248,6 +248,14 @@ type CaptainPreSendCheck = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPostSendTrackerItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainCourtConfidenceItem = {
   label: string
   players: string
@@ -1591,6 +1599,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPreSendReviewGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainPostSendTrackerShell: CSSProperties = {
+    ...captainPostSendTrackerShell,
+    gap: isMobile ? 12 : captainPostSendTrackerShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainPostSendTrackerShell.padding,
+    borderRadius: isMobile ? 20 : captainPostSendTrackerShell.borderRadius,
+  }
+
+  const dynamicCaptainPostSendTrackerGrid: CSSProperties = {
+    ...captainPostSendTrackerGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainPostSendTrackerGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainCourtConfidenceShell: CSSProperties = {
     ...captainCourtConfidenceShell,
     gap: isMobile ? 12 : captainCourtConfidenceShell.gap,
@@ -2582,6 +2602,69 @@ function CaptainHubContent() {
   ])
   const captainQuickCopyPreviewLines = captainQuickCopySummary.split('\n').slice(0, isMobile ? 5 : 7)
 
+  const captainPostSendTrackerItems = useMemo<CaptainPostSendTrackerItem[]>(() => {
+    if (!matchDayResponseRows.length) {
+      return [
+        {
+          id: 'post-send-no-replies',
+          label: 'No replies saved',
+          state: 'Start chase',
+          detail: 'Send the lineup note, then collect replies so changes appear here.',
+          tone: 'info',
+        },
+      ]
+    }
+
+    return matchDayResponseRows
+      .slice()
+      .sort((a, b) => safeText(b.updated_at).localeCompare(safeText(a.updated_at)))
+      .slice(0, isMobile ? 3 : 4)
+      .map((row, index) => {
+        const status = safeText(row.status).toLowerCase()
+        const statusLabel =
+          status === 'confirmed'
+            ? 'Confirmed'
+            : status === 'running-late'
+              ? 'Running late'
+              : status === 'need-sub'
+                ? 'Needs sub'
+                : status === 'viewed'
+                  ? 'Viewed'
+                  : status === 'no-response'
+                    ? 'No response'
+                    : 'Open'
+        const note = safeText(row.note)
+        const updatedLabel = formatDateTimeShort(row.updated_at || '')
+        const isRisk = status === 'running-late' || status === 'need-sub'
+        const isConfirmed = status === 'confirmed'
+
+        return {
+          id: `${status || 'open'}-${row.updated_at || index}`,
+          label: statusLabel,
+          state: updatedLabel || `Reply ${index + 1}`,
+          detail: note || (isRisk ? 'Review court coverage before warm-up.' : isConfirmed ? 'No chase needed for this saved reply.' : 'Follow up for a clean In, Out, or Maybe.'),
+          tone: isRisk ? 'warn' : isConfirmed ? 'good' : 'info',
+        }
+      })
+  }, [isMobile, matchDayResponseRows])
+  const captainPostSendSent = weekStatus === 'ready-to-send' || weekStatus === 'finalized'
+  const captainPostSendChangeCount = matchDaySubRiskCount + matchDayNotConfirmedCount
+  const captainPostSendPrimaryItem = captainPostSendTrackerItems.find((item) => item.tone === 'warn') ?? captainPostSendTrackerItems[0]
+  const captainPostSendImpactLabel = captainCourtSwapNeedsCount > 0
+    ? captainCourtSwapPrimaryItem.courtLabel
+    : matchDaySubRiskCount > 0
+      ? 'Backup coverage'
+      : matchDayNotConfirmedCount > 0
+        ? 'Reply chase'
+        : workspaceState.lineupReady
+          ? 'Lineup stable'
+          : 'Lineup needed'
+  const captainPostSendNextAction = captainPostSendChangeCount > 0
+    ? 'Chase changes'
+    : captainPostSendSent
+      ? 'Monitor replies'
+      : 'Mark sent'
+
   const postMatchCloseoutChecks = useMemo<CaptainCloseoutCheck[]>(() => [
     {
       label: 'Scores',
@@ -3219,6 +3302,84 @@ function CaptainHubContent() {
         <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
           Review courts
         </SecondarySmallBtn>
+      </div>
+    </section>
+  )
+
+  const captainPostSendTracker = (
+    <section style={dynamicCaptainPostSendTrackerShell} aria-label="Captain post-send tracker">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Post-send tracker</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Track the chase.' : 'Track what changed after the lineup note.'}</h2>
+        </div>
+        <span style={captainPostSendChangeCount > 0 ? warnBadge : captainPostSendSent ? badgeGreen : badgeBlue}>
+          {captainPostSendChangeCount > 0 ? `${captainPostSendChangeCount} chase` : captainPostSendSent ? 'Sent' : copiedCaptainLineupSummary ? 'Copied' : 'Not sent'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Watch saved reply changes, court impact, and the next follow-up after the lineup note leaves your phone.
+      </div>
+
+      <div style={captainPostSendSummaryGrid}>
+        <div style={captainPostSendSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Note</span>
+          <strong style={commandCenterSnapshotValue}>{captainPostSendSent ? 'Sent' : copiedCaptainLineupSummary ? 'Copied summary' : 'Ready to send'}</strong>
+          <span style={commandCenterSnapshotDetail}>{weekStatusMeta.label}</span>
+        </div>
+        <div style={captainPostSendSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Replies</span>
+          <strong style={commandCenterSnapshotValue}>{matchDayResponseRows.length ? `${matchDayConfirmedCount}/${matchDayResponseRows.length}` : 'None'}</strong>
+          <span style={commandCenterSnapshotDetail}>{workspaceState.latestResponseUpdateLabel}</span>
+        </div>
+        <div style={captainPostSendSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Impact</span>
+          <strong style={commandCenterSnapshotValue}>{captainPostSendImpactLabel}</strong>
+          <span style={commandCenterSnapshotDetail}>{captainPostSendNextAction}</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainPostSendTrackerGrid}>
+        <div style={captainPostSendMain}>
+          <div style={captainPostSendTop}>
+            <div>
+              <div style={commandCenterLabel}>Next chase</div>
+              <div style={captainPostSendTitle}>{captainPostSendPrimaryItem.label}</div>
+            </div>
+            <span style={captainPostSendPrimaryItem.tone === 'good' ? badgeGreen : captainPostSendPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainPostSendPrimaryItem.state}
+            </span>
+          </div>
+          <p style={captainPostSendDetail}>{captainPostSendPrimaryItem.detail}</p>
+          <div style={captainPostSendActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || captainPostSendSent} onClick={() => handleWeekStatusUpdate('ready-to-send')}>
+              {captainPostSendSent ? 'Marked sent' : 'Mark note sent'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(levelUpAvailabilityHref, 'availability')}>
+              Chase replies
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+              Review impact
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainPostSendChangePanel}>
+          <div style={commandCenterLabel}>Saved reply changes</div>
+          <div style={captainPostSendChangeList}>
+            {captainPostSendTrackerItems.map((item) => (
+              <article key={item.id} style={captainPostSendChangeCard}>
+                <div style={captainPostSendChangeTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                <span>{item.detail}</span>
+              </article>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -4297,6 +4458,8 @@ function CaptainHubContent() {
         {captainMatchDayCommandStripSurface}
 
         {captainPreSendReview}
+
+        {captainPostSendTracker}
 
         {captainCommandCenter}
 
@@ -6180,6 +6343,134 @@ const captainPreSendActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const captainPostSendTrackerShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.08), rgba(8,13,28,0.76) 44%, rgba(22,28,44,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainPostSendSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPostSendSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendTrackerGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 330px), 1.1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainPostSendMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPostSendTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPostSendChangePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendChangeList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 205px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPostSendChangeCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostSendChangeTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
 }
 
 const commandCenterShell: CSSProperties = {
