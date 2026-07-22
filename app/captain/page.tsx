@@ -239,6 +239,13 @@ type CaptainMatchDayCommandAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainMorningBriefItem = {
+  label: string
+  value: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreSendCheck = {
   label: string
   state: string
@@ -1617,6 +1624,18 @@ function CaptainHubContent() {
     gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
   }
 
+  const dynamicCaptainMorningBriefShell: CSSProperties = {
+    ...captainMorningBriefShell,
+    gap: isMobile ? 12 : captainMorningBriefShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainMorningBriefShell.padding,
+    borderRadius: isMobile ? 20 : captainMorningBriefShell.borderRadius,
+  }
+
+  const dynamicCaptainMorningBriefGrid: CSSProperties = {
+    ...captainMorningBriefGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainMorningBriefGrid.gridTemplateColumns,
+  }
+
   const dynamicCaptainPreSendReviewShell: CSSProperties = {
     ...captainPreSendReviewShell,
     gap: isMobile ? 12 : captainPreSendReviewShell.gap,
@@ -2521,6 +2540,75 @@ function CaptainHubContent() {
     workspaceState.messagingReady,
   ])
   const captainMatchDayPrimaryCommand = captainMatchDayCommandActions.find((item) => item.tone === 'warn') ?? captainMatchDayCommandActions[0]
+  const captainMorningBriefItems = useMemo<CaptainMorningBriefItem[]>(() => [
+    {
+      label: 'Court plan',
+      value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build lineup',
+      detail: workspaceState.lineupReady
+        ? safeText(matchDayLineupPreview[0]?.court_label, 'Court order saved')
+        : 'Save courts before the team starts texting back.',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      label: 'Replies',
+      value: matchDayResponseRows.length ? `${matchDayConfirmedCount}/${matchDayResponseRows.length}` : 'Not collected',
+      detail: matchDayNotConfirmedCount > 0
+        ? `${matchDayNotConfirmedCount} still need a clear answer.`
+        : matchDayResponseRows.length
+          ? 'No saved reply chase is open.'
+          : 'Start the first availability ask.',
+      tone: matchDayNotConfirmedCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      label: 'Backup call',
+      value: captainCourtSwapNeedsCount > 0
+        ? captainCourtSwapPrimaryItem.inPlayer
+        : captainBenchReadyCount > 0
+          ? captainBenchPrimaryItem.name
+          : 'Review bench',
+      detail: captainCourtSwapNeedsCount > 0
+        ? `${captainCourtSwapPrimaryItem.courtLabel} needs cover.`
+        : captainBenchReadyCount > 0
+          ? captainBenchPrimaryItem.fit
+          : 'Pick the first sub option before warm-up.',
+      tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+    },
+    {
+      label: 'Arrival',
+      value: matchDayArrivalLabel,
+      detail: matchDayLocationLabel,
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ], [
+    captainBenchPrimaryItem.fit,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    matchDayArrivalLabel,
+    matchDayConfirmedCount,
+    matchDayLineupPreview,
+    matchDayLocationLabel,
+    matchDayNotConfirmedCount,
+    matchDayResponseRows.length,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainMorningBriefPrimaryAction = captainMatchDayPrimaryCommand
+  const captainMorningBriefLineup = matchDayLineupPreview.length ? matchDayLineupPreview : matchDayLineupRows.slice(0, 2)
+  const captainMorningBriefMeta = [
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    matchDayArrivalLabel,
+  ].filter((value) => value && !['Match date TBD', 'Opponent not set', 'Add arrival'].includes(value))
+    .join(' - ')
+  const captainMorningBriefStatus = captainMorningBriefItems.some((item) => item.tone === 'warn')
+    ? 'Needs action'
+    : captainMorningBriefItems.some((item) => item.tone === 'info')
+      ? 'Review'
+      : 'Ready'
 
   const captainPreSendChecks = useMemo<CaptainPreSendCheck[]>(() => [
     {
@@ -3383,6 +3471,91 @@ function CaptainHubContent() {
             </button>
           )
         })}
+      </div>
+    </section>
+  )
+
+  const captainMorningBrief = (
+    <section style={dynamicCaptainMorningBriefShell} aria-label="Captain morning brief">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Morning brief</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Start here.' : "Start the match day from one glance."}</h2>
+        </div>
+        <span style={captainMorningBriefStatus === 'Needs action' ? warnBadge : captainMorningBriefStatus === 'Ready' ? badgeGreen : badgeBlue}>
+          {captainMorningBriefStatus}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Check the court plan, open replies, backup call, arrival detail, and first action before the day gets loud.
+      </div>
+
+      <div style={dynamicCaptainMorningBriefGrid}>
+        <div style={captainMorningBriefHero}>
+          <div style={captainMorningBriefHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>First action</div>
+              <div style={captainMorningBriefTitle}>{captainMorningBriefPrimaryAction.label}</div>
+            </div>
+            <span style={captainMorningBriefPrimaryAction.tone === 'good' ? badgeGreen : captainMorningBriefPrimaryAction.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainMorningBriefPrimaryAction.state}
+            </span>
+          </div>
+          <p style={captainMorningBriefDetail}>{captainMorningBriefPrimaryAction.detail}</p>
+          <div style={captainMorningBriefMetaRow}>
+            <span>{captainMorningBriefMeta || weekAtGlance.scopeLabel}</span>
+          </div>
+          <div style={captainMorningBriefActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainMorningBriefPrimaryAction.href, captainMorningBriefPrimaryAction.stage)}>
+              {captainMorningBriefPrimaryAction.label}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+              Review courts
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainMorningBriefPanel}>
+          <div style={captainMorningBriefSummaryGrid}>
+            {captainMorningBriefItems.map((item) => (
+              <article key={item.label} style={captainMorningBriefSummaryCard}>
+                <div style={captainMorningBriefSummaryTop}>
+                  <span>{item.label}</span>
+                  <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.tone === 'good' ? 'Set' : item.tone === 'warn' ? 'Act' : 'Check'}
+                  </span>
+                </div>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </article>
+            ))}
+          </div>
+
+          <div style={captainMorningBriefLineupPanel}>
+            <div style={captainMorningBriefSummaryTop}>
+              <span>Today&apos;s courts</span>
+              <span style={workspaceState.lineupReady ? badgeGreen : badgeBlue}>
+                {workspaceState.lineupReady ? `${captainMorningBriefLineup.length} shown` : 'Draft'}
+              </span>
+            </div>
+            <div style={captainMorningBriefLineupList}>
+              {captainMorningBriefLineup.length ? captainMorningBriefLineup.map((row, index) => (
+                <div key={row.id || `${row.court_label}-${index}`} style={captainMorningBriefLineupRow}>
+                  <strong>{safeText(row.court_label, `Court ${index + 1}`)}</strong>
+                  <span>{row.players?.filter(Boolean).join(' / ') || 'Players not set'}</span>
+                </div>
+              )) : (
+                <div style={captainMorningBriefLineupRow}>
+                  <strong>No courts saved</strong>
+                  <span>Build the lineup before sending the morning note.</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -4651,6 +4824,8 @@ function CaptainHubContent() {
         </section>
 
         {captainMatchDayCommandStripSurface}
+
+        {captainMorningBrief}
 
         {captainPreSendReview}
 
@@ -6400,6 +6575,157 @@ const captainMatchDayCommandDetail: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.4,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(8,13,28,0.78) 42%, rgba(14,23,39,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainMorningBriefGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.88fr) minmax(min(100%, 380px), 1.12fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainMorningBriefHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMorningBriefTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 23,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefMetaRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMorningBriefPanel: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  alignContent: 'start',
+}
+
+const captainMorningBriefSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainMorningBriefSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefSummaryTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefLineupPanel: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.25)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMorningBriefLineupList: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainMorningBriefLineupRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.34fr) minmax(0, 0.66fr)',
+  gap: 8,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 
