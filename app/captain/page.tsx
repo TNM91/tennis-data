@@ -918,6 +918,17 @@ type CaptainSeasonLaunchItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainRosterDepthItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainOpponentScoutItem = {
   label: string
   state: string
@@ -2567,6 +2578,23 @@ function CaptainHubContent() {
   const dynamicCaptainBenchReadinessGrid: CSSProperties = {
     ...captainBenchReadinessGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainBenchReadinessGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainRosterDepthSnapshotShell: CSSProperties = {
+    ...captainRosterDepthSnapshotShell,
+    gap: isMobile ? 12 : captainRosterDepthSnapshotShell.gap,
+    padding: isSmallMobile ? 14 : captainRosterDepthSnapshotShell.padding,
+    borderRadius: isMobile ? 18 : captainRosterDepthSnapshotShell.borderRadius,
+  }
+
+  const dynamicCaptainRosterDepthFocus: CSSProperties = {
+    ...captainRosterDepthFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainRosterDepthFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainRosterDepthActionRow: CSSProperties = {
+    ...captainRosterDepthActionRow,
+    display: isSmallMobile ? 'grid' : captainRosterDepthActionRow.display,
   }
 
   const dynamicCaptainCourtSwapShell: CSSProperties = {
@@ -6956,6 +6984,99 @@ function CaptainHubContent() {
     : captainSeasonLaunchWatchCount > 0
       ? `${captainSeasonLaunchWatchCount} watch`
       : 'Ready for week one'
+
+  const captainRosterDepthItems = useMemo<CaptainRosterDepthItem[]>(() => [
+    {
+      id: 'roster-depth',
+      label: 'Roster depth',
+      state: roster.length > 0 ? `${roster.length} player${roster.length === 1 ? '' : 's'}` : 'Needs roster',
+      detail: roster.length >= 8
+        ? 'Enough names are loaded to start building courts and backups from one roster view.'
+        : roster.length > 0
+          ? 'Roster is loaded, but keep backup options visible before the opener.'
+          : 'Refresh roster history before asking for availability or drafting week one courts.',
+      href: roster.length > 0 ? currentTeamHref : dataAssistCaptainHref,
+      stage: 'team',
+      cta: roster.length > 0 ? 'Review roster' : 'Refresh roster',
+      tone: roster.length === 0 ? 'warn' : roster.length >= 8 ? 'good' : 'info',
+    },
+    {
+      id: 'rating-watch',
+      label: 'Rating watch',
+      state: rosterSignalSummary.atRisk > 0
+        ? `${rosterSignalSummary.atRisk} watch`
+        : rosterSignalSummary.trendingUp > 0
+          ? `${rosterSignalSummary.trendingUp} rising`
+          : rosterSignalSummary.withStatus > 0
+            ? 'Stable'
+            : 'Needs signal',
+      detail: rosterSignalSummary.atRisk > 0
+        ? 'Use these names carefully before locking early-season courts.'
+        : rosterSignalSummary.trendingUp > 0
+          ? 'Move rising players into the lineup conversation while confidence is fresh.'
+          : rosterSignalSummary.withStatus > 0
+            ? 'Rating direction is loaded for the visible roster.'
+            : 'Refresh ratings so court order is not built only from memory.',
+      href: analyticsHref,
+      stage: 'analytics',
+      cta: 'Open analytics',
+      tone: rosterSignalSummary.atRisk > 0 ? 'warn' : rosterSignalSummary.withStatus > 0 ? 'good' : 'info',
+    },
+    {
+      id: 'backup-pool',
+      label: 'Backup pool',
+      state: matchDaySubCandidates.length > 0
+        ? `${matchDaySubCandidates.length} option${matchDaySubCandidates.length === 1 ? '' : 's'}`
+        : roster.length > 0
+          ? 'Review bench'
+          : 'No bench',
+      detail: matchDaySubCandidates.length > 0
+        ? `${captainBenchPrimaryItem.name} is the first backup call from the current roster read.`
+        : roster.length > 0
+          ? 'Everyone visible may already be on a court. Check availability before match week.'
+          : 'Load roster context before backup calls can be ranked.',
+      href: matchDaySubCandidates.length > 0 ? lineupBuilderHref : availabilityHref,
+      stage: matchDaySubCandidates.length > 0 ? 'lineup' : 'availability',
+      cta: matchDaySubCandidates.length > 0 ? 'Check lineup' : 'Ask availability',
+      tone: matchDaySubCandidates.length > 0 ? (captainBenchWatchCount > 0 ? 'warn' : 'good') : roster.length > 0 ? 'info' : 'warn',
+    },
+    {
+      id: 'lineup-coverage',
+      label: 'Lineup coverage',
+      state: workspaceState.lineupReady
+        ? `${workspaceState.lineupCount} court${workspaceState.lineupCount === 1 ? '' : 's'}`
+        : 'Draft needed',
+      detail: workspaceState.lineupReady
+        ? 'Saved courts exist. Use the roster depth read before sending the team message.'
+        : 'Turn availability and roster depth into a first court plan before reminders start.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: workspaceState.lineupReady ? 'Review courts' : 'Build lineup',
+      tone: workspaceState.lineupReady ? 'good' : roster.length > 0 ? 'info' : 'warn',
+    },
+  ], [
+    analyticsHref,
+    availabilityHref,
+    captainBenchPrimaryItem.name,
+    captainBenchWatchCount,
+    currentTeamHref,
+    lineupBuilderHref,
+    matchDaySubCandidates.length,
+    roster.length,
+    rosterSignalSummary.atRisk,
+    rosterSignalSummary.trendingUp,
+    rosterSignalSummary.withStatus,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainRosterDepthIssueCount = captainRosterDepthItems.filter((item) => item.tone === 'warn').length
+  const captainRosterDepthReadyCount = captainRosterDepthItems.filter((item) => item.tone === 'good').length
+  const captainRosterDepthPrimaryItem = captainRosterDepthItems.find((item) => item.tone === 'warn')
+    ?? captainRosterDepthItems.find((item) => item.tone === 'info')
+    ?? captainRosterDepthItems[0]
+  const captainRosterDepthStatus = captainRosterDepthIssueCount > 0
+    ? `${captainRosterDepthIssueCount} watch`
+    : `${captainRosterDepthReadyCount}/${captainRosterDepthItems.length} ready`
 
   const opponentScoutNoteReady = opponentScoutNotes.trim().length > 0
   const opponentScoutHomeAwayLabel = nextMatch ? (nextMatch.home ? 'Home' : 'Away') : 'Venue TBD'
@@ -12999,6 +13120,64 @@ function CaptainHubContent() {
             <MiniStat label="Total matches" value={String(quickStats.matches)} />
             <MiniStat label="Singles lines" value={String(quickStats.singles)} />
             <MiniStat label="Doubles lines" value={String(quickStats.doubles)} />
+          </div>
+
+          <div style={dynamicCaptainRosterDepthSnapshotShell} aria-label="Captain roster depth snapshot">
+            <div style={captainRosterDepthHeader}>
+              <div>
+                <div style={sectionKicker}>Roster depth snapshot</div>
+                <h3 style={captainRosterDepthTitle}>
+                  {isMobile ? 'Who can cover courts?' : 'See depth, rating watch, and backup coverage before week one.'}
+                </h3>
+              </div>
+              <span style={captainRosterDepthIssueCount > 0 ? warnBadge : captainRosterDepthReadyCount >= 3 ? badgeGreen : badgeBlue}>
+                {captainRosterDepthStatus}
+              </span>
+            </div>
+
+            <div style={dynamicCaptainRosterDepthFocus}>
+              <div style={{ minWidth: 0 }}>
+                <div style={commandCenterLabel}>Next roster step</div>
+                <div style={captainRosterDepthFocusTitle}>{captainRosterDepthPrimaryItem.label}</div>
+                <p style={captainRosterDepthDetail}>{captainRosterDepthPrimaryItem.detail}</p>
+              </div>
+              <div style={dynamicCaptainRosterDepthActionRow}>
+                <PrimarySmallBtn
+                  fullWidth={isSmallMobile}
+                  disabled={!premiumEnabled}
+                  onClick={() => handleCaptainAction(captainRosterDepthPrimaryItem.href, captainRosterDepthPrimaryItem.stage)}
+                >
+                  {captainRosterDepthPrimaryItem.cta}
+                </PrimarySmallBtn>
+                <SecondarySmallBtn
+                  fullWidth={isSmallMobile}
+                  disabled={!premiumEnabled}
+                  onClick={() => setRefreshTick((current) => current + 1)}
+                >
+                  Refresh roster
+                </SecondarySmallBtn>
+              </div>
+            </div>
+
+            <div style={captainRosterDepthGrid}>
+              {captainRosterDepthItems.map((item) => (
+                <article
+                  key={item.id}
+                  style={{
+                    ...captainRosterDepthCard,
+                    ...(item.id === captainRosterDepthPrimaryItem.id ? captainRosterDepthCardActive : null),
+                  }}
+                >
+                  <div style={captainRosterDepthCardTop}>
+                    <span style={captainRosterDepthLabel}>{item.label}</span>
+                    <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                      {item.state}
+                    </span>
+                  </div>
+                  <div style={captainRosterDepthCardDetail}>{item.detail}</div>
+                </article>
+              ))}
+            </div>
           </div>
 
           {rosterSignalSummary.withStatus > 0 ? (
@@ -21721,6 +21900,124 @@ const miniStatValue: CSSProperties = {
   fontWeight: 900,
   fontSize: 22,
   letterSpacing: 0,
+}
+
+const captainRosterDepthSnapshotShell: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,13,28,0.62)',
+  boxShadow: '0 18px 42px rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainRosterDepthTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.16,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(min(100%, 220px), 1fr) auto',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthFocusTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 900,
+  lineHeight: 1.2,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthDetail: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthActionRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainRosterDepthGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainRosterDepthCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  minHeight: 132,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainRosterDepthCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainRosterDepthLabel: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const captainRosterDepthCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const rosterTableWrap: CSSProperties = {
