@@ -2406,6 +2406,18 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainMatchLogisticsGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainPhoneMatchCardGrid: CSSProperties = {
+    ...captainPhoneMatchCardGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainPhoneMatchCardGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainPhoneMatchCardGrid.gap,
+  }
+
+  const dynamicCaptainPhoneMatchCardActionRow: CSSProperties = {
+    ...captainPhoneMatchCardActionRow,
+    display: isSmallMobile ? 'grid' : captainPhoneMatchCardActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
   const dynamicCaptainMatchLogisticsActionRow: CSSProperties = {
     ...captainMatchLogisticsActionRow,
     display: isSmallMobile ? 'grid' : captainMatchLogisticsActionRow.display,
@@ -6409,6 +6421,48 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
   ])
   const captainMatchLogisticsPreviewLines = captainMatchLogisticsReminder.split('\n').slice(0, isMobile ? 5 : 7)
+  const captainPhoneMatchCardItems = useMemo<CaptainMatchLogisticsItem[]>(() => [
+    {
+      label: 'When',
+      state: captainMatchLogisticsHasDate ? weekAtGlance.eventDateLabel : 'Add date',
+      detail: captainMatchLogisticsHasOpponent ? `Vs ${weekAtGlance.opponentLabel}` : 'Opponent is still missing.',
+      tone: captainMatchLogisticsHasDate && captainMatchLogisticsHasOpponent ? 'good' : 'warn',
+    },
+    {
+      label: 'Arrival',
+      state: captainMatchLogisticsHasArrival ? matchDayArrivalLabel : 'Add arrival',
+      detail: captainMatchLogisticsHasArrival ? 'Target arrival is ready for the reminder.' : 'Add when players should arrive.',
+      tone: captainMatchLogisticsHasArrival ? 'good' : 'warn',
+    },
+    {
+      label: 'Where',
+      state: captainMatchLogisticsHasLocation ? matchDayLocationLabel : 'Add site',
+      detail: captainMatchLogisticsHasLocation ? 'Site is ready for players.' : 'Add the facility or court location.',
+      tone: captainMatchLogisticsHasLocation ? 'good' : 'warn',
+    },
+    {
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Lineup first',
+      detail: workspaceState.lineupReady ? 'Court count is ready for the team note.' : 'Build courts before the final reminder.',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+  ], [
+    captainMatchLogisticsHasArrival,
+    captainMatchLogisticsHasDate,
+    captainMatchLogisticsHasLocation,
+    captainMatchLogisticsHasOpponent,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainPhoneMatchCardReadyCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'good').length
+  const captainPhoneMatchCardIssueCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'warn').length
+  const captainPhoneMatchCardStatus = captainPhoneMatchCardIssueCount > 0
+    ? `${captainPhoneMatchCardIssueCount} missing`
+    : `${captainPhoneMatchCardReadyCount}/${captainPhoneMatchCardItems.length} ready`
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
@@ -9619,6 +9673,50 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Keep arrival time, site, opponent, lineup note, and final reminder copy in one place before players start asking.
+      </div>
+
+      <div style={captainPhoneMatchCardShell} aria-label="Captain phone match card">
+        <div style={captainPhoneMatchCardHeader}>
+          <div>
+            <div style={commandCenterLabel}>Phone match card</div>
+            <div style={captainPhoneMatchCardTitle}>{weekAtGlance.eventDateLabel}</div>
+            <div style={captainPhoneMatchCardOpponent}>vs {weekAtGlance.opponentLabel}</div>
+          </div>
+          <span style={captainPhoneMatchCardIssueCount > 0 ? warnBadge : badgeGreen}>
+            {captainPhoneMatchCardStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainPhoneMatchCardGrid}>
+          {captainPhoneMatchCardItems.map((item) => (
+            <article key={item.label} style={captainPhoneMatchCardItem}>
+              <span style={captainPhoneMatchCardLabel}>{item.label}</span>
+              <strong style={captainPhoneMatchCardValue}>{item.state}</strong>
+              <span style={captainPhoneMatchCardDetail}>{item.detail}</span>
+            </article>
+          ))}
+        </div>
+
+        <div style={captainPhoneMatchCardReminder}>
+          <div style={commandCenterLabel}>Final reminder copy</div>
+          <div style={captainPhoneMatchCardPreview}>
+            {captainMatchLogisticsPreviewLines.slice(0, isMobile ? 4 : 5).map((line, index) => (
+              <span key={`match-card-${line}-${index}`}>{line}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={dynamicCaptainPhoneMatchCardActionRow}>
+          <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
+            {copiedCaptainMatchLogistics ? 'Copied reminder' : 'Copy final reminder'}
+          </PrimarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+            Open messages
+          </SecondarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+            Review lineup
+          </SecondarySmallBtn>
+        </div>
       </div>
 
       <div style={captainMatchLogisticsHero}>
@@ -16639,6 +16737,122 @@ const captainMatchLogisticsPreview: CSSProperties = {
   fontWeight: 800,
   whiteSpace: 'pre-wrap',
   overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(2,6,23,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPhoneMatchCardTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 26,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardOpponent: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPhoneMatchCardItem: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 94,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardReminder: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const captainPhoneMatchCardPreview: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  maxHeight: 158,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.32)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  whiteSpace: 'pre-wrap',
+  overflow: 'auto',
+  overflowWrap: 'anywhere',
+}
+
+const captainPhoneMatchCardActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const captainMatchLogisticsActionRow: CSSProperties = {
