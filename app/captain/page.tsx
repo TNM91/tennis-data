@@ -6937,6 +6937,16 @@ function CaptainHubContent() {
     : captainLineupLockFlowIssueCount > 0
       ? `${captainLineupLockFlowIssueCount} to fix`
       : `${captainLineupLockFlowReadyCount}/${captainLineupLockFlow.length} ready`
+  const captainHomeLineupLockCopied = copiedCaptainLineupSummary
+  const captainHomeLineupLockStatus = captainHomeLineupLockCopied
+    ? 'Copied'
+    : captainLineupLockCanSend
+      ? 'Ready to send'
+      : captainLineupLockFlowStatus
+  const captainHomeLineupLockPreviewLines = captainQuickCopyPreviewLines.slice(0, isMobile ? 3 : 4)
+  const captainHomeLineupLockNeeds = captainLineupLockChecks
+    .filter((check) => check.tone !== 'good')
+    .slice(0, isMobile ? 2 : 3)
   const captainMatchLogisticsHasOpponent = weekAtGlance.opponentLabel !== 'Opponent not set'
   const captainMatchLogisticsHasDate = weekAtGlance.eventDateLabel !== 'Match date TBD'
   const captainMatchLogisticsHasArrival = matchDayArrivalLabel !== 'Add arrival'
@@ -12521,6 +12531,40 @@ function CaptainHubContent() {
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainAvailabilityReminderPrimaryGroup.href, captainAvailabilityReminderPrimaryGroup.stage)}>
               {captainAvailabilityReminderPrimaryGroup.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+        <div style={captainHomeLineupLockShell} aria-label="Captain home lineup lock">
+          <div style={captainHomeLineupLockHeader}>
+            <div style={captainHomeLineupLockCopy}>
+              <span style={commandCenterLabel}>Lineup lock</span>
+              <strong style={captainHomeLineupLockTitle}>{captainLineupLockFlowPrimaryItem.label}</strong>
+              <span style={captainHomeLineupLockDetail}>{captainLineupLockFlowPrimaryItem.detail}</span>
+            </div>
+            <span style={captainHomeLineupLockCopied || captainLineupLockCanSend ? badgeGreen : captainLineupLockFlowPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainHomeLineupLockStatus}
+            </span>
+          </div>
+          {captainHomeLineupLockNeeds.length ? (
+            <div style={captainHomeLineupLockNeedList}>
+              {captainHomeLineupLockNeeds.map((check) => (
+                <span key={`home-lineup-${check.label}`} style={captainHomeLineupLockNeedChip}>
+                  {check.label}: {check.state}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div style={captainHomeLineupLockPreview}>
+            {captainHomeLineupLockPreviewLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </div>
+          <div style={captainHomeLineupLockActions}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !workspaceState.lineupReady} onClick={() => void handleCopyCaptainLineupSummary()}>
+              {captainHomeLineupLockCopied ? 'Copied lineup' : 'Copy lineup note'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainLineupLockFlowPrimaryItem.href, captainLineupLockFlowPrimaryItem.stage)}>
+              {captainLineupLockFlowPrimaryItem.cta}
             </SecondarySmallBtn>
           </div>
         </div>
@@ -20500,6 +20544,96 @@ const captainHomeReplyChasePreview: CSSProperties = {
 }
 
 const captainHomeReplyChaseActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeLineupLockShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupLockHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeLineupLockCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  flex: '1 1 180px',
+}
+
+const captainHomeLineupLockTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupLockDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupLockNeedList: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeLineupLockNeedChip: CSSProperties = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  padding: '5px 7px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupLockPreview: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 58,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupLockActions: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
