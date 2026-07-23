@@ -322,6 +322,19 @@ type CaptainWeeklySendBoardItem = {
   cta: string
 }
 
+type CaptainCommunicationTimelineItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  preview: string
+  phase: 'Done' | 'Now' | 'Next'
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainLineupLockCheck = {
   label: string
   state: string
@@ -1961,6 +1974,30 @@ function CaptainHubContent() {
   const dynamicCaptainNudgeComposerGrid: CSSProperties = {
     ...captainNudgeComposerGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainNudgeComposerGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainCommunicationTimelineShell: CSSProperties = {
+    ...captainCommunicationTimelineShell,
+    gap: isMobile ? 12 : captainCommunicationTimelineShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainCommunicationTimelineShell.padding,
+    borderRadius: isMobile ? 20 : captainCommunicationTimelineShell.borderRadius,
+  }
+
+  const dynamicCaptainCommunicationTimelineHero: CSSProperties = {
+    ...captainCommunicationTimelineHero,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainCommunicationTimelineHero.gridTemplateColumns,
+  }
+
+  const dynamicCaptainCommunicationTimelineActionRow: CSSProperties = {
+    ...captainCommunicationTimelineActionRow,
+    display: isSmallMobile ? 'grid' : captainCommunicationTimelineActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainCommunicationTimelineGrid: CSSProperties = {
+    ...captainCommunicationTimelineGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCommunicationTimelineGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainCommunicationTimelineGrid.gap,
   }
 
   const dynamicCaptainWeekTimelineShell: CSSProperties = {
@@ -5742,6 +5779,42 @@ function CaptainHubContent() {
   const captainWeeklySendBoardPrimaryItem = captainWeeklySendBoardItems.find((item) => item.tone === 'warn')
     ?? captainWeeklySendBoardItems.find((item) => item.tone === 'info')
     ?? captainWeeklySendBoardItems[0]
+  const captainCommunicationTimelineItems = useMemo<CaptainCommunicationTimelineItem[]>(() => {
+    const firstOpenIndex = captainWeeklySendBoardItems.findIndex((item) => item.tone !== 'good')
+    const currentIndex = firstOpenIndex === -1 ? captainWeeklySendBoardItems.length - 1 : firstOpenIndex
+
+    return captainWeeklySendBoardItems.map((item, index) => {
+      const phase: CaptainCommunicationTimelineItem['phase'] = item.tone === 'good'
+        ? 'Done'
+        : index === currentIndex
+          ? 'Now'
+          : 'Next'
+
+      return {
+        id: item.id,
+        label: item.label,
+        state: item.state,
+        detail: item.detail,
+        preview: item.body.split('\n').find((line) => safeText(line)) || item.detail,
+        phase,
+        href: item.href,
+        stage: item.stage,
+        tone: item.tone,
+        cta: item.cta,
+      }
+    })
+  }, [captainWeeklySendBoardItems])
+  const captainCommunicationTimelineCurrentItem = captainCommunicationTimelineItems.find((item) => item.phase === 'Now')
+    ?? captainCommunicationTimelineItems.find((item) => item.phase === 'Next')
+    ?? captainCommunicationTimelineItems[captainCommunicationTimelineItems.length - 1]
+  const captainCommunicationTimelineCurrentSend = captainWeeklySendBoardItems.find((item) => item.id === captainCommunicationTimelineCurrentItem?.id)
+    ?? captainWeeklySendBoardPrimaryItem
+  const captainCommunicationTimelineDoneCount = captainCommunicationTimelineItems.filter((item) => item.phase === 'Done').length
+  const captainCommunicationTimelineStatus = captainCommunicationTimelineCurrentItem?.phase === 'Now'
+    ? 'Send now'
+    : captainCommunicationTimelineDoneCount >= captainCommunicationTimelineItems.length
+      ? 'All set'
+      : 'Next up'
   const captainLineupLockOpenReplyCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-open')?.names.length ?? 0
   const captainLineupLockSwingCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-swing')?.names.length ?? 0
   const captainLineupLockConfirmedCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-in')?.names.length || matchDayConfirmedCount
@@ -8614,6 +8687,74 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainCommunicationTimeline = (
+    <section style={dynamicCaptainCommunicationTimelineShell} aria-label="Captain communication timeline">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Communication timeline</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Send the right thing next.' : 'See the captain communication rhythm.'}</h2>
+        </div>
+        <span style={captainCommunicationTimelineCurrentItem?.tone === 'warn' ? warnBadge : captainCommunicationTimelineDoneCount >= captainCommunicationTimelineItems.length ? badgeGreen : badgeBlue}>
+          {captainCommunicationTimelineStatus}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Track availability asks, lineup sends, match logistics, reminders, and the post-match recap from one phone-friendly lane.
+      </div>
+
+      <div style={dynamicCaptainCommunicationTimelineHero}>
+        <div style={captainCommunicationTimelineFocus}>
+          <div style={captainCommunicationTimelineFocusTop}>
+            <div>
+              <div style={commandCenterLabel}>Current send</div>
+              <div style={captainCommunicationTimelineTitle}>{captainCommunicationTimelineCurrentItem?.label || 'Team note'}</div>
+            </div>
+            <span style={captainCommunicationTimelineCurrentItem?.tone === 'warn' ? warnBadge : captainCommunicationTimelineCurrentItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainCommunicationTimelineCurrentItem?.state || 'Ready'}
+            </span>
+          </div>
+          <p style={captainCommunicationTimelineDetail}>
+            {captainCommunicationTimelineCurrentItem?.detail || 'Work through the captain sends in order.'}
+          </p>
+          <div style={captainCommunicationTimelinePreview}>
+            {captainCommunicationTimelineCurrentItem?.preview || 'No send needed right now.'}
+          </div>
+          <div style={dynamicCaptainCommunicationTimelineActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainCommunicationTimelineCurrentSend?.body} onClick={() => captainCommunicationTimelineCurrentSend ? void handleCopyCaptainWeeklySendBoardItem(captainCommunicationTimelineCurrentSend) : undefined}>
+              {copiedCaptainWeeklySendBoardId === captainCommunicationTimelineCurrentSend?.id ? 'Copied send' : 'Copy current send'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainCommunicationTimelineCurrentItem} onClick={() => captainCommunicationTimelineCurrentItem ? handleCaptainNav(captainCommunicationTimelineCurrentItem.href, captainCommunicationTimelineCurrentItem.stage) : undefined}>
+              {captainCommunicationTimelineCurrentItem?.cta || 'Open tool'}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainCommunicationTimelinePanel}>
+          <div style={commandCenterLabel}>Timeline steps</div>
+          <div style={dynamicCaptainCommunicationTimelineGrid}>
+            {captainCommunicationTimelineItems.map((item, index) => (
+              <article key={item.id} style={captainCommunicationTimelineCard}>
+                <div style={captainCommunicationTimelineCardTop}>
+                  <div style={captainCommunicationTimelineMarker}>
+                    <span style={captainCommunicationTimelineDot}>{index + 1}</span>
+                    <strong>{item.label}</strong>
+                  </div>
+                  <span style={item.phase === 'Done' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.phase}
+                  </span>
+                </div>
+                <span style={captainCommunicationTimelineCardDetail}>{item.detail}</span>
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                  {item.cta}
+                </SecondarySmallBtn>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainWeeklySendBoard = (
     <section style={dynamicCaptainWeeklySendBoardShell} aria-label="Captain weekly send board">
       <div style={commandCenterHeader}>
@@ -10750,6 +10891,8 @@ function CaptainHubContent() {
         {captainAfterPointResetRail}
 
         {captainMorningBrief}
+
+        {captainCommunicationTimeline}
 
         {captainWeeklySendBoard}
 
@@ -16787,6 +16930,163 @@ const captainNudgeMiniActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
+}
+
+const captainCommunicationTimelineShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.76) 43%, rgba(19,36,51,0.84))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.25)',
+}
+
+const captainCommunicationTimelineHero: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.82fr) minmax(min(100%, 430px), 1.18fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainCommunicationTimelineFocus: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.31)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineFocusTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCommunicationTimelineTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelinePreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 74,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.48,
+  fontWeight: 780,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCommunicationTimelinePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCommunicationTimelineCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 9,
+  minWidth: 0,
+  minHeight: 166,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainCommunicationTimelineMarker: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationTimelineDot: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 26,
+  height: 26,
+  flex: '0 0 26px',
+  borderRadius: 999,
+  color: 'var(--foreground-strong)',
+  border: '1px solid rgba(125,211,252,0.24)',
+  background: 'rgba(125,211,252,0.10)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const captainCommunicationTimelineCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const captainWeekTimelineShell: CSSProperties = {
