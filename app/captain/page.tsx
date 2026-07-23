@@ -251,6 +251,19 @@ type CaptainOneThumbAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
+
+type CaptainPreMatchReadyGateItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  severity: CaptainPreMatchReadyGateSeverity
+}
+
 type CaptainMatchDayLockSignal = {
   id: string
   label: string
@@ -1927,6 +1940,24 @@ function CaptainHubContent() {
     ...captainOneThumbQueue,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainOneThumbQueue.gridTemplateColumns,
     gap: isMobile ? 7 : captainOneThumbQueue.gap,
+  }
+
+  const dynamicCaptainPreMatchReadyGateShell: CSSProperties = {
+    ...captainPreMatchReadyGateShell,
+    gap: isMobile ? 10 : captainPreMatchReadyGateShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainPreMatchReadyGateShell.padding,
+    borderRadius: isMobile ? 18 : captainPreMatchReadyGateShell.borderRadius,
+  }
+
+  const dynamicCaptainPreMatchReadyGateGrid: CSSProperties = {
+    ...captainPreMatchReadyGateGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainPreMatchReadyGateGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainPreMatchReadyGateList: CSSProperties = {
+    ...captainPreMatchReadyGateList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainPreMatchReadyGateList.gridTemplateColumns,
+    gap: isMobile ? 7 : captainPreMatchReadyGateList.gap,
   }
 
   const dynamicCaptainEmergencyModeShell: CSSProperties = {
@@ -4875,6 +4906,104 @@ function CaptainHubContent() {
     : captainOneThumbInfoCount > 0
       ? `${captainOneThumbInfoCount} next`
       : `${captainOneThumbReadyCount} ready`
+  const captainPreMatchReadyGateItems = useMemo<CaptainPreMatchReadyGateItem[]>(() => [
+    {
+      id: 'team-scope',
+      label: 'Team',
+      state: hasTeamScope ? 'Selected' : 'Choose team',
+      detail: hasTeamScope
+        ? 'Captain is scoped to the right team week.'
+        : 'Choose the team, league, and flight before leaving.',
+      href: '#captain-team-scope',
+      stage: 'team',
+      cta: 'Choose team',
+      severity: hasTeamScope ? 'ready' : 'blocker',
+    },
+    {
+      id: 'reply-chase',
+      label: 'Replies',
+      state: matchDayNotConfirmedCount > 0 ? `${matchDayNotConfirmedCount} open` : 'Clear',
+      detail: matchDayNotConfirmedCount > 0
+        ? 'Chase missing availability or ETA before driving over.'
+        : 'No saved reply chase is blocking the trip.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      cta: 'Chase replies',
+      severity: matchDayNotConfirmedCount > 0 ? 'blocker' : 'ready',
+    },
+    {
+      id: 'lineup',
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
+      detail: workspaceState.lineupReady
+        ? 'Court order is saved for the visible match week.'
+        : 'Save court assignments before leaving for the courts.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: 'Build lineup',
+      severity: workspaceState.lineupReady ? 'ready' : 'blocker',
+    },
+    {
+      id: 'team-message',
+      label: 'Team text',
+      state: workspaceState.messagingReady ? 'Ready' : 'Prep',
+      detail: workspaceState.messagingReady
+        ? 'Lineup and arrival context are ready to send.'
+        : 'Prep the arrival note so players are not guessing.',
+      href: messagingHref,
+      stage: 'messaging',
+      cta: 'Prep message',
+      severity: workspaceState.messagingReady ? 'ready' : 'warning',
+    },
+    {
+      id: 'arrivals',
+      label: 'Arrivals',
+      state: captainArrivalRiskStatus,
+      detail: captainArrivalRiskWatchCount > 0
+        ? `${captainArrivalRiskWatchCount} arrival watch target${captainArrivalRiskWatchCount === 1 ? '' : 's'} need attention.`
+        : 'Arrival board is clear enough to head over.',
+      href: '#captain-arrival-risk-tracker',
+      stage: 'messaging',
+      cta: 'Check arrivals',
+      severity: captainArrivalRiskWatchCount > 0 ? 'warning' : 'ready',
+    },
+    {
+      id: 'handoff',
+      label: 'Court handoff',
+      state: captainCourtHandoffStatus,
+      detail: captainCourtHandoffWatchCount > 0
+        ? 'Warm-up handoff still has a court to check.'
+        : 'Court handoff is ready enough for arrival.',
+      href: '#captain-court-handoff-timer',
+      stage: 'lineup',
+      cta: 'Review courts',
+      severity: captainCourtHandoffWatchCount > 0 ? 'warning' : 'ready',
+    },
+  ], [
+    captainArrivalRiskStatus,
+    captainArrivalRiskWatchCount,
+    captainCourtHandoffStatus,
+    captainCourtHandoffWatchCount,
+    hasTeamScope,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayNotConfirmedCount,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainPreMatchReadyBlockerCount = captainPreMatchReadyGateItems.filter((item) => item.severity === 'blocker').length
+  const captainPreMatchReadyWarningCount = captainPreMatchReadyGateItems.filter((item) => item.severity === 'warning').length
+  const captainPreMatchReadyCount = captainPreMatchReadyGateItems.filter((item) => item.severity === 'ready').length
+  const captainPreMatchReadyPrimaryItem = captainPreMatchReadyGateItems.find((item) => item.severity === 'blocker')
+    ?? captainPreMatchReadyGateItems.find((item) => item.severity === 'warning')
+    ?? captainPreMatchReadyGateItems[0]
+  const captainPreMatchReadyAnswer = captainPreMatchReadyBlockerCount > 0
+    ? 'Not yet'
+    : captainPreMatchReadyWarningCount > 0
+      ? 'Leave with watch'
+      : 'Good to leave'
   const captainPostMatchRecapPrimaryState = captainScoreCaptureRows.length
     ? captainScoreCaptureIssueCount > 0
       ? `${captainScoreCaptureIssueCount} issue`
@@ -5669,6 +5798,18 @@ function CaptainHubContent() {
     })
   }
 
+  function handleCaptainPreMatchReadyGateOpen(item: CaptainPreMatchReadyGateItem | undefined) {
+    if (!item) return
+
+    handleCaptainAction(item.href, item.stage)
+    appendCaptainDecisionLog({
+      label: 'Pre-match ready check opened',
+      detail: `${item.label}: ${item.detail}`,
+      action: item.cta,
+      tone: item.severity === 'blocker' ? 'warn' : item.severity === 'ready' ? 'good' : 'info',
+    })
+  }
+
   async function handleCopyCaptainEmergencyMode() {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
@@ -6338,6 +6479,93 @@ function CaptainHubContent() {
                   <span style={action.tone === 'warn' ? warnBadge : action.tone === 'good' ? badgeGreen : badgeBlue}>{action.state}</span>
                 </span>
                 {!isSmallMobile ? <span style={captainOneThumbQueueDetail}>{action.source}</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainPreMatchReadyGate = (
+    <section id="captain-pre-match-ready-gate" style={dynamicCaptainPreMatchReadyGateShell} aria-label="Captain pre-match ready gate">
+      <div style={captainPreMatchReadyGateHeader}>
+        <div>
+          <div style={sectionKicker}>Pre-match ready gate</div>
+          <h2 style={captainPreMatchReadyGateTitle}>{isMobile ? 'Can I leave?' : 'Can I leave for the courts?'}</h2>
+        </div>
+        <span style={captainPreMatchReadyBlockerCount > 0 ? warnBadge : captainPreMatchReadyWarningCount > 0 ? badgeBlue : badgeGreen}>
+          {captainPreMatchReadyAnswer}
+        </span>
+      </div>
+      <div style={captainPreMatchReadyGateSub}>
+        Check blockers, warnings, and one-tap fixes before you walk out.
+      </div>
+
+      <div style={captainPreMatchReadySummaryGrid}>
+        <div style={captainPreMatchReadySummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Blockers</span>
+          <strong style={commandCenterSnapshotValue}>{captainPreMatchReadyBlockerCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Fix before leaving</span>
+        </div>
+        <div style={captainPreMatchReadySummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Warnings</span>
+          <strong style={commandCenterSnapshotValue}>{captainPreMatchReadyWarningCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Can ride with you</span>
+        </div>
+        <div style={captainPreMatchReadySummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Ready</span>
+          <strong style={commandCenterSnapshotValue}>{captainPreMatchReadyCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Cleared checks</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainPreMatchReadyGateGrid}>
+        <div style={captainPreMatchReadyGateHero}>
+          <div style={captainPreMatchReadyGateTop}>
+            <div>
+              <div style={commandCenterLabel}>Departure answer</div>
+              <div style={captainPreMatchReadyGateFocus}>{captainPreMatchReadyAnswer}</div>
+            </div>
+            <span style={captainPreMatchReadyPrimaryItem?.severity === 'blocker' ? warnBadge : captainPreMatchReadyPrimaryItem?.severity === 'ready' ? badgeGreen : badgeBlue}>
+              {captainPreMatchReadyPrimaryItem?.state ?? 'Ready'}
+            </span>
+          </div>
+          <p style={captainPreMatchReadyGateDetail}>
+            {captainPreMatchReadyPrimaryItem?.detail ?? 'All visible pre-match checks are clear.'}
+          </p>
+          <div style={captainPreMatchReadyGateActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainPreMatchReadyPrimaryItem} onClick={() => handleCaptainPreMatchReadyGateOpen(captainPreMatchReadyPrimaryItem)}>
+              {captainPreMatchReadyPrimaryItem?.cta ?? 'Open check'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-one-thumb-mode', 'analytics')}>
+              Open live queue
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainPreMatchReadyGatePanel}>
+          <div style={commandCenterLabel}>Ready checks</div>
+          <div style={dynamicCaptainPreMatchReadyGateList}>
+            {captainPreMatchReadyGateItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainPreMatchReadyGateCard,
+                  ...(item.severity === 'blocker' ? captainPreMatchReadyGateCardBlocker : item.severity === 'ready' ? captainPreMatchReadyGateCardReady : captainPreMatchReadyGateCardWarning),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainPreMatchReadyGateOpen(item)}
+              >
+                <span style={captainPreMatchReadyGateCardTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.severity === 'blocker' ? warnBadge : item.severity === 'ready' ? badgeGreen : badgeBlue}>
+                    {item.state}
+                  </span>
+                </span>
+                {!isSmallMobile ? <span style={captainPreMatchReadyGateCardDetail}>{item.detail}</span> : null}
               </button>
             ))}
           </div>
@@ -9044,6 +9272,8 @@ function CaptainHubContent() {
 
         {captainOneThumbMode}
 
+        {captainPreMatchReadyGate}
+
         {captainMatchDayCommandStripSurface}
 
         {captainEmergencyMode}
@@ -11027,6 +11257,184 @@ const captainOneThumbQueueTop: CSSProperties = {
 }
 
 const captainOneThumbQueueDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.085), rgba(8,13,28,0.90) 42%, rgba(13,22,38,0.92))',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.28)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainPreMatchReadyGateHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPreMatchReadyGateTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadySummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPreMatchReadySummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.86fr) minmax(min(100%, 390px), 1.14fr)',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPreMatchReadyGateHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPreMatchReadyGateFocus: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainPreMatchReadyGatePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainPreMatchReadyGateCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 82,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateCardBlocker: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainPreMatchReadyGateCardWarning: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainPreMatchReadyGateCardReady: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainPreMatchReadyGateCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreMatchReadyGateCardDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.35,
