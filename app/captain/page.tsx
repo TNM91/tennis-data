@@ -7102,6 +7102,16 @@ function CaptainHubContent() {
   const captainMatchLogisticsSendStatus = captainMatchLogisticsSendIssueCount > 0
     ? `${captainMatchLogisticsSendIssueCount} before send`
     : `${captainMatchLogisticsSendReadyCount}/${captainMatchLogisticsSendChecks.length} ready`
+  const captainHomeWhereWhenCopied = copiedCaptainMatchLogistics
+  const captainHomeWhereWhenStatus = captainHomeWhereWhenCopied
+    ? 'Copied'
+    : captainMatchLogisticsIssueCount > 0
+      ? `${captainMatchLogisticsIssueCount} missing`
+      : 'Ready to remind'
+  const captainHomeWhereWhenPreviewLines = captainMatchLogisticsPreviewLines.slice(0, isMobile ? 3 : 4)
+  const captainHomeWhereWhenNeeds = captainMatchLogisticsItems
+    .filter((item) => item.tone !== 'good')
+    .slice(0, isMobile ? 2 : 3)
   const captainPhoneMatchCardItems = useMemo<CaptainMatchLogisticsItem[]>(() => [
     {
       label: 'When',
@@ -12573,6 +12583,40 @@ function CaptainHubContent() {
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainLineupLockFlowPrimaryItem.href, captainLineupLockFlowPrimaryItem.stage)}>
               {captainLineupLockFlowPrimaryItem.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+        <div style={captainHomeWhereWhenShell} aria-label="Captain home where and when">
+          <div style={captainHomeWhereWhenHeader}>
+            <div style={captainHomeWhereWhenCopy}>
+              <span style={commandCenterLabel}>Where and when</span>
+              <strong style={captainHomeWhereWhenTitle}>{captainMatchLogisticsPrimaryItem.label}</strong>
+              <span style={captainHomeWhereWhenDetail}>{captainMatchLogisticsPrimaryItem.detail}</span>
+            </div>
+            <span style={captainHomeWhereWhenCopied ? badgeGreen : captainMatchLogisticsIssueCount > 0 ? warnBadge : badgeBlue}>
+              {captainHomeWhereWhenStatus}
+            </span>
+          </div>
+          {captainHomeWhereWhenNeeds.length ? (
+            <div style={captainHomeWhereWhenNeedList}>
+              {captainHomeWhereWhenNeeds.map((item) => (
+                <span key={`home-where-when-${item.label}`} style={captainHomeWhereWhenNeedChip}>
+                  {item.label}: {item.state}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div style={captainHomeWhereWhenPreview}>
+            {captainHomeWhereWhenPreviewLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </div>
+          <div style={captainHomeWhereWhenActions}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
+              {captainHomeWhereWhenCopied ? 'Copied reminder' : 'Copy reminder'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-match-logistics-card', 'messaging')}>
+              Open details
             </SecondarySmallBtn>
           </div>
         </div>
@@ -20676,6 +20720,96 @@ const captainHomeLineupLockPreview: CSSProperties = {
 }
 
 const captainHomeLineupLockActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeWhereWhenShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeWhereWhenHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeWhereWhenCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  flex: '1 1 180px',
+}
+
+const captainHomeWhereWhenTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeWhereWhenDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeWhereWhenNeedList: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeWhereWhenNeedChip: CSSProperties = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  padding: '5px 7px',
+  borderRadius: 999,
+  border: '1px solid rgba(125,211,252,0.20)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeWhereWhenPreview: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 58,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeWhereWhenActions: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
