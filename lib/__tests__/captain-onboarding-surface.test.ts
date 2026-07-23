@@ -239,6 +239,19 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainMatchDayLockSignals')
     expect(source).toContain('captainMatchDayLockPrimarySignal')
     expect(source).toContain('captainMatchDayLockStatus')
+    expect(source).toContain('Captain one thumb mode')
+    expect(source).toContain('One thumb mode')
+    expect(source).toContain('One tap next.')
+    expect(source).toContain('Run match day one action at a time.')
+    expect(source).toContain('Step through the live captain queue without hunting through the full page.')
+    expect(source).toContain('Action queue')
+    expect(source).toContain('captainOneThumbActions')
+    expect(source).toContain('captainOneThumbPrimaryAction')
+    expect(source).toContain('captainOneThumbStatus')
+    expect(source).toContain('handleCaptainOneThumbStep')
+    expect(source).toContain('handleCaptainOneThumbOpen')
+    expect(source).toContain('captainOneThumbIndex')
+    expect(source).toContain('id="captain-one-thumb-mode"')
     expect(source).toContain('id="captain-late-change-mode"')
     expect(source).toContain('id="captain-change-ack-tracker"')
     expect(source).toContain('id="captain-arrival-risk-tracker"')
@@ -557,6 +570,7 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('handleCopyCaptainMatchRecapInboxItem')
     expect(source).toContain('copiedCaptainMatchRecapInboxId')
     expect(source).toContain('CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY')
+    expect(source).toContain('id="captain-match-recap-inbox"')
     expect(source).toContain('Captain post-match recap builder')
     expect(source).toContain('Recap builder')
     expect(source).toContain('Send the recap.')
@@ -585,6 +599,9 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('matchDayChecklist')
     expect(source).toContain('matchDayLineupPreview')
     expect(source.indexOf('{captainMatchDayLockScreenSurface}')).toBeLessThan(
+      source.indexOf('{captainOneThumbMode}'),
+    )
+    expect(source.indexOf('{captainOneThumbMode}')).toBeLessThan(
       source.indexOf('{captainMatchDayCommandStripSurface}'),
     )
     expect(source.indexOf('{captainMatchDayCommandStripSurface}')).toBeLessThan(
@@ -660,9 +677,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('<section style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">'),
     )
     expect(source.indexOf('<section style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">')).toBeLessThan(
-      source.indexOf('<section style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">'),
+      source.indexOf('<section id="captain-match-recap-inbox" style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">'),
     )
-    expect(source.indexOf('<section style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">')).toBeLessThan(
+    expect(source.indexOf('<section id="captain-match-recap-inbox" style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">')).toBeLessThan(
       source.indexOf('<section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">'),
     )
     expect(source.indexOf('<section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">')).toBeLessThan(
@@ -700,6 +717,30 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainMatchDayLockSignal')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('captainMatchDayLockSignalTop')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('captainMatchDayLockSignalDetail')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain('const dynamicCaptainOneThumbModeShell: CSSProperties')
+    expect(source).toContain('const dynamicCaptainOneThumbModeGrid: CSSProperties')
+    expect(source).toContain('const dynamicCaptainOneThumbQueue: CSSProperties')
+    expect(source).toContain("position: isMobile ? 'sticky' : 'relative'")
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainOneThumbModeGrid.gridTemplateColumns")
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainOneThumbQueue.gridTemplateColumns")
+    expect(styleBlock('captainOneThumbModeShell')).toContain('minWidth: 0')
+    expect(styleBlock('captainOneThumbModeShell')).toContain("backdropFilter: 'blur(16px)'")
+    expect(styleBlock('captainOneThumbHeader')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainOneThumbTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbSub')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbModeGrid')).toContain('minmax(min(100%, 380px), 1.08fr)')
+    expect(styleBlock('captainOneThumbHero')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainOneThumbFocus')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbDetail')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbActionRow')).toContain("gridTemplateColumns: 'minmax(0, 0.62fr) minmax(0, 1fr) minmax(0, 0.62fr)'")
+    expect(styleBlock('captainOneThumbPanel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbPanelTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainOneThumbQueue')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))'")
+    expect(styleBlock('captainOneThumbQueueButton')).toContain('minHeight: 78')
+    expect(styleBlock('captainOneThumbQueueButton')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainOneThumbQueueTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainOneThumbQueueDetail')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain('const dynamicCaptainMatchDayCommandStrip: CSSProperties')
     expect(source).toContain('const dynamicCaptainMatchDayCommandGrid: CSSProperties')
     expect(source).toContain("position: isMobile ? 'sticky' : 'relative'")
