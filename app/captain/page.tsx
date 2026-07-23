@@ -671,8 +671,15 @@ type CaptainReplyReminderTemplate = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainAvailabilityReminderGroupId =
+  | 'availability-open'
+  | 'availability-swing'
+  | 'availability-in'
+  | 'availability-out'
+  | 'availability-team'
+
 type CaptainAvailabilityReminderGroup = {
-  id: string
+  id: CaptainAvailabilityReminderGroupId
   label: string
   state: string
   detail: string
@@ -1239,6 +1246,7 @@ function CaptainHubContent() {
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
   const [copiedCaptainAvailabilityReminderId, setCopiedCaptainAvailabilityReminderId] = useState('')
+  const [captainHomeAvailabilityModeId, setCaptainHomeAvailabilityModeId] = useState<CaptainAvailabilityReminderGroupId>('availability-team')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainWeeklySendBoardId, setCopiedCaptainWeeklySendBoardId] = useState('')
   const [captainHomeReminderModeId, setCaptainHomeReminderModeId] = useState<CaptainHomeReminderModeId>('full-team')
@@ -5365,12 +5373,15 @@ function CaptainHubContent() {
     ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-swing' && group.names.length)
     ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-team')
     ?? captainAvailabilityReminderGroups[0]
-  const captainHomeReplyChaseCopied = copiedCaptainAvailabilityReminderId === captainAvailabilityReminderPrimaryGroup.id
+  const captainHomeAvailabilityModeGroups = captainAvailabilityReminderGroups
+  const captainHomeAvailabilitySelectedGroup = captainHomeAvailabilityModeGroups.find((group) => group.id === captainHomeAvailabilityModeId)
+    ?? captainAvailabilityReminderPrimaryGroup
+  const captainHomeReplyChaseCopied = copiedCaptainAvailabilityReminderId === captainHomeAvailabilitySelectedGroup.id
   const captainHomeReplyChaseStatus = captainHomeReplyChaseCopied
     ? 'Copied'
-    : captainAvailabilityReminderPrimaryGroup.state
-  const captainHomeReplyChaseNames = captainAvailabilityReminderPrimaryGroup.names.slice(0, isMobile ? 4 : 7)
-  const captainHomeReplyChasePreviewLines = (captainAvailabilityReminderPrimaryGroup.body || captainAvailabilityReminderPrimaryGroup.detail)
+    : captainHomeAvailabilitySelectedGroup.state
+  const captainHomeReplyChaseNames = captainHomeAvailabilitySelectedGroup.names.slice(0, isMobile ? 4 : 7)
+  const captainHomeReplyChasePreviewLines = (captainHomeAvailabilitySelectedGroup.body || captainHomeAvailabilitySelectedGroup.detail)
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 2 : 3)
@@ -13368,12 +13379,45 @@ function CaptainHubContent() {
           <div style={captainHomeReplyChaseHeader}>
             <div style={captainHomeReplyChaseCopy}>
               <span style={commandCenterLabel}>Reply chase</span>
-              <strong style={captainHomeReplyChaseTitle}>{captainAvailabilityReminderPrimaryGroup.label}</strong>
-              <span style={captainHomeReplyChaseDetail}>{captainAvailabilityReminderPrimaryGroup.detail}</span>
+              <strong style={captainHomeReplyChaseTitle}>{captainHomeAvailabilitySelectedGroup.label}</strong>
+              <span style={captainHomeReplyChaseDetail}>{captainHomeAvailabilitySelectedGroup.detail}</span>
             </div>
-            <span style={captainHomeReplyChaseCopied ? badgeGreen : captainAvailabilityReminderPrimaryGroup.tone === 'warn' ? warnBadge : captainAvailabilityReminderPrimaryGroup.tone === 'good' ? badgeGreen : badgeBlue}>
+            <span style={captainHomeReplyChaseCopied ? badgeGreen : captainHomeAvailabilitySelectedGroup.tone === 'warn' ? warnBadge : captainHomeAvailabilitySelectedGroup.tone === 'good' ? badgeGreen : badgeBlue}>
               {captainHomeReplyChaseStatus}
             </span>
+          </div>
+          <div style={captainHomeAvailabilityModeShell} aria-label="Captain home availability ask picker">
+            <div style={captainHomeAvailabilityModeHeader}>
+              <span style={captainHomeAvailabilityModeTitle}>Ask mode</span>
+              <span style={captainHomeAvailabilitySelectedGroup.tone === 'warn' ? warnBadge : captainHomeAvailabilitySelectedGroup.tone === 'good' ? badgeGreen : badgeBlue}>
+                {captainHomeAvailabilitySelectedGroup.state}
+              </span>
+            </div>
+            <div style={captainHomeAvailabilityModeGrid}>
+              {captainHomeAvailabilityModeGroups.map((group) => (
+                <button
+                  key={`home-availability-${group.id}`}
+                  type="button"
+                  disabled={!hasTeamScope || !premiumEnabled}
+                  aria-pressed={group.id === captainHomeAvailabilityModeId}
+                  style={{
+                    ...captainHomeAvailabilityModeButton,
+                    ...(group.id === captainHomeAvailabilityModeId ? captainHomeAvailabilityModeButtonActive : null),
+                    ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                  }}
+                  onClick={() => {
+                    setCaptainHomeAvailabilityModeId(group.id)
+                    setCopiedCaptainAvailabilityReminderId('')
+                  }}
+                >
+                  <span style={captainHomeAvailabilityModeButtonTop}>
+                    <strong>{group.label}</strong>
+                    <span>{group.state}</span>
+                  </span>
+                  {!isSmallMobile ? <span style={captainHomeAvailabilityModeButtonDetail}>{group.detail}</span> : null}
+                </button>
+              ))}
+            </div>
           </div>
           {captainHomeReplyChaseNames.length ? (
             <div style={captainHomeReplyChaseNameList}>
@@ -13390,11 +13434,11 @@ function CaptainHubContent() {
             ))}
           </div>
           <div style={captainHomeReplyChaseActions}>
-            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainAvailabilityReminderPrimaryGroup.body} onClick={() => void handleCopyCaptainAvailabilityReminder(captainAvailabilityReminderPrimaryGroup)}>
-              {captainHomeReplyChaseCopied ? 'Copied chase' : 'Copy reply chase'}
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeAvailabilitySelectedGroup.body} onClick={() => void handleCopyCaptainAvailabilityReminder(captainHomeAvailabilitySelectedGroup)}>
+              {captainHomeReplyChaseCopied ? 'Copied ask' : `Copy ${captainHomeAvailabilitySelectedGroup.label}`}
             </PrimarySmallBtn>
-            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainAvailabilityReminderPrimaryGroup.href, captainAvailabilityReminderPrimaryGroup.stage)}>
-              {captainAvailabilityReminderPrimaryGroup.cta}
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainHomeAvailabilitySelectedGroup.href, captainHomeAvailabilitySelectedGroup.stage)}>
+              {captainHomeAvailabilitySelectedGroup.cta}
             </SecondarySmallBtn>
           </div>
         </div>
@@ -21904,6 +21948,85 @@ const captainHomeReplyChaseDetail: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityModeHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeAvailabilityModeTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeAvailabilityModeButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 54,
+  padding: 8,
+  borderRadius: 10,
+  border: '1px solid rgba(251,191,36,0.16)',
+  background: 'rgba(251,191,36,0.05)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityModeButtonActive: CSSProperties = {
+  borderColor: 'rgba(251,191,36,0.34)',
+  background: 'rgba(251,191,36,0.10)',
+  boxShadow: '0 0 0 1px rgba(251,191,36,0.08) inset',
+}
+
+const captainHomeAvailabilityModeButtonTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityModeButtonDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 740,
   overflowWrap: 'anywhere',
 }
 
