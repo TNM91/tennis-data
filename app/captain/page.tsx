@@ -239,6 +239,18 @@ type CaptainMatchDayCommandAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainOneThumbAction = {
+  id: string
+  label: string
+  source: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainMatchDayLockSignal = {
   id: string
   label: string
@@ -928,6 +940,7 @@ function CaptainHubContent() {
   const [copiedCaptainNotificationQueueId, setCopiedCaptainNotificationQueueId] = useState('')
   const [copiedCaptainPlayerBriefId, setCopiedCaptainPlayerBriefId] = useState('')
   const [copiedCaptainAfterPointResetId, setCopiedCaptainAfterPointResetId] = useState('')
+  const [captainOneThumbIndex, setCaptainOneThumbIndex] = useState(0)
   const [captainDecisionLogVersion, setCaptainDecisionLogVersion] = useState(0)
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
@@ -1893,6 +1906,27 @@ function CaptainHubContent() {
     ...captainMatchDayLockGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainMatchDayLockGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainMatchDayLockGrid.gap,
+  }
+
+  const dynamicCaptainOneThumbModeShell: CSSProperties = {
+    ...captainOneThumbModeShell,
+    position: isMobile ? 'sticky' : 'relative',
+    top: isMobile ? 8 : 'auto',
+    zIndex: isMobile ? 13 : 1,
+    gap: isMobile ? 10 : captainOneThumbModeShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainOneThumbModeShell.padding,
+    borderRadius: isMobile ? 18 : captainOneThumbModeShell.borderRadius,
+  }
+
+  const dynamicCaptainOneThumbModeGrid: CSSProperties = {
+    ...captainOneThumbModeGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainOneThumbModeGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainOneThumbQueue: CSSProperties = {
+    ...captainOneThumbQueue,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainOneThumbQueue.gridTemplateColumns,
+    gap: isMobile ? 7 : captainOneThumbQueue.gap,
   }
 
   const dynamicCaptainEmergencyModeShell: CSSProperties = {
@@ -4750,6 +4784,97 @@ function CaptainHubContent() {
   const captainMatchRecapInboxLines = captainMatchRecapInboxItems
     .filter((item) => item.status === 'include')
     .map((item) => `${item.source}: ${item.body}`)
+  const captainOneThumbActions = useMemo<CaptainOneThumbAction[]>(() => {
+    const tonePriority = { warn: 0, info: 1, good: 2 } as const
+    const lockActions = captainMatchDayLockSignals.map((signal) => ({
+      id: `lock-${signal.id}`,
+      label: signal.label,
+      source: 'Lock screen',
+      state: signal.state,
+      detail: signal.detail,
+      href: signal.href,
+      stage: signal.stage,
+      cta: signal.cta,
+      tone: signal.tone,
+    }))
+    const commandActions = captainMatchDayCommandActions.map((action) => ({
+      id: `command-${safeKey(action.label)}`,
+      label: action.label,
+      source: 'Live action',
+      state: action.state,
+      detail: action.detail,
+      href: action.href,
+      stage: action.stage,
+      cta: action.label,
+      tone: action.tone,
+    }))
+    const resetAction: CaptainOneThumbAction | null = captainAfterPointPrimaryItem
+      ? {
+          id: 'after-point-primary',
+          label: captainAfterPointPrimaryItem.courtLabel,
+          source: 'After this point',
+          state: captainAfterPointPrimaryItem.state,
+          detail: captainAfterPointPrimaryItem.detail,
+          href: '#captain-after-point-reset-rail',
+          stage: 'analytics',
+          cta: captainAfterPointPrimaryItem.nextAction,
+          tone: captainAfterPointPrimaryItem.tone,
+        }
+      : null
+    const recapAction: CaptainOneThumbAction | null = captainMatchRecapInboxPrimaryItem
+      ? {
+          id: 'recap-inbox-primary',
+          label: captainMatchRecapInboxPrimaryItem.label,
+          source: 'Recap inbox',
+          state: captainMatchRecapInboxPrimaryItem.state,
+          detail: captainMatchRecapInboxPrimaryItem.detail,
+          href: '#captain-match-recap-inbox',
+          stage: 'analytics',
+          cta: 'Review recap',
+          tone: captainMatchRecapInboxPrimaryItem.tone,
+        }
+      : null
+
+    return [
+      captainEmergencyPrimaryAction
+        ? {
+            id: 'emergency-primary',
+            label: captainEmergencyPrimaryAction.label,
+            source: 'Late-change mode',
+            state: captainEmergencyPrimaryAction.state,
+            detail: captainEmergencyPrimaryAction.detail,
+            href: captainEmergencyPrimaryAction.href,
+            stage: captainEmergencyPrimaryAction.stage,
+            cta: captainEmergencyPrimaryAction.cta,
+            tone: captainEmergencyPrimaryAction.tone,
+          }
+        : null,
+      ...lockActions,
+      ...commandActions,
+      resetAction,
+      recapAction,
+    ]
+      .filter((item): item is CaptainOneThumbAction => Boolean(item))
+      .sort((first, second) => tonePriority[first.tone] - tonePriority[second.tone])
+      .slice(0, isMobile ? 8 : 10)
+  }, [
+    captainAfterPointPrimaryItem,
+    captainEmergencyPrimaryAction,
+    captainMatchDayCommandActions,
+    captainMatchDayLockSignals,
+    captainMatchRecapInboxPrimaryItem,
+    isMobile,
+  ])
+  const captainOneThumbSelectedIndex = captainOneThumbActions.length ? Math.min(captainOneThumbIndex, captainOneThumbActions.length - 1) : 0
+  const captainOneThumbPrimaryAction = captainOneThumbActions[captainOneThumbSelectedIndex] ?? captainOneThumbActions[0]
+  const captainOneThumbWarnCount = captainOneThumbActions.filter((item) => item.tone === 'warn').length
+  const captainOneThumbInfoCount = captainOneThumbActions.filter((item) => item.tone === 'info').length
+  const captainOneThumbReadyCount = captainOneThumbActions.filter((item) => item.tone === 'good').length
+  const captainOneThumbStatus = captainOneThumbWarnCount > 0
+    ? `${captainOneThumbWarnCount} urgent`
+    : captainOneThumbInfoCount > 0
+      ? `${captainOneThumbInfoCount} next`
+      : `${captainOneThumbReadyCount} ready`
   const captainPostMatchRecapPrimaryState = captainScoreCaptureRows.length
     ? captainScoreCaptureIssueCount > 0
       ? `${captainScoreCaptureIssueCount} issue`
@@ -5519,6 +5644,31 @@ function CaptainHubContent() {
     }
   }
 
+  function handleCaptainOneThumbStep(direction: 'previous' | 'next') {
+    if (!captainOneThumbActions.length) return
+
+    setCaptainOneThumbIndex((value) => {
+      const currentIndex = Math.min(value, captainOneThumbActions.length - 1)
+      if (direction === 'previous') {
+        return currentIndex <= 0 ? captainOneThumbActions.length - 1 : currentIndex - 1
+      }
+
+      return currentIndex >= captainOneThumbActions.length - 1 ? 0 : currentIndex + 1
+    })
+  }
+
+  function handleCaptainOneThumbOpen(action: CaptainOneThumbAction | undefined) {
+    if (!action) return
+
+    handleCaptainAction(action.href, action.stage)
+    appendCaptainDecisionLog({
+      label: 'One thumb action opened',
+      detail: `${action.source}: ${action.detail}`,
+      action: action.cta,
+      tone: action.tone,
+    })
+  }
+
   async function handleCopyCaptainEmergencyMode() {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
@@ -6118,6 +6268,80 @@ function CaptainHubContent() {
             {!isSmallMobile ? <span style={captainMatchDayLockSignalDetail}>{signal.detail}</span> : null}
           </button>
         ))}
+      </div>
+    </section>
+  )
+
+  const captainOneThumbMode = (
+    <section id="captain-one-thumb-mode" style={dynamicCaptainOneThumbModeShell} aria-label="Captain one thumb mode">
+      <div style={captainOneThumbHeader}>
+        <div>
+          <div style={sectionKicker}>One thumb mode</div>
+          <h2 style={captainOneThumbTitle}>{isMobile ? 'One tap next.' : 'Run match day one action at a time.'}</h2>
+        </div>
+        <span style={captainOneThumbWarnCount > 0 ? warnBadge : captainOneThumbInfoCount > 0 ? badgeBlue : badgeGreen}>
+          {captainOneThumbStatus}
+        </span>
+      </div>
+      <div style={captainOneThumbSub}>
+        Step through the live captain queue without hunting through the full page.
+      </div>
+
+      <div style={dynamicCaptainOneThumbModeGrid}>
+        <div style={captainOneThumbHero}>
+          <div style={captainOneThumbTop}>
+            <div>
+              <div style={commandCenterLabel}>{captainOneThumbPrimaryAction?.source ?? 'Live queue'}</div>
+              <div style={captainOneThumbFocus}>{captainOneThumbPrimaryAction?.label ?? 'No action yet'}</div>
+            </div>
+            <span style={captainOneThumbPrimaryAction?.tone === 'warn' ? warnBadge : captainOneThumbPrimaryAction?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainOneThumbPrimaryAction?.state ?? 'Ready'}
+            </span>
+          </div>
+          <p style={captainOneThumbDetail}>
+            {captainOneThumbPrimaryAction?.detail ?? 'Your match-day action queue will appear here once the captain stack has live items.'}
+          </p>
+          <div style={captainOneThumbActionRow}>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || captainOneThumbActions.length < 2} onClick={() => handleCaptainOneThumbStep('previous')}>
+              Previous
+            </SecondarySmallBtn>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainOneThumbPrimaryAction} onClick={() => handleCaptainOneThumbOpen(captainOneThumbPrimaryAction)}>
+              {captainOneThumbPrimaryAction?.cta ?? 'Open action'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || captainOneThumbActions.length < 2} onClick={() => handleCaptainOneThumbStep('next')}>
+              Next
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainOneThumbPanel}>
+          <div style={captainOneThumbPanelTop}>
+            <span style={commandCenterLabel}>Action queue</span>
+            <span style={badgeSlate}>{captainOneThumbSelectedIndex + 1}/{captainOneThumbActions.length || 1}</span>
+          </div>
+          <div style={dynamicCaptainOneThumbQueue}>
+            {captainOneThumbActions.map((action, index) => (
+              <button
+                key={action.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainOneThumbQueueButton,
+                  ...(action.tone === 'warn' ? captainOneThumbQueueButtonWarn : action.tone === 'good' ? captainOneThumbQueueButtonGood : captainOneThumbQueueButtonInfo),
+                  ...(index === captainOneThumbSelectedIndex ? captainOneThumbQueueButtonActive : null),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => setCaptainOneThumbIndex(index)}
+              >
+                <span style={captainOneThumbQueueTop}>
+                  <strong>{action.label}</strong>
+                  <span style={action.tone === 'warn' ? warnBadge : action.tone === 'good' ? badgeGreen : badgeBlue}>{action.state}</span>
+                </span>
+                {!isSmallMobile ? <span style={captainOneThumbQueueDetail}>{action.source}</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -8039,7 +8263,7 @@ function CaptainHubContent() {
   )
 
   const captainMatchRecapInbox = (
-    <section style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">
+    <section id="captain-match-recap-inbox" style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">
       <div style={captainMatchRecapInboxHeader}>
         <div>
           <div style={sectionKicker}>Recap inbox</div>
@@ -8817,6 +9041,8 @@ function CaptainHubContent() {
         </section>
 
         {captainMatchDayLockScreenSurface}
+
+        {captainOneThumbMode}
 
         {captainMatchDayCommandStripSurface}
 
@@ -10628,6 +10854,179 @@ const captainMatchDayLockSignalTop: CSSProperties = {
 }
 
 const captainMatchDayLockSignalDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(125,211,252,0.20)',
+  background: 'rgba(8,13,28,0.91)',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.32)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainOneThumbHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainOneThumbTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.92fr) minmax(min(100%, 380px), 1.08fr)',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainOneThumbHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainOneThumbFocus: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbActionRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.62fr) minmax(0, 1fr) minmax(0, 0.62fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainOneThumbPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbPanelTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainOneThumbQueue: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainOneThumbQueueButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 78,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbQueueButtonGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainOneThumbQueueButtonWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainOneThumbQueueButtonInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainOneThumbQueueButtonActive: CSSProperties = {
+  boxShadow: '0 0 0 2px rgba(125,211,252,0.22)',
+}
+
+const captainOneThumbQueueTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainOneThumbQueueDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.35,
