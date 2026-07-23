@@ -961,6 +961,23 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainPostMatchRecapRecentDecisions')
     expect(source).toContain('handleCopyCaptainPostMatchRecap')
     expect(source).toContain('copiedCaptainPostMatchRecap')
+    expect(source).toContain('id="captain-post-match-recap-builder"')
+    expect(source).toContain('Captain post-match closeout flow')
+    expect(source).toContain('Closeout flow')
+    expect(source).toContain('Scores, recap, closed.')
+    expect(source).toContain('Capture scores, copy the recap, and close the week.')
+    expect(source).toContain('Next closeout step')
+    expect(source).toContain('Capture scores')
+    expect(source).toContain('Pick highlights')
+    expect(source).toContain('Upload scorecard')
+    expect(source).toContain('captainPostMatchFlow')
+    expect(source).toContain('captainPostMatchFlowPrimaryItem')
+    expect(source).toContain('captainPostMatchFlowStatus')
+    expect(source).toContain('captainPostMatchFlowIssueCount')
+    expect(source).toContain('captainPostMatchFlowReadyCount')
+    expect(source).toContain('captainPostMatchRecapCopied')
+    expect(source).toContain('id="captain-score-capture-checklist"')
+    expect(source).toContain('id="captain-post-match-closeout"')
     expect(source).toContain('Captain post-match closeout')
     expect(source).toContain('Post-match closeout')
     expect(source).toContain('Close the match.')
@@ -1107,19 +1124,19 @@ describe('Captain onboarding surface', () => {
     expect(source.indexOf('{captainPostMatchRecapBuilder}')).toBeLessThan(
       source.indexOf('{captainPostMatchCloseout}'),
     )
-    expect(source.indexOf('<section style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">')).toBeLessThan(
+    expect(source.indexOf('<section id="captain-score-capture-checklist" style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">')).toBeLessThan(
       source.indexOf('<section id="captain-match-recap-inbox" style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">'),
     )
     expect(source.indexOf('<section id="captain-match-recap-inbox" style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">')).toBeLessThan(
       source.indexOf('<section style={dynamicCaptainFunRecapShell} aria-label="Captain fun recap composer">'),
     )
     expect(source.indexOf('<section style={dynamicCaptainFunRecapShell} aria-label="Captain fun recap composer">')).toBeLessThan(
-      source.indexOf('<section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">'),
+      source.indexOf('<section id="captain-post-match-recap-builder" style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">'),
     )
-    expect(source.indexOf('<section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">')).toBeLessThan(
-      source.indexOf('<section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">'),
+    expect(source.indexOf('<section id="captain-post-match-recap-builder" style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">')).toBeLessThan(
+      source.indexOf('<section id="captain-post-match-closeout" style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">'),
     )
-    expect(source.indexOf('<section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">')).toBeLessThan(
+    expect(source.indexOf('<section id="captain-post-match-closeout" style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">')).toBeLessThan(
       source.indexOf('<section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">'),
     )
     expect(source.indexOf('<section style={dynamicCommandCenterShell} aria-label="Captain week command center">')).toBeLessThan(
@@ -1806,9 +1823,29 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainPostMatchRecapCardTop')).toContain("flexWrap: 'wrap'")
     expect(source).toContain('const dynamicPostMatchCloseoutShell: CSSProperties')
     expect(source).toContain('const dynamicPostMatchCloseoutGrid: CSSProperties')
+    expect(source).toContain('const dynamicCaptainPostMatchFlowFocus: CSSProperties')
+    expect(source).toContain('const dynamicCaptainPostMatchFlowGrid: CSSProperties')
+    expect(source).toContain('const dynamicCaptainPostMatchFlowActionRow: CSSProperties')
     expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : postMatchCloseoutGrid.gridTemplateColumns")
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPostMatchFlowFocus.gridTemplateColumns")
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPostMatchFlowGrid.gridTemplateColumns")
+    expect(source).toContain("display: isSmallMobile ? 'grid' : captainPostMatchFlowActionRow.display")
     expect(styleBlock('postMatchCloseoutShell')).toContain('minWidth: 0')
     expect(styleBlock('postMatchCloseoutGrid')).toContain('minmax(min(100%, 300px), 0.86fr)')
+    expect(styleBlock('captainPostMatchFlowShell')).toContain('minWidth: 0')
+    expect(styleBlock('captainPostMatchFlowShell')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowHeader')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainPostMatchFlowTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowFocus')).toContain('minmax(min(100%, 220px), auto)')
+    expect(styleBlock('captainPostMatchFlowFocus')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowFocusTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
+    expect(styleBlock('captainPostMatchFlowCard')).toContain('minHeight: 154')
+    expect(styleBlock('captainPostMatchFlowCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowCardTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainPostMatchFlowName')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowDetail')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainPostMatchFlowActionRow')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('postMatchCloseoutMain')).toContain('minWidth: 0')
     expect(styleBlock('postMatchCourtList')).toContain('minWidth: 0')
     expect(styleBlock('postMatchCourtCard')).toContain("overflowWrap: 'anywhere'")

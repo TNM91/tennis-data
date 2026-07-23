@@ -429,6 +429,16 @@ type CaptainFunRecapMoment = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainPostMatchFlowStep = {
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainChangeAckTarget = {
   id: string
   name: string
@@ -2530,6 +2540,23 @@ function CaptainHubContent() {
   const dynamicPostMatchCloseoutGrid: CSSProperties = {
     ...postMatchCloseoutGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : postMatchCloseoutGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainPostMatchFlowFocus: CSSProperties = {
+    ...captainPostMatchFlowFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPostMatchFlowFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainPostMatchFlowGrid: CSSProperties = {
+    ...captainPostMatchFlowGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainPostMatchFlowGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainPostMatchFlowGrid.gap,
+  }
+
+  const dynamicCaptainPostMatchFlowActionRow: CSSProperties = {
+    ...captainPostMatchFlowActionRow,
+    display: isSmallMobile ? 'grid' : captainPostMatchFlowActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
   const dynamicCaptainScoreCaptureShell: CSSProperties = {
@@ -5879,6 +5906,106 @@ function CaptainHubContent() {
     weekAtGlance.opponentLabel,
   ])
   const captainFunRecapPreviewLines = captainFunRecapMessage.split('\n').slice(0, isMobile ? 5 : 6)
+  const captainPostMatchRecapCopied = copiedCaptainPostMatchRecap || copiedCaptainFunRecap
+  const captainPostMatchFlow = useMemo<CaptainPostMatchFlowStep[]>(() => [
+    {
+      label: 'Capture scores',
+      state: captainScoreCaptureRows.length
+        ? captainScoreCaptureIssueCount > 0
+          ? `${captainScoreCaptureIssueCount} issue`
+          : captainScoreCapturePendingCount > 0
+            ? `${captainScoreCapturePendingCount} open`
+            : `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length} captured`
+        : 'Lineup first',
+      detail: captainScoreCaptureRows.length
+        ? captainScoreCaptureIssueCount > 0
+          ? 'Review scorecard details before the recap goes out.'
+          : captainScoreCapturePendingCount > 0
+            ? 'Tap each court so the recap starts from a clean score trail.'
+            : 'Scores are captured enough to write the recap.'
+        : 'Build the lineup before score capture can attach to courts.',
+      href: '#captain-score-capture-checklist',
+      stage: 'analytics',
+      tone: captainScoreCaptureIssueCount > 0
+        ? 'warn'
+        : captainScoreCapturePendingCount > 0 || !captainScoreCaptureRows.length
+          ? 'info'
+          : 'good',
+      cta: 'Capture scores',
+    },
+    {
+      label: 'Pick highlights',
+      state: captainMatchRecapInboxIncludeCount > 0 ? `${captainMatchRecapInboxIncludeCount} include` : captainFunRecapStatus,
+      detail: captainMatchRecapInboxPrimaryItem?.detail || 'Pick a light recap angle before copying the final note.',
+      href: '#captain-match-recap-inbox',
+      stage: 'analytics',
+      tone: captainMatchRecapInboxPrimaryItem?.tone || captainFunRecapTone,
+      cta: 'Review inbox',
+    },
+    {
+      label: 'Copy recap',
+      state: captainPostMatchRecapCopied ? 'Copied' : captainPostMatchRecapPrimaryState,
+      detail: captainPostMatchRecapCopied
+        ? 'Recap copy is ready to paste into the team thread.'
+        : 'Copy the fun recap or full recap before marking the week closed.',
+      href: '#captain-post-match-recap-builder',
+      stage: 'brief',
+      tone: captainPostMatchRecapCopied
+        ? 'good'
+        : captainScoreCaptureRows.length && captainScoreCapturePendingCount === 0 && captainScoreCaptureIssueCount === 0
+          ? 'warn'
+          : captainPostMatchRecapTone,
+      cta: 'Copy recap',
+    },
+    {
+      label: 'Upload scorecard',
+      state: selectedFromCaptainScope ? 'Refresh data' : 'Upload needed',
+      detail: selectedFromCaptainScope
+        ? 'Refresh reviewed scorecard data after the match if anything changed.'
+        : 'Upload or review the scorecard so Team Hub can stay current.',
+      href: dataAssistCaptainHref,
+      stage: 'team',
+      tone: selectedFromCaptainScope ? 'info' : captainPostMatchRecapCopied ? 'warn' : 'info',
+      cta: selectedFromCaptainScope ? 'Refresh data' : 'Upload scorecard',
+    },
+    {
+      label: 'Mark closed',
+      state: postMatchClosed ? 'Closed' : captainPostMatchRecapCopied ? 'Ready' : 'Recap first',
+      detail: postMatchClosed
+        ? 'This match week is closed in Captain.'
+        : captainPostMatchRecapCopied
+          ? 'Mark the week closed once the recap and scorecard are handled.'
+          : 'Copy the recap before closing the week.',
+      href: '#captain-post-match-closeout',
+      stage: 'brief',
+      tone: postMatchClosed ? 'good' : 'info',
+      cta: postMatchClosed ? 'Review closeout' : 'Mark closed',
+    },
+  ], [
+    captainFunRecapStatus,
+    captainFunRecapTone,
+    captainMatchRecapInboxIncludeCount,
+    captainMatchRecapInboxPrimaryItem,
+    captainPostMatchRecapCopied,
+    captainPostMatchRecapPrimaryState,
+    captainPostMatchRecapTone,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    postMatchClosed,
+    selectedFromCaptainScope,
+  ])
+  const captainPostMatchFlowIssueCount = captainPostMatchFlow.filter((item) => item.tone === 'warn').length
+  const captainPostMatchFlowReadyCount = captainPostMatchFlow.filter((item) => item.tone === 'good').length
+  const captainPostMatchFlowPrimaryItem = captainPostMatchFlow.find((item) => item.tone === 'warn')
+    ?? captainPostMatchFlow.find((item) => item.tone === 'info')
+    ?? captainPostMatchFlow[0]
+  const captainPostMatchFlowStatus = postMatchClosed
+    ? 'Closed'
+    : captainPostMatchFlowIssueCount > 0
+      ? `${captainPostMatchFlowIssueCount} to finish`
+      : `${captainPostMatchFlowReadyCount}/${captainPostMatchFlow.length} ready`
 
   const captainWeeklySendBoardItems = useMemo<CaptainWeeklySendBoardItem[]>(() => {
     const logisticsReady = matchDayLocationLabel !== 'Add location' && matchDayArrivalLabel !== 'Add arrival'
@@ -10648,7 +10775,7 @@ function CaptainHubContent() {
   )
 
   const captainScoreCaptureChecklist = (
-    <section style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">
+    <section id="captain-score-capture-checklist" style={dynamicCaptainScoreCaptureShell} aria-label="Captain score capture checklist">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Score capture</div>
@@ -10938,7 +11065,7 @@ function CaptainHubContent() {
   )
 
   const captainPostMatchRecapBuilder = (
-    <section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">
+    <section id="captain-post-match-recap-builder" style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Recap builder</div>
@@ -11419,7 +11546,7 @@ function CaptainHubContent() {
   )
 
   const captainPostMatchCloseout = (
-    <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
+    <section id="captain-post-match-closeout" style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Post-match closeout</div>
@@ -11431,6 +11558,95 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Capture the result, upload the scorecard, send the recap, and mark the week closed before details fade.
+      </div>
+
+      <div style={captainPostMatchFlowShell} aria-label="Captain post-match closeout flow">
+        <div style={captainPostMatchFlowHeader}>
+          <div>
+            <div style={commandCenterLabel}>Closeout flow</div>
+            <div style={captainPostMatchFlowTitle}>
+              {isMobile ? 'Scores, recap, closed.' : 'Capture scores, copy the recap, and close the week.'}
+            </div>
+          </div>
+          <span style={postMatchClosed ? badgeGreen : captainPostMatchFlowIssueCount > 0 ? warnBadge : badgeBlue}>
+            {captainPostMatchFlowStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainPostMatchFlowFocus}>
+          <div>
+            <div style={commandCenterLabel}>Next closeout step</div>
+            <div style={captainPostMatchFlowFocusTitle}>{captainPostMatchFlowPrimaryItem.label}</div>
+            <p style={captainPostMatchFlowDetail}>{captainPostMatchFlowPrimaryItem.detail}</p>
+          </div>
+          <div style={dynamicCaptainPostMatchFlowActionRow}>
+            <PrimarySmallBtn
+              fullWidth={isSmallMobile}
+              disabled={!hasTeamScope || !premiumEnabled || postMatchClosed || !captainPostMatchRecapCopied}
+              onClick={() => handleWeekStatusUpdate('finalized')}
+            >
+              {postMatchClosed ? 'Closed' : 'Mark closed'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn
+              disabled={!hasTeamScope || !premiumEnabled || (captainPostMatchFlowPrimaryItem.label === 'Copy recap' && !captainScoreCaptureRows.length)}
+              onClick={() => {
+                if (captainPostMatchFlowPrimaryItem.label === 'Copy recap') {
+                  void handleCopyCaptainPostMatchRecap()
+                  return
+                }
+                if (captainPostMatchFlowPrimaryItem.label === 'Mark closed' && captainPostMatchRecapCopied) {
+                  handleWeekStatusUpdate('finalized')
+                  return
+                }
+                handleCaptainNav(captainPostMatchFlowPrimaryItem.href, captainPostMatchFlowPrimaryItem.stage)
+              }}
+            >
+              {captainPostMatchFlowPrimaryItem.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainPostMatchFlowGrid}>
+          {captainPostMatchFlow.map((item, index) => (
+            <article
+              key={item.label}
+              style={{
+                ...captainPostMatchFlowCard,
+                ...(item.label === captainPostMatchFlowPrimaryItem.label ? captainPostMatchFlowCardActive : null),
+              }}
+            >
+              <div style={captainPostMatchFlowCardTop}>
+                <span style={captainPostMatchFlowStep}>Step {index + 1}</span>
+                <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {item.state}
+                </span>
+              </div>
+              <strong style={captainPostMatchFlowName}>{item.label}</strong>
+              <span style={captainPostMatchFlowDetail}>{item.detail}</span>
+              <SecondarySmallBtn
+                disabled={
+                  !hasTeamScope
+                  || !premiumEnabled
+                  || (item.label === 'Copy recap' && !captainScoreCaptureRows.length)
+                  || (item.label === 'Mark closed' && (postMatchClosed || !captainPostMatchRecapCopied))
+                }
+                onClick={() => {
+                  if (item.label === 'Copy recap') {
+                    void handleCopyCaptainPostMatchRecap()
+                    return
+                  }
+                  if (item.label === 'Mark closed') {
+                    handleWeekStatusUpdate('finalized')
+                    return
+                  }
+                  handleCaptainNav(item.href, item.stage)
+                }}
+              >
+                {item.cta}
+              </SecondarySmallBtn>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div style={dynamicPostMatchCloseoutGrid}>
@@ -19377,6 +19593,129 @@ const postMatchCloseoutGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 300px), 0.86fr)',
   gap: 14,
+  minWidth: 0,
+}
+
+const captainPostMatchFlowShell: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(74,222,128,0.16)',
+  background: 'rgba(2,6,23,0.25)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPostMatchFlowTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(5,11,22,0.30))',
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowFocusTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainPostMatchFlowCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 154,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.25)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowCardActive: CSSProperties = {
+  border: '1px solid rgba(74,222,128,0.28)',
+  background: 'rgba(74,222,128,0.08)',
+}
+
+const captainPostMatchFlowCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainPostMatchFlowStep: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const captainPostMatchFlowName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainPostMatchFlowActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
   minWidth: 0,
 }
 
