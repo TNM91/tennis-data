@@ -2004,6 +2004,23 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchGrid.gridTemplateColumns,
   }
 
+  const dynamicSeasonLaunchPathFocus: CSSProperties = {
+    ...seasonLaunchPathFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchPathFocus.gridTemplateColumns,
+  }
+
+  const dynamicSeasonLaunchPathActionRow: CSSProperties = {
+    ...seasonLaunchPathActionRow,
+    display: isSmallMobile ? 'grid' : seasonLaunchPathActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicSeasonLaunchPathGrid: CSSProperties = {
+    ...seasonLaunchPathGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : seasonLaunchPathGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : seasonLaunchPathGrid.gap,
+  }
+
   const dynamicOpponentScoutShell: CSSProperties = {
     ...opponentScoutShell,
     gap: isMobile ? 12 : opponentScoutShell.gap,
@@ -6929,6 +6946,16 @@ function CaptainHubContent() {
     workspaceState.pendingResponseCount,
   ])
   const captainSeasonLaunchReadyCount = captainSeasonLaunchItems.filter((item) => item.tone === 'good').length
+  const captainSeasonLaunchIssueCount = captainSeasonLaunchItems.filter((item) => item.tone === 'warn').length
+  const captainSeasonLaunchWatchCount = captainSeasonLaunchItems.filter((item) => item.tone === 'info').length
+  const captainSeasonLaunchPrimaryItem = captainSeasonLaunchItems.find((item) => item.tone === 'warn')
+    ?? captainSeasonLaunchItems.find((item) => item.tone === 'info')
+    ?? captainSeasonLaunchItems[0]
+  const captainSeasonLaunchStatus = captainSeasonLaunchIssueCount > 0
+    ? `${captainSeasonLaunchIssueCount} blocker${captainSeasonLaunchIssueCount === 1 ? '' : 's'}`
+    : captainSeasonLaunchWatchCount > 0
+      ? `${captainSeasonLaunchWatchCount} watch`
+      : 'Ready for week one'
 
   const opponentScoutNoteReady = opponentScoutNotes.trim().length > 0
   const opponentScoutHomeAwayLabel = nextMatch ? (nextMatch.home ? 'Home' : 'Away') : 'Venue TBD'
@@ -11384,6 +11411,64 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Check roster depth, schedule context, rating watch, and week-one rhythm before the first lineup decision lands.
+      </div>
+
+      <div style={seasonLaunchPathShell} aria-label="Captain season launch readiness path">
+        <div style={seasonLaunchPathHeader}>
+          <div>
+            <div style={commandCenterLabel}>Launch readiness</div>
+            <div style={seasonLaunchPathTitle}>
+              {isMobile ? 'Roster, schedule, week one.' : 'Clear roster, schedule, rhythm, and first-lineup blockers.'}
+            </div>
+          </div>
+          <span style={captainSeasonLaunchIssueCount > 0 ? warnBadge : captainSeasonLaunchWatchCount > 0 ? badgeBlue : badgeGreen}>
+            {captainSeasonLaunchStatus}
+          </span>
+        </div>
+
+        <div style={dynamicSeasonLaunchPathFocus}>
+          <div>
+            <div style={commandCenterLabel}>Next launch step</div>
+            <div style={seasonLaunchPathFocusTitle}>{captainSeasonLaunchPrimaryItem.label}</div>
+            <p style={seasonLaunchPathDetail}>{captainSeasonLaunchPrimaryItem.detail}</p>
+          </div>
+          <div style={dynamicSeasonLaunchPathActionRow}>
+            <PrimarySmallBtn
+              fullWidth={isSmallMobile}
+              disabled={!hasTeamScope || !premiumEnabled}
+              onClick={() => handleCaptainNav(captainSeasonLaunchPrimaryItem.href, captainSeasonLaunchPrimaryItem.stage)}
+            >
+              {captainSeasonLaunchPrimaryItem.cta}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(dataAssistCaptainHref, 'team')}>
+              Refresh data
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicSeasonLaunchPathGrid}>
+          {captainSeasonLaunchItems.map((item, index) => (
+            <article
+              key={`${item.label}-path`}
+              style={{
+                ...seasonLaunchPathCard,
+                ...(item.label === captainSeasonLaunchPrimaryItem.label ? seasonLaunchPathCardActive : null),
+              }}
+            >
+              <div style={seasonLaunchPathCardTop}>
+                <span style={seasonLaunchPathStep}>Step {index + 1}</span>
+                <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {item.state}
+                </span>
+              </div>
+              <strong style={seasonLaunchPathName}>{item.label}</strong>
+              <span>{item.detail}</span>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                {item.cta}
+              </SecondarySmallBtn>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div style={seasonLaunchSnapshotGrid} aria-label="Season launch snapshot">
@@ -18369,6 +18454,131 @@ const seasonLaunchSnapshotCard: CSSProperties = {
   borderRadius: 16,
   border: '1px solid rgba(125,211,252,0.14)',
   background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathShell: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const seasonLaunchPathTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.17)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(5,11,22,0.30))',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathFocusTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathDetail: CSSProperties = {
+  margin: '7px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 9,
+  minWidth: 0,
+}
+
+const seasonLaunchPathGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const seasonLaunchPathCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 126,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.25)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.38,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.075)',
+}
+
+const seasonLaunchPathCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const seasonLaunchPathStep: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const seasonLaunchPathName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.18,
+  fontWeight: 930,
   overflowWrap: 'anywhere',
 }
 
