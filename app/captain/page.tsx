@@ -478,6 +478,19 @@ type CaptainReplyReminderTemplate = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainAvailabilityReminderGroup = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  names: string[]
+  body: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainCourtConfidenceItem = {
   label: string
   players: string
@@ -981,6 +994,7 @@ function CaptainHubContent() {
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
+  const [copiedCaptainAvailabilityReminderId, setCopiedCaptainAvailabilityReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainWeeklySendBoardId, setCopiedCaptainWeeklySendBoardId] = useState('')
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
@@ -2170,6 +2184,23 @@ function CaptainHubContent() {
     ...captainWeeklySendBoardActionRow,
     display: isSmallMobile ? 'grid' : captainWeeklySendBoardActionRow.display,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainAvailabilityReminderShell: CSSProperties = {
+    ...captainAvailabilityReminderShell,
+    gap: isMobile ? 12 : captainAvailabilityReminderShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainAvailabilityReminderShell.padding,
+    borderRadius: isMobile ? 20 : captainAvailabilityReminderShell.borderRadius,
+  }
+
+  const dynamicCaptainAvailabilityReminderHero: CSSProperties = {
+    ...captainAvailabilityReminderHero,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainAvailabilityReminderHero.gridTemplateColumns,
+  }
+
+  const dynamicCaptainAvailabilityReminderGrid: CSSProperties = {
+    ...captainAvailabilityReminderGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainAvailabilityReminderGrid.gridTemplateColumns,
   }
 
   const dynamicCaptainSendQueueShell: CSSProperties = {
@@ -4657,6 +4688,144 @@ function CaptainHubContent() {
   ])
   const captainReplyReminderPrimaryTemplate = captainReplyReminderTemplates[0]
   const captainReplyReminderGroupTemplate = captainReplyReminderTemplates[1] ?? captainReplyReminderTemplates[0]
+  const captainAvailabilityReminderGroups = useMemo<CaptainAvailabilityReminderGroup[]>(() => {
+    const responseByContactId = new Map(
+      matchDayResponseRows
+        .map((row) => [safeText(row.contact_id), row] as const)
+        .filter(([contactId]) => Boolean(contactId)),
+    )
+    const fallbackNames = Array.from(new Set(
+      (matchDayLineupRows.length
+        ? matchDayLineupRows.flatMap((row) => row.players ?? [])
+        : roster.map((player) => player.name))
+        .map((name) => safeText(name))
+        .filter(Boolean),
+    ))
+    const people = captainMessageContactRows.length
+      ? captainMessageContactRows.map((contact, index) => {
+          const contactId = safeText(contact.id)
+          const response = contactId ? responseByContactId.get(contactId) : undefined
+          return {
+            id: contactId || `availability-contact-${index}`,
+            name: safeText(contact.full_name, `Player ${index + 1}`),
+            status: safeText(response?.status).toLowerCase(),
+          }
+        })
+      : fallbackNames.map((name, index) => ({
+          id: safeKey(name) || `availability-player-${index}`,
+          name,
+          status: matchDayResponseRows.length ? 'no-response' : '',
+        }))
+    const openNames = people
+      .filter((person) => !person.status || person.status === 'no-response' || person.status === 'viewed')
+      .map((person) => person.name)
+    const swingNames = people
+      .filter((person) => ['maybe', 'tentative', 'running-late', 'need-sub'].includes(person.status))
+      .map((person) => person.name)
+    const confirmedNames = people
+      .filter((person) => ['confirmed', 'available', 'in'].includes(person.status))
+      .map((person) => person.name)
+    const unavailableNames = people
+      .filter((person) => ['declined', 'unavailable', 'out'].includes(person.status))
+      .map((person) => person.name)
+    const allNames = people.map((person) => person.name).filter(Boolean)
+    const openLabel = openNames.slice(0, isMobile ? 4 : 7).join(', ') || 'anyone who has not replied'
+    const swingLabel = swingNames.slice(0, isMobile ? 4 : 7).join(', ') || 'any maybe or change'
+    const confirmedLabel = confirmedNames.slice(0, isMobile ? 4 : 7).join(', ') || 'confirmed players'
+    const unavailableLabel = unavailableNames.slice(0, isMobile ? 4 : 7).join(', ') || 'out players'
+    const allLabel = allNames.slice(0, isMobile ? 5 : 8).join(', ') || 'the team'
+
+    return [
+      {
+        id: 'availability-open',
+        label: 'No reply yet',
+        state: openNames.length ? `${openNames.length} waiting` : 'Clear',
+        detail: openNames.length
+          ? `${openLabel} still need a clean In, Out, or Maybe.`
+          : 'No silent or viewed-only replies are blocking the lineup.',
+        names: openNames,
+        body: openNames.length ? `Quick availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I still need In, Out, or Maybe from ${openLabel}. Please reply today so I can set the lineup.` : '',
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        tone: openNames.length ? 'warn' : 'good',
+        cta: 'Chase replies',
+      },
+      {
+        id: 'availability-swing',
+        label: 'Maybe or change',
+        state: swingNames.length ? `${swingNames.length} swing` : 'None',
+        detail: swingNames.length
+          ? `${swingLabel} can still change the courts.`
+          : 'No maybe, late, or need-sub reply is saved right now.',
+        names: swingNames,
+        body: swingNames.length ? `Quick lineup check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I have ${swingLabel} as maybe, late, or needing help. Can you confirm if you are In, Out, or need backup coverage?` : '',
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        tone: swingNames.length ? 'warn' : 'good',
+        cta: 'Resolve maybe',
+      },
+      {
+        id: 'availability-in',
+        label: 'In',
+        state: confirmedNames.length ? `${confirmedNames.length} in` : 'None yet',
+        detail: confirmedNames.length
+          ? `${confirmedLabel} are safe to plan around.`
+          : 'No confirmed players are saved for this event yet.',
+        names: confirmedNames,
+        body: confirmedNames.length ? `Thanks for confirming for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}. Plan to arrive by ${matchDayArrivalLabel} at ${matchDayLocationLabel}; I will send courts when the lineup is final.` : '',
+        href: messagingHref,
+        stage: 'messaging',
+        tone: confirmedNames.length ? 'good' : 'info',
+        cta: 'Message in group',
+      },
+      {
+        id: 'availability-out',
+        label: 'Out',
+        state: unavailableNames.length ? `${unavailableNames.length} out` : 'None',
+        detail: unavailableNames.length
+          ? `${unavailableLabel} should stay out of the court plan.`
+          : 'No declined or unavailable replies are saved.',
+        names: unavailableNames,
+        body: unavailableNames.length ? `Thanks for the heads-up for ${weekAtGlance.eventDateLabel}. I have ${unavailableLabel} marked out, so I will build the lineup around that.` : '',
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        tone: unavailableNames.length ? 'info' : 'good',
+        cta: 'Review out',
+      },
+      {
+        id: 'availability-team',
+        label: 'Whole team ask',
+        state: allNames.length ? `${allNames.length} players` : 'Roster needed',
+        detail: allNames.length
+          ? `Use this before the first wave of replies from ${allLabel}.`
+          : 'Choose a team or refresh roster data before sending the ask.',
+        names: allNames,
+        body: `Team, availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}. Please reply In, Out, or Maybe today. Match details: ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`,
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        tone: allNames.length ? 'info' : 'warn',
+        cta: 'Open availability',
+      },
+    ]
+  }, [
+    captainMessageContactRows,
+    isMobile,
+    levelUpAvailabilityHref,
+    matchDayArrivalLabel,
+    matchDayLineupRows,
+    matchDayLocationLabel,
+    matchDayResponseRows,
+    messagingHref,
+    roster,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainAvailabilityReminderActionCount = captainAvailabilityReminderGroups.filter((group) => group.tone === 'warn').length
+  const captainAvailabilityReminderReadyCount = captainAvailabilityReminderGroups.filter((group) => group.tone === 'good').length
+  const captainAvailabilityReminderPrimaryGroup = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-open' && group.names.length)
+    ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-swing' && group.names.length)
+    ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-team')
+    ?? captainAvailabilityReminderGroups[0]
   const captainBackupSendBody = captainCourtSwapNeedsCount > 0
     ? `${captainCourtSwapPrimaryItem.inPlayer}, can you stay ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapPrimaryItem.courtLabel} may need cover. I will confirm before warm-up.`
     : captainBenchReadyCount > 0
@@ -5941,6 +6110,28 @@ function CaptainHubContent() {
       })
     } catch {
       setCopiedCaptainReplyReminderId('')
+    }
+  }
+
+  async function handleCopyCaptainAvailabilityReminder(group: CaptainAvailabilityReminderGroup) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!group.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(group.body)
+      setCopiedCaptainAvailabilityReminderId(group.id)
+      appendCaptainDecisionLog({
+        label: `${group.label} reminder copied`,
+        detail: group.detail,
+        action: group.state,
+        tone: group.tone,
+      })
+    } catch {
+      setCopiedCaptainAvailabilityReminderId('')
     }
   }
 
@@ -8072,6 +8263,89 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainAvailabilityReminderBoard = (
+    <section style={dynamicCaptainAvailabilityReminderShell} aria-label="Captain availability reminder board">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Availability reminder board</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Who needs a reply?' : 'Group availability replies before you set the lineup.'}</h2>
+        </div>
+        <span style={captainAvailabilityReminderActionCount > 0 ? warnBadge : captainAvailabilityReminderReadyCount >= 2 ? badgeGreen : badgeBlue}>
+          {captainAvailabilityReminderActionCount > 0 ? `${captainAvailabilityReminderActionCount} chase` : 'Reply groups'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        See silent players, maybes, confirmed players, and outs in one place, then copy the reminder that fits the group.
+      </div>
+
+      <div style={dynamicCaptainAvailabilityReminderHero}>
+        <div style={captainAvailabilityReminderFocus}>
+          <div style={captainAvailabilityReminderFocusTop}>
+            <div>
+              <div style={commandCenterLabel}>Next availability send</div>
+              <div style={captainAvailabilityReminderTitle}>{captainAvailabilityReminderPrimaryGroup.label}</div>
+            </div>
+            <span style={captainAvailabilityReminderPrimaryGroup.tone === 'good' ? badgeGreen : captainAvailabilityReminderPrimaryGroup.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainAvailabilityReminderPrimaryGroup.state}
+            </span>
+          </div>
+          <p style={captainAvailabilityReminderDetail}>{captainAvailabilityReminderPrimaryGroup.detail}</p>
+          <div style={captainAvailabilityReminderNameList}>
+            {captainAvailabilityReminderPrimaryGroup.names.length ? captainAvailabilityReminderPrimaryGroup.names.slice(0, isMobile ? 5 : 8).map((name) => (
+              <span key={`${captainAvailabilityReminderPrimaryGroup.id}-${name}`} style={captainAvailabilityReminderNameChip}>
+                {name}
+              </span>
+            )) : (
+              <span style={captainAvailabilityReminderNameChip}>No players in this group</span>
+            )}
+          </div>
+          <div style={captainAvailabilityReminderPreview}>
+            {captainAvailabilityReminderPrimaryGroup.body}
+          </div>
+          <div style={captainAvailabilityReminderActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainAvailabilityReminderPrimaryGroup.body} onClick={() => void handleCopyCaptainAvailabilityReminder(captainAvailabilityReminderPrimaryGroup)}>
+              {copiedCaptainAvailabilityReminderId === captainAvailabilityReminderPrimaryGroup.id ? 'Copied reminder' : 'Copy reminder'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainAvailabilityReminderPrimaryGroup.href, captainAvailabilityReminderPrimaryGroup.stage)}>
+              {captainAvailabilityReminderPrimaryGroup.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainAvailabilityReminderGrid}>
+          {captainAvailabilityReminderGroups.map((group) => (
+            <article key={group.id} style={captainAvailabilityReminderCard}>
+              <div style={captainAvailabilityReminderCardTop}>
+                <strong>{group.label}</strong>
+                <span style={group.tone === 'good' ? badgeGreen : group.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {group.state}
+                </span>
+              </div>
+              <span style={captainAvailabilityReminderCardDetail}>{group.detail}</span>
+              <div style={captainAvailabilityReminderNameList}>
+                {group.names.length ? group.names.slice(0, 3).map((name) => (
+                  <span key={`${group.id}-mini-${name}`} style={captainAvailabilityReminderNameChip}>
+                    {name}
+                  </span>
+                )) : (
+                  <span style={captainAvailabilityReminderNameChip}>Clear</span>
+                )}
+              </div>
+              <div style={captainAvailabilityReminderActionRow}>
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !group.body} onClick={() => void handleCopyCaptainAvailabilityReminder(group)}>
+                  {copiedCaptainAvailabilityReminderId === group.id ? 'Copied' : 'Copy'}
+                </SecondarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(group.href, group.stage)}>
+                  {group.cta}
+                </SecondarySmallBtn>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+
   const captainSendQueue = (
     <section style={dynamicCaptainSendQueueShell} aria-label="Captain send queue">
       <div style={commandCenterHeader}>
@@ -9863,6 +10137,8 @@ function CaptainHubContent() {
         {captainMorningBrief}
 
         {captainWeeklySendBoard}
+
+        {captainAvailabilityReminderBoard}
 
         {captainSendQueue}
 
@@ -14227,6 +14503,145 @@ const captainWeeklySendBoardPreview: CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 760,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(96,165,250,0.18)',
+  background: 'linear-gradient(135deg, rgba(96,165,250,0.10), rgba(8,13,28,0.78) 42%, rgba(22,33,52,0.88))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainAvailabilityReminderHero: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 340px), 1.1fr)',
+  gap: 12,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
+const captainAvailabilityReminderFocus: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(96,165,250,0.18)',
+  background: 'rgba(5,11,22,0.32)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderFocusTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainAvailabilityReminderTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 23,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderNameList: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainAvailabilityReminderNameChip: CSSProperties = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderPreview: CSSProperties = {
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainAvailabilityReminderGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainAvailabilityReminderCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  minHeight: 176,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainAvailabilityReminderCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainAvailabilityReminderCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 
