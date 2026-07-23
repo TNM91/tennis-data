@@ -325,6 +325,17 @@ type CaptainHomeRecapStarterLine = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeRecapAngleId = 'result' | 'highlight' | 'thanks' | 'next'
+
+type CaptainHomeRecapAngleItem = {
+  id: CaptainHomeRecapAngleId
+  label: string
+  state: string
+  detail: string
+  message: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeChecklistEntry = {
   scopeKey: string
   doneById: Record<string, boolean>
@@ -1232,6 +1243,7 @@ function CaptainHubContent() {
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
   const [copiedCaptainFunRecap, setCopiedCaptainFunRecap] = useState(false)
+  const [captainHomeRecapAngleId, setCaptainHomeRecapAngleId] = useState<CaptainHomeRecapAngleId>('thanks')
   const [copiedCaptainMatchRecapInboxId, setCopiedCaptainMatchRecapInboxId] = useState('')
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
@@ -6255,7 +6267,6 @@ function CaptainHubContent() {
   const captainHomeRecapStatus = captainHomeRecapCopied
     ? 'Copied'
     : captainFunRecapStatus
-  const captainHomeRecapPreviewLines = captainFunRecapPreviewLines.slice(0, isMobile ? 3 : 4)
   const captainHomeRecapNeeds = captainRecapStarterItems
     .filter((item) => item.tone !== 'good')
     .slice(0, isMobile ? 2 : 3)
@@ -6322,6 +6333,101 @@ function CaptainHubContent() {
   const captainHomeRecapStarterStatus = captainHomeRecapStarterReadyCount >= captainHomeRecapStarterLines.length
     ? 'Starter ready'
     : `${captainHomeRecapStarterReadyCount}/${captainHomeRecapStarterLines.length} ready`
+  const captainHomeRecapAngleItems = useMemo<CaptainHomeRecapAngleItem[]>(() => {
+    const scoreLine = captainScoreCaptureRows.length
+      ? `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length} court score${captainScoreCaptureRows.length === 1 ? '' : 's'} captured`
+      : 'Scores are still being gathered'
+    const highlightLine = captainMatchRecapInboxLines[0]
+      || captainFunRecapPrimaryMoment?.line
+      || 'The team made the week easy to captain.'
+    const nextLine = postMatchClosed
+      ? 'The week is closed in Captain.'
+      : captainScoreCapturePendingCount > 0
+        ? `${captainScoreCapturePendingCount} court${captainScoreCapturePendingCount === 1 ? '' : 's'} still need scores captured.`
+        : 'Next up: upload the scorecard and mark the week closed.'
+    const issueLine = captainScoreCaptureIssueCount > 0
+      ? `Captain note: ${captainScoreCaptureIssueCount} score detail${captainScoreCaptureIssueCount === 1 ? '' : 's'} still need a look.`
+      : ''
+    const opener = `Great match today vs ${weekAtGlance.opponentLabel}.`
+    const thanksLine = 'Thanks for battling, replying, and making the week easy to captain.'
+
+    return [
+      {
+        id: 'result',
+        label: 'Result',
+        state: captainScoreCaptureRows.length ? scoreLine : 'Need scores',
+        detail: captainScoreCaptureRows.length
+          ? 'Lead with the score trail and keep the recap factual.'
+          : 'Use this after at least one court score is captured.',
+        message: [
+          opener,
+          `Quick result check: ${scoreLine}.`,
+          issueLine,
+          `Highlight: ${highlightLine}`,
+          thanksLine,
+        ].filter(Boolean).join('\n'),
+        tone: captainScoreCaptureIssueCount > 0
+          ? 'warn'
+          : captainScoreCaptureLoggedCount > 0
+            ? 'good'
+            : 'info',
+      },
+      {
+        id: 'highlight',
+        label: 'Shoutout',
+        state: captainFunRecapPrimaryMoment?.label || 'Team moment',
+        detail: captainFunRecapPrimaryMoment?.detail || 'Lead with the best team moment and keep it light.',
+        message: [
+          opener,
+          `Team shoutout: ${highlightLine}`,
+          `Score check: ${scoreLine}.`,
+          nextLine,
+          thanksLine,
+        ].filter(Boolean).join('\n'),
+        tone: captainFunRecapPrimaryMoment?.tone || 'info',
+      },
+      {
+        id: 'thanks',
+        label: 'Thanks',
+        state: postMatchClosed ? 'Closed' : 'Easy send',
+        detail: 'A low-effort thank-you when the team thread just needs a nice finish.',
+        message: [
+          opener,
+          thanksLine,
+          `Score check: ${scoreLine}.`,
+          nextLine,
+        ].filter(Boolean).join('\n'),
+        tone: postMatchClosed ? 'good' : 'info',
+      },
+      {
+        id: 'next',
+        label: 'Next step',
+        state: postMatchClosed ? 'Done' : captainScoreCapturePendingCount > 0 ? `${captainScoreCapturePendingCount} open` : 'Close week',
+        detail: postMatchClosed
+          ? 'Confirm the week is wrapped and leave the team with a clean ending.'
+          : 'Use this when the recap should also remind everyone what is left.',
+        message: [
+          opener,
+          `Quick closeout note: ${nextLine}`,
+          `Highlight: ${highlightLine}`,
+          thanksLine,
+        ].filter(Boolean).join('\n'),
+        tone: postMatchClosed ? 'good' : captainScoreCapturePendingCount > 0 || captainScoreCaptureIssueCount > 0 ? 'warn' : 'info',
+      },
+    ]
+  }, [
+    captainFunRecapPrimaryMoment,
+    captainMatchRecapInboxLines,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    postMatchClosed,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainHomeRecapSelectedAngle = captainHomeRecapAngleItems.find((item) => item.id === captainHomeRecapAngleId)
+    ?? captainHomeRecapAngleItems[0]
+  const captainHomeRecapPreviewLines = (captainHomeRecapSelectedAngle?.message || captainFunRecapMessage).split('\n').slice(0, isMobile ? 3 : 4)
   const captainPostMatchFlow = useMemo<CaptainPostMatchFlowStep[]>(() => [
     {
       label: 'Capture scores',
@@ -8464,7 +8570,7 @@ function CaptainHubContent() {
     }
   }
 
-  async function handleCopyCaptainFunRecap() {
+  async function handleCopyCaptainFunRecap(copyOptions?: { body?: string; label?: string; tone?: 'good' | 'warn' | 'info' }) {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
       return
@@ -8472,16 +8578,18 @@ function CaptainHubContent() {
 
     if (typeof navigator === 'undefined' || !navigator.clipboard) return
 
+    const copyBody = copyOptions?.body || captainFunRecapMessage
+    const copyLabel = copyOptions?.label || captainFunRecapPrimaryMoment?.label || 'Friendly recap'
+    const copyTone = copyOptions?.tone || captainFunRecapTone
+
     try {
-      await navigator.clipboard.writeText(captainFunRecapMessage)
+      await navigator.clipboard.writeText(copyBody)
       setCopiedCaptainFunRecap(true)
       appendCaptainDecisionLog({
         label: 'Fun recap copied',
-        detail: captainFunRecapPrimaryMoment
-          ? `${captainFunRecapPrimaryMoment.label} used as the recap angle.`
-          : 'Friendly team recap copied after the match.',
+        detail: `${copyLabel} used as the recap angle.`,
         action: 'Copy fun recap',
-        tone: captainFunRecapTone,
+        tone: copyTone,
       })
     } catch {
       setCopiedCaptainFunRecap(false)
@@ -13265,13 +13373,50 @@ function CaptainHubContent() {
               ))}
             </div>
           </div>
+          <div style={captainHomeRecapAngleShell} aria-label="Captain home recap angle picker">
+            <div style={captainHomeRecapAngleHeader}>
+              <span style={captainHomeRecapAngleTitle}>Pick recap angle</span>
+              <span style={captainHomeRecapSelectedAngle?.tone === 'warn' ? warnBadge : captainHomeRecapSelectedAngle?.tone === 'good' ? badgeGreen : badgeBlue}>
+                {captainHomeRecapSelectedAngle?.state || 'Ready'}
+              </span>
+            </div>
+            <div style={captainHomeRecapAngleGrid}>
+              {captainHomeRecapAngleItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={!hasTeamScope || !premiumEnabled}
+                  aria-pressed={item.id === captainHomeRecapAngleId}
+                  style={{
+                    ...captainHomeRecapAngleButton,
+                    ...(item.id === captainHomeRecapAngleId ? captainHomeRecapAngleButtonActive : null),
+                    ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                  }}
+                  onClick={() => {
+                    setCaptainHomeRecapAngleId(item.id)
+                    setCopiedCaptainFunRecap(false)
+                  }}
+                >
+                  <span style={captainHomeRecapAngleButtonTop}>
+                    <strong>{item.label}</strong>
+                    <span>{item.state}</span>
+                  </span>
+                  {!isSmallMobile ? <span style={captainHomeRecapAngleButtonDetail}>{item.detail}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
           <div style={captainHomeRecapReadyPreview}>
             {captainHomeRecapPreviewLines.map((line) => (
               <span key={line}>{line}</span>
             ))}
           </div>
           <div style={captainHomeRecapReadyActions}>
-            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap()}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap({
+              body: captainHomeRecapSelectedAngle?.message,
+              label: captainHomeRecapSelectedAngle?.label,
+              tone: captainHomeRecapSelectedAngle?.tone,
+            })}>
               {captainHomeRecapCopied ? 'Copied recap' : 'Copy recap starter'}
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-post-match-recap-builder', 'brief')}>
@@ -21914,6 +22059,85 @@ const captainHomeRecapStarterItemDetail: CSSProperties = {
   fontSize: 10,
   lineHeight: 1.3,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapAngleShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.16)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapAngleHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeRecapAngleTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapAngleGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeRecapAngleButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 54,
+  padding: 8,
+  borderRadius: 10,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapAngleButtonActive: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.30)',
+  background: 'rgba(155,225,29,0.09)',
+  boxShadow: '0 0 0 1px rgba(155,225,29,0.08) inset',
+}
+
+const captainHomeRecapAngleButtonTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapAngleButtonDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 740,
   overflowWrap: 'anywhere',
 }
 
