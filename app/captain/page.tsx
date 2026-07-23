@@ -298,6 +298,14 @@ type CaptainHomeActionStackItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeTextChaseItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeChecklistEntry = {
   scopeKey: string
   doneById: Record<string, boolean>
@@ -6646,6 +6654,59 @@ function CaptainHubContent() {
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 3 : 4)
+  const captainHomeTextChaseTotal = Math.max(
+    captainAvailabilityReminderPrimaryGroup.names.length,
+    captainReplyReminderTargets.length,
+    workspaceState.pendingResponseCount,
+  )
+  const captainHomeTextChaseItems = useMemo<CaptainHomeTextChaseItem[]>(() => {
+    const textTargets = captainReplyReminderTargets.slice(0, isMobile ? 3 : 5).map((target) => ({
+      id: `reply-${target.id}`,
+      label: target.name,
+      state: target.status,
+      detail: target.detail,
+      tone: target.tone,
+    }))
+
+    if (textTargets.length) return textTargets
+
+    const matchDetailsReady = matchDayArrivalLabel !== 'Add arrival' && matchDayLocationLabel !== 'Add location'
+
+    return [
+      {
+        id: 'reply-status',
+        label: 'Replies',
+        state: matchDayResponseRows.length ? 'Clear' : 'Not asked',
+        detail: matchDayResponseRows.length ? 'No saved reply gaps before the reminder.' : 'Start the availability ask if replies are not collected yet.',
+        tone: matchDayResponseRows.length ? 'good' : 'info',
+      },
+      {
+        id: 'lineup-status',
+        label: 'Lineup',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+        detail: workspaceState.lineupReady ? 'Court plan can be included in the team text.' : 'Build courts before sending the final reminder.',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+      },
+      {
+        id: 'details-status',
+        label: 'Where/when',
+        state: matchDetailsReady ? 'Ready' : 'Missing',
+        detail: matchDetailsReady ? `${matchDayArrivalLabel} at ${matchDayLocationLabel}` : 'Add arrival time and match site before copying.',
+        tone: matchDetailsReady ? 'good' : 'warn',
+      },
+    ]
+  }, [
+    captainReplyReminderTargets,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayResponseRows.length,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainHomeTextChaseSummary = captainHomeTextChaseTotal > 0
+    ? `${captainHomeTextChaseTotal} to text`
+    : 'No chase'
   const captainSendRhythmReadyCount = captainSendRhythmMoments.filter((item) => item.tone === 'good').length
   const captainSendRhythmIssueCount = captainSendRhythmMoments.filter((item) => item.tone === 'warn').length
   const captainSendRhythmStatus = captainSendRhythmIssueCount > 0
@@ -12801,6 +12862,31 @@ function CaptainHubContent() {
             {captainHomeNextSendPreviewLines.map((line) => (
               <span key={line}>{line}</span>
             ))}
+          </div>
+          <div style={captainHomeTextChaseShell} aria-label="Who still needs a text">
+            <div style={captainHomeTextChaseHeader}>
+              <span style={captainHomeTextChaseTitle}>Who still needs a text</span>
+              <span style={captainHomeTextChaseTotal > 0 ? warnBadge : badgeGreen}>
+                {captainHomeTextChaseSummary}
+              </span>
+            </div>
+            <div style={captainHomeTextChaseList}>
+              {captainHomeTextChaseItems.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    ...captainHomeTextChaseItem,
+                    ...(item.tone === 'warn' ? captainHomeTextChaseItemWarn : item.tone === 'good' ? captainHomeTextChaseItemGood : captainHomeTextChaseItemInfo),
+                  }}
+                >
+                  <div style={captainHomeTextChaseItemTop}>
+                    <strong>{item.label}</strong>
+                    <span>{item.state}</span>
+                  </div>
+                  <span style={captainHomeTextChaseItemDetail}>{item.detail}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div style={captainHomeNextSendActions}>
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeNextSendItem.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(captainHomeNextSendItem)}>
@@ -20955,6 +21041,87 @@ const captainHomeNextSendPreview: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 760,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeTextChaseShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeTextChaseHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeTextChaseTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeTextChaseList: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeTextChaseItem: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 44,
+  padding: '8px 9px',
+  borderRadius: 10,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeTextChaseItemWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.20)',
+  background: 'rgba(251,191,36,0.07)',
+}
+
+const captainHomeTextChaseItemGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const captainHomeTextChaseItemInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainHomeTextChaseItemTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeTextChaseItemDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
