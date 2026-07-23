@@ -221,6 +221,21 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainWeeklySendBoardReadyCount')
     expect(source).toContain('handleCopyCaptainWeeklySendBoardItem')
     expect(source).toContain('copiedCaptainWeeklySendBoardId')
+    expect(source).toContain('Captain communication timeline')
+    expect(source).toContain('Communication timeline')
+    expect(source).toContain('Send the right thing next.')
+    expect(source).toContain('See the captain communication rhythm.')
+    expect(source).toContain('Track availability asks, lineup sends, match logistics, reminders, and the post-match recap from one phone-friendly lane.')
+    expect(source).toContain('Current send')
+    expect(source).toContain('Timeline steps')
+    expect(source).toContain('Copy current send')
+    expect(source).toContain('Send now')
+    expect(source).toContain('All set')
+    expect(source).toContain('captainCommunicationTimelineItems')
+    expect(source).toContain('captainCommunicationTimelineCurrentItem')
+    expect(source).toContain('captainCommunicationTimelineCurrentSend')
+    expect(source).toContain('captainCommunicationTimelineDoneCount')
+    expect(source).toContain('captainCommunicationTimelineStatus')
     expect(source).toContain('Captain availability reminder board')
     expect(source).toContain('Availability reminder board')
     expect(source).toContain('Who needs a reply?')
@@ -326,6 +341,29 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainWeeklySendBoardPreview')).toContain("whiteSpace: 'pre-wrap'")
     expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeeklySendBoardGrid.gridTemplateColumns")
     expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined")
+    expect(source).toContain('const dynamicCaptainCommunicationTimelineShell: CSSProperties')
+    expect(source).toContain('const dynamicCaptainCommunicationTimelineHero: CSSProperties')
+    expect(source).toContain('const dynamicCaptainCommunicationTimelineActionRow: CSSProperties')
+    expect(source).toContain('const dynamicCaptainCommunicationTimelineGrid: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainCommunicationTimelineHero.gridTemplateColumns")
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCommunicationTimelineGrid.gridTemplateColumns")
+    expect(styleBlock('captainCommunicationTimelineShell')).toContain('minWidth: 0')
+    expect(styleBlock('captainCommunicationTimelineHero')).toContain('minmax(min(100%, 430px), 1.18fr)')
+    expect(styleBlock('captainCommunicationTimelineFocus')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainCommunicationTimelineFocusTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainCommunicationTimelineTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainCommunicationTimelineDetail')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainCommunicationTimelinePreview')).toContain('minHeight: 74')
+    expect(styleBlock('captainCommunicationTimelinePreview')).toContain("whiteSpace: 'pre-wrap'")
+    expect(styleBlock('captainCommunicationTimelineActionRow')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainCommunicationTimelinePanel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainCommunicationTimelineGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
+    expect(styleBlock('captainCommunicationTimelineCard')).toContain('minHeight: 166')
+    expect(styleBlock('captainCommunicationTimelineCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainCommunicationTimelineCardTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('captainCommunicationTimelineMarker')).toContain('minWidth: 0')
+    expect(styleBlock('captainCommunicationTimelineDot')).toContain("flex: '0 0 26px'")
+    expect(styleBlock('captainCommunicationTimelineCardDetail')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain('const dynamicCaptainAvailabilityReminderShell: CSSProperties')
     expect(source).toContain('const dynamicCaptainAvailabilityReminderHero: CSSProperties')
     expect(source).toContain('const dynamicCaptainAvailabilityReminderGrid: CSSProperties')
@@ -788,6 +826,21 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainMorningBrief}'),
     )
     expect(source.indexOf('{captainMorningBrief}')).toBeLessThan(
+      source.indexOf('{captainCommunicationTimeline}'),
+    )
+    expect(source.indexOf('{captainCommunicationTimeline}')).toBeLessThan(
+      source.indexOf('{captainWeeklySendBoard}'),
+    )
+    expect(source.indexOf('{captainWeeklySendBoard}')).toBeLessThan(
+      source.indexOf('{captainAvailabilityReminderBoard}'),
+    )
+    expect(source.indexOf('{captainAvailabilityReminderBoard}')).toBeLessThan(
+      source.indexOf('{captainLineupLockChecklist}'),
+    )
+    expect(source.indexOf('{captainLineupLockChecklist}')).toBeLessThan(
+      source.indexOf('{captainMatchLogisticsSurface}'),
+    )
+    expect(source.indexOf('{captainMatchLogisticsSurface}')).toBeLessThan(
       source.indexOf('{captainSendQueue}'),
     )
     expect(source.indexOf('{captainSendQueue}')).toBeLessThan(
