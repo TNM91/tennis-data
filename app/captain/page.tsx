@@ -306,6 +306,14 @@ type CaptainHomeTextChaseItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeRecapStarterLine = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeChecklistEntry = {
   scopeKey: string
   doneById: Record<string, boolean>
@@ -6229,6 +6237,69 @@ function CaptainHubContent() {
   const captainHomeRecapNeeds = captainRecapStarterItems
     .filter((item) => item.tone !== 'good')
     .slice(0, isMobile ? 2 : 3)
+  const captainHomeRecapStarterLines = useMemo<CaptainHomeRecapStarterLine[]>(() => {
+    const capturedCourtLabels = captainPostMatchRecapCompleteRows
+      .slice(0, isMobile ? 3 : 5)
+      .map((row) => row.courtLabel)
+      .filter(Boolean)
+    const highlightDetail = captainMatchRecapInboxLines[0]
+      || captainFunRecapPrimaryMoment?.line
+      || 'Use a light team thanks if no specific court note is ready.'
+
+    return [
+      {
+        id: 'result',
+        label: 'Result',
+        state: captainScoreCaptureRows.length
+          ? `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length} scores`
+          : 'No scores',
+        detail: captainScoreCaptureRows.length
+          ? captainScoreCaptureIssueCount > 0
+            ? `${captainScoreCaptureIssueCount} score detail${captainScoreCaptureIssueCount === 1 ? '' : 's'} need a look.`
+            : captainScoreCapturePendingCount > 0
+              ? `${captainScoreCapturePendingCount} court${captainScoreCapturePendingCount === 1 ? '' : 's'} still need capture.`
+              : postMatchClosed
+                ? 'Score trail is wrapped and the week is closed.'
+                : 'Score trail is ready to anchor the recap.'
+          : 'Capture court scores before making the recap too final.',
+        tone: captainScoreCaptureIssueCount > 0 || !captainScoreCaptureRows.length
+          ? 'warn'
+          : captainScoreCapturePendingCount > 0
+            ? 'info'
+            : 'good',
+      },
+      {
+        id: 'highlight',
+        label: 'Highlight',
+        state: capturedCourtLabels.length ? `${capturedCourtLabels.length} court${capturedCourtLabels.length === 1 ? '' : 's'}` : captainFunRecapPrimaryMoment?.label || 'Team thanks',
+        detail: capturedCourtLabels.length
+          ? capturedCourtLabels.join(', ')
+          : highlightDetail,
+        tone: capturedCourtLabels.length || captainMatchRecapInboxLines.length ? 'good' : 'info',
+      },
+      {
+        id: 'shoutout',
+        label: 'Shoutout',
+        state: postMatchClosed ? 'Closed' : 'Ready',
+        detail: captainFunRecapPrimaryMoment?.line || 'Thanks for battling, replying, and making the week easy to captain.',
+        tone: postMatchClosed || captainFunRecapPrimaryMoment ? 'good' : 'info',
+      },
+    ]
+  }, [
+    captainFunRecapPrimaryMoment,
+    captainMatchRecapInboxLines,
+    captainPostMatchRecapCompleteRows,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    isMobile,
+    postMatchClosed,
+  ])
+  const captainHomeRecapStarterReadyCount = captainHomeRecapStarterLines.filter((item) => item.tone === 'good').length
+  const captainHomeRecapStarterStatus = captainHomeRecapStarterReadyCount >= captainHomeRecapStarterLines.length
+    ? 'Starter ready'
+    : `${captainHomeRecapStarterReadyCount}/${captainHomeRecapStarterLines.length} ready`
   const captainPostMatchFlow = useMemo<CaptainPostMatchFlowStep[]>(() => [
     {
       label: 'Capture scores',
@@ -13019,6 +13090,31 @@ function CaptainHubContent() {
               ))}
             </div>
           ) : null}
+          <div style={captainHomeRecapStarterShell} aria-label="Captain home recap starter">
+            <div style={captainHomeRecapStarterHeader}>
+              <span style={captainHomeRecapStarterTitle}>Match-week recap starter</span>
+              <span style={captainHomeRecapStarterReadyCount >= captainHomeRecapStarterLines.length ? badgeGreen : badgeBlue}>
+                {captainHomeRecapStarterStatus}
+              </span>
+            </div>
+            <div style={captainHomeRecapStarterList}>
+              {captainHomeRecapStarterLines.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    ...captainHomeRecapStarterItem,
+                    ...(item.tone === 'warn' ? captainHomeRecapStarterItemWarn : item.tone === 'good' ? captainHomeRecapStarterItemGood : captainHomeRecapStarterItemInfo),
+                  }}
+                >
+                  <div style={captainHomeRecapStarterItemTop}>
+                    <strong>{item.label}</strong>
+                    <span>{item.state}</span>
+                  </div>
+                  <span style={captainHomeRecapStarterItemDetail}>{item.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           <div style={captainHomeRecapReadyPreview}>
             {captainHomeRecapPreviewLines.map((line) => (
               <span key={line}>{line}</span>
@@ -13026,7 +13122,7 @@ function CaptainHubContent() {
           </div>
           <div style={captainHomeRecapReadyActions}>
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap()}>
-              {captainHomeRecapCopied ? 'Copied recap' : 'Copy fun recap'}
+              {captainHomeRecapCopied ? 'Copied recap' : 'Copy recap starter'}
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-post-match-recap-builder', 'brief')}>
               Open recap
@@ -21465,6 +21561,87 @@ const captainHomeRecapReadyNeedChip: CSSProperties = {
   fontSize: 10,
   lineHeight: 1.15,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapStarterShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapStarterHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeRecapStarterTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapStarterList: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeRecapStarterItem: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 44,
+  padding: '8px 9px',
+  borderRadius: 10,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapStarterItemWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.20)',
+  background: 'rgba(251,191,36,0.07)',
+}
+
+const captainHomeRecapStarterItemGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const captainHomeRecapStarterItemInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainHomeRecapStarterItemTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeRecapStarterItemDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
