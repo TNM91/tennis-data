@@ -332,6 +332,13 @@ type CaptainLineupLockCheck = {
   cta: string
 }
 
+type CaptainMatchLogisticsItem = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreSendCheck = {
   label: string
   state: string
@@ -1007,6 +1014,7 @@ function CaptainHubContent() {
   const [copiedCaptainAvailabilityReminderId, setCopiedCaptainAvailabilityReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainWeeklySendBoardId, setCopiedCaptainWeeklySendBoardId] = useState('')
+  const [copiedCaptainMatchLogistics, setCopiedCaptainMatchLogistics] = useState(false)
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
   const [copiedCaptainMatchRecapInboxId, setCopiedCaptainMatchRecapInboxId] = useState('')
@@ -2228,6 +2236,24 @@ function CaptainHubContent() {
   const dynamicCaptainLineupLockActionRow: CSSProperties = {
     ...captainLineupLockActionRow,
     display: isSmallMobile ? 'grid' : captainLineupLockActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainMatchLogisticsShell: CSSProperties = {
+    ...captainMatchLogisticsShell,
+    gap: isMobile ? 12 : captainMatchLogisticsShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainMatchLogisticsShell.padding,
+    borderRadius: isMobile ? 20 : captainMatchLogisticsShell.borderRadius,
+  }
+
+  const dynamicCaptainMatchLogisticsGrid: CSSProperties = {
+    ...captainMatchLogisticsGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainMatchLogisticsGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainMatchLogisticsActionRow: CSSProperties = {
+    ...captainMatchLogisticsActionRow,
+    display: isSmallMobile ? 'grid' : captainMatchLogisticsActionRow.display,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
@@ -5637,6 +5663,76 @@ function CaptainHubContent() {
     ?? captainLineupLockChecks.find((check) => check.tone === 'info')
     ?? captainLineupLockChecks[0]
   const captainLineupLockCanSend = captainLineupLockIssueCount === 0 && workspaceState.lineupReady
+  const captainMatchLogisticsHasOpponent = weekAtGlance.opponentLabel !== 'Opponent not set'
+  const captainMatchLogisticsHasDate = weekAtGlance.eventDateLabel !== 'Match date TBD'
+  const captainMatchLogisticsHasArrival = matchDayArrivalLabel !== 'Add arrival'
+  const captainMatchLogisticsHasLocation = matchDayLocationLabel !== 'Add location'
+  const captainMatchLogisticsItems = useMemo<CaptainMatchLogisticsItem[]>(() => [
+    {
+      label: 'Match',
+      state: captainMatchLogisticsHasDate ? weekAtGlance.eventDateLabel : 'Add date',
+      detail: captainMatchLogisticsHasOpponent ? `Opponent: ${weekAtGlance.opponentLabel}` : 'Add the opponent before sending the team reminder.',
+      tone: captainMatchLogisticsHasDate && captainMatchLogisticsHasOpponent ? 'good' : 'warn',
+    },
+    {
+      label: 'Arrival',
+      state: captainMatchLogisticsHasArrival ? matchDayArrivalLabel : 'Add arrival',
+      detail: captainMatchLogisticsHasArrival ? 'Arrival time is ready for the final reminder.' : 'Add the target arrival time before the note goes out.',
+      tone: captainMatchLogisticsHasArrival ? 'good' : 'warn',
+    },
+    {
+      label: 'Site',
+      state: captainMatchLogisticsHasLocation ? matchDayLocationLabel : 'Add site',
+      detail: captainMatchLogisticsHasLocation ? 'Match site is ready for players.' : 'Add the facility or court location before the reminder.',
+      tone: captainMatchLogisticsHasLocation ? 'good' : 'warn',
+    },
+    {
+      label: 'Lineup note',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Lineup first',
+      detail: workspaceState.lineupReady
+        ? 'Saved courts can be included with the where and when.'
+        : 'Build the lineup before sending the final team reminder.',
+      tone: workspaceState.lineupReady ? 'good' : 'info',
+    },
+  ], [
+    captainMatchLogisticsHasArrival,
+    captainMatchLogisticsHasDate,
+    captainMatchLogisticsHasLocation,
+    captainMatchLogisticsHasOpponent,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainMatchLogisticsIssueCount = captainMatchLogisticsItems.filter((item) => item.tone === 'warn').length
+  const captainMatchLogisticsReadyCount = captainMatchLogisticsItems.filter((item) => item.tone === 'good').length
+  const captainMatchLogisticsPrimaryItem = captainMatchLogisticsItems.find((item) => item.tone === 'warn')
+    ?? captainMatchLogisticsItems.find((item) => item.tone === 'info')
+    ?? captainMatchLogisticsItems[0]
+  const captainMatchLogisticsReminder = useMemo(() => {
+    const lineupLines = captainQuickCopyLineupRows.filter((line) => line !== 'No saved courts yet').slice(0, isMobile ? 4 : 6)
+
+    return [
+      `Team reminder: ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}`,
+      `Arrive by ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`,
+      workspaceState.lineupReady ? 'Lineup:' : 'Lineup is almost ready. I will send courts once they are final.',
+      ...lineupLines,
+      matchDayEventDetail?.notes ? `Notes: ${matchDayEventDetail.notes}` : '',
+      'Please reply if anything changed with your availability or arrival.',
+    ].filter(Boolean).join('\n')
+  }, [
+    captainQuickCopyLineupRows,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayEventDetail?.notes,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupReady,
+  ])
+  const captainMatchLogisticsPreviewLines = captainMatchLogisticsReminder.split('\n').slice(0, isMobile ? 5 : 7)
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
@@ -6286,6 +6382,30 @@ function CaptainHubContent() {
       })
     } catch {
       setCopiedCaptainWeeklySendBoardId('')
+    }
+  }
+
+  async function handleCopyCaptainMatchLogistics() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainMatchLogisticsReminder)
+      setCopiedCaptainMatchLogistics(true)
+      appendCaptainDecisionLog({
+        label: 'Match logistics copied',
+        detail: captainMatchLogisticsIssueCount > 0
+          ? `${captainMatchLogisticsIssueCount} logistics item${captainMatchLogisticsIssueCount === 1 ? '' : 's'} still need attention.`
+          : `${matchDayArrivalLabel} at ${matchDayLocationLabel} copied for the team reminder.`,
+        action: 'Copy logistics',
+        tone: captainMatchLogisticsIssueCount > 0 ? 'warn' : 'good',
+      })
+    } catch {
+      setCopiedCaptainMatchLogistics(false)
     }
   }
 
@@ -8526,6 +8646,66 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainMatchLogisticsSurface = (
+    <section style={dynamicCaptainMatchLogisticsShell} aria-label="Captain match logistics card">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Match logistics</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Where and when?' : 'Keep the match details ready to send.'}</h2>
+        </div>
+        <span style={captainMatchLogisticsIssueCount > 0 ? warnBadge : captainMatchLogisticsReadyCount >= 3 ? badgeGreen : badgeBlue}>
+          {captainMatchLogisticsIssueCount > 0 ? `${captainMatchLogisticsIssueCount} missing` : 'Ready to remind'}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Keep arrival time, site, opponent, lineup note, and final reminder copy in one place before players start asking.
+      </div>
+
+      <div style={captainMatchLogisticsHero}>
+        <div style={captainMatchLogisticsHeroTop}>
+          <div>
+            <div style={commandCenterLabel}>Final reminder focus</div>
+            <div style={captainMatchLogisticsTitle}>{captainMatchLogisticsPrimaryItem.label}</div>
+          </div>
+          <span style={captainMatchLogisticsPrimaryItem.tone === 'good' ? badgeGreen : captainMatchLogisticsPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+            {captainMatchLogisticsPrimaryItem.state}
+          </span>
+        </div>
+        <p style={captainMatchLogisticsDetail}>{captainMatchLogisticsPrimaryItem.detail}</p>
+        <div style={captainMatchLogisticsPreview}>
+          {captainMatchLogisticsPreviewLines.map((line, index) => (
+            <span key={`${line}-${index}`}>{line}</span>
+          ))}
+        </div>
+        <div style={dynamicCaptainMatchLogisticsActionRow}>
+          <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
+            {copiedCaptainMatchLogistics ? 'Copied logistics' : 'Copy logistics'}
+          </PrimarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+            Open messaging
+          </SecondarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}>
+            Weekly brief
+          </SecondarySmallBtn>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainMatchLogisticsGrid}>
+        {captainMatchLogisticsItems.map((item) => (
+          <article key={item.label} style={captainMatchLogisticsCard}>
+            <div style={captainMatchLogisticsCardTop}>
+              <strong>{item.label}</strong>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <span>{item.detail}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+
   const captainSendQueue = (
     <section style={dynamicCaptainSendQueueShell} aria-label="Captain send queue">
       <div style={commandCenterHeader}>
@@ -10321,6 +10501,8 @@ function CaptainHubContent() {
         {captainAvailabilityReminderBoard}
 
         {captainLineupLockChecklist}
+
+        {captainMatchLogisticsSurface}
 
         {captainSendQueue}
 
@@ -14939,6 +15121,113 @@ const captainLineupLockActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const captainMatchLogisticsShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.10), rgba(8,13,28,0.78) 42%, rgba(18,28,46,0.88))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainMatchLogisticsHero: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(5,11,22,0.32)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchLogisticsTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsPreview: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMatchLogisticsGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMatchLogisticsCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  minHeight: 142,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.48,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
 }
 
 const captainSendQueueShell: CSSProperties = {
