@@ -370,6 +370,15 @@ type CaptainMatchRecapInboxItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainFunRecapMoment = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  line: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainChangeAckTarget = {
   id: string
   name: string
@@ -1017,6 +1026,7 @@ function CaptainHubContent() {
   const [copiedCaptainMatchLogistics, setCopiedCaptainMatchLogistics] = useState(false)
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
+  const [copiedCaptainFunRecap, setCopiedCaptainFunRecap] = useState(false)
   const [copiedCaptainMatchRecapInboxId, setCopiedCaptainMatchRecapInboxId] = useState('')
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
@@ -2393,6 +2403,30 @@ function CaptainHubContent() {
     ...captainMatchRecapInboxList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainMatchRecapInboxList.gridTemplateColumns,
     gap: isMobile ? 8 : captainMatchRecapInboxList.gap,
+  }
+
+  const dynamicCaptainFunRecapShell: CSSProperties = {
+    ...captainFunRecapShell,
+    gap: isMobile ? 12 : captainFunRecapShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainFunRecapShell.padding,
+    borderRadius: isMobile ? 20 : captainFunRecapShell.borderRadius,
+  }
+
+  const dynamicCaptainFunRecapGrid: CSSProperties = {
+    ...captainFunRecapGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainFunRecapGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainFunRecapActionRow: CSSProperties = {
+    ...captainFunRecapActionRow,
+    display: isSmallMobile ? 'grid' : captainFunRecapActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainFunRecapMomentGrid: CSSProperties = {
+    ...captainFunRecapMomentGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainFunRecapMomentGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainFunRecapMomentGrid.gap,
   }
 
   const dynamicCaptainPostMatchRecapShell: CSSProperties = {
@@ -5476,6 +5510,133 @@ function CaptainHubContent() {
     weekAtGlance.opponentLabel,
   ])
   const captainPostMatchRecapPreviewLines = captainPostMatchRecapSummary.split('\n').slice(0, isMobile ? 6 : 8)
+  const captainFunRecapMoments = useMemo<CaptainFunRecapMoment[]>(() => {
+    const moments: CaptainFunRecapMoment[] = []
+    const capturedCourts = captainPostMatchRecapCompleteRows.slice(0, isMobile ? 3 : 5).map((row) => row.courtLabel).filter(Boolean)
+
+    if (capturedCourts.length) {
+      moments.push({
+        id: 'captured-courts',
+        label: 'Court wins to mention',
+        state: `${capturedCourts.length} court${capturedCourts.length === 1 ? '' : 's'}`,
+        detail: capturedCourts.join(', '),
+        line: `${capturedCourts.join(', ')} already have scores captured, so the team recap can start with the tennis that is settled.`,
+        tone: 'good',
+      })
+    }
+
+    if (captainMatchRecapInboxLines.length) {
+      moments.push({
+        id: 'recap-inbox',
+        label: 'Captain note',
+        state: `${captainMatchRecapInboxLines.length} saved`,
+        detail: captainMatchRecapInboxLines[0] || 'Saved recap item',
+        line: captainMatchRecapInboxLines.slice(0, 2).join(' '),
+        tone: captainMatchRecapInboxPrimaryItem?.tone || 'info',
+      })
+    }
+
+    if (captainScoreCaptureIssueCount > 0) {
+      moments.push({
+        id: 'score-issues',
+        label: 'Scorecard heads-up',
+        state: `${captainScoreCaptureIssueCount} issue${captainScoreCaptureIssueCount === 1 ? '' : 's'}`,
+        detail: captainPostMatchRecapIssueRows.map((row) => row.courtLabel).join(', ') || 'Review score capture',
+        line: `One scorecard detail still needs a look: ${captainPostMatchRecapIssueRows.map((row) => row.courtLabel).join(', ') || 'the issue list'}.`,
+        tone: 'warn',
+      })
+    } else if (captainScoreCapturePendingCount > 0) {
+      moments.push({
+        id: 'open-scores',
+        label: 'Open score reminder',
+        state: `${captainScoreCapturePendingCount} open`,
+        detail: 'A quick reminder keeps score capture from drifting into tomorrow.',
+        line: `${captainScoreCapturePendingCount} court${captainScoreCapturePendingCount === 1 ? '' : 's'} still need a score before the recap is fully closed.`,
+        tone: 'info',
+      })
+    }
+
+    if (captainPostMatchRecapRecentDecisions.length) {
+      const latestDecision = captainPostMatchRecapRecentDecisions[0]
+
+      moments.push({
+        id: 'captain-call',
+        label: 'Captain call',
+        state: safeText(latestDecision.action, 'Saved'),
+        detail: safeText(latestDecision.detail, 'A captain note is ready to fold into the recap.'),
+        line: `${safeText(latestDecision.label, 'Captain call')}: ${safeText(latestDecision.detail, 'A captain note is ready to fold into the recap.')}`,
+        tone: latestDecision.tone || 'info',
+      })
+    }
+
+    moments.push({
+      id: 'team-thanks',
+      label: 'Team thanks',
+      state: postMatchClosed ? 'Closed' : 'Next note',
+      detail: postMatchClosed
+        ? 'Close with a light thank-you and keep the week feeling finished.'
+        : 'Close with thanks, then remind the team what is next.',
+      line: postMatchClosed
+        ? 'Thanks for battling and making the week easy to close.'
+        : 'Thanks for battling, replying, and helping get the scorecard wrapped.',
+      tone: postMatchClosed ? 'good' : 'info',
+    })
+
+    return moments.slice(0, isMobile ? 4 : 6)
+  }, [
+    captainMatchRecapInboxLines,
+    captainMatchRecapInboxPrimaryItem,
+    captainPostMatchRecapCompleteRows,
+    captainPostMatchRecapIssueRows,
+    captainPostMatchRecapRecentDecisions,
+    captainScoreCaptureIssueCount,
+    captainScoreCapturePendingCount,
+    isMobile,
+    postMatchClosed,
+  ])
+  const captainFunRecapPrimaryMoment = captainFunRecapMoments.find((moment) => moment.tone === 'good')
+    ?? captainFunRecapMoments.find((moment) => moment.tone === 'info')
+    ?? captainFunRecapMoments[0]
+  const captainFunRecapTone = captainScoreCaptureIssueCount > 0
+    ? 'warn'
+    : captainScoreCaptureLoggedCount > 0 || postMatchClosed
+      ? 'good'
+      : 'info'
+  const captainFunRecapStatus = captainFunRecapTone === 'warn'
+    ? 'Check note'
+    : captainFunRecapTone === 'good'
+      ? 'Ready'
+      : 'Draft'
+  const captainFunRecapMessage = useMemo(() => {
+    const scoreLine = captainScoreCaptureRows.length
+      ? `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length} court score${captainScoreCaptureRows.length === 1 ? '' : 's'} captured.`
+      : 'Scores are not captured yet.'
+    const openLine = captainScoreCaptureIssueCount > 0
+      ? `Captain note: ${captainScoreCaptureIssueCount} scorecard detail${captainScoreCaptureIssueCount === 1 ? '' : 's'} still need a look.`
+      : captainScoreCapturePendingCount > 0
+        ? `Next up: ${captainScoreCapturePendingCount} court${captainScoreCapturePendingCount === 1 ? '' : 's'} still need scores captured.`
+        : postMatchClosed
+          ? 'Scorecard is wrapped and the week is closed.'
+          : 'Next up: upload the scorecard and close the week.'
+    const highlightLine = captainFunRecapPrimaryMoment?.line || 'Thanks for making the match week easy to run.'
+
+    return [
+      `Great match today vs ${weekAtGlance.opponentLabel}.`,
+      `Quick score check: ${scoreLine}`,
+      `Highlight: ${highlightLine}`,
+      openLine,
+      'Thanks for battling, replying, and making the week easy to captain.',
+    ].filter(Boolean).join('\n')
+  }, [
+    captainFunRecapPrimaryMoment,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    postMatchClosed,
+    weekAtGlance.opponentLabel,
+  ])
+  const captainFunRecapPreviewLines = captainFunRecapMessage.split('\n').slice(0, isMobile ? 5 : 6)
 
   const captainWeeklySendBoardItems = useMemo<CaptainWeeklySendBoardItem[]>(() => {
     const logisticsReady = matchDayLocationLabel !== 'Add location' && matchDayArrivalLabel !== 'Add arrival'
@@ -6454,6 +6615,30 @@ function CaptainHubContent() {
       })
     } catch {
       setCopiedCaptainPostMatchRecap(false)
+    }
+  }
+
+  async function handleCopyCaptainFunRecap() {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(captainFunRecapMessage)
+      setCopiedCaptainFunRecap(true)
+      appendCaptainDecisionLog({
+        label: 'Fun recap copied',
+        detail: captainFunRecapPrimaryMoment
+          ? `${captainFunRecapPrimaryMoment.label} used as the recap angle.`
+          : 'Friendly team recap copied after the match.',
+        action: 'Copy fun recap',
+        tone: captainFunRecapTone,
+      })
+    } catch {
+      setCopiedCaptainFunRecap(false)
     }
   }
 
@@ -9809,6 +9994,76 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainFunRecapComposer = (
+    <section style={dynamicCaptainFunRecapShell} aria-label="Captain fun recap composer">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Fun recap</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Send a fun recap.' : 'Turn the match into a quick team recap.'}</h2>
+        </div>
+        <span style={copiedCaptainFunRecap ? badgeGreen : captainFunRecapTone === 'warn' ? warnBadge : captainFunRecapTone === 'good' ? badgeGreen : badgeBlue}>
+          {copiedCaptainFunRecap ? 'Copied recap' : captainFunRecapStatus}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Use scores, saved recap items, and captain notes to copy a friendly post-match note before the details fade.
+      </div>
+
+      <div style={dynamicCaptainFunRecapGrid}>
+        <div style={captainFunRecapHero}>
+          <div style={captainFunRecapHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Best recap angle</div>
+              <div style={captainFunRecapTitle}>{captainFunRecapPrimaryMoment?.label || 'Team thanks'}</div>
+            </div>
+            <span style={captainFunRecapPrimaryMoment?.tone === 'warn' ? warnBadge : captainFunRecapPrimaryMoment?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainFunRecapPrimaryMoment?.state || 'Ready'}
+            </span>
+          </div>
+          <p style={captainFunRecapDetail}>
+            {captainFunRecapPrimaryMoment?.detail || 'Copy a friendly note that thanks the team and points to the next closeout step.'}
+          </p>
+          <div style={captainFunRecapPreview}>
+            {captainFunRecapPreviewLines.map((line, index) => (
+              <span key={`${line}-${index}`}>{line}</span>
+            ))}
+          </div>
+          <div style={dynamicCaptainFunRecapActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap()}>
+              {copiedCaptainFunRecap ? 'Copied recap' : 'Copy fun recap'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(dataAssistCaptainHref, 'team')}>
+              Upload scorecard
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainFunRecapPanel}>
+          <div style={commandCenterLabel}>Recap starters</div>
+          <div style={dynamicCaptainFunRecapMomentGrid}>
+            {captainFunRecapMoments.map((moment) => (
+              <article key={moment.id} style={captainFunRecapMomentCard}>
+                <div style={captainFunRecapMomentTop}>
+                  <strong>{moment.label}</strong>
+                  <span style={moment.tone === 'warn' ? warnBadge : moment.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {moment.state}
+                  </span>
+                </div>
+                <span style={captainFunRecapMomentDetail}>{moment.detail}</span>
+                {!isSmallMobile ? (
+                  <span style={captainFunRecapMomentLine}>{moment.line}</span>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainPostMatchRecapBuilder = (
     <section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">
       <div style={commandCenterHeader}>
@@ -10537,6 +10792,8 @@ function CaptainHubContent() {
         {captainScoreCaptureChecklist}
 
         {captainMatchRecapInbox}
+
+        {captainFunRecapComposer}
 
         {captainPostMatchRecapBuilder}
 
@@ -17772,6 +18029,157 @@ const captainMatchRecapInboxButtonActive: CSSProperties = {
   border: '1px solid rgba(251,191,36,0.30)',
   background: 'rgba(251,191,36,0.14)',
   color: 'var(--foreground-strong)',
+}
+
+const captainFunRecapShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(8,13,28,0.78) 43%, rgba(19,38,48,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainFunRecapGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.96fr) minmax(min(100%, 360px), 1.04fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainFunRecapHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,11,22,0.31)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainFunRecapTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapPreview: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 150,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(2,6,23,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.48,
+  fontWeight: 780,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainFunRecapPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapMomentGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 185px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainFunRecapMomentCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 150,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapMomentTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapMomentDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFunRecapMomentLine: CSSProperties = {
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.22)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.45,
+  fontWeight: 740,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
 }
 
 const captainPostMatchRecapShell: CSSProperties = {
