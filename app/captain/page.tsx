@@ -358,6 +358,20 @@ type CaptainCommunicationTimelineItem = {
   cta: string
 }
 
+type CaptainCommunicationWorkflowStep = {
+  id: string
+  label: string
+  status: string
+  detail: string
+  phase: CaptainCommunicationTimelineItem['phase']
+  tone: 'good' | 'warn' | 'info'
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  isCurrent: boolean
+  canMarkSent: boolean
+}
+
 type CaptainLineupLockCheck = {
   label: string
   state: string
@@ -2021,6 +2035,12 @@ function CaptainHubContent() {
     ...captainCommunicationTimelineGrid,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCommunicationTimelineGrid.gridTemplateColumns,
     gap: isMobile ? 8 : captainCommunicationTimelineGrid.gap,
+  }
+
+  const dynamicCaptainCommunicationWorkflowGrid: CSSProperties = {
+    ...captainCommunicationWorkflowGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCommunicationWorkflowGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainCommunicationWorkflowGrid.gap,
   }
 
   const dynamicCaptainHomeShortcutShell: CSSProperties = {
@@ -5977,6 +5997,78 @@ function CaptainHubContent() {
     : captainCommunicationTimelineDoneCount >= captainCommunicationTimelineItems.length
       ? 'All set'
       : 'Next up'
+  const captainCommunicationWorkflowSteps = useMemo<CaptainCommunicationWorkflowStep[]>(() => (
+    captainCommunicationTimelineItems.map((item) => {
+      const copied =
+        copiedCaptainWeeklySendBoardId === item.id ||
+        (item.id === 'availability-ask' && Boolean(copiedCaptainAvailabilityReminderId)) ||
+        (item.id === 'lineup-set' && (copiedCaptainLineupSummary || copiedCaptainSendQueueId === 'lineup-note')) ||
+        (item.id === 'where-when' && (copiedCaptainMatchLogistics || copiedCaptainSendQueueId === 'arrival-note')) ||
+        (item.id === 'team-reminder' && copiedCaptainNudgeLabel === 'Final lineup posted') ||
+        (item.id === 'fun-recap' && (copiedCaptainFunRecap || copiedCaptainPostMatchRecap))
+      const markedSent = (item.id === 'lineup-set' || item.id === 'team-reminder') && captainPostSendSent
+      const recapClosed = item.id === 'fun-recap' && postMatchClosed
+      const status = markedSent
+        ? 'Marked sent'
+        : recapClosed
+          ? 'Closed'
+          : copied
+            ? 'Copied'
+            : item.tone === 'warn'
+              ? 'Needs fix'
+              : item.phase === 'Now'
+                ? 'Next tap'
+                : item.tone === 'good'
+                  ? 'Ready'
+                  : 'Queued'
+      const tone: CaptainCommunicationWorkflowStep['tone'] = markedSent || recapClosed || copied || item.tone === 'good'
+        ? 'good'
+        : item.tone === 'warn'
+          ? 'warn'
+          : 'info'
+      const detail = markedSent
+        ? 'Team note is marked sent; watch replies and late changes.'
+        : copied
+          ? item.id === 'lineup-set' || item.id === 'team-reminder'
+            ? 'Copied to your clipboard. Send it from Messages, then mark the team note sent.'
+            : 'Copied to your clipboard. Send it from Messages when ready.'
+          : item.detail
+
+      return {
+        id: item.id,
+        label: item.label,
+        status,
+        detail,
+        phase: item.phase,
+        tone,
+        href: item.href,
+        stage: item.stage,
+        cta: item.cta,
+        isCurrent: item.id === captainCommunicationTimelineCurrentItem?.id,
+        canMarkSent: (item.id === 'lineup-set' || item.id === 'team-reminder') && !captainPostSendSent,
+      }
+    })
+  ), [
+    captainCommunicationTimelineCurrentItem?.id,
+    captainCommunicationTimelineItems,
+    captainPostSendSent,
+    copiedCaptainAvailabilityReminderId,
+    copiedCaptainFunRecap,
+    copiedCaptainLineupSummary,
+    copiedCaptainMatchLogistics,
+    copiedCaptainNudgeLabel,
+    copiedCaptainPostMatchRecap,
+    copiedCaptainSendQueueId,
+    copiedCaptainWeeklySendBoardId,
+    postMatchClosed,
+  ])
+  const captainCommunicationWorkflowCompleteCount = captainCommunicationWorkflowSteps.filter((item) => item.status === 'Copied' || item.status === 'Marked sent' || item.status === 'Closed').length
+  const captainCommunicationWorkflowNeedsCount = captainCommunicationWorkflowSteps.filter((item) => item.tone === 'warn').length
+  const captainCommunicationWorkflowStatus = captainCommunicationWorkflowNeedsCount > 0
+    ? `${captainCommunicationWorkflowNeedsCount} needs work`
+    : captainCommunicationWorkflowCompleteCount > 0
+      ? `${captainCommunicationWorkflowCompleteCount}/${captainCommunicationWorkflowSteps.length} handled`
+      : 'Ready to send'
   const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => [
     {
       id: 'today-checklist',
@@ -9027,6 +9119,48 @@ function CaptainHubContent() {
         Track availability asks, lineup sends, match logistics, reminders, and the post-match recap from one phone-friendly lane.
       </div>
 
+      <div style={captainCommunicationWorkflowShell} aria-label="Captain send continuity">
+        <div style={captainCommunicationWorkflowHeader}>
+          <div>
+            <div style={commandCenterLabel}>Send continuity</div>
+            <div style={captainCommunicationWorkflowTitle}>{isMobile ? 'Copy, send, mark.' : 'Know what has been copied, sent, or still needs work.'}</div>
+          </div>
+          <span style={captainCommunicationWorkflowNeedsCount > 0 ? warnBadge : captainCommunicationWorkflowCompleteCount > 0 ? badgeGreen : badgeBlue}>
+            {captainCommunicationWorkflowStatus}
+          </span>
+        </div>
+        <div style={dynamicCaptainCommunicationWorkflowGrid}>
+          {captainCommunicationWorkflowSteps.map((item, index) => (
+            <article
+              key={item.id}
+              style={{
+                ...captainCommunicationWorkflowCard,
+                ...(item.isCurrent ? captainCommunicationWorkflowCardActive : {}),
+              }}
+            >
+              <div style={captainCommunicationWorkflowTop}>
+                <span style={captainCommunicationWorkflowStep}>Step {index + 1}</span>
+                <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {item.status}
+                </span>
+              </div>
+              <strong style={captainCommunicationWorkflowName}>{item.label}</strong>
+              <span style={captainCommunicationWorkflowDetail}>{item.detail}</span>
+              <div style={captainCommunicationWorkflowActionRow}>
+                {item.canMarkSent ? (
+                  <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleWeekStatusUpdate('ready-to-send')}>
+                    Mark sent
+                  </SecondarySmallBtn>
+                ) : null}
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                  {item.cta}
+                </SecondarySmallBtn>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
       <div style={dynamicCaptainCommunicationTimelineHero}>
         <div style={captainCommunicationTimelineFocus}>
           <div style={captainCommunicationTimelineFocusTop}>
@@ -9051,6 +9185,11 @@ function CaptainHubContent() {
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainCommunicationTimelineCurrentItem} onClick={() => captainCommunicationTimelineCurrentItem ? handleCaptainNav(captainCommunicationTimelineCurrentItem.href, captainCommunicationTimelineCurrentItem.stage) : undefined}>
               {captainCommunicationTimelineCurrentItem?.cta || 'Open tool'}
             </SecondarySmallBtn>
+            {(captainCommunicationTimelineCurrentItem?.id === 'lineup-set' || captainCommunicationTimelineCurrentItem?.id === 'team-reminder') && !captainPostSendSent ? (
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleWeekStatusUpdate('ready-to-send')}>
+                Mark sent
+              </SecondarySmallBtn>
+            ) : null}
           </div>
         </div>
 
@@ -17653,6 +17792,103 @@ const captainCommunicationTimelineGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 9,
+  minWidth: 0,
+}
+
+const captainCommunicationWorkflowShell: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCommunicationWorkflowTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCommunicationWorkflowCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 142,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.25)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowCardActive: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(125,211,252,0.08)',
+}
+
+const captainCommunicationWorkflowTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCommunicationWorkflowStep: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainCommunicationWorkflowActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
   minWidth: 0,
 }
 
