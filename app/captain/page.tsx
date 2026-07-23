@@ -406,6 +406,17 @@ type CaptainMatchLogisticsItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainMatchLogisticsSendCheck = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreSendCheck = {
   label: string
   state: string
@@ -2488,6 +2499,17 @@ function CaptainHubContent() {
     ...captainPhoneMatchCardActionRow,
     display: isSmallMobile ? 'grid' : captainPhoneMatchCardActionRow.display,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainMatchLogisticsChecklistFocus: CSSProperties = {
+    ...captainMatchLogisticsChecklistFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainMatchLogisticsChecklistFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainMatchLogisticsChecklistGrid: CSSProperties = {
+    ...captainMatchLogisticsChecklistGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainMatchLogisticsChecklistGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainMatchLogisticsChecklistGrid.gap,
   }
 
   const dynamicCaptainMatchLogisticsActionRow: CSSProperties = {
@@ -6737,6 +6759,83 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
   ])
   const captainMatchLogisticsPreviewLines = captainMatchLogisticsReminder.split('\n').slice(0, isMobile ? 5 : 7)
+  const captainMatchLogisticsSendChecks = useMemo<CaptainMatchLogisticsSendCheck[]>(() => {
+    const detailsReady = captainMatchLogisticsHasDate && captainMatchLogisticsHasOpponent && captainMatchLogisticsHasArrival && captainMatchLogisticsHasLocation
+
+    return [
+      {
+        id: 'match-details',
+        label: 'Match details',
+        state: detailsReady ? 'Ready' : 'Missing detail',
+        detail: detailsReady
+          ? `${matchDayArrivalLabel} at ${matchDayLocationLabel} is ready for the reminder.`
+          : 'Confirm opponent, date, arrival time, and site before players start asking.',
+        href: weeklyBriefHref,
+        stage: 'brief',
+        cta: 'Review brief',
+        tone: detailsReady ? 'good' : 'warn',
+      },
+      {
+        id: 'lineup-note',
+        label: 'Lineup note',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Lineup draft',
+        detail: workspaceState.lineupReady
+          ? 'Saved courts can travel with the where-and-when reminder.'
+          : 'Build or review the court plan before sending the final team note.',
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'info',
+      },
+      {
+        id: 'reply-gap',
+        label: 'Reply gap',
+        state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Clear',
+        detail: workspaceState.pendingResponseCount > 0
+          ? 'Nudge players who still owe a clean In, Out, or Maybe before the reminder goes out.'
+          : 'Availability replies are clear for this saved event.',
+        href: availabilityHref,
+        stage: 'availability',
+        cta: workspaceState.pendingResponseCount > 0 ? 'Chase replies' : 'Review replies',
+        tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+      },
+      {
+        id: 'reminder-copy',
+        label: 'Reminder copy',
+        state: copiedCaptainMatchLogistics ? 'Copied' : 'Copy needed',
+        detail: copiedCaptainMatchLogistics
+          ? 'The final reminder is on your clipboard for Messages.'
+          : 'Copy the final reminder when details, lineup, and replies look right.',
+        href: messagingHref,
+        stage: 'messaging',
+        cta: copiedCaptainMatchLogistics ? 'Open messages' : 'Copy reminder',
+        tone: copiedCaptainMatchLogistics ? 'good' : 'info',
+      },
+    ]
+  }, [
+    availabilityHref,
+    captainMatchLogisticsHasArrival,
+    captainMatchLogisticsHasDate,
+    captainMatchLogisticsHasLocation,
+    captainMatchLogisticsHasOpponent,
+    copiedCaptainMatchLogistics,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    messagingHref,
+    weeklyBriefHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainMatchLogisticsSendIssueCount = captainMatchLogisticsSendChecks.filter((item) => item.tone === 'warn').length
+  const captainMatchLogisticsSendReadyCount = captainMatchLogisticsSendChecks.filter((item) => item.tone === 'good').length
+  const captainMatchLogisticsSendPrimaryItem = captainMatchLogisticsSendChecks.find((item) => item.tone === 'warn')
+    ?? captainMatchLogisticsSendChecks.find((item) => item.tone === 'info')
+    ?? captainMatchLogisticsSendChecks[0]
+  const captainMatchLogisticsSendStatus = captainMatchLogisticsSendIssueCount > 0
+    ? `${captainMatchLogisticsSendIssueCount} before send`
+    : `${captainMatchLogisticsSendReadyCount}/${captainMatchLogisticsSendChecks.length} ready`
   const captainPhoneMatchCardItems = useMemo<CaptainMatchLogisticsItem[]>(() => [
     {
       label: 'When',
@@ -10206,6 +10305,69 @@ function CaptainHubContent() {
           <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
             Review lineup
           </SecondarySmallBtn>
+        </div>
+      </div>
+
+      <div style={captainMatchLogisticsChecklistShell} aria-label="Captain reminder send checklist">
+        <div style={captainMatchLogisticsChecklistHeader}>
+          <div>
+            <div style={commandCenterLabel}>Reminder send checklist</div>
+            <div style={captainMatchLogisticsChecklistTitle}>{isMobile ? 'Can I send it?' : 'Check details, replies, and copy before the reminder leaves.'}</div>
+          </div>
+          <span style={captainMatchLogisticsSendIssueCount > 0 ? warnBadge : captainMatchLogisticsSendReadyCount >= 3 ? badgeGreen : badgeBlue}>
+            {captainMatchLogisticsSendStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainMatchLogisticsChecklistFocus}>
+          <div>
+            <div style={commandCenterLabel}>Next send check</div>
+            <div style={captainMatchLogisticsChecklistFocusTitle}>{captainMatchLogisticsSendPrimaryItem.label}</div>
+            <p style={captainMatchLogisticsChecklistDetail}>{captainMatchLogisticsSendPrimaryItem.detail}</p>
+          </div>
+          <div style={dynamicCaptainMatchLogisticsActionRow}>
+            {captainMatchLogisticsSendPrimaryItem.id === 'reminder-copy' && !copiedCaptainMatchLogistics ? (
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
+                Copy reminder
+              </PrimarySmallBtn>
+            ) : (
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainMatchLogisticsSendPrimaryItem.href, captainMatchLogisticsSendPrimaryItem.stage)}>
+                {captainMatchLogisticsSendPrimaryItem.cta}
+              </PrimarySmallBtn>
+            )}
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open messages
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainMatchLogisticsChecklistGrid}>
+          {captainMatchLogisticsSendChecks.map((check) => (
+            <article
+              key={check.id}
+              style={{
+                ...captainMatchLogisticsChecklistCard,
+                ...(check.id === captainMatchLogisticsSendPrimaryItem.id ? captainMatchLogisticsChecklistCardActive : null),
+              }}
+            >
+              <div style={captainMatchLogisticsChecklistCardTop}>
+                <strong>{check.label}</strong>
+                <span style={check.tone === 'good' ? badgeGreen : check.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {check.state}
+                </span>
+              </div>
+              <span style={captainMatchLogisticsChecklistDetail}>{check.detail}</span>
+              {check.id === 'reminder-copy' && !copiedCaptainMatchLogistics ? (
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
+                  Copy
+                </SecondarySmallBtn>
+              ) : (
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(check.href, check.stage)}>
+                  {check.cta}
+                </SecondarySmallBtn>
+              )}
+            </article>
+          ))}
         </div>
       </div>
 
@@ -17701,6 +17863,107 @@ const captainPhoneMatchCardActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const captainMatchLogisticsChecklistShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsChecklistHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchLogisticsChecklistTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsChecklistFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsChecklistFocusTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.16,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsChecklistGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMatchLogisticsChecklistCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 168,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.042)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchLogisticsChecklistCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainMatchLogisticsChecklistCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainMatchLogisticsChecklistDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const captainMatchLogisticsActionRow: CSSProperties = {
