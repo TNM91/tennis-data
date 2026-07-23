@@ -317,6 +317,18 @@ type CaptainHomeTextChaseItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeLineupNoteModeId = 'full-lineup' | 'courts-only' | 'reply-blockers' | 'backup-note'
+
+type CaptainHomeLineupNoteModeItem = {
+  id: CaptainHomeLineupNoteModeId
+  label: string
+  state: string
+  detail: string
+  body: string
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainHomeRecapStarterLine = {
   id: string
   label: string
@@ -1244,6 +1256,7 @@ function CaptainHubContent() {
   const [captainHomeChecklistDoneById, setCaptainHomeChecklistDoneById] = useState<Record<string, boolean>>({})
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
+  const [captainHomeLineupNoteModeId, setCaptainHomeLineupNoteModeId] = useState<CaptainHomeLineupNoteModeId>('full-lineup')
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
   const [copiedCaptainAvailabilityReminderId, setCopiedCaptainAvailabilityReminderId] = useState('')
   const [captainHomeAvailabilityModeId, setCaptainHomeAvailabilityModeId] = useState<CaptainAvailabilityReminderGroupId>('availability-team')
@@ -7453,10 +7466,120 @@ function CaptainHubContent() {
     : captainLineupLockCanSend
       ? 'Ready to send'
       : captainLineupLockFlowStatus
-  const captainHomeLineupLockPreviewLines = captainQuickCopyPreviewLines.slice(0, isMobile ? 3 : 4)
   const captainHomeLineupLockNeeds = captainLineupLockChecks
     .filter((check) => check.tone !== 'good')
     .slice(0, isMobile ? 2 : 3)
+  const captainHomeLineupNoteModeItems = useMemo<CaptainHomeLineupNoteModeItem[]>(() => {
+    const lineupRows = captainQuickCopyLineupRows.filter((line) => line !== 'No saved courts yet')
+    const arrivalLine = `${matchDayArrivalLabel} at ${matchDayLocationLabel}`
+    const replyBody = captainLineupLockOpenReplyCount > 0 || captainLineupLockSwingCount > 0
+      ? [
+          `Quick lineup blocker check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+          captainLineupLockOpenReplyCount > 0 ? `${captainLineupLockOpenReplyCount} player${captainLineupLockOpenReplyCount === 1 ? '' : 's'} still owe a clear In, Out, or Maybe.` : '',
+          captainLineupLockSwingCount > 0 ? `${captainLineupLockSwingCount} maybe/change ${captainLineupLockSwingCount === 1 ? 'reply' : 'replies'} could still move courts.` : '',
+          'Please confirm so I can lock the lineup.',
+        ].filter(Boolean).join('\n')
+      : [
+          `Availability looks clean enough for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+          'I am moving the lineup toward final.',
+        ].join('\n')
+    const backupBody = captainCourtSwapNeedsCount > 0
+      ? [
+          `Backup note for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+          `${captainCourtSwapPrimaryItem.inPlayer} is the cover option for ${captainCourtSwapPrimaryItem.courtLabel}.`,
+          'I will confirm before warm-up if that court changes.',
+        ].join('\n')
+      : captainBenchReadyCount > 0
+        ? [
+            `Backup note for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+            `${captainBenchPrimaryItem.name} is the first backup read: ${captainBenchPrimaryItem.fit}.`,
+            'Stay close in case a court changes.',
+          ].join('\n')
+        : [
+            `Backup note for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+            'No backup is tagged yet. Review bench coverage before the final lineup send.',
+          ].join('\n')
+
+    return [
+      {
+        id: 'full-lineup',
+        label: 'Full lineup',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+        detail: workspaceState.lineupReady ? 'Send courts, arrival, replies, backup, and notes together.' : 'Build courts before the full lineup note is useful.',
+        body: captainQuickCopySummary,
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+        cta: 'Copy full lineup',
+      },
+      {
+        id: 'courts-only',
+        label: 'Courts only',
+        state: lineupRows.length ? `${lineupRows.length} lines` : 'No courts',
+        detail: lineupRows.length ? 'Send just the court order when details are already known.' : 'Save courts before copying a court-only note.',
+        body: [
+          `Lineup for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}:`,
+          ...lineupRows,
+          `Arrival: ${arrivalLine}`,
+        ].filter(Boolean).join('\n'),
+        tone: lineupRows.length ? 'good' : 'warn',
+        cta: 'Copy courts',
+      },
+      {
+        id: 'reply-blockers',
+        label: 'Reply blockers',
+        state: captainLineupLockOpenReplyCount > 0
+          ? `${captainLineupLockOpenReplyCount} waiting`
+          : captainLineupLockSwingCount > 0
+            ? `${captainLineupLockSwingCount} swing`
+            : 'Clear',
+        detail: captainLineupLockOpenReplyCount > 0 || captainLineupLockSwingCount > 0
+          ? 'Send this before locking courts when replies can still change the lineup.'
+          : 'Replies are clean enough; use the full lineup note when ready.',
+        body: replyBody,
+        tone: captainLineupLockOpenReplyCount > 0 || captainLineupLockSwingCount > 0 ? 'warn' : 'good',
+        cta: 'Copy blockers',
+      },
+      {
+        id: 'backup-note',
+        label: 'Backup note',
+        state: captainCourtSwapNeedsCount > 0
+          ? 'Cover needed'
+          : captainBenchReadyCount > 0
+            ? 'Backup ready'
+            : 'Review bench',
+        detail: captainCourtSwapNeedsCount > 0
+          ? 'Send cover context before the final lineup hardens.'
+          : captainBenchReadyCount > 0
+            ? 'Send a quiet heads-up to your first backup option.'
+            : 'Review bench coverage before sending a backup note.',
+        body: backupBody,
+        tone: captainCourtSwapNeedsCount > 0 ? 'warn' : captainBenchReadyCount > 0 ? 'good' : 'info',
+        cta: 'Copy backup',
+      },
+    ]
+  }, [
+    captainBenchPrimaryItem.fit,
+    captainBenchPrimaryItem.name,
+    captainBenchReadyCount,
+    captainCourtSwapNeedsCount,
+    captainCourtSwapPrimaryItem.courtLabel,
+    captainCourtSwapPrimaryItem.inPlayer,
+    captainLineupLockOpenReplyCount,
+    captainLineupLockSwingCount,
+    captainQuickCopyLineupRows,
+    captainQuickCopySummary,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainHomeLineupNoteSelectedMode = captainHomeLineupNoteModeItems.find((item) => item.id === captainHomeLineupNoteModeId)
+    ?? captainHomeLineupNoteModeItems[0]
+  const captainHomeLineupLockPreviewLines = (captainHomeLineupNoteSelectedMode?.body || captainQuickCopySummary)
+    .split('\n')
+    .filter((line) => safeText(line))
+    .slice(0, isMobile ? 3 : 4)
   const captainMatchLogisticsHasOpponent = weekAtGlance.opponentLabel !== 'Opponent not set'
   const captainMatchLogisticsHasDate = weekAtGlance.eventDateLabel !== 'Match date TBD'
   const captainMatchLogisticsHasArrival = matchDayArrivalLabel !== 'Add arrival'
@@ -8500,7 +8623,7 @@ function CaptainHubContent() {
     }
   }
 
-  async function handleCopyCaptainLineupSummary() {
+  async function handleCopyCaptainLineupSummary(copyOptions?: { body?: string; label?: string; tone?: 'good' | 'warn' | 'info' }) {
     if (!premiumEnabled) {
       router.push(captainUnlockHref)
       return
@@ -8508,14 +8631,18 @@ function CaptainHubContent() {
 
     if (typeof navigator === 'undefined' || !navigator.clipboard) return
 
+    const copyBody = copyOptions?.body || captainQuickCopySummary
+    const copyLabel = copyOptions?.label || 'Lineup note'
+    const copyTone = copyOptions?.tone || (workspaceState.lineupReady ? 'good' : 'warn')
+
     try {
-      await navigator.clipboard.writeText(captainQuickCopySummary)
+      await navigator.clipboard.writeText(copyBody)
       setCopiedCaptainLineupSummary(true)
       appendCaptainDecisionLog({
         label: 'Lineup note copied',
-        detail: `${captainQuickCopyLineupRows.length} lineup line${captainQuickCopyLineupRows.length === 1 ? '' : 's'} copied for the team note.`,
-        action: 'Copy lineup',
-        tone: workspaceState.lineupReady ? 'good' : 'warn',
+        detail: `${copyLabel} copied with ${captainQuickCopyLineupRows.length} lineup line${captainQuickCopyLineupRows.length === 1 ? '' : 's'} available.`,
+        action: copyLabel,
+        tone: copyTone,
       })
     } catch {
       setCopiedCaptainLineupSummary(false)
@@ -13462,14 +13589,51 @@ function CaptainHubContent() {
               ))}
             </div>
           ) : null}
+          <div style={captainHomeLineupNoteModeShell} aria-label="Captain home lineup note mode picker">
+            <div style={captainHomeLineupNoteModeHeader}>
+              <span style={captainHomeLineupNoteModeTitle}>Lineup note mode</span>
+              <span style={captainHomeLineupNoteSelectedMode.tone === 'warn' ? warnBadge : captainHomeLineupNoteSelectedMode.tone === 'good' ? badgeGreen : badgeBlue}>
+                {captainHomeLineupNoteSelectedMode.state}
+              </span>
+            </div>
+            <div style={captainHomeLineupNoteModeGrid}>
+              {captainHomeLineupNoteModeItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={!hasTeamScope || !premiumEnabled}
+                  aria-pressed={item.id === captainHomeLineupNoteModeId}
+                  style={{
+                    ...captainHomeLineupNoteModeButton,
+                    ...(item.id === captainHomeLineupNoteModeId ? captainHomeLineupNoteModeButtonActive : null),
+                    ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                  }}
+                  onClick={() => {
+                    setCaptainHomeLineupNoteModeId(item.id)
+                    setCopiedCaptainLineupSummary(false)
+                  }}
+                >
+                  <span style={captainHomeLineupNoteModeButtonTop}>
+                    <strong>{item.label}</strong>
+                    <span>{item.state}</span>
+                  </span>
+                  {!isSmallMobile ? <span style={captainHomeLineupNoteModeButtonDetail}>{item.detail}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
           <div style={captainHomeLineupLockPreview}>
             {captainHomeLineupLockPreviewLines.map((line) => (
               <span key={line}>{line}</span>
             ))}
           </div>
           <div style={captainHomeLineupLockActions}>
-            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !workspaceState.lineupReady} onClick={() => void handleCopyCaptainLineupSummary()}>
-              {captainHomeLineupLockCopied ? 'Copied lineup' : 'Copy lineup note'}
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeLineupNoteSelectedMode.body} onClick={() => void handleCopyCaptainLineupSummary({
+              body: captainHomeLineupNoteSelectedMode.body,
+              label: captainHomeLineupNoteSelectedMode.label,
+              tone: captainHomeLineupNoteSelectedMode.tone,
+            })}>
+              {captainHomeLineupLockCopied ? 'Copied lineup' : captainHomeLineupNoteSelectedMode.cta}
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainLineupLockFlowPrimaryItem.href, captainLineupLockFlowPrimaryItem.stage)}>
               {captainLineupLockFlowPrimaryItem.cta}
@@ -22138,6 +22302,85 @@ const captainHomeLineupLockNeedChip: CSSProperties = {
   fontSize: 10,
   lineHeight: 1.15,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupNoteModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupNoteModeHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeLineupNoteModeTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupNoteModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeLineupNoteModeButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 54,
+  padding: 8,
+  borderRadius: 10,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.05)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupNoteModeButtonActive: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.10)',
+  boxShadow: '0 0 0 1px rgba(155,225,29,0.08) inset',
+}
+
+const captainHomeLineupNoteModeButtonTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeLineupNoteModeButtonDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 740,
   overflowWrap: 'anywhere',
 }
 
