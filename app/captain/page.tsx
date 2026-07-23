@@ -268,10 +268,12 @@ type CaptainHomeShortcutItem = {
   label: string
   state: string
   detail: string
+  reason: string
   href: string
   stage: CaptainResumeStage
   cta: string
   tone: 'good' | 'warn' | 'info'
+  priority: number
 }
 
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
@@ -6301,56 +6303,117 @@ function CaptainHubContent() {
     : captainSendRhythmReadyCount >= captainSendRhythmMoments.length
       ? 'Rhythm set'
       : `${captainSendRhythmReadyCount}/${captainSendRhythmMoments.length} handled`
-  const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => [
-    {
-      id: 'today-checklist',
-      label: 'Today checklist',
-      state: captainTodayChecklistStatus,
-      detail: captainTodayChecklistPrimaryItem
-        ? captainTodayChecklistPrimaryItem.detail
-        : 'Open the compact match-day checklist.',
-      href: '#captain-today-checklist',
-      stage: 'analytics',
-      cta: 'Open today',
-      tone: captainTodayChecklistWarnCount > 0 ? 'warn' : captainTodayChecklistInfoCount > 0 ? 'info' : 'good',
-    },
-    {
-      id: 'send-lane',
-      label: 'Send lane',
-      state: captainCommunicationTimelineStatus,
-      detail: captainCommunicationTimelineCurrentItem?.detail || 'Open the availability, lineup, reminder, and recap send rhythm.',
-      href: '#captain-communication-timeline',
-      stage: 'messaging',
-      cta: 'Open sends',
-      tone: captainCommunicationTimelineCurrentItem?.tone || 'info',
-    },
-    {
-      id: 'lineup',
-      label: 'Lineup',
-      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build courts',
-      detail: workspaceState.lineupReady
-        ? 'Review the saved court order before sending or driving over.'
-        : 'Build the lineup before the captain tools can stay precise.',
-      href: lineupBuilderHref,
-      stage: 'lineup',
-      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
-      tone: workspaceState.lineupReady ? 'good' : 'warn',
-    },
-    {
-      id: 'message',
-      label: 'Message team',
-      state: workspaceState.messagingReady ? 'Ready' : 'Prep note',
-      detail: workspaceState.messagingReady
-        ? `${matchDayArrivalLabel} at ${matchDayLocationLabel} is ready for the team note.`
-        : 'Add lineup, arrival, or location details before players need the plan.',
-      href: messagingHref,
-      stage: 'messaging',
-      cta: 'Open messages',
-      tone: workspaceState.messagingReady ? 'good' : 'info',
-    },
-  ], [
+  const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => {
+    const todayTone: CaptainHomeShortcutItem['tone'] = captainTodayChecklistWarnCount > 0 ? 'warn' : captainTodayChecklistInfoCount > 0 ? 'info' : 'good'
+    const sendTone: CaptainHomeShortcutItem['tone'] = captainCommunicationTimelineCurrentItem?.tone || 'info'
+    const closeoutTone: CaptainHomeShortcutItem['tone'] = postMatchClosed
+      ? 'good'
+      : captainPostMatchFlowIssueCount > 0
+        ? 'warn'
+        : captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
+          ? 'info'
+          : 'good'
+    const items: CaptainHomeShortcutItem[] = [
+      {
+        id: 'today-checklist',
+        label: 'Today checklist',
+        state: captainTodayChecklistStatus,
+        detail: captainTodayChecklistPrimaryItem
+          ? captainTodayChecklistPrimaryItem.detail
+          : 'Open the compact match-day checklist.',
+        reason: todayTone === 'warn'
+          ? 'Today has something that needs attention before anything else.'
+          : todayTone === 'info'
+            ? 'Today has a watch item worth checking before the week moves on.'
+            : 'Today is clear enough to keep moving.',
+        href: '#captain-today-checklist',
+        stage: 'analytics',
+        cta: 'Open today',
+        tone: todayTone,
+        priority: todayTone === 'warn' ? 100 : todayTone === 'info' ? 74 : 24,
+      },
+      {
+        id: 'send-lane',
+        label: 'Send lane',
+        state: captainSendRhythmStatus,
+        detail: captainSendRhythmPrimaryMoment?.detail || captainCommunicationTimelineCurrentItem?.detail || 'Open the availability, lineup, reminder, and recap send rhythm.',
+        reason: sendTone === 'warn'
+          ? 'A team send is blocked until this step is fixed.'
+          : sendTone === 'info'
+            ? 'The next team note is ready to handle.'
+            : 'The send rhythm is in good shape.',
+        href: '#captain-communication-timeline',
+        stage: 'messaging',
+        cta: 'Open sends',
+        tone: sendTone,
+        priority: sendTone === 'warn' ? 96 : sendTone === 'info' ? 68 : 30,
+      },
+      {
+        id: 'lineup',
+        label: 'Lineup',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build courts',
+        detail: workspaceState.lineupReady
+          ? 'Review the saved court order before sending or driving over.'
+          : 'Build the lineup before the captain tools can stay precise.',
+        reason: workspaceState.lineupReady
+          ? 'Courts are saved, so this stays available for a quick review.'
+          : 'A saved lineup unlocks cleaner sends, score capture, and closeout.',
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+        priority: workspaceState.lineupReady ? 34 : 94,
+      },
+      {
+        id: 'message',
+        label: 'Message team',
+        state: workspaceState.messagingReady ? 'Ready' : 'Prep note',
+        detail: workspaceState.messagingReady
+          ? `${matchDayArrivalLabel} at ${matchDayLocationLabel} is ready for the team note.`
+          : 'Add lineup, arrival, or location details before players need the plan.',
+        reason: workspaceState.messagingReady
+          ? 'Messages are ready if you need to resend or answer a question.'
+          : 'The team note still needs enough detail to be useful.',
+        href: messagingHref,
+        stage: 'messaging',
+        cta: 'Open messages',
+        tone: workspaceState.messagingReady ? 'good' : 'info',
+        priority: workspaceState.messagingReady ? 28 : 66,
+      },
+      {
+        id: 'closeout',
+        label: 'Closeout',
+        state: captainPostMatchFlowStatus,
+        detail: captainPostMatchFlowPrimaryItem?.detail || 'Capture scores, copy the recap, upload the scorecard, and close the week.',
+        reason: postMatchClosed
+          ? 'The week is closed, but the closeout trail is still one tap away.'
+          : captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
+            ? 'Post-match work has started, so closeout should stay easy to reach.'
+            : 'Closeout waits until scores or recap work begin.',
+        href: '#captain-post-match-closeout',
+        stage: 'brief',
+        cta: postMatchClosed ? 'Review closeout' : 'Open closeout',
+        tone: closeoutTone,
+        priority: postMatchClosed
+          ? 18
+          : captainPostMatchFlowIssueCount > 0
+            ? 98
+            : captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
+              ? 72
+              : 22,
+      },
+    ]
+
+    return items.sort((first, second) => second.priority - first.priority)
+  }, [
     captainCommunicationTimelineCurrentItem,
-    captainCommunicationTimelineStatus,
+    captainPostMatchFlowIssueCount,
+    captainPostMatchFlowPrimaryItem,
+    captainPostMatchFlowStatus,
+    captainPostMatchRecapCopied,
+    captainScoreCaptureLoggedCount,
+    captainSendRhythmPrimaryMoment,
+    captainSendRhythmStatus,
     captainTodayChecklistInfoCount,
     captainTodayChecklistPrimaryItem,
     captainTodayChecklistStatus,
@@ -6359,13 +6422,12 @@ function CaptainHubContent() {
     matchDayArrivalLabel,
     matchDayLocationLabel,
     messagingHref,
+    postMatchClosed,
     workspaceState.lineupCount,
     workspaceState.lineupReady,
     workspaceState.messagingReady,
   ])
-  const captainHomeShortcutPrimaryItem = captainHomeShortcutItems.find((item) => item.tone === 'warn')
-    ?? captainHomeShortcutItems.find((item) => item.tone === 'info')
-    ?? captainHomeShortcutItems[0]
+  const captainHomeShortcutPrimaryItem = captainHomeShortcutItems[0]
   const captainHomeShortcutStatus = captainHomeShortcutPrimaryItem?.tone === 'warn'
     ? 'Start here'
     : captainHomeShortcutPrimaryItem?.tone === 'info'
@@ -11666,6 +11728,9 @@ function CaptainHubContent() {
           <p style={captainHomeShortcutDetail}>
             {captainHomeShortcutPrimaryItem?.detail || 'Open the highest-value captain tool for this match week.'}
           </p>
+          <div style={captainHomeShortcutReason}>
+            {captainHomeShortcutPrimaryItem?.reason || 'Start with the highest-impact captain action.'}
+          </div>
         </div>
         <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
           {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
@@ -11691,6 +11756,7 @@ function CaptainHubContent() {
                 {item.state}
               </span>
             </span>
+            <span style={captainHomeShortcutCardReason}>{item.reason}</span>
             {!isSmallMobile ? <span style={captainHomeShortcutCardDetail}>{item.detail}</span> : null}
           </button>
         ))}
@@ -19041,6 +19107,20 @@ const captainHomeShortcutDetail: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const captainHomeShortcutReason: CSSProperties = {
+  marginTop: 8,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.06)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
 const captainHomeShortcutGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
@@ -19053,7 +19133,7 @@ const captainHomeShortcutCard: CSSProperties = {
   alignContent: 'start',
   gap: 7,
   minWidth: 0,
-  minHeight: 92,
+  minHeight: 122,
   padding: 11,
   borderRadius: 14,
   color: 'var(--foreground-strong)',
@@ -19085,6 +19165,14 @@ const captainHomeShortcutCardTop: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const captainHomeShortcutCardReason: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.32,
+  fontWeight: 830,
+  overflowWrap: 'anywhere',
 }
 
 const captainHomeShortcutCardDetail: CSSProperties = {
