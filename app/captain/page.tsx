@@ -413,6 +413,8 @@ type CaptainWeeklySendBoardItem = {
   cta: string
 }
 
+type CaptainHomeReminderModeId = 'full-team' | 'reply-chase' | 'lineup-lock' | 'arrival-only'
+
 type CaptainCommunicationTimelineItem = {
   id: string
   label: string
@@ -1239,6 +1241,7 @@ function CaptainHubContent() {
   const [copiedCaptainAvailabilityReminderId, setCopiedCaptainAvailabilityReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainWeeklySendBoardId, setCopiedCaptainWeeklySendBoardId] = useState('')
+  const [captainHomeReminderModeId, setCaptainHomeReminderModeId] = useState<CaptainHomeReminderModeId>('full-team')
   const [copiedCaptainMatchLogistics, setCopiedCaptainMatchLogistics] = useState(false)
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
@@ -6844,7 +6847,105 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.pendingResponseCount,
   ])
-  const captainHomeNextSendItem = captainSmartMatchWeekReminder
+  const captainHomeReminderModeItems = useMemo<CaptainWeeklySendBoardItem[]>(() => {
+    const hasArrival = matchDayArrivalLabel !== 'Add arrival'
+    const hasLocation = matchDayLocationLabel !== 'Add location'
+    const arrivalLine = hasArrival && hasLocation
+      ? `Arrive by ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`
+      : hasArrival
+        ? `Arrival is ${matchDayArrivalLabel}; site is still being finalized.`
+        : hasLocation
+          ? `Site is ${matchDayLocationLabel}; arrival time is still being finalized.`
+          : 'Arrival time and site are still being finalized.'
+    const notesLine = safeText(matchDayEventDetail?.notes)
+    const lineupBody = workspaceState.lineupReady
+      ? captainQuickCopySummary
+      : [
+          `Team, lineup is still being finalized for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+          arrivalLine,
+          'I will send courts as soon as they are locked.',
+        ].join('\n')
+    const replyChaseBody = captainAvailabilityReminderPrimaryGroup.body || [
+      `Team, quick availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+      captainAvailabilityReminderPrimaryGroup.detail,
+      'Please reply In, Out, or Maybe so I can lock the lineup.',
+    ].filter(Boolean).join('\n')
+    const arrivalOnlyBody = [
+      `Team, quick arrival reminder for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+      arrivalLine,
+      workspaceState.lineupReady ? 'Courts are set; check the lineup note before heading over.' : 'Lineup is coming separately once courts are locked.',
+      notesLine ? `Notes: ${notesLine}` : '',
+      'Reply here if anything changes.',
+    ].filter(Boolean).join('\n')
+
+    return [
+      {
+        ...captainSmartMatchWeekReminder,
+        id: 'home-reminder-full-team',
+        label: 'Full team',
+        cta: 'Copy full team',
+      },
+      {
+        id: 'home-reminder-reply-chase',
+        label: 'Reply chase',
+        state: captainAvailabilityReminderPrimaryGroup.names.length
+          ? `${captainAvailabilityReminderPrimaryGroup.names.length} to chase`
+          : 'Clear',
+        detail: captainAvailabilityReminderPrimaryGroup.names.length
+          ? 'Send only to players who still owe a clean availability answer.'
+          : 'No open reply gaps; use the full-team reminder when ready.',
+        body: replyChaseBody,
+        href: captainAvailabilityReminderPrimaryGroup.href,
+        stage: captainAvailabilityReminderPrimaryGroup.stage,
+        tone: captainAvailabilityReminderPrimaryGroup.names.length ? 'warn' : 'good',
+        cta: 'Copy chase',
+      },
+      {
+        id: 'home-reminder-lineup-lock',
+        label: 'Lineup lock',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+        detail: workspaceState.lineupReady
+          ? 'Send the court plan without burying it inside the full reminder.'
+          : 'Build courts before sending a lineup-only text.',
+        body: lineupBody,
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+        cta: 'Copy lineup',
+      },
+      {
+        id: 'home-reminder-arrival-only',
+        label: 'Arrival only',
+        state: hasArrival && hasLocation ? 'Ready' : 'Needs detail',
+        detail: hasArrival && hasLocation
+          ? 'Send a short where-and-when nudge when everyone already knows the lineup.'
+          : 'Add arrival and site before this quick nudge is ready.',
+        body: arrivalOnlyBody,
+        href: '#captain-match-logistics-card',
+        stage: 'messaging',
+        tone: hasArrival && hasLocation ? 'good' : 'warn',
+        cta: 'Copy arrival',
+      },
+    ]
+  }, [
+    captainAvailabilityReminderPrimaryGroup.body,
+    captainAvailabilityReminderPrimaryGroup.detail,
+    captainAvailabilityReminderPrimaryGroup.href,
+    captainAvailabilityReminderPrimaryGroup.names.length,
+    captainAvailabilityReminderPrimaryGroup.stage,
+    captainQuickCopySummary,
+    captainSmartMatchWeekReminder,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayEventDetail?.notes,
+    matchDayLocationLabel,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+  ])
+  const captainHomeNextSendItem = captainHomeReminderModeItems.find((item) => item.id === `home-reminder-${captainHomeReminderModeId}`)
+    ?? captainHomeReminderModeItems[0]
   const captainHomeNextSendCopied = copiedCaptainWeeklySendBoardId === captainHomeNextSendItem.id
   const captainHomeNextSendStatus = captainHomeNextSendCopied
     ? 'Copied'
@@ -13187,6 +13288,43 @@ function CaptainHubContent() {
               {captainHomeNextSendStatus}
             </span>
           </div>
+          <div style={captainHomeReminderModeShell} aria-label="Captain home reminder mode picker">
+            <div style={captainHomeReminderModeHeader}>
+              <span style={captainHomeReminderModeTitle}>Send mode</span>
+              <span style={captainHomeNextSendItem.tone === 'warn' ? warnBadge : captainHomeNextSendItem.tone === 'good' ? badgeGreen : badgeBlue}>
+                {captainHomeNextSendItem.state}
+              </span>
+            </div>
+            <div style={captainHomeReminderModeGrid}>
+              {captainHomeReminderModeItems.map((item) => {
+                const modeId = item.id.replace('home-reminder-', '') as CaptainHomeReminderModeId
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={!hasTeamScope || !premiumEnabled}
+                    aria-pressed={modeId === captainHomeReminderModeId}
+                    style={{
+                      ...captainHomeReminderModeButton,
+                      ...(modeId === captainHomeReminderModeId ? captainHomeReminderModeButtonActive : null),
+                      ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                    }}
+                    onClick={() => {
+                      setCaptainHomeReminderModeId(modeId)
+                      setCopiedCaptainWeeklySendBoardId('')
+                    }}
+                  >
+                    <span style={captainHomeReminderModeButtonTop}>
+                      <strong>{item.label}</strong>
+                      <span>{item.state}</span>
+                    </span>
+                    {!isSmallMobile ? <span style={captainHomeReminderModeButtonDetail}>{item.detail}</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <div style={captainHomeNextSendPreview}>
             {captainHomeNextSendPreviewLines.map((line) => (
               <span key={line}>{line}</span>
@@ -13219,7 +13357,7 @@ function CaptainHubContent() {
           </div>
           <div style={captainHomeNextSendActions}>
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeNextSendItem.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(captainHomeNextSendItem)}>
-              {captainHomeNextSendCopied ? 'Copied text' : 'Copy smart reminder'}
+              {captainHomeNextSendCopied ? 'Copied text' : captainHomeNextSendItem.cta}
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-communication-timeline', 'messaging')}>
               Open send lane
@@ -21537,6 +21675,85 @@ const captainHomeNextSendDetail: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReminderModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReminderModeHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeReminderModeTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReminderModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainHomeReminderModeButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 54,
+  padding: 8,
+  borderRadius: 10,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReminderModeButtonActive: CSSProperties = {
+  borderColor: 'rgba(125,211,252,0.32)',
+  background: 'rgba(125,211,252,0.10)',
+  boxShadow: '0 0 0 1px rgba(125,211,252,0.08) inset',
+}
+
+const captainHomeReminderModeButtonTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReminderModeButtonDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 740,
   overflowWrap: 'anywhere',
 }
 
