@@ -457,6 +457,17 @@ type CaptainFunRecapMoment = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainRecapStarterItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPostMatchFlowStep = {
   label: string
   state: string
@@ -2706,6 +2717,17 @@ function CaptainHubContent() {
     ...captainFunRecapActionRow,
     display: isSmallMobile ? 'grid' : captainFunRecapActionRow.display,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainRecapStarterFocus: CSSProperties = {
+    ...captainRecapStarterFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainRecapStarterFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainRecapStarterGrid: CSSProperties = {
+    ...captainRecapStarterGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainRecapStarterGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainRecapStarterGrid.gap,
   }
 
   const dynamicCaptainFunRecapMomentGrid: CSSProperties = {
@@ -6008,6 +6030,89 @@ function CaptainHubContent() {
   ])
   const captainFunRecapPreviewLines = captainFunRecapMessage.split('\n').slice(0, isMobile ? 5 : 6)
   const captainPostMatchRecapCopied = copiedCaptainPostMatchRecap || copiedCaptainFunRecap
+  const captainRecapStarterItems = useMemo<CaptainRecapStarterItem[]>(() => [
+    {
+      id: 'result',
+      label: 'Result',
+      state: captainScoreCaptureRows.length
+        ? captainScoreCaptureIssueCount > 0
+          ? `${captainScoreCaptureIssueCount} issue`
+          : captainScoreCapturePendingCount > 0
+            ? `${captainScoreCapturePendingCount} open`
+            : `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length}`
+        : 'Need scores',
+      detail: captainScoreCaptureRows.length
+        ? captainScoreCaptureIssueCount > 0
+          ? 'Review scorecard issues before the recap goes out.'
+          : captainScoreCapturePendingCount > 0
+            ? 'Tap remaining courts so the recap starts from the real result.'
+            : 'Score capture is ready to anchor the recap.'
+        : 'Capture the court results first so the note does not rely on memory.',
+      href: '#captain-score-capture-checklist',
+      stage: 'analytics',
+      cta: 'Capture scores',
+      tone: captainScoreCaptureIssueCount > 0 || !captainScoreCaptureRows.length
+        ? 'warn'
+        : captainScoreCapturePendingCount > 0
+          ? 'info'
+          : 'good',
+    },
+    {
+      id: 'highlight',
+      label: 'Highlight',
+      state: captainMatchRecapInboxIncludeCount > 0
+        ? `${captainMatchRecapInboxIncludeCount} picked`
+        : captainFunRecapPrimaryMoment?.label || 'Pick one',
+      detail: captainMatchRecapInboxIncludeCount > 0
+        ? 'Saved recap items are selected for the team note.'
+        : 'Pick the match moment or captain call that should lead the recap.',
+      href: '#captain-match-recap-inbox',
+      stage: 'analytics',
+      cta: 'Pick highlights',
+      tone: captainMatchRecapInboxIncludeCount > 0 ? 'good' : 'info',
+    },
+    {
+      id: 'shoutout',
+      label: 'Shoutout',
+      state: captainFunRecapPrimaryMoment?.state || 'Team thanks',
+      detail: captainFunRecapPrimaryMoment?.detail || 'Use a quick team thanks if no specific highlight is ready.',
+      href: '#captain-match-recap-inbox',
+      stage: 'analytics',
+      cta: 'Review moments',
+      tone: captainFunRecapPrimaryMoment?.tone || 'info',
+    },
+    {
+      id: 'send',
+      label: 'Send recap',
+      state: postMatchClosed ? 'Closed' : captainPostMatchRecapCopied ? 'Copied' : 'Copy needed',
+      detail: postMatchClosed
+        ? 'The week is closed, so the recap can stay as the final note.'
+        : captainPostMatchRecapCopied
+          ? 'Recap is copied. Open Messages and send it while the match is fresh.'
+          : 'Copy the fun recap once the result and highlight feel right.',
+      href: postMatchClosed ? '#captain-post-match-closeout' : '#captain-post-match-recap-builder',
+      stage: 'brief',
+      cta: postMatchClosed ? 'Review closeout' : captainPostMatchRecapCopied ? 'Open messages' : 'Copy recap',
+      tone: postMatchClosed || captainPostMatchRecapCopied ? 'good' : 'info',
+    },
+  ], [
+    captainFunRecapPrimaryMoment,
+    captainMatchRecapInboxIncludeCount,
+    captainPostMatchRecapCopied,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    postMatchClosed,
+  ])
+  const captainRecapStarterIssueCount = captainRecapStarterItems.filter((item) => item.tone === 'warn').length
+  const captainRecapStarterReadyCount = captainRecapStarterItems.filter((item) => item.tone === 'good').length
+  const captainRecapStarterPrimaryItem = captainRecapStarterItems.find((item) => item.tone === 'warn')
+    ?? captainRecapStarterItems.find((item) => item.tone === 'info')
+    ?? captainRecapStarterItems[0]
+  const captainRecapStarterStatus = captainRecapStarterIssueCount > 0
+    ? `${captainRecapStarterIssueCount} before recap`
+    : `${captainRecapStarterReadyCount}/${captainRecapStarterItems.length} ready`
   const captainPostMatchFlow = useMemo<CaptainPostMatchFlowStep[]>(() => [
     {
       label: 'Capture scores',
@@ -11532,6 +11637,77 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Use scores, saved recap items, and captain notes to copy a friendly post-match note before the details fade.
+      </div>
+
+      <div style={captainRecapStarterShell} aria-label="Captain recap starter board">
+        <div style={captainRecapStarterHeader}>
+          <div>
+            <div style={commandCenterLabel}>Recap starter</div>
+            <div style={captainRecapStarterTitle}>{isMobile ? 'What should I say?' : 'Pick the result, highlight, shoutout, and send step.'}</div>
+          </div>
+          <span style={captainRecapStarterIssueCount > 0 ? warnBadge : captainRecapStarterReadyCount >= 3 ? badgeGreen : badgeBlue}>
+            {captainRecapStarterStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainRecapStarterFocus}>
+          <div>
+            <div style={commandCenterLabel}>Next recap piece</div>
+            <div style={captainRecapStarterFocusTitle}>{captainRecapStarterPrimaryItem.label}</div>
+            <p style={captainRecapStarterDetail}>{captainRecapStarterPrimaryItem.detail}</p>
+          </div>
+          <div style={dynamicCaptainFunRecapActionRow}>
+            {captainRecapStarterPrimaryItem.id === 'send' && !postMatchClosed && !captainPostMatchRecapCopied ? (
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap()}>
+                Copy recap
+              </PrimarySmallBtn>
+            ) : captainRecapStarterPrimaryItem.id === 'send' && captainPostMatchRecapCopied && !postMatchClosed ? (
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+                Open messages
+              </PrimarySmallBtn>
+            ) : (
+              <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainRecapStarterPrimaryItem.href, captainRecapStarterPrimaryItem.stage)}>
+                {captainRecapStarterPrimaryItem.cta}
+              </PrimarySmallBtn>
+            )}
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-post-match-recap-builder', 'brief')}>
+              Open recap
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainRecapStarterGrid}>
+          {captainRecapStarterItems.map((item) => (
+            <article
+              key={item.id}
+              style={{
+                ...captainRecapStarterCard,
+                ...(item.id === captainRecapStarterPrimaryItem.id ? captainRecapStarterCardActive : null),
+              }}
+            >
+              <div style={captainRecapStarterCardTop}>
+                <strong>{item.label}</strong>
+                <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                  {item.state}
+                </span>
+              </div>
+              <span style={captainRecapStarterDetail}>{item.detail}</span>
+              {item.id === 'send' && !postMatchClosed && !captainPostMatchRecapCopied ? (
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainFunRecap()}>
+                  Copy
+                </SecondarySmallBtn>
+              ) : item.id === 'send' && captainPostMatchRecapCopied && !postMatchClosed ? (
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+                  Open messages
+                </SecondarySmallBtn>
+              ) : (
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(item.href, item.stage)}>
+                  {item.cta}
+                </SecondarySmallBtn>
+              )}
+            </article>
+          ))}
+        </div>
       </div>
 
       <div style={dynamicCaptainFunRecapGrid}>
@@ -21333,6 +21509,107 @@ const captainFunRecapActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const captainRecapStarterShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainRecapStarterHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainRecapStarterTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainRecapStarterFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainRecapStarterFocusTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.16,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainRecapStarterGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainRecapStarterCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 164,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.042)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainRecapStarterCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainRecapStarterCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainRecapStarterDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const captainFunRecapPanel: CSSProperties = {
