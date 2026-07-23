@@ -310,6 +310,18 @@ type CaptainSendQueueItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainWeeklySendBoardItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  body: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+}
+
 type CaptainPreSendCheck = {
   label: string
   state: string
@@ -970,6 +982,7 @@ function CaptainHubContent() {
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
+  const [copiedCaptainWeeklySendBoardId, setCopiedCaptainWeeklySendBoardId] = useState('')
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
   const [copiedCaptainMatchRecapInboxId, setCopiedCaptainMatchRecapInboxId] = useState('')
@@ -2139,6 +2152,24 @@ function CaptainHubContent() {
   const dynamicCaptainMorningBriefGrid: CSSProperties = {
     ...captainMorningBriefGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainMorningBriefGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainWeeklySendBoardShell: CSSProperties = {
+    ...captainWeeklySendBoardShell,
+    gap: isMobile ? 12 : captainWeeklySendBoardShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainWeeklySendBoardShell.padding,
+    borderRadius: isMobile ? 20 : captainWeeklySendBoardShell.borderRadius,
+  }
+
+  const dynamicCaptainWeeklySendBoardGrid: CSSProperties = {
+    ...captainWeeklySendBoardGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainWeeklySendBoardGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainWeeklySendBoardActionRow: CSSProperties = {
+    ...captainWeeklySendBoardActionRow,
+    display: isSmallMobile ? 'grid' : captainWeeklySendBoardActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
   const dynamicCaptainSendQueueShell: CSSProperties = {
@@ -5223,6 +5254,111 @@ function CaptainHubContent() {
   ])
   const captainPostMatchRecapPreviewLines = captainPostMatchRecapSummary.split('\n').slice(0, isMobile ? 6 : 8)
 
+  const captainWeeklySendBoardItems = useMemo<CaptainWeeklySendBoardItem[]>(() => {
+    const logisticsReady = matchDayLocationLabel !== 'Add location' && matchDayArrivalLabel !== 'Add arrival'
+    const availabilityBody = captainNudgeDrafts.find((draft) => draft.label === 'Confirm availability')?.body || captainNudgePrimaryDraft.body
+    const lineupBody = captainSendQueueItems.find((item) => item.id === 'lineup-note')?.body || captainQuickCopySummary
+    const arrivalBody = captainSendQueueItems.find((item) => item.id === 'arrival-note')?.body || captainArrivalSendBody
+    const reminderBody = captainNudgeDrafts.find((draft) => draft.label === 'Final lineup posted')?.body || captainNudgePrimaryDraft.body
+
+    return [
+      {
+        id: 'availability-ask',
+        label: 'Availability ask',
+        state: captainNudgeOpenReplyCount > 0 ? `${captainNudgeOpenReplyCount} waiting` : matchDayResponseRows.length ? 'Clean' : 'Start ask',
+        detail: captainNudgeOpenReplyCount > 0
+          ? 'Follow up before the lineup locks.'
+          : matchDayResponseRows.length
+            ? 'Replies are quiet enough to build courts.'
+            : 'Start with who is In, Out, Maybe, or needs a follow-up.',
+        body: availabilityBody,
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        tone: captainNudgeOpenReplyCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+        cta: 'Check availability',
+      },
+      {
+        id: 'lineup-set',
+        label: 'Lineup set',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+        detail: workspaceState.lineupReady
+          ? 'Court assignments are ready for the team note.'
+          : 'Build the weekly lineup before sending the final plan.',
+        body: lineupBody,
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+        cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      },
+      {
+        id: 'where-when',
+        label: 'Where and when',
+        state: logisticsReady ? 'Set' : 'Add details',
+        detail: `${matchDayArrivalLabel} at ${matchDayLocationLabel}`,
+        body: arrivalBody,
+        href: messagingHref,
+        stage: 'messaging',
+        tone: logisticsReady ? 'good' : 'info',
+        cta: 'Open messaging',
+      },
+      {
+        id: 'team-reminder',
+        label: 'Team reminder',
+        state: workspaceState.messagingReady ? 'Ready' : workspaceState.lineupReady ? 'Add location' : 'Lineup first',
+        detail: workspaceState.messagingReady
+          ? 'Send the lineup, arrival time, and match site from one note.'
+          : workspaceState.lineupReady
+            ? 'Add the match site or arrival time before the reminder goes out.'
+            : 'Save the courts before the final reminder.',
+        body: reminderBody,
+        href: messagingHref,
+        stage: 'messaging',
+        tone: workspaceState.messagingReady ? 'good' : workspaceState.lineupReady ? 'info' : 'warn',
+        cta: 'Prep reminder',
+      },
+      {
+        id: 'fun-recap',
+        label: 'Fun recap',
+        state: postMatchClosed ? 'Closed' : captainScoreCaptureLoggedCount > 0 ? `${captainScoreCaptureLoggedCount} scores` : 'After play',
+        detail: postMatchClosed
+          ? 'The week is closed and the recap can stay in the trail.'
+          : captainScoreCaptureLoggedCount > 0
+            ? 'Scores and captain notes are ready to turn into a recap.'
+            : 'After play, capture the result and send the team something short.',
+        body: captainPostMatchRecapSummary,
+        href: teamBriefHref,
+        stage: 'brief',
+        tone: postMatchClosed || captainScoreCaptureLoggedCount > 0 ? 'good' : 'info',
+        cta: 'Review recap',
+      },
+    ]
+  }, [
+    captainArrivalSendBody,
+    captainNudgeDrafts,
+    captainNudgeOpenReplyCount,
+    captainNudgePrimaryDraft.body,
+    captainPostMatchRecapSummary,
+    captainQuickCopySummary,
+    captainScoreCaptureLoggedCount,
+    captainSendQueueItems,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayResponseRows.length,
+    messagingHref,
+    postMatchClosed,
+    teamBriefHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainWeeklySendBoardActionCount = captainWeeklySendBoardItems.filter((item) => item.tone === 'warn').length
+  const captainWeeklySendBoardReadyCount = captainWeeklySendBoardItems.filter((item) => item.tone === 'good').length
+  const captainWeeklySendBoardPrimaryItem = captainWeeklySendBoardItems.find((item) => item.tone === 'warn')
+    ?? captainWeeklySendBoardItems.find((item) => item.tone === 'info')
+    ?? captainWeeklySendBoardItems[0]
+
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
     {
       label: 'Team scope',
@@ -5827,6 +5963,28 @@ function CaptainHubContent() {
       })
     } catch {
       setCopiedCaptainSendQueueId('')
+    }
+  }
+
+  async function handleCopyCaptainWeeklySendBoardItem(item: CaptainWeeklySendBoardItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.body)
+      setCopiedCaptainWeeklySendBoardId(item.id)
+      appendCaptainDecisionLog({
+        label: `${item.label} copied`,
+        detail: item.detail,
+        action: item.state,
+        tone: item.tone,
+      })
+    } catch {
+      setCopiedCaptainWeeklySendBoardId('')
     }
   }
 
@@ -7850,6 +8008,70 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainWeeklySendBoard = (
+    <section style={dynamicCaptainWeeklySendBoardShell} aria-label="Captain weekly send board">
+      <div style={commandCenterHeader}>
+        <div>
+          <div style={sectionKicker}>Weekly send board</div>
+          <h2 style={sectionTitle}>{isMobile ? 'Run the captain week.' : 'Run availability, lineup, reminders, and recap.'}</h2>
+        </div>
+        <span style={captainWeeklySendBoardActionCount > 0 ? warnBadge : captainWeeklySendBoardReadyCount >= 4 ? badgeGreen : badgeBlue}>
+          {captainWeeklySendBoardActionCount > 0 ? `${captainWeeklySendBoardActionCount} fix` : `${captainWeeklySendBoardReadyCount}/${captainWeeklySendBoardItems.length} ready`}
+        </span>
+      </div>
+      <div style={sectionSub}>
+        Ask who can play, set the courts, send where and when, remind the team, then wrap the match with a quick recap.
+      </div>
+
+      <div style={captainWeeklySendBoardHero}>
+        <div>
+          <div style={commandCenterLabel}>Best next captain send</div>
+          <div style={captainWeeklySendBoardTitle}>{captainWeeklySendBoardPrimaryItem.label}</div>
+          <p style={captainWeeklySendBoardDetail}>{captainWeeklySendBoardPrimaryItem.detail}</p>
+        </div>
+        <div style={dynamicCaptainWeeklySendBoardActionRow}>
+          <span style={captainWeeklySendBoardPrimaryItem.tone === 'good' ? badgeGreen : captainWeeklySendBoardPrimaryItem.tone === 'warn' ? warnBadge : badgeBlue}>
+            {captainWeeklySendBoardPrimaryItem.state}
+          </span>
+          <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainWeeklySendBoardPrimaryItem.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(captainWeeklySendBoardPrimaryItem)}>
+            {copiedCaptainWeeklySendBoardId === captainWeeklySendBoardPrimaryItem.id ? 'Copied send' : 'Copy send'}
+          </PrimarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainWeeklySendBoardPrimaryItem.href, captainWeeklySendBoardPrimaryItem.stage)}>
+            {captainWeeklySendBoardPrimaryItem.cta}
+          </SecondarySmallBtn>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainWeeklySendBoardGrid}>
+        {captainWeeklySendBoardItems.map((item, index) => (
+          <article key={item.id} style={captainWeeklySendBoardCard}>
+            <div style={captainWeeklySendBoardCardTop}>
+              <div>
+                <span style={captainWeeklySendBoardStep}>Step {index + 1}</span>
+                <strong>{item.label}</strong>
+              </div>
+              <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                {item.state}
+              </span>
+            </div>
+            <span style={captainWeeklySendBoardCardDetail}>{item.detail}</span>
+            <div style={captainWeeklySendBoardPreview}>
+              {item.body || 'No send needed for this step right now.'}
+            </div>
+            <div style={captainSendQueueActionRow}>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(item)}>
+                {copiedCaptainWeeklySendBoardId === item.id ? 'Copied' : 'Copy'}
+              </SecondarySmallBtn>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                {item.cta}
+              </SecondarySmallBtn>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+
   const captainSendQueue = (
     <section style={dynamicCaptainSendQueueShell} aria-label="Captain send queue">
       <div style={commandCenterHeader}>
@@ -9639,6 +9861,8 @@ function CaptainHubContent() {
         {captainAfterPointResetRail}
 
         {captainMorningBrief}
+
+        {captainWeeklySendBoard}
 
         {captainSendQueue}
 
@@ -13887,6 +14111,122 @@ const captainMorningBriefLineupRow: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.4,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,13,28,0.80) 42%, rgba(20,32,54,0.88))',
+  boxShadow: '0 20px 48px rgba(2,8,23,0.26)',
+}
+
+const captainWeeklySendBoardHero: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  gap: 12,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,11,22,0.32)',
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardDetail: CSSProperties = {
+  margin: '7px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  minWidth: 0,
+  justifyContent: 'flex-end',
+}
+
+const captainWeeklySendBoardGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainWeeklySendBoardCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 188,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 9,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+}
+
+const captainWeeklySendBoardStep: CSSProperties = {
+  display: 'block',
+  marginBottom: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.48,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainWeeklySendBoardPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 76,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.26)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
   overflowWrap: 'anywhere',
 }
 
