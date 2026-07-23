@@ -294,7 +294,14 @@ type CaptainHomeActionStackItem = {
   detail: string
   href: string
   stage: CaptainResumeStage
+  done: boolean
   tone: 'good' | 'warn' | 'info'
+}
+
+type CaptainHomeChecklistEntry = {
+  scopeKey: string
+  doneById: Record<string, boolean>
+  updatedAt: string
 }
 
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
@@ -775,7 +782,46 @@ const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_qu
 const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
 const CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY = 'tenaceiq_captain_after_point_reset'
 const CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY = 'tenaceiq_captain_match_recap_inbox'
+const CAPTAIN_HOME_CHECKLIST_STORAGE_KEY = 'tenaceiq_captain_home_checklist'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
+
+function readCaptainHomeChecklist(scopeKey: string) {
+  if (typeof window === 'undefined' || !scopeKey) return {} as Record<string, boolean>
+
+  try {
+    const raw = window.localStorage.getItem(CAPTAIN_HOME_CHECKLIST_STORAGE_KEY)
+    const rows = raw ? JSON.parse(raw) as CaptainHomeChecklistEntry[] : []
+    if (!Array.isArray(rows)) return {}
+    return rows.find((row) => row.scopeKey === scopeKey)?.doneById || {}
+  } catch {
+    return {}
+  }
+}
+
+function writeCaptainHomeChecklist(scopeKey: string, doneById: Record<string, boolean>) {
+  if (typeof window === 'undefined' || !scopeKey) return
+
+  try {
+    const cleanDoneById = Object.fromEntries(
+      Object.entries(doneById).filter(([, done]) => done),
+    )
+    const raw = window.localStorage.getItem(CAPTAIN_HOME_CHECKLIST_STORAGE_KEY)
+    const rows = raw ? JSON.parse(raw) as CaptainHomeChecklistEntry[] : []
+    const currentRows = Array.isArray(rows) ? rows : []
+    const nextRow: CaptainHomeChecklistEntry = {
+      scopeKey,
+      doneById: cleanDoneById,
+      updatedAt: new Date().toISOString(),
+    }
+
+    window.localStorage.setItem(
+      CAPTAIN_HOME_CHECKLIST_STORAGE_KEY,
+      JSON.stringify([nextRow, ...currentRows.filter((row) => row.scopeKey !== scopeKey)].slice(0, 100)),
+    )
+  } catch {
+    // Ignore storage failures so Captain Home remains usable in private browsing.
+  }
+}
 
 type CaptainLineupAssignment = {
   id?: string
@@ -1148,6 +1194,7 @@ function CaptainHubContent() {
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
+  const [captainHomeChecklistDoneById, setCaptainHomeChecklistDoneById] = useState<Record<string, boolean>>({})
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [copiedCaptainReplyReminderId, setCopiedCaptainReplyReminderId] = useState('')
@@ -1976,6 +2023,11 @@ function CaptainHubContent() {
   const captainUnlockHref = getPlanUnlockHref('captain', '/captain')
   const captainWorkflowHref = (href: string) => premiumEnabled ? href : captainUnlockHref
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+
+  useEffect(() => {
+    setCaptainHomeChecklistDoneById(hasTeamScope ? readCaptainHomeChecklist(captainWeekStatusKey) : {})
+  }, [captainWeekStatusKey, hasTeamScope])
+
   const captainScopeRestricted = isMember(role) && role !== 'admin'
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
@@ -7128,55 +7180,81 @@ function CaptainHubContent() {
   const captainHomeWhereWhenNeeds = captainMatchLogisticsItems
     .filter((item) => item.tone !== 'good')
     .slice(0, isMobile ? 2 : 3)
-  const captainHomeActionStackItems = useMemo<CaptainHomeActionStackItem[]>(() => [
-    {
-      id: 'reply-chase',
-      label: 'Replies',
-      state: captainHomeReplyChaseStatus,
-      detail: captainAvailabilityReminderPrimaryGroup.label,
-      href: '#captain-home-reply-chase',
-      stage: 'availability',
-      tone: captainHomeReplyChaseCopied ? 'good' : captainAvailabilityReminderPrimaryGroup.tone,
-    },
-    {
-      id: 'lineup-lock',
-      label: 'Lineup',
-      state: captainHomeLineupLockStatus,
-      detail: captainLineupLockFlowPrimaryItem.label,
-      href: '#captain-home-lineup-lock',
-      stage: 'lineup',
-      tone: captainHomeLineupLockCopied || captainLineupLockCanSend ? 'good' : captainLineupLockFlowPrimaryItem.tone,
-    },
-    {
-      id: 'where-when',
-      label: 'Where/when',
-      state: captainHomeWhereWhenStatus,
-      detail: captainMatchLogisticsPrimaryItem.label,
-      href: '#captain-home-where-when',
-      stage: 'messaging',
-      tone: captainHomeWhereWhenCopied ? 'good' : captainMatchLogisticsIssueCount > 0 ? 'warn' : 'info',
-    },
-    {
-      id: 'recap',
-      label: 'Recap',
-      state: captainHomeRecapStatus,
-      detail: captainFunRecapPrimaryMoment?.label || captainRecapStarterPrimaryItem.label,
-      href: '#captain-home-recap-ready',
-      stage: 'brief',
-      tone: captainHomeRecapCopied ? 'good' : captainFunRecapTone === 'warn' ? 'warn' : 'info',
-    },
-    {
-      id: 'next-send',
-      label: 'Next text',
-      state: captainHomeNextSendStatus,
-      detail: captainSendRhythmPrimarySend?.label || 'Team text',
-      href: '#captain-home-next-team-text',
-      stage: 'messaging',
-      tone: captainHomeNextSendCopied ? 'good' : captainSendRhythmPrimarySend?.tone || 'info',
-    },
-  ], [
+  const captainHomeActionStackItems = useMemo<CaptainHomeActionStackItem[]>(() => {
+    const buildChecklistItem = (
+      item: Omit<CaptainHomeActionStackItem, 'done' | 'state' | 'tone'> & {
+        copied: boolean
+        state: string
+        tone: 'good' | 'warn' | 'info'
+      },
+    ) => {
+      const { copied, ...stackItem } = item
+      const done = Boolean(captainHomeChecklistDoneById[item.id] || copied)
+
+      return {
+        ...stackItem,
+        done,
+        state: done ? 'Done this week' : item.state,
+        tone: done ? 'good' : item.tone,
+      }
+    }
+
+    return [
+      buildChecklistItem({
+        id: 'reply-chase',
+        label: 'Replies',
+        state: captainHomeReplyChaseStatus,
+        detail: captainAvailabilityReminderPrimaryGroup.label,
+        href: '#captain-home-reply-chase',
+        stage: 'availability',
+        copied: captainHomeReplyChaseCopied,
+        tone: captainAvailabilityReminderPrimaryGroup.tone,
+      }),
+      buildChecklistItem({
+        id: 'lineup-lock',
+        label: 'Lineup',
+        state: captainHomeLineupLockStatus,
+        detail: captainLineupLockFlowPrimaryItem.label,
+        href: '#captain-home-lineup-lock',
+        stage: 'lineup',
+        copied: captainHomeLineupLockCopied || captainLineupLockCanSend,
+        tone: captainLineupLockFlowPrimaryItem.tone,
+      }),
+      buildChecklistItem({
+        id: 'where-when',
+        label: 'Where/when',
+        state: captainHomeWhereWhenStatus,
+        detail: captainMatchLogisticsPrimaryItem.label,
+        href: '#captain-home-where-when',
+        stage: 'messaging',
+        copied: captainHomeWhereWhenCopied,
+        tone: captainMatchLogisticsIssueCount > 0 ? 'warn' : 'info',
+      }),
+      buildChecklistItem({
+        id: 'recap',
+        label: 'Recap',
+        state: captainHomeRecapStatus,
+        detail: captainFunRecapPrimaryMoment?.label || captainRecapStarterPrimaryItem.label,
+        href: '#captain-home-recap-ready',
+        stage: 'brief',
+        copied: captainHomeRecapCopied,
+        tone: captainFunRecapTone === 'warn' ? 'warn' : 'info',
+      }),
+      buildChecklistItem({
+        id: 'next-send',
+        label: 'Next text',
+        state: captainHomeNextSendStatus,
+        detail: captainSendRhythmPrimarySend?.label || 'Team text',
+        href: '#captain-home-next-team-text',
+        stage: 'messaging',
+        copied: captainHomeNextSendCopied,
+        tone: captainSendRhythmPrimarySend?.tone || 'info',
+      }),
+    ]
+  }, [
     captainAvailabilityReminderPrimaryGroup.label,
     captainAvailabilityReminderPrimaryGroup.tone,
+    captainHomeChecklistDoneById,
     captainFunRecapPrimaryMoment?.label,
     captainFunRecapTone,
     captainHomeLineupLockCopied,
@@ -7198,8 +7276,8 @@ function CaptainHubContent() {
     captainSendRhythmPrimarySend?.label,
     captainSendRhythmPrimarySend?.tone,
   ])
-  const captainHomeActionStackWarnCount = captainHomeActionStackItems.filter((item) => item.tone === 'warn').length
-  const captainHomeActionStackDoneCount = captainHomeActionStackItems.filter((item) => item.tone === 'good').length
+  const captainHomeActionStackWarnCount = captainHomeActionStackItems.filter((item) => !item.done && item.tone === 'warn').length
+  const captainHomeActionStackDoneCount = captainHomeActionStackItems.filter((item) => item.done).length
   const captainHomeActionStackStatus = captainHomeActionStackWarnCount > 0
     ? `${captainHomeActionStackWarnCount} needs attention`
     : `${captainHomeActionStackDoneCount}/${captainHomeActionStackItems.length} handled`
@@ -7700,6 +7778,19 @@ function CaptainHubContent() {
     }
 
     handleCaptainNav(href, stage)
+  }
+
+  function handleCaptainHomeChecklistToggle(id: string) {
+    if (!hasTeamScope || !premiumEnabled) return
+
+    setCaptainHomeChecklistDoneById((current) => {
+      const next = {
+        ...current,
+        [id]: !current[id],
+      }
+      writeCaptainHomeChecklist(captainWeekStatusKey, next)
+      return next
+    })
   }
 
   function rememberCaptainResume(stage: CaptainResumeStage) {
@@ -12596,23 +12687,40 @@ function CaptainHubContent() {
           </div>
           <div style={dynamicCaptainHomeActionStackGrid}>
             {captainHomeActionStackItems.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
-                disabled={!hasTeamScope || !premiumEnabled}
                 style={{
-                  ...captainHomeActionStackButton,
-                  ...(item.tone === 'warn' ? captainHomeActionStackButtonWarn : item.tone === 'good' ? captainHomeActionStackButtonGood : captainHomeActionStackButtonInfo),
+                  ...captainHomeActionStackCard,
+                  ...(item.tone === 'warn' ? captainHomeActionStackCardWarn : item.tone === 'good' ? captainHomeActionStackCardGood : captainHomeActionStackCardInfo),
                   ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
                 }}
-                onClick={() => handleCaptainAction(item.href, item.stage)}
               >
-                <span style={captainHomeActionStackButtonTop}>
-                  <strong>{item.label}</strong>
-                  <span>{item.state}</span>
-                </span>
-                <span style={captainHomeActionStackButtonDetail}>{item.detail}</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={!hasTeamScope || !premiumEnabled}
+                  style={captainHomeActionStackButton}
+                  onClick={() => handleCaptainAction(item.href, item.stage)}
+                >
+                  <span style={captainHomeActionStackButtonTop}>
+                    <strong>{item.label}</strong>
+                    <span>{item.state}</span>
+                  </span>
+                  <span style={captainHomeActionStackButtonDetail}>{item.detail}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={item.done}
+                  disabled={!hasTeamScope || !premiumEnabled}
+                  style={{
+                    ...captainHomeActionStackDoneToggle,
+                    ...(item.done ? captainHomeActionStackDoneToggleActive : null),
+                    ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                  }}
+                  onClick={() => handleCaptainHomeChecklistToggle(item.id)}
+                >
+                  {item.done ? 'Done' : 'Mark done'}
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -20639,34 +20747,45 @@ const captainHomeActionStackGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const captainHomeActionStackCard: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 72,
+  padding: 9,
+  borderRadius: 12,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainHomeActionStackCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.26)',
+  background: 'rgba(251,191,36,0.09)',
+}
+
+const captainHomeActionStackCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
 const captainHomeActionStackButton: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
   gap: 5,
   minWidth: 0,
-  minHeight: 72,
-  padding: 9,
-  borderRadius: 12,
+  minHeight: 50,
+  padding: 0,
+  border: 0,
+  background: 'transparent',
   color: 'var(--foreground-strong)',
   textAlign: 'left',
   whiteSpace: 'normal',
   cursor: 'pointer',
   overflowWrap: 'anywhere',
-}
-
-const captainHomeActionStackButtonGood: CSSProperties = {
-  border: '1px solid rgba(155,225,29,0.20)',
-  background: 'rgba(155,225,29,0.07)',
-}
-
-const captainHomeActionStackButtonWarn: CSSProperties = {
-  border: '1px solid rgba(251,191,36,0.26)',
-  background: 'rgba(251,191,36,0.09)',
-}
-
-const captainHomeActionStackButtonInfo: CSSProperties = {
-  border: '1px solid rgba(125,211,252,0.15)',
-  background: 'rgba(125,211,252,0.06)',
 }
 
 const captainHomeActionStackButtonTop: CSSProperties = {
@@ -20688,6 +20807,32 @@ const captainHomeActionStackButtonDetail: CSSProperties = {
   lineHeight: 1.3,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackDoneToggle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  justifySelf: 'start',
+  minWidth: 0,
+  minHeight: 30,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1,
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackDoneToggleActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.13)',
+  color: 'var(--foreground-strong)',
 }
 
 const captainHomeNextSendShell: CSSProperties = {
