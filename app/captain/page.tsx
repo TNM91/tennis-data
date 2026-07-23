@@ -309,6 +309,30 @@ type CaptainHomeActionStackItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainFirstSeasonReadinessItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
+type CaptainFirstSeasonDryRunStep = CaptainFirstSeasonReadinessItem & {
+  done: boolean
+  canMarkDone: boolean
+}
+
+type CaptainDataConfidenceItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeTextChaseItem = {
   id: string
   label: string
@@ -842,6 +866,7 @@ const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
 const CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY = 'tenaceiq_captain_after_point_reset'
 const CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY = 'tenaceiq_captain_match_recap_inbox'
 const CAPTAIN_HOME_CHECKLIST_STORAGE_KEY = 'tenaceiq_captain_home_checklist'
+const CAPTAIN_FIRST_SEASON_DRY_RUN_STORAGE_KEY = 'tenaceiq_captain_first_season_dry_run'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 function readCaptainHomeChecklist(scopeKey: string) {
@@ -879,6 +904,44 @@ function writeCaptainHomeChecklist(scopeKey: string, doneById: Record<string, bo
     )
   } catch {
     // Ignore storage failures so Captain Home remains usable in private browsing.
+  }
+}
+
+function readCaptainFirstSeasonDryRun(scopeKey: string) {
+  if (typeof window === 'undefined' || !scopeKey) return {} as Record<string, boolean>
+
+  try {
+    const raw = window.localStorage.getItem(CAPTAIN_FIRST_SEASON_DRY_RUN_STORAGE_KEY)
+    const rows = raw ? JSON.parse(raw) as CaptainHomeChecklistEntry[] : []
+    if (!Array.isArray(rows)) return {}
+    return rows.find((row) => row.scopeKey === scopeKey)?.doneById || {}
+  } catch {
+    return {}
+  }
+}
+
+function writeCaptainFirstSeasonDryRun(scopeKey: string, doneById: Record<string, boolean>) {
+  if (typeof window === 'undefined' || !scopeKey) return
+
+  try {
+    const cleanDoneById = Object.fromEntries(
+      Object.entries(doneById).filter(([, done]) => done),
+    )
+    const raw = window.localStorage.getItem(CAPTAIN_FIRST_SEASON_DRY_RUN_STORAGE_KEY)
+    const rows = raw ? JSON.parse(raw) as CaptainHomeChecklistEntry[] : []
+    const currentRows = Array.isArray(rows) ? rows : []
+    const nextRow: CaptainHomeChecklistEntry = {
+      scopeKey,
+      doneById: cleanDoneById,
+      updatedAt: new Date().toISOString(),
+    }
+
+    window.localStorage.setItem(
+      CAPTAIN_FIRST_SEASON_DRY_RUN_STORAGE_KEY,
+      JSON.stringify([nextRow, ...currentRows.filter((row) => row.scopeKey !== scopeKey)].slice(0, 100)),
+    )
+  } catch {
+    // Keep the first-match report usable even when browser storage is unavailable.
   }
 }
 
@@ -1254,6 +1317,7 @@ function CaptainHubContent() {
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [captainHomeChecklistDoneById, setCaptainHomeChecklistDoneById] = useState<Record<string, boolean>>({})
+  const [captainFirstSeasonDryRunDoneById, setCaptainFirstSeasonDryRunDoneById] = useState<Record<string, boolean>>({})
   const [copiedCaptainNudgeLabel, setCopiedCaptainNudgeLabel] = useState('')
   const [copiedCaptainLineupSummary, setCopiedCaptainLineupSummary] = useState(false)
   const [captainHomeLineupNoteModeId, setCaptainHomeLineupNoteModeId] = useState<CaptainHomeLineupNoteModeId>('full-lineup')
@@ -2089,6 +2153,7 @@ function CaptainHubContent() {
 
   useEffect(() => {
     setCaptainHomeChecklistDoneById(hasTeamScope ? readCaptainHomeChecklist(captainWeekStatusKey) : {})
+    setCaptainFirstSeasonDryRunDoneById(hasTeamScope ? readCaptainFirstSeasonDryRun(captainWeekStatusKey) : {})
   }, [captainWeekStatusKey, hasTeamScope])
 
   const captainScopeRestricted = isMember(role) && role !== 'admin'
@@ -2301,6 +2366,29 @@ function CaptainHubContent() {
     ...captainHomeActionStackGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeActionStackGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainHomeActionStackGrid.gap,
+  }
+
+  const dynamicCaptainFirstSeasonReadinessFocus: CSSProperties = {
+    ...captainFirstSeasonReadinessFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainFirstSeasonReadinessFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainFirstSeasonReadinessGrid: CSSProperties = {
+    ...captainFirstSeasonReadinessGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainFirstSeasonReadinessGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainFirstSeasonReadinessGrid.gap,
+  }
+
+  const dynamicCaptainFirstSeasonDryRunGrid: CSSProperties = {
+    ...captainFirstSeasonDryRunGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainFirstSeasonDryRunGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainFirstSeasonDryRunGrid.gap,
+  }
+
+  const dynamicCaptainDataConfidenceGrid: CSSProperties = {
+    ...captainDataConfidenceGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainDataConfidenceGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainDataConfidenceGrid.gap,
   }
 
   const dynamicCaptainToolLaneShell: CSSProperties = {
@@ -8170,6 +8258,193 @@ function CaptainHubContent() {
   const captainHomeKickoffStatus = captainHomeKickoffIssueCount > 0
     ? `${captainHomeKickoffIssueCount} setup gap${captainHomeKickoffIssueCount === 1 ? '' : 's'}`
     : `${captainHomeKickoffReadyCount}/${captainHomeKickoffItems.length} ready`
+  const captainCopiedTeamTextReady = Boolean(
+    captainHomeNextSendCopied
+    || captainHomeReplyChaseCopied
+    || captainHomeLineupLockCopied
+    || captainHomeWhereWhenCopied
+    || captainHomeRecapCopied
+    || copiedCaptainNudgeLabel
+    || copiedCaptainAvailabilityReminderId
+    || copiedCaptainLineupSummary
+    || copiedCaptainMatchLogistics
+    || copiedCaptainFunRecap
+    || copiedCaptainSendQueueId
+    || copiedCaptainWeeklySendBoardId,
+  )
+  const captainDataConfidenceItems = useMemo<CaptainDataConfidenceItem[]>(() => [
+    {
+      id: 'browser-save',
+      label: 'Browser save',
+      state: hasTeamScope ? 'This browser' : 'Choose team',
+      detail: CAPTAIN_LOCAL_SYNC_PROOF_CHECKS[0],
+      tone: hasTeamScope ? 'info' : 'warn',
+    },
+    {
+      id: 'linked-context',
+      label: 'Linked context',
+      state: selectedFromCaptainScope ? 'Linked' : teamScopeResolved && hasTeamScope ? 'Manual scope' : 'Checking',
+      detail: CAPTAIN_LOCAL_SYNC_PROOF_CHECKS[1],
+      tone: selectedFromCaptainScope ? 'good' : teamScopeResolved && hasTeamScope ? 'info' : 'warn',
+    },
+    {
+      id: 'cross-device',
+      label: 'Cross-device',
+      state: 'Local only',
+      detail: CAPTAIN_LOCAL_SYNC_PROOF_CHECKS[2],
+      tone: 'warn',
+    },
+  ], [hasTeamScope, selectedFromCaptainScope, teamScopeResolved])
+  const captainDataConfidenceWarningCount = captainDataConfidenceItems.filter((item) => item.tone === 'warn').length
+  const captainFirstSeasonReadinessItems = useMemo<CaptainFirstSeasonReadinessItem[]>(() => [
+    {
+      id: 'team-scope',
+      label: 'Team week',
+      state: hasTeamScope ? 'Selected' : 'Choose team',
+      detail: hasTeamScope ? `${selectedTeam} - ${selectedLeague} - ${selectedFlight}` : 'Pick the team, league, and flight before the opener.',
+      href: '#captain-team-scope',
+      stage: 'team',
+      cta: hasTeamScope ? 'Review team' : 'Choose team',
+      tone: hasTeamScope ? 'good' : 'warn',
+    },
+    {
+      id: 'first-match',
+      label: 'First match',
+      state: matches.length > 0 ? weekAtGlance.eventDateLabel : 'Needs schedule',
+      detail: matches.length > 0 ? `Vs ${weekAtGlance.opponentLabel}` : 'Add the opener so reminders, lineups, and recap start from the right match.',
+      href: matches.length > 0 ? weeklyBriefHref : dataAssistCaptainHref,
+      stage: matches.length > 0 ? 'brief' : 'team',
+      cta: matches.length > 0 ? 'Open brief' : 'Add schedule',
+      tone: matches.length > 0 ? 'good' : 'warn',
+    },
+    {
+      id: 'availability',
+      label: 'Availability',
+      state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : matchDayResponseRows.length ? 'Replies saved' : 'Ask team',
+      detail: workspaceState.pendingResponseCount > 0
+        ? 'Chase open replies before you lock court order.'
+        : matchDayResponseRows.length
+          ? 'You have enough response signal to start lineup work.'
+          : 'Send the first In, Out, Maybe ask before match week gets noisy.',
+      href: availabilityHref,
+      stage: 'availability',
+      cta: workspaceState.pendingResponseCount > 0 ? 'Chase replies' : matchDayResponseRows.length ? 'Review replies' : 'Ask availability',
+      tone: workspaceState.pendingResponseCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      id: 'lineup',
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady ? 'Saved courts are ready to review before the first send.' : 'Build the first court plan once availability gives you the player pool.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      id: 'team-reminder',
+      label: 'Team reminder',
+      state: captainCopiedTeamTextReady ? 'Copied' : workspaceState.messagingReady ? 'Ready' : 'Prep note',
+      detail: captainCopiedTeamTextReady
+        ? 'A captain text is copied; open Messages and send it from your phone.'
+        : workspaceState.messagingReady
+          ? 'Match details and lineup context are ready for the team note.'
+          : 'Prep one clean where, when, lineup, and reply reminder.',
+      href: captainCopiedTeamTextReady ? messagingHref : '#captain-home-next-team-text',
+      stage: 'messaging',
+      cta: captainCopiedTeamTextReady ? 'Open messages' : 'Prep text',
+      tone: captainCopiedTeamTextReady ? 'good' : workspaceState.messagingReady ? 'info' : 'warn',
+    },
+    {
+      id: 'sent-proof',
+      label: 'Sent proof',
+      state: captainPostSendSent ? 'Marked sent' : captainCopiedTeamTextReady ? 'Send next' : 'Waiting',
+      detail: captainPostSendSent
+        ? 'The team note is marked sent for this browser-saved week.'
+        : captainCopiedTeamTextReady
+          ? 'After you send from Messages, mark it sent so the chase list stays honest.'
+          : 'Copy a team note first, then mark it sent after the real text goes out.',
+      href: messagingHref,
+      stage: 'messaging',
+      cta: captainPostSendSent ? 'Review send' : 'Mark sent',
+      tone: captainPostSendSent ? 'good' : captainCopiedTeamTextReady ? 'info' : 'warn',
+    },
+    {
+      id: 'recap-starter',
+      label: 'Recap starter',
+      state: captainHomeRecapCopied ? 'Copied' : 'Ready after play',
+      detail: captainHomeRecapCopied ? 'The fun recap starter is copied for the post-match note.' : 'Keep the recap lane ready so the match can end with something fun.',
+      href: '#captain-home-recap-ready',
+      stage: 'brief',
+      cta: captainHomeRecapCopied ? 'Open recap' : 'Prep recap',
+      tone: captainHomeRecapCopied ? 'good' : 'info',
+    },
+  ], [
+    availabilityHref,
+    captainCopiedTeamTextReady,
+    captainHomeRecapCopied,
+    captainPostSendSent,
+    hasTeamScope,
+    lineupBuilderHref,
+    matchDayResponseRows.length,
+    matches.length,
+    messagingHref,
+    selectedFlight,
+    selectedLeague,
+    selectedTeam,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    weeklyBriefHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainFirstSeasonReadinessIssueCount = captainFirstSeasonReadinessItems.filter((item) => item.tone === 'warn').length
+  const captainFirstSeasonReadinessReadyCount = captainFirstSeasonReadinessItems.filter((item) => item.tone === 'good').length
+  const captainFirstSeasonReadinessPrimaryItem = captainFirstSeasonReadinessItems.find((item) => item.tone === 'warn')
+    ?? captainFirstSeasonReadinessItems.find((item) => item.tone === 'info')
+    ?? captainFirstSeasonReadinessItems[0]
+  const captainFirstSeasonReadinessStatus = captainFirstSeasonReadinessIssueCount > 0
+    ? `${captainFirstSeasonReadinessIssueCount} before match one`
+    : `${captainFirstSeasonReadinessReadyCount}/${captainFirstSeasonReadinessItems.length} ready`
+  const captainFirstSeasonDryRunSteps = useMemo<CaptainFirstSeasonDryRunStep[]>(() => (
+    captainFirstSeasonReadinessItems.map((item) => {
+      const done = Boolean(captainFirstSeasonDryRunDoneById[item.id] || item.tone === 'good')
+
+      return {
+        ...item,
+        done,
+        state: done ? 'Done' : item.state,
+        canMarkDone: item.tone !== 'warn' || item.id === 'sent-proof',
+      }
+    })
+  ), [captainFirstSeasonDryRunDoneById, captainFirstSeasonReadinessItems])
+  const captainFirstSeasonDryRunDoneCount = captainFirstSeasonDryRunSteps.filter((item) => item.done).length
+  const captainFirstSeasonDryRunStatus = `${captainFirstSeasonDryRunDoneCount}/${captainFirstSeasonDryRunSteps.length} dry run`
+  const captainMobileTodayAction = captainCopiedTeamTextReady && !captainPostSendSent
+    ? {
+        id: 'mobile-open-messages',
+        label: 'Send copied text',
+        state: 'Copied',
+        detail: 'Open Messages, send the copied captain note, then mark it sent here.',
+        href: messagingHref,
+        stage: 'messaging' as CaptainResumeStage,
+        cta: 'Open messages',
+        tone: 'info' as const,
+      }
+    : captainFirstSeasonReadinessPrimaryItem.tone !== 'good'
+      ? captainFirstSeasonReadinessPrimaryItem
+      : {
+          id: captainHomeShortcutPrimaryItem?.id || 'mobile-today',
+          label: captainHomeShortcutPrimaryItem?.label || 'Today checklist',
+          state: captainHomeShortcutStatus,
+          detail: captainHomeShortcutPrimaryItem?.detail || 'Open the next captain job for this match week.',
+          href: captainHomeShortcutPrimaryItem?.href || '#captain-today-checklist',
+          stage: captainHomeShortcutPrimaryItem?.stage || 'analytics',
+          cta: captainHomeShortcutPrimaryItem?.cta || 'Open today',
+          tone: captainHomeShortcutPrimaryItem?.tone || 'info',
+        }
 
   const captainRosterDepthItems = useMemo<CaptainRosterDepthItem[]>(() => [
     {
@@ -8433,6 +8708,31 @@ function CaptainHubContent() {
       writeCaptainHomeChecklist(captainWeekStatusKey, next)
       return next
     })
+  }
+
+  function handleCaptainFirstSeasonDryRunToggle(id: string) {
+    if (!hasTeamScope || !premiumEnabled) return
+
+    setCaptainFirstSeasonDryRunDoneById((current) => {
+      const next = {
+        ...current,
+        [id]: !current[id],
+      }
+      writeCaptainFirstSeasonDryRun(captainWeekStatusKey, next)
+      return next
+    })
+  }
+
+  function handleCaptainFirstSeasonDryRunAction(item: CaptainFirstSeasonDryRunStep) {
+    if (!hasTeamScope || !premiumEnabled) return
+
+    if (item.id === 'sent-proof' && captainCopiedTeamTextReady && !captainPostSendSent) {
+      handleWeekStatusUpdate('ready-to-send')
+      handleCaptainFirstSeasonDryRunToggle(item.id)
+      return
+    }
+
+    handleCaptainAction(item.href, item.stage)
   }
 
   function rememberCaptainResume(stage: CaptainResumeStage) {
@@ -13325,6 +13625,179 @@ function CaptainHubContent() {
         </div>
       </div>
 
+      <div style={captainFirstSeasonReadinessShell} aria-label="Captain first-match readiness report">
+        <div style={captainFirstSeasonReadinessHeader}>
+          <div>
+            <span style={commandCenterLabel}>First-match readiness</span>
+            <strong style={captainFirstSeasonReadinessTitle}>{isMobile ? 'Ready for match one?' : 'Run the season opener through Captain.'}</strong>
+          </div>
+          <span style={captainFirstSeasonReadinessIssueCount > 0 ? warnBadge : badgeGreen}>
+            {captainFirstSeasonReadinessStatus}
+          </span>
+        </div>
+        <div style={dynamicCaptainFirstSeasonReadinessFocus}>
+          <div>
+            <span style={commandCenterLabel}>Next fix</span>
+            <strong style={captainFirstSeasonReadinessFocusTitle}>{captainFirstSeasonReadinessPrimaryItem.label}</strong>
+            <span style={captainFirstSeasonReadinessFocusDetail}>{captainFirstSeasonReadinessPrimaryItem.detail}</span>
+          </div>
+          <PrimarySmallBtn
+            fullWidth={isSmallMobile}
+            disabled={!premiumEnabled || (!hasTeamScope && captainFirstSeasonReadinessPrimaryItem.id !== 'team-scope')}
+            onClick={() => {
+              if (captainFirstSeasonReadinessPrimaryItem.id === 'sent-proof' && captainCopiedTeamTextReady && !captainPostSendSent) {
+                handleWeekStatusUpdate('ready-to-send')
+                return
+              }
+              handleCaptainAction(captainFirstSeasonReadinessPrimaryItem.href, captainFirstSeasonReadinessPrimaryItem.stage)
+            }}
+          >
+            {captainFirstSeasonReadinessPrimaryItem.cta}
+          </PrimarySmallBtn>
+        </div>
+
+        <div style={captainFirstSeasonMessageFlow} aria-label="Captain one-tap message follow through">
+          <div style={captainFirstSeasonMessageFlowCopy}>
+            <span style={commandCenterLabel}>After copy</span>
+            <strong style={captainFirstSeasonMessageFlowTitle}>
+              {captainPostSendSent ? 'Team note is marked sent.' : captainCopiedTeamTextReady ? 'Open Messages, then mark sent.' : 'Copy the next team text first.'}
+            </strong>
+            <span style={captainFirstSeasonMessageFlowDetail}>
+              {captainPostSendSent
+                ? 'The reply chase can now work from a clean sent state.'
+                : captainCopiedTeamTextReady
+                  ? 'Captain cannot send the text for you, but it can keep the follow-up state honest.'
+                  : 'Use the next team text, reply chase, lineup lock, or where-and-when card to copy the right note.'}
+            </span>
+          </div>
+          <div style={captainFirstSeasonMessageFlowActions}>
+            <PrimarySmallBtn
+              fullWidth={isSmallMobile}
+              disabled={!hasTeamScope || !premiumEnabled}
+              onClick={() => handleCaptainAction(captainCopiedTeamTextReady ? messagingHref : '#captain-home-next-team-text', 'messaging')}
+            >
+              {captainCopiedTeamTextReady ? 'Open messages' : 'Copy next text'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn
+              disabled={!hasTeamScope || !premiumEnabled || !captainCopiedTeamTextReady || captainPostSendSent}
+              onClick={() => handleWeekStatusUpdate('ready-to-send')}
+            >
+              {captainPostSendSent ? 'Marked sent' : 'Mark sent'}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainFirstSeasonReadinessGrid}>
+          {captainFirstSeasonReadinessItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={!premiumEnabled || (!hasTeamScope && item.id !== 'team-scope')}
+              style={{
+                ...captainFirstSeasonReadinessCard,
+                ...(item.tone === 'warn' ? captainFirstSeasonReadinessCardWarn : item.tone === 'good' ? captainFirstSeasonReadinessCardGood : captainFirstSeasonReadinessCardInfo),
+                ...(!premiumEnabled || (!hasTeamScope && item.id !== 'team-scope') ? disabledButtonSecondary : null),
+              }}
+              onClick={() => {
+                if (item.id === 'sent-proof' && captainCopiedTeamTextReady && !captainPostSendSent) {
+                  handleWeekStatusUpdate('ready-to-send')
+                  return
+                }
+                handleCaptainAction(item.href, item.stage)
+              }}
+            >
+              <span style={captainFirstSeasonReadinessCardTop}>
+                <strong>{item.label}</strong>
+                <span>{item.state}</span>
+              </span>
+              <span style={captainFirstSeasonReadinessCardDetail}>{item.detail}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={captainFirstSeasonDryRunShell} aria-label="Captain dry run checklist">
+          <div style={captainFirstSeasonDryRunHeader}>
+            <div>
+              <span style={commandCenterLabel}>Dry run</span>
+              <strong style={captainFirstSeasonDryRunTitle}>{isMobile ? 'Practice the flow.' : 'Practice the first match flow before the season starts.'}</strong>
+            </div>
+            <span style={captainFirstSeasonDryRunDoneCount >= captainFirstSeasonDryRunSteps.length ? badgeGreen : badgeBlue}>
+              {captainFirstSeasonDryRunStatus}
+            </span>
+          </div>
+          <div style={dynamicCaptainFirstSeasonDryRunGrid}>
+            {captainFirstSeasonDryRunSteps.map((item, index) => (
+              <article
+                key={`dry-run-${item.id}`}
+                style={{
+                  ...captainFirstSeasonDryRunCard,
+                  ...(item.done ? captainFirstSeasonDryRunCardDone : null),
+                }}
+              >
+                <div style={captainFirstSeasonDryRunCardTop}>
+                  <span style={captainFirstSeasonDryRunStep}>Step {index + 1}</span>
+                  <span style={item.done ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {item.done ? 'Done' : item.state}
+                  </span>
+                </div>
+                <strong style={captainFirstSeasonDryRunName}>{item.label}</strong>
+                <span style={captainFirstSeasonDryRunDetail}>{item.detail}</span>
+                <div style={captainFirstSeasonDryRunActions}>
+                  <SecondarySmallBtn
+                    disabled={!hasTeamScope || !premiumEnabled || (item.id === 'sent-proof' && !captainCopiedTeamTextReady && !captainPostSendSent)}
+                    onClick={() => handleCaptainFirstSeasonDryRunAction(item)}
+                  >
+                    {item.cta}
+                  </SecondarySmallBtn>
+                  <button
+                    type="button"
+                    aria-pressed={item.done}
+                    disabled={!hasTeamScope || !premiumEnabled || !item.canMarkDone}
+                    style={{
+                      ...captainFirstSeasonDryRunToggle,
+                      ...(item.done ? captainFirstSeasonDryRunToggleActive : null),
+                      ...(!hasTeamScope || !premiumEnabled || !item.canMarkDone ? disabledButtonSecondary : null),
+                    }}
+                    onClick={() => handleCaptainFirstSeasonDryRunToggle(item.id)}
+                  >
+                    {item.done ? 'Done' : 'Mark done'}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div style={captainDataConfidenceShell} aria-label="Captain data confidence warnings">
+          <div style={captainDataConfidenceHeader}>
+            <div>
+              <span style={commandCenterLabel}>Data confidence</span>
+              <strong style={captainDataConfidenceTitle}>Know what is saved here.</strong>
+            </div>
+            <span style={captainDataConfidenceWarningCount > 0 ? warnBadge : badgeGreen}>
+              {captainDataConfidenceWarningCount > 0 ? `${captainDataConfidenceWarningCount} warning${captainDataConfidenceWarningCount === 1 ? '' : 's'}` : 'Clear'}
+            </span>
+          </div>
+          <div style={dynamicCaptainDataConfidenceGrid}>
+            {captainDataConfidenceItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainDataConfidenceCard,
+                  ...(item.tone === 'warn' ? captainDataConfidenceCardWarn : item.tone === 'good' ? captainDataConfidenceCardGood : captainDataConfidenceCardInfo),
+                }}
+              >
+                <div style={captainDataConfidenceCardTop}>
+                  <strong>{item.label}</strong>
+                  <span>{item.state}</span>
+                </div>
+                <span style={captainDataConfidenceDetail}>{item.detail}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div style={captainHomePriorityShell} aria-label="Captain weekly priority strip">
         <div style={captainHomePriorityHeader}>
           <div>
@@ -14001,6 +14474,34 @@ function CaptainHubContent() {
       </div>
     </section>
   )
+
+  const captainMobileTodayActionBar = isMobile ? (
+    <div style={captainMobileTodayActionBarStyle} aria-label="Captain mobile today action bar">
+      <div style={captainMobileTodayActionCopy}>
+        <span style={captainMobileTodayActionKicker}>Today</span>
+        <strong style={captainMobileTodayActionTitle}>{captainMobileTodayAction.label}</strong>
+        {!isSmallMobile ? <span style={captainMobileTodayActionDetail}>{captainMobileTodayAction.detail}</span> : null}
+      </div>
+      <div style={captainMobileTodayActionButtons}>
+        <PrimarySmallBtn
+          fullWidth
+          disabled={!premiumEnabled || (!hasTeamScope && captainMobileTodayAction.id !== 'team-scope')}
+          onClick={() => handleCaptainAction(captainMobileTodayAction.href, captainMobileTodayAction.stage)}
+        >
+          {captainMobileTodayAction.cta}
+        </PrimarySmallBtn>
+        {captainCopiedTeamTextReady && !captainPostSendSent ? (
+          <SecondarySmallBtn
+            fullWidth
+            disabled={!hasTeamScope || !premiumEnabled}
+            onClick={() => handleWeekStatusUpdate('ready-to-send')}
+          >
+            Mark sent
+          </SecondarySmallBtn>
+        ) : null}
+      </div>
+    </div>
+  ) : null
 
   return (
     <div style={pageWrap}>
@@ -15096,6 +15597,7 @@ function CaptainHubContent() {
             )}
           </div>
         </section>
+        {captainMobileTodayActionBar}
       </div>
   )
 }
@@ -21585,6 +22087,378 @@ const captainHomeKickoffItemDetail: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const captainFirstSeasonReadinessShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainFirstSeasonReadinessTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 150px), auto)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessFocusTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessFocusDetail: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonMessageFlow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonMessageFlowCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const captainFirstSeasonMessageFlowTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonMessageFlowDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonMessageFlowActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainFirstSeasonReadinessGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainFirstSeasonReadinessCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 86,
+  padding: 9,
+  borderRadius: 12,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainFirstSeasonReadinessCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.26)',
+  background: 'rgba(251,191,36,0.09)',
+}
+
+const captainFirstSeasonReadinessCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainFirstSeasonReadinessCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonReadinessCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunShell: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainFirstSeasonDryRunTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainFirstSeasonDryRunCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 138,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunCardDone: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainFirstSeasonDryRunCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainFirstSeasonDryRunStep: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainFirstSeasonDryRunToggle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 0,
+  minHeight: 30,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1,
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonDryRunToggleActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.13)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainDataConfidenceShell: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(251,191,36,0.16)',
+  background: 'rgba(251,191,36,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainDataConfidenceHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDataConfidenceTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainDataConfidenceGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainDataConfidenceCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: 9,
+  borderRadius: 12,
+  overflowWrap: 'anywhere',
+}
+
+const captainDataConfidenceCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainDataConfidenceCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.09)',
+}
+
+const captainDataConfidenceCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainDataConfidenceCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainDataConfidenceDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.32,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
 const captainHomePriorityShell: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -22863,6 +23737,66 @@ const captainHomeShortcutCardDetail: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayActionBarStyle: CSSProperties = {
+  position: 'fixed',
+  left: 12,
+  right: 12,
+  bottom: 'max(10px, env(safe-area-inset-bottom))',
+  zIndex: 60,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 140px)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  maxWidth: 520,
+  margin: '0 auto',
+  padding: 10,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.24)',
+  background: 'rgba(8,13,28,0.96)',
+  boxShadow: '0 18px 42px rgba(2,8,23,0.38)',
+  backdropFilter: 'blur(14px)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayActionCopy: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayActionKicker: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const captainMobileTodayActionTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayActionDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.25,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayActionButtons: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
 }
 
 const captainToolLaneShell: CSSProperties = {
