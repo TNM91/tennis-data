@@ -372,6 +372,21 @@ type CaptainCommunicationWorkflowStep = {
   canMarkSent: boolean
 }
 
+type CaptainSendRhythmMoment = {
+  id: string
+  label: string
+  when: string
+  state: string
+  detail: string
+  preview: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+  isActive: boolean
+  canMarkSent: boolean
+}
+
 type CaptainLineupLockCheck = {
   label: string
   state: string
@@ -2356,6 +2371,23 @@ function CaptainHubContent() {
     ...captainWeeklySendBoardActionRow,
     display: isSmallMobile ? 'grid' : captainWeeklySendBoardActionRow.display,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainSendRhythmFocus: CSSProperties = {
+    ...captainSendRhythmFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainSendRhythmFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainSendRhythmActionRow: CSSProperties = {
+    ...captainSendRhythmActionRow,
+    display: isSmallMobile ? 'grid' : captainSendRhythmActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainSendRhythmRail: CSSProperties = {
+    ...captainSendRhythmRail,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainSendRhythmRail.gridTemplateColumns,
+    gap: isMobile ? 8 : captainSendRhythmRail.gap,
   }
 
   const dynamicCaptainAvailabilityReminderShell: CSSProperties = {
@@ -6219,6 +6251,56 @@ function CaptainHubContent() {
     : captainCommunicationWorkflowCompleteCount > 0
       ? `${captainCommunicationWorkflowCompleteCount}/${captainCommunicationWorkflowSteps.length} handled`
       : 'Ready to send'
+  const captainSendRhythmMoments = useMemo<CaptainSendRhythmMoment[]>(() => {
+    const whenById: Record<string, string> = {
+      'availability-ask': 'Start week',
+      'lineup-set': 'After replies',
+      'where-when': 'Before match',
+      'team-reminder': 'Match day',
+      'fun-recap': 'After play',
+    }
+    const workflowById = new Map(captainCommunicationWorkflowSteps.map((item) => [item.id, item]))
+
+    return captainWeeklySendBoardItems.map((item) => {
+      const workflow = workflowById.get(item.id)
+      const isActive = item.id === captainCommunicationTimelineCurrentItem?.id
+      const preview = item.body.split('\n').find((line) => safeText(line)) || item.detail
+
+      return {
+        id: item.id,
+        label: item.label,
+        when: whenById[item.id] || 'This week',
+        state: workflow?.status || item.state,
+        detail: isActive
+          ? 'This is the next captain send to handle.'
+          : workflow?.detail || item.detail,
+        preview,
+        href: item.href,
+        stage: item.stage,
+        tone: workflow?.tone || item.tone,
+        cta: item.cta,
+        isActive,
+        canMarkSent: Boolean(workflow?.canMarkSent),
+      }
+    })
+  }, [
+    captainCommunicationTimelineCurrentItem?.id,
+    captainCommunicationWorkflowSteps,
+    captainWeeklySendBoardItems,
+  ])
+  const captainSendRhythmPrimaryMoment = captainSendRhythmMoments.find((item) => item.isActive)
+    ?? captainSendRhythmMoments.find((item) => item.tone === 'warn')
+    ?? captainSendRhythmMoments.find((item) => item.tone === 'info')
+    ?? captainSendRhythmMoments[0]
+  const captainSendRhythmPrimarySend = captainWeeklySendBoardItems.find((item) => item.id === captainSendRhythmPrimaryMoment?.id)
+    ?? captainWeeklySendBoardPrimaryItem
+  const captainSendRhythmReadyCount = captainSendRhythmMoments.filter((item) => item.tone === 'good').length
+  const captainSendRhythmIssueCount = captainSendRhythmMoments.filter((item) => item.tone === 'warn').length
+  const captainSendRhythmStatus = captainSendRhythmIssueCount > 0
+    ? `${captainSendRhythmIssueCount} to fix`
+    : captainSendRhythmReadyCount >= captainSendRhythmMoments.length
+      ? 'Rhythm set'
+      : `${captainSendRhythmReadyCount}/${captainSendRhythmMoments.length} handled`
   const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => [
     {
       id: 'today-checklist',
@@ -9416,6 +9498,77 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Track availability asks, lineup sends, match logistics, reminders, and the post-match recap from one phone-friendly lane.
+      </div>
+
+      <div style={captainSendRhythmShell} aria-label="Captain send rhythm panel">
+        <div style={captainSendRhythmHeader}>
+          <div>
+            <div style={commandCenterLabel}>Send rhythm</div>
+            <div style={captainSendRhythmTitle}>
+              {isMobile ? 'What goes out next?' : 'Know the next send, timing, and follow-through.'}
+            </div>
+          </div>
+          <span style={captainSendRhythmIssueCount > 0 ? warnBadge : captainSendRhythmReadyCount >= captainSendRhythmMoments.length ? badgeGreen : badgeBlue}>
+            {captainSendRhythmStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainSendRhythmFocus}>
+          <div>
+            <div style={captainSendRhythmFocusTop}>
+              <div>
+                <div style={commandCenterLabel}>Next send window</div>
+                <div style={captainSendRhythmName}>{captainSendRhythmPrimaryMoment?.label || 'Team note'}</div>
+              </div>
+              <span style={captainSendRhythmPrimaryMoment?.tone === 'good' ? badgeGreen : captainSendRhythmPrimaryMoment?.tone === 'warn' ? warnBadge : badgeBlue}>
+                {captainSendRhythmPrimaryMoment?.when || 'This week'}
+              </span>
+            </div>
+            <p style={captainSendRhythmDetail}>
+              {captainSendRhythmPrimaryMoment?.detail || 'Work through availability, lineup, reminder, and recap sends in order.'}
+            </p>
+            <div style={captainSendRhythmPreview}>
+              {captainSendRhythmPrimaryMoment?.preview || 'No send needed right now.'}
+            </div>
+          </div>
+          <div style={dynamicCaptainSendRhythmActionRow}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainSendRhythmPrimarySend?.body} onClick={() => captainSendRhythmPrimarySend ? void handleCopyCaptainWeeklySendBoardItem(captainSendRhythmPrimarySend) : undefined}>
+              {copiedCaptainWeeklySendBoardId === captainSendRhythmPrimarySend?.id ? 'Copied send' : 'Copy next send'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+              Open Messages
+            </SecondarySmallBtn>
+            {captainSendRhythmPrimaryMoment?.canMarkSent ? (
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleWeekStatusUpdate('ready-to-send')}>
+                Mark sent
+              </SecondarySmallBtn>
+            ) : null}
+          </div>
+        </div>
+
+        <div style={dynamicCaptainSendRhythmRail}>
+          {captainSendRhythmMoments.map((item) => (
+            <article
+              key={item.id}
+              style={{
+                ...captainSendRhythmCard,
+                ...(item.isActive ? captainSendRhythmCardActive : null),
+              }}
+            >
+              <div style={captainSendRhythmCardTop}>
+                <span style={captainSendRhythmWhen}>{item.when}</span>
+                <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {item.state}
+                </span>
+              </div>
+              <strong style={captainSendRhythmCardName}>{item.label}</strong>
+              <span>{item.detail}</span>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                {item.cta}
+              </SecondarySmallBtn>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div style={captainCommunicationWorkflowShell} aria-label="Captain send continuity">
@@ -16515,6 +16668,155 @@ const captainWeeklySendBoardPreview: CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 760,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmShell: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainSendRhythmTitle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 230px), auto)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.17)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(5,11,22,0.32))',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmFocusTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainSendRhythmName: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmDetail: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.48,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 58,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainSendRhythmRail: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainSendRhythmCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 122,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.25)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.38,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.075)',
+}
+
+const captainSendRhythmCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainSendRhythmWhen: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainSendRhythmCardName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.18,
+  fontWeight: 930,
   overflowWrap: 'anywhere',
 }
 
