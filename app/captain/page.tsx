@@ -263,6 +263,17 @@ type CaptainTodayChecklistItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeShortcutItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
 
 type CaptainPreMatchReadyGateItem = {
@@ -2010,6 +2021,24 @@ function CaptainHubContent() {
     ...captainCommunicationTimelineGrid,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainCommunicationTimelineGrid.gridTemplateColumns,
     gap: isMobile ? 8 : captainCommunicationTimelineGrid.gap,
+  }
+
+  const dynamicCaptainHomeShortcutShell: CSSProperties = {
+    ...captainHomeShortcutShell,
+    gap: isMobile ? 10 : captainHomeShortcutShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainHomeShortcutShell.padding,
+    borderRadius: isMobile ? 18 : captainHomeShortcutShell.borderRadius,
+  }
+
+  const dynamicCaptainHomeShortcutHero: CSSProperties = {
+    ...captainHomeShortcutHero,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainHomeShortcutHero.gridTemplateColumns,
+  }
+
+  const dynamicCaptainHomeShortcutGrid: CSSProperties = {
+    ...captainHomeShortcutGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeShortcutGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainHomeShortcutGrid.gap,
   }
 
   const dynamicCaptainWeekTimelineShell: CSSProperties = {
@@ -5936,6 +5965,76 @@ function CaptainHubContent() {
     : captainCommunicationTimelineDoneCount >= captainCommunicationTimelineItems.length
       ? 'All set'
       : 'Next up'
+  const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => [
+    {
+      id: 'today-checklist',
+      label: 'Today checklist',
+      state: captainTodayChecklistStatus,
+      detail: captainTodayChecklistPrimaryItem
+        ? captainTodayChecklistPrimaryItem.detail
+        : 'Open the compact match-day checklist.',
+      href: '#captain-today-checklist',
+      stage: 'analytics',
+      cta: 'Open today',
+      tone: captainTodayChecklistWarnCount > 0 ? 'warn' : captainTodayChecklistInfoCount > 0 ? 'info' : 'good',
+    },
+    {
+      id: 'send-lane',
+      label: 'Send lane',
+      state: captainCommunicationTimelineStatus,
+      detail: captainCommunicationTimelineCurrentItem?.detail || 'Open the availability, lineup, reminder, and recap send rhythm.',
+      href: '#captain-communication-timeline',
+      stage: 'messaging',
+      cta: 'Open sends',
+      tone: captainCommunicationTimelineCurrentItem?.tone || 'info',
+    },
+    {
+      id: 'lineup',
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build courts',
+      detail: workspaceState.lineupReady
+        ? 'Review the saved court order before sending or driving over.'
+        : 'Build the lineup before the captain tools can stay precise.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      id: 'message',
+      label: 'Message team',
+      state: workspaceState.messagingReady ? 'Ready' : 'Prep note',
+      detail: workspaceState.messagingReady
+        ? `${matchDayArrivalLabel} at ${matchDayLocationLabel} is ready for the team note.`
+        : 'Add lineup, arrival, or location details before players need the plan.',
+      href: messagingHref,
+      stage: 'messaging',
+      cta: 'Open messages',
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ], [
+    captainCommunicationTimelineCurrentItem,
+    captainCommunicationTimelineStatus,
+    captainTodayChecklistInfoCount,
+    captainTodayChecklistPrimaryItem,
+    captainTodayChecklistStatus,
+    captainTodayChecklistWarnCount,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainHomeShortcutPrimaryItem = captainHomeShortcutItems.find((item) => item.tone === 'warn')
+    ?? captainHomeShortcutItems.find((item) => item.tone === 'info')
+    ?? captainHomeShortcutItems[0]
+  const captainHomeShortcutStatus = captainHomeShortcutPrimaryItem?.tone === 'warn'
+    ? 'Start here'
+    : captainHomeShortcutPrimaryItem?.tone === 'info'
+      ? 'Next tap'
+      : 'Ready'
   const captainLineupLockOpenReplyCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-open')?.names.length ?? 0
   const captainLineupLockSwingCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-swing')?.names.length ?? 0
   const captainLineupLockConfirmedCount = captainAvailabilityReminderGroups.find((group) => group.id === 'availability-in')?.names.length || matchDayConfirmedCount
@@ -7669,7 +7768,7 @@ function CaptainHubContent() {
   )
 
   const captainTodayChecklist = (
-    <section style={dynamicCaptainTodayChecklistShell} aria-label="Captain today checklist compact mode">
+    <section id="captain-today-checklist" style={dynamicCaptainTodayChecklistShell} aria-label="Captain today checklist compact mode">
       <div style={captainTodayChecklistHeader}>
         <div>
           <div style={sectionKicker}>Today checklist</div>
@@ -8902,7 +9001,7 @@ function CaptainHubContent() {
   )
 
   const captainCommunicationTimeline = (
-    <section style={dynamicCaptainCommunicationTimelineShell} aria-label="Captain communication timeline">
+    <section id="captain-communication-timeline" style={dynamicCaptainCommunicationTimelineShell} aria-label="Captain communication timeline">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Communication timeline</div>
@@ -10846,6 +10945,60 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainHomeShortcut = (
+    <section style={dynamicCaptainHomeShortcutShell} aria-label="Captain home shortcut">
+      <div style={captainHomeShortcutHeader}>
+        <div>
+          <div style={sectionKicker}>Captain shortcut</div>
+          <h2 style={captainHomeShortcutTitle}>{isMobile ? 'Start with what matters.' : 'Start with the captain tools you need first.'}</h2>
+        </div>
+        <span style={captainHomeShortcutPrimaryItem?.tone === 'warn' ? warnBadge : captainHomeShortcutPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+          {captainHomeShortcutStatus}
+        </span>
+      </div>
+      <div style={captainHomeShortcutSub}>
+        Jump to today&apos;s checklist, the send lane, lineup, or team messages without scrolling the full captain board.
+      </div>
+
+      <div style={dynamicCaptainHomeShortcutHero}>
+        <div>
+          <div style={commandCenterLabel}>Best first tap</div>
+          <div style={captainHomeShortcutFocus}>{captainHomeShortcutPrimaryItem?.label || 'Today checklist'}</div>
+          <p style={captainHomeShortcutDetail}>
+            {captainHomeShortcutPrimaryItem?.detail || 'Open the highest-value captain tool for this match week.'}
+          </p>
+        </div>
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
+          {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
+        </PrimarySmallBtn>
+      </div>
+
+      <div style={dynamicCaptainHomeShortcutGrid}>
+        {captainHomeShortcutItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            disabled={!hasTeamScope || !premiumEnabled}
+            style={{
+              ...captainHomeShortcutCard,
+              ...(item.tone === 'warn' ? captainHomeShortcutCardWarn : item.tone === 'good' ? captainHomeShortcutCardGood : captainHomeShortcutCardInfo),
+              ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+            }}
+            onClick={() => handleCaptainAction(item.href, item.stage)}
+          >
+            <span style={captainHomeShortcutCardTop}>
+              <strong>{item.label}</strong>
+              <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                {item.state}
+              </span>
+            </span>
+            {!isSmallMobile ? <span style={captainHomeShortcutCardDetail}>{item.detail}</span> : null}
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+
   const captainPostMatchCloseout = (
     <section style={dynamicPostMatchCloseoutShell} aria-label="Captain post-match closeout">
       <div style={commandCenterHeader}>
@@ -11079,6 +11232,8 @@ function CaptainHubContent() {
 
           </div>
         </section>
+
+        {captainHomeShortcut}
 
         {captainMatchDayLockScreenSurface}
 
@@ -17487,6 +17642,131 @@ const captainCommunicationTimelineCardDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(125,211,252,0.17)',
+  background: 'rgba(8,13,28,0.88)',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.28)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeShortcutTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutHero: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 180px), auto)',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(5,11,22,0.32)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutFocus: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 21,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutDetail: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainHomeShortcutCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 92,
+  padding: 11,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeShortcutCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.23)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainHomeShortcutCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainHomeShortcutCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainHomeShortcutCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeShortcutCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
