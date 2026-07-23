@@ -2377,6 +2377,17 @@ function CaptainHubContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainLineupLockGrid.gridTemplateColumns,
   }
 
+  const dynamicCaptainLineupLockFlowGrid: CSSProperties = {
+    ...captainLineupLockFlowGrid,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainLineupLockFlowGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainLineupLockFlowGrid.gap,
+  }
+
+  const dynamicCaptainLineupLockFlowFocus: CSSProperties = {
+    ...captainLineupLockFlowFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainLineupLockFlowFocus.gridTemplateColumns,
+  }
+
   const dynamicCaptainLineupLockActionRow: CSSProperties = {
     ...captainLineupLockActionRow,
     display: isSmallMobile ? 'grid' : captainLineupLockActionRow.display,
@@ -6220,7 +6231,114 @@ function CaptainHubContent() {
   const captainLineupLockPrimaryCheck = captainLineupLockChecks.find((check) => check.tone === 'warn')
     ?? captainLineupLockChecks.find((check) => check.tone === 'info')
     ?? captainLineupLockChecks[0]
-  const captainLineupLockCanSend = captainLineupLockIssueCount === 0 && workspaceState.lineupReady
+  const captainLineupLockCanSend = captainLineupLockIssueCount === 0 && workspaceState.lineupReady && workspaceState.messagingReady && captainCourtBackupCount === 0
+  const captainLineupLockFlow = useMemo<CaptainLineupLockCheck[]>(() => [
+    {
+      label: 'Confirm availability',
+      state: captainLineupLockOpenReplyCount > 0
+        ? `${captainLineupLockOpenReplyCount} waiting`
+        : captainLineupLockSwingCount > 0
+          ? `${captainLineupLockSwingCount} swing`
+          : 'Clean',
+      detail: captainLineupLockOpenReplyCount > 0
+        ? 'Chase silent players before setting courts.'
+        : captainLineupLockSwingCount > 0
+          ? 'Resolve maybe or late-change replies before the final send.'
+          : 'Availability is clean enough to trust the lineup.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability',
+      tone: captainLineupLockOpenReplyCount > 0 || captainLineupLockSwingCount > 0 ? 'warn' : 'good',
+      cta: captainLineupLockOpenReplyCount > 0 ? 'Chase replies' : captainLineupLockSwingCount > 0 ? 'Resolve maybe' : 'Review replies',
+    },
+    {
+      label: 'Build courts',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady
+        ? 'Saved courts are ready for a confidence review.'
+        : 'Build the court order before any final team note goes out.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+      cta: workspaceState.lineupReady ? 'Review courts' : 'Build lineup',
+    },
+    {
+      label: 'Review confidence',
+      state: matchDayLineupRows.length
+        ? captainCourtBackupCount > 0
+          ? `${captainCourtBackupCount} backup`
+          : captainCourtWatchCount > 0
+            ? `${captainCourtWatchCount} watch`
+            : `${captainCourtConfidencePercent}% solid`
+        : 'Lineup first',
+      detail: matchDayLineupRows.length
+        ? captainCourtBackupCount > 0
+          ? 'Fix backup-needed courts before calling the lineup final.'
+          : captainCourtWatchCount > 0
+            ? 'Review rating-watch courts before sending.'
+            : 'Court confidence is clean enough to send.'
+        : 'Save courts before confidence checks can attach to players.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      tone: captainCourtBackupCount > 0 ? 'warn' : captainCourtWatchCount > 0 ? 'info' : matchDayLineupRows.length ? 'good' : 'warn',
+      cta: captainCourtBackupCount > 0 ? 'Fix courts' : 'Review confidence',
+    },
+    {
+      label: 'Add logistics',
+      state: workspaceState.messagingReady ? 'Ready' : workspaceState.lineupReady ? 'Add details' : 'Lineup first',
+      detail: workspaceState.messagingReady
+        ? `${matchDayArrivalLabel} at ${matchDayLocationLabel} is ready for the team note.`
+        : workspaceState.lineupReady
+          ? 'Add arrival time and site before players get the final plan.'
+          : 'Build courts before the final reminder is useful.',
+      href: messagingHref,
+      stage: 'messaging',
+      tone: workspaceState.messagingReady ? 'good' : workspaceState.lineupReady ? 'info' : 'warn',
+      cta: 'Prep message',
+    },
+    {
+      label: 'Send decision',
+      state: captainLineupLockCanSend ? 'Ready to send' : captainLineupLockPrimaryCheck.state,
+      detail: captainLineupLockCanSend
+        ? 'Mark the lineup ready, then send the team note from the communication lane.'
+        : captainLineupLockPrimaryCheck.detail,
+      href: captainLineupLockCanSend ? messagingHref : captainLineupLockPrimaryCheck.href,
+      stage: captainLineupLockCanSend ? 'messaging' : captainLineupLockPrimaryCheck.stage,
+      tone: captainLineupLockCanSend ? 'good' : captainLineupLockPrimaryCheck.tone,
+      cta: captainLineupLockCanSend ? 'Open send lane' : captainLineupLockPrimaryCheck.cta,
+    },
+  ], [
+    captainCourtBackupCount,
+    captainCourtConfidencePercent,
+    captainCourtWatchCount,
+    captainLineupLockCanSend,
+    captainLineupLockOpenReplyCount,
+    captainLineupLockPrimaryCheck.cta,
+    captainLineupLockPrimaryCheck.detail,
+    captainLineupLockPrimaryCheck.href,
+    captainLineupLockPrimaryCheck.stage,
+    captainLineupLockPrimaryCheck.state,
+    captainLineupLockPrimaryCheck.tone,
+    captainLineupLockSwingCount,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLineupRows.length,
+    matchDayLocationLabel,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+  const captainLineupLockFlowIssueCount = captainLineupLockFlow.filter((item) => item.tone === 'warn').length
+  const captainLineupLockFlowReadyCount = captainLineupLockFlow.filter((item) => item.tone === 'good').length
+  const captainLineupLockFlowPrimaryItem = captainLineupLockFlow.find((item) => item.tone === 'warn')
+    ?? captainLineupLockFlow.find((item) => item.tone === 'info')
+    ?? captainLineupLockFlow[0]
+  const captainLineupLockFlowStatus = captainLineupLockCanSend
+    ? 'Ready to send'
+    : captainLineupLockFlowIssueCount > 0
+      ? `${captainLineupLockFlowIssueCount} to fix`
+      : `${captainLineupLockFlowReadyCount}/${captainLineupLockFlow.length} ready`
   const captainMatchLogisticsHasOpponent = weekAtGlance.opponentLabel !== 'Opponent not set'
   const captainMatchLogisticsHasDate = weekAtGlance.eventDateLabel !== 'Match date TBD'
   const captainMatchLogisticsHasArrival = matchDayArrivalLabel !== 'Add arrival'
@@ -9379,6 +9497,58 @@ function CaptainHubContent() {
       </div>
       <div style={sectionSub}>
         Confirm the player pool, reply gaps, court plan, maybe risk, and message details before the lineup leaves your phone.
+      </div>
+
+      <div style={captainLineupLockFlowShell} aria-label="Captain lineup lock flow">
+        <div style={captainLineupLockFlowHeader}>
+          <div>
+            <div style={commandCenterLabel}>Lineup lock flow</div>
+            <div style={captainLineupLockFlowTitle}>{isMobile ? 'One send decision.' : 'Turn availability, courts, confidence, and logistics into one send decision.'}</div>
+          </div>
+          <span style={captainLineupLockCanSend ? badgeGreen : captainLineupLockFlowIssueCount > 0 ? warnBadge : badgeBlue}>
+            {captainLineupLockFlowStatus}
+          </span>
+        </div>
+
+        <div style={dynamicCaptainLineupLockFlowFocus}>
+          <div>
+            <div style={commandCenterLabel}>Next lock step</div>
+            <div style={captainLineupLockFlowFocusTitle}>{captainLineupLockFlowPrimaryItem.label}</div>
+            <p style={captainLineupLockFlowDetail}>{captainLineupLockFlowPrimaryItem.detail}</p>
+          </div>
+          <div style={dynamicCaptainLineupLockActionRow}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainLineupLockCanSend} onClick={() => handleWeekStatusUpdate('ready-to-send')}>
+              {captainLineupLockCanSend ? 'Mark ready to send' : 'Finish lock steps'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(captainLineupLockFlowPrimaryItem.href, captainLineupLockFlowPrimaryItem.stage)}>
+              {captainLineupLockFlowPrimaryItem.cta}
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={dynamicCaptainLineupLockFlowGrid}>
+          {captainLineupLockFlow.map((item, index) => (
+            <article
+              key={item.label}
+              style={{
+                ...captainLineupLockFlowCard,
+                ...(item.label === captainLineupLockFlowPrimaryItem.label ? captainLineupLockFlowCardActive : {}),
+              }}
+            >
+              <div style={captainLineupLockFlowCardTop}>
+                <span style={captainLineupLockFlowStep}>Step {index + 1}</span>
+                <span style={item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                  {item.state}
+                </span>
+              </div>
+              <strong style={captainLineupLockFlowName}>{item.label}</strong>
+              <span style={captainLineupLockFlowDetail}>{item.detail}</span>
+              <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(item.href, item.stage)}>
+                {item.cta}
+              </SecondarySmallBtn>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div style={captainLineupLockHero}>
@@ -16244,6 +16414,124 @@ const captainLineupLockMeterFill: CSSProperties = {
   height: '100%',
   borderRadius: 999,
   background: 'linear-gradient(90deg, rgba(155,225,29,0.82), rgba(96,165,250,0.78))',
+}
+
+const captainLineupLockFlowShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(2,6,23,0.24)',
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainLineupLockFlowTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 220px), auto)',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowFocusTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 940,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainLineupLockFlowCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 154,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(5,11,22,0.25)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowCardActive: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainLineupLockFlowCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainLineupLockFlowStep: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainLineupLockFlowDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const captainLineupLockGrid: CSSProperties = {
