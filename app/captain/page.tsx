@@ -2041,6 +2041,18 @@ function CaptainHubContent() {
     gap: isMobile ? 8 : captainHomeShortcutGrid.gap,
   }
 
+  const dynamicCaptainToolLaneShell: CSSProperties = {
+    ...captainToolLaneShell,
+    gap: isMobile ? 10 : captainToolLaneShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainToolLaneShell.padding,
+    borderRadius: isMobile ? 18 : captainToolLaneShell.borderRadius,
+  }
+
+  const dynamicCaptainToolLaneBody: CSSProperties = {
+    ...captainToolLaneBody,
+    gap: isMobile ? 12 : captainToolLaneBody.gap,
+  }
+
   const dynamicCaptainWeekTimelineShell: CSSProperties = {
     ...captainWeekTimelineShell,
     gap: isMobile ? 12 : captainWeekTimelineShell.gap,
@@ -11235,83 +11247,139 @@ function CaptainHubContent() {
 
         {captainHomeShortcut}
 
-        {captainMatchDayLockScreenSurface}
+        <details open style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">
+          <summary style={captainToolLaneSummary}>
+            <span style={captainToolLaneSummaryCopy}>
+              <span style={sectionKicker}>Match-day tools</span>
+              <span style={captainToolLaneTitle}>{isMobile ? 'Handle match day.' : 'Handle match day without hunting.'}</span>
+              <span style={captainToolLaneMeta}>Live queue, readiness, arrivals, court handoffs, and the one-screen checklist.</span>
+            </span>
+            <span style={captainTodayChecklistWarnCount > 0 || captainMatchDayLockWarnCount > 0 ? warnBadge : badgeGreen}>
+              {captainTodayChecklistStatus}
+            </span>
+          </summary>
+          <div style={dynamicCaptainToolLaneBody}>
+            {captainMatchDayLockScreenSurface}
 
-        {captainOneThumbMode}
+            {captainOneThumbMode}
 
-        {captainPreMatchReadyGate}
+            {captainPreMatchReadyGate}
 
-        {captainMatchDayCommandStripSurface}
+            {captainMatchDayCommandStripSurface}
 
-        {captainTodayChecklist}
+            {captainTodayChecklist}
 
-        {captainEmergencyMode}
+            {captainEmergencyMode}
 
-        {captainChangeAckTracker}
+            {captainChangeAckTracker}
 
-        {captainArrivalRiskTracker}
+            {captainArrivalRiskTracker}
 
-        {captainCourtArrivalBoard}
+            {captainCourtArrivalBoard}
 
-        {captainCourtHandoffTimer}
+            {captainCourtHandoffTimer}
 
-        {captainNotificationQueue}
+            {captainNotificationQueue}
 
-        {captainPlayerBriefCards}
+            {captainPlayerBriefCards}
 
-        {captainAfterPointResetRail}
+            {captainAfterPointResetRail}
+          </div>
+        </details>
 
-        {captainMorningBrief}
+        <details open style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">
+          <summary style={captainToolLaneSummary}>
+            <span style={captainToolLaneSummaryCopy}>
+              <span style={sectionKicker}>Communication tools</span>
+              <span style={captainToolLaneTitle}>{isMobile ? 'Send the right note.' : 'Send the right note at the right time.'}</span>
+              <span style={captainToolLaneMeta}>Morning brief, availability ask, lineup send, logistics, reminders, and follow-up tracking.</span>
+            </span>
+            <span style={captainCommunicationTimelineCurrentItem?.tone === 'good' ? badgeGreen : captainCommunicationTimelineCurrentItem?.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainCommunicationTimelineStatus}
+            </span>
+          </summary>
+          <div style={dynamicCaptainToolLaneBody}>
+            {captainMorningBrief}
 
-        {captainCommunicationTimeline}
+            {captainCommunicationTimeline}
 
-        {captainWeeklySendBoard}
+            {captainWeeklySendBoard}
 
-        {captainAvailabilityReminderBoard}
+            {captainAvailabilityReminderBoard}
 
-        {captainLineupLockChecklist}
+            {captainLineupLockChecklist}
 
-        {captainMatchLogisticsSurface}
+            {captainMatchLogisticsSurface}
 
-        {captainSendQueue}
+            {captainSendQueue}
 
-        {captainDecisionLog}
+            {captainDecisionLog}
 
-        {captainHandoffSheet}
+            {captainHandoffSheet}
 
-        {captainPreSendReview}
+            {captainPreSendReview}
 
-        {captainPostSendTracker}
+            {captainPostSendTracker}
+          </div>
+        </details>
 
-        {captainCommandCenter}
+        <details open={!isMobile} style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">
+          <summary style={captainToolLaneSummary}>
+            <span style={captainToolLaneSummaryCopy}>
+              <span style={sectionKicker}>Planning tools</span>
+              <span style={captainToolLaneTitle}>{isMobile ? 'Set the lineup.' : 'Set the lineup with context.'}</span>
+              <span style={captainToolLaneMeta}>Season setup, opponent scout, readiness, nudges, bench coverage, and court confidence.</span>
+            </span>
+            <span style={captainReadinessScore >= 80 ? badgeGreen : captainReadinessScore >= 40 ? badgeBlue : warnBadge}>
+              {captainReadinessScore}% ready
+            </span>
+          </summary>
+          <div style={dynamicCaptainToolLaneBody}>
+            {captainCommandCenter}
 
-        {captainSeasonLaunchChecklist}
+            {captainSeasonLaunchChecklist}
 
-        {captainOpponentScoutPocket}
+            {captainOpponentScoutPocket}
 
-        {captainPlayerReadinessPulse}
+            {captainPlayerReadinessPulse}
 
-        {captainNudgeComposer}
+            {captainNudgeComposer}
 
-        {captainWeekTimeline}
+            {captainWeekTimeline}
 
-        {captainCourtConfidenceMeter}
+            {captainCourtConfidenceMeter}
 
-        {captainBenchReadinessRail}
+            {captainBenchReadinessRail}
 
-        {captainCourtSwapAssistant}
+            {captainCourtSwapAssistant}
 
-        {captainMatchDaySheet}
+            {captainMatchDaySheet}
+          </div>
+        </details>
 
-        {captainScoreCaptureChecklist}
+        <details open={!isMobile || captainScoreCaptureLoggedCount > 0 || postMatchClosed} style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">
+          <summary style={captainToolLaneSummary}>
+            <span style={captainToolLaneSummaryCopy}>
+              <span style={sectionKicker}>Closeout tools</span>
+              <span style={captainToolLaneTitle}>{isMobile ? 'Wrap the match.' : 'Wrap the match and make it fun.'}</span>
+              <span style={captainToolLaneMeta}>Score capture, recap inbox, fun recap copy, and final closeout checks.</span>
+            </span>
+            <span style={postMatchClosed || captainScoreCaptureLoggedCount > 0 ? badgeGreen : captainScoreCapturePendingCount > 0 ? badgeBlue : warnBadge}>
+              {postMatchClosed ? 'Closed' : captainScoreCaptureLoggedCount > 0 ? `${captainScoreCaptureLoggedCount} scores` : 'After play'}
+            </span>
+          </summary>
+          <div style={dynamicCaptainToolLaneBody}>
+            {captainScoreCaptureChecklist}
 
-        {captainMatchRecapInbox}
+            {captainMatchRecapInbox}
 
-        {captainFunRecapComposer}
+            {captainFunRecapComposer}
 
-        {captainPostMatchRecapBuilder}
+            {captainPostMatchRecapBuilder}
 
-        {captainPostMatchCloseout}
+            {captainPostMatchCloseout}
+          </div>
+        </details>
 
         <section style={dynamicCaptainDecisionPathShell} aria-label="Captain decision path">
           <div style={captainDecisionPathHeaderStyle}>
@@ -17769,6 +17837,59 @@ const captainHomeShortcutCardDetail: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainToolLaneShell: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.76)',
+  boxShadow: '0 16px 38px rgba(2,8,23,0.20)',
+  overflowWrap: 'anywhere',
+}
+
+const captainToolLaneSummary: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  listStyle: 'none',
+  cursor: 'pointer',
+}
+
+const captainToolLaneSummaryCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const captainToolLaneTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainToolLaneMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const captainToolLaneBody: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
 }
 
 const captainWeekTimelineShell: CSSProperties = {
