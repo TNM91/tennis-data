@@ -302,6 +302,20 @@ type CaptainPostSendTrackerItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainMatchRecapInboxStatus = 'include' | 'hold' | 'sent'
+
+type CaptainMatchRecapInboxItem = {
+  id: string
+  label: string
+  source: string
+  state: string
+  detail: string
+  body: string
+  action: string
+  status: CaptainMatchRecapInboxStatus
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainChangeAckTarget = {
   id: string
   name: string
@@ -546,6 +560,7 @@ const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
 const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_queue'
 const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
 const CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY = 'tenaceiq_captain_after_point_reset'
+const CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY = 'tenaceiq_captain_match_recap_inbox'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 type CaptainLineupAssignment = {
@@ -653,6 +668,15 @@ type CaptainAfterPointResetEntry = {
   court_key?: string
   court_label?: string
   status?: CaptainAfterPointResetStatus
+  updated_at?: string
+}
+
+type CaptainMatchRecapInboxEntry = {
+  id?: string
+  event_key?: string
+  item_key?: string
+  label?: string
+  status?: CaptainMatchRecapInboxStatus
   updated_at?: string
 }
 
@@ -896,6 +920,7 @@ function CaptainHubContent() {
   const [copiedCaptainSendQueueId, setCopiedCaptainSendQueueId] = useState('')
   const [copiedCaptainHandoffSheet, setCopiedCaptainHandoffSheet] = useState(false)
   const [copiedCaptainPostMatchRecap, setCopiedCaptainPostMatchRecap] = useState(false)
+  const [copiedCaptainMatchRecapInboxId, setCopiedCaptainMatchRecapInboxId] = useState('')
   const [copiedCaptainEmergencyMode, setCopiedCaptainEmergencyMode] = useState(false)
   const [copiedCaptainChangeAckChase, setCopiedCaptainChangeAckChase] = useState(false)
   const [copiedCaptainArrivalRiskMessage, setCopiedCaptainArrivalRiskMessage] = useState(false)
@@ -911,6 +936,7 @@ function CaptainHubContent() {
   const [captainNotificationQueueVersion, setCaptainNotificationQueueVersion] = useState(0)
   const [captainPlayerBriefVersion, setCaptainPlayerBriefVersion] = useState(0)
   const [captainAfterPointResetVersion, setCaptainAfterPointResetVersion] = useState(0)
+  const [captainMatchRecapInboxVersion, setCaptainMatchRecapInboxVersion] = useState(0)
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -2122,6 +2148,24 @@ function CaptainHubContent() {
   const dynamicCaptainScoreCaptureGrid: CSSProperties = {
     ...captainScoreCaptureGrid,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainScoreCaptureGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainMatchRecapInboxShell: CSSProperties = {
+    ...captainMatchRecapInboxShell,
+    gap: isMobile ? 12 : captainMatchRecapInboxShell.gap,
+    padding: isSmallMobile ? 16 : isMobile ? 18 : captainMatchRecapInboxShell.padding,
+    borderRadius: isMobile ? 20 : captainMatchRecapInboxShell.borderRadius,
+  }
+
+  const dynamicCaptainMatchRecapInboxGrid: CSSProperties = {
+    ...captainMatchRecapInboxGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainMatchRecapInboxGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainMatchRecapInboxList: CSSProperties = {
+    ...captainMatchRecapInboxList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainMatchRecapInboxList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainMatchRecapInboxList.gap,
   }
 
   const dynamicCaptainPostMatchRecapShell: CSSProperties = {
@@ -4591,6 +4635,121 @@ function CaptainHubContent() {
   const captainPostMatchRecapIssueRows = captainScoreCaptureRows.filter((row) => row.status === 'issue').slice(0, isMobile ? 2 : 3)
   const captainPostMatchRecapCompleteRows = captainScoreCaptureRows.filter((row) => row.status === 'complete' || row.status === 'score-captured')
   const captainPostMatchRecapRecentDecisions = captainDecisionLogEntries.slice(0, isMobile ? 2 : 3)
+  const captainMatchRecapInboxEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainMatchRecapInboxEntry>()
+    if (captainMatchRecapInboxVersion < 0) return new Map<string, CaptainMatchRecapInboxEntry>()
+
+    return new Map(
+      readLocalArray<CaptainMatchRecapInboxEntry>(CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.item_key), entry] as const)
+        .filter(([itemKey]) => Boolean(itemKey)),
+    )
+  }, [captainMatchRecapInboxVersion, workspaceState.currentEventKey])
+
+  const captainMatchRecapInboxItems = useMemo<CaptainMatchRecapInboxItem[]>(() => {
+    const issueItems = captainScoreCaptureRows
+      .filter((row) => row.status === 'issue')
+      .slice(0, isMobile ? 2 : 3)
+      .map((row) => ({
+        id: `score-issue-${row.courtKey}`,
+        label: row.courtLabel,
+        source: 'Score issue',
+        state: 'Issue',
+        detail: row.playerLabel,
+        body: `${row.courtLabel}: issue noted for ${row.playerLabel}.`,
+        action: 'Include issue',
+        tone: 'warn' as const,
+      }))
+    const openScoreItems = captainScoreCaptureRows
+      .filter((row) => row.status === 'pending')
+      .slice(0, isMobile ? 2 : 3)
+      .map((row) => ({
+        id: `open-score-${row.courtKey}`,
+        label: row.courtLabel,
+        source: 'Open score',
+        state: 'Open',
+        detail: row.playerLabel,
+        body: `${row.courtLabel}: score still needs capture for ${row.playerLabel}.`,
+        action: 'Chase score',
+        tone: 'info' as const,
+      }))
+    const resetItems = captainAfterPointResetItems
+      .filter((item) => item.status === 'update' || item.status === 'captured' || item.status === 'issue')
+      .slice(0, isMobile ? 2 : 3)
+      .map((item) => ({
+        id: `reset-${item.courtKey}`,
+        label: item.courtLabel,
+        source: 'Reset update',
+        state: item.state,
+        detail: item.prompt,
+        body: `${item.courtLabel}: ${item.prompt}`,
+        action: item.nextAction,
+        tone: item.tone,
+      }))
+    const decisionItems = captainDecisionLogEntries
+      .slice(0, isMobile ? 2 : 3)
+      .map((entry, index) => {
+        const itemKey = safeText(entry.id, `decision-${index}-${safeKey(entry.label || 'captain-call')}`)
+
+        return {
+          id: `decision-${itemKey}`,
+          label: safeText(entry.label, 'Captain call'),
+          source: 'Decision trail',
+          state: safeText(entry.action, 'Saved'),
+          detail: safeText(entry.detail, 'Decision saved for this match.'),
+          body: `${safeText(entry.label, 'Captain call')}: ${safeText(entry.action, 'Saved')} - ${safeText(entry.detail, 'Decision saved for this match.')}`,
+          action: 'Include call',
+          tone: entry.tone || 'info',
+        }
+      })
+    const rawItems = [...issueItems, ...openScoreItems, ...resetItems, ...decisionItems]
+
+    if (!rawItems.length) {
+      rawItems.push({
+        id: 'recap-inbox-empty',
+        label: 'No recap items',
+        source: 'Inbox',
+        state: 'Clear',
+        detail: 'Capture scores or copy court updates and they will appear here.',
+        body: 'No recap inbox items are ready yet.',
+        action: 'Capture scores',
+        tone: 'info',
+      })
+    }
+
+    return rawItems.slice(0, isMobile ? 6 : 9).map((item) => {
+      const saved = captainMatchRecapInboxEntryMap.get(item.id)
+      const defaultStatus: CaptainMatchRecapInboxStatus = item.tone === 'warn' || item.source === 'Reset update' ? 'include' : 'hold'
+      const status = saved?.status || defaultStatus
+
+      return {
+        ...item,
+        status,
+      }
+    })
+  }, [
+    captainAfterPointResetItems,
+    captainDecisionLogEntries,
+    captainMatchRecapInboxEntryMap,
+    captainScoreCaptureRows,
+    isMobile,
+  ])
+  const captainMatchRecapInboxIncludeCount = captainMatchRecapInboxItems.filter((item) => item.status === 'include').length
+  const captainMatchRecapInboxHoldCount = captainMatchRecapInboxItems.filter((item) => item.status === 'hold').length
+  const captainMatchRecapInboxSentCount = captainMatchRecapInboxItems.filter((item) => item.status === 'sent').length
+  const captainMatchRecapInboxPrimaryItem = captainMatchRecapInboxItems.find((item) => item.status === 'include' && item.tone === 'warn')
+    ?? captainMatchRecapInboxItems.find((item) => item.status === 'include')
+    ?? captainMatchRecapInboxItems.find((item) => item.status === 'hold')
+    ?? captainMatchRecapInboxItems[0]
+  const captainMatchRecapInboxStatus = captainMatchRecapInboxIncludeCount > 0
+    ? `${captainMatchRecapInboxIncludeCount} include`
+    : captainMatchRecapInboxHoldCount > 0
+      ? `${captainMatchRecapInboxHoldCount} hold`
+      : `${captainMatchRecapInboxSentCount} sent`
+  const captainMatchRecapInboxLines = captainMatchRecapInboxItems
+    .filter((item) => item.status === 'include')
+    .map((item) => `${item.source}: ${item.body}`)
   const captainPostMatchRecapPrimaryState = captainScoreCaptureRows.length
     ? captainScoreCaptureIssueCount > 0
       ? `${captainScoreCaptureIssueCount} issue`
@@ -4620,6 +4779,8 @@ function CaptainHubContent() {
       issueLine,
       captainScoreCapturePendingCount > 0 ? `Open: ${captainScoreCapturePendingCount} court${captainScoreCapturePendingCount === 1 ? '' : 's'} still need score capture.` : 'Open: score capture is clear.',
       captainPostMatchRecapCompleteRows.length ? `Captured courts: ${captainPostMatchRecapCompleteRows.slice(0, isMobile ? 3 : 5).map((row) => row.courtLabel).join(', ')}` : '',
+      captainMatchRecapInboxLines.length ? 'Recap inbox:' : '',
+      ...captainMatchRecapInboxLines.slice(0, isMobile ? 4 : 6),
       decisionLines.length ? 'Recent captain trail:' : '',
       ...decisionLines,
       postMatchClosed ? 'Week status: closed.' : 'Next: upload the scorecard and mark the week closed.',
@@ -4628,6 +4789,7 @@ function CaptainHubContent() {
     captainPostMatchRecapCompleteRows,
     captainPostMatchRecapIssueRows,
     captainPostMatchRecapRecentDecisions,
+    captainMatchRecapInboxLines,
     captainScoreCaptureIssueCount,
     captainScoreCaptureLoggedCount,
     captainScoreCapturePendingCount,
@@ -5291,6 +5453,69 @@ function CaptainHubContent() {
       })
     } catch {
       setCopiedCaptainPostMatchRecap(false)
+    }
+  }
+
+  function writeCaptainMatchRecapInboxEntry(item: CaptainMatchRecapInboxItem, status: CaptainMatchRecapInboxStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainMatchRecapInboxEntry>(CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY)
+    const nextEntry: CaptainMatchRecapInboxEntry = {
+      id: `captain-match-recap-inbox-${workspaceState.currentEventKey}-${item.id}`,
+      event_key: workspaceState.currentEventKey,
+      item_key: item.id,
+      label: item.label,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.item_key) === item.id
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainMatchRecapInboxVersion((value) => value + 1)
+  }
+
+  function handleCaptainMatchRecapInboxStatus(item: CaptainMatchRecapInboxItem, status: CaptainMatchRecapInboxStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainMatchRecapInboxEntry(item, status)
+    appendCaptainDecisionLog({
+      label: 'Recap inbox updated',
+      detail: `${item.source} item ${status === 'include' ? 'included' : status === 'sent' ? 'marked sent' : 'held'}: ${item.label}.`,
+      action: status === 'include' ? 'Include recap' : status === 'sent' ? 'Marked sent' : 'Hold recap',
+      tone: status === 'include' ? item.tone : status === 'sent' ? 'good' : 'info',
+    })
+  }
+
+  async function handleCopyCaptainMatchRecapInboxItem(item: CaptainMatchRecapInboxItem) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    if (!item.body || typeof navigator === 'undefined' || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(item.body)
+      setCopiedCaptainMatchRecapInboxId(item.id)
+      writeCaptainMatchRecapInboxEntry(item, 'include')
+      appendCaptainDecisionLog({
+        label: 'Recap inbox item copied',
+        detail: `${item.source} copied for ${item.label}.`,
+        action: 'Copy inbox item',
+        tone: item.tone,
+      })
+    } catch {
+      setCopiedCaptainMatchRecapInboxId('')
     }
   }
 
@@ -7813,6 +8038,123 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainMatchRecapInbox = (
+    <section style={dynamicCaptainMatchRecapInboxShell} aria-label="Captain match recap inbox">
+      <div style={captainMatchRecapInboxHeader}>
+        <div>
+          <div style={sectionKicker}>Recap inbox</div>
+          <h2 style={captainMatchRecapInboxTitle}>{isMobile ? 'Choose recap items.' : 'Choose what belongs in the match recap.'}</h2>
+        </div>
+        <span style={captainMatchRecapInboxPrimaryItem?.tone === 'warn' && captainMatchRecapInboxIncludeCount > 0 ? warnBadge : captainMatchRecapInboxIncludeCount > 0 ? badgeBlue : badgeGreen}>
+          {captainMatchRecapInboxStatus}
+        </span>
+      </div>
+      <div style={captainMatchRecapInboxSub}>
+        Pull score issues, reset updates, open scores, and captain calls into one final recap queue.
+      </div>
+
+      <div style={captainMatchRecapInboxSummaryGrid}>
+        <div style={captainMatchRecapInboxSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Include</span>
+          <strong style={commandCenterSnapshotValue}>{captainMatchRecapInboxIncludeCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Goes in recap</span>
+        </div>
+        <div style={captainMatchRecapInboxSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Hold</span>
+          <strong style={commandCenterSnapshotValue}>{captainMatchRecapInboxHoldCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Keep out for now</span>
+        </div>
+        <div style={captainMatchRecapInboxSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Sent</span>
+          <strong style={commandCenterSnapshotValue}>{captainMatchRecapInboxSentCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Already handled</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainMatchRecapInboxGrid}>
+        <div style={captainMatchRecapInboxMain}>
+          <div style={captainMatchRecapInboxTop}>
+            <div>
+              <div style={commandCenterLabel}>Top recap item</div>
+              <div style={captainMatchRecapInboxFocus}>{captainMatchRecapInboxPrimaryItem?.label ?? 'No item yet'}</div>
+            </div>
+            <span style={captainMatchRecapInboxPrimaryItem?.tone === 'warn' ? warnBadge : captainMatchRecapInboxPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainMatchRecapInboxPrimaryItem?.state ?? 'Clear'}
+            </span>
+          </div>
+          <p style={captainMatchRecapInboxDetail}>
+            {captainMatchRecapInboxPrimaryItem?.detail ?? 'Capture scores or copy reset updates and the recap inbox will fill itself.'}
+          </p>
+          <div style={captainMatchRecapInboxPreview}>
+            {captainMatchRecapInboxPrimaryItem?.body || 'No recap inbox item ready yet.'}
+          </div>
+          <div style={captainMatchRecapInboxActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainMatchRecapInboxPrimaryItem?.body} onClick={() => captainMatchRecapInboxPrimaryItem ? void handleCopyCaptainMatchRecapInboxItem(captainMatchRecapInboxPrimaryItem) : undefined}>
+              {copiedCaptainMatchRecapInboxId === captainMatchRecapInboxPrimaryItem?.id ? 'Copied item' : 'Copy inbox item'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainMatchRecapInboxPrimaryItem} onClick={() => captainMatchRecapInboxPrimaryItem ? handleCaptainMatchRecapInboxStatus(captainMatchRecapInboxPrimaryItem, 'include') : undefined}>
+              Include in recap
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainMatchRecapInboxPrimaryItem} onClick={() => captainMatchRecapInboxPrimaryItem ? handleCaptainMatchRecapInboxStatus(captainMatchRecapInboxPrimaryItem, 'hold') : undefined}>
+              Hold item
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainMatchRecapInboxPanel}>
+          <div style={commandCenterLabel}>Inbox items</div>
+          <div style={dynamicCaptainMatchRecapInboxList}>
+            {captainMatchRecapInboxItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainMatchRecapInboxCard,
+                  ...(item.tone === 'warn' ? captainMatchRecapInboxCardWarn : item.tone === 'good' ? captainMatchRecapInboxCardGood : captainMatchRecapInboxCardInfo),
+                }}
+              >
+                <div style={captainMatchRecapInboxCardTop}>
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>{item.source}</span>
+                  </div>
+                  <span style={item.status === 'sent' ? badgeGreen : item.status === 'include' ? badgeBlue : badgeSlate}>
+                    {item.status === 'include' ? 'Include' : item.status === 'sent' ? 'Sent' : 'Hold'}
+                  </span>
+                </div>
+                <span style={captainMatchRecapInboxCardDetail}>{item.detail}</span>
+                {!isSmallMobile ? (
+                  <div style={captainMatchRecapInboxCardPreview}>
+                    {item.body}
+                  </div>
+                ) : null}
+                <div style={captainMatchRecapInboxButtonGrid}>
+                  {(['include', 'hold', 'sent'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainMatchRecapInboxButton,
+                        ...(item.status === status ? captainMatchRecapInboxButtonActive : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainMatchRecapInboxStatus(item, status)}
+                    >
+                      {status === 'include' ? 'Include' : status === 'sent' ? 'Sent' : 'Hold'}
+                    </button>
+                  ))}
+                </div>
+                <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled || !item.body} onClick={() => void handleCopyCaptainMatchRecapInboxItem(item)}>
+                  {copiedCaptainMatchRecapInboxId === item.id ? 'Copied item' : 'Copy item'}
+                </PrimarySmallBtn>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainPostMatchRecapBuilder = (
     <section style={dynamicCaptainPostMatchRecapShell} aria-label="Captain post-match recap builder">
       <div style={commandCenterHeader}>
@@ -8525,6 +8867,8 @@ function CaptainHubContent() {
         {captainMatchDaySheet}
 
         {captainScoreCaptureChecklist}
+
+        {captainMatchRecapInbox}
 
         {captainPostMatchRecapBuilder}
 
@@ -14446,6 +14790,249 @@ const captainScoreCaptureChoiceWarn: CSSProperties = {
   ...captainScoreCaptureChoice,
   border: '1px solid rgba(251,191,36,0.28)',
   background: 'rgba(251,191,36,0.13)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainMatchRecapInboxShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.08), rgba(8,13,28,0.78) 43%, rgba(22,32,50,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainMatchRecapInboxHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.92fr) minmax(min(100%, 390px), 1.08fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'rgba(5,11,22,0.31)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 112,
+  maxHeight: 220,
+  overflow: 'auto',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(2,6,23,0.30)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 190,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainMatchRecapInboxCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainMatchRecapInboxCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainMatchRecapInboxCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxCardPreview: CSSProperties = {
+  minWidth: 0,
+  minHeight: 68,
+  maxHeight: 116,
+  overflow: 'auto',
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,6,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.45,
+  fontWeight: 740,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainMatchRecapInboxButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainMatchRecapInboxButtonActive: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.30)',
+  background: 'rgba(251,191,36,0.14)',
   color: 'var(--foreground-strong)',
 }
 
