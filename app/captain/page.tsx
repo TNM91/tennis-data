@@ -2155,6 +2155,12 @@ function CaptainHubContent() {
     gap: isMobile ? 8 : captainHomePriorityGrid.gap,
   }
 
+  const dynamicCaptainHomePulseRail: CSSProperties = {
+    ...captainHomePulseRail,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomePulseRail.gridTemplateColumns,
+    gap: isMobile ? 7 : captainHomePulseRail.gap,
+  }
+
   const dynamicCaptainToolLaneShell: CSSProperties = {
     ...captainToolLaneShell,
     gap: isMobile ? 10 : captainToolLaneShell.gap,
@@ -6587,6 +6593,14 @@ function CaptainHubContent() {
   const captainHomePriorityStatus = captainHomePriorityIssueCount > 0
     ? `${captainHomePriorityIssueCount} needs attention`
     : `${captainHomePriorityReadyCount}/${captainHomePriorityItems.length} ready`
+  const captainHomePulsePrimaryItem = captainHomePriorityItems.find((item) => item.tone !== 'good')
+    ?? captainHomePriorityItems[0]
+  const captainHomePulseOpenCount = captainHomePriorityItems.length - captainHomePriorityReadyCount
+  const captainHomePulseSummary = captainHomePriorityIssueCount > 0
+    ? `${captainHomePriorityIssueCount} captain ${captainHomePriorityIssueCount === 1 ? 'step needs' : 'steps need'} attention.`
+    : captainHomePulseOpenCount > 0
+      ? `${captainHomePulseOpenCount} steps left in the match week.`
+      : 'Match week is clean from ask to recap.'
   const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => {
     const todayTone: CaptainHomeShortcutItem['tone'] = captainTodayChecklistWarnCount > 0 ? 'warn' : captainTodayChecklistInfoCount > 0 ? 'info' : 'good'
     const sendTone: CaptainHomeShortcutItem['tone'] = captainCommunicationTimelineCurrentItem?.tone || 'info'
@@ -12402,6 +12416,37 @@ function CaptainHubContent() {
           <span style={captainHomePriorityIssueCount > 0 ? warnBadge : captainHomePriorityReadyCount >= captainHomePriorityItems.length ? badgeGreen : badgeBlue}>
             {captainHomePriorityStatus}
           </span>
+        </div>
+        <div style={captainHomePulseShell} aria-label="Captain match week pulse">
+          <div style={captainHomePulseCopy}>
+            <span style={commandCenterLabel}>Match week pulse</span>
+            <strong style={captainHomePulseTitle}>
+              {captainHomePulsePrimaryItem ? `Next: ${captainHomePulsePrimaryItem.label}` : 'Next: Captain check'}
+            </strong>
+            <span style={captainHomePulseSummaryText}>{captainHomePulseSummary}</span>
+          </div>
+          <div style={dynamicCaptainHomePulseRail}>
+            {captainHomePriorityItems.map((item, index) => (
+              <button
+                key={`pulse-${item.id}`}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainHomePulseStep,
+                  ...(item.tone === 'warn' ? captainHomePulseStepWarn : item.tone === 'good' ? captainHomePulseStepGood : captainHomePulseStepInfo),
+                  ...(item.id === captainHomePulsePrimaryItem?.id ? captainHomePulseStepActive : null),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainAction(item.href, item.stage)}
+              >
+                <span style={captainHomePulseDot}>{index + 1}</span>
+                <span style={captainHomePulseStepCopy}>
+                  <strong>{item.label}</strong>
+                  <span>{item.state}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
         <div style={dynamicCaptainHomePriorityGrid}>
           {captainHomePriorityItems.map((item) => (
@@ -20123,6 +20168,107 @@ const captainHomePriorityTitle: CSSProperties = {
   lineHeight: 1.15,
   fontWeight: 930,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePulseShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.22)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePulseCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const captainHomePulseTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePulseSummaryText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePulseRail: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainHomePulseStep: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 48,
+  padding: '8px 9px',
+  borderRadius: 12,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePulseStepGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainHomePulseStepWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.30)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainHomePulseStepInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainHomePulseStepActive: CSSProperties = {
+  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.16)',
+}
+
+const captainHomePulseDot: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  color: 'var(--foreground-strong)',
+  background: 'rgba(255,255,255,0.09)',
+  fontSize: 10,
+  fontWeight: 950,
+  flex: '0 0 24px',
+}
+
+const captainHomePulseStepCopy: CSSProperties = {
+  display: 'grid',
+  gap: 1,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.22,
+  fontWeight: 850,
   overflowWrap: 'anywhere',
 }
 
