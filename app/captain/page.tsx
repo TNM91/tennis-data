@@ -6576,11 +6576,73 @@ function CaptainHubContent() {
     ?? captainSendRhythmMoments[0]
   const captainSendRhythmPrimarySend = captainWeeklySendBoardItems.find((item) => item.id === captainSendRhythmPrimaryMoment?.id)
     ?? captainWeeklySendBoardPrimaryItem
-  const captainHomeNextSendCopied = copiedCaptainWeeklySendBoardId === captainSendRhythmPrimarySend?.id
+  const captainSmartMatchWeekReminder = useMemo<CaptainWeeklySendBoardItem>(() => {
+    const hasArrival = matchDayArrivalLabel !== 'Add arrival'
+    const hasLocation = matchDayLocationLabel !== 'Add location'
+    const openReplyNames = captainAvailabilityReminderPrimaryGroup.names.slice(0, isMobile ? 4 : 6)
+    const openReplyLine = openReplyNames.length
+      ? `Still need In, Out, or Maybe from ${openReplyNames.join(', ')}${captainAvailabilityReminderPrimaryGroup.names.length > openReplyNames.length ? ', and a few more' : ''}.`
+      : workspaceState.pendingResponseCount > 0
+        ? `${workspaceState.pendingResponseCount} player${workspaceState.pendingResponseCount === 1 ? '' : 's'} still need a clean availability answer.`
+        : 'Availability looks clear from saved replies.'
+    const locationLine = hasArrival && hasLocation
+      ? `Arrive by ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`
+      : hasArrival
+        ? `Arrival is ${matchDayArrivalLabel}; I will confirm the site as soon as it is set.`
+        : hasLocation
+          ? `Site is ${matchDayLocationLabel}; I will confirm arrival time as soon as it is set.`
+          : 'Arrival time and site are still being finalized.'
+    const lineupLines = workspaceState.lineupReady
+      ? ['Lineup:', ...captainQuickCopyLineupRows.slice(0, isMobile ? 3 : 5)]
+      : ['Lineup is almost ready. I will send courts once they are final.']
+    const notesLine = safeText(matchDayEventDetail?.notes)
+    const missingCount = [
+      workspaceState.lineupReady,
+      hasArrival,
+      hasLocation,
+      workspaceState.pendingResponseCount === 0,
+    ].filter((ready) => !ready).length
+    const body = [
+      `Team, quick match-week reminder for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}.`,
+      openReplyLine,
+      locationLine,
+      ...lineupLines,
+      notesLine ? `Notes: ${notesLine}` : '',
+      'Reply here if anything changes.',
+    ].filter(Boolean).join('\n')
+
+    return {
+      id: 'smart-match-week-reminder',
+      label: 'Smart reminder',
+      state: missingCount > 0 ? `${missingCount} check${missingCount === 1 ? '' : 's'}` : 'Ready',
+      detail: missingCount > 0
+        ? 'Combines reply gaps, lineup state, arrival, and site into the next team text.'
+        : 'Availability, lineup, arrival, and site are ready in one team text.',
+      body,
+      href: messagingHref,
+      stage: 'messaging',
+      tone: missingCount > 0 ? 'warn' : 'good',
+      cta: 'Open messaging',
+    }
+  }, [
+    captainAvailabilityReminderPrimaryGroup.names,
+    captainQuickCopyLineupRows,
+    isMobile,
+    matchDayArrivalLabel,
+    matchDayEventDetail?.notes,
+    matchDayLocationLabel,
+    messagingHref,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    workspaceState.lineupReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainHomeNextSendItem = captainSmartMatchWeekReminder
+  const captainHomeNextSendCopied = copiedCaptainWeeklySendBoardId === captainHomeNextSendItem.id
   const captainHomeNextSendStatus = captainHomeNextSendCopied
     ? 'Copied'
-    : captainSendRhythmPrimarySend?.state || 'Ready'
-  const captainHomeNextSendPreviewLines = (captainSendRhythmPrimarySend?.body || 'Open the send lane to choose the next team text.')
+    : captainHomeNextSendItem.state
+  const captainHomeNextSendPreviewLines = captainHomeNextSendItem.body
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 3 : 4)
@@ -7244,11 +7306,11 @@ function CaptainHubContent() {
         id: 'next-send',
         label: 'Next text',
         state: captainHomeNextSendStatus,
-        detail: captainSendRhythmPrimarySend?.label || 'Team text',
+        detail: captainHomeNextSendItem.label,
         href: '#captain-home-next-team-text',
         stage: 'messaging',
         copied: captainHomeNextSendCopied,
-        tone: captainSendRhythmPrimarySend?.tone || 'info',
+        tone: captainHomeNextSendItem.tone,
       }),
     ]
   }, [
@@ -7260,6 +7322,8 @@ function CaptainHubContent() {
     captainHomeLineupLockCopied,
     captainHomeLineupLockStatus,
     captainHomeNextSendCopied,
+    captainHomeNextSendItem.label,
+    captainHomeNextSendItem.tone,
     captainHomeNextSendStatus,
     captainHomeRecapCopied,
     captainHomeRecapStatus,
@@ -7273,8 +7337,6 @@ function CaptainHubContent() {
     captainMatchLogisticsIssueCount,
     captainMatchLogisticsPrimaryItem.label,
     captainRecapStarterPrimaryItem.label,
-    captainSendRhythmPrimarySend?.label,
-    captainSendRhythmPrimarySend?.tone,
   ])
   const captainHomeActionStackWarnCount = captainHomeActionStackItems.filter((item) => !item.done && item.tone === 'warn').length
   const captainHomeActionStackDoneCount = captainHomeActionStackItems.filter((item) => item.done).length
@@ -12728,10 +12790,10 @@ function CaptainHubContent() {
           <div style={captainHomeNextSendHeader}>
             <div style={captainHomeNextSendCopy}>
               <span style={commandCenterLabel}>Next team text</span>
-              <strong style={captainHomeNextSendTitle}>{captainSendRhythmPrimarySend?.label || 'Team text'}</strong>
-              <span style={captainHomeNextSendDetail}>{captainSendRhythmPrimarySend?.detail || 'Copy the next useful captain note without hunting through the board.'}</span>
+              <strong style={captainHomeNextSendTitle}>{captainHomeNextSendItem.label}</strong>
+              <span style={captainHomeNextSendDetail}>{captainHomeNextSendItem.detail}</span>
             </div>
-            <span style={captainHomeNextSendCopied ? badgeGreen : captainSendRhythmPrimarySend?.tone === 'warn' ? warnBadge : badgeBlue}>
+            <span style={captainHomeNextSendCopied ? badgeGreen : captainHomeNextSendItem.tone === 'warn' ? warnBadge : captainHomeNextSendItem.tone === 'good' ? badgeGreen : badgeBlue}>
               {captainHomeNextSendStatus}
             </span>
           </div>
@@ -12741,8 +12803,8 @@ function CaptainHubContent() {
             ))}
           </div>
           <div style={captainHomeNextSendActions}>
-            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainSendRhythmPrimarySend?.body} onClick={() => captainSendRhythmPrimarySend ? void handleCopyCaptainWeeklySendBoardItem(captainSendRhythmPrimarySend) : undefined}>
-              {captainHomeNextSendCopied ? 'Copied text' : 'Copy next text'}
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeNextSendItem.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(captainHomeNextSendItem)}>
+              {captainHomeNextSendCopied ? 'Copied text' : 'Copy smart reminder'}
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-communication-timeline', 'messaging')}>
               Open send lane
