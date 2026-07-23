@@ -364,6 +364,23 @@ type CaptainArrivalRiskTarget = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainCourtArrivalStatus = 'missing' | 'arrived' | 'warming-up' | 'backup-needed'
+
+type CaptainCourtArrivalItem = {
+  id: string
+  courtKey: string
+  courtLabel: string
+  players: string
+  status: CaptainCourtArrivalStatus
+  state: string
+  detail: string
+  arrivalLabel: string
+  handoffLabel: string
+  row: CaptainLineupAssignment
+  index: number
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainCourtHandoffStatus = 'prep' | 'warmup' | 'ready'
 
 type CaptainCourtHandoffItem = {
@@ -581,6 +598,7 @@ const CAPTAIN_DECISION_LOG_STORAGE_KEY = 'tenaceiq_captain_decision_log'
 const CAPTAIN_SCORE_CAPTURE_STORAGE_KEY = 'tenaceiq_captain_score_capture'
 const CAPTAIN_CHANGE_ACK_STORAGE_KEY = 'tenaceiq_captain_change_acknowledgments'
 const CAPTAIN_ARRIVAL_RISK_STORAGE_KEY = 'tenaceiq_captain_arrival_risk'
+const CAPTAIN_COURT_ARRIVAL_STORAGE_KEY = 'tenaceiq_captain_court_arrival_board'
 const CAPTAIN_COURT_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_court_handoff'
 const CAPTAIN_NOTIFICATION_QUEUE_STORAGE_KEY = 'tenaceiq_captain_notification_queue'
 const CAPTAIN_PLAYER_BRIEF_STORAGE_KEY = 'tenaceiq_captain_player_brief_cards'
@@ -657,6 +675,15 @@ type CaptainArrivalRiskEntry = {
   target_key?: string
   name?: string
   status?: CaptainArrivalRiskStatus
+  updated_at?: string
+}
+
+type CaptainCourtArrivalEntry = {
+  id?: string
+  event_key?: string
+  court_key?: string
+  court_label?: string
+  status?: CaptainCourtArrivalStatus
   updated_at?: string
 }
 
@@ -958,6 +985,7 @@ function CaptainHubContent() {
   const [captainScoreCaptureVersion, setCaptainScoreCaptureVersion] = useState(0)
   const [captainChangeAckVersion, setCaptainChangeAckVersion] = useState(0)
   const [captainArrivalRiskVersion, setCaptainArrivalRiskVersion] = useState(0)
+  const [captainCourtArrivalVersion, setCaptainCourtArrivalVersion] = useState(0)
   const [captainCourtHandoffVersion, setCaptainCourtHandoffVersion] = useState(0)
   const [captainNotificationQueueVersion, setCaptainNotificationQueueVersion] = useState(0)
   const [captainPlayerBriefVersion, setCaptainPlayerBriefVersion] = useState(0)
@@ -2009,6 +2037,24 @@ function CaptainHubContent() {
     ...captainArrivalRiskList,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainArrivalRiskList.gridTemplateColumns,
     gap: isMobile ? 8 : captainArrivalRiskList.gap,
+  }
+
+  const dynamicCaptainCourtArrivalShell: CSSProperties = {
+    ...captainCourtArrivalShell,
+    gap: isMobile ? 12 : captainCourtArrivalShell.gap,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : captainCourtArrivalShell.padding,
+    borderRadius: isMobile ? 20 : captainCourtArrivalShell.borderRadius,
+  }
+
+  const dynamicCaptainCourtArrivalGrid: CSSProperties = {
+    ...captainCourtArrivalGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainCourtArrivalGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainCourtArrivalList: CSSProperties = {
+    ...captainCourtArrivalList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainCourtArrivalList.gridTemplateColumns,
+    gap: isMobile ? 8 : captainCourtArrivalList.gap,
   }
 
   const dynamicCaptainCourtHandoffShell: CSSProperties = {
@@ -3515,6 +3561,18 @@ function CaptainHubContent() {
     weekAtGlance.eventDateLabel,
     weekAtGlance.opponentLabel,
   ])
+  const captainCourtArrivalEntryMap = useMemo(() => {
+    if (!workspaceState.currentEventKey) return new Map<string, CaptainCourtArrivalEntry>()
+    if (captainCourtArrivalVersion < 0) return new Map<string, CaptainCourtArrivalEntry>()
+
+    return new Map(
+      readLocalArray<CaptainCourtArrivalEntry>(CAPTAIN_COURT_ARRIVAL_STORAGE_KEY)
+        .filter((entry) => safeText(entry.event_key) === workspaceState.currentEventKey)
+        .map((entry) => [safeText(entry.court_key), entry] as const)
+        .filter(([courtKey]) => Boolean(courtKey)),
+    )
+  }, [captainCourtArrivalVersion, workspaceState.currentEventKey])
+
   const captainCourtHandoffEntryMap = useMemo(() => {
     if (!workspaceState.currentEventKey) return new Map<string, CaptainCourtHandoffEntry>()
     if (captainCourtHandoffVersion < 0) return new Map<string, CaptainCourtHandoffEntry>()
@@ -3591,6 +3649,101 @@ function CaptainHubContent() {
     isMobile,
     matchDayLineupRows,
   ])
+  const captainCourtArrivalItems = useMemo<CaptainCourtArrivalItem[]>(() => {
+    const sourceRows = matchDayLineupRows.length
+      ? matchDayLineupRows
+      : [{
+          id: 'court-arrival-empty',
+          court_label: 'Court arrivals',
+          slot_type: 'doubles',
+          players: [],
+        }]
+
+    return sourceRows.slice(0, isMobile ? 4 : 6).map((row, index) => {
+      const courtLabel = safeText(row.court_label, `Court ${index + 1}`)
+      const courtKey = safeText(row.id, safeKey(`${courtLabel}-${index}`))
+      const playerNames = (row.players ?? []).map((name) => safeText(name)).filter(Boolean)
+      const players = playerNames.join(' / ') || 'Players not set'
+      const savedStatus = captainCourtArrivalEntryMap.get(courtKey)?.status
+      const courtTargets = captainArrivalRiskTargets.filter((target) => target.court === courtLabel)
+      const handoff = captainCourtHandoffItems.find((item) => item.courtKey === courtKey || item.courtLabel === courtLabel)
+      const hasLate = courtTargets.some((target) => target.status === 'running-late')
+      const needsEta = courtTargets.some((target) => target.status === 'eta-needed')
+      const hasBackup = courtTargets.some((target) => target.status === 'backup-ready')
+      const allArrived = Boolean(courtTargets.length) && courtTargets.every((target) => target.status === 'on-time' || target.status === 'backup-ready')
+      const inferredStatus: CaptainCourtArrivalStatus = handoff?.status === 'warmup'
+        ? 'warming-up'
+        : hasLate || needsEta || !playerNames.length
+          ? 'missing'
+          : hasBackup
+            ? 'backup-needed'
+            : allArrived
+              ? 'arrived'
+              : 'missing'
+      const status = savedStatus || inferredStatus
+      const state = status === 'arrived'
+        ? 'Arrived'
+        : status === 'warming-up'
+          ? 'Warming up'
+          : status === 'backup-needed'
+            ? 'Backup needed'
+            : 'Missing'
+      const arrivalLabel = hasLate
+        ? 'Late'
+        : needsEta
+          ? 'Need ETA'
+          : hasBackup
+            ? 'Backup close'
+            : allArrived || status === 'arrived' || status === 'warming-up'
+              ? 'On site'
+              : 'Check ETA'
+      const detail = status === 'warming-up'
+        ? `${courtLabel} is on site and warming up.`
+        : status === 'arrived'
+          ? `${courtLabel} is present. Start handoff when warm-up begins.`
+          : status === 'backup-needed'
+            ? `${courtLabel} has backup coverage in play. Keep the sub close.`
+            : !playerNames.length
+              ? 'Save players before tracking on-site court arrival.'
+              : `${courtLabel} still needs an arrival check before handoff.`
+
+      return {
+        id: courtKey,
+        courtKey,
+        courtLabel,
+        players,
+        status,
+        state,
+        detail,
+        arrivalLabel,
+        handoffLabel: handoff?.state ?? 'Prep',
+        row,
+        index,
+        tone: status === 'missing' || status === 'backup-needed' ? 'warn' : 'good',
+      }
+    })
+  }, [
+    captainArrivalRiskTargets,
+    captainCourtArrivalEntryMap,
+    captainCourtHandoffItems,
+    isMobile,
+    matchDayLineupRows,
+  ])
+  const captainCourtArrivalMissingCount = captainCourtArrivalItems.filter((item) => item.status === 'missing').length
+  const captainCourtArrivalWarmupCount = captainCourtArrivalItems.filter((item) => item.status === 'warming-up').length
+  const captainCourtArrivalArrivedCount = captainCourtArrivalItems.filter((item) => item.status === 'arrived').length
+  const captainCourtArrivalBackupCount = captainCourtArrivalItems.filter((item) => item.status === 'backup-needed').length
+  const captainCourtArrivalPrimaryItem = captainCourtArrivalItems.find((item) => item.status === 'missing')
+    ?? captainCourtArrivalItems.find((item) => item.status === 'backup-needed')
+    ?? captainCourtArrivalItems.find((item) => item.status === 'arrived')
+    ?? captainCourtArrivalItems[0]
+  const captainCourtArrivalStatus = captainCourtArrivalMissingCount > 0
+    ? `${captainCourtArrivalMissingCount} missing`
+    : captainCourtArrivalBackupCount > 0
+      ? `${captainCourtArrivalBackupCount} backup`
+      : captainCourtArrivalWarmupCount > 0
+        ? `${captainCourtArrivalWarmupCount} warmup`
+        : `${captainCourtArrivalArrivedCount} arrived`
   const captainCourtHandoffReadyCount = captainCourtHandoffItems.filter((item) => item.status === 'ready').length
   const captainCourtHandoffWatchCount = captainCourtHandoffItems.filter((item) => item.tone === 'warn').length
   const captainCourtHandoffPrimaryItem = captainCourtHandoffItems.find((item) => item.tone === 'warn')
@@ -4024,6 +4177,16 @@ function CaptainHubContent() {
       tone: captainArrivalRiskWatchCount > 0 ? 'warn' : captainArrivalRiskTargets.length ? 'good' : 'info',
     },
     {
+      id: 'court-arrivals',
+      label: 'Court arrivals',
+      state: captainCourtArrivalStatus,
+      detail: captainCourtArrivalPrimaryItem?.detail ?? 'Save courts before tracking court arrival.',
+      href: '#captain-court-arrival-board',
+      stage: 'lineup',
+      cta: 'Review arrivals',
+      tone: captainCourtArrivalMissingCount > 0 || captainCourtArrivalBackupCount > 0 ? 'warn' : captainCourtArrivalItems.length ? 'good' : 'info',
+    },
+    {
       id: 'court-handoff',
       label: 'Court handoff',
       state: captainCourtHandoffStatus,
@@ -4074,6 +4237,11 @@ function CaptainHubContent() {
     captainChangeAckPendingCount,
     captainChangeAckStatus,
     captainChangeAckTargets.length,
+    captainCourtArrivalBackupCount,
+    captainCourtArrivalItems.length,
+    captainCourtArrivalMissingCount,
+    captainCourtArrivalPrimaryItem?.detail,
+    captainCourtArrivalStatus,
     captainCourtHandoffItems.length,
     captainCourtHandoffPrimaryItem?.detail,
     captainCourtHandoffStatus,
@@ -6001,6 +6169,61 @@ function CaptainHubContent() {
     }
   }
 
+  function writeCaptainCourtArrivalEntry(item: CaptainCourtArrivalItem, status: CaptainCourtArrivalStatus) {
+    if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
+
+    const now = new Date().toISOString()
+    const rows = readLocalArray<CaptainCourtArrivalEntry>(CAPTAIN_COURT_ARRIVAL_STORAGE_KEY)
+    const nextEntry: CaptainCourtArrivalEntry = {
+      id: `captain-court-arrival-${workspaceState.currentEventKey}-${item.courtKey}`,
+      event_key: workspaceState.currentEventKey,
+      court_key: item.courtKey,
+      court_label: item.courtLabel,
+      status,
+      updated_at: now,
+    }
+    const nextRows = [
+      nextEntry,
+      ...rows.filter((entry) => !(
+        safeText(entry.event_key) === workspaceState.currentEventKey &&
+        safeText(entry.court_key) === item.courtKey
+      )),
+    ].slice(0, 180)
+
+    window.localStorage.setItem(CAPTAIN_COURT_ARRIVAL_STORAGE_KEY, JSON.stringify(nextRows))
+    setCaptainCourtArrivalVersion((value) => value + 1)
+  }
+
+  function handleCaptainCourtArrivalStatus(item: CaptainCourtArrivalItem, status: CaptainCourtArrivalStatus) {
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
+    writeCaptainCourtArrivalEntry(item, status)
+
+    const courtArrivalTargets = captainArrivalRiskTargets.filter((target) => target.court === item.courtLabel)
+    if ((status === 'arrived' || status === 'warming-up') && courtArrivalTargets.length) {
+      writeCaptainArrivalRiskEntries(courtArrivalTargets, 'on-time')
+    }
+
+    if (status === 'missing' && courtArrivalTargets.length) {
+      writeCaptainArrivalRiskEntries(courtArrivalTargets.filter((target) => target.status !== 'backup-ready'), 'eta-needed')
+    }
+
+    const handoffItem = captainCourtHandoffItems.find((target) => target.courtKey === item.courtKey || target.courtLabel === item.courtLabel)
+    if (handoffItem && status === 'warming-up') {
+      writeCaptainCourtHandoffEntry(handoffItem, 'warmup')
+    }
+
+    appendCaptainDecisionLog({
+      label: 'Court arrival updated',
+      detail: `${item.courtLabel} marked ${status === 'warming-up' ? 'warming up' : status === 'backup-needed' ? 'backup needed' : status} for ${item.players}.`,
+      action: status === 'warming-up' ? 'Warm-up' : status === 'backup-needed' ? 'Backup needed' : status === 'arrived' ? 'Arrived' : 'Missing',
+      tone: status === 'missing' || status === 'backup-needed' ? 'warn' : 'good',
+    })
+  }
+
   function writeCaptainCourtHandoffEntry(item: CaptainCourtHandoffItem, status: CaptainCourtHandoffStatus) {
     if (typeof window === 'undefined' || !workspaceState.currentEventKey) return
 
@@ -6896,6 +7119,129 @@ function CaptainHubContent() {
                 <span style={captainArrivalRiskCardDetail}>Build a lineup or add captain contacts to track late players and backup arrivals.</span>
               </article>
             )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  const captainCourtArrivalBoard = (
+    <section id="captain-court-arrival-board" style={dynamicCaptainCourtArrivalShell} aria-label="Captain court arrival board">
+      <div style={captainCourtArrivalHeader}>
+        <div>
+          <div style={sectionKicker}>Court arrival board</div>
+          <h2 style={captainCourtArrivalTitle}>{isMobile ? 'Who is on site?' : 'Track every court as players arrive.'}</h2>
+        </div>
+        <span style={captainCourtArrivalMissingCount > 0 || captainCourtArrivalBackupCount > 0 ? warnBadge : captainCourtArrivalWarmupCount > 0 ? badgeBlue : badgeGreen}>
+          {captainCourtArrivalStatus}
+        </span>
+      </div>
+      <div style={captainCourtArrivalSub}>
+        Mark courts arrived, warming up, missing, or needing backup before the handoff timer starts.
+      </div>
+
+      <div style={captainCourtArrivalSummaryGrid}>
+        <div style={captainCourtArrivalSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Arrived</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtArrivalArrivedCount}</strong>
+          <span style={commandCenterSnapshotDetail}>On site</span>
+        </div>
+        <div style={captainCourtArrivalSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Warm-up</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtArrivalWarmupCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Court started</span>
+        </div>
+        <div style={captainCourtArrivalSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Missing</span>
+          <strong style={commandCenterSnapshotValue}>{captainCourtArrivalMissingCount + captainCourtArrivalBackupCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Needs captain</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainCourtArrivalGrid}>
+        <div style={captainCourtArrivalMain}>
+          <div style={captainCourtArrivalTop}>
+            <div>
+              <div style={commandCenterLabel}>Next court arrival</div>
+              <div style={captainCourtArrivalFocus}>{captainCourtArrivalPrimaryItem?.courtLabel ?? 'No court yet'}</div>
+            </div>
+            <span style={captainCourtArrivalPrimaryItem?.tone === 'warn' ? warnBadge : captainCourtArrivalPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainCourtArrivalPrimaryItem?.state ?? 'Missing'}
+            </span>
+          </div>
+          <p style={captainCourtArrivalDetail}>
+            {captainCourtArrivalPrimaryItem?.detail ?? 'Save lineup courts before tracking on-site arrival.'}
+          </p>
+          <div style={captainCourtArrivalMetaGrid}>
+            <div style={captainCourtArrivalMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Players</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtArrivalPrimaryItem?.players ?? 'Not set'}</strong>
+              <span style={commandCenterSnapshotDetail}>Court group</span>
+            </div>
+            <div style={captainCourtArrivalMetaCard}>
+              <span style={commandCenterSnapshotLabel}>Signals</span>
+              <strong style={commandCenterSnapshotValue}>{captainCourtArrivalPrimaryItem?.arrivalLabel ?? 'Check ETA'}</strong>
+              <span style={commandCenterSnapshotDetail}>{captainCourtArrivalPrimaryItem?.handoffLabel ?? 'Prep'}</span>
+            </div>
+          </div>
+          <div style={captainCourtArrivalActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainCourtArrivalPrimaryItem} onClick={() => captainCourtArrivalPrimaryItem ? handleCaptainCourtArrivalStatus(captainCourtArrivalPrimaryItem, 'arrived') : undefined}>
+              Mark arrived
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainCourtArrivalPrimaryItem} onClick={() => captainCourtArrivalPrimaryItem ? handleCaptainCourtArrivalStatus(captainCourtArrivalPrimaryItem, 'warming-up') : undefined}>
+              Warm-up started
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled || !captainCourtArrivalPrimaryItem} onClick={() => captainCourtArrivalPrimaryItem ? handleCaptainCourtArrivalStatus(captainCourtArrivalPrimaryItem, 'missing') : undefined}>
+              Mark missing
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainCourtArrivalPanel}>
+          <div style={commandCenterLabel}>Court arrivals</div>
+          <div style={dynamicCaptainCourtArrivalList}>
+            {captainCourtArrivalItems.map((item) => (
+              <article
+                key={item.id}
+                style={{
+                  ...captainCourtArrivalCard,
+                  ...(item.status === 'missing' || item.status === 'backup-needed' ? captainCourtArrivalCardWarn : item.status === 'warming-up' || item.status === 'arrived' ? captainCourtArrivalCardGood : captainCourtArrivalCardInfo),
+                }}
+              >
+                <div style={captainCourtArrivalCardTop}>
+                  <div>
+                    <strong>{item.courtLabel}</strong>
+                    <span>{item.players}</span>
+                  </div>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.state}
+                  </span>
+                </div>
+                {!isSmallMobile ? <span style={captainCourtArrivalCardDetail}>{item.detail}</span> : null}
+                <div style={captainCourtArrivalSignalRow}>
+                  <span>{item.arrivalLabel}</span>
+                  <span>{item.handoffLabel}</span>
+                </div>
+                <div style={captainCourtArrivalButtonGrid}>
+                  {(['arrived', 'warming-up', 'missing', 'backup-needed'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={!hasTeamScope || !premiumEnabled}
+                      style={{
+                        ...captainCourtArrivalButton,
+                        ...(item.status === status ? captainCourtArrivalButtonActive : null),
+                        ...(status === 'missing' || status === 'backup-needed' ? captainCourtArrivalButtonWarn : null),
+                        ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                      }}
+                      onClick={() => handleCaptainCourtArrivalStatus(item, status)}
+                    >
+                      {status === 'arrived' ? 'Arrived' : status === 'warming-up' ? 'Warm-up' : status === 'backup-needed' ? 'Backup' : 'Missing'}
+                    </button>
+                  ))}
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </div>
@@ -9281,6 +9627,8 @@ function CaptainHubContent() {
         {captainChangeAckTracker}
 
         {captainArrivalRiskTracker}
+
+        {captainCourtArrivalBoard}
 
         {captainCourtHandoffTimer}
 
@@ -12105,6 +12453,249 @@ const captainArrivalRiskStatusButtonActive: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.26)',
   background: 'rgba(155,225,29,0.12)',
   color: 'var(--foreground-strong)',
+}
+
+const captainCourtArrivalShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: 22,
+  borderRadius: 26,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'linear-gradient(135deg, rgba(125,211,252,0.08), rgba(8,13,28,0.78) 42%, rgba(15,28,47,0.86))',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.24)',
+}
+
+const captainCourtArrivalHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtArrivalTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalSub: CSSProperties = {
+  maxWidth: 780,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtArrivalSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 390px), 1.1fr)',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainCourtArrivalMain: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(5,11,22,0.30)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainCourtArrivalFocus: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalMetaGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtArrivalMetaCard: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainCourtArrivalPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainCourtArrivalCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 172,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.26)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainCourtArrivalCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainCourtArrivalCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainCourtArrivalCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalSignalRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalButtonGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const captainCourtArrivalButton: CSSProperties = {
+  minWidth: 0,
+  minHeight: 34,
+  padding: '7px 6px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainCourtArrivalButtonActive: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(125,211,252,0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainCourtArrivalButtonWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.12)',
 }
 
 const captainCourtHandoffShell: CSSProperties = {
