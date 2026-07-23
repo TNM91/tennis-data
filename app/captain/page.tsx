@@ -276,6 +276,17 @@ type CaptainHomeShortcutItem = {
   priority: number
 }
 
+type CaptainHomePriorityItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
 
 type CaptainPreMatchReadyGateItem = {
@@ -2136,6 +2147,12 @@ function CaptainHubContent() {
     ...captainHomeShortcutGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeShortcutGrid.gridTemplateColumns,
     gap: isMobile ? 8 : captainHomeShortcutGrid.gap,
+  }
+
+  const dynamicCaptainHomePriorityGrid: CSSProperties = {
+    ...captainHomePriorityGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomePriorityGrid.gridTemplateColumns,
+    gap: isMobile ? 8 : captainHomePriorityGrid.gap,
   }
 
   const dynamicCaptainToolLaneShell: CSSProperties = {
@@ -6475,6 +6492,101 @@ function CaptainHubContent() {
     : captainSendRhythmReadyCount >= captainSendRhythmMoments.length
       ? 'Rhythm set'
       : `${captainSendRhythmReadyCount}/${captainSendRhythmMoments.length} handled`
+  const captainHomePriorityItems = useMemo<CaptainHomePriorityItem[]>(() => {
+    const reminderMoment = captainSendRhythmMoments.find((item) => item.id === 'where-when')
+      ?? captainSendRhythmMoments.find((item) => item.id === 'team-reminder')
+      ?? captainSendRhythmPrimaryMoment
+    const availabilityHasReplies = matchDayResponseRows.length > 0
+    const availabilityHasOpenReplies = workspaceState.pendingResponseCount > 0
+
+    return [
+      {
+        id: 'availability',
+        label: 'Availability',
+        state: availabilityHasOpenReplies
+          ? `${workspaceState.pendingResponseCount} waiting`
+          : availabilityHasReplies
+            ? 'Clear'
+            : 'Ask team',
+        detail: availabilityHasOpenReplies
+          ? 'Chase open replies before lineup lock.'
+          : availabilityHasReplies
+            ? 'Availability is clean enough to build courts.'
+            : 'Ask who can play so the rest of the captain stack has signal.',
+        href: levelUpAvailabilityHref,
+        stage: 'availability',
+        cta: availabilityHasOpenReplies ? 'Chase replies' : availabilityHasReplies ? 'Review replies' : 'Ask availability',
+        tone: availabilityHasOpenReplies ? 'warn' : availabilityHasReplies ? 'good' : 'info',
+      },
+      {
+        id: 'lineup',
+        label: 'Lineup',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Build courts',
+        detail: workspaceState.lineupReady
+          ? 'Review the saved court order before sending it.'
+          : 'Build courts after replies are in.',
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+        tone: workspaceState.lineupReady ? 'good' : 'warn',
+      },
+      {
+        id: 'reminder',
+        label: 'Reminder',
+        state: copiedCaptainMatchLogistics
+          ? 'Copied'
+          : reminderMoment?.state || (workspaceState.messagingReady ? 'Ready' : 'Prep'),
+        detail: copiedCaptainMatchLogistics
+          ? 'Where-and-when reminder is copied for Messages.'
+          : reminderMoment?.detail || 'Confirm when, where, and what players need to know.',
+        href: '#captain-match-logistics-card',
+        stage: 'messaging',
+        cta: 'Open reminder',
+        tone: copiedCaptainMatchLogistics ? 'good' : reminderMoment?.tone || (workspaceState.messagingReady ? 'info' : 'warn'),
+      },
+      {
+        id: 'recap',
+        label: 'Recap',
+        state: postMatchClosed
+          ? 'Closed'
+          : captainPostMatchRecapCopied
+            ? 'Copied'
+            : captainScoreCaptureLoggedCount > 0
+              ? 'Draft recap'
+              : 'After play',
+        detail: postMatchClosed
+          ? 'Closeout is done and the recap trail is saved.'
+          : captainPostMatchRecapCopied
+            ? 'Recap is copied and ready to send.'
+            : captainScoreCaptureLoggedCount > 0
+              ? 'Scores are in, so the fun recap can be finished.'
+              : 'After the match, capture result and send the recap.',
+        href: '#captain-post-match-recap-builder',
+        stage: 'brief',
+        cta: postMatchClosed ? 'Review recap' : 'Open recap',
+        tone: postMatchClosed || captainPostMatchRecapCopied ? 'good' : 'info',
+      },
+    ]
+  }, [
+    captainPostMatchRecapCopied,
+    captainScoreCaptureLoggedCount,
+    captainSendRhythmMoments,
+    captainSendRhythmPrimaryMoment,
+    copiedCaptainMatchLogistics,
+    levelUpAvailabilityHref,
+    lineupBuilderHref,
+    matchDayResponseRows.length,
+    postMatchClosed,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainHomePriorityReadyCount = captainHomePriorityItems.filter((item) => item.tone === 'good').length
+  const captainHomePriorityIssueCount = captainHomePriorityItems.filter((item) => item.tone === 'warn').length
+  const captainHomePriorityStatus = captainHomePriorityIssueCount > 0
+    ? `${captainHomePriorityIssueCount} needs attention`
+    : `${captainHomePriorityReadyCount}/${captainHomePriorityItems.length} ready`
   const captainHomeShortcutItems = useMemo<CaptainHomeShortcutItem[]>(() => {
     const todayTone: CaptainHomeShortcutItem['tone'] = captainTodayChecklistWarnCount > 0 ? 'warn' : captainTodayChecklistInfoCount > 0 ? 'info' : 'good'
     const sendTone: CaptainHomeShortcutItem['tone'] = captainCommunicationTimelineCurrentItem?.tone || 'info'
@@ -10355,7 +10467,7 @@ function CaptainHubContent() {
   )
 
   const captainMatchLogisticsSurface = (
-    <section style={dynamicCaptainMatchLogisticsShell} aria-label="Captain match logistics card">
+    <section id="captain-match-logistics-card" style={dynamicCaptainMatchLogisticsShell} aria-label="Captain match logistics card">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Match logistics</div>
@@ -12279,6 +12391,41 @@ function CaptainHubContent() {
         <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
           {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
         </PrimarySmallBtn>
+      </div>
+
+      <div style={captainHomePriorityShell} aria-label="Captain weekly priority strip">
+        <div style={captainHomePriorityHeader}>
+          <div>
+            <div style={commandCenterLabel}>Weekly priorities</div>
+            <div style={captainHomePriorityTitle}>{isMobile ? 'Four jobs.' : 'Availability, lineup, reminder, recap.'}</div>
+          </div>
+          <span style={captainHomePriorityIssueCount > 0 ? warnBadge : captainHomePriorityReadyCount >= captainHomePriorityItems.length ? badgeGreen : badgeBlue}>
+            {captainHomePriorityStatus}
+          </span>
+        </div>
+        <div style={dynamicCaptainHomePriorityGrid}>
+          {captainHomePriorityItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={!hasTeamScope || !premiumEnabled}
+              style={{
+                ...captainHomePriorityCard,
+                ...(item.tone === 'warn' ? captainHomePriorityCardWarn : item.tone === 'good' ? captainHomePriorityCardGood : captainHomePriorityCardInfo),
+                ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+              }}
+              onClick={() => handleCaptainAction(item.href, item.stage)}
+            >
+              <span style={captainHomePriorityTop}>
+                <strong>{item.label}</strong>
+                <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                  {item.state}
+                </span>
+              </span>
+              <span style={captainHomePriorityDetail}>{item.detail}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={dynamicCaptainHomeShortcutGrid}>
@@ -19946,6 +20093,90 @@ const captainHomeShortcutReason: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePriorityShell: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(15,23,42,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePriorityHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomePriorityTitle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePriorityGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const captainHomePriorityCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 110,
+  padding: 10,
+  borderRadius: 13,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomePriorityCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainHomePriorityCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.10)',
+}
+
+const captainHomePriorityCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainHomePriorityTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomePriorityDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
