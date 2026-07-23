@@ -5244,6 +5244,15 @@ function CaptainHubContent() {
     ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-swing' && group.names.length)
     ?? captainAvailabilityReminderGroups.find((group) => group.id === 'availability-team')
     ?? captainAvailabilityReminderGroups[0]
+  const captainHomeReplyChaseCopied = copiedCaptainAvailabilityReminderId === captainAvailabilityReminderPrimaryGroup.id
+  const captainHomeReplyChaseStatus = captainHomeReplyChaseCopied
+    ? 'Copied'
+    : captainAvailabilityReminderPrimaryGroup.state
+  const captainHomeReplyChaseNames = captainAvailabilityReminderPrimaryGroup.names.slice(0, isMobile ? 4 : 7)
+  const captainHomeReplyChasePreviewLines = (captainAvailabilityReminderPrimaryGroup.body || captainAvailabilityReminderPrimaryGroup.detail)
+    .split('\n')
+    .filter((line) => safeText(line))
+    .slice(0, isMobile ? 2 : 3)
   const captainBackupSendBody = captainCourtSwapNeedsCount > 0
     ? `${captainCourtSwapPrimaryItem.inPlayer}, can you stay ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapPrimaryItem.courtLabel} may need cover. I will confirm before warm-up.`
     : captainBenchReadyCount > 0
@@ -12478,6 +12487,40 @@ function CaptainHubContent() {
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-communication-timeline', 'messaging')}>
               Open send lane
+            </SecondarySmallBtn>
+          </div>
+        </div>
+        <div style={captainHomeReplyChaseShell} aria-label="Captain home reply chase">
+          <div style={captainHomeReplyChaseHeader}>
+            <div style={captainHomeReplyChaseCopy}>
+              <span style={commandCenterLabel}>Reply chase</span>
+              <strong style={captainHomeReplyChaseTitle}>{captainAvailabilityReminderPrimaryGroup.label}</strong>
+              <span style={captainHomeReplyChaseDetail}>{captainAvailabilityReminderPrimaryGroup.detail}</span>
+            </div>
+            <span style={captainHomeReplyChaseCopied ? badgeGreen : captainAvailabilityReminderPrimaryGroup.tone === 'warn' ? warnBadge : captainAvailabilityReminderPrimaryGroup.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainHomeReplyChaseStatus}
+            </span>
+          </div>
+          {captainHomeReplyChaseNames.length ? (
+            <div style={captainHomeReplyChaseNameList}>
+              {captainHomeReplyChaseNames.map((name) => (
+                <span key={`home-reply-${name}`} style={captainHomeReplyChaseNameChip}>
+                  {name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div style={captainHomeReplyChasePreview}>
+            {captainHomeReplyChasePreviewLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </div>
+          <div style={captainHomeReplyChaseActions}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainAvailabilityReminderPrimaryGroup.body} onClick={() => void handleCopyCaptainAvailabilityReminder(captainAvailabilityReminderPrimaryGroup)}>
+              {captainHomeReplyChaseCopied ? 'Copied chase' : 'Copy reply chase'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainAvailabilityReminderPrimaryGroup.href, captainAvailabilityReminderPrimaryGroup.stage)}>
+              {captainAvailabilityReminderPrimaryGroup.cta}
             </SecondarySmallBtn>
           </div>
         </div>
@@ -20367,6 +20410,96 @@ const captainHomeNextSendPreview: CSSProperties = {
 }
 
 const captainHomeNextSendActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeReplyChaseShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'rgba(251,191,36,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyChaseHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeReplyChaseCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  flex: '1 1 180px',
+}
+
+const captainHomeReplyChaseTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyChaseDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyChaseNameList: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeReplyChaseNameChip: CSSProperties = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  padding: '5px 7px',
+  borderRadius: 999,
+  border: '1px solid rgba(251,191,36,0.20)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyChasePreview: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 52,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.24)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyChaseActions: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
