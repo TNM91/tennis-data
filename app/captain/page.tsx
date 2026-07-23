@@ -251,6 +251,18 @@ type CaptainOneThumbAction = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainTodayChecklistItem = {
+  id: string
+  label: string
+  source: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
 
 type CaptainPreMatchReadyGateItem = {
@@ -2026,6 +2038,30 @@ function CaptainHubContent() {
     ...captainMatchDayCommandGrid,
     gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : captainMatchDayCommandGrid.gridTemplateColumns,
     gap: isMobile ? 7 : captainMatchDayCommandGrid.gap,
+  }
+
+  const dynamicCaptainTodayChecklistShell: CSSProperties = {
+    ...captainTodayChecklistShell,
+    gap: isMobile ? 10 : captainTodayChecklistShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainTodayChecklistShell.padding,
+    borderRadius: isMobile ? 18 : captainTodayChecklistShell.borderRadius,
+  }
+
+  const dynamicCaptainTodayChecklistGrid: CSSProperties = {
+    ...captainTodayChecklistGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainTodayChecklistGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainTodayChecklistActionRow: CSSProperties = {
+    ...captainTodayChecklistActionRow,
+    display: isSmallMobile ? 'grid' : captainTodayChecklistActionRow.display,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
+  }
+
+  const dynamicCaptainTodayChecklistList: CSSProperties = {
+    ...captainTodayChecklistList,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainTodayChecklistList.gridTemplateColumns,
+    gap: isMobile ? 7 : captainTodayChecklistList.gap,
   }
 
   const dynamicCaptainMatchDayLockScreen: CSSProperties = {
@@ -5497,6 +5533,91 @@ function CaptainHubContent() {
     : captainPreMatchReadyWarningCount > 0
       ? 'Leave with watch'
       : 'Good to leave'
+  const captainTodayChecklistItems = useMemo<CaptainTodayChecklistItem[]>(() => {
+    const severityTone = {
+      blocker: 'warn',
+      warning: 'info',
+      ready: 'good',
+    } as const
+    const gateItems = captainPreMatchReadyGateItems
+      .filter((item) => item.severity !== 'ready')
+      .map((item) => ({
+        id: `gate-${item.id}`,
+        label: item.label,
+        source: 'Leave check',
+        state: item.state,
+        detail: item.detail,
+        href: item.href,
+        stage: item.stage,
+        cta: item.cta,
+        tone: severityTone[item.severity],
+      }))
+    const liveItems = captainOneThumbActions
+      .filter((item) => item.tone !== 'good')
+      .map((item) => ({
+        id: `live-${item.id}`,
+        label: item.label,
+        source: item.source,
+        state: item.state,
+        detail: item.detail,
+        href: item.href,
+        stage: item.stage,
+        cta: item.cta,
+        tone: item.tone,
+      }))
+    const morningItems = captainMorningBriefItems
+      .filter((item) => item.tone !== 'good')
+      .map((item) => ({
+        id: `brief-${safeKey(item.label)}`,
+        label: item.label,
+        source: 'Morning brief',
+        state: item.value,
+        detail: item.detail,
+        href: captainMorningBriefPrimaryAction.href,
+        stage: captainMorningBriefPrimaryAction.stage,
+        cta: captainMorningBriefPrimaryAction.label,
+        tone: item.tone,
+      }))
+    const fallbackItems = captainPreMatchReadyGateItems.slice(0, isMobile ? 3 : 4).map((item) => ({
+      id: `ready-${item.id}`,
+      label: item.label,
+      source: 'Leave check',
+      state: item.state,
+      detail: item.detail,
+      href: item.href,
+      stage: item.stage,
+      cta: item.cta,
+      tone: severityTone[item.severity],
+    }))
+    const seen = new Set<string>()
+    const combined = [...gateItems, ...liveItems, ...morningItems, ...fallbackItems].filter((item) => {
+      const key = `${item.label}-${item.href}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
+    return combined.slice(0, isMobile ? 4 : 6)
+  }, [
+    captainMorningBriefItems,
+    captainMorningBriefPrimaryAction.href,
+    captainMorningBriefPrimaryAction.label,
+    captainMorningBriefPrimaryAction.stage,
+    captainOneThumbActions,
+    captainPreMatchReadyGateItems,
+    isMobile,
+  ])
+  const captainTodayChecklistPrimaryItem = captainTodayChecklistItems.find((item) => item.tone === 'warn')
+    ?? captainTodayChecklistItems.find((item) => item.tone === 'info')
+    ?? captainTodayChecklistItems[0]
+  const captainTodayChecklistWarnCount = captainTodayChecklistItems.filter((item) => item.tone === 'warn').length
+  const captainTodayChecklistInfoCount = captainTodayChecklistItems.filter((item) => item.tone === 'info').length
+  const captainTodayChecklistReadyCount = captainTodayChecklistItems.filter((item) => item.tone === 'good').length
+  const captainTodayChecklistStatus = captainTodayChecklistWarnCount > 0
+    ? `${captainTodayChecklistWarnCount} now`
+    : captainTodayChecklistInfoCount > 0
+      ? `${captainTodayChecklistInfoCount} watch`
+      : 'Today ready'
   const captainPostMatchRecapPrimaryState = captainScoreCaptureRows.length
     ? captainScoreCaptureIssueCount > 0
       ? `${captainScoreCaptureIssueCount} issue`
@@ -7547,6 +7668,99 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainTodayChecklist = (
+    <section style={dynamicCaptainTodayChecklistShell} aria-label="Captain today checklist compact mode">
+      <div style={captainTodayChecklistHeader}>
+        <div>
+          <div style={sectionKicker}>Today checklist</div>
+          <h2 style={captainTodayChecklistTitle}>{isMobile ? 'Today on one screen.' : "Keep today's captain actions on one screen."}</h2>
+        </div>
+        <span style={captainTodayChecklistWarnCount > 0 ? warnBadge : captainTodayChecklistInfoCount > 0 ? badgeBlue : badgeGreen}>
+          {captainTodayChecklistStatus}
+        </span>
+      </div>
+      <div style={captainTodayChecklistSub}>
+        See the leaving check, live queue, lineup message, and court reminders without scrolling the full captain board.
+      </div>
+
+      <div style={captainTodayChecklistSummaryGrid} aria-label="Captain today checklist summary">
+        <div style={captainTodayChecklistSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Now</span>
+          <strong style={commandCenterSnapshotValue}>{captainTodayChecklistWarnCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Needs action</span>
+        </div>
+        <div style={captainTodayChecklistSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Watch</span>
+          <strong style={commandCenterSnapshotValue}>{captainTodayChecklistInfoCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Keep visible</span>
+        </div>
+        <div style={captainTodayChecklistSummaryCard}>
+          <span style={commandCenterSnapshotLabel}>Ready</span>
+          <strong style={commandCenterSnapshotValue}>{captainTodayChecklistReadyCount}</strong>
+          <span style={commandCenterSnapshotDetail}>Cleared today</span>
+        </div>
+      </div>
+
+      <div style={dynamicCaptainTodayChecklistGrid}>
+        <div style={captainTodayChecklistHero}>
+          <div style={captainTodayChecklistHeroTop}>
+            <div>
+              <div style={commandCenterLabel}>Top today action</div>
+              <div style={captainTodayChecklistFocus}>{captainTodayChecklistPrimaryItem?.label || 'No action yet'}</div>
+            </div>
+            <span style={captainTodayChecklistPrimaryItem?.tone === 'warn' ? warnBadge : captainTodayChecklistPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainTodayChecklistPrimaryItem?.state || 'Ready'}
+            </span>
+          </div>
+          <p style={captainTodayChecklistDetail}>
+            {captainTodayChecklistPrimaryItem?.detail || 'The compact match-day checklist is clear right now.'}
+          </p>
+          <div style={dynamicCaptainTodayChecklistActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainTodayChecklistPrimaryItem} onClick={() => captainTodayChecklistPrimaryItem ? handleCaptainNav(captainTodayChecklistPrimaryItem.href, captainTodayChecklistPrimaryItem.stage) : undefined}>
+              {captainTodayChecklistPrimaryItem?.cta || 'Open action'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-one-thumb-mode', 'analytics')}>
+              One thumb mode
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-morning-brief', 'brief')}>
+              Morning brief
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainTodayChecklistPanel}>
+          <div style={captainTodayChecklistPanelTop}>
+            <span style={commandCenterLabel}>Compact list</span>
+            <span style={badgeSlate}>{captainTodayChecklistItems.length} items</span>
+          </div>
+          <div style={dynamicCaptainTodayChecklistList}>
+            {captainTodayChecklistItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainTodayChecklistCard,
+                  ...(item.tone === 'warn' ? captainTodayChecklistCardWarn : item.tone === 'good' ? captainTodayChecklistCardGood : captainTodayChecklistCardInfo),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainNav(item.href, item.stage)}
+              >
+                <span style={captainTodayChecklistCardTop}>
+                  <strong>{item.label}</strong>
+                  <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                    {item.state}
+                  </span>
+                </span>
+                {!isSmallMobile ? <span style={captainTodayChecklistCardDetail}>{item.source}</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainPreMatchReadyGate = (
     <section id="captain-pre-match-ready-gate" style={dynamicCaptainPreMatchReadyGateShell} aria-label="Captain pre-match ready gate">
       <div style={captainPreMatchReadyGateHeader}>
@@ -8603,7 +8817,7 @@ function CaptainHubContent() {
   )
 
   const captainMorningBrief = (
-    <section style={dynamicCaptainMorningBriefShell} aria-label="Captain morning brief">
+    <section id="captain-morning-brief" style={dynamicCaptainMorningBriefShell} aria-label="Captain morning brief">
       <div style={commandCenterHeader}>
         <div>
           <div style={sectionKicker}>Morning brief</div>
@@ -10873,6 +11087,8 @@ function CaptainHubContent() {
         {captainPreMatchReadyGate}
 
         {captainMatchDayCommandStripSurface}
+
+        {captainTodayChecklist}
 
         {captainEmergencyMode}
 
@@ -13145,6 +13361,192 @@ const captainMatchDayCommandDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(8,13,28,0.91)',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.32)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainTodayChecklistHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainTodayChecklistTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistSummaryGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainTodayChecklistSummaryCard: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 390px), 1.1fr)',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainTodayChecklistHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,11,22,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistHeroTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainTodayChecklistFocus: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainTodayChecklistPanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistPanelTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainTodayChecklistList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainTodayChecklistCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 76,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainTodayChecklistCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainTodayChecklistCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainTodayChecklistCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainTodayChecklistCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainTodayChecklistCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
