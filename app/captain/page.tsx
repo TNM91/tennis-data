@@ -6491,6 +6491,14 @@ function CaptainHubContent() {
     ?? captainSendRhythmMoments[0]
   const captainSendRhythmPrimarySend = captainWeeklySendBoardItems.find((item) => item.id === captainSendRhythmPrimaryMoment?.id)
     ?? captainWeeklySendBoardPrimaryItem
+  const captainHomeNextSendCopied = copiedCaptainWeeklySendBoardId === captainSendRhythmPrimarySend?.id
+  const captainHomeNextSendStatus = captainHomeNextSendCopied
+    ? 'Copied'
+    : captainSendRhythmPrimarySend?.state || 'Ready'
+  const captainHomeNextSendPreviewLines = (captainSendRhythmPrimarySend?.body || 'Open the send lane to choose the next team text.')
+    .split('\n')
+    .filter((line) => safeText(line))
+    .slice(0, isMobile ? 3 : 4)
   const captainSendRhythmReadyCount = captainSendRhythmMoments.filter((item) => item.tone === 'good').length
   const captainSendRhythmIssueCount = captainSendRhythmMoments.filter((item) => item.tone === 'warn').length
   const captainSendRhythmStatus = captainSendRhythmIssueCount > 0
@@ -12446,6 +12454,31 @@ function CaptainHubContent() {
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+        <div style={captainHomeNextSendShell} aria-label="Captain home next team text">
+          <div style={captainHomeNextSendHeader}>
+            <div style={captainHomeNextSendCopy}>
+              <span style={commandCenterLabel}>Next team text</span>
+              <strong style={captainHomeNextSendTitle}>{captainSendRhythmPrimarySend?.label || 'Team text'}</strong>
+              <span style={captainHomeNextSendDetail}>{captainSendRhythmPrimarySend?.detail || 'Copy the next useful captain note without hunting through the board.'}</span>
+            </div>
+            <span style={captainHomeNextSendCopied ? badgeGreen : captainSendRhythmPrimarySend?.tone === 'warn' ? warnBadge : badgeBlue}>
+              {captainHomeNextSendStatus}
+            </span>
+          </div>
+          <div style={captainHomeNextSendPreview}>
+            {captainHomeNextSendPreviewLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </div>
+          <div style={captainHomeNextSendActions}>
+            <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainSendRhythmPrimarySend?.body} onClick={() => captainSendRhythmPrimarySend ? void handleCopyCaptainWeeklySendBoardItem(captainSendRhythmPrimarySend) : undefined}>
+              {captainHomeNextSendCopied ? 'Copied text' : 'Copy next text'}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-communication-timeline', 'messaging')}>
+              Open send lane
+            </SecondarySmallBtn>
           </div>
         </div>
         <div style={dynamicCaptainHomePriorityGrid}>
@@ -20270,6 +20303,75 @@ const captainHomePulseStepCopy: CSSProperties = {
   lineHeight: 1.22,
   fontWeight: 850,
   overflowWrap: 'anywhere',
+}
+
+const captainHomeNextSendShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(8,13,28,0.42)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeNextSendHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeNextSendCopy: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  flex: '1 1 180px',
+}
+
+const captainHomeNextSendTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 930,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeNextSendDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeNextSendPreview: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  minHeight: 66,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeNextSendActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const captainHomePriorityGrid: CSSProperties = {
