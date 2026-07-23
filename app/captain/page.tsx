@@ -287,6 +287,16 @@ type CaptainHomePriorityItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeActionStackItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainPreMatchReadyGateSeverity = 'blocker' | 'warning' | 'ready'
 
 type CaptainPreMatchReadyGateItem = {
@@ -2159,6 +2169,12 @@ function CaptainHubContent() {
     ...captainHomePulseRail,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomePulseRail.gridTemplateColumns,
     gap: isMobile ? 7 : captainHomePulseRail.gap,
+  }
+
+  const dynamicCaptainHomeActionStackGrid: CSSProperties = {
+    ...captainHomeActionStackGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeActionStackGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainHomeActionStackGrid.gap,
   }
 
   const dynamicCaptainToolLaneShell: CSSProperties = {
@@ -7112,6 +7128,81 @@ function CaptainHubContent() {
   const captainHomeWhereWhenNeeds = captainMatchLogisticsItems
     .filter((item) => item.tone !== 'good')
     .slice(0, isMobile ? 2 : 3)
+  const captainHomeActionStackItems = useMemo<CaptainHomeActionStackItem[]>(() => [
+    {
+      id: 'reply-chase',
+      label: 'Replies',
+      state: captainHomeReplyChaseStatus,
+      detail: captainAvailabilityReminderPrimaryGroup.label,
+      href: '#captain-home-reply-chase',
+      stage: 'availability',
+      tone: captainHomeReplyChaseCopied ? 'good' : captainAvailabilityReminderPrimaryGroup.tone,
+    },
+    {
+      id: 'lineup-lock',
+      label: 'Lineup',
+      state: captainHomeLineupLockStatus,
+      detail: captainLineupLockFlowPrimaryItem.label,
+      href: '#captain-home-lineup-lock',
+      stage: 'lineup',
+      tone: captainHomeLineupLockCopied || captainLineupLockCanSend ? 'good' : captainLineupLockFlowPrimaryItem.tone,
+    },
+    {
+      id: 'where-when',
+      label: 'Where/when',
+      state: captainHomeWhereWhenStatus,
+      detail: captainMatchLogisticsPrimaryItem.label,
+      href: '#captain-home-where-when',
+      stage: 'messaging',
+      tone: captainHomeWhereWhenCopied ? 'good' : captainMatchLogisticsIssueCount > 0 ? 'warn' : 'info',
+    },
+    {
+      id: 'recap',
+      label: 'Recap',
+      state: captainHomeRecapStatus,
+      detail: captainFunRecapPrimaryMoment?.label || captainRecapStarterPrimaryItem.label,
+      href: '#captain-home-recap-ready',
+      stage: 'brief',
+      tone: captainHomeRecapCopied ? 'good' : captainFunRecapTone === 'warn' ? 'warn' : 'info',
+    },
+    {
+      id: 'next-send',
+      label: 'Next text',
+      state: captainHomeNextSendStatus,
+      detail: captainSendRhythmPrimarySend?.label || 'Team text',
+      href: '#captain-home-next-team-text',
+      stage: 'messaging',
+      tone: captainHomeNextSendCopied ? 'good' : captainSendRhythmPrimarySend?.tone || 'info',
+    },
+  ], [
+    captainAvailabilityReminderPrimaryGroup.label,
+    captainAvailabilityReminderPrimaryGroup.tone,
+    captainFunRecapPrimaryMoment?.label,
+    captainFunRecapTone,
+    captainHomeLineupLockCopied,
+    captainHomeLineupLockStatus,
+    captainHomeNextSendCopied,
+    captainHomeNextSendStatus,
+    captainHomeRecapCopied,
+    captainHomeRecapStatus,
+    captainHomeReplyChaseCopied,
+    captainHomeReplyChaseStatus,
+    captainHomeWhereWhenCopied,
+    captainHomeWhereWhenStatus,
+    captainLineupLockCanSend,
+    captainLineupLockFlowPrimaryItem.label,
+    captainLineupLockFlowPrimaryItem.tone,
+    captainMatchLogisticsIssueCount,
+    captainMatchLogisticsPrimaryItem.label,
+    captainRecapStarterPrimaryItem.label,
+    captainSendRhythmPrimarySend?.label,
+    captainSendRhythmPrimarySend?.tone,
+  ])
+  const captainHomeActionStackWarnCount = captainHomeActionStackItems.filter((item) => item.tone === 'warn').length
+  const captainHomeActionStackDoneCount = captainHomeActionStackItems.filter((item) => item.tone === 'good').length
+  const captainHomeActionStackStatus = captainHomeActionStackWarnCount > 0
+    ? `${captainHomeActionStackWarnCount} needs attention`
+    : `${captainHomeActionStackDoneCount}/${captainHomeActionStackItems.length} handled`
   const captainPhoneMatchCardItems = useMemo<CaptainMatchLogisticsItem[]>(() => [
     {
       label: 'When',
@@ -12493,7 +12584,39 @@ function CaptainHubContent() {
             ))}
           </div>
         </div>
-        <div style={captainHomeNextSendShell} aria-label="Captain home next team text">
+        <div style={captainHomeActionStackShell} aria-label="Captain action stack">
+          <div style={captainHomeActionStackHeader}>
+            <div>
+              <span style={commandCenterLabel}>Action stack</span>
+              <strong style={captainHomeActionStackTitle}>{isMobile ? 'Jump to the job.' : 'Jump to the captain job you need.'}</strong>
+            </div>
+            <span style={captainHomeActionStackWarnCount > 0 ? warnBadge : captainHomeActionStackDoneCount >= captainHomeActionStackItems.length ? badgeGreen : badgeBlue}>
+              {captainHomeActionStackStatus}
+            </span>
+          </div>
+          <div style={dynamicCaptainHomeActionStackGrid}>
+            {captainHomeActionStackItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainHomeActionStackButton,
+                  ...(item.tone === 'warn' ? captainHomeActionStackButtonWarn : item.tone === 'good' ? captainHomeActionStackButtonGood : captainHomeActionStackButtonInfo),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainAction(item.href, item.stage)}
+              >
+                <span style={captainHomeActionStackButtonTop}>
+                  <strong>{item.label}</strong>
+                  <span>{item.state}</span>
+                </span>
+                <span style={captainHomeActionStackButtonDetail}>{item.detail}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div id="captain-home-next-team-text" style={captainHomeNextSendShell} aria-label="Captain home next team text">
           <div style={captainHomeNextSendHeader}>
             <div style={captainHomeNextSendCopy}>
               <span style={commandCenterLabel}>Next team text</span>
@@ -12518,7 +12641,7 @@ function CaptainHubContent() {
             </SecondarySmallBtn>
           </div>
         </div>
-        <div style={captainHomeReplyChaseShell} aria-label="Captain home reply chase">
+        <div id="captain-home-reply-chase" style={captainHomeReplyChaseShell} aria-label="Captain home reply chase">
           <div style={captainHomeReplyChaseHeader}>
             <div style={captainHomeReplyChaseCopy}>
               <span style={commandCenterLabel}>Reply chase</span>
@@ -12552,7 +12675,7 @@ function CaptainHubContent() {
             </SecondarySmallBtn>
           </div>
         </div>
-        <div style={captainHomeLineupLockShell} aria-label="Captain home lineup lock">
+        <div id="captain-home-lineup-lock" style={captainHomeLineupLockShell} aria-label="Captain home lineup lock">
           <div style={captainHomeLineupLockHeader}>
             <div style={captainHomeLineupLockCopy}>
               <span style={commandCenterLabel}>Lineup lock</span>
@@ -12586,7 +12709,7 @@ function CaptainHubContent() {
             </SecondarySmallBtn>
           </div>
         </div>
-        <div style={captainHomeWhereWhenShell} aria-label="Captain home where and when">
+        <div id="captain-home-where-when" style={captainHomeWhereWhenShell} aria-label="Captain home where and when">
           <div style={captainHomeWhereWhenHeader}>
             <div style={captainHomeWhereWhenCopy}>
               <span style={commandCenterLabel}>Where and when</span>
@@ -12620,7 +12743,7 @@ function CaptainHubContent() {
             </SecondarySmallBtn>
           </div>
         </div>
-        <div style={captainHomeRecapReadyShell} aria-label="Captain home recap ready">
+        <div id="captain-home-recap-ready" style={captainHomeRecapReadyShell} aria-label="Captain home recap ready">
           <div style={captainHomeRecapReadyHeader}>
             <div style={captainHomeRecapReadyCopy}>
               <span style={commandCenterLabel}>Recap ready</span>
@@ -20475,6 +20598,95 @@ const captainHomePulseStepCopy: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.22,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.20)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeActionStackTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainHomeActionStackButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 72,
+  padding: 9,
+  borderRadius: 12,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackButtonGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainHomeActionStackButtonWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.26)',
+  background: 'rgba(251,191,36,0.09)',
+}
+
+const captainHomeActionStackButtonInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.15)',
+  background: 'rgba(125,211,252,0.06)',
+}
+
+const captainHomeActionStackButtonTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeActionStackButtonDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
