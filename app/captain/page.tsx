@@ -287,6 +287,17 @@ type CaptainHomePriorityItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainHomeKickoffItem = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeActionStackItem = {
   id: string
   label: string
@@ -2225,6 +2236,17 @@ function CaptainHubContent() {
     ...captainHomeShortcutGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeShortcutGrid.gridTemplateColumns,
     gap: isMobile ? 8 : captainHomeShortcutGrid.gap,
+  }
+
+  const dynamicCaptainHomeKickoffGrid: CSSProperties = {
+    ...captainHomeKickoffGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeKickoffGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainHomeKickoffGrid.gap,
+  }
+
+  const dynamicCaptainHomeKickoffFocus: CSSProperties = {
+    ...captainHomeKickoffFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainHomeKickoffFocus.gridTemplateColumns,
   }
 
   const dynamicCaptainHomePriorityGrid: CSSProperties = {
@@ -7722,6 +7744,91 @@ function CaptainHubContent() {
     : captainSeasonLaunchWatchCount > 0
       ? `${captainSeasonLaunchWatchCount} watch`
       : 'Ready for week one'
+  const captainHomeKickoffItems = useMemo<CaptainHomeKickoffItem[]>(() => [
+    {
+      id: 'team',
+      label: 'Team',
+      state: hasTeamScope ? 'Selected' : 'Choose team',
+      detail: hasTeamScope ? `${selectedTeam} - ${selectedLeague} - ${selectedFlight}` : 'Pick team, league, and flight so Captain knows the week.',
+      href: '#captain-team-scope',
+      stage: 'team',
+      cta: hasTeamScope ? 'Review team' : 'Choose team',
+      tone: hasTeamScope ? 'good' : 'warn',
+    },
+    {
+      id: 'first-match',
+      label: 'First match',
+      state: matches.length > 0 ? weekAtGlance.eventDateLabel : 'Needs schedule',
+      detail: matches.length > 0 ? `Vs ${weekAtGlance.opponentLabel}` : 'Add the opener so reminders and lineups point at the right match.',
+      href: matches.length > 0 ? weeklyBriefHref : dataAssistCaptainHref,
+      stage: matches.length > 0 ? 'brief' : 'team',
+      cta: matches.length > 0 ? 'Open brief' : 'Add schedule',
+      tone: matches.length > 0 ? 'good' : 'warn',
+    },
+    {
+      id: 'availability',
+      label: 'Availability',
+      state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : matchDayResponseRows.length ? 'Clear' : 'Ask team',
+      detail: workspaceState.pendingResponseCount > 0
+        ? 'Chase the open replies before building week-one courts.'
+        : matchDayResponseRows.length
+          ? 'Saved replies are clean enough to start lineup work.'
+          : 'Send the first In, Out, Maybe ask before the week gets noisy.',
+      href: availabilityHref,
+      stage: 'availability',
+      cta: workspaceState.pendingResponseCount > 0 ? 'Chase replies' : 'Ask availability',
+      tone: workspaceState.pendingResponseCount > 0 ? 'warn' : matchDayResponseRows.length ? 'good' : 'info',
+    },
+    {
+      id: 'lineup',
+      label: 'Lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+      detail: workspaceState.lineupReady ? 'Week-one court order is started and ready to refine.' : 'Draft courts after availability gives you the player pool.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'info',
+    },
+    {
+      id: 'reminder',
+      label: 'Reminder',
+      state: copiedCaptainMatchLogistics ? 'Copied' : workspaceState.messagingReady ? 'Ready' : 'Prep',
+      detail: copiedCaptainMatchLogistics
+        ? 'The where-and-when reminder is already copied.'
+        : workspaceState.messagingReady
+          ? 'Lineup and match details are ready for a team reminder.'
+          : 'Add where, when, and lineup context before the first reminder.',
+      href: '#captain-home-next-team-text',
+      stage: 'messaging',
+      cta: copiedCaptainMatchLogistics ? 'Open text' : 'Prep reminder',
+      tone: copiedCaptainMatchLogistics || workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ], [
+    availabilityHref,
+    copiedCaptainMatchLogistics,
+    hasTeamScope,
+    lineupBuilderHref,
+    matchDayResponseRows.length,
+    matches.length,
+    selectedFlight,
+    selectedLeague,
+    selectedTeam,
+    weekAtGlance.eventDateLabel,
+    weekAtGlance.opponentLabel,
+    weeklyBriefHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainHomeKickoffReadyCount = captainHomeKickoffItems.filter((item) => item.tone === 'good').length
+  const captainHomeKickoffIssueCount = captainHomeKickoffItems.filter((item) => item.tone === 'warn').length
+  const captainHomeKickoffPrimaryItem = captainHomeKickoffItems.find((item) => item.tone === 'warn')
+    ?? captainHomeKickoffItems.find((item) => item.tone === 'info')
+    ?? captainHomeKickoffItems[0]
+  const captainHomeKickoffStatus = captainHomeKickoffIssueCount > 0
+    ? `${captainHomeKickoffIssueCount} setup gap${captainHomeKickoffIssueCount === 1 ? '' : 's'}`
+    : `${captainHomeKickoffReadyCount}/${captainHomeKickoffItems.length} ready`
 
   const captainRosterDepthItems = useMemo<CaptainRosterDepthItem[]>(() => [
     {
@@ -12826,6 +12933,49 @@ function CaptainHubContent() {
         <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
           {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
         </PrimarySmallBtn>
+      </div>
+
+      <div style={captainHomeKickoffShell} aria-label="Captain home kickoff setup">
+        <div style={captainHomeKickoffHeader}>
+          <div>
+            <span style={commandCenterLabel}>Kickoff setup</span>
+            <strong style={captainHomeKickoffTitle}>{isMobile ? 'Season ready?' : 'Get the first match week ready.'}</strong>
+          </div>
+          <span style={captainHomeKickoffIssueCount > 0 ? warnBadge : captainHomeKickoffReadyCount >= captainHomeKickoffItems.length ? badgeGreen : badgeBlue}>
+            {captainHomeKickoffStatus}
+          </span>
+        </div>
+        <div style={dynamicCaptainHomeKickoffFocus}>
+          <div>
+            <span style={commandCenterLabel}>Next setup step</span>
+            <strong style={captainHomeKickoffFocusTitle}>{captainHomeKickoffPrimaryItem.label}</strong>
+            <span style={captainHomeKickoffFocusDetail}>{captainHomeKickoffPrimaryItem.detail}</span>
+          </div>
+          <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!premiumEnabled || (!hasTeamScope && captainHomeKickoffPrimaryItem.id !== 'team')} onClick={() => handleCaptainAction(captainHomeKickoffPrimaryItem.href, captainHomeKickoffPrimaryItem.stage)}>
+            {captainHomeKickoffPrimaryItem.cta}
+          </PrimarySmallBtn>
+        </div>
+        <div style={dynamicCaptainHomeKickoffGrid}>
+          {captainHomeKickoffItems.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={!premiumEnabled || (!hasTeamScope && item.id !== 'team')}
+              style={{
+                ...captainHomeKickoffItem,
+                ...(item.tone === 'warn' ? captainHomeKickoffItemWarn : item.tone === 'good' ? captainHomeKickoffItemGood : captainHomeKickoffItemInfo),
+                ...(!premiumEnabled || (!hasTeamScope && item.id !== 'team') ? disabledButtonSecondary : null),
+              }}
+              onClick={() => handleCaptainAction(item.href, item.stage)}
+            >
+              <span style={captainHomeKickoffItemTop}>
+                <strong>{index + 1}. {item.label}</strong>
+                <span>{item.state}</span>
+              </span>
+              <span style={captainHomeKickoffItemDetail}>{item.detail}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={captainHomePriorityShell} aria-label="Captain weekly priority strip">
@@ -20819,6 +20969,128 @@ const captainHomeShortcutReason: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(2,8,23,0.18)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeKickoffTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 156px), auto)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.06)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffFocusTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffFocusDetail: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainHomeKickoffItem: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: 9,
+  borderRadius: 12,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffItemGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const captainHomeKickoffItemWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.22)',
+  background: 'rgba(251,191,36,0.08)',
+}
+
+const captainHomeKickoffItemInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainHomeKickoffItemTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeKickoffItemDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
