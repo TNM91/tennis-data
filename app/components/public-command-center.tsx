@@ -119,7 +119,7 @@ export const homeActionCards: PublicActionCard[] = [
     body: 'Collect availability, build lineups, scout opponents, communicate clearly, and reduce match-week chaos.',
     href: '/captain',
     cta: 'Manage My Team',
-    meta: 'Manage',
+    meta: 'Captain',
   },
   {
     title: 'Find or Work With a Coach',
@@ -214,7 +214,7 @@ const heroBoardActions = [
   { label: 'Improve', detail: 'Drills and player plans', href: '/player-development' },
   { label: 'Video Review', detail: 'Record clips and coach feedback', href: '/video-review' },
   { label: 'Compete', detail: 'Matchups and scouting', href: '/compete' },
-  { label: 'Manage', detail: 'Teams and events', href: '/manage' },
+  { label: 'Captain', detail: 'Team week and lineups', href: '/captain' },
   { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },
 ] as const
 
