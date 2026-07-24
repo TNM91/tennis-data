@@ -16,7 +16,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
   { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
   { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-  { href: '/manage', label: 'Manage', description: 'Run teams, schedules, availability, scores, and communication.' },
+  { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
   { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
   { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
   { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
@@ -98,9 +98,9 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Manage',
+    title: 'Captain',
     items: [
-      { href: '/manage', label: 'Manage hub' },
+      { href: '/captain', label: 'Captain hub' },
       ...CAPTAIN_QUICK_NAV_ITEMS,
     ],
   },

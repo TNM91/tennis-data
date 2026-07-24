@@ -209,7 +209,7 @@ describe('public landing preview cards', () => {
     expect(commandCenterSource).toContain('Search the public tennis map, prep a matchup, or move into the team week.')
     expect(commandCenterSource).toContain("event={getPublicLinkEvent('Start Exploring', '/explore', 'home-closing')}")
     expect(commandCenterSource).toContain("event={getPublicLinkEvent('Prep a Matchup', '/matchup', 'home-closing')}")
-    expect(commandCenterSource).toContain("event={getPublicLinkEvent('Manage My Team', '/captain', 'home-closing')}")
+    expect(commandCenterSource).toContain("event={getPublicLinkEvent('Open Captain', '/captain', 'home-closing')}")
     expect(commandCenterSource).not.toContain('See what each path actually does.')
     expect(commandCenterSource).not.toContain('Each preview shows the decision it supports, the signal it reads, and the next tennis action.')
     expect(commandCenterSource).not.toContain('Platform pillars')

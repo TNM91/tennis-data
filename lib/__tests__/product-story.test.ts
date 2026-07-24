@@ -83,12 +83,12 @@ describe('product story guardrails', () => {
     expect(PLATFORM_POSITIONING).toBe(
       'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.',
     )
-    expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Manage'])
-    expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/manage'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Captain'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/captain'])
     expect(PLATFORM_PILLARS.map((pillar) => pillar.promise)).toEqual([
       'Turn player context into court work.',
       'Turn matchup context into a plan.',
-      'Turn scattered admin into a cleaner week.',
+      'Turn team context into a cleaner match week.',
     ])
     expect(PLATFORM_PILLARS.flatMap((pillar) => pillar.proof)).toEqual([
       'Player path',
@@ -98,8 +98,8 @@ describe('product story guardrails', () => {
       'Opponent scout',
       'Court plan',
       'Availability',
-      'Schedules and scores',
-      'Rosters',
+      'Lineups',
+      'Team messages',
     ])
     expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('player development paths, ratings, progress signals')
     expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('lineup strategy, match preparation, performance tracking')
