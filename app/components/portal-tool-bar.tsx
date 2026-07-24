@@ -112,8 +112,8 @@ const portalLanes: PortalLane[] = [
   },
   {
     id: 'team',
-    label: 'Manage',
-    cue: 'Teams and match week',
+    label: 'Captain',
+    cue: 'Team Hub and match week',
     route: '/captain',
     planRoute: '/captain',
     icon: 'lineupBuilder',
@@ -984,7 +984,7 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
   if (laneId === 'you') return 'Improve'
   if (laneId === 'compete') return 'Compete'
   if (laneId === 'coach') return 'Coaches'
-  if (laneId === 'team') return 'Manage'
+  if (laneId === 'team') return 'Captain'
   return 'Leagues'
 }
 

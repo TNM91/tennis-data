@@ -194,6 +194,7 @@ describe('public landing preview cards', () => {
     expect(commandCenterSource).toContain('Choose your mode')
     expect(commandCenterSource).toContain('Open role paths.')
     expect(commandCenterSource).toContain('Open the right tool first. Details stay one tap away.')
+    expect(commandCenterSource).toContain("meta: 'Captain'")
     expect(commandCenterSource).toContain('Role paths')
     expect(commandCenterSource).toContain('What opens')
     expect(commandCenterSource).toContain("label: MEMBERSHIP_TIERS.free.name")
