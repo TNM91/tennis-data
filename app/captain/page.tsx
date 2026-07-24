@@ -263,6 +263,18 @@ type CaptainTodayChecklistItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainLiveMatchStep = {
+  id: 'arrival' | 'lineup-sent' | 'scores' | 'recap' | 'close'
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  done: boolean
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeShortcutItem = {
   id: string
   label: string
@@ -2644,6 +2656,27 @@ function CaptainHubContent() {
     ...captainOneThumbQueue,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainOneThumbQueue.gridTemplateColumns,
     gap: isMobile ? 7 : captainOneThumbQueue.gap,
+  }
+
+  const dynamicCaptainLiveMatchModeShell: CSSProperties = {
+    ...captainLiveMatchModeShell,
+    position: isMobile ? 'sticky' : 'relative',
+    top: isMobile ? 8 : 'auto',
+    zIndex: isMobile ? 13 : 1,
+    gap: isMobile ? 10 : captainLiveMatchModeShell.gap,
+    padding: isSmallMobile ? 12 : isMobile ? 14 : captainLiveMatchModeShell.padding,
+    borderRadius: isMobile ? 18 : captainLiveMatchModeShell.borderRadius,
+  }
+
+  const dynamicCaptainLiveMatchModeGrid: CSSProperties = {
+    ...captainLiveMatchModeGrid,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : captainLiveMatchModeGrid.gridTemplateColumns,
+  }
+
+  const dynamicCaptainLiveMatchStepGrid: CSSProperties = {
+    ...captainLiveMatchStepGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainLiveMatchStepGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainLiveMatchStepGrid.gap,
   }
 
   const dynamicCaptainPreMatchReadyGateShell: CSSProperties = {
@@ -6868,7 +6901,6 @@ function CaptainHubContent() {
     : captainPostMatchFlowIssueCount > 0
       ? `${captainPostMatchFlowIssueCount} to finish`
       : `${captainPostMatchFlowReadyCount}/${captainPostMatchFlow.length} ready`
-
   const captainWeeklySendBoardItems = useMemo<CaptainWeeklySendBoardItem[]>(() => {
     const logisticsReady = matchDayLocationLabel !== 'Add location' && matchDayArrivalLabel !== 'Add arrival'
     const availabilityBody = captainNudgeDrafts.find((draft) => draft.label === 'Confirm availability')?.body || captainNudgePrimaryDraft.body
@@ -8956,6 +8988,123 @@ function CaptainHubContent() {
           tone: captainHomeShortcutPrimaryItem?.tone || 'info',
         }
 
+  const captainLiveMatchSteps = useMemo<CaptainLiveMatchStep[]>(() => {
+    const logisticsReady = captainMatchLogisticsHasArrival && captainMatchLogisticsHasLocation
+    const scoreCaptureReady = captainScoreCaptureRows.length > 0
+    const scoresDone = scoreCaptureReady && captainScoreCapturePendingCount === 0 && captainScoreCaptureIssueCount === 0
+
+    return [
+      {
+        id: 'arrival',
+        label: 'Arrive',
+        state: logisticsReady ? 'Set' : 'Add details',
+        detail: logisticsReady
+          ? `${matchDayArrivalLabel} at ${matchDayLocationLabel}`
+          : 'Set the site and arrival time before players head over.',
+        href: '#captain-home-where-when',
+        stage: 'messaging',
+        cta: logisticsReady ? 'Review arrival' : 'Set details',
+        done: logisticsReady,
+        tone: logisticsReady ? 'good' : 'warn',
+      },
+      {
+        id: 'lineup-sent',
+        label: 'Lineup sent',
+        state: captainPostSendSent ? 'Marked sent' : captainCopiedTeamTextReady ? 'Copied' : workspaceState.lineupReady ? 'Ready' : 'Draft',
+        detail: captainPostSendSent
+          ? 'The team note is marked sent for this match.'
+          : captainCopiedTeamTextReady
+            ? 'After you send the copied note, mark it sent here.'
+            : workspaceState.lineupReady
+              ? 'Lineup is ready. Copy or send the team note before warmups.'
+              : 'Build courts before the final team note goes out.',
+        href: captainCopiedTeamTextReady ? messagingHref : workspaceState.lineupReady ? '#captain-home-next-team-text' : lineupBuilderHref,
+        stage: captainCopiedTeamTextReady || workspaceState.lineupReady ? 'messaging' : 'lineup',
+        cta: captainPostSendSent ? 'Review send' : captainCopiedTeamTextReady ? 'Mark sent' : workspaceState.lineupReady ? 'Prep text' : 'Build lineup',
+        done: captainPostSendSent,
+        tone: captainPostSendSent ? 'good' : captainCopiedTeamTextReady || workspaceState.lineupReady ? 'info' : 'warn',
+      },
+      {
+        id: 'scores',
+        label: 'Scores',
+        state: scoreCaptureReady
+          ? captainScoreCaptureIssueCount > 0
+            ? `${captainScoreCaptureIssueCount} issue`
+            : captainScoreCapturePendingCount > 0
+              ? `${captainScoreCapturePendingCount} open`
+              : `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length}`
+          : 'Lineup first',
+        detail: scoreCaptureReady
+          ? captainScoreCaptureIssueCount > 0
+            ? 'Review score issues before the recap goes out.'
+            : captainScoreCapturePendingCount > 0
+              ? 'Tap each remaining court before the recap gets final.'
+              : 'Score capture is ready to anchor the recap.'
+          : 'Save courts first so score capture has named lines.',
+        href: scoreCaptureReady ? '#captain-score-capture-checklist' : lineupBuilderHref,
+        stage: scoreCaptureReady ? 'analytics' : 'lineup',
+        cta: scoreCaptureReady ? 'Open scores' : 'Build lineup',
+        done: scoresDone,
+        tone: scoresDone ? 'good' : captainScoreCaptureIssueCount > 0 || !scoreCaptureReady ? 'warn' : 'info',
+      },
+      {
+        id: 'recap',
+        label: 'Recap',
+        state: postMatchClosed ? 'Closed' : captainPostMatchRecapCopied ? 'Copied' : captainScoreCaptureLoggedCount > 0 ? 'Draft' : 'After play',
+        detail: postMatchClosed
+          ? 'The recap is part of the closed match trail.'
+          : captainPostMatchRecapCopied
+            ? 'Open Messages with the recap ready to send.'
+            : captainScoreCaptureLoggedCount > 0
+              ? 'Pick the result, highlight, and thank-you note.'
+              : 'Keep the recap starter ready until scores begin.',
+        href: captainPostMatchRecapCopied ? messagingHref : captainScoreCaptureLoggedCount > 0 ? '#captain-home-recap-ready' : '#captain-post-match-recap-builder',
+        stage: captainPostMatchRecapCopied ? 'messaging' : 'brief',
+        cta: postMatchClosed ? 'Review recap' : captainPostMatchRecapCopied ? 'Text recap' : captainScoreCaptureLoggedCount > 0 ? 'Copy recap' : 'Prep recap',
+        done: postMatchClosed || captainPostMatchRecapCopied,
+        tone: postMatchClosed || captainPostMatchRecapCopied ? 'good' : captainScoreCaptureLoggedCount > 0 ? 'info' : 'warn',
+      },
+      {
+        id: 'close',
+        label: 'Close',
+        state: postMatchClosed ? 'Done' : captainPostMatchRecapCopied ? 'Ready' : 'Recap first',
+        detail: postMatchClosed
+          ? 'Match week is closed in Captain.'
+          : captainPostMatchRecapCopied
+            ? 'Close the week after the recap and scorecard are handled.'
+            : 'Copy the recap before marking the match week closed.',
+        href: '#captain-post-match-closeout',
+        stage: 'brief',
+        cta: postMatchClosed ? 'Review closeout' : captainPostMatchRecapCopied ? 'Mark closed' : 'Open closeout',
+        done: postMatchClosed,
+        tone: postMatchClosed ? 'good' : captainPostMatchRecapCopied ? 'info' : 'warn',
+      },
+    ]
+  }, [
+    captainCopiedTeamTextReady,
+    captainMatchLogisticsHasArrival,
+    captainMatchLogisticsHasLocation,
+    captainPostMatchRecapCopied,
+    captainPostSendSent,
+    captainScoreCaptureIssueCount,
+    captainScoreCaptureLoggedCount,
+    captainScoreCapturePendingCount,
+    captainScoreCaptureRows.length,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    messagingHref,
+    postMatchClosed,
+    workspaceState.lineupReady,
+  ])
+  const captainLiveMatchDoneCount = captainLiveMatchSteps.filter((item) => item.done).length
+  const captainLiveMatchWarnCount = captainLiveMatchSteps.filter((item) => !item.done && item.tone === 'warn').length
+  const captainLiveMatchPrimaryStep = captainLiveMatchSteps.find((item) => !item.done)
+    ?? captainLiveMatchSteps[captainLiveMatchSteps.length - 1]
+  const captainLiveMatchStatus = captainLiveMatchDoneCount >= captainLiveMatchSteps.length
+    ? 'Match handled'
+    : `Step ${Math.min(captainLiveMatchDoneCount + 1, captainLiveMatchSteps.length)} of ${captainLiveMatchSteps.length}`
+
   const captainRosterDepthItems = useMemo<CaptainRosterDepthItem[]>(() => [
     {
       id: 'roster-depth',
@@ -9733,6 +9882,37 @@ function CaptainHubContent() {
     })
   }
 
+  function handleCaptainLiveMatchStep(step: CaptainLiveMatchStep | undefined) {
+    if (!step) return
+
+    if (step.id === 'lineup-sent' && captainCopiedTeamTextReady && !captainPostSendSent) {
+      handleWeekStatusUpdate('ready-to-send')
+      return
+    }
+
+    if (step.id === 'recap' && captainScoreCaptureLoggedCount > 0 && !captainPostMatchRecapCopied && !postMatchClosed) {
+      void handleCopyCaptainFunRecap({
+        body: captainHomeRecapSelectedAngle?.message,
+        label: captainHomeRecapSelectedAngle?.label,
+        tone: captainHomeRecapSelectedAngle?.tone,
+      })
+      return
+    }
+
+    if (step.id === 'close' && captainPostMatchRecapCopied && !postMatchClosed) {
+      handleWeekStatusUpdate('finalized')
+      return
+    }
+
+    handleCaptainAction(step.href, step.stage)
+    appendCaptainDecisionLog({
+      label: 'Live match step opened',
+      detail: `${step.label}: ${step.detail}`,
+      action: step.cta,
+      tone: step.tone,
+    })
+  }
+
   function handleCaptainPreMatchReadyGateOpen(item: CaptainPreMatchReadyGateItem | undefined) {
     if (!item) return
 
@@ -10477,6 +10657,79 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainLiveMatchMode = (
+    <section id="captain-live-match-mode" style={dynamicCaptainLiveMatchModeShell} aria-label="Captain live match mode">
+      <div style={captainLiveMatchModeHeader}>
+        <div>
+          <div style={sectionKicker}>Live match mode</div>
+          <h2 style={captainLiveMatchModeTitle}>{isMobile ? 'Run the match live.' : 'Walk through match day from arrival to closeout.'}</h2>
+        </div>
+        <span style={captainLiveMatchDoneCount >= captainLiveMatchSteps.length ? badgeGreen : captainLiveMatchWarnCount > 0 ? warnBadge : badgeBlue}>
+          {captainLiveMatchStatus}
+        </span>
+      </div>
+      <div style={captainLiveMatchModeSub}>
+        Follow the match-day sequence without jumping between tools.
+      </div>
+
+      <div style={dynamicCaptainLiveMatchModeGrid}>
+        <div style={captainLiveMatchModeHero}>
+          <div style={captainLiveMatchModeTop}>
+            <div>
+              <div style={commandCenterLabel}>Current step</div>
+              <div style={captainLiveMatchModeFocus}>{captainLiveMatchPrimaryStep.label}</div>
+            </div>
+            <span style={captainLiveMatchPrimaryStep.tone === 'warn' ? warnBadge : captainLiveMatchPrimaryStep.tone === 'good' ? badgeGreen : badgeBlue}>
+              {captainLiveMatchPrimaryStep.state}
+            </span>
+          </div>
+          <p style={captainLiveMatchModeDetail}>{captainLiveMatchPrimaryStep.detail}</p>
+          <div style={captainLiveMatchModeActionRow}>
+            <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainLiveMatchPrimaryStep} onClick={() => handleCaptainLiveMatchStep(captainLiveMatchPrimaryStep)}>
+              {captainLiveMatchPrimaryStep.cta}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-score-capture-checklist', 'analytics')}>
+              Scores
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-post-match-closeout', 'brief')}>
+              Closeout
+            </SecondarySmallBtn>
+          </div>
+        </div>
+
+        <div style={captainLiveMatchModePanel}>
+          <div style={captainLiveMatchModePanelTop}>
+            <span style={commandCenterLabel}>Match flow</span>
+            <span style={badgeSlate}>{captainLiveMatchDoneCount}/{captainLiveMatchSteps.length}</span>
+          </div>
+          <div style={dynamicCaptainLiveMatchStepGrid}>
+            {captainLiveMatchSteps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainLiveMatchStepButton,
+                  ...(step.tone === 'warn' ? captainLiveMatchStepButtonWarn : step.tone === 'good' ? captainLiveMatchStepButtonGood : captainLiveMatchStepButtonInfo),
+                  ...(step.id === captainLiveMatchPrimaryStep.id ? captainLiveMatchStepButtonActive : null),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => handleCaptainLiveMatchStep(step)}
+              >
+                <span style={captainLiveMatchStepTop}>
+                  <span style={captainLiveMatchStepNumber}>{index + 1}</span>
+                  <strong>{step.label}</strong>
+                </span>
+                <span style={step.tone === 'warn' ? warnBadge : step.tone === 'good' ? badgeGreen : badgeBlue}>{step.state}</span>
+                {!isSmallMobile ? <span style={captainLiveMatchStepDetail}>{step.detail}</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
   const captainTodayChecklist = (
     <section id="captain-today-checklist" style={dynamicCaptainTodayChecklistShell} aria-label="Captain today checklist compact mode">
       <div style={captainTodayChecklistHeader}>
@@ -10530,6 +10783,9 @@ function CaptainHubContent() {
             </PrimarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-one-thumb-mode', 'analytics')}>
               One thumb mode
+            </SecondarySmallBtn>
+            <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-live-match-mode', 'analytics')}>
+              Live mode
             </SecondarySmallBtn>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-morning-brief', 'brief')}>
               Morning brief
@@ -15384,6 +15640,8 @@ function CaptainHubContent() {
 
             {captainOneThumbMode}
 
+            {captainLiveMatchMode}
+
             {captainPreMatchReadyGate}
 
             {captainMatchDayCommandStripSurface}
@@ -17564,6 +17822,194 @@ const captainOneThumbQueueTop: CSSProperties = {
 }
 
 const captainOneThumbQueueDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeShell: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.095), rgba(8,13,28,0.91) 42%, rgba(12,22,38,0.94))',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.32)',
+  backdropFilter: 'blur(16px)',
+}
+
+const captainLiveMatchModeHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainLiveMatchModeTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeSub: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 420px), 1.1fr)',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainLiveMatchModeHero: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,11,22,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainLiveMatchModeFocus: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeDetail: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModeActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainLiveMatchModePanel: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 9,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.14)',
+  background: 'rgba(155,225,29,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchModePanelTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainLiveMatchStepGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainLiveMatchStepButton: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 104,
+  padding: 10,
+  borderRadius: 14,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchStepButtonGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const captainLiveMatchStepButtonWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.11)',
+}
+
+const captainLiveMatchStepButtonInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
+const captainLiveMatchStepButtonActive: CSSProperties = {
+  boxShadow: '0 0 0 2px rgba(155,225,29,0.22)',
+}
+
+const captainLiveMatchStepTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLiveMatchStepNumber: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 22,
+  height: 22,
+  flex: '0 0 22px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.13)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const captainLiveMatchStepDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.35,
