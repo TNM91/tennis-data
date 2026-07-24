@@ -70,7 +70,7 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
   if (target.includes('start exploring')) return { eventName: 'search_category_selected', surface: 'public_site', metadata }
   if (target.includes('find player insights')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
   if (target.includes('level up my game')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
-  if (target.includes('manage my team')) return { eventName: 'captain_tools_clicked', surface: 'captain', metadata }
+  if (target.includes('manage my team') || target.includes('open captain') || href === '/captain') return { eventName: 'captain_tools_clicked', surface: 'captain', metadata }
   if (target.includes('run a league or tournament')) return { eventName: 'run_tournament_clicked', surface: 'tournaments', metadata }
   if (target.includes('find teams')) return { eventName: 'team_search_submitted', surface: 'teams', metadata }
   if (target.includes('captain tools')) return { eventName: 'captain_tools_clicked', surface: 'teams', metadata }
@@ -115,10 +115,10 @@ export const homeActionCards: PublicActionCard[] = [
     meta: 'Compete',
   },
   {
-    title: 'Manage My Team',
+    title: 'Open Captain',
     body: 'Collect availability, build lineups, scout opponents, communicate clearly, and reduce match-week chaos.',
     href: '/captain',
-    cta: 'Manage My Team',
+    cta: 'Open Captain',
     meta: 'Captain',
   },
   {
@@ -241,7 +241,7 @@ const homeSnapshotItems: HomeSnapshotItem[] = [
     body: 'Move from roster noise to availability, lineup options, opponent scouting, and the note the team needs.',
     signal: 'Availability, lineup, scout',
     href: PRODUCT_MODE_LANGUAGE.team.route,
-    cta: 'Manage My Team',
+    cta: 'Open Captain',
   },
   {
     label: 'League pulse',
@@ -281,7 +281,7 @@ const homeModeCards: HomeModeCard[] = [
     title: MEMBERSHIP_TIERS.captain.shortPromise,
     detail: 'Build the team week with availability, lineup strategy, scouting, messaging, and weekly decisions.',
     href: PRODUCT_MODE_LANGUAGE.team.route,
-    cta: 'Manage My Team',
+    cta: 'Open Captain',
   },
   {
     label: 'League/Admin',
@@ -302,8 +302,8 @@ const platformLaneCues = {
     when: 'Use when the next match needs a clearer read.',
   },
   manage: {
-    label: 'Season lane',
-    when: 'Use when people, schedules, scores, or rosters need to move.',
+    label: 'Captain lane',
+    when: 'Use when availability, lineups, team messages, or recaps need to move.',
   },
 } as const
 
@@ -399,7 +399,7 @@ export function PlatformPillarGrid() {
       <SectionHeader
         eyebrow="Tennis lanes"
         title="Start with the problem in front of you."
-        body="Improve is for practice. Compete is for match prep. Manage is for the people and schedule work around the tennis."
+        body="Improve is for practice. Compete is for match prep. Captain is for the team week around the tennis."
         titleId="platform-pillars-title"
       />
       <div style={pillarBoardStyle}>
@@ -622,8 +622,8 @@ export function HomeClosingBand() {
         <TrackedProductLink href="/matchup" style={ghostButtonStyle} event={getPublicLinkEvent('Prep a Matchup', '/matchup', 'home-closing')}>
           Prep a Matchup
         </TrackedProductLink>
-        <TrackedProductLink href="/captain" style={ghostButtonStyle} event={getPublicLinkEvent('Manage My Team', '/captain', 'home-closing')}>
-          Manage My Team
+        <TrackedProductLink href="/captain" style={ghostButtonStyle} event={getPublicLinkEvent('Open Captain', '/captain', 'home-closing')}>
+          Open Captain
         </TrackedProductLink>
       </div>
     </section>

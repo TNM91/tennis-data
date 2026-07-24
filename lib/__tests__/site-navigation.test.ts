@@ -9,7 +9,7 @@ describe('site navigation language', () => {
       { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
       { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
       { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-      { href: '/manage', label: 'Manage', description: 'Run teams, schedules, availability, scores, and communication.' },
+      { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
       { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
       { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
       { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
@@ -20,14 +20,14 @@ describe('site navigation language', () => {
       'Improve',
       'Video Review',
       'Compete',
-      'Manage',
+      'Captain',
       'Coaches',
       'Leagues & Tournaments',
       'My Lab',
     ])
     expect(PRIMARY_NAV_ITEMS.every((item) => item.description && item.description.length > 20)).toBe(true)
     expect(PRIMARY_NAV_ITEMS.map((item) => item.description)).toContain('Choose what to work on, find drills, and level up faster.')
-    expect(PRIMARY_NAV_ITEMS).not.toContainEqual({ href: '/captain', label: 'Captains' })
+    expect(PRIMARY_NAV_ITEMS).not.toContainEqual({ href: '/manage', label: 'Manage' })
   })
 
   it('keeps footer sections aligned to the same user-facing modes', () => {
@@ -36,7 +36,7 @@ describe('site navigation language', () => {
     expect(sectionTitles).toContain('Explore')
     expect(sectionTitles).toContain('Improve')
     expect(sectionTitles).toContain('Compete')
-    expect(sectionTitles).toContain('Manage')
+    expect(sectionTitles).toContain('Captain')
     expect(sectionTitles).toContain('Coaches')
     expect(sectionTitles).toContain('Leagues and tournaments')
   })

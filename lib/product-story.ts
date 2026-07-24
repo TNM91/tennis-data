@@ -49,13 +49,13 @@ export const PLATFORM_PILLARS = [
   },
   {
     id: 'manage',
-    title: 'Manage',
-    promise: 'Turn scattered admin into a cleaner week.',
+    title: 'Captain',
+    promise: 'Turn team context into a cleaner match week.',
     body:
-      'Collect availability, organize schedules and scores, and keep teams, leagues, or events moving without chasing every detail.',
-    href: '/manage',
-    cta: 'Manage My Team',
-    proof: ['Availability', 'Schedules and scores', 'Rosters'],
+      'Collect availability, build lineups, scout opponents, send the team note, and close the week with a quick recap.',
+    href: '/captain',
+    cta: 'Open Captain',
+    proof: ['Availability', 'Lineups', 'Team messages'],
   },
 ] as const
 
@@ -70,7 +70,7 @@ export const PLATFORM_AUDIENCE_PATHS = [
     audience: 'Captains',
     question: 'Who is available, what lineup gives us the best chance, and what needs to be sent?',
     href: '/captain',
-    cta: 'Manage My Team',
+    cta: 'Open Captain',
   },
   {
     audience: 'Coaches',
