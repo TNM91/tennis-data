@@ -8547,6 +8547,9 @@ function CaptainHubContent() {
     || copiedCaptainSendQueueId
     || copiedCaptainWeeklySendBoardId,
   )
+  const captainMobileMatchShortcutLinks = (captainCopiedTeamTextReady && !captainPostSendSent)
+    ? []
+    : captainMatchDayPocketLinks.filter((handoff) => handoff.href)
   const captainDataConfidenceItems = useMemo<CaptainDataConfidenceItem[]>(() => [
     {
       id: 'browser-save',
@@ -15023,6 +15026,18 @@ function CaptainHubContent() {
         >
           {captainMobileTodayAction.cta}
         </PrimarySmallBtn>
+        {captainMobileMatchShortcutLinks.length > 0 ? (
+          <div style={captainMobileTodayNativeRow} aria-label="Captain mobile match shortcuts">
+            {captainMobileMatchShortcutLinks.map((handoff) => (
+              <NativeSmallLink
+                key={`mobile-${handoff.id}`}
+                handoff={handoff}
+                fullWidth
+                disabled={!hasTeamScope || !premiumEnabled}
+              />
+            ))}
+          </div>
+        ) : null}
         {captainCopiedTeamTextReady && !captainPostSendSent ? (
           <SmsSmallLink
             handoff={captainHomeNextSendSmsHandoff}
@@ -24641,7 +24656,7 @@ const captainMobileTodayActionBarStyle: CSSProperties = {
   bottom: 'max(10px, env(safe-area-inset-bottom))',
   zIndex: 60,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 140px)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 156px)',
   alignItems: 'center',
   gap: 9,
   minWidth: 0,
@@ -24692,6 +24707,14 @@ const captainMobileTodayActionButtons: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
+}
+
+const captainMobileTodayNativeRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const captainToolLaneShell: CSSProperties = {
