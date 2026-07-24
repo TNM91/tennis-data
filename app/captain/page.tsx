@@ -341,6 +341,23 @@ type CaptainHomeTextChaseItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainSmsContactTarget = {
+  id: string
+  name: string
+  phone: string
+}
+
+type CaptainSmsHandoff = {
+  id: string
+  label: string
+  state: string
+  detail: string
+  href: string
+  phoneCount: number
+  targetLabel: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeLineupNoteModeId = 'full-lineup' | 'courts-only' | 'reply-blockers' | 'backup-note'
 
 type CaptainHomeLineupNoteModeItem = {
@@ -1150,6 +1167,28 @@ type CaptainOpponentScoutItem = {
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
+}
+
+function normalizeCaptainSmsPhone(phone: string) {
+  const raw = safeText(phone)
+  if (!raw) return ''
+
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 7) return ''
+
+  return raw.trim().startsWith('+') ? `+${digits}` : digits
+}
+
+function buildCaptainSmsHref(phones: string[], body: string) {
+  const uniquePhones = Array.from(new Set(
+    phones
+      .map((phone) => normalizeCaptainSmsPhone(phone))
+      .filter(Boolean),
+  ))
+  if (!uniquePhones.length) return ''
+
+  const bodyText = safeText(body)
+  return `sms:${uniquePhones.join(',')}${bodyText ? `?&body=${encodeURIComponent(bodyText)}` : ''}`
 }
 
 export default function CaptainHubPage() {
@@ -3302,6 +3341,61 @@ function CaptainHubContent() {
     readLocalArray<CaptainMessageContact>(CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY)
       .filter((contact) => safeText(contact.full_name) && contact.is_active !== false)
   ), [])
+  const captainSmsContactTargets = useMemo<CaptainSmsContactTarget[]>(() => (
+    captainMessageContactRows
+      .map((contact, index) => ({
+        id: safeText(contact.id, `sms-contact-${index}`),
+        name: safeText(contact.full_name),
+        phone: normalizeCaptainSmsPhone(safeText(contact.phone)),
+      }))
+      .filter((contact) => contact.name && contact.phone)
+  ), [captainMessageContactRows])
+  const captainSmsContactByNameKey = useMemo(() => {
+    const contacts = new Map<string, CaptainSmsContactTarget>()
+
+    captainSmsContactTargets.forEach((contact) => {
+      const key = safeKey(contact.name)
+      if (key && !contacts.has(key)) contacts.set(key, contact)
+    })
+
+    return contacts
+  }, [captainSmsContactTargets])
+  const buildCaptainSmsHandoff = useCallback((options: {
+    id: string
+    label: string
+    body: string
+    names?: string[]
+    emptyDetail?: string
+  }): CaptainSmsHandoff => {
+    const requestedNames = (options.names ?? []).map((name) => safeText(name)).filter(Boolean)
+    const targetContacts = requestedNames.length
+      ? requestedNames
+          .map((name) => captainSmsContactByNameKey.get(safeKey(name)))
+          .filter((contact): contact is CaptainSmsContactTarget => Boolean(contact))
+      : captainSmsContactTargets
+    const uniqueTargetContacts = Array.from(
+      new Map(targetContacts.map((contact) => [contact.phone, contact])).values(),
+    )
+    const targetLabel = requestedNames.length
+      ? `${requestedNames.slice(0, 3).join(', ')}${requestedNames.length > 3 ? ` +${requestedNames.length - 3}` : ''}`
+      : uniqueTargetContacts.length
+        ? `${uniqueTargetContacts.length} team contact${uniqueTargetContacts.length === 1 ? '' : 's'}`
+        : 'team contacts'
+    const href = buildCaptainSmsHref(uniqueTargetContacts.map((contact) => contact.phone), options.body)
+
+    return {
+      id: options.id,
+      label: options.label,
+      state: href ? `${uniqueTargetContacts.length} text-ready` : 'Copy fallback',
+      detail: href
+        ? `Opens ${targetLabel} in your phone messages with the note prefilled.`
+        : options.emptyDetail || 'No saved phone numbers match this send yet.',
+      href,
+      phoneCount: uniqueTargetContacts.length,
+      targetLabel,
+      tone: href ? 'good' : 'info',
+    }
+  }, [captainSmsContactByNameKey, captainSmsContactTargets])
 
   const matchDayConfirmedCount = matchDayResponseRows.filter((row) => safeText(row.status).toLowerCase() === 'confirmed').length
   const matchDayNotConfirmedCount = matchDayResponseRows.filter((row) => {
@@ -5497,6 +5591,13 @@ function CaptainHubContent() {
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 2 : 3)
+  const captainHomeReplyChaseSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-reply-chase-sms',
+    label: 'Text group',
+    body: captainHomeAvailabilitySelectedGroup.body,
+    names: captainHomeAvailabilitySelectedGroup.names,
+    emptyDetail: 'No saved phone numbers match this availability group yet.',
+  })
   const captainBackupSendBody = captainCourtSwapNeedsCount > 0
     ? `${captainCourtSwapPrimaryItem.inPlayer}, can you stay ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapPrimaryItem.courtLabel} may need cover. I will confirm before warm-up.`
     : captainBenchReadyCount > 0
@@ -6554,6 +6655,12 @@ function CaptainHubContent() {
   const captainHomeRecapSelectedAngle = captainHomeRecapAngleItems.find((item) => item.id === captainHomeRecapAngleId)
     ?? captainHomeRecapAngleItems[0]
   const captainHomeRecapPreviewLines = (captainHomeRecapSelectedAngle?.message || captainFunRecapMessage).split('\n').slice(0, isMobile ? 3 : 4)
+  const captainHomeRecapSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-recap-sms',
+    label: 'Text recap',
+    body: captainHomeRecapSelectedAngle?.message || captainFunRecapMessage,
+    emptyDetail: 'No saved team phone numbers are ready for the recap yet.',
+  })
   const captainPostMatchFlow = useMemo<CaptainPostMatchFlowStep[]>(() => [
     {
       label: 'Capture scores',
@@ -7077,6 +7184,15 @@ function CaptainHubContent() {
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 3 : 4)
+  const captainHomeNextSendSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-next-send-sms',
+    label: 'Text team',
+    body: captainHomeNextSendItem.body,
+    names: captainHomeReminderModeId === 'reply-chase' ? captainAvailabilityReminderPrimaryGroup.names : undefined,
+    emptyDetail: captainHomeReminderModeId === 'reply-chase'
+      ? 'No saved phone numbers match the reply-chase group yet.'
+      : 'No saved team phone numbers are ready for this text yet.',
+  })
   const captainHomeTextChaseTotal = Math.max(
     captainAvailabilityReminderPrimaryGroup.names.length,
     captainReplyReminderTargets.length,
@@ -7679,6 +7795,12 @@ function CaptainHubContent() {
     .split('\n')
     .filter((line) => safeText(line))
     .slice(0, isMobile ? 3 : 4)
+  const captainHomeLineupSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-lineup-sms',
+    label: 'Text lineup',
+    body: captainHomeLineupNoteSelectedMode.body,
+    emptyDetail: 'No saved team phone numbers are ready for the lineup text yet.',
+  })
   const captainMatchLogisticsHasOpponent = weekAtGlance.opponentLabel !== 'Opponent not set'
   const captainMatchLogisticsHasDate = weekAtGlance.eventDateLabel !== 'Match date TBD'
   const captainMatchLogisticsHasArrival = matchDayArrivalLabel !== 'Add arrival'
@@ -7749,6 +7871,12 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
   ])
   const captainMatchLogisticsPreviewLines = captainMatchLogisticsReminder.split('\n').slice(0, isMobile ? 5 : 7)
+  const captainHomeWhereWhenSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-where-when-sms',
+    label: 'Text reminder',
+    body: captainMatchLogisticsReminder,
+    emptyDetail: 'No saved team phone numbers are ready for the reminder yet.',
+  })
   const captainMatchLogisticsSendChecks = useMemo<CaptainMatchLogisticsSendCheck[]>(() => {
     const detailsReady = captainMatchLogisticsHasDate && captainMatchLogisticsHasOpponent && captainMatchLogisticsHasArrival && captainMatchLogisticsHasLocation
 
@@ -13689,6 +13817,9 @@ function CaptainHubContent() {
             >
               {captainCopiedTeamTextReady ? 'Open messages' : 'Copy next text'}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeNextSendSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text team
+            </SmsSmallLink>
             <SecondarySmallBtn
               disabled={!hasTeamScope || !premiumEnabled || !captainCopiedTeamTextReady || captainPostSendSent}
               onClick={() => handleWeekStatusUpdate('ready-to-send')}
@@ -14040,6 +14171,9 @@ function CaptainHubContent() {
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeNextSendItem.body} onClick={() => void handleCopyCaptainWeeklySendBoardItem(captainHomeNextSendItem)}>
               {captainHomeNextSendCopied ? 'Copied text' : captainHomeNextSendItem.cta}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeNextSendSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text team
+            </SmsSmallLink>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-communication-timeline', 'messaging')}>
               Open send lane
             </SecondarySmallBtn>
@@ -14107,6 +14241,9 @@ function CaptainHubContent() {
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeAvailabilitySelectedGroup.body} onClick={() => void handleCopyCaptainAvailabilityReminder(captainHomeAvailabilitySelectedGroup)}>
               {captainHomeReplyChaseCopied ? 'Copied ask' : `Copy ${captainHomeAvailabilitySelectedGroup.label}`}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeReplyChaseSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text group
+            </SmsSmallLink>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainHomeAvailabilitySelectedGroup.href, captainHomeAvailabilitySelectedGroup.stage)}>
               {captainHomeAvailabilitySelectedGroup.cta}
             </SecondarySmallBtn>
@@ -14178,6 +14315,9 @@ function CaptainHubContent() {
             })}>
               {captainHomeLineupLockCopied ? 'Copied lineup' : captainHomeLineupNoteSelectedMode.cta}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeLineupSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text lineup
+            </SmsSmallLink>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainLineupLockFlowPrimaryItem.href, captainLineupLockFlowPrimaryItem.stage)}>
               {captainLineupLockFlowPrimaryItem.cta}
             </SecondarySmallBtn>
@@ -14212,6 +14352,9 @@ function CaptainHubContent() {
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
               {captainHomeWhereWhenCopied ? 'Copied reminder' : 'Copy reminder'}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeWhereWhenSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text reminder
+            </SmsSmallLink>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-match-logistics-card', 'messaging')}>
               Open details
             </SecondarySmallBtn>
@@ -14308,6 +14451,9 @@ function CaptainHubContent() {
             })}>
               {captainHomeRecapCopied ? 'Copied recap' : 'Copy recap starter'}
             </PrimarySmallBtn>
+            <SmsSmallLink handoff={captainHomeRecapSmsHandoff} fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled}>
+              Text recap
+            </SmsSmallLink>
             <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-post-match-recap-builder', 'brief')}>
               Open recap
             </SecondarySmallBtn>
@@ -14560,6 +14706,15 @@ function CaptainHubContent() {
         >
           {captainMobileTodayAction.cta}
         </PrimarySmallBtn>
+        {captainCopiedTeamTextReady && !captainPostSendSent ? (
+          <SmsSmallLink
+            handoff={captainHomeNextSendSmsHandoff}
+            fullWidth
+            disabled={!hasTeamScope || !premiumEnabled}
+          >
+            Text team
+          </SmsSmallLink>
+        ) : null}
         {captainCopiedTeamTextReady && !captainPostSendSent ? (
           <SecondarySmallBtn
             fullWidth
@@ -15749,6 +15904,45 @@ function SecondarySmallLink({ href, children, fullWidth = false }: { href: strin
     >
       {children}
     </Link>
+  )
+}
+
+function SmsSmallLink({
+  handoff,
+  children,
+  fullWidth = false,
+  disabled: disabledProp = false,
+}: {
+  handoff: CaptainSmsHandoff
+  children: ReactNode
+  fullWidth?: boolean
+  disabled?: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+  const disabled = disabledProp || !handoff.href
+
+  return (
+    <a
+      href={disabled ? undefined : handoff.href}
+      aria-disabled={disabled}
+      title={handoff.detail}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={(event) => {
+        if (disabled) event.preventDefault()
+      }}
+      style={{
+        ...secondaryButtonSmall,
+        width: fullWidth ? '100%' : undefined,
+        borderColor: hovered && !disabled ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
+        background: hovered && !disabled ? 'var(--surface-soft-strong)' : 'var(--shell-chip-bg)',
+        transform: hovered && !disabled ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+        ...(disabled ? disabledButtonSecondary : {}),
+      }}
+    >
+      {children}
+    </a>
   )
 }
 
