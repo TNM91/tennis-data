@@ -8547,45 +8547,86 @@ function CaptainHubContent() {
     || copiedCaptainSendQueueId
     || copiedCaptainWeeklySendBoardId,
   )
-  const captainMobileMatchShortcutLinks = (captainCopiedTeamTextReady && !captainPostSendSent)
+  const captainMobilePostMatchActive = postMatchClosed || captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
+  const captainMobileCopiedTeamReminderReady = captainCopiedTeamTextReady && !captainMobilePostMatchActive
+  const captainMobileMatchShortcutLinks = (captainMobileCopiedTeamReminderReady && !captainPostSendSent)
     ? []
     : captainMatchDayPocketLinks.filter((handoff) => handoff.href)
-  const captainMobileTodayStatusChips = [
-    {
-      label: 'Replies',
-      value: workspaceState.pendingResponseCount > 0
-        ? `${workspaceState.pendingResponseCount} wait`
-        : matchDayResponseRows.length > 0
-          ? 'Clear'
-          : 'Ask',
-      tone: workspaceState.pendingResponseCount > 0 ? 'warn' as const : matchDayResponseRows.length > 0 ? 'good' as const : 'info' as const,
-      href: availabilityHref,
-      stage: 'availability' as CaptainResumeStage,
-      ariaLabel: 'Open Captain availability replies',
-    },
-    {
-      label: 'Lineup',
-      value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
-      tone: workspaceState.lineupReady ? 'good' as const : 'warn' as const,
-      href: lineupBuilderHref,
-      stage: 'lineup' as CaptainResumeStage,
-      ariaLabel: 'Open Captain lineup',
-    },
-    {
-      label: 'Send',
-      value: captainPostSendSent
-        ? 'Sent'
-        : captainCopiedTeamTextReady
-          ? 'Copied'
-          : workspaceState.messagingReady
-            ? 'Ready'
-            : 'Prep',
-      tone: captainPostSendSent ? 'good' as const : captainCopiedTeamTextReady || workspaceState.messagingReady ? 'info' as const : 'warn' as const,
-      href: captainCopiedTeamTextReady || workspaceState.messagingReady ? messagingHref : '#captain-home-next-team-text',
-      stage: 'messaging' as CaptainResumeStage,
-      ariaLabel: 'Open Captain team message',
-    },
-  ]
+  const captainMobileTodayStatusChips = captainMobilePostMatchActive
+    ? [
+        {
+          label: 'Scores',
+          value: captainScoreCaptureRows.length
+            ? captainScoreCaptureIssueCount > 0
+              ? `${captainScoreCaptureIssueCount} issue`
+              : captainScoreCapturePendingCount > 0
+                ? `${captainScoreCapturePendingCount} open`
+                : `${captainScoreCaptureLoggedCount}/${captainScoreCaptureRows.length}`
+            : 'Add',
+          tone: captainScoreCaptureIssueCount > 0 ? 'warn' as const : captainScoreCaptureRows.length && captainScoreCapturePendingCount === 0 ? 'good' as const : 'info' as const,
+          href: '#captain-score-capture-checklist',
+          stage: 'analytics' as CaptainResumeStage,
+          ariaLabel: 'Open Captain score capture',
+        },
+        {
+          label: 'Recap',
+          value: postMatchClosed
+            ? 'Closed'
+            : captainPostMatchRecapCopied
+              ? 'Copied'
+              : captainScoreCaptureLoggedCount > 0
+                ? 'Draft'
+                : 'Prep',
+          tone: postMatchClosed || captainPostMatchRecapCopied ? 'good' as const : captainScoreCaptureLoggedCount > 0 ? 'info' as const : 'warn' as const,
+          href: captainPostMatchRecapCopied ? '#captain-home-recap-ready' : '#captain-post-match-recap-builder',
+          stage: 'brief' as CaptainResumeStage,
+          ariaLabel: 'Open Captain match recap',
+        },
+        {
+          label: 'Close',
+          value: postMatchClosed ? 'Done' : captainPostMatchRecapCopied ? 'Ready' : 'Next',
+          tone: postMatchClosed ? 'good' as const : captainPostMatchRecapCopied ? 'info' as const : 'warn' as const,
+          href: '#captain-post-match-closeout',
+          stage: 'brief' as CaptainResumeStage,
+          ariaLabel: 'Open Captain closeout',
+        },
+      ]
+    : [
+        {
+          label: 'Replies',
+          value: workspaceState.pendingResponseCount > 0
+            ? `${workspaceState.pendingResponseCount} wait`
+            : matchDayResponseRows.length > 0
+              ? 'Clear'
+              : 'Ask',
+          tone: workspaceState.pendingResponseCount > 0 ? 'warn' as const : matchDayResponseRows.length > 0 ? 'good' as const : 'info' as const,
+          href: availabilityHref,
+          stage: 'availability' as CaptainResumeStage,
+          ariaLabel: 'Open Captain availability replies',
+        },
+        {
+          label: 'Lineup',
+          value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
+          tone: workspaceState.lineupReady ? 'good' as const : 'warn' as const,
+          href: lineupBuilderHref,
+          stage: 'lineup' as CaptainResumeStage,
+          ariaLabel: 'Open Captain lineup',
+        },
+        {
+          label: 'Send',
+          value: captainPostSendSent
+            ? 'Sent'
+            : captainCopiedTeamTextReady
+              ? 'Copied'
+              : workspaceState.messagingReady
+                ? 'Ready'
+                : 'Prep',
+          tone: captainPostSendSent ? 'good' as const : captainCopiedTeamTextReady || workspaceState.messagingReady ? 'info' as const : 'warn' as const,
+          href: captainCopiedTeamTextReady || workspaceState.messagingReady ? messagingHref : '#captain-home-next-team-text',
+          stage: 'messaging' as CaptainResumeStage,
+          ariaLabel: 'Open Captain team message',
+        },
+      ]
   const captainDataConfidenceItems = useMemo<CaptainDataConfidenceItem[]>(() => [
     {
       id: 'browser-save',
@@ -8846,7 +8887,52 @@ function CaptainHubContent() {
   ), [captainFirstSeasonDryRunDoneById, captainFirstSeasonReadinessItems])
   const captainFirstSeasonDryRunDoneCount = captainFirstSeasonDryRunSteps.filter((item) => item.done).length
   const captainFirstSeasonDryRunStatus = `${captainFirstSeasonDryRunDoneCount}/${captainFirstSeasonDryRunSteps.length} dry run`
-  const captainMobileTodayAction = captainCopiedTeamTextReady && !captainPostSendSent
+  const captainMobilePostMatchAction = postMatchClosed
+    ? {
+        id: 'mobile-review-closeout',
+        label: 'Week closed',
+        state: 'Closed',
+        detail: 'Open closeout if you want to review the final score and recap trail.',
+        href: '#captain-post-match-closeout',
+        stage: 'brief' as CaptainResumeStage,
+        cta: 'Review closeout',
+        tone: 'good' as const,
+      }
+    : captainPostMatchRecapCopied
+      ? {
+          id: 'mobile-text-recap',
+          label: 'Text recap',
+          state: 'Copied',
+          detail: 'Open Messages with the recap ready, then close the match week.',
+          href: messagingHref,
+          stage: 'messaging' as CaptainResumeStage,
+          cta: 'Open messages',
+          tone: 'info' as const,
+        }
+      : captainScoreCaptureIssueCount > 0 || captainScoreCapturePendingCount > 0
+        ? {
+            id: 'mobile-capture-scores',
+            label: 'Capture scores',
+            state: captainPostMatchRecapPrimaryState,
+            detail: 'Finish the score trail so the recap starts from the real result.',
+            href: '#captain-score-capture-checklist',
+            stage: 'analytics' as CaptainResumeStage,
+            cta: 'Capture scores',
+            tone: captainPostMatchRecapTone,
+          }
+        : {
+            id: 'mobile-build-recap',
+            label: 'Build recap',
+            state: captainPostMatchRecapPrimaryState,
+            detail: 'Pick the result, highlight, and thank-you note while the match is fresh.',
+            href: '#captain-home-recap-ready',
+            stage: 'brief' as CaptainResumeStage,
+            cta: 'Prep recap',
+            tone: 'info' as const,
+          }
+  const captainMobileTodayAction = captainMobilePostMatchActive
+    ? captainMobilePostMatchAction
+    : captainMobileCopiedTeamReminderReady && !captainPostSendSent
     ? {
         id: 'mobile-open-messages',
         label: 'Send copied text',
@@ -15097,7 +15183,25 @@ function CaptainHubContent() {
             ))}
           </div>
         ) : null}
-        {captainCopiedTeamTextReady && !captainPostSendSent ? (
+        {captainMobilePostMatchActive && captainPostMatchRecapCopied && !postMatchClosed ? (
+          <SmsSmallLink
+            handoff={captainHomeRecapSmsHandoff}
+            fullWidth
+            disabled={!hasTeamScope || !premiumEnabled}
+          >
+            Text recap
+          </SmsSmallLink>
+        ) : null}
+        {captainMobilePostMatchActive && captainPostMatchRecapCopied && !postMatchClosed ? (
+          <SecondarySmallBtn
+            fullWidth
+            disabled={!hasTeamScope || !premiumEnabled}
+            onClick={() => handleWeekStatusUpdate('finalized')}
+          >
+            Mark closed
+          </SecondarySmallBtn>
+        ) : null}
+        {captainMobileCopiedTeamReminderReady && !captainPostSendSent ? (
           <SmsSmallLink
             handoff={captainHomeNextSendSmsHandoff}
             fullWidth
@@ -15106,7 +15210,7 @@ function CaptainHubContent() {
             Text team
           </SmsSmallLink>
         ) : null}
-        {captainCopiedTeamTextReady && !captainPostSendSent ? (
+        {captainMobileCopiedTeamReminderReady && !captainPostSendSent ? (
           <SecondarySmallBtn
             fullWidth
             disabled={!hasTeamScope || !premiumEnabled}
