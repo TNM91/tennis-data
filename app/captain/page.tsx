@@ -8550,6 +8550,33 @@ function CaptainHubContent() {
   const captainMobileMatchShortcutLinks = (captainCopiedTeamTextReady && !captainPostSendSent)
     ? []
     : captainMatchDayPocketLinks.filter((handoff) => handoff.href)
+  const captainMobileTodayStatusChips = [
+    {
+      label: 'Replies',
+      value: workspaceState.pendingResponseCount > 0
+        ? `${workspaceState.pendingResponseCount} wait`
+        : matchDayResponseRows.length > 0
+          ? 'Clear'
+          : 'Ask',
+      tone: workspaceState.pendingResponseCount > 0 ? 'warn' as const : matchDayResponseRows.length > 0 ? 'good' as const : 'info' as const,
+    },
+    {
+      label: 'Lineup',
+      value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
+      tone: workspaceState.lineupReady ? 'good' as const : 'warn' as const,
+    },
+    {
+      label: 'Send',
+      value: captainPostSendSent
+        ? 'Sent'
+        : captainCopiedTeamTextReady
+          ? 'Copied'
+          : workspaceState.messagingReady
+            ? 'Ready'
+            : 'Prep',
+      tone: captainPostSendSent ? 'good' as const : captainCopiedTeamTextReady || workspaceState.messagingReady ? 'info' as const : 'warn' as const,
+    },
+  ]
   const captainDataConfidenceItems = useMemo<CaptainDataConfidenceItem[]>(() => [
     {
       id: 'browser-save',
@@ -15017,6 +15044,24 @@ function CaptainHubContent() {
         <span style={captainMobileTodayActionKicker}>Today</span>
         <strong style={captainMobileTodayActionTitle}>{captainMobileTodayAction.label}</strong>
         {!isSmallMobile ? <span style={captainMobileTodayActionDetail}>{captainMobileTodayAction.detail}</span> : null}
+        <div style={captainMobileTodayStatusRail} aria-label="Captain mobile status rail">
+          {captainMobileTodayStatusChips.map((chip) => (
+            <span
+              key={chip.label}
+              style={{
+                ...captainMobileTodayStatusChip,
+                ...(chip.tone === 'warn'
+                  ? captainMobileTodayStatusChipWarn
+                  : chip.tone === 'good'
+                    ? captainMobileTodayStatusChipGood
+                    : captainMobileTodayStatusChipInfo),
+              }}
+            >
+              <span style={captainMobileTodayStatusChipLabel}>{chip.label}</span>
+              {chip.value}
+            </span>
+          ))}
+        </div>
       </div>
       <div style={captainMobileTodayActionButtons}>
         <PrimarySmallBtn
@@ -24701,6 +24746,53 @@ const captainMobileTodayActionDetail: CSSProperties = {
   lineHeight: 1.25,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayStatusRail: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 5,
+  minWidth: 0,
+  marginTop: 4,
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayStatusChip: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '4px 6px',
+  borderRadius: 999,
+  fontSize: 9,
+  lineHeight: 1.05,
+  fontWeight: 860,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const captainMobileTodayStatusChipLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 900,
+}
+
+const captainMobileTodayStatusChipGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainMobileTodayStatusChipWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.28)',
+  background: 'rgba(251,191,36,0.10)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainMobileTodayStatusChipInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.20)',
+  background: 'rgba(125,211,252,0.08)',
+  color: 'var(--foreground-strong)',
 }
 
 const captainMobileTodayActionButtons: CSSProperties = {
