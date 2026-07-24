@@ -325,6 +325,18 @@ type CaptainFirstSeasonDryRunStep = CaptainFirstSeasonReadinessItem & {
   canMarkDone: boolean
 }
 
+type CaptainFirstSeasonFlowStep = {
+  id: 'availability' | 'lineup' | 'text-team' | 'match-day' | 'recap'
+  label: string
+  state: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  status: 'Done' | 'Now' | 'Next'
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainDataConfidenceItem = {
   id: string
   label: string
@@ -8671,6 +8683,116 @@ function CaptainHubContent() {
   const captainFirstSeasonReadinessStatus = captainFirstSeasonReadinessIssueCount > 0
     ? `${captainFirstSeasonReadinessIssueCount} before match one`
     : `${captainFirstSeasonReadinessReadyCount}/${captainFirstSeasonReadinessItems.length} ready`
+  const captainFirstSeasonFlowSteps = useMemo<CaptainFirstSeasonFlowStep[]>(() => {
+    const availabilityDone = matchDayResponseRows.length > 0 && workspaceState.pendingResponseCount === 0
+    const matchDetailsReady = captainMatchLogisticsHasArrival && captainMatchLogisticsHasLocation
+    const recapDone = postMatchClosed || captainHomeRecapCopied || copiedCaptainFunRecap || copiedCaptainPostMatchRecap
+    const baseSteps = [
+      {
+        id: 'availability' as const,
+        label: 'Availability',
+        state: workspaceState.pendingResponseCount > 0
+          ? `${workspaceState.pendingResponseCount} waiting`
+          : availabilityDone
+            ? 'Done'
+            : 'Ask team',
+        detail: workspaceState.pendingResponseCount > 0
+          ? 'Chase open replies before you set courts.'
+          : availabilityDone
+            ? 'Replies are clean enough for lineup work.'
+            : 'Ask who is In, Out, Maybe, or needs help.',
+        href: availabilityHref,
+        stage: 'availability' as CaptainResumeStage,
+        cta: workspaceState.pendingResponseCount > 0 ? 'Chase replies' : availabilityDone ? 'Review replies' : 'Ask team',
+        done: availabilityDone,
+        tone: workspaceState.pendingResponseCount > 0 ? 'warn' as const : availabilityDone ? 'good' as const : 'info' as const,
+      },
+      {
+        id: 'lineup' as const,
+        label: 'Lineup',
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft needed',
+        detail: workspaceState.lineupReady ? 'Court plan is ready for the team note.' : 'Build courts once the player pool is clear.',
+        href: lineupBuilderHref,
+        stage: 'lineup' as CaptainResumeStage,
+        cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+        done: workspaceState.lineupReady,
+        tone: workspaceState.lineupReady ? 'good' as const : 'warn' as const,
+      },
+      {
+        id: 'text-team' as const,
+        label: 'Text team',
+        state: captainPostSendSent ? 'Marked sent' : captainCopiedTeamTextReady ? 'Copied' : workspaceState.messagingReady ? 'Ready' : 'Prep',
+        detail: captainPostSendSent
+          ? 'The team note is marked sent.'
+          : captainCopiedTeamTextReady
+            ? 'Send the copied note, then mark it sent.'
+            : 'Copy one clean team note for match week.',
+        href: captainCopiedTeamTextReady ? messagingHref : '#captain-home-next-team-text',
+        stage: 'messaging' as CaptainResumeStage,
+        cta: captainPostSendSent ? 'Review send' : captainCopiedTeamTextReady ? 'Mark sent' : 'Copy text',
+        done: captainPostSendSent,
+        tone: captainPostSendSent ? 'good' as const : captainCopiedTeamTextReady || workspaceState.messagingReady ? 'info' as const : 'warn' as const,
+      },
+      {
+        id: 'match-day' as const,
+        label: 'Match day',
+        state: captainScoreCaptureLoggedCount > 0 ? `${captainScoreCaptureLoggedCount} score${captainScoreCaptureLoggedCount === 1 ? '' : 's'}` : matchDetailsReady ? 'Details set' : 'Add details',
+        detail: captainScoreCaptureLoggedCount > 0
+          ? 'Score capture has started.'
+          : matchDetailsReady
+            ? `${matchDayArrivalLabel} at ${matchDayLocationLabel}`
+            : 'Set where and when before players travel.',
+        href: captainScoreCaptureLoggedCount > 0 ? '#captain-score-capture-checklist' : '#captain-home-where-when',
+        stage: captainScoreCaptureLoggedCount > 0 ? 'analytics' as CaptainResumeStage : 'messaging' as CaptainResumeStage,
+        cta: captainScoreCaptureLoggedCount > 0 ? 'Capture scores' : 'Open match day',
+        done: postMatchClosed || captainScoreCaptureLoggedCount > 0,
+        tone: postMatchClosed || captainScoreCaptureLoggedCount > 0 ? 'good' as const : matchDetailsReady ? 'info' as const : 'warn' as const,
+      },
+      {
+        id: 'recap' as const,
+        label: 'Recap',
+        state: postMatchClosed ? 'Closed' : recapDone ? 'Copied' : 'After play',
+        detail: postMatchClosed ? 'The week is closed.' : recapDone ? 'A recap note is ready for the team.' : 'Send a short recap while the match is fresh.',
+        href: '#captain-home-recap-ready',
+        stage: 'brief' as CaptainResumeStage,
+        cta: recapDone ? 'Open recap' : 'Prep recap',
+        done: recapDone,
+        tone: recapDone ? 'good' as const : 'info' as const,
+      },
+    ]
+    const currentIndex = baseSteps.findIndex((item) => !item.done)
+
+    return baseSteps.map((item, index) => ({
+      ...item,
+      status: item.done ? 'Done' : index === currentIndex ? 'Now' : 'Next',
+    }))
+  }, [
+    availabilityHref,
+    captainCopiedTeamTextReady,
+    captainHomeRecapCopied,
+    captainMatchLogisticsHasArrival,
+    captainMatchLogisticsHasLocation,
+    captainPostSendSent,
+    captainScoreCaptureLoggedCount,
+    copiedCaptainFunRecap,
+    copiedCaptainPostMatchRecap,
+    lineupBuilderHref,
+    matchDayArrivalLabel,
+    matchDayLocationLabel,
+    matchDayResponseRows.length,
+    messagingHref,
+    postMatchClosed,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainFirstSeasonFlowHandledCount = captainFirstSeasonFlowSteps.filter((item) => item.status === 'Done').length
+  const captainFirstSeasonFlowCurrentStep = captainFirstSeasonFlowSteps.find((item) => item.status === 'Now')
+    ?? captainFirstSeasonFlowSteps[captainFirstSeasonFlowSteps.length - 1]
+  const captainFirstSeasonFlowStatus = captainFirstSeasonFlowHandledCount >= captainFirstSeasonFlowSteps.length
+    ? 'Week handled'
+    : `Step ${Math.min(captainFirstSeasonFlowHandledCount + 1, captainFirstSeasonFlowSteps.length)} of ${captainFirstSeasonFlowSteps.length}`
   const captainFirstSeasonDryRunSteps = useMemo<CaptainFirstSeasonDryRunStep[]>(() => (
     captainFirstSeasonReadinessItems.map((item) => {
       const done = Boolean(captainFirstSeasonDryRunDoneById[item.id] || item.tone === 'good')
@@ -13917,6 +14039,67 @@ function CaptainHubContent() {
           >
             {captainFirstSeasonReadinessPrimaryItem.cta}
           </PrimarySmallBtn>
+        </div>
+
+        <div style={captainFirstSeasonFlowShell} aria-label="Captain first season flow">
+          <div style={captainFirstSeasonFlowHeader}>
+            <div>
+              <span style={commandCenterLabel}>Season flow</span>
+              <strong style={captainFirstSeasonFlowTitle}>{isMobile ? 'Five taps to run week one.' : 'Run week one from availability to recap.'}</strong>
+            </div>
+            <span style={captainFirstSeasonFlowHandledCount >= captainFirstSeasonFlowSteps.length ? badgeGreen : badgeBlue}>
+              {captainFirstSeasonFlowStatus}
+            </span>
+          </div>
+          <div style={captainFirstSeasonFlowCurrent}>
+            <div>
+              <span style={commandCenterLabel}>Now</span>
+              <strong style={captainFirstSeasonFlowCurrentTitle}>{captainFirstSeasonFlowCurrentStep.label}</strong>
+              <span style={captainFirstSeasonFlowCurrentDetail}>{captainFirstSeasonFlowCurrentStep.detail}</span>
+            </div>
+            <PrimarySmallBtn
+              fullWidth={isSmallMobile}
+              disabled={!hasTeamScope || !premiumEnabled}
+              onClick={() => {
+                if (captainFirstSeasonFlowCurrentStep.id === 'text-team' && captainCopiedTeamTextReady && !captainPostSendSent) {
+                  handleWeekStatusUpdate('ready-to-send')
+                  return
+                }
+                handleCaptainAction(captainFirstSeasonFlowCurrentStep.href, captainFirstSeasonFlowCurrentStep.stage)
+              }}
+            >
+              {captainFirstSeasonFlowCurrentStep.cta}
+            </PrimarySmallBtn>
+          </div>
+          <div style={captainFirstSeasonFlowList}>
+            {captainFirstSeasonFlowSteps.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!hasTeamScope || !premiumEnabled}
+                style={{
+                  ...captainFirstSeasonFlowCard,
+                  ...(item.status === 'Now' ? captainFirstSeasonFlowCardCurrent : null),
+                  ...(item.tone === 'good' ? captainFirstSeasonFlowCardGood : item.tone === 'warn' ? captainFirstSeasonFlowCardWarn : captainFirstSeasonFlowCardInfo),
+                  ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+                }}
+                onClick={() => {
+                  if (item.id === 'text-team' && captainCopiedTeamTextReady && !captainPostSendSent) {
+                    handleWeekStatusUpdate('ready-to-send')
+                    return
+                  }
+                  handleCaptainAction(item.href, item.stage)
+                }}
+              >
+                <span style={captainFirstSeasonFlowCardTop}>
+                  <strong>{index + 1}. {item.label}</strong>
+                  <span>{item.status}</span>
+                </span>
+                <span style={captainFirstSeasonFlowCardState}>{item.state}</span>
+                {!isSmallMobile ? <span style={captainFirstSeasonFlowCardDetail}>{item.detail}</span> : null}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={captainFirstSeasonMessageFlow} aria-label="Captain one-tap message follow through">
@@ -22582,6 +22765,139 @@ const captainFirstSeasonReadinessFocusDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(2,8,23,0.20)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainFirstSeasonFlowTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.18,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCurrent: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 132px), auto)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.17)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCurrentTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCurrentDetail: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowList: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const captainFirstSeasonFlowCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 82,
+  padding: 8,
+  borderRadius: 11,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCardCurrent: CSSProperties = {
+  boxShadow: '0 0 0 1px rgba(125,211,252,0.22), 0 12px 24px rgba(2,8,23,0.18)',
+}
+
+const captainFirstSeasonFlowCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainFirstSeasonFlowCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.08)',
+}
+
+const captainFirstSeasonFlowCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainFirstSeasonFlowCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 5,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 10,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCardState: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainFirstSeasonFlowCardDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
