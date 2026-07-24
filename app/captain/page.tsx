@@ -358,6 +358,14 @@ type CaptainSmsHandoff = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainNativeHandoff = {
+  id: string
+  label: string
+  href: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
 type CaptainHomeLineupNoteModeId = 'full-lineup' | 'courts-only' | 'reply-blockers' | 'backup-note'
 
 type CaptainHomeLineupNoteModeItem = {
@@ -1189,6 +1197,93 @@ function buildCaptainSmsHref(phones: string[], body: string) {
 
   const bodyText = safeText(body)
   return `sms:${uniquePhones.join(',')}${bodyText ? `?&body=${encodeURIComponent(bodyText)}` : ''}`
+}
+
+function buildCaptainMapsHref(location: string) {
+  const query = safeText(location, '')
+  if (!query) return ''
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
+function parseCaptainCalendarDateParts(value: string) {
+  const raw = safeText(value, '')
+  if (!raw) return null
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    return {
+      year: Number(isoMatch[1]),
+      month: Number(isoMatch[2]),
+      day: Number(isoMatch[3]),
+    }
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return {
+    year: parsed.getFullYear(),
+    month: parsed.getMonth() + 1,
+    day: parsed.getDate(),
+  }
+}
+
+function parseCaptainCalendarTimeMinutes(value: string) {
+  const raw = safeText(value, '').toLowerCase()
+  if (!raw) return null
+
+  const match = raw.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a|p|am|pm)?\b/)
+  if (!match) return null
+
+  let hour = Number(match[1])
+  const minute = Number(match[2] || '0')
+  const marker = match[3] || ''
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute > 59) return null
+
+  if (marker.startsWith('p') && hour < 12) hour += 12
+  if (marker.startsWith('a') && hour === 12) hour = 0
+  if (hour > 23) return null
+
+  return (hour * 60) + minute
+}
+
+function formatCaptainCalendarStamp(date: { year: number; month: number; day: number }, minutes: number) {
+  const padded = (value: number) => String(value).padStart(2, '0')
+  const datePart = `${date.year}${padded(date.month)}${padded(date.day)}`
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+
+  return `${datePart}T${padded(hour)}${padded(minute)}00`
+}
+
+function buildCaptainCalendarHref({
+  eventDate,
+  arrivalTime,
+  opponent,
+  location,
+  details,
+}: {
+  eventDate: string
+  arrivalTime: string
+  opponent: string
+  location: string
+  details: string
+}) {
+  const date = parseCaptainCalendarDateParts(eventDate)
+  const startMinutes = parseCaptainCalendarTimeMinutes(arrivalTime)
+  if (!date || startMinutes === null) return ''
+
+  const endMinutes = Math.min(startMinutes + 180, (24 * 60) - 1)
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `TenAceIQ match vs ${safeText(opponent, 'Opponent')}`,
+    dates: `${formatCaptainCalendarStamp(date, startMinutes)}/${formatCaptainCalendarStamp(date, endMinutes)}`,
+    details: safeText(details, ''),
+    location: safeText(location, ''),
+  })
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
 export default function CaptainHubPage() {
@@ -3294,6 +3389,7 @@ function CaptainHubContent() {
         : 'Opponent not set')
 
     return {
+      eventDateValue: safeText(eventDate, ''),
       eventDateLabel: formatDate(eventDate),
       opponentLabel: opponent || 'Opponent not set',
       scopeLabel: hasTeamScope ? `${selectedLeague} - ${selectedFlight}` : 'Choose team scope',
@@ -7877,6 +7973,34 @@ function CaptainHubContent() {
     body: captainMatchLogisticsReminder,
     emptyDetail: 'No saved team phone numbers are ready for the reminder yet.',
   })
+  const captainMatchMapsHref = captainMatchLogisticsHasLocation ? buildCaptainMapsHref(matchDayLocationLabel) : ''
+  const captainMatchCalendarHref = buildCaptainCalendarHref({
+    eventDate: weekAtGlance.eventDateValue,
+    arrivalTime: matchDayArrivalLabel,
+    opponent: weekAtGlance.opponentLabel,
+    location: captainMatchLogisticsHasLocation ? matchDayLocationLabel : '',
+    details: captainMatchLogisticsReminder,
+  })
+  const captainMatchDayPocketLinks: CaptainNativeHandoff[] = [
+    {
+      id: 'match-day-maps',
+      label: 'Open maps',
+      href: captainMatchMapsHref,
+      detail: captainMatchMapsHref
+        ? `Open directions for ${matchDayLocationLabel}.`
+        : 'Add a match location before opening maps.',
+      tone: captainMatchMapsHref ? 'good' : 'info',
+    },
+    {
+      id: 'match-day-calendar',
+      label: 'Add calendar',
+      href: captainMatchCalendarHref,
+      detail: captainMatchCalendarHref
+        ? `Add ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel} to your calendar.`
+        : 'Add a match date and arrival time before creating a calendar reminder.',
+      tone: captainMatchCalendarHref ? 'good' : 'info',
+    },
+  ]
   const captainMatchLogisticsSendChecks = useMemo<CaptainMatchLogisticsSendCheck[]>(() => {
     const detailsReady = captainMatchLogisticsHasDate && captainMatchLogisticsHasOpponent && captainMatchLogisticsHasArrival && captainMatchLogisticsHasLocation
 
@@ -14348,6 +14472,16 @@ function CaptainHubContent() {
               <span key={line}>{line}</span>
             ))}
           </div>
+          <div style={captainMatchDayPocketLinkGrid} aria-label="Captain match day pocket links">
+            {captainMatchDayPocketLinks.map((handoff) => (
+              <NativeSmallLink
+                key={handoff.id}
+                handoff={handoff}
+                fullWidth
+                disabled={!hasTeamScope || !premiumEnabled}
+              />
+            ))}
+          </div>
           <div style={captainHomeWhereWhenActions}>
             <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
               {captainHomeWhereWhenCopied ? 'Copied reminder' : 'Copy reminder'}
@@ -15942,6 +16076,43 @@ function SmsSmallLink({
       }}
     >
       {children}
+    </a>
+  )
+}
+
+function NativeSmallLink({
+  handoff,
+  fullWidth = false,
+  disabled: disabledProp = false,
+}: {
+  handoff: CaptainNativeHandoff
+  fullWidth?: boolean
+  disabled?: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+  const disabled = disabledProp || !handoff.href
+
+  return (
+    <a
+      href={disabled ? undefined : handoff.href}
+      aria-disabled={disabled}
+      title={handoff.detail}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={(event) => {
+        if (disabled) event.preventDefault()
+      }}
+      style={{
+        ...secondaryButtonSmall,
+        width: fullWidth ? '100%' : undefined,
+        borderColor: hovered && !disabled ? 'rgba(155,225,29,0.34)' : 'rgba(155,225,29,0.18)',
+        background: hovered && !disabled ? 'rgba(155,225,29,0.12)' : 'rgba(155,225,29,0.06)',
+        transform: hovered && !disabled ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+        ...(disabled ? disabledButtonSecondary : {}),
+      }}
+    >
+      {handoff.label}
     </a>
   )
 }
@@ -23764,6 +23935,13 @@ const captainHomeWhereWhenPreview: CSSProperties = {
   fontWeight: 760,
   whiteSpace: 'pre-wrap',
   overflowWrap: 'anywhere',
+}
+
+const captainMatchDayPocketLinkGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
 }
 
 const captainHomeWhereWhenActions: CSSProperties = {
