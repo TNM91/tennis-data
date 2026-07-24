@@ -8559,11 +8559,17 @@ function CaptainHubContent() {
           ? 'Clear'
           : 'Ask',
       tone: workspaceState.pendingResponseCount > 0 ? 'warn' as const : matchDayResponseRows.length > 0 ? 'good' as const : 'info' as const,
+      href: availabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      ariaLabel: 'Open Captain availability replies',
     },
     {
       label: 'Lineup',
       value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
       tone: workspaceState.lineupReady ? 'good' as const : 'warn' as const,
+      href: lineupBuilderHref,
+      stage: 'lineup' as CaptainResumeStage,
+      ariaLabel: 'Open Captain lineup',
     },
     {
       label: 'Send',
@@ -8575,6 +8581,9 @@ function CaptainHubContent() {
             ? 'Ready'
             : 'Prep',
       tone: captainPostSendSent ? 'good' as const : captainCopiedTeamTextReady || workspaceState.messagingReady ? 'info' as const : 'warn' as const,
+      href: captainCopiedTeamTextReady || workspaceState.messagingReady ? messagingHref : '#captain-home-next-team-text',
+      stage: 'messaging' as CaptainResumeStage,
+      ariaLabel: 'Open Captain team message',
     },
   ]
   const captainDataConfidenceItems = useMemo<CaptainDataConfidenceItem[]>(() => [
@@ -15046,8 +15055,12 @@ function CaptainHubContent() {
         {!isSmallMobile ? <span style={captainMobileTodayActionDetail}>{captainMobileTodayAction.detail}</span> : null}
         <div style={captainMobileTodayStatusRail} aria-label="Captain mobile status rail">
           {captainMobileTodayStatusChips.map((chip) => (
-            <span
+            <button
+              type="button"
               key={chip.label}
+              aria-label={`${chip.ariaLabel}: ${chip.value}`}
+              disabled={!premiumEnabled || !hasTeamScope}
+              onClick={() => handleCaptainAction(chip.href, chip.stage)}
               style={{
                 ...captainMobileTodayStatusChip,
                 ...(chip.tone === 'warn'
@@ -15055,11 +15068,12 @@ function CaptainHubContent() {
                   : chip.tone === 'good'
                     ? captainMobileTodayStatusChipGood
                     : captainMobileTodayStatusChipInfo),
+                ...((!premiumEnabled || !hasTeamScope) ? disabledButtonSecondary : null),
               }}
             >
               <span style={captainMobileTodayStatusChipLabel}>{chip.label}</span>
               {chip.value}
-            </span>
+            </button>
           ))}
         </div>
       </div>
@@ -24765,10 +24779,14 @@ const captainMobileTodayStatusChip: CSSProperties = {
   maxWidth: '100%',
   padding: '4px 6px',
   borderRadius: 999,
+  appearance: 'none',
   fontSize: 9,
   lineHeight: 1.05,
   fontWeight: 860,
+  fontFamily: 'inherit',
   whiteSpace: 'normal',
+  textAlign: 'left',
+  cursor: 'pointer',
   overflowWrap: 'anywhere',
 }
 
