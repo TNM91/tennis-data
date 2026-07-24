@@ -2391,6 +2391,17 @@ function CaptainHubContent() {
     gap: isMobile ? 7 : captainDataConfidenceGrid.gap,
   }
 
+  const dynamicCaptainHomeMorningBriefFocus: CSSProperties = {
+    ...captainHomeMorningBriefFocus,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : captainHomeMorningBriefFocus.gridTemplateColumns,
+  }
+
+  const dynamicCaptainHomeMorningBriefGrid: CSSProperties = {
+    ...captainHomeMorningBriefGrid,
+    gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeMorningBriefGrid.gridTemplateColumns,
+    gap: isMobile ? 7 : captainHomeMorningBriefGrid.gap,
+  }
+
   const dynamicCaptainToolLaneShell: CSSProperties = {
     ...captainToolLaneShell,
     gap: isMobile ? 10 : captainToolLaneShell.gap,
@@ -13798,6 +13809,65 @@ function CaptainHubContent() {
         </div>
       </div>
 
+      <div style={captainHomeMorningBriefShell} aria-label="Captain home morning brief">
+        <div style={captainHomeMorningBriefHeader}>
+          <div>
+            <span style={commandCenterLabel}>Phone morning brief</span>
+            <strong style={captainHomeMorningBriefTitle}>{isMobile ? 'Before you leave.' : 'One glance before you leave for the match.'}</strong>
+          </div>
+          <span style={captainMorningBriefStatus === 'Needs action' ? warnBadge : captainMorningBriefStatus === 'Ready' ? badgeGreen : badgeBlue}>
+            {captainMorningBriefStatus}
+          </span>
+        </div>
+        <div style={dynamicCaptainHomeMorningBriefFocus}>
+          <div>
+            <span style={commandCenterLabel}>First action</span>
+            <strong style={captainHomeMorningBriefFocusTitle}>{captainMorningBriefPrimaryAction.label}</strong>
+            <span style={captainHomeMorningBriefFocusDetail}>{captainMorningBriefPrimaryAction.detail}</span>
+          </div>
+          <PrimarySmallBtn
+            fullWidth={isSmallMobile}
+            disabled={!hasTeamScope || !premiumEnabled}
+            onClick={() => handleCaptainAction(captainMorningBriefPrimaryAction.href, captainMorningBriefPrimaryAction.stage)}
+          >
+            {captainMorningBriefPrimaryAction.label}
+          </PrimarySmallBtn>
+        </div>
+        <div style={dynamicCaptainHomeMorningBriefGrid}>
+          {captainMorningBriefItems.map((item) => (
+            <button
+              key={`home-morning-${item.label}`}
+              type="button"
+              disabled={!hasTeamScope || !premiumEnabled}
+              style={{
+                ...captainHomeMorningBriefCard,
+                ...(item.tone === 'warn' ? captainHomeMorningBriefCardWarn : item.tone === 'good' ? captainHomeMorningBriefCardGood : captainHomeMorningBriefCardInfo),
+                ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+              }}
+              onClick={() => handleCaptainAction('#captain-morning-brief', 'messaging')}
+            >
+              <span style={captainHomeMorningBriefCardTop}>
+                <strong>{item.label}</strong>
+                <span>{item.tone === 'good' ? 'Set' : item.tone === 'warn' ? 'Act' : 'Check'}</span>
+              </span>
+              <strong style={captainHomeMorningBriefValue}>{item.value}</strong>
+              <span style={captainHomeMorningBriefDetail}>{item.detail}</span>
+            </button>
+          ))}
+        </div>
+        <div style={captainHomeMorningBriefActions}>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction('#captain-morning-brief', 'messaging')}>
+            Open full brief
+          </SecondarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(messagingHref, 'messaging')}>
+            Open messages
+          </SecondarySmallBtn>
+          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(lineupBuilderHref, 'lineup')}>
+            Review courts
+          </SecondarySmallBtn>
+        </div>
+      </div>
+
       <div style={captainHomePriorityShell} aria-label="Captain weekly priority strip">
         <div style={captainHomePriorityHeader}>
           <div>
@@ -22457,6 +22527,143 @@ const captainDataConfidenceDetail: CSSProperties = {
   lineHeight: 1.32,
   fontWeight: 760,
   overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefShell: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeMorningBriefTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefFocus: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 154px), auto)',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(125,211,252,0.07)',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefFocusTitle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefFocusDetail: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainHomeMorningBriefCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 88,
+  padding: 9,
+  borderRadius: 12,
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  whiteSpace: 'normal',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefCardGood: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainHomeMorningBriefCardWarn: CSSProperties = {
+  border: '1px solid rgba(251,191,36,0.26)',
+  background: 'rgba(251,191,36,0.09)',
+}
+
+const captainHomeMorningBriefCardInfo: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(125,211,252,0.05)',
+}
+
+const captainHomeMorningBriefCardTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeMorningBriefActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
 }
 
 const captainHomePriorityShell: CSSProperties = {
