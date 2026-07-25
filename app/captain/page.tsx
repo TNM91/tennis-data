@@ -16986,7 +16986,7 @@ const captainPreviewMobilePrimaryActionStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 38,
+  minHeight: 44,
   padding: '0 12px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
