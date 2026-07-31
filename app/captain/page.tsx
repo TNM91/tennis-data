@@ -38,7 +38,7 @@ import {
   upsertCaptainWeekStatus,
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
-import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { supabase } from '@/lib/supabase'
 import { isMember } from '@/lib/roles'
 import {
@@ -1429,24 +1429,24 @@ function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
   const setupSteps = [
     {
       number: '1',
-      title: 'Link your Player ID',
-      body: 'Start with your player record so Captain can match you to the right team.',
+      title: 'Find your Player ID',
+      body: 'Search your tennis name. If it is missing, upload USTA data first so TenAceIQ can create the record.',
       href: '/profile',
-      cta: 'Link Player ID',
+      cta: 'Set up Player ID',
       icon: 'playerRatings' as TiqFeatureIconName,
     },
     {
       number: '2',
-      title: 'Add your team data',
-      body: 'Upload one USTA scorecard, team summary, or schedule. TenAceIQ will connect the team and season.',
+      title: 'Connect your active team',
+      body: 'Upload a scorecard, team summary, or schedule. TenAceIQ will connect your roster and season.',
       href: `${dataAssistCaptainHref}#upload`,
-      cta: 'Upload Team Data',
+      cta: 'Upload team data',
       icon: 'reports' as TiqFeatureIconName,
     },
     {
       number: '3',
       title: 'Come back to Captain',
-      body: 'After review, refresh Captain. Your most recent linked team opens first and stays remembered.',
+      body: 'After review, refresh Captain. Your linked team opens first, and you can make any team your default.',
       href: '#captain-setup-refresh',
       cta: 'Refresh Captain',
       icon: 'captainDashboard' as TiqFeatureIconName,
@@ -1540,7 +1540,11 @@ function CaptainHubContent() {
 
   const { userId, role, entitlements, authResolved } = useAuth()
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
+  const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
+  const [teamSelectionInitialized, setTeamSelectionInitialized] = useState(false)
+  const [savingDefaultTeam, setSavingDefaultTeam] = useState(false)
+  const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -1623,16 +1627,19 @@ function CaptainHubContent() {
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
       setCaptainTeamScopes([])
+      setCaptainProfileLink(null)
       setTeamScopeResolved(true)
       return
     }
 
     setTeamScopeResolved(false)
+    setTeamSelectionInitialized(false)
 
     try {
       const { data: profileData } = await loadUserProfileLink(nextUserId)
 
       const profile = (profileData || null) as CaptainProfileLinkRow | null
+      setCaptainProfileLink(profile)
       const scopes = new Map<string, CaptainTeamScope>()
 
       addCaptainTeamScope(scopes, {
@@ -1679,6 +1686,7 @@ function CaptainHubContent() {
       setCaptainTeamScopes([...scopes.values()])
     } catch {
       setCaptainTeamScopes([])
+      setCaptainProfileLink(null)
     } finally {
       setTeamScopeResolved(true)
     }
@@ -1745,19 +1753,35 @@ function CaptainHubContent() {
       setTeamOptions(next)
 
       if (next.length > 0) {
+        const params = new URLSearchParams(window.location.search)
+        const urlTeam = params.get('team') || ''
+        const urlLeague = params.get('league') || ''
+        const urlFlight = params.get('flight') || ''
+        const urlSelection = urlTeam && urlLeague && urlFlight
+          ? { team: urlTeam, league: urlLeague, flight: urlFlight }
+          : null
+        const profileDefault = captainProfileLink?.linked_team_name
+          && captainProfileLink.linked_league_name
+          && captainProfileLink.linked_flight
+          ? {
+              team: captainProfileLink.linked_team_name,
+              league: captainProfileLink.linked_league_name,
+              flight: captainProfileLink.linked_flight,
+            }
+          : null
+        const currentSelection = teamSelectionInitialized
+          ? { team: selectedTeam, league: selectedLeague, flight: selectedFlight }
+          : urlSelection || profileDefault || { team: selectedTeam, league: selectedLeague, flight: selectedFlight }
         const current = chooseCaptainTeamOption({
           options: next,
-          current: {
-            team: selectedTeam,
-            league: selectedLeague,
-            flight: selectedFlight,
-          },
+          current: currentSelection,
           scopes: captainTeamScopes,
         }) || next[0]
 
         setSelectedTeam(current.team)
         setSelectedLeague(current.league)
         setSelectedFlight(current.flight)
+        setTeamSelectionInitialized(true)
       } else {
         setSelectedTeam('')
         setSelectedLeague('')
@@ -1768,7 +1792,7 @@ function CaptainHubContent() {
     } finally {
       setLoadingOptions(false)
     }
-  }, [captainTeamScopes, role, selectedFlight, selectedLeague, selectedTeam, teamScopeResolved])
+  }, [captainProfileLink, captainTeamScopes, role, selectedFlight, selectedLeague, selectedTeam, teamScopeResolved, teamSelectionInitialized])
 
   const loadSelectedTeam = useCallback(async () => {
     setLoadingTeam(true)
@@ -1979,6 +2003,70 @@ function CaptainHubContent() {
     league: selectedLeague,
     flight: selectedFlight,
   })
+  const defaultTeamOptionKey = captainProfileLink?.linked_team_name
+    ? buildTeamOptionKey({
+        team: captainProfileLink.linked_team_name,
+        league: captainProfileLink.linked_league_name || '',
+        flight: captainProfileLink.linked_flight || '',
+      })
+    : ''
+  const selectedTeamIsDefault = Boolean(selectedTeamOption && selectedTeamOptionKey === defaultTeamOptionKey)
+
+  async function handleSetDefaultTeam() {
+    if (!userId || !selectedTeamOption || savingDefaultTeam) return
+
+    setSavingDefaultTeam(true)
+    setDefaultTeamMessage('')
+
+    try {
+      const currentProfile = captainProfileLink ?? (await loadUserProfileLink(userId)).data
+      const saveResult = await saveUserProfileLink(userId, {
+        linked_player_id: currentProfile?.linked_player_id || null,
+        linked_player_name: currentProfile?.linked_player_name || null,
+        linked_team_name: selectedTeamOption.team,
+        linked_league_name: selectedTeamOption.league,
+        linked_flight: selectedTeamOption.flight,
+        linked_team_at: new Date().toISOString(),
+        profile_photo_url: currentProfile?.profile_photo_url || null,
+        message_display_name: currentProfile?.message_display_name || currentProfile?.linked_player_name || null,
+      })
+
+      setCaptainProfileLink(saveResult.data)
+      setCaptainTeamScopes((current) => {
+        const scopes = new Map<string, CaptainTeamScope>()
+        for (const scope of current.filter((item) => item.source !== 'profile')) {
+          addCaptainTeamScope(scopes, scope)
+        }
+        addCaptainTeamScope(scopes, {
+          team: selectedTeamOption.team,
+          league: selectedTeamOption.league,
+          flight: selectedTeamOption.flight,
+          source: 'profile',
+        })
+        return [...scopes.values()]
+      })
+      setDefaultTeamMessage(
+        saveResult.source === 'cloud'
+          ? 'Default saved. Captain will open this team first on your signed-in devices.'
+          : 'Default saved on this device. Cloud sync is unavailable right now.',
+      )
+      void trackProductUsageEvent({
+        eventName: 'captain_default_team_saved',
+        surface: 'captain',
+        planId: 'captain',
+        metadata: {
+          team: selectedTeamOption.team,
+          league: selectedTeamOption.league,
+          flight: selectedTeamOption.flight,
+          source: saveResult.source,
+        },
+      })
+    } catch (err) {
+      setDefaultTeamMessage(err instanceof Error ? err.message : 'Unable to save this default team.')
+    } finally {
+      setSavingDefaultTeam(false)
+    }
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -14428,36 +14516,111 @@ function CaptainHubContent() {
     </section>
   )
 
+  const captainCoreActions = [
+    {
+      id: 'availability',
+      label: 'Who can play?',
+      state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Check team',
+      detail: 'See who is in, out, maybe, or still needs a reply.',
+      href: levelUpAvailabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      cta: 'Check availability',
+      tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'info',
+    },
+    {
+      id: 'lineup',
+      label: 'Build lineup',
+      state: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts saved` : 'Start lineup',
+      detail: 'Set the courts for the next match.',
+      href: lineupBuilderHref,
+      stage: 'lineup' as CaptainResumeStage,
+      cta: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      tone: workspaceState.lineupReady ? 'good' : 'warn',
+    },
+    {
+      id: 'scenarios',
+      label: 'Compare lineups',
+      state: scenarioCount > 0 ? `${scenarioCount} saved` : 'Try options',
+      detail: 'Test possible lineups before you commit.',
+      href: scenarioHref,
+      stage: 'scenario' as CaptainResumeStage,
+      cta: 'Compare lineups',
+      tone: scenarioCount > 0 ? 'good' : 'info',
+    },
+    {
+      id: 'messages',
+      label: 'Message team',
+      state: workspaceState.messagingReady ? 'Ready to send' : 'Prepare note',
+      detail: 'Send availability, lineup, and match details.',
+      href: messagingHref,
+      stage: 'messaging' as CaptainResumeStage,
+      cta: 'Open messages',
+      tone: workspaceState.messagingReady ? 'good' : 'info',
+    },
+  ] as const
+
   const captainHomeShortcut = (
     <section style={dynamicCaptainHomeShortcutShell} aria-label="Captain home shortcut">
       <div style={captainHomeShortcutHeader}>
         <div>
-          <div style={sectionKicker}>Captain shortcut</div>
-          <h2 style={captainHomeShortcutTitle}>{isMobile ? 'Start with what matters.' : 'Start with the captain tools you need first.'}</h2>
+          <div style={sectionKicker}>Captain home</div>
+          <h2 style={captainHomeShortcutTitle}>What do you need to do?</h2>
         </div>
         <span style={captainHomeShortcutPrimaryItem?.tone === 'warn' ? warnBadge : captainHomeShortcutPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
           {captainHomeShortcutStatus}
         </span>
       </div>
       <div style={captainHomeShortcutSub}>
-        Jump to today&apos;s checklist, the send lane, lineup, or team messages without scrolling the full captain board.
+        Open the team job you need. Captain keeps the selected team and week with you.
       </div>
 
       <div style={dynamicCaptainHomeShortcutHero}>
         <div>
-          <div style={commandCenterLabel}>Best first tap</div>
+          <div style={commandCenterLabel}>Next up</div>
           <div style={captainHomeShortcutFocus}>{captainHomeShortcutPrimaryItem?.label || 'Today checklist'}</div>
           <p style={captainHomeShortcutDetail}>
             {captainHomeShortcutPrimaryItem?.detail || 'Open the highest-value captain tool for this match week.'}
           </p>
-          <div style={captainHomeShortcutReason}>
-            {captainHomeShortcutPrimaryItem?.reason || 'Start with the highest-impact captain action.'}
-          </div>
         </div>
         <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
           {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
         </PrimarySmallBtn>
       </div>
+
+      <div style={dynamicCaptainHomeShortcutGrid} aria-label="Captain core actions">
+        {captainCoreActions.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            disabled={!hasTeamScope || !premiumEnabled}
+            style={{
+              ...captainHomeShortcutCard,
+              ...(item.tone === 'warn' ? captainHomeShortcutCardWarn : item.tone === 'good' ? captainHomeShortcutCardGood : captainHomeShortcutCardInfo),
+              ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
+            }}
+            onClick={() => handleCaptainAction(item.href, item.stage)}
+          >
+            <span style={captainHomeShortcutCardTop}>
+              <strong>{item.label}</strong>
+              <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
+                {item.state}
+              </span>
+            </span>
+            <span style={captainHomeShortcutCardDetail}>{item.detail}</span>
+            <span style={captainHomeShortcutCardReason}>{item.cta}</span>
+          </button>
+        ))}
+      </div>
+
+      <details id="captain-help" style={captainHelpDetailsStyle} aria-label="Captain help and guided setup">
+        <summary style={captainHelpSummaryStyle}>
+          <span>
+            <strong>Need help getting started?</strong>
+            <small>Open the guided setup and match-week walkthrough.</small>
+          </span>
+          <span style={badgeBlue}>Show help</span>
+        </summary>
+        <div style={captainHelpBodyStyle}>
 
       <div style={captainHomeKickoffShell} aria-label="Captain home kickoff setup">
         <div style={captainHomeKickoffHeader}>
@@ -15293,30 +15456,8 @@ function CaptainHubContent() {
         </div>
       </div>
 
-      <div style={dynamicCaptainHomeShortcutGrid}>
-        {captainHomeShortcutItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            disabled={!hasTeamScope || !premiumEnabled}
-            style={{
-              ...captainHomeShortcutCard,
-              ...(item.tone === 'warn' ? captainHomeShortcutCardWarn : item.tone === 'good' ? captainHomeShortcutCardGood : captainHomeShortcutCardInfo),
-              ...(!hasTeamScope || !premiumEnabled ? disabledButtonSecondary : null),
-            }}
-            onClick={() => handleCaptainAction(item.href, item.stage)}
-          >
-            <span style={captainHomeShortcutCardTop}>
-              <strong>{item.label}</strong>
-              <span style={item.tone === 'warn' ? warnBadge : item.tone === 'good' ? badgeGreen : badgeBlue}>
-                {item.state}
-              </span>
-            </span>
-            <span style={captainHomeShortcutCardReason}>{item.reason}</span>
-            {!isSmallMobile ? <span style={captainHomeShortcutCardDetail}>{item.detail}</span> : null}
-          </button>
-        ))}
-      </div>
+        </div>
+      </details>
     </section>
   )
 
@@ -15617,6 +15758,7 @@ function CaptainHubContent() {
                 onChange={(e) => {
                   const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === e.target.value)
                   if (option) {
+                    setDefaultTeamMessage('')
                     setSelectedTeam(option.team)
                     setSelectedLeague(option.league)
                     setSelectedFlight(option.flight)
@@ -15654,6 +15796,13 @@ function CaptainHubContent() {
                 {loadingOptions || loadingTeam ? 'Refreshing...' : 'Refresh data'}
               </SecondarySmallBtn>
 
+              <SecondarySmallBtn
+                disabled={!premiumEnabled || !selectedTeamOption || selectedTeamIsDefault || savingDefaultTeam}
+                onClick={() => void handleSetDefaultTeam()}
+              >
+                {savingDefaultTeam ? 'Saving...' : selectedTeamIsDefault ? 'Default team' : 'Make default'}
+              </SecondarySmallBtn>
+
               <button
                 type="button"
                 style={{
@@ -15678,6 +15827,19 @@ function CaptainHubContent() {
             >
               {scopeStatusText}
             </div>
+
+            {defaultTeamMessage ? (
+              <div role="status" aria-live="polite" style={captainDefaultTeamMessageStyle}>
+                {defaultTeamMessage}
+              </div>
+            ) : null}
+
+            {filteredTeamOptions.length ? (
+              <div style={captainScopeHelpRowStyle}>
+                <span>{selectedTeamIsDefault ? 'This team opens first when you return.' : 'Choose Make default to open this team first next time.'}</span>
+                <SecondarySmallLink href="#captain-help">Need help?</SecondarySmallLink>
+              </div>
+            ) : null}
 
             {!loadingOptions && !filteredTeamOptions.length ? (
               <div style={captainDataAssistCueStyle}>
@@ -15739,7 +15901,7 @@ function CaptainHubContent() {
 
         {captainHomeShortcut}
 
-        <details open style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">
+        <details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">
           <summary style={captainToolLaneSummary}>
             <span style={captainToolLaneSummaryCopy}>
               <span style={sectionKicker}>Match-day tools</span>
@@ -15781,7 +15943,7 @@ function CaptainHubContent() {
           </div>
         </details>
 
-        <details open style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">
+        <details style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">
           <summary style={captainToolLaneSummary}>
             <span style={captainToolLaneSummaryCopy}>
               <span style={sectionKicker}>Communication tools</span>
@@ -15817,7 +15979,7 @@ function CaptainHubContent() {
           </div>
         </details>
 
-        <details open={!isMobile} style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">
+        <details style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">
           <summary style={captainToolLaneSummary}>
             <span style={captainToolLaneSummaryCopy}>
               <span style={sectionKicker}>Planning tools</span>
@@ -15851,7 +16013,7 @@ function CaptainHubContent() {
           </div>
         </details>
 
-        <details open={!isMobile || captainScoreCaptureLoggedCount > 0 || postMatchClosed} style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">
+        <details style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">
           <summary style={captainToolLaneSummary}>
             <span style={captainToolLaneSummaryCopy}>
               <span style={sectionKicker}>Closeout tools</span>
@@ -23308,18 +23470,30 @@ const captainHomeShortcutDetail: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const captainHomeShortcutReason: CSSProperties = {
-  marginTop: 8,
+const captainHelpDetailsStyle: CSSProperties = {
   minWidth: 0,
-  padding: '8px 9px',
-  borderRadius: 12,
-  border: '1px solid rgba(155,225,29,0.16)',
-  background: 'rgba(155,225,29,0.06)',
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(5,11,22,0.28)',
+  overflow: 'hidden',
+}
+
+const captainHelpSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  cursor: 'pointer',
   color: 'var(--foreground-strong)',
-  fontSize: 11,
-  lineHeight: 1.35,
-  fontWeight: 820,
-  overflowWrap: 'anywhere',
+}
+
+const captainHelpBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '0 12px 12px',
 }
 
 const captainHomeKickoffShell: CSSProperties = {
@@ -27398,6 +27572,29 @@ const scopeBannerWarn: CSSProperties = {
   background: 'color-mix(in srgb, #f59e0b 12%, var(--shell-chip-bg) 88%)',
   border: '1px solid color-mix(in srgb, #f59e0b 22%, var(--shell-panel-border) 78%)',
   color: 'var(--foreground-strong)',
+}
+
+const captainDefaultTeamMessageStyle: CSSProperties = {
+  maxWidth: 940,
+  padding: '10px 12px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const captainScopeHelpRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  maxWidth: 940,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
 }
 
 const captainDataAssistCueStyle: CSSProperties = {
