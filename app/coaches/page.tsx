@@ -38,11 +38,11 @@ export default function CoachesPage() {
         <JsonLd id="coaches-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Coaches', '/coaches')} />
         <CommandHero
           eyebrow="Coaches"
-          title="Help every player leave with a next step."
-          body="Keep goals, drills, lesson notes, progress, and follow-through connected so player development does not disappear between sessions."
+          title="Help players improve between lessons."
+          body="Plan lessons, assign drills, track progress, and follow up in one place."
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
-          searchPlaceholder="Search coaches, player goals, drills, or lesson notes"
+          searchPlaceholder="Search coaches, drills, or player goals"
           showSearchResults={false}
           showBoard={false}
         />

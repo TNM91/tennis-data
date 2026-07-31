@@ -2,6 +2,8 @@ import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import {
   DATA_ASSIST_STORY,
   MEMBERSHIP_TIERS,
@@ -95,7 +97,7 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
 export const homeActionCards: PublicActionCard[] = [
   {
     title: 'Find Player Insights',
-    body: 'Search players, ratings, rankings, teams, and recent context so you can understand the tennis landscape fast.',
+    body: 'Search players, ratings, rankings, teams, and recent results in one place.',
     href: '/explore/players',
     cta: 'Find Player Insights',
     meta: 'Explore',
@@ -129,10 +131,10 @@ export const homeActionCards: PublicActionCard[] = [
     meta: 'Coach Hub',
   },
   {
-    title: 'Run a League or Tournament',
+    title: 'Open Organizer Tools',
     body: 'Organize schedules, manage players or teams, track scores, publish results, and reduce admin work.',
     href: '/leagues-and-tournaments',
-    cta: 'Run a League or Tournament',
+    cta: 'Open Organizer Tools',
     secondaryHref: '/tournaments',
     secondaryCta: 'Tournament Desk',
     meta: 'Leagues & Tournaments',
@@ -288,8 +290,17 @@ const homeModeCards: HomeModeCard[] = [
     title: MEMBERSHIP_TIERS.league.shortPromise,
     detail: 'Run seasons, schedules, scores, standings, players, teams, and visibility with less admin work.',
     href: '/leagues-and-tournaments',
-    cta: 'Run a League or Tournament',
+    cta: 'Open Organizer Tools',
   },
+]
+
+const guestTierPreviews: Array<{ planId: PricingPlanId; icon: TiqFeatureIconName; label: string }> = [
+  { planId: 'free', icon: 'opponentScouting', label: 'Explore' },
+  { planId: 'player_plus', icon: 'myLab', label: 'Player' },
+  { planId: 'captain', icon: 'lineupBuilder', label: 'Captain' },
+  { planId: 'coach', icon: 'scenarioBuilder', label: 'Coach' },
+  { planId: 'league', icon: 'teamRankings', label: 'League' },
+  { planId: 'full_court', icon: 'captainDashboard', label: 'Full-Court' },
 ]
 
 const platformLaneCues = {
@@ -525,20 +536,64 @@ export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard
   )
 }
 
+export function GuestTierPreview() {
+  return (
+    <section style={sectionStyle} aria-labelledby="guest-tier-preview-title">
+      <SectionHeader
+        eyebrow="Choose your lane"
+        title="Start free. Add only what helps."
+        body="See what each lane opens, what it costs, and the tennis work it makes easier."
+        titleId="guest-tier-preview-title"
+      />
+      <div role="list" style={guestTierGridStyle}>
+        {guestTierPreviews.map(({ planId, icon, label }) => {
+          const plan = getPricingPlan(planId)
+          const featured = planId === 'captain'
+          const href = planId === 'free' ? '/explore' : `/pricing#${planId}`
+
+          return (
+            <article key={planId} role="listitem" style={{ ...guestTierCardStyle, ...(featured ? guestTierFeaturedCardStyle : null) }}>
+              <div style={guestTierCardTopStyle}>
+                <span style={guestTierIconStyle}>
+                  <TiqFeatureIcon name={icon} size="sm" variant="surface" />
+                </span>
+                <span style={guestTierPriceStyle}>{plan.priceLabel}</span>
+              </div>
+              <div style={guestTierCardCopyStyle}>
+                <span style={guestTierLabelStyle}>{label}</span>
+                <h2 style={guestTierTitleStyle}>{plan.subtitle}</h2>
+                <p style={guestTierAudienceStyle}>{plan.audience}</p>
+              </div>
+              <ul style={guestTierListStyle}>
+                {plan.valueProps.slice(0, 3).map((item) => (
+                  <li key={item} style={guestTierListItemStyle}>{item}</li>
+                ))}
+              </ul>
+              <TrackedProductLink
+                href={href}
+                style={featured ? primaryButtonStyle : guestTierActionStyle}
+                event={getPublicLinkEvent(plan.ctaLabel, href, `guest-tier-${planId}`)}
+              >
+                {planId === 'free' ? 'Explore Free' : plan.ctaLabel}
+              </TrackedProductLink>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle} aria-labelledby="home-action-board-title">
       <SectionHeader
-        eyebrow="Next best step"
-        title="Pick the job in front of you."
-        body="A lighter board for the common tennis needs: find context, improve, prep, manage, coach, organize, or fix the source."
+        eyebrow="Help topics"
+        title="What do you need help with?"
+        body="Choose a topic to continue."
         titleId="home-action-board-title"
       />
       <div style={actionBoardStyle}>
-        <div style={actionBoardHeaderStyle}>
-          <span style={actionBoardKickerStyle}>Decision board</span>
-          <p style={actionBoardCopyStyle}>Choose once, then move into the lane or tool that matches the work.</p>
-        </div>
         <div role="list" style={actionListStyle}>
           {cards.map((card) => (
             <article key={card.title} role="listitem" style={actionRowCardStyle} aria-label={`${card.title}: ${card.body}`}>
@@ -546,6 +601,7 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
                 {card.meta ? <span style={actionMetaStyle}>{card.meta}</span> : null}
                 <div style={actionRowCopyStyle}>
                   <h3 style={actionRowTitleStyle}>{card.title}</h3>
+                  <p style={actionRowBodyStyle}>{card.body}</p>
                 </div>
               </div>
               <div style={actionRowLinkStyle}>
@@ -862,8 +918,8 @@ const eyebrowStyle: CSSProperties = {
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.05rem, 9cqw, 3.7rem)',
-  lineHeight: 0.95,
+  fontSize: 'clamp(2rem, 7cqw, 3.25rem)',
+  lineHeight: 1,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -993,42 +1049,9 @@ const actionBoardStyle: CSSProperties = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
-const actionBoardHeaderStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-  gap: 8,
-  minWidth: 0,
-}
-
-const actionBoardKickerStyle: CSSProperties = {
-  width: 'fit-content',
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 24,
-  padding: '0 8px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.22)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const actionBoardCopyStyle: CSSProperties = {
-  margin: 0,
-  flex: '1 1 340px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.4,
-  fontWeight: 760,
-}
-
 const actionListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 390px), 1fr))',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
 }
@@ -1798,4 +1821,116 @@ const trustActionStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
+}
+
+const actionRowBodyStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 620,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const guestTierGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const guestTierCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 14,
+  minWidth: 0,
+  minHeight: 360,
+  padding: 18,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+  overflowWrap: 'anywhere',
+}
+
+const guestTierFeaturedCardStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border) 52%)',
+  background:
+    'linear-gradient(160deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-panel-bg))',
+  boxShadow: '0 20px 48px rgba(155,225,29,0.10)',
+}
+
+const guestTierCardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const guestTierIconStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 42,
+  height: 42,
+}
+
+const guestTierPriceStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 15,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  textAlign: 'right',
+}
+
+const guestTierCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const guestTierLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const guestTierTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const guestTierAudienceStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const guestTierListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+}
+
+const guestTierListItemStyle: CSSProperties = {
+  paddingLeft: 14,
+  borderLeft: '2px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 780,
+}
+
+const guestTierActionStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  marginTop: 'auto',
+  width: 'fit-content',
 }

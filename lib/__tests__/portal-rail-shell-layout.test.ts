@@ -2,74 +2,25 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const siteShellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
-const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
-const portalToolBarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
-const siteFooterSource = readFileSync(join(process.cwd(), 'app/components/site-footer.tsx'), 'utf8')
-const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
-const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
+const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
+const siteShellSource = read('app/components/site-shell.tsx')
+const portalToolBarSource = read('app/components/portal-tool-bar.tsx')
 
-function styleBlock(source: string, name: string) {
-  const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
-  return source.match(pattern)?.[1] ?? ''
-}
+describe('consistent portal shell layout', () => {
+  it('uses one shared top portal instead of a split desktop rail', () => {
+    expect(siteShellSource).toContain('railLayout={false}')
+    expect(siteShellSource).toContain('<PortalToolBar suppressed={compactSiteMenuOpen} />')
+    expect(siteShellSource).toContain('<SiteFooter railLayout={false} railWidth={0} />')
+    expect(siteShellSource).not.toContain('data-portal-rail="true"')
+    expect(siteShellSource).not.toContain('data-portal-content-scroll="true"')
+    expect(siteShellSource).not.toContain("position: 'fixed'")
+  })
 
-describe('portal rail shell layout', () => {
-  it('keeps the desktop portal rail fixed and scrollable without a visible nested scrollbar', () => {
-    expect(siteShellSource).toContain('data-portal-rail="true"')
-    expect(siteShellSource).toContain('data-portal-content-scroll="true"')
-    expect(siteShellSource).toContain('screenWidth >= 820')
-    expect(siteShellSource).toContain("position: 'fixed'")
-    expect(siteHeaderSource).toContain("data-site-header={useRailHeader ? 'rail-fixed' : 'flow'}")
-    expect(siteHeaderSource).toContain("position: useRailHeader ? 'fixed' : 'sticky'")
-    expect(siteHeaderSource).toContain('const railHeaderSpacerStyle')
-    expect(siteHeaderSource).toContain("{useRailHeader ? <div aria-hidden=\"true\" style={railHeaderSpacerStyle} /> : null}")
-    expect(siteShellSource).toContain("height: 'calc(100dvh - var(--header-height) - 20px)'")
-    expect(siteShellSource).toContain("overflow: 'auto'")
-    expect(siteShellSource).toContain("maxHeight: 'calc(100dvh - var(--header-height) - 20px)'")
-    expect(siteShellSource).toContain("height: 'calc(100dvh - var(--header-height))'")
-    expect(siteShellSource).toContain("overflow: 'hidden'")
-    expect(siteShellSource).toContain('const portalRailScrollStyle')
-    expect(siteShellSource).toContain("maxWidth: '100vw'")
-    expect(styleBlock(siteShellSource, 'portalRailMainStyle')).toContain("maxWidth: '100%'")
-    expect(styleBlock(siteShellSource, 'portalRailScrollStyle')).toContain("maxWidth: '100%'")
-    expect(siteShellSource).toContain("overflowY: 'auto'")
-    expect(siteShellSource).toContain("overscrollBehavior: 'contain'")
-    expect(siteShellSource).toContain('<SiteFooter railLayout railWidth={0} />')
-    expect(siteShellSource).toContain("'/explore/search'")
-    expect(siteShellSource).not.toContain("scrollbarGutter: 'stable'")
-    expect(siteShellSource.indexOf("height: 'calc(100dvh - var(--header-height) - 20px)'")).toBeLessThan(
-      siteShellSource.indexOf("maxHeight: 'calc(100dvh - var(--header-height) - 20px)'"),
-    )
-
-    expect(portalToolBarSource).toContain("gridTemplateRows: 'auto auto auto'")
-    expect(portalToolBarSource).toContain("minHeight: '100%'")
-    expect(portalToolBarSource).toContain('data-portal-rail-sections={lane.id}')
-    expect(portalToolBarSource).toContain('function PortalRailTaskLink')
-    expect(portalToolBarSource).toContain('const laneActive = lane.id === activeLane.id')
-    expect(portalToolBarSource).toContain('active={isPortalTaskActive(currentPortalPath, task.href)}')
-    expect(portalToolBarSource).toContain('railPortalTaskListStyle')
-    expect(portalToolBarSource).toContain('getRailPortalTaskActiveStyle')
-    expect(portalToolBarSource).not.toContain('railPortalStatusStyle')
-
-    expect(globalsSource).toContain("[data-portal-rail='true']")
-    expect(globalsSource).toContain('scrollbar-width: none')
-    expect(globalsSource).toContain('-ms-overflow-style: none')
-    expect(globalsSource).toContain("[data-portal-rail='true']::-webkit-scrollbar")
-    expect(globalsSource).toContain('width: 0')
-    expect(globalsSource).toContain('height: 0')
-    expect(shellSmokeSource).toContain('railScrollbarWidth')
-    expect(shellSmokeSource).toContain("type: 'rail-scrollbar-visible'")
-    expect(shellSmokeSource).toContain('viewportHeight')
-    expect(shellSmokeSource).toContain("type: 'rail-does-not-fill-viewport'")
-    expect(shellSmokeSource).toContain("type: 'rail-footer-too-tall'")
-    expect(shellSmokeSource).toContain("type: 'portal-content-scroll-missing'")
-    expect(shellSmokeSource).toContain("type: 'portal-content-did-not-scroll'")
-    expect(shellSmokeSource).toContain("type: 'portal-window-scrolled-with-content'")
-    expect(shellSmokeSource).toContain("type: 'portal-header-moved-during-content-scroll'")
-    expect(shellSmokeSource).toContain("type: 'portal-rail-moved-during-content-scroll'")
-    expect(shellSmokeSource).toContain("type: 'portal-header-not-fixed'")
-    expect(siteFooterSource).toContain("const railFooterOffset = railWidth > 0 ? railWidth + 32 : 0")
-    expect(siteFooterSource).toContain('function scrollShellToTop()')
+  it('keeps all six lanes visible, ordered, and mobile-safe', () => {
+    expect(portalToolBarSource).toContain("const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league']")
+    expect(portalToolBarSource).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(portalToolBarSource).toContain("overflow: 'hidden'")
+    expect(portalToolBarSource).toContain('minHeight: 56')
+    expect(portalToolBarSource).toContain('router.push(lane.route)')
   })
 })

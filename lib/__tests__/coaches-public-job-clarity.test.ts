@@ -19,8 +19,8 @@ function styleBlock(name: string) {
 describe('public coaches job clarity', () => {
   it('connects the coach page to direct player-development language without adding internal language', () => {
     expect(source).toContain("import TrackedProductLink from '@/app/components/tracked-product-link'")
-    expect(source).toContain('Keep goals, drills, lesson notes, progress, and follow-through connected')
-    expect(source).toContain('Help every player leave with a next step.')
+    expect(source).toContain('Help players improve between lessons.')
+    expect(source).toContain('Plan lessons, assign drills, track progress, and follow up in one place.')
     expect(source).not.toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
     expect(source).not.toContain('complicated analytics dashboard')
   })

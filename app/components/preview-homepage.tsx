@@ -2120,6 +2120,8 @@ function PreviewHomepageContent() {
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
+  if (!authResolved) return null
+
   return (
     <div
         style={{

@@ -1,13 +1,11 @@
 import type { Metadata } from 'next'
 import {
   CommandHero,
-  HomeClosingBand,
-  HomeIntelligenceSnapshot,
-  HomeModeRouter,
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { HOME_HERO_STORY, PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
+import GuestTierPreviewGate from '@/app/components/guest-tier-preview-gate'
+import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
@@ -46,19 +44,15 @@ export default function HomePage() {
       <main style={pageWrapStyle}>
         <CommandHero
           title={`${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`}
-          body={`${HOME_HERO_STORY.body} ${PLATFORM_POSITIONING}`}
+          body="Search players, teams, leagues, rankings, and tournaments for free. Add the right tools when you want help with your game, team, players, or competition."
           primary={{ href: '/explore', label: 'Start Exploring' }}
-          secondary={{ href: '/explore/players', label: 'Find Player Insights' }}
-          searchPlaceholder="Search players, teams, leagues, tournaments, coaches, resources, or tennis actions"
+          secondary={{ href: '/pricing', label: 'See Plans' }}
+          searchPlaceholder="Search players, teams, leagues, tournaments, or coaches"
           searchCompact
           showSearchResults={false}
-          showBoard
+          showBoard={false}
         />
-        <div id="what-next">
-          <HomeIntelligenceSnapshot />
-        </div>
-        <HomeModeRouter />
-        <HomeClosingBand />
+        <GuestTierPreviewGate />
       </main>
     </PublicPageShell>
   )

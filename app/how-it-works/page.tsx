@@ -12,28 +12,28 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'How It Works',
   description:
-    'See how TenAceIQ connects free discovery, My Lab, Team Hub, League Office, Tournament Desk, and Full-Court into one tennis decision system.',
+    'See how TenAceIQ helps players, coaches, captains, and organizers start free and add the right tools when needed.',
   path: '/how-it-works',
 })
 
 const toolCards: InfoActionCard[] = [
   {
     title: 'Explore',
-    text: 'Use public tennis intelligence to understand who, where, and what level.',
+    text: 'Search players, teams, leagues, rankings, and tournaments for free.',
     href: '/explore',
     cta: 'Start free',
     icon: 'opponentScouting',
   },
   {
-    title: 'Personalize',
-    text: 'Open My Lab, fix tennis info, prep matchups, and keep tennis messages together.',
+    title: 'Improve',
+    text: 'Use My Lab for goals, practice, matchup prep, and your tennis profile.',
     href: '/mylab',
     cta: 'Open My Lab',
     icon: 'myLab',
   },
   {
-    title: 'Operate',
-    text: 'Move team weeks, tournaments, and league seasons into repeatable tennis tools when the need grows.',
+    title: 'Lead',
+    text: 'Add Coach, Captain, or League tools when you support other players or competition.',
     href: '/pricing',
     cta: 'Choose a tier',
     icon: 'teamRankings',
@@ -46,31 +46,29 @@ export default function HowItWorksPage() {
       <JsonLd id="how-it-works-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('How It Works', '/how-it-works')} />
       <InfoPage
         kicker="How It Works"
-        title="Start with discovery. Upgrade when it saves time."
-        intro="Search the tennis map first. Open My Lab, Team Hub, League Office, or Tournament Desk when your next tennis need calls for more than public context."
+        title="Start free. Add tools when you need them."
+        intro="Explore tennis for free. Upgrade only when you want help with your game, players, team, league, or tournament."
       >
         <InfoActionGrid cards={toolCards} />
 
         <HowItWorksDetails summary="Show the full path" title="How the tools fit together">
-          <HowItWorksStep title="1. Free discovery">
+          <HowItWorksStep title="1. Explore for free">
             Public pages like <Link href="/explore/players">Players</Link>, <Link href="/explore/rankings">Rankings</Link>,{' '}
             <Link href="/explore/teams">Teams</Link>, and <Link href="/explore/leagues">Leagues</Link> help players,
-            captains, and organizers understand the landscape before choosing the right paid tools.
+            captains, and organizers find the tennis information they need.
           </HowItWorksStep>
 
-          <HowItWorksStep title="2. Player context">
-            Player unlocks <Link href="/mylab">My Lab</Link>, data refreshes, Matchup, and
-            Messages so broad discovery becomes useful before the next match.
+          <HowItWorksStep title="2. Set up your game">
+            Player unlocks <Link href="/mylab">My Lab</Link>, matchup prep, goals, follows, and
+            messages tied to your tennis profile.
           </HowItWorksStep>
 
-          <HowItWorksStep title="3. Team Hub and Captain Tools">
-            Team Hub is built around actual weekly operations: availability, lineup planning,
-            scenario comparisons, messaging, and match preparation.
+          <HowItWorksStep title="3. Captain your team">
+            Team Hub keeps availability, lineup planning, scouting, messages, and match preparation together.
           </HowItWorksStep>
 
-          <HowItWorksStep title="4. League Office">
-            League Office is for organizers running leagues of players or teams. It keeps setup,
-            participants, schedules, standings, results, and communication closer together.
+          <HowItWorksStep title="4. Organize competition">
+            League Office keeps participants, schedules, standings, results, and messages in one place.
           </HowItWorksStep>
 
           <HowItWorksStep title="5. Fix tennis info">

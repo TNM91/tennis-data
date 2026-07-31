@@ -16,7 +16,6 @@ type SearchGroup =
   | 'Leagues'
   | 'Tournaments'
   | 'Coaches'
-  | 'Courts / clubs'
   | 'Resources'
   | 'Actions'
 
@@ -64,13 +63,6 @@ const results: SearchResult[] = [
     detail: 'Connect goals, lesson notes, assignments, and player evidence.',
     href: '/coaches',
     keywords: ['coach', 'lesson', 'drill', 'serve practice', 'development'],
-  },
-  {
-    group: 'Courts / clubs',
-    title: 'Find courts and clubs',
-    detail: 'Use resources to find places to play, clubs, ladders, and open play.',
-    href: '/resources',
-    keywords: ['court', 'club', 'open play', 'near me', 'city', 'location'],
   },
   {
     group: 'Resources',
@@ -130,13 +122,6 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
-    title: 'Find a place to play',
-    detail: 'Open Resource Hub paths for teams, leagues, tournaments, courts, clubs, ladders, and open play.',
-    href: '/resources',
-    keywords: ['find a place to play', 'places to play', 'open play', 'find courts', 'find clubs', 'play tennis near me', 'join tennis'],
-  },
-  {
-    group: 'Actions',
     title: 'Captain match week',
     detail: 'Open Teams for availability, lineup ideas, opponent scouting, communication, and scorecard reminders.',
     href: '/teams',
@@ -144,8 +129,8 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
-    title: 'Run a league or tournament',
-    detail: 'Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.',
+    title: 'Open organizer tools',
+    detail: 'Manage schedules, standings, draws, players, teams, scores, and event work.',
     href: '/leagues-and-tournaments',
     keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work'],
   },
@@ -196,14 +181,13 @@ const groupOrder: SearchGroup[] = [
   'Leagues',
   'Tournaments',
   'Coaches',
-  'Courts / clubs',
   'Resources',
   'Actions',
 ]
 
 export default function UniversalSearch({
   compact = false,
-  placeholder = 'Search a player, team, league, city, court, coach, tournament, or tennis resource',
+  placeholder = 'Search a player, team, league, coach, tournament, or tennis resource',
   showResults = true,
 }: {
   compact?: boolean

@@ -1,6 +1,4 @@
 import type { ProductAccessState } from './access-model'
-import { getPrimaryNavTarget } from './primary-nav-access'
-import { getPlanUnlockHref } from './plan-intent'
 
 type PortalLaneRoutingInput = {
   laneId: 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
@@ -21,22 +19,12 @@ export function getPortalLaneTarget({
   accessPending,
   profileLinked = true,
 }: PortalLaneRoutingInput) {
+  void laneId
+  void planRoute
+  void access
+  void authenticated
+  void accessPending
   void profileLinked
-  if (accessPending) return { href: fallbackHref, locked: false, requiredPlan: null }
 
-  if (laneId === 'coach') {
-    return getPrimaryNavTarget('/coach', access, authenticated)
-  }
-
-  if (laneId === 'league') {
-    return access.canUseLeagueTools
-      ? { href: '/league-coordinator', locked: false, requiredPlan: null }
-      : {
-          href: getPlanUnlockHref('league', '/league-coordinator'),
-          locked: true,
-          requiredPlan: 'league',
-        }
-  }
-
-  return getPrimaryNavTarget(planRoute, access, authenticated)
+  return { href: fallbackHref, locked: false, requiredPlan: null }
 }

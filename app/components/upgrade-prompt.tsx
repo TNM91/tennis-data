@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState, hasPlanAccess } from '@/lib/access-model'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
@@ -43,10 +44,16 @@ export default function UpgradePrompt({
   children,
   unlockSteps,
 }: UpgradePromptProps) {
-  const { session, authResolved } = useAuth()
+  const { session, authResolved, role, entitlements } = useAuth()
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const plan = getPricingPlan(planId)
+  const access = buildProductAccessState(role, entitlements)
+  const alreadyHasPlan = Boolean(
+    authResolved &&
+    session?.user?.id &&
+    hasPlanAccess(access.activePlanIds, planId),
+  )
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
   const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
@@ -55,6 +62,8 @@ export default function UpgradePrompt({
   const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
   const visibleUnlockSteps = resolvedUnlockSteps.slice(0, compact ? 2 : resolvedUnlockSteps.length)
   const showDetailedGuidance = !summaryOnly
+
+  if (alreadyHasPlan) return null
 
   async function startCheckout() {
     if (checkoutSubmitting || !session?.access_token || planId === 'free') return
@@ -268,7 +277,7 @@ function getUnlockSteps(planId: PricingPlanId) {
 
   return [
     { title: 'Find', body: 'Search public players, teams, leagues, and rankings.' },
-    { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
+    { title: 'Learn', body: 'Open a player, team, league, ranking, or tournament.' },
     { title: 'Upgrade when useful', body: 'Add My Lab, Team Hub, or League Office only when they help.' },
   ]
 }

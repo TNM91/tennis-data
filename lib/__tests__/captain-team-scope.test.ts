@@ -55,4 +55,13 @@ describe('captain team scope helpers', () => {
     expect(getCaptainTeamScopeSource(team, [...map.values()])).toBe('profile')
     expect(getCaptainTeamScopeSourceLabel('profile')).toBe('your profile team')
   })
+
+  it('prefers the most recently active team when scope priority is equal', () => {
+    const recentOptions: CaptainTeamOption[] = [
+      { team: 'Older Team', league: 'Dallas', flight: '4.0', matches: 12, lastMatchDate: '2025-05-01' },
+      { team: 'Recent Team', league: 'Dallas', flight: '4.0', matches: 2, lastMatchDate: '2026-05-01' },
+    ]
+
+    expect(chooseCaptainTeamOption({ options: recentOptions, scopes: [] })?.team).toBe('Recent Team')
+  })
 })

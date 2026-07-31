@@ -42,11 +42,11 @@ describe('public info product story copy', () => {
   })
 
   it('uses public workspace names on the How It Works explainer', () => {
-    expect(howItWorksSource).toContain('repeatable tennis tools when the need grows')
-    expect(howItWorksSource).toContain('before choosing the right paid tools')
-    expect(howItWorksSource).toContain('Team Hub and Captain Tools')
-    expect(howItWorksSource).toContain('Team Hub is built around actual weekly operations')
-    expect(howItWorksSource).toContain('League Office is for organizers')
+    expect(howItWorksSource).toContain('Start free. Add tools when you need them.')
+    expect(howItWorksSource).toContain('Explore tennis for free.')
+    expect(howItWorksSource).toContain('Captain your team')
+    expect(howItWorksSource).toContain('Team Hub keeps availability')
+    expect(howItWorksSource).toContain('Organize competition')
     expect(howItWorksSource).toContain('matchup context, team pages, or Team Hub')
     expect(howItWorksSource).not.toContain('repeatable workspaces when the work grows')
     expect(howItWorksSource).not.toContain('before the next tennis job needs a hub')
@@ -90,10 +90,12 @@ describe('public info product story copy', () => {
   })
 
   it('keeps optional public info copy out of closed mobile layout', () => {
-    for (const source of [aboutSource, contactSource, faqSource, howItWorksSource, methodologySource, resourcesSource]) {
+    for (const source of [aboutSource, contactSource, faqSource, howItWorksSource, methodologySource]) {
       expect(source).toContain('className="publicInfoDetailsSection"')
     }
 
+    expect(resourcesSource).toContain('<ActionGrid cards={resourceActions} />')
+    expect(resourcesSource).not.toContain('className="publicInfoDetailsSection"')
     expect(globalsSource).toContain('.publicInfoDetailsSection:not([open]) > :not(summary)')
   })
 })

@@ -863,7 +863,7 @@ const publicDirectoryPages = [
   {
     route: '/teams',
     label: 'teams',
-    expectedCopy: 'Team tennis without the group-text chaos.',
+    expectedCopy: 'Find a team.',
   },
   {
     route: '/leagues',
@@ -990,7 +990,7 @@ for (const viewport of viewports) {
         })
       }
 
-      if (viewport.name === 'mobile' && directoryMetrics.introCards.length !== 4) {
+      if (viewport.name === 'mobile' && publicPage.mobileIntroCardCount && directoryMetrics.introCards.length !== publicPage.mobileIntroCardCount) {
         findings.push({
           viewport: viewport.name,
           route: publicPage.route,

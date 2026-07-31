@@ -164,9 +164,13 @@ describe('public landing preview cards', () => {
   })
 
   it('keeps homepage section copy approachable instead of workspace-heavy', () => {
-    expect(homePageSource).toContain('<HomeIntelligenceSnapshot />')
-    expect(homePageSource).toContain('<HomeModeRouter />')
-    expect(homePageSource).toContain('<HomeClosingBand />')
+    expect(homePageSource).toContain('<GuestTierPreviewGate />')
+    expect(homePageSource).toContain('showBoard={false}')
+    expect(homePageSource).not.toContain('<HomeIntelligenceSnapshot />')
+    expect(homePageSource).not.toContain('<HomeModeRouter />')
+    expect(homePageSource).not.toContain('<HomeClosingBand />')
+    expect(commandCenterSource).toContain('Start free. Add only what helps.')
+    expect(commandCenterSource).toContain('See what each lane opens, what it costs, and the tennis work it makes easier.')
     expect(homePageSource).not.toContain('<ActionGrid />')
     expect(homePageSource).not.toContain('<PlatformPillarGrid />')
     expect(homePageSource).not.toContain('<ProductPreviewGrid />')

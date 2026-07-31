@@ -66,8 +66,8 @@ const EXPLORE_PRIMARY_COMMAND: {
 } = {
   href: '/explore/search',
   label: 'Search first',
-  title: 'Start with one tennis question.',
-  body: 'Search a player, team, league, city, rating, or court need, then open the clearest public result.',
+  title: 'Search all tennis.',
+  body: 'Search a player, team, league, city, rating, coach, or tournament.',
   icon: 'opponentScouting',
   event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_primary_command', job: 'search_first' } },
 }
@@ -167,10 +167,10 @@ export default function ExplorePage() {
 
               {!isMobile ? (
                 <p style={dynamicHeroText}>
-                  Search by name, team, league, city, rating, court, coach, or tournament.
+                  Search by name, team, league, city, rating, coach, or tournament.
                 </p>
               ) : null}
-              <UniversalSearch compact />
+              <UniversalSearch compact showResults={false} />
             </div>
 
           </div>
@@ -262,7 +262,7 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={findCommandCopy}>
           <div style={findCommandEyebrow}>Explore</div>
-          <h2 style={titleStyle}>Start with one tennis question.</h2>
+          <h2 style={titleStyle}>Popular searches.</h2>
         </div>
         <Link href="/pricing#free" style={pillStyle}>Free to start</Link>
       </div>

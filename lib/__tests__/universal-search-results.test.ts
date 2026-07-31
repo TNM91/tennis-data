@@ -12,7 +12,6 @@ describe('universal search result model', () => {
       "'Leagues'",
       "'Tournaments'",
       "'Coaches'",
-      "'Courts / clubs'",
       "'Resources'",
       "'Actions'",
     ]) {
@@ -34,9 +33,8 @@ describe('universal search result model', () => {
       'Request data review',
       'Prep a matchup',
       'Scout a team',
-      'Find a place to play',
       'Captain match week',
-      'Run a league or tournament',
+      'Open organizer tools',
     ]) {
       expect(source).toContain(phrase)
     }
@@ -54,7 +52,6 @@ describe('universal search result model', () => {
       'scout team',
       'rating level',
       'request review',
-      'play tennis near me',
       'captain match week',
       'organizer hub',
       'leagues and tournaments',
@@ -64,10 +61,11 @@ describe('universal search result model', () => {
   })
 
   it('routes organizer searches to the combined leagues and tournaments hub', () => {
-    expect(source).toContain("title: 'Run a league or tournament'")
+    expect(source).toContain("title: 'Open organizer tools'")
     expect(source).toContain("href: '/leagues-and-tournaments'")
-    expect(source).toContain('Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.')
+    expect(source).toContain('Manage schedules, standings, draws, players, teams, scores, and event work.')
     expect(source).toContain("keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work']")
+    expect(source).not.toContain("title: 'Run a league or tournament'")
   })
 
   it('preserves typed queries when users click a result card', () => {
