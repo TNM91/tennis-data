@@ -9,6 +9,7 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'mylab_goal_template_applied',
   'captain_closeout_action',
   'captain_team_scope_selected',
+  'captain_default_team_saved',
   'search_submitted',
   'search_result_clicked',
   'search_category_selected',

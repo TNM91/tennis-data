@@ -57,6 +57,18 @@ describe('product usage events', () => {
     })
   })
 
+  it('accepts captain default-team saves', () => {
+    expect(normalizeProductUsageEventInput({
+      eventName: 'captain_default_team_saved',
+      surface: 'captain',
+      planId: 'captain',
+      metadata: {
+        team: 'Northside',
+        source: 'cloud',
+      },
+    })?.eventName).toBe('captain_default_team_saved')
+  })
+
   it('accepts upgrade checkout starts', () => {
     expect(buildProductUsageEventInsert('user-2', {
       eventName: 'upgrade_checkout_started',
