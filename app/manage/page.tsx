@@ -41,7 +41,7 @@ export default function ManagePage() {
           title="Run tennis with fewer loose ends."
           body="Keep availability, schedules, lineups, rosters, results, and messages close to the next action."
           primary={{ href: '/captain', label: 'Manage My Team' }}
-          secondary={{ href: '/leagues-and-tournaments', label: 'Run a League or Tournament' }}
+          secondary={{ href: '/leagues-and-tournaments', label: 'Open Organizer Tools' }}
           searchCompact
           showSearchResults={false}
           showBoard={false}

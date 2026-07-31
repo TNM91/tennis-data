@@ -69,7 +69,7 @@ export default function AboutPage() {
           <div>
             <h2 className="section-title" style={aboutSectionTitleStyle}>Who it is for</h2>
             <p>
-              Use Free to explore the tennis landscape. Use Player to personalize it with My Lab,
+              Use Free to search players, teams, leagues, rankings, and tournaments. Use Player to personalize it with My Lab,
               data refreshes, Matchup, and messages. Captains lead teams. League coordinators
               run leagues of players or teams.
             </p>

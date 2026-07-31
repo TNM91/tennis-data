@@ -169,7 +169,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     entitlementGrant: NO_ENTITLEMENTS,
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.free),
     ctaLabel: 'Get Started Free',
-    problem: 'Want to understand the tennis landscape faster?',
+    problem: 'Looking for a player, team, league, ranking, or tournament?',
     friction: 'Player, team, league, and ranking information is scattered across too many places.',
     solution: getMembershipTier('free').description,
     outcome: 'Find context faster, then upgrade only when paid tools make your tennis life easier.',

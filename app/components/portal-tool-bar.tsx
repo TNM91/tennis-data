@@ -98,7 +98,7 @@ const portalLanes: PortalLane[] = [
     id: 'coach',
     label: 'Coaches',
     cue: 'Support player development',
-    route: '/coach',
+    route: '/coaches',
     planRoute: '/coach',
     icon: 'scenarioBuilder',
     paths: ['/coach', '/coaches', '/player-development', '/tactics'],
@@ -144,6 +144,11 @@ const portalLanes: PortalLane[] = [
     ],
   },
 ]
+
+const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league']
+const orderedPortalLanes = [...portalLanes].sort(
+  (left, right) => portalLaneOrder.indexOf(left.id) - portalLaneOrder.indexOf(right.id),
+)
 
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
 const portalSurfaceBackground = 'var(--portal-surface-bg)'
@@ -241,7 +246,8 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const showPublicTasks = !(publicVisitor && isMobile)
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
   const showPortalBrandRunway = publicVisitor && pathname === '/' && !isMobile
-  const collapseMobilePortal = isMobile
+  // Keep the shared top portal compact so each route starts with the user's work.
+  const collapseMobilePortal = layout === 'top'
 
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
@@ -267,7 +273,8 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
 
   function handleMobilePortalLaneSelect(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
     event.currentTarget.blur()
-    setMobilePortalLaneState({ pathname, laneId })
+    const lane = orderedPortalLanes.find((item) => item.id === laneId)
+    if (lane) router.push(lane.route)
   }
 
   function handleMobilePortalMainSelect(event: MouseEvent<HTMLButtonElement>) {
@@ -353,7 +360,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         </form>
 
         <nav aria-label="Choose a TenAceIQ tool" style={railPortalLaneGridStyle}>
-          {portalLanes.map((lane) => {
+          {orderedPortalLanes.map((lane) => {
             const laneActive = lane.id === activeLane.id
             const laneAccent = getLaneAccent(lane.id)
             const railTasks = publicVisitor ? lane.tasks.slice(0, 4) : lane.tasks
@@ -449,7 +456,13 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
             ref={mobilePortalPaletteRef}
             id={mobilePortalLane ? portalActionMenuId : portalMenuId}
             data-mobile-portal-palette={mobilePortalLane ? 'actions' : 'lanes'}
-            style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
+            style={{
+              ...(mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle),
+              gridTemplateColumns: isMobile
+                ? 'repeat(3, minmax(0, 1fr))'
+                : 'repeat(6, minmax(0, 1fr))',
+              gap: isMobile ? 4 : 6,
+            }}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
             aria-live="polite"
             onScroll={handleMobilePortalPaletteScroll}
@@ -493,7 +506,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                   />
                 ))}
               </>
-            ) : portalLanes.map((lane) => (
+            ) : orderedPortalLanes.map((lane) => (
               <MobilePortalLaneButton
                 key={lane.id}
                 lane={lane}
@@ -506,7 +519,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
           </nav>
         ) : null}
 
-        {collapseMobilePortal ? (
+        {collapseMobilePortal && mobilePortalScroll.max > 0 ? (
           <span aria-hidden="true" data-mobile-portal-scrollbar="true" style={mobilePortalScrollbarStyle}>
             <span
               style={{
@@ -516,7 +529,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
               }}
             />
           </span>
-        ) : (
+        ) : null}
+
+        {!collapseMobilePortal ? (
           <>
 
           <div
@@ -531,7 +546,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                 <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
                   <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : signedInPortalTitleStyle) }}>{headline}</div>
                   <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
-                    {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
+                    {authenticated ? 'Choose what you need today.' : PLATFORM_POSITIONING}
                   </p>
                 </div>
               ) : null}
@@ -562,7 +577,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                     ...(useDenseDesktopPortalRail ? desktopPortalMemberLaneGridStyle : null),
                   }}
                 >
-                  {portalLanes.map((lane) => (
+                  {orderedPortalLanes.map((lane) => (
                     <PortalLaneCard
                       key={lane.id}
                       lane={lane}
@@ -649,7 +664,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
             </div>
           </div>
           </>
-        )}
+        ) : null}
       </div>
     </section>
     </>
@@ -992,9 +1007,9 @@ function getMobileHubLabel(laneId: PortalLaneId) {
   if (laneId === 'find') return 'Explore Hub'
   if (laneId === 'you') return 'Improve Hub'
   if (laneId === 'compete') return 'Compete Hub'
-  if (laneId === 'coach') return 'Coach Hub'
+  if (laneId === 'coach') return 'Coaches Hub'
   if (laneId === 'team') return 'Team Hub'
-  return 'League Hub'
+  return 'Organizer Hub'
 }
 
 function getMobileTaskLabel(title: string) {
@@ -1359,18 +1374,13 @@ const mobilePortalPaletteStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridAutoFlow: 'column',
-  gridAutoColumns: 'minmax(72px, 1fr)',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 4,
   minWidth: 0,
   width: '100%',
   boxSizing: 'border-box',
-  overflowX: 'auto',
-  overflowY: 'hidden',
-  paddingBottom: 8,
-  scrollbarWidth: 'none',
-  WebkitOverflowScrolling: 'touch',
-  scrollSnapType: 'x proximity',
+  overflow: 'hidden',
+  paddingBottom: 0,
 }
 
 const mobilePortalActionPaletteStyle: CSSProperties = {
@@ -1380,7 +1390,7 @@ const mobilePortalActionPaletteStyle: CSSProperties = {
 const mobilePortalScrollbarStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  display: 'block',
+  display: 'none',
   width: 'min(164px, 46%)',
   height: 6,
   margin: '-5px auto 0',
@@ -1401,11 +1411,11 @@ const mobilePortalScrollbarThumbStyle: CSSProperties = {
 
 const mobilePortalTileStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateRows: '20px minmax(0, auto)',
+  gridTemplateRows: '30px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
   gap: 2,
-  minHeight: 44,
+  minHeight: 56,
   padding: '4px 3px',
   borderRadius: 9,
   border: '1px solid rgba(116,190,255,0.15)',

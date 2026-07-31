@@ -3,228 +3,46 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/resources/page.tsx'), 'utf8')
-const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
+const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
 
-function styleBlock(styleName: string) {
-  const match = source.match(new RegExp(`const ${styleName}: CSSProperties = \\{[\\s\\S]*?\\n\\}`))
-  expect(match, `${styleName} style block`).not.toBeNull()
-  return match![0]
-}
-
-describe('Resources hub actions', () => {
-  it('gives visitors a fast I-need-to chooser before the full hub', () => {
-    expect(source).toContain('I need to...')
-    expect(source).toContain('Get to the right tennis help fast.')
-    expect(source).toContain('Pick the tennis need. Open the next tool.')
-    expect(source).toContain('className="resourceNeedPath"')
-    expect(source).toContain('className="resourceNeedPathGrid"')
-    expect(source).toContain('className="resourceNeedPathCard"')
-    expect(source).toContain('className="resourceNeedPathQuestion"')
-    expect(source).toContain('className="resourceNeedPathCta"')
-    expect(source).not.toContain('Pick the job in your head. TenAceIQ turns it into a practical resource path instead of another search spiral.')
-    expect(source).toContain('resourceNeedPaths.map((path)')
-    expect(source).toContain('Work on my game')
-    expect(source).toContain('Prepare for a match')
-    expect(source).toContain('Captain this week')
-    expect(source).toContain('Support a player')
-    expect(source).toContain('Run events')
-    expect(source).toContain('Fix data')
-    expect(source).not.toContain('Run a league or tournament')
-    expect(source).not.toContain('Fix missing or wrong data')
-    expect(source).toContain("href: '/player-development'")
-    expect(source).toContain("href: '/matchup'")
-    expect(source).toContain("href: '/captain'")
-    expect(source).toContain("href: '/coaches'")
-    expect(source).toContain("href: '/leagues-and-tournaments'")
-    expect(source).toContain("href: '/data-assist?intent=report-issue&context=Resources%20need%20path'")
-    expect(source.indexOf('Resource search')).toBeLessThan(source.indexOf('I need to...'))
-    expect(source.indexOf('I need to...')).toBeLessThan(source.indexOf('Resources Player ID starter path'))
-  })
-
-  it('uses reusable resource cards instead of static directory cards', () => {
-    expect(source).toContain('TiqActionCard')
-    expect(source).toContain('More quick starts')
-    expect(source).toContain('Show options')
-    expect(source).toContain('Quick starts')
-    expect(source).toContain('Start with the tennis need, then open the right path.')
-    expect(source).toContain('Start with teams, leagues, tournaments, courts, clubs, ladders, or open play when you just need to get on court.')
-    expect(source).not.toContain('when the job is getting on court')
-    expect(source).toContain('resourceQuickStarts.map((quickStart)')
-    expect(source).toContain("id: 'play'")
-    expect(source).toContain("title: 'Play'")
-    expect(source).toContain('Find the fastest path from wanting a match')
-    expect(source).toContain('Drills')
-    expect(source).toContain('Skills')
-    expect(source).toContain('Strategy')
-    expect(source).toContain('Fitness / movement')
-    expect(source).toContain('Match prep')
-    expect(source).toContain('Captain tools')
-    expect(source).toContain('Coach tools')
-    expect(source).toContain('League/tournament tools')
-    expect(source).toContain('Track scores checklist')
-    expect(source).toContain('Player development modules')
-    expect(source).toContain('Find drills and skills')
-    expect(source).toContain("job: 'find_drills_skills'")
-    expect(source).toContain("cta: 'Find Drills'")
-    expect(source).toContain('Captain match week')
-    expect(source).toContain("{ label: 'Tool', value: 'Team Hub' }")
-    expect(source).toContain('Prep the next match')
-    expect(source).toContain('Run an event')
-    expect(source).toContain("href: '/leagues-and-tournaments'")
-    expect(source).toContain("cta: 'Open Organizer Hub'")
-    expect(source).toContain('Upload or report a source')
-    expect(source).toContain('TiqResourceCard')
-    expect(source).toContain('Resource path')
-    expect(source).toContain('resourceGridStyle')
-    expect(source).toContain("const resourceLinkStyle: CSSProperties")
-    expect(source).toContain('Browse all resource paths')
-    expect(source).toContain('Show directory')
-    expect(source).toContain("minHeight: 40")
-    expect(source).toContain("borderRadius: 8")
-    expect(source).not.toContain('borderRadius: 22')
-    expect(source).not.toContain("{ label: 'Workspace', value: 'Team Hub' }")
-  })
-
-  it('adds a Player ID starter path before the resource cards', () => {
-    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
-    expect(source).toContain('const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}#level-up-flow`')
-    expect(source).toContain('const RESOURCE_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESOURCE_PLAYER_IDENTITY.slug}`')
-    expect(source).toContain('Player ID starter path')
-    expect(source).toContain('Want a training path from your Player ID?')
-    expect(source).toContain('Show Player ID path')
-    expect(source).toContain('const resourcePlayerIdDisclosureStyle')
-    expect(source).toContain('Start with one tennis identity, then choose the resource.')
-    expect(source).toContain('aria-label="Resources Player ID starter read"')
-    expect(source).toContain('resourcePlayerIdStarterRead.map((item)')
-    expect(source).toContain('Start Level Up')
-    expect(source).toContain('Read Player ID')
-    expect(source).toContain("location: 'resources_player_id_starter'")
-    expect(source.indexOf('Resources Player ID starter path')).toBeLessThan(source.indexOf('Quick starts'))
-  })
-
-  it('tracks resource clicks by tennis need and destination', () => {
-    expect(source).toContain('TrackedProductLink')
-    expect(source).toContain("location: 'resources_need_path'")
-    expect(source).toContain("job: 'improve_player_game'")
-    expect(source).toContain("job: 'prepare_match'")
-    expect(source).toContain("job: 'captain_week'")
-    expect(source).toContain("job: 'support_player'")
-    expect(source).toContain("job: 'fix_tennis_context'")
-    expect(source).toContain('resourceClickEvent(item, group.title)')
-    expect(source).toContain("eventName = 'find_coach_clicked'")
-    expect(source).toContain("eventName = 'team_search_submitted'")
-    expect(source).toContain("eventName: 'captain_tools_clicked'")
-    expect(source).toContain("job: 'organize_competition'")
-    expect(source).toContain("eventName = 'league_search_submitted'")
-    expect(source).toContain("'tournament_search_submitted'")
-    expect(source).toContain("eventName = 'lineup_preview_clicked'")
-    expect(source).toContain("'data_issue_reported'")
-    expect(source).toContain("context: 'resources_hub'")
-  })
-
-  it('routes Fix Data resources to matching Data Assist intents', () => {
-    expect(source).toContain("title=\"The tennis resource hub for less chaos.\"")
-    expect(source).toContain("primary={{ href: '/player-development', label: 'Level Up My Game' }}")
-    expect(source).toContain('Open the help you need now.')
-    expect(source).toContain('tennis intelligence and action layer')
-    expect(source).toContain('tennis context needs verification')
-    expect(source).toContain("return '/data-assist?intent=report-issue&context=Resources%20hub'")
-    expect(source).toContain("return '/data-assist?intent=request-review&context=Resources%20hub'")
-    expect(source).toContain("return '/data-assist?intent=upload-source&context=Resources%20hub'")
-    expect(source).toContain("lower.includes('court and club')")
-    expect(source).toContain("lower.includes('track scores')")
-    expect(source).toContain("return '/leagues-and-tournaments'")
-    expect(source).toContain('searchCompact')
-    expect(source).toContain('showSearchResults={false}')
+describe('Help and Resources', () => {
+  it('states a clear purpose and keeps the page focused on help', () => {
+    expect(source).toContain('Find the help you need.')
+    expect(source).toContain('Learn the platform, set up your account, improve your game, add tennis data, or contact support.')
+    expect(source).toContain('showSearch={false}')
     expect(source).toContain('showBoard={false}')
-    expect(source).toContain('context="Resources trust strip"')
-    expect(source).toContain('Check source and review status')
-    expect(source).toContain('Show trust details')
-    expect(source).not.toContain('workflow layer')
+    expect(source).not.toContain('I need to...')
+    expect(source).not.toContain('resourceNeedPath')
+    expect(source).not.toContain('courts, clubs')
   })
 
-  it('keeps the I-need-to chooser tappable and mobile-safe', () => {
-    expect(source).toContain('const needPathStyle')
-    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
-    expect(source).toContain('const needPathGridStyle')
-    expect(source).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
-    expect(source).toContain('const needPathCardStyle')
-    expect(source).toContain('minHeight: 74')
-    expect(source).toContain('className="resourceNeedPathText"')
-    expect(source).toContain('const needPathQuestionStyle')
-    expect(source).toContain("overflowWrap: 'anywhere'")
-    expect(source).toContain('ariaLabel={`${path.question}: ${path.cta}`}')
-    expect(source).toContain('const detailsSectionStyle')
-    expect(source).toContain('const detailsSummaryStyle')
-    expect(source).toContain('const detailsContentStyle')
-    expect(source).toContain('className="publicInfoDetailsSection"')
-    expect(source).toContain('className="resourceDetailsSummary"')
-    expect(source).toContain('className="resourceDetailsSummaryTitle"')
-    expect(globalsSource).toContain('.publicInfoDetailsSection:not([open]) > :not(summary)')
-    expect(globalsSource).toContain('.resourceNeedPathText')
-    expect(globalsSource).toContain('.resourceNeedPathCard')
-    expect(globalsSource).toContain('.resourceDetailsSummary')
-    expect(globalsSource).toContain('.resourceDetailsSummaryTitle')
-    expect(globalsSource).toContain('min-height: 50px !important;')
-    expect(globalsSource).toContain('padding: 8px !important;')
-    expect(globalsSource).toContain('font-size: 12px !important;')
-    expect(styleBlock('detailsSectionStyle')).toContain("display: 'block'")
-    expect(styleBlock('detailsSectionStyle')).not.toContain("display: 'grid'")
-  })
-
-  it('keeps the Resources Player ID starter compact and mobile-safe', () => {
-    expect(source).toContain('const resourcePlayerIdStarterStyle')
-    expect(source).toContain("overflowWrap: 'anywhere'")
-    expect(source).toContain('const resourcePlayerIdReadGridStyle')
-    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 178px), 1fr))'")
-    expect(source).toContain('const resourcePlayerIdReadCardStyle')
-    expect(source).toContain('minWidth: 0')
-    expect(source).toContain('const resourcePlayerIdActionRowStyle')
-    expect(source).toContain("flexWrap: 'wrap'")
-    expect(source).toContain('const resourcePlayerIdActionStyle')
-    expect(source).toContain("whiteSpace: 'normal'")
-  })
-
-  it('uses q search params to prioritize matching resource paths', () => {
-    expect(source).toContain('type ResourcesPageProps')
-    expect(source).toContain('searchParams?: Promise<Record<string, string | string[] | undefined>>')
-    expect(source).toContain('const resourceQuery = getSearchParamValue(resolvedSearchParams.q).trim().slice(0, 80)')
-    expect(source).toContain('const resourceMatches = getResourceMatches(resourceQuery)')
-    expect(source).toContain('Showing useful paths for &quot;{resourceQuery}&quot;.')
-    expect(source).toContain('Open the matching resource now.')
-    expect(source).toContain('Pick the closest tennis need below.')
-    expect(source).not.toContain('The most relevant resource paths are shown first, with the full hub still available below.')
-    expect(source).toContain('visibleGroups.map((group)')
-    expect(source).toContain('function getResourceMatches(query: string)')
-    expect(source).toContain("!['a', 'an', 'the', 'to', 'for', 'and', 'or'].includes(token)")
-    expect(source).toContain('const isFocusedQuery = tokens.length > 1')
-    expect(source).toContain('const allTokenMatch = tokens.length > 0 && tokens.every((token) => itemText.includes(token))')
-    expect(source).toContain('const looseTokenMatch = !isFocusedQuery && tokens.some((token) => itemText.includes(token))')
-    expect(source).toContain('const score = exactMatch ? 12 : allTokenMatch ? 8 : looseTokenMatch ? 2 : 0')
-  })
-
-  it('matches plain role questions from the platform story', () => {
-    for (const phrase of [
-      'what should I work on',
-      'how am I improving',
-      'who is available',
-      'best lineup',
-      'who should play together',
-      'what should I communicate',
-      'assign drills',
-      'track player development',
-      'support players between sessions',
-      'organize schedules',
-      'track scores',
-      'reduce admin work',
-      'run a league or tournament',
+  it('offers five short next steps without a split directory', () => {
+    for (const title of [
+      'Learn how TenAceIQ works',
+      'Work on your game',
+      'Set up your tennis profile',
+      'Add or fix tennis data',
+      'Get help from TenAceIQ',
     ]) {
-      expect(source).toContain(phrase)
+      expect(source).toContain(`title: '${title}'`)
     }
 
-    expect(source).toContain("searchTerms: ['who is available'")
-    expect(source).toContain("searchTerms: ['assign drills'")
-    expect(source).toContain("searchTerms: ['organize schedules'")
-    expect(source).toContain("group.searchTerms.join(' ')")
+    expect(source).toContain('<ActionGrid cards={resourceActions} />')
+    expect(commandCenterSource).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(commandCenterSource).toContain('<p style={actionRowBodyStyle}>{card.body}</p>')
+  })
+
+  it('routes setup, data, FAQ, and support to working destinations', () => {
+    expect(source).toContain("href: '/profile'")
+    expect(source).toContain("href: '/data-assist?intent=upload-source&context=Resources'")
+    expect(source).toContain("href: '/faq'")
+    expect(source).toContain("secondaryHref: '/messages?compose=support'")
+  })
+
+  it('keeps canonical metadata and breadcrumb schema', () => {
+    expect(source).toContain('buildRouteMetadata')
+    expect(source).toContain("path: '/resources'")
+    expect(source).toContain('resources-breadcrumb-jsonld')
+    expect(source).toContain("buildPublicSectionBreadcrumbJsonLd('Help', '/resources')")
   })
 })

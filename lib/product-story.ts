@@ -82,7 +82,7 @@ export const PLATFORM_AUDIENCE_PATHS = [
     audience: 'Leagues and tournaments',
     question: 'How do we organize schedules, teams, players, scores, and results with less admin work?',
     href: '/leagues-and-tournaments',
-    cta: 'Run a League or Tournament',
+    cta: 'Open Organizer Tools',
   },
 ] as const
 
@@ -144,7 +144,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   free: {
     id: 'free',
     name: 'Free',
-    shortPromise: 'Find the tennis landscape.',
+    shortPromise: 'Search tennis in one place.',
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
@@ -333,7 +333,7 @@ export type TierHomepageStory = {
 export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = {
   free: {
     stage: 'Start here',
-    headline: 'Start free. Find the tennis landscape.',
+    headline: 'Explore tennis for free.',
     copy: 'Explore players, teams, leagues, rankings, tournaments, and tennis context before choosing paid tools.',
     bullets: [
       'Search players, teams, leagues, and rankings',

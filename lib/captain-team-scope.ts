@@ -12,6 +12,7 @@ export type CaptainTeamOption = {
   league: string
   flight: string
   matches: number
+  lastMatchDate?: string | null
 }
 
 function cleanText(value: string | null | undefined, fallback = 'Unknown') {
@@ -120,6 +121,8 @@ export function chooseCaptainTeamOption({
   return [...options].sort((left, right) => {
     const priorityDiff = getScopePriority(right, scopes) - getScopePriority(left, scopes)
     if (priorityDiff !== 0) return priorityDiff
+    const recentDiff = Date.parse(right.lastMatchDate || '') - Date.parse(left.lastMatchDate || '')
+    if (Number.isFinite(recentDiff) && recentDiff !== 0) return recentDiff
     if (right.matches !== left.matches) return right.matches - left.matches
     return left.team.localeCompare(right.team)
   })[0]

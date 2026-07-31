@@ -822,7 +822,7 @@ function DataAssistWorkspace() {
             <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
                 <StepBadge step={1} label="Select type" />
-                <h2 style={sectionTitleStyle}>Choose what you are uploading.</h2>
+                <h1 style={sectionTitleStyle}>Choose what you are uploading.</h1>
                 {!isCompactViewport ? (
                   <p style={copyStyle}>Pick the source type, then choose the TennisLink export. Scorecards are the usual weekly upload.</p>
                 ) : null}

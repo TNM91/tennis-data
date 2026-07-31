@@ -129,6 +129,7 @@ type TeamOption = {
   league: string
   flight: string
   matches: number
+  lastMatchDate: string | null
 }
 
 type TeamOptionMatchRow = {
@@ -1423,6 +1424,115 @@ function CaptainLockedSurface({
   )
 }
 
+function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
+  const { isMobile } = useViewportBreakpoints()
+  const setupSteps = [
+    {
+      number: '1',
+      title: 'Link your Player ID',
+      body: 'Start with your player record so Captain can match you to the right team.',
+      href: '/profile',
+      cta: 'Link Player ID',
+      icon: 'playerRatings' as TiqFeatureIconName,
+    },
+    {
+      number: '2',
+      title: 'Add your team data',
+      body: 'Upload one USTA scorecard, team summary, or schedule. TenAceIQ will connect the team and season.',
+      href: `${dataAssistCaptainHref}#upload`,
+      cta: 'Upload Team Data',
+      icon: 'reports' as TiqFeatureIconName,
+    },
+    {
+      number: '3',
+      title: 'Come back to Captain',
+      body: 'After review, refresh Captain. Your most recent linked team opens first and stays remembered.',
+      href: '#captain-setup-refresh',
+      cta: 'Refresh Captain',
+      icon: 'captainDashboard' as TiqFeatureIconName,
+    },
+  ]
+
+  return (
+    <div style={pageWrap}>
+      <section
+        aria-label="Captain first team setup"
+        style={{
+          display: 'grid',
+          gap: isMobile ? 16 : 22,
+          minWidth: 0,
+          padding: isMobile ? 16 : 24,
+          borderRadius: 18,
+          border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+          background: 'var(--shell-panel-bg-strong)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
+          <span style={sectionKicker}>Captain setup</span>
+          <h1 style={{ ...scopeTitleStyle, margin: 0 }}>Set up your first team.</h1>
+          <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.55 }}>
+            Captain needs a linked player and team before availability, lineups, scouting, and messages can work.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+            gap: 10,
+            minWidth: 0,
+          }}
+        >
+          {setupSteps.map((step) => (
+            <article
+              key={step.number}
+              style={{
+                display: 'grid',
+                alignContent: 'start',
+                gap: 12,
+                minWidth: 0,
+                minHeight: isMobile ? 0 : 246,
+                padding: 16,
+                borderRadius: 14,
+                border: '1px solid var(--shell-panel-border)',
+                background: 'var(--shell-chip-bg)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={badgeGreen}>Step {step.number}</span>
+                <TiqFeatureIcon name={step.icon} size="sm" variant="surface" />
+              </div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <h2 style={{ margin: 0, color: 'var(--foreground-strong)', fontSize: 19, lineHeight: 1.1 }}>{step.title}</h2>
+                <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5 }}>{step.body}</p>
+              </div>
+              {step.number === '3' ? (
+                <button type="button" onClick={onRefresh} style={{ ...primaryButtonButton, marginTop: 'auto' }}>
+                  {step.cta}
+                </button>
+              ) : (
+                <Link href={step.href} style={{ ...captainDataAssistLinkStyle, marginTop: 'auto', justifyContent: 'center' }}>
+                  {step.cta}
+                </Link>
+              )}
+            </article>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4 }}>
+            This setup disappears after your first team connects.
+          </span>
+          <Link href="/messages?compose=support&context=Captain%20setup" style={captainDataAssistLinkStyle}>
+            Need help?
+          </Link>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function CaptainHubContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1610,6 +1720,7 @@ function CaptainHubContent() {
               league,
               flight,
               matches: 0,
+              lastMatchDate: row.match_date || null,
             })
           }
 
@@ -15478,6 +15589,10 @@ function CaptainHubContent() {
       </div>
     </div>
   ) : null
+
+  if (premiumEnabled && authResolved && teamScopeResolved && !loadingOptions && !filteredTeamOptions.length) {
+    return <CaptainFirstUseSetup onRefresh={() => setRefreshTick((current) => current + 1)} />
+  }
 
   return (
     <div style={pageWrap}>

@@ -89,7 +89,7 @@ describe('structured data', () => {
     expect(layoutSource).toContain('tenaceiq-organization-jsonld')
     expect(layoutSource).toContain('tenaceiq-website-jsonld')
     expect(resourcesSource).toContain('resources-breadcrumb-jsonld')
-    expect(resourcesSource).toContain('resources-faq-jsonld')
+    expect(resourcesSource).toContain("buildPublicSectionBreadcrumbJsonLd('Help', '/resources')")
     expect(teamsSource).toContain('teams-breadcrumb-jsonld')
     expect(leaguesSource).toContain('leagues-breadcrumb-jsonld')
     expect(pricingSource).toContain('pricing-breadcrumb-jsonld')

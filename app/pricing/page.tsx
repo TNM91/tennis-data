@@ -29,7 +29,7 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
 }
 
 const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
-  free: 'Free - Find the tennis landscape',
+  free: 'Free - Search tennis in one place',
   player_plus: 'Player - My Lab for your game',
   coach: 'Coach - Coach Hub for player development',
   captain: 'Captain - Team Hub for match week',
@@ -121,44 +121,6 @@ const FULL_COURT_WORKSPACE_PASS = [
     proof: 'Competition tools',
   },
 ]
-
-const FULL_COURT_WORKSPACE_FIT_PROOF = [
-  {
-    label: 'Player need',
-    body: 'Use My Lab when the question is personal goals, follows, matchup prep, or Level Up return state.',
-  },
-  {
-    label: 'Coach need',
-    body: 'Use Coach Hub for students, assignments, proof review, or the next lesson focus.',
-  },
-  {
-    label: 'Captain need',
-    body: 'Use Team Hub when match-week availability, lineups, scouting, and team updates drive the decision.',
-  },
-  {
-    label: 'League or event need',
-    body: 'Use League Office when structure, schedules, results, standings, and member visibility need one organized competition tool.',
-  },
-] as const
-
-const FULL_COURT_ROLE_SWITCHING_PROOF = [
-  {
-    label: 'Start',
-    body: 'Start with Full-Court active and every paid tool available from Pricing.',
-  },
-  {
-    label: 'Open',
-    body: 'Visit My Lab, Coach Hub, Team Hub, and League Office from the pass.',
-  },
-  {
-    label: 'Check',
-    body: 'Open each tool for the player, coach, captain, or league task in front of you.',
-  },
-  {
-    label: 'Return',
-    body: 'Come back to Pricing when you need the next role path.',
-  },
-] as const
 
 const JOB_CHOOSER: Array<{
   job: string
@@ -292,11 +254,11 @@ function PricingContent() {
     <main style={pageWrapStyle}>
       <section style={isMobile ? compactHeroStyle : heroStyle}>
         <div style={eyebrowStyle}>Pricing</div>
-        <h1 style={isMobile ? compactHeroTitleStyle : heroTitleStyle}>Choose your role.</h1>
+        <h1 style={isMobile ? compactHeroTitleStyle : heroTitleStyle}>Choose the tools you need.</h1>
         <p style={isMobile ? compactHeroTextStyle : heroTextStyle}>
           {isMobile
-            ? 'Start free. Unlock the tools for your role when you are ready.'
-            : 'Start free, then unlock the right TenAceIQ tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.'}
+            ? 'Start free. Add a role when it helps.'
+            : 'Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.'}
         </p>
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
@@ -306,9 +268,9 @@ function PricingContent() {
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
         <SectionHeader
-          eyebrow="Choose your role"
-          title="Pick the tennis support you need."
-          body={isMobile ? 'Choose the role, then start.' : 'Each tier is role-based. Free stays useful for discovery; paid plans unlock the right tools when the work gets specific.'}
+          eyebrow="Plans"
+          title="Plans and prices."
+          body="Choose a role to see what it includes."
         />
         <div style={isMobile ? compactPlanGridStyle : planGridStyle}>
           {PRICING_PLANS.map((plan) => {
@@ -340,7 +302,14 @@ function PricingContent() {
                 </div>
                 <div style={isMobile ? compactPriceStyle : priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
                 {!active && !isMobile ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
-                {!isMobile ? <p style={cardTextStyle}>{plan.outcome}</p> : null}
+                <p style={cardTextStyle}>{plan.outcome}</p>
+                {isMobile ? (
+                  <ul style={compactFeatureListStyle}>
+                    {plan.valueProps.slice(0, 2).map((valueProp) => (
+                      <li key={valueProp}>{valueProp}</li>
+                    ))}
+                  </ul>
+                ) : null}
                 {isMobile ? planCta : null}
                 {!isMobile ? (
                   <details className="pricingPlanDetails" style={planDetailsStyle}>
@@ -412,10 +381,10 @@ function PricingContent() {
       {fullCourtActive ? (
         <section id="full-court-access-pass" style={fullCourtPassStyle} aria-labelledby="full-court-access-pass-title">
           <div>
-            <div style={sectionEyebrowStyle}>Full-Court access pass</div>
-            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid tools are active.</h2>
+            <div style={sectionEyebrowStyle}>Full-Court</div>
+            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>Your tools are ready.</h2>
             <p style={heroTextStyle}>
-              Use this pass to open My Lab, Coach Hub, Team Hub, and League Office from one account.
+              Open the role you need.
             </p>
           </div>
           <div style={fullCourtPassGridStyle}>
@@ -425,34 +394,6 @@ function PricingContent() {
                 <span>{workspace.proof}</span>
               </Link>
             ))}
-          </div>
-          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court role guide">
-            <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court role guide</span>
-              <strong>Pick the right tool for the tennis need.</strong>
-            </div>
-            <div style={fullCourtWorkspaceFitGridStyle}>
-              {FULL_COURT_WORKSPACE_FIT_PROOF.map((item) => (
-                <article key={item.label} style={fullCourtWorkspaceFitCardStyle}>
-                  <strong>{item.label}</strong>
-                  <span>{item.body}</span>
-                </article>
-              ))}
-            </div>
-          </div>
-          <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching">
-            <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court role switching</span>
-              <strong>Move between paid tools from one account.</strong>
-            </div>
-            <div style={fullCourtRoleSwitchingProofGridStyle}>
-              {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
-                <article key={item.label} style={fullCourtRoleSwitchingProofCardStyle}>
-                  <strong>{item.label}</strong>
-                  <span>{item.body}</span>
-                </article>
-              ))}
-            </div>
           </div>
         </section>
       ) : null}
@@ -515,19 +456,6 @@ function PricingContent() {
         </div>
       </details>
 
-      {!isMobile ? (
-        <section id="start" style={finalCtaStyle}>
-          <div>
-            <div style={sectionEyebrowStyle}>Start free / upgrade</div>
-            <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
-            <p style={heroTextStyle}>Search the tennis landscape for free, then choose the right tools when your game, team, players, league, or tournament needs more support.</p>
-          </div>
-          <div style={heroActionRowStyle}>
-            <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
-            <Link href={getPlanSignupHref(recommendedPlanId)} style={secondaryButtonStyle}>Upgrade</Link>
-          </div>
-        </section>
-      ) : null}
     </main>
   )
 }
@@ -779,7 +707,7 @@ const planGridStyle: CSSProperties = {
 
 const compactPlanGridStyle: CSSProperties = {
   ...planGridStyle,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
 }
 
@@ -1078,65 +1006,6 @@ const fullCourtPassLinkStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const fullCourtWorkspaceFitProofStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  gridColumn: '1 / -1',
-  minWidth: 0,
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtWorkspaceFitHeaderStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtWorkspaceFitGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const fullCourtWorkspaceFitCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minWidth: 0,
-  padding: 10,
-  borderRadius: 12,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.42,
-  fontWeight: 750,
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtRoleSwitchingProofStyle: CSSProperties = {
-  ...fullCourtWorkspaceFitProofStyle,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.06)',
-}
-
-const fullCourtRoleSwitchingProofGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const fullCourtRoleSwitchingProofCardStyle: CSSProperties = {
-  ...fullCourtWorkspaceFitCardStyle,
-  background: 'rgba(5,11,22,0.28)',
-}
-
 const chipRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1206,16 +1075,12 @@ const tableMutedCellStyle: CSSProperties = {
   color: 'rgba(226,232,240,0.38)',
 }
 
-const billingBandStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 16,
-  alignItems: 'center',
-  minWidth: 0,
-  padding: 22,
-  borderRadius: 24,
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'rgba(155,225,29,0.08)',
+const compactFeatureListStyle: CSSProperties = {
+  ...featureListStyle,
+  margin: 0,
+  paddingLeft: 18,
+  fontSize: 12,
+  lineHeight: 1.45,
 }
 
 const billingDetailsBodyStyle: CSSProperties = {
@@ -1240,9 +1105,4 @@ const smallTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   fontWeight: 750,
-}
-
-const finalCtaStyle: CSSProperties = {
-  ...billingBandStyle,
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08))',
 }

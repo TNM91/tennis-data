@@ -30,25 +30,18 @@ describe('pricing mobile layout guards', () => {
       'fullCourtPassStyle',
       'fullCourtPassGridStyle',
       'fullCourtPassLinkStyle',
-      'fullCourtWorkspaceFitProofStyle',
-      'fullCourtWorkspaceFitHeaderStyle',
-      'fullCourtWorkspaceFitGridStyle',
-      'fullCourtWorkspaceFitCardStyle',
       'sectionHeaderStyle',
       'tableWrapStyle',
-      'billingBandStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
     expect(styleBlock('planGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
     expect(source).toContain('style={isMobile ? compactPlanGridStyle : planGridStyle}')
-    expect(styleBlock('compactPlanGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('compactPlanGridStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(styleBlock('jobChooserGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('workspaceGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
     expect(styleBlock('fullCourtPassStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
     expect(styleBlock('fullCourtPassGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
-    expect(styleBlock('fullCourtWorkspaceFitGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
-    expect(styleBlock('billingBandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: '28px 34px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '12px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '56px 1fr'")
@@ -71,9 +64,6 @@ describe('pricing mobile layout guards', () => {
       'jobChooserCardStyle',
       'workspaceCardStyle',
       'fullCourtPassLinkStyle',
-      'fullCourtWorkspaceFitProofStyle',
-      'fullCourtWorkspaceFitHeaderStyle',
-      'fullCourtWorkspaceFitCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
