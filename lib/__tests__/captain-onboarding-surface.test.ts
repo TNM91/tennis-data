@@ -89,6 +89,22 @@ describe('Captain onboarding surface', () => {
     expect(source).not.toContain("if (role === 'public') return null")
   })
 
+  it('makes first-team setup and the returning default explicit', () => {
+    expect(source).toContain('Find your Player ID')
+    expect(source).toContain('If it is missing, upload USTA data first')
+    expect(source).toContain('Connect your active team')
+    expect(source).toContain('you can make any team your default')
+    expect(source).toContain('saveUserProfileLink')
+    expect(source).toContain('handleSetDefaultTeam')
+    expect(source).toContain('Make default')
+    expect(source).toContain('Default team')
+    expect(source).toContain('Captain will open this team first on your signed-in devices.')
+    expect(source).toContain('Default saved on this device. Cloud sync is unavailable right now.')
+    expect(source).toContain('urlSelection || profileDefault ||')
+    expect(source).toContain('teamSelectionInitialized')
+    expect(source).toContain("eventName: 'captain_default_team_saved'")
+  })
+
   it('keeps Captain onboarding compact on small mobile screens', () => {
     expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
     expect(styleBlock('pageWrap')).toContain('overflowX: \'clip\'')
@@ -246,10 +262,16 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('handleCopyCaptainWeeklySendBoardItem')
     expect(source).toContain('copiedCaptainWeeklySendBoardId')
     expect(source).toContain('Captain home shortcut')
-    expect(source).toContain('Captain shortcut')
-    expect(source).toContain('Start with what matters.')
-    expect(source).toContain('Start with the captain tools you need first.')
-    expect(source).toContain('Jump to today&apos;s checklist, the send lane, lineup, or team messages without scrolling the full captain board.')
+    expect(source).toContain('Captain home')
+    expect(source).toContain('What do you need to do?')
+    expect(source).toContain('Open the team job you need. Captain keeps the selected team and week with you.')
+    expect(source).toContain('Captain core actions')
+    expect(source).toContain('Who can play?')
+    expect(source).toContain('Build lineup')
+    expect(source).toContain('Compare lineups')
+    expect(source).toContain('Message team')
+    expect(source).toContain('Captain help and guided setup')
+    expect(source).toContain('Need help getting started?')
     expect(source).toContain('Captain home kickoff setup')
     expect(source).toContain('Kickoff setup')
     expect(source).toContain('Season ready?')
@@ -397,11 +419,11 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Send the right note at the right time.')
     expect(source).toContain('Set the lineup with context.')
     expect(source).toContain('Wrap the match and make it fun.')
-    expect(source).toContain('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">')
-    expect(source).toContain('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">')
-    expect(source).toContain('<details open={!isMobile} style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">')
-    expect(source).toContain('<details open={!isMobile || captainScoreCaptureLoggedCount > 0 || postMatchClosed} style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">')
-    expect(source).toContain('Best first tap')
+    expect(source).toContain('<details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">')
+    expect(source).toContain('<details style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">')
+    expect(source).toContain('<details style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">')
+    expect(source).toContain('<details style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">')
+    expect(source).toContain('Next up')
     expect(source).toContain('Today checklist')
     expect(source).toContain('Send lane')
     expect(source).toContain('Message team')
@@ -409,7 +431,6 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainHomeShortcutPrimaryItem = captainHomeShortcutItems[0]')
     expect(source).toContain('priority: todayTone ===')
     expect(source).toContain('return items.sort((first, second) => second.priority - first.priority)')
-    expect(source).toContain('Start with the highest-impact captain action.')
     expect(source).toContain('Post-match work has started, so closeout should stay easy to reach.')
     expect(source).toContain('Closeout waits until scores or recap work begin.')
     expect(source).toContain('A saved lineup unlocks cleaner sends, score capture, and closeout.')
@@ -897,7 +918,9 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainHomeShortcutHero')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('captainHomeShortcutFocus')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('captainHomeShortcutDetail')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('captainHomeShortcutReason')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('captainHelpDetailsStyle')).toContain('minWidth: 0')
+    expect(styleBlock('captainHelpSummaryStyle')).toContain("display: 'flex'")
+    expect(styleBlock('captainHelpBodyStyle')).toContain("display: 'grid'")
     expect(styleBlock('captainHomeKickoffShell')).toContain('minWidth: 0')
     expect(styleBlock('captainHomeKickoffShell')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('captainHomeKickoffHeader')).toContain("flexWrap: 'wrap'")
@@ -1670,9 +1693,9 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('matchDayChecklist')
     expect(source).toContain('matchDayLineupPreview')
     expect(source.indexOf('{captainHomeShortcut}')).toBeLessThan(
-      source.indexOf('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">'),
+      source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">'),
     )
-    expect(source.indexOf('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">')).toBeLessThan(
+    expect(source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">')).toBeLessThan(
       source.indexOf('{captainMatchDayLockScreenSurface}'),
     )
     expect(source.indexOf('{captainHomeShortcut}')).toBeLessThan(
@@ -1718,9 +1741,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainAfterPointResetRail}'),
     )
     expect(source.indexOf('{captainAfterPointResetRail}')).toBeLessThan(
-      source.indexOf('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">'),
+      source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">'),
     )
-    expect(source.indexOf('<details open style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">')).toBeLessThan(
+    expect(source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain communication lane">')).toBeLessThan(
       source.indexOf('{captainMorningBrief}'),
     )
     expect(source.indexOf('{captainMorningBrief}')).toBeLessThan(
@@ -1754,9 +1777,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainPostSendTracker}'),
     )
     expect(source.indexOf('{captainPostSendTracker}')).toBeLessThan(
-      source.indexOf('<details open={!isMobile} style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">'),
+      source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">'),
     )
-    expect(source.indexOf('<details open={!isMobile} style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">')).toBeLessThan(
+    expect(source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain planning lane">')).toBeLessThan(
       source.indexOf('{captainCommandCenter}'),
     )
     expect(source.indexOf('{captainCommandCenter}')).toBeLessThan(
@@ -1787,9 +1810,9 @@ describe('Captain onboarding surface', () => {
       source.indexOf('{captainMatchDaySheet}'),
     )
     expect(source.indexOf('{captainMatchDaySheet}')).toBeLessThan(
-      source.indexOf('<details open={!isMobile || captainScoreCaptureLoggedCount > 0 || postMatchClosed} style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">'),
+      source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">'),
     )
-    expect(source.indexOf('<details open={!isMobile || captainScoreCaptureLoggedCount > 0 || postMatchClosed} style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">')).toBeLessThan(
+    expect(source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain closeout lane">')).toBeLessThan(
       source.indexOf('{captainScoreCaptureChecklist}'),
     )
     expect(source.indexOf('{captainScoreCaptureChecklist}')).toBeLessThan(
