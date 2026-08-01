@@ -32,6 +32,10 @@ import {
   getDynamicPointsValidationMessage,
   validateTiqTennisMatchScore,
 } from '@/lib/tiq-scoring'
+import {
+  getTeamMatchFormatSummary,
+  resolveTeamMatchFormat,
+} from '@/lib/competition-format-registry'
 
 type PlayerOption = { id: string; name: string }
 type MatchLineSummary = {
@@ -504,9 +508,9 @@ type LineFormState = {
   score: string
 }
 
-const emptyLine = (lineNumber = ''): LineFormState => ({
+const emptyLine = (lineNumber = '', matchType: 'singles' | 'doubles' = 'singles'): LineFormState => ({
   lineNumber,
-  matchType: 'singles',
+  matchType,
   sideAPlayer1Id: '',
   sideAPlayer2Id: '',
   sideBPlayer1Id: '',
@@ -521,6 +525,7 @@ function LineForm({
   scoringSystem,
   existingLine,
   defaultLineNumber = '',
+  defaultMatchType = 'singles',
   onSaved,
   onCancel,
 }: {
@@ -529,6 +534,7 @@ function LineForm({
   scoringSystem: TiqLeagueScoringSystem
   existingLine?: TiqTeamMatchLineRecord
   defaultLineNumber?: string
+  defaultMatchType?: 'singles' | 'doubles'
   onSaved: (line: TiqTeamMatchLineRecord) => void
   onCancel: () => void
 }) {
@@ -544,7 +550,7 @@ function LineForm({
           winnerSide: existingLine.winnerSide ?? '',
           score: existingLine.score,
         }
-      : emptyLine(defaultLineNumber)
+      : emptyLine(defaultLineNumber, defaultMatchType)
   )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
@@ -742,6 +748,7 @@ function EventCard({
   startLineEntry = false,
   lineSummary,
   scoringSystem,
+  league,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
@@ -750,6 +757,7 @@ function EventCard({
   startLineEntry?: boolean
   lineSummary?: MatchLineSummary
   scoringSystem: TiqLeagueScoringSystem
+  league: TiqLeagueRecord | null
   onDeleted: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(startLineEntry)
@@ -759,6 +767,13 @@ function EventCard({
   const [editingLine, setEditingLine] = useState<TiqTeamMatchLineRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [warning, setWarning] = useState('')
+  const teamMatchFormat = resolveTeamMatchFormat({
+    leagueName: league?.leagueName,
+    flight: league?.flight,
+    explicitFormatId: league?.teamMatchFormatId,
+  })
+  const teamMatchFormatSummary = getTeamMatchFormatSummary(teamMatchFormat)
+  const maxFormatLines = teamMatchFormat.id === 'custom' ? 20 : teamMatchFormat.slots.length
 
   const loadLines = useCallback(async () => {
     const { lines: l } = await listTiqTeamMatchLines(event.id)
@@ -803,7 +818,7 @@ function EventCard({
 
   function nextOpenLineNumberForLines(matchLines: TiqTeamMatchLineRecord[]) {
     const usedLines = new Set(matchLines.map((line) => line.lineNumber))
-    for (let lineNumber = 1; lineNumber <= 20; lineNumber += 1) {
+    for (let lineNumber = 1; lineNumber <= maxFormatLines; lineNumber += 1) {
       if (!usedLines.has(lineNumber)) return String(lineNumber)
     }
     return ''
@@ -840,6 +855,7 @@ function EventCard({
   const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
   const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
   const defaultLineNumber = nextOpenLineNumber()
+  const defaultMatchType = teamMatchFormat.slots[Number(defaultLineNumber) - 1]?.discipline || 'singles'
   const eventFollowThroughItems = [
     {
       label: 'Lines',
@@ -872,6 +888,9 @@ function EventCard({
           </div>
           <div style={eventMetaText}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <span style={pill}>{teamMatchFormat.label} · {teamMatchFormatSummary.courts} lines</span>
           </div>
           {displayTotalLines > 0 && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
@@ -937,7 +956,7 @@ function EventCard({
           ) : lines.length === 0 ? (
             <div style={emptyLinePanel}>
               <strong>Start the line card.</strong>
-              <span>Add singles or doubles lines, then record winners and scores as they finish.</span>
+              <span>{teamMatchFormat.slots.map((slot) => slot.label).join(' · ') || 'Add the scorecard lines required for this match.'}</span>
             </div>
           ) : (
             <div style={lineGrid}>
@@ -1009,6 +1028,7 @@ function EventCard({
                 players={players}
                 scoringSystem={scoringSystem}
                 defaultLineNumber={defaultLineNumber}
+                defaultMatchType={defaultMatchType}
                 onSaved={(savedLine) => handleLineSaved(savedLine, true)}
                 onCancel={() => setAddingLine(false)}
               />
@@ -1933,6 +1953,7 @@ function TeamLeagueResultsWorkspaceInner({
               startLineEntry={event.id === activeEntryEventId}
               lineSummary={lineSummaries.get(event.id)}
               scoringSystem={leagues.find((league) => league.id === event.leagueId)?.scoringSystem ?? 'standard'}
+              league={leagues.find((league) => league.id === event.leagueId) ?? null}
               onDeleted={(id) => setEvents((prev) => prev.filter((e) => e.id !== id))}
             />
           ))

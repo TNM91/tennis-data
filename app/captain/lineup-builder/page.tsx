@@ -37,6 +37,13 @@ import {
   type CaptainLineupSlot,
 } from '@/lib/captain-lineup-format'
 import {
+  TEAM_MATCH_FORMATS,
+  getTeamMatchFormatSummary,
+  normalizeTeamMatchFormatId,
+  resolveTeamMatchFormat,
+  type TeamMatchFormatId,
+} from '@/lib/competition-format-registry'
+import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
@@ -94,6 +101,12 @@ type TeamRosterMemberRow = {
   player_name: string | null
   league_name: string | null
   flight: string | null
+}
+
+type TiqTeamLeagueFormatRow = {
+  league_name: string | null
+  flight: string | null
+  team_match_format_id: string | null
 }
 
 type SlotPlayer = {
@@ -985,6 +998,7 @@ function readInitialLineupBuilderContext() {
       scenario: '',
       pairIds: [] as string[],
       singleId: '',
+      matchFormat: 'auto' as const,
     }
   }
 
@@ -1001,6 +1015,7 @@ function readInitialLineupBuilderContext() {
     scenario: params.get('scenario') || params.get('left') || '',
     pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
     singleId: params.get('single') || '',
+    matchFormat: params.get('matchFormat') || 'auto',
   }
 }
 
@@ -1022,6 +1037,7 @@ function LineupBuilderContent() {
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
+  const [tiqTeamLeagueFormats, setTiqTeamLeagueFormats] = useState<TiqTeamLeagueFormatRow[]>([])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1037,6 +1053,9 @@ function LineupBuilderContent() {
 
   const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
   const [leagueName, setLeagueName] = useState(initialContext.league)
+  const [selectedMatchFormatId, setSelectedMatchFormatId] = useState<TeamMatchFormatId | 'auto'>(
+    initialContext.matchFormat === 'auto' ? 'auto' : normalizeTeamMatchFormatId(initialContext.matchFormat)
+  )
   const [flight, setFlight] = useState(initialContext.flight)
   const [teamName, setTeamName] = useState(initialContext.team)
   const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
@@ -1052,13 +1071,13 @@ function LineupBuilderContent() {
   const [availabilityOnly, setAvailabilityOnly] = useState(false)
   const [hideUnavailable, setHideUnavailable] = useState(true)
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team')
+    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
   )
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'opponent')
+    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'opponent', initialContext.matchFormat)
   )
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
-    getCaptainLineupFormatKey(initialContext.league, initialContext.flight)
+    getCaptainLineupFormatKey(initialContext.league, initialContext.flight, initialContext.matchFormat)
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
@@ -1073,29 +1092,42 @@ function LineupBuilderContent() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
+  const storedTiqMatchFormatId = useMemo(() => {
+    const normalizedLeague = normalizeTeamName(leagueName)
+    const normalizedFlight = normalizeTeamName(flight)
+    return tiqTeamLeagueFormats.find((record) =>
+      normalizeTeamName(record.league_name || '') === normalizedLeague &&
+      (!normalizedFlight || !record.flight || normalizeTeamName(record.flight) === normalizedFlight)
+    )?.team_match_format_id || ''
+  }, [flight, leagueName, tiqTeamLeagueFormats])
+  const effectiveMatchFormatId = selectedMatchFormatId === 'auto'
+    ? storedTiqMatchFormatId || 'auto'
+    : selectedMatchFormatId
+  const resolvedMatchFormat = useMemo(
+    () => resolveTeamMatchFormat({ leagueName, flight, explicitFormatId: effectiveMatchFormatId }),
+    [effectiveMatchFormatId, flight, leagueName]
+  )
+  const matchFormatSummary = useMemo(() => getTeamMatchFormatSummary(resolvedMatchFormat), [resolvedMatchFormat])
   const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
-  const isTriLevel = triLevelRatings.length === 3
+  const isTriLevel = resolvedMatchFormat.id === 'tri_level' || resolvedMatchFormat.id === 'mixed_tri_level'
+  const isFixedLineupFormat = resolvedMatchFormat.id !== 'custom' && resolvedMatchFormat.inferredBy !== 'default'
   const lineupFormatKey = useMemo(
-    () => getCaptainLineupFormatKey(leagueName, flight),
-    [flight, leagueName]
+    () => getCaptainLineupFormatKey(leagueName, flight, effectiveMatchFormatId),
+    [effectiveMatchFormatId, flight, leagueName]
   )
 
   useEffect(() => {
     if (lineupFormatKey === activeLineupFormatKey) return
 
-    setTeamSlots(buildCaptainLineupSlots(leagueName, flight, 'team'))
-    setOpponentSlots(buildCaptainLineupSlots(leagueName, flight, 'opponent'))
+    setTeamSlots(buildCaptainLineupSlots(leagueName, flight, 'team', effectiveMatchFormatId))
+    setOpponentSlots(buildCaptainLineupSlots(leagueName, flight, 'opponent', effectiveMatchFormatId))
     setActiveLineupFormatKey(lineupFormatKey)
     setLockedSlotIds([])
     setLockedPlayerIds([])
     setAppliedLineupNotice(null)
 
-    if (isTriLevel) {
-      setMessage(
-        `Tri-Level format set: ${triLevelRatings.map((rating) => rating.toFixed(1)).join(', ')} doubles.`
-      )
-    }
-  }, [activeLineupFormatKey, flight, isTriLevel, leagueName, lineupFormatKey, triLevelRatings])
+    setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
+  }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
 
   useEffect(() => {
     if (!appliedLineupNotice) return
@@ -1164,6 +1196,7 @@ function LineupBuilderContent() {
       rosterMembersResult,
       availabilityResult,
       scenariosResult,
+      tiqLeagueFormatsResult,
     ] = await Promise.all([
       supabase
         .from('players')
@@ -1248,6 +1281,10 @@ function LineupBuilderContent() {
         `)
         .order('match_date', { ascending: false })
         .order('scenario_name', { ascending: true }),
+      supabase
+        .from('tiq_leagues')
+        .select('league_name, flight, team_match_format_id')
+        .eq('league_format', 'team'),
     ])
 
     if (playersResult.error) {
@@ -1267,6 +1304,7 @@ function LineupBuilderContent() {
       setRosterMembers(rosterMembersResult.error ? [] : ((rosterMembersResult.data ?? []) as TeamRosterMemberRow[]))
       setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
       setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
+      setTiqTeamLeagueFormats(tiqLeagueFormatsResult.error ? [] : (tiqLeagueFormatsResult.data ?? []) as TiqTeamLeagueFormatRow[])
     }
 
     setLoading(false)
@@ -2224,9 +2262,9 @@ function LineupBuilderContent() {
 
     const scenarioLeague = scenario.league_name ?? ''
     const scenarioFlight = scenario.flight ?? ''
-    setTeamSlots(fitCaptainLineupSlotsToFormat(loadedTeamSlots, scenarioLeague, scenarioFlight, 'team'))
-    setOpponentSlots(fitCaptainLineupSlotsToFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent'))
-    setActiveLineupFormatKey(getCaptainLineupFormatKey(scenarioLeague, scenarioFlight))
+    setTeamSlots(fitCaptainLineupSlotsToFormat(loadedTeamSlots, scenarioLeague, scenarioFlight, 'team', effectiveMatchFormatId))
+    setOpponentSlots(fitCaptainLineupSlotsToFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent', effectiveMatchFormatId))
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(scenarioLeague, scenarioFlight, effectiveMatchFormatId))
     setAppliedLineupNotice(null)
     clearLocks()
 
@@ -2283,12 +2321,12 @@ function LineupBuilderContent() {
   )
 
   const optimizerTeamSlots = useMemo(
-    () => fitCaptainLineupSlotsToFormat(teamSlots, selectedFormatLeagueName, selectedFormatFlight, 'team'),
-    [selectedFormatFlight, selectedFormatLeagueName, teamSlots]
+    () => fitCaptainLineupSlotsToFormat(teamSlots, selectedFormatLeagueName, selectedFormatFlight, 'team', effectiveMatchFormatId),
+    [effectiveMatchFormatId, selectedFormatFlight, selectedFormatLeagueName, teamSlots]
   )
   const optimizerOpponentSlots = useMemo(
-    () => fitCaptainLineupSlotsToFormat(opponentSlots, selectedFormatLeagueName, selectedFormatFlight, 'opponent'),
-    [opponentSlots, selectedFormatFlight, selectedFormatLeagueName]
+    () => fitCaptainLineupSlotsToFormat(opponentSlots, selectedFormatLeagueName, selectedFormatFlight, 'opponent', effectiveMatchFormatId),
+    [effectiveMatchFormatId, opponentSlots, selectedFormatFlight, selectedFormatLeagueName]
   )
 
   const eliteRecommendation = useMemo(() => {
@@ -2346,7 +2384,8 @@ function LineupBuilderContent() {
       nextSlots,
       selectedFormatLeagueName,
       selectedFormatFlight,
-      'team'
+      'team',
+      effectiveMatchFormatId
     )
     const incompleteCourts = formatSafeSlots.filter((slot) =>
       slot.players.some((player) => !player.playerId)
@@ -2373,7 +2412,8 @@ function LineupBuilderContent() {
       rebuilt,
       selectedFormatLeagueName,
       selectedFormatFlight,
-      'team'
+      'team',
+      effectiveMatchFormatId
     )
     setTeamSlots(formatSafeSlots)
     showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
@@ -2795,6 +2835,19 @@ function LineupBuilderContent() {
                     {flightOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
+                <Field label="Match format" htmlFor="lineup-builder-match-format" hint="Detected from USTA names or loaded from a TIQ league. Change it only when local rules use a different scorecard.">
+                  <select
+                    id="lineup-builder-match-format"
+                    value={selectedMatchFormatId}
+                    onChange={(event) => setSelectedMatchFormatId(event.target.value as TeamMatchFormatId | 'auto')}
+                    style={inputStyle}
+                  >
+                    <option value="auto">Automatic · {resolvedMatchFormat.label}</option>
+                    {TEAM_MATCH_FORMATS.map((format) => (
+                      <option key={format.id} value={format.id}>{format.label}</option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="Match date" htmlFor="lineup-builder-date">
                   <input id="lineup-builder-date" type="date" value={matchDate} readOnly style={readOnlyInputStyle} />
                 </Field>
@@ -2923,7 +2976,7 @@ function LineupBuilderContent() {
                   <p style={sectionKicker}>Your lineup</p>
                   <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
-                {!isTriLevel ? (
+                {!isFixedLineupFormat ? (
                   <div style={actionRowStyle}>
                     <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
                     <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
@@ -2931,11 +2984,15 @@ function LineupBuilderContent() {
                 ) : null}
               </div>
 
-              {isTriLevel ? (
+              {isFixedLineupFormat ? (
                 <div style={triLevelFormatStyle}>
-                  <strong>Tri-Level · 3 doubles courts</strong>
+                  <strong>{resolvedMatchFormat.label} · {matchFormatSummary.courts} courts</strong>
                   <span>
-                    One court at each level: {triLevelRatings.map((rating) => rating.toFixed(1)).join(' · ')}. Choose two players rated for each court.
+                    {isTriLevel
+                      ? triLevelRatings.length === 3
+                        ? `One court at each level: ${triLevelRatings.map((rating) => rating.toFixed(1)).join(' · ')}. Choose two eligible players for each court.`
+                        : 'Three doubles courts, one for each level. Add the three levels to the league or flight name to enforce player ratings.'
+                      : `${resolvedMatchFormat.description} ${matchFormatSummary.players} players fill the scorecard.`}
                   </span>
                 </div>
               ) : null}
@@ -2955,7 +3012,7 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={toggleLockedPlayer}
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
-                    fixedFormat={isTriLevel}
+                    fixedFormat={isFixedLineupFormat}
                   />
                 ))}
               </div>
@@ -2969,7 +3026,7 @@ function LineupBuilderContent() {
                   <p style={sectionKicker}>Opponent lineup</p>
                   <h2 style={sectionTitle}>Project the other side</h2>
                 </div>
-                {!isTriLevel ? (
+                {!isFixedLineupFormat ? (
                   <div style={actionRowStyle}>
                     <GhostSmallBtn onClick={() => addSlot('opponent', 'singles')}>+ Singles</GhostSmallBtn>
                     <GhostSmallBtn onClick={() => addSlot('opponent', 'doubles')}>+ Doubles</GhostSmallBtn>
@@ -2977,10 +3034,10 @@ function LineupBuilderContent() {
                 ) : null}
               </div>
 
-              {isTriLevel ? (
+              {isFixedLineupFormat ? (
                 <div style={triLevelFormatStyle}>
-                  <strong>Project the same three levels</strong>
-                  <span>{triLevelRatings.map((rating) => `${rating.toFixed(1)} doubles`).join(' · ')}</span>
+                  <strong>Project the same {resolvedMatchFormat.label.toLowerCase()}</strong>
+                  <span>{resolvedMatchFormat.slots.map((slot) => slot.label).join(' · ')}</span>
                 </div>
               ) : null}
 
@@ -2999,7 +3056,7 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={() => undefined}
                     lockedSlotIds={new Set()}
                     lockedPlayerIds={new Set()}
-                    fixedFormat={isTriLevel}
+                    fixedFormat={isFixedLineupFormat}
                   />
                 ))}
               </div>

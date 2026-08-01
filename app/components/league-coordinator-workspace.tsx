@@ -9,6 +9,12 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
+  TEAM_MATCH_FORMATS,
+  getTeamMatchFormatSummary,
+  resolveTeamMatchFormat,
+  type TeamMatchFormatId,
+} from '@/lib/competition-format-registry'
+import {
   getTiqIndividualCompetitionFormatDescription,
   getTiqIndividualCompetitionFormatLabel,
   TIQ_INDIVIDUAL_COMPETITION_FORMATS,
@@ -105,6 +111,7 @@ const emptyJoinRequestActions = [
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
+  teamMatchFormatId: 'standard_2s_3d',
   scoringSystem: 'standard',
   thirdSetRule: 'either',
   leagueName: '',
@@ -605,6 +612,18 @@ export function LeagueCoordinatorWorkspace() {
     customSeasonLabelOpen || (normalizedDraftSeasonLabel && !draftSeasonMatchesPreset)
       ? CUSTOM_SEASON_VALUE
       : normalizedDraftSeasonLabel
+  const draftTeamMatchFormat = useMemo(
+    () => resolveTeamMatchFormat({
+      leagueName: draft.leagueName,
+      flight: draft.flight,
+      explicitFormatId: draft.teamMatchFormatId,
+    }),
+    [draft.flight, draft.leagueName, draft.teamMatchFormatId],
+  )
+  const draftTeamMatchFormatSummary = useMemo(
+    () => getTeamMatchFormatSummary(draftTeamMatchFormat),
+    [draftTeamMatchFormat],
+  )
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
   const individualSummaryByLeague = useMemo(
@@ -1115,6 +1134,7 @@ export function LeagueCoordinatorWorkspace() {
     setDraft({
       leagueFormat: record.leagueFormat,
       individualCompetitionFormat: record.individualCompetitionFormat,
+      teamMatchFormatId: record.teamMatchFormatId,
       scoringSystem: record.scoringSystem,
       thirdSetRule: record.thirdSetRule,
       leagueName: record.leagueName,
@@ -2025,6 +2045,33 @@ export function LeagueCoordinatorWorkspace() {
                 </span>
                 {photoUploadStatus ? <span style={fieldHelpText}>{photoUploadStatus}</span> : null}
               </label>
+
+              {draft.leagueFormat === 'team' ? (
+                <label style={fieldLabel}>
+                  <span>Team match format</span>
+                  <select
+                    value={draft.teamMatchFormatId}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        teamMatchFormatId: event.target.value as TeamMatchFormatId,
+                      }))
+                    }
+                    style={inputStyle}
+                  >
+                    {TEAM_MATCH_FORMATS.map((format) => (
+                      <option key={format.id} value={format.id}>
+                        {format.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={fieldHelpText}>
+                    {draftTeamMatchFormat.id === 'custom'
+                      ? draftTeamMatchFormat.description
+                      : `${draftTeamMatchFormatSummary.courts} courts · ${draftTeamMatchFormatSummary.players} players. ${draftTeamMatchFormat.description}`}
+                  </span>
+                </label>
+              ) : null}
 
               {draft.leagueFormat === 'individual' ? (
                 <label style={fieldLabel}>
