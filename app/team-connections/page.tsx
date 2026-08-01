@@ -6,7 +6,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import {
-  getTeamConnectionRoleLabel,
+  getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
   type TeamConnection,
 } from '@/lib/team-profile-links'
@@ -63,7 +63,7 @@ function TeamConnectionsContent() {
     void reload()
   }, [accessToken, authResolved, reload])
 
-  async function act(connection: TeamConnection, action: 'accept' | 'decline' | 'unlink' | 'relink') {
+  async function act(connection: TeamConnection, action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles') {
     if (!accessToken || workingId) return
     setWorkingId(connection.id)
     setMessage('')
@@ -71,7 +71,7 @@ function TeamConnectionsContent() {
       await updateTeamConnection({ accessToken, connectionId: connection.id, action })
       await reload()
       setMessage(
-        action === 'accept' || action === 'relink'
+        action === 'accept' || action === 'relink' || action === 'restore_roles'
           ? `${connection.teamName} is linked to your profile.`
           : action === 'unlink'
             ? `${connection.teamName} was unlinked. You can reconnect it here later.`
@@ -85,10 +85,10 @@ function TeamConnectionsContent() {
   }
 
   const acceptedCaptainLinks = connections.filter(
-    (connection) => connection.status === 'accepted' && isCaptainTeamConnection(connection.role),
+    (connection) => connection.status === 'accepted' && isCaptainTeamConnection(connection.roles),
   )
   const acceptedPlayerLinks = connections.filter(
-    (connection) => connection.status === 'accepted' && !isCaptainTeamConnection(connection.role),
+    (connection) => connection.status === 'accepted' && connection.roles.includes('player'),
   )
 
   return (
@@ -120,9 +120,9 @@ function TeamConnectionsContent() {
             {pending.map((connection) => (
               <ConnectionCard key={connection.id} connection={connection}>
                 <button type="button" onClick={() => void act(connection, 'accept')} disabled={Boolean(workingId)} style={primaryButtonStyle}>
-                  {workingId === connection.id ? 'Saving' : 'Link team'}
+                  {workingId === connection.id ? 'Saving' : connection.isRoleUpdate ? 'Link both roles' : 'Link team'}
                 </button>
-                <button type="button" onClick={() => void act(connection, 'decline')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>Not mine</button>
+                <button type="button" onClick={() => void act(connection, 'decline')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>{connection.isRoleUpdate ? 'Not this role' : 'Not mine'}</button>
               </ConnectionCard>
             ))}
           </div>
@@ -141,12 +141,17 @@ function TeamConnectionsContent() {
                 <ConnectionCard key={connection.id} connection={connection}>
                   {connection.status === 'accepted' ? (
                     <>
-                      <Link href={isCaptainTeamConnection(connection.role) ? '/captain' : '/mylab'} style={primaryLinkStyle}>
-                        {isCaptainTeamConnection(connection.role) ? 'Open Captain' : 'Open My Lab'}
+                      <Link href={isCaptainTeamConnection(connection.roles) ? '/captain' : '/mylab'} style={primaryLinkStyle}>
+                        {isCaptainTeamConnection(connection.roles) ? 'Open Captain' : 'Open My Lab'}
                       </Link>
                       <button type="button" onClick={() => void act(connection, 'unlink')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>
                         {workingId === connection.id ? 'Saving' : 'Unlink'}
                       </button>
+                      {connection.declinedRoles.length ? (
+                        <button type="button" onClick={() => void act(connection, 'restore_roles')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>
+                          {workingId === connection.id ? 'Saving' : `Add ${getTeamConnectionRolesLabel(connection.declinedRoles)}`}
+                        </button>
+                      ) : null}
                     </>
                   ) : (
                     <button type="button" onClick={() => void act(connection, 'relink')} disabled={Boolean(workingId)} style={primaryButtonStyle}>
@@ -214,9 +219,9 @@ function ConnectionCard({ connection, children }: { connection: TeamConnection; 
   return (
     <article style={cardStyle} className="team-connection-card">
       <div style={copyBlockStyle}>
-        <span style={statusStyle}>{connection.status === 'pending' ? 'New' : connection.status}</span>
+        <span style={statusStyle}>{connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
         <strong style={cardTitleStyle}>{connection.teamName}</strong>
-        <span style={metaStyle}>{getTeamConnectionRoleLabel(connection.role)}</span>
+        <span style={metaStyle}>{getTeamConnectionRolesLabel(connection.roles)}</span>
         <span style={copyStyle}>{[connection.leagueName, connection.flight].filter(Boolean).join(' · ') || 'Team membership'}</span>
       </div>
       <div style={cardActionsStyle} className="team-connection-card-actions">{children}</div>

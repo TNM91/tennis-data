@@ -32,7 +32,7 @@ export async function fetchTeamConnections(accessToken: string) {
 export async function updateTeamConnection(input: {
   accessToken: string
   connectionId: string
-  action: 'accept' | 'decline' | 'unlink' | 'relink'
+  action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles'
 }) {
   const response = await fetch('/api/team-connections', {
     method: 'POST',

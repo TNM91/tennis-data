@@ -2,9 +2,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   buildTeamConnectionKey,
+  buildTeamConnectionScopeKey,
   buildTeamConnections,
+  getPrimaryTeamConnectionRole,
   mapRosterContactCandidate,
   mapRosterMembershipCandidate,
+  mergeTeamConnectionRoles,
+  normalizeTeamConnectionRoles,
   type TeamConnection,
   type TeamConnectionContactRow,
   type TeamConnectionRosterRow,
@@ -15,9 +19,9 @@ import { getPublicTeamInviteOffers } from '@/lib/team-invite-offers'
 export const runtime = 'nodejs'
 
 const TEAM_LINK_SELECT =
-  'id,team_name,normalized_team_name,league_name,flight,team_role,matched_player_id,source_type,source_record_id,status,updated_at'
+  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,accepted_at,updated_at'
 
-type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink'
+type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles'
 
 type TeamConnectionActionBody = {
   action?: unknown
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
   }
 
-  if (action === 'unlink' || action === 'relink') {
+  if (action === 'unlink' || action === 'relink' || action === 'restore_roles') {
     const savedResult = await updateSavedConnection({
       service: auth.service,
       userId: auth.userId,
@@ -92,19 +96,68 @@ export async function POST(request: Request) {
 
   const now = new Date().toISOString()
   const candidate = candidateResult.candidate
+  const normalizedTeamName = normalizeKey(candidate.teamName)
+  const { data: existingData, error: existingError } = await auth.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', auth.userId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', candidate.leagueName)
+    .eq('flight', candidate.flight)
+    .maybeSingle()
+  if (existingError) return Response.json({ ok: false, message: existingError.message }, { status: 500 })
+
+  const existing = existingData as (TeamProfileLinkRow & { accepted_at?: string | null }) | null
+  const existingRoles = existing
+    ? normalizeTeamConnectionRoles(existing.team_roles, existing.team_role)
+    : []
+  const existingDeclinedRoles = existing?.declined_roles?.length
+    ? normalizeTeamConnectionRoles(existing.declined_roles)
+    : []
+  const discoveredRoles = candidate.roles
+
+  if (action === 'decline' && existing?.status === 'accepted') {
+    const newDeclinedRoles = discoveredRoles.filter((role) => !existingRoles.includes(role))
+    const declinedRoles = mergeTeamConnectionRoles(existingDeclinedRoles, newDeclinedRoles)
+      .filter((role) => !existingRoles.includes(role))
+    const { data, error } = await auth.service
+      .from('team_profile_links')
+      .update({ declined_roles: declinedRoles, updated_at: now })
+      .eq('id', existing.id)
+      .eq('profile_user_id', auth.userId)
+      .select(TEAM_LINK_SELECT)
+      .single()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
+    return Response.json({ ok: true, connection })
+  }
+
+  const acceptedRoles = action === 'accept'
+    ? mergeTeamConnectionRoles(existingRoles, discoveredRoles)
+    : discoveredRoles
+  const declinedRoles = existingDeclinedRoles.filter((role) => !acceptedRoles.includes(role))
+  const roleAcceptedAt = { ...(existing?.role_accepted_at || {}) } as Record<string, string>
+  if (action === 'accept') {
+    for (const role of acceptedRoles) {
+      if (!existingRoles.includes(role) || !roleAcceptedAt[role]) roleAcceptedAt[role] = now
+    }
+  }
   const payload = {
     profile_user_id: auth.userId,
     source_actor_user_id: candidateResult.sourceActorUserId || null,
     team_name: candidate.teamName,
-    normalized_team_name: normalizeKey(candidate.teamName),
+    normalized_team_name: normalizedTeamName,
     league_name: candidate.leagueName,
     flight: candidate.flight,
-    team_role: candidate.role,
+    team_role: getPrimaryTeamConnectionRole(acceptedRoles),
+    team_roles: acceptedRoles,
+    declined_roles: declinedRoles,
+    role_accepted_at: roleAcceptedAt,
     matched_player_id: candidateResult.matchedPlayerId || candidate.matchedPlayerId || null,
     source_type: candidate.sourceType,
     source_record_id: candidate.sourceRecordId || null,
     status: action === 'accept' ? 'accepted' : 'declined',
-    accepted_at: action === 'accept' ? now : null,
+    accepted_at: action === 'accept' ? existing?.accepted_at || now : null,
     unlinked_at: null,
     updated_at: now,
   }
@@ -154,7 +207,7 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
     linkedPlayerId
       ? service
           .from('team_roster_members')
-          .select('id,team_name,normalized_team_name,league_name,flight,player_id,updated_at')
+          .select('id,team_name,normalized_team_name,league_name,flight,player_id,player_name,updated_at')
           .eq('player_id', linkedPlayerId)
           .limit(100)
       : Promise.resolve({ data: [], error: null }),
@@ -169,9 +222,29 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
   const error = contactsResult.error || rosterResult.error || savedResult.error
   if (error) return { ok: false as const, message: error.message }
 
+  const rosterMemberships = (rosterResult.data || []) as TeamConnectionRosterRow[]
+  const rosterNames = [...new Set(rosterMemberships.map((row) => normalizeKey(row.player_name)).filter(Boolean))]
+  const roleContactsResult = rosterNames.length
+    ? await service
+        .from('captain_roster_contacts')
+        .select('id,captain_user_id,team_name,normalized_team_name,league_name,flight,role,email,normalized_name,updated_at')
+        .in('normalized_name', rosterNames)
+        .limit(200)
+    : { data: [], error: null }
+  if (roleContactsResult.error) return { ok: false as const, message: roleContactsResult.error.message }
+
+  const rosterIdentityScopes = new Set(rosterMemberships.map(buildRosterIdentityScopeKey))
+  const identityContacts = ((roleContactsResult.data || []) as TeamConnectionContactRow[])
+    .filter((contact) => rosterIdentityScopes.has(buildContactIdentityScopeKey(contact)))
+  const contactsById = new Map<string, TeamConnectionContactRow>()
+  for (const contact of [...((contactsResult.data || []) as TeamConnectionContactRow[]), ...identityContacts]) {
+    const id = cleanText(contact.id)
+    if (id) contactsById.set(id, contact)
+  }
+
   const built = buildTeamConnections({
-    contacts: (contactsResult.data || []) as TeamConnectionContactRow[],
-    rosterMemberships: (rosterResult.data || []) as TeamConnectionRosterRow[],
+    contacts: [...contactsById.values()],
+    rosterMemberships,
     savedLinks: (savedResult.data || []) as TeamProfileLinkRow[],
   })
 
@@ -198,13 +271,20 @@ async function resolveDiscoveredCandidate(input: {
 
     if (error) return { ok: false as const, status: 500, message: error.message }
     const row = data as TeamConnectionContactRow | null
-    if (!row || cleanText(row.email).toLowerCase() !== input.email) {
+    const ownsByEmail = Boolean(row && cleanText(row.email).toLowerCase() === input.email)
+    const ownsByLinkedPlayer = row
+      ? await contactMatchesLinkedPlayer(input.service, input.userId, row)
+      : false
+    if (!row || (!ownsByEmail && !ownsByLinkedPlayer)) {
       return { ok: false as const, status: 403, message: 'This team connection belongs to another account.' }
     }
 
-    const candidate = mapRosterContactCandidate(row)
+    let candidate = mapRosterContactCandidate(row)
     if (!candidate) return { ok: false as const, status: 404, message: 'This team connection is no longer available.' }
     const playerMatch = await findRosterPlayerForContact(input.service, row)
+    if (playerMatch.playerId) {
+      candidate = withCandidateRoles(candidate, mergeTeamConnectionRoles(candidate.roles, ['player']))
+    }
     return {
       ok: true as const,
       candidate,
@@ -231,12 +311,14 @@ async function resolveDiscoveredCandidate(input: {
     if (!row || !profilePlayerId || cleanText(row.player_id) !== profilePlayerId) {
       return { ok: false as const, status: 403, message: 'This roster membership belongs to another player.' }
     }
-    const candidate = mapRosterMembershipCandidate(row)
+    let candidate = mapRosterMembershipCandidate(row)
     if (!candidate) return { ok: false as const, status: 404, message: 'This roster membership is no longer available.' }
+    const teamRoles = await findRosterRolesForMembership(input.service, row)
+    candidate = withCandidateRoles(candidate, mergeTeamConnectionRoles(candidate.roles, teamRoles.roles))
     return {
       ok: true as const,
       candidate,
-      sourceActorUserId: '',
+      sourceActorUserId: teamRoles.sourceActorUserId,
       matchedPlayerId: profilePlayerId,
       matchedPlayerName: cleanText(row.player_name),
     }
@@ -267,11 +349,73 @@ async function findRosterPlayerForContact(service: SupabaseClient, contact: Team
   }
 }
 
+async function contactMatchesLinkedPlayer(
+  service: SupabaseClient,
+  userId: string,
+  contact: TeamConnectionContactRow,
+) {
+  const { data: profile } = await service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', userId)
+    .maybeSingle()
+  const linkedPlayerId = cleanText((profile as ProfileConnectionRow | null)?.linked_player_id)
+  if (!linkedPlayerId) return false
+
+  const normalizedTeamName = cleanText(contact.normalized_team_name) || normalizeKey(contact.team_name)
+  const { data } = await service
+    .from('team_roster_members')
+    .select('player_name')
+    .eq('player_id', linkedPlayerId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', cleanText(contact.league_name))
+    .eq('flight', cleanText(contact.flight))
+    .limit(20)
+
+  return ((data || []) as Array<{ player_name?: string | null }>).some(
+    (row) => normalizeKey(row.player_name) === cleanText(contact.normalized_name),
+  )
+}
+
+async function findRosterRolesForMembership(
+  service: SupabaseClient,
+  membership: TeamConnectionRosterRow & { player_name?: string | null },
+) {
+  const normalizedName = normalizeKey(membership.player_name)
+  const normalizedTeamName = cleanText(membership.normalized_team_name) || normalizeKey(membership.team_name)
+  if (!normalizedName || !normalizedTeamName) return { roles: [] as TeamConnection['roles'], sourceActorUserId: '' }
+
+  const { data } = await service
+    .from('captain_roster_contacts')
+    .select('captain_user_id,role')
+    .eq('normalized_name', normalizedName)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', cleanText(membership.league_name))
+    .eq('flight', cleanText(membership.flight))
+    .limit(20)
+
+  const rows = (data || []) as Array<{ captain_user_id?: string | null; role?: string | null }>
+  const roles = normalizeTeamConnectionRoles(rows.map((row) => row.role)).filter((role) => role !== 'player')
+  return { roles, sourceActorUserId: cleanText(rows[0]?.captain_user_id) }
+}
+
+function withCandidateRoles(candidate: TeamConnection, roles: TeamConnection['roles']) {
+  return { ...candidate, roles, role: getPrimaryTeamConnectionRole(roles) }
+}
+
+function buildRosterIdentityScopeKey(row: TeamConnectionRosterRow) {
+  return `${buildTeamConnectionScopeKey({ teamName: row.team_name, leagueName: row.league_name, flight: row.flight })}__${normalizeKey(row.player_name)}`
+}
+
+function buildContactIdentityScopeKey(row: TeamConnectionContactRow) {
+  return `${buildTeamConnectionScopeKey({ teamName: row.team_name, leagueName: row.league_name, flight: row.flight })}__${normalizeKey(row.normalized_name)}`
+}
+
 async function updateSavedConnection(input: {
   service: SupabaseClient
   userId: string
   connectionId: string
-  action: 'unlink' | 'relink'
+  action: 'unlink' | 'relink' | 'restore_roles'
 }) {
   const { data: existing, error: loadError } = await input.service
     .from('team_profile_links')
@@ -284,9 +428,35 @@ async function updateSavedConnection(input: {
   if (!existing) return { ok: false as const, status: 404, message: 'Team connection was not found.' }
 
   const now = new Date().toISOString()
-  const status = input.action === 'relink' ? 'accepted' : 'unlinked'
-  const update = input.action === 'relink'
-    ? { status, accepted_at: now, unlinked_at: null, updated_at: now }
+  const existingLink = existing as TeamProfileLinkRow
+  const currentRoles = normalizeTeamConnectionRoles(existingLink.team_roles, existingLink.team_role)
+  const declinedRoles = existingLink.declined_roles?.length
+    ? normalizeTeamConnectionRoles(existingLink.declined_roles)
+    : []
+  const restoredRoles = input.action === 'restore_roles'
+    ? mergeTeamConnectionRoles(currentRoles, declinedRoles)
+    : currentRoles
+  const status = input.action === 'unlink' ? 'unlinked' : 'accepted'
+  const update = input.action === 'relink' || input.action === 'restore_roles'
+    ? {
+        status,
+        accepted_at: now,
+        team_role: getPrimaryTeamConnectionRole(restoredRoles),
+        team_roles: restoredRoles,
+        declined_roles: input.action === 'restore_roles' ? [] : declinedRoles,
+        role_accepted_at: Object.fromEntries(
+          restoredRoles.map((role) => [
+            role,
+            input.action === 'relink' || declinedRoles.includes(role)
+              ? now
+              : typeof existingLink.role_accepted_at?.[role] === 'string'
+                ? existingLink.role_accepted_at[role]
+                : now,
+          ]),
+        ),
+        unlinked_at: null,
+        updated_at: now,
+      }
     : { status, unlinked_at: now, updated_at: now }
   const { data, error } = await input.service
     .from('team_profile_links')
@@ -299,7 +469,7 @@ async function updateSavedConnection(input: {
   if (error) return { ok: false as const, status: 500, message: error.message }
 
   const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
-  if (input.action === 'relink' && connection) {
+  if ((input.action === 'relink' || input.action === 'restore_roles') && connection) {
     await linkAcceptedTeamToProfile({ service: input.service, userId: input.userId, candidate: connection })
   } else if (input.action === 'unlink' && connection) {
     await clearProfileTeamIfMatching(input.service, input.userId, connection)
@@ -389,7 +559,9 @@ async function getTeamConnectionAuth(request: Request) {
 }
 
 function normalizeAction(value: unknown): TeamConnectionAction | null {
-  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' ? value : null
+  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles'
+    ? value
+    : null
 }
 
 function getBearerToken(request: Request) {
