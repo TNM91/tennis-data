@@ -263,9 +263,16 @@ test.describe('TIQ league surfaces', () => {
     await expectDarkShell(page)
     const resetBoundary = await page.getByText('This view needs a quick reset').isVisible().catch(() => false)
     if (!resetBoundary) {
-      await expect(page.getByText('Data refresh path')).toBeVisible()
-      await expect(page.locator('details#league-public-pages summary').getByText('Public page readiness')).toBeVisible()
       await expect(page.getByText('Add a league')).toBeVisible()
+      const firstLeagueSetup = await page.getByText('Create your first league.').isVisible().catch(() => false)
+      if (firstLeagueSetup) {
+        await expect(page.getByLabel('First league setup steps')).toBeVisible()
+        await expect(page.getByText('More season options')).toBeVisible()
+        await expect(page.getByText('Data refresh path')).not.toBeVisible()
+      } else {
+        await expect(page.getByText('Data refresh path')).toBeVisible()
+        await expect(page.locator('details#league-public-pages summary').getByText('Public page readiness')).toBeVisible()
+      }
     }
   })
 
