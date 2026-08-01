@@ -1,7 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
-  buildTeamConnectionKey,
   buildTeamConnectionScopeKey,
   buildTeamConnections,
   getPrimaryTeamConnectionRole,
@@ -19,9 +18,9 @@ import { getPublicTeamInviteOffers } from '@/lib/team-invite-offers'
 export const runtime = 'nodejs'
 
 const TEAM_LINK_SELECT =
-  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,accepted_at,updated_at'
+  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,accepted_at,updated_at'
 
-type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles'
+type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default'
 
 type TeamConnectionActionBody = {
   action?: unknown
@@ -71,7 +70,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
   }
 
-  if (action === 'unlink' || action === 'relink' || action === 'restore_roles') {
+  if (action === 'unlink' || action === 'relink' || action === 'restore_roles' || action === 'set_default') {
     const savedResult = await updateSavedConnection({
       service: auth.service,
       userId: auth.userId,
@@ -180,9 +179,18 @@ export async function POST(request: Request) {
       matchedPlayerId: candidateResult.matchedPlayerId || candidate.matchedPlayerId,
       matchedPlayerName: candidateResult.matchedPlayerName,
     })
+    const reconcileResult = await reconcileDefaultTeam(auth.service, auth.userId, cleanText((data as TeamProfileLinkRow).id))
+    if (!reconcileResult.ok) {
+      return Response.json({ ok: false, message: reconcileResult.message }, { status: reconcileResult.status })
+    }
   }
 
-  const connections = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections
+  const { data: refreshedData } = await auth.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', cleanText((data as TeamProfileLinkRow).id))
+    .maybeSingle()
+  const connections = buildTeamConnections({ savedLinks: [(refreshedData || data) as TeamProfileLinkRow] }).connections
   return Response.json({ ok: true, connection: connections[0] ?? null })
 }
 
@@ -415,7 +423,7 @@ async function updateSavedConnection(input: {
   service: SupabaseClient
   userId: string
   connectionId: string
-  action: 'unlink' | 'relink' | 'restore_roles'
+  action: 'unlink' | 'relink' | 'restore_roles' | 'set_default'
 }) {
   const { data: existing, error: loadError } = await input.service
     .from('team_profile_links')
@@ -429,6 +437,22 @@ async function updateSavedConnection(input: {
 
   const now = new Date().toISOString()
   const existingLink = existing as TeamProfileLinkRow
+  if (input.action === 'set_default') {
+    if (existingLink.status !== 'accepted') {
+      return { ok: false as const, status: 400, message: 'Link this team before making it your default.' }
+    }
+    const reconcileResult = await reconcileDefaultTeam(input.service, input.userId, input.connectionId, true)
+    if (!reconcileResult.ok) return reconcileResult
+    const { data: refreshed, error: refreshError } = await input.service
+      .from('team_profile_links')
+      .select(TEAM_LINK_SELECT)
+      .eq('id', input.connectionId)
+      .eq('profile_user_id', input.userId)
+      .single()
+    if (refreshError) return { ok: false as const, status: 500, message: refreshError.message }
+    const connection = buildTeamConnections({ savedLinks: [refreshed as TeamProfileLinkRow] }).connections[0] ?? null
+    return { ok: true as const, connection }
+  }
   const currentRoles = normalizeTeamConnectionRoles(existingLink.team_roles, existingLink.team_role)
   const declinedRoles = existingLink.declined_roles?.length
     ? normalizeTeamConnectionRoles(existingLink.declined_roles)
@@ -457,7 +481,7 @@ async function updateSavedConnection(input: {
         unlinked_at: null,
         updated_at: now,
       }
-    : { status, unlinked_at: now, updated_at: now }
+    : { status, is_default: false, unlinked_at: now, updated_at: now }
   const { data, error } = await input.service
     .from('team_profile_links')
     .update(update)
@@ -471,10 +495,22 @@ async function updateSavedConnection(input: {
   const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
   if ((input.action === 'relink' || input.action === 'restore_roles') && connection) {
     await linkAcceptedTeamToProfile({ service: input.service, userId: input.userId, candidate: connection })
-  } else if (input.action === 'unlink' && connection) {
-    await clearProfileTeamIfMatching(input.service, input.userId, connection)
   }
-  return { ok: true as const, connection }
+  const reconcileResult = await reconcileDefaultTeam(
+    input.service,
+    input.userId,
+    input.action === 'relink' || input.action === 'restore_roles' ? input.connectionId : undefined,
+  )
+  if (!reconcileResult.ok) return reconcileResult
+  const { data: refreshed } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', input.connectionId)
+    .maybeSingle()
+  const refreshedConnection = refreshed
+    ? buildTeamConnections({ savedLinks: [refreshed as TeamProfileLinkRow] }).connections[0] ?? connection
+    : connection
+  return { ok: true as const, connection: refreshedConnection }
 }
 
 async function linkAcceptedTeamToProfile(input: {
@@ -496,35 +532,54 @@ async function linkAcceptedTeamToProfile(input: {
     update.linked_player_id = cleanText(input.matchedPlayerId)
     update.linked_player_name = cleanText(input.matchedPlayerName) || null
   }
-  if (!cleanText(profile.linked_team_name)) {
-    update.linked_team_name = input.candidate.teamName
-    update.linked_league_name = input.candidate.leagueName
-    update.linked_flight = input.candidate.flight
-    update.linked_team_at = new Date().toISOString()
-  }
   if (Object.keys(update).length) await input.service.from('profiles').update(update).eq('id', input.userId)
 }
 
-async function clearProfileTeamIfMatching(service: SupabaseClient, userId: string, connection: TeamConnection) {
-  const { data } = await service
-    .from('profiles')
-    .select('linked_team_name,linked_league_name,linked_flight')
-    .eq('id', userId)
-    .maybeSingle()
-  const profile = (data || {}) as ProfileConnectionRow
-  if (buildTeamConnectionKey({
-    teamName: profile.linked_team_name,
-    leagueName: profile.linked_league_name,
-    flight: profile.linked_flight,
-    role: connection.role,
-  }) !== buildTeamConnectionKey(connection)) return
+async function reconcileDefaultTeam(
+  service: SupabaseClient,
+  userId: string,
+  preferredConnectionId?: string,
+  forcePreferred = false,
+) {
+  const { data, error } = await service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', userId)
+    .eq('status', 'accepted')
+    .order('is_default', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(100)
+  if (error) return { ok: false as const, status: 500, message: error.message }
 
-  await service.from('profiles').update({
-    linked_team_name: null,
-    linked_league_name: null,
-    linked_flight: null,
-    linked_team_at: null,
+  const links = (data || []) as TeamProfileLinkRow[]
+  const preferred = links.find((link) => cleanText(link.id) === preferredConnectionId)
+  const current = links.find((link) => link.is_default === true)
+  const chosen = forcePreferred ? preferred : current || preferred || links[0]
+
+  const { error: clearError } = await service
+    .from('team_profile_links')
+    .update({ is_default: false })
+    .eq('profile_user_id', userId)
+    .eq('is_default', true)
+  if (clearError) return { ok: false as const, status: 500, message: clearError.message }
+
+  if (chosen?.id) {
+    const { error: defaultError } = await service
+      .from('team_profile_links')
+      .update({ is_default: true })
+      .eq('id', chosen.id)
+      .eq('profile_user_id', userId)
+    if (defaultError) return { ok: false as const, status: 500, message: defaultError.message }
+  }
+
+  const { error: profileError } = await service.from('profiles').update({
+    linked_team_name: chosen?.team_name || null,
+    linked_league_name: chosen?.league_name || null,
+    linked_flight: chosen?.flight || null,
+    linked_team_at: chosen ? new Date().toISOString() : null,
   }).eq('id', userId)
+  if (profileError) return { ok: false as const, status: 500, message: profileError.message }
+  return { ok: true as const }
 }
 
 async function getTeamConnectionAuth(request: Request) {
@@ -559,7 +614,7 @@ async function getTeamConnectionAuth(request: Request) {
 }
 
 function normalizeAction(value: unknown): TeamConnectionAction | null {
-  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles'
+  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles' || value === 'set_default'
     ? value
     : null
 }

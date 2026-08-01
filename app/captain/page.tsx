@@ -7,6 +7,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNod
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
@@ -40,6 +41,8 @@ import {
 } from '@/lib/captain-week-status'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { supabase } from '@/lib/supabase'
+import { fetchTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { isMember } from '@/lib/roles'
 import {
   formatDate,
@@ -1456,118 +1459,22 @@ function CaptainFirstUseSetup({
   onRefresh: () => void
   profile: CaptainProfileLinkRow | null
 }) {
-  const { isMobile } = useViewportBreakpoints()
   const playerIdReady = Boolean(profile?.linked_player_id || profile?.linked_player_name)
-  const setupSteps = [
-    {
-      number: '1',
-      status: playerIdReady ? 'Complete' : 'Step 1',
-      title: playerIdReady ? 'Player ID connected' : 'Find your Player ID',
-      body: playerIdReady
-        ? `${profile?.linked_player_name || 'Your player'} is connected. Continue to your active team.`
-        : 'Search your tennis name. If it is missing, upload USTA data first so TenAceIQ can create the record.',
-      href: '/profile?setup=captain',
-      cta: playerIdReady ? 'View Player ID' : 'Set up Player ID',
-      icon: 'playerRatings' as TiqFeatureIconName,
-    },
-    {
-      number: '2',
-      status: playerIdReady ? 'Next step' : 'Step 2',
-      title: 'Add your first team',
-      body: 'Upload the TennisLink Player Roster. TenAceIQ will connect the team and bring in player names, ratings, phone numbers, and any emails TennisLink includes.',
-      href: captainPlayerRosterHref,
-      cta: 'Upload Player Roster',
-      icon: 'reports' as TiqFeatureIconName,
-    },
-    {
-      number: '3',
-      status: 'Step 3',
-      title: 'Come back to Captain',
-      body: 'After review, Captain opens your linked team. Add the schedule next when Captain asks for the first match.',
-      href: '#captain-setup-refresh',
-      cta: 'Refresh Captain',
-      icon: 'captainDashboard' as TiqFeatureIconName,
-    },
-  ]
 
   return (
-    <div style={pageWrap}>
-      <section
-        aria-label="Captain first team setup"
-        style={{
-          display: 'grid',
-          gap: isMobile ? 16 : 22,
-          minWidth: 0,
-          padding: isMobile ? 16 : 24,
-          borderRadius: 18,
-          border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-          background: 'var(--shell-panel-bg-strong)',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
-          <span style={sectionKicker}>Captain setup</span>
-          <h1 style={{ ...scopeTitleStyle, margin: 0 }}>Set up your first team.</h1>
-          <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.55 }}>
-            {playerIdReady
-              ? 'Your Player ID is connected. Next, add your active team so Captain can open availability, lineups, scouting, and messages.'
-              : 'Captain needs a linked player and team before availability, lineups, scouting, and messages can work.'}
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-            gap: 10,
-            minWidth: 0,
-          }}
-        >
-          {setupSteps.map((step) => (
-            <article
-              key={step.number}
-              style={{
-                display: 'grid',
-                alignContent: 'start',
-                gap: 12,
-                minWidth: 0,
-                minHeight: isMobile ? 0 : 246,
-                padding: 16,
-                borderRadius: 14,
-                border: '1px solid var(--shell-panel-border)',
-                background: 'var(--shell-chip-bg)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <span style={step.status === 'Next step' ? badgeBlue : badgeGreen}>{step.status}</span>
-                <TiqFeatureIcon name={step.icon} size="sm" variant="surface" />
-              </div>
-              <div style={{ display: 'grid', gap: 6 }}>
-                <h2 style={{ margin: 0, color: 'var(--foreground-strong)', fontSize: 19, lineHeight: 1.1 }}>{step.title}</h2>
-                <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5 }}>{step.body}</p>
-              </div>
-              {step.number === '3' ? (
-                <button type="button" onClick={onRefresh} style={{ ...primaryButtonButton, marginTop: 'auto' }}>
-                  {step.cta}
-                </button>
-              ) : (
-                <Link href={step.href} style={{ ...captainDataAssistLinkStyle, marginTop: 'auto', justifyContent: 'center' }}>
-                  {step.cta}
-                </Link>
-              )}
-            </article>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4 }}>
-            This setup disappears after your first team connects.
-          </span>
-          <Link href="/messages?compose=support&context=Captain%20setup" style={captainDataAssistLinkStyle}>
-            Need help?
-          </Link>
-        </div>
-      </section>
+    <div style={{ ...pageWrap, display: 'grid', gap: 12 }}>
+      <TennisSetupChecklist
+        hasPlayer={playerIdReady}
+        hasTeam={false}
+        hasMatchData={false}
+        playerHref="/profile?setup=captain#profile-identity"
+        teamHref={captainPlayerRosterHref}
+        matchDataHref={captainScheduleHref}
+        context="captain"
+      />
+      <button type="button" onClick={onRefresh} style={{ ...secondaryButtonSmallButton, justifySelf: 'start' }}>
+        Check again
+      </button>
     </div>
   )
 }
@@ -1577,7 +1484,7 @@ function CaptainHubContent() {
   const searchParams = useSearchParams()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
-  const { userId, role, entitlements, authResolved } = useAuth()
+  const { userId, role, entitlements, authResolved, session } = useAuth()
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -1999,6 +1906,11 @@ function CaptainHubContent() {
     void loadCaptainTeamScopes(userId)
   }, [authResolved, loadCaptainTeamScopes, userId])
 
+  useEffect(
+    () => subscribeToTeamConnectionsChanged(() => void loadCaptainTeamScopes(userId)),
+    [loadCaptainTeamScopes, userId],
+  )
+
   useEffect(() => {
     if (!authResolved || role === 'public') return
     void loadTeamOptions()
@@ -2091,6 +2003,24 @@ function CaptainHubContent() {
 
     try {
       const currentProfile = captainProfileLink ?? (await loadUserProfileLink(userId)).data
+      const accessToken = session?.access_token || ''
+      if (accessToken) {
+        const result = await fetchTeamConnections(accessToken)
+        const matchingConnection = result.connections.find((connection) =>
+          connection.status === 'accepted' && buildTeamOptionKey({
+            team: connection.teamName,
+            league: connection.leagueName,
+            flight: connection.flight,
+          }) === selectedTeamOptionKey,
+        )
+        if (matchingConnection && !matchingConnection.isDefault) {
+          await updateTeamConnection({
+            accessToken,
+            connectionId: matchingConnection.id,
+            action: 'set_default',
+          })
+        }
+      }
       const saveResult = await saveUserProfileLink(userId, {
         linked_player_id: currentProfile?.linked_player_id || null,
         linked_player_name: currentProfile?.linked_player_name || null,

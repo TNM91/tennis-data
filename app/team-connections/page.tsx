@@ -7,6 +7,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import {
   getTeamConnectionRolesLabel,
+  getTeamConnectionSourceLabel,
   isCaptainTeamConnection,
   type TeamConnection,
 } from '@/lib/team-profile-links'
@@ -15,10 +16,11 @@ import {
   updateTeamConnection,
   type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 
 export default function TeamConnectionsPage() {
   return (
-    <SiteShell active="/profile">
+    <SiteShell active="/mylab">
       <TeamConnectionsContent />
     </SiteShell>
   )
@@ -63,16 +65,19 @@ function TeamConnectionsContent() {
     void reload()
   }, [accessToken, authResolved, reload])
 
-  async function act(connection: TeamConnection, action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles') {
+  useEffect(() => subscribeToTeamConnectionsChanged(() => void reload()), [reload])
+
+  async function act(connection: TeamConnection, action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default') {
     if (!accessToken || workingId) return
     setWorkingId(connection.id)
     setMessage('')
     try {
       await updateTeamConnection({ accessToken, connectionId: connection.id, action })
-      await reload()
       setMessage(
-        action === 'accept' || action === 'relink' || action === 'restore_roles'
-          ? `${connection.teamName} is linked to your profile.`
+        action === 'set_default'
+          ? `${connection.teamName} will open first across My Lab and Captain.`
+          : action === 'accept' || action === 'relink' || action === 'restore_roles'
+            ? `${connection.teamName} is linked to your profile.`
           : action === 'unlink'
             ? `${connection.teamName} was unlinked. You can reconnect it here later.`
             : 'Invitation dismissed.',
@@ -108,7 +113,7 @@ function TeamConnectionsContent() {
           <Link href="/login?next=%2Fteam-connections" style={primaryLinkStyle}>Sign in</Link>
         </section>
       ) : null}
-      {message ? <p style={noticeStyle}>{message}</p> : null}
+      {message ? <p style={noticeStyle} role="status" aria-live="polite">{message}</p> : null}
 
       {userId && pending.length ? (
         <section style={sectionStyle} aria-label="Pending team invitations">
@@ -144,6 +149,11 @@ function TeamConnectionsContent() {
                       <Link href={isCaptainTeamConnection(connection.roles) ? '/captain' : '/mylab'} style={primaryLinkStyle}>
                         {isCaptainTeamConnection(connection.roles) ? 'Open Captain' : 'Open My Lab'}
                       </Link>
+                      {!connection.isDefault ? (
+                        <button type="button" onClick={() => void act(connection, 'set_default')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>
+                          {workingId === connection.id ? 'Saving' : 'Make default'}
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => void act(connection, 'unlink')} disabled={Boolean(workingId)} style={secondaryButtonStyle}>
                         {workingId === connection.id ? 'Saving' : 'Unlink'}
                       </button>
@@ -164,7 +174,11 @@ function TeamConnectionsContent() {
           ) : !pending.length && !loading ? (
             <div style={emptyStyle}>
               <strong>No team links yet.</strong>
-              <span>They will appear automatically when an imported roster matches your signed-in email or linked player.</span>
+              <span>Connect your player or upload a Player Roster to find your team.</span>
+              <div style={cardActionsStyle}>
+                <Link href="/profile#profile-identity" style={primaryLinkStyle}>Find my player</Link>
+                <Link href="/data-assist?intent=upload-source&context=Team%20Hub#upload" style={secondaryLinkStyle}>Upload roster</Link>
+              </div>
             </div>
           ) : null}
         </section>
@@ -219,14 +233,21 @@ function ConnectionCard({ connection, children }: { connection: TeamConnection; 
   return (
     <article style={cardStyle} className="team-connection-card">
       <div style={copyBlockStyle}>
-        <span style={statusStyle}>{connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
+        <span style={statusStyle}>{connection.isDefault ? 'Default team' : connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
         <strong style={cardTitleStyle}>{connection.teamName}</strong>
         <span style={metaStyle}>{getTeamConnectionRolesLabel(connection.roles)}</span>
         <span style={copyStyle}>{[connection.leagueName, connection.flight].filter(Boolean).join(' · ') || 'Team membership'}</span>
+        <span style={healthStyle}>{getTeamConnectionSourceLabel(connection.sourceType)} · Updated {formatConnectionDate(connection.updatedAt)}</span>
       </div>
       <div style={cardActionsStyle} className="team-connection-card-actions">{children}</div>
     </article>
   )
+}
+
+function formatConnectionDate(value: string) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return 'recently'
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
 }
 
 const pageStyle: CSSProperties = { position: 'relative', zIndex: 2, width: 'min(980px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '0 auto', padding: 'clamp(28px, 5vw, 64px) 0 80px', color: '#fff' }
@@ -247,6 +268,8 @@ const cardActionsStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', jus
 const primaryButtonStyle: CSSProperties = { border: 0, borderRadius: 999, background: '#9be11d', color: '#071226', padding: '11px 16px', fontWeight: 950, cursor: 'pointer' }
 const secondaryButtonStyle: CSSProperties = { border: '1px solid rgba(255,255,255,.18)', borderRadius: 999, background: 'rgba(255,255,255,.05)', color: '#fff', padding: '10px 15px', fontWeight: 900, cursor: 'pointer' }
 const primaryLinkStyle: CSSProperties = { ...primaryButtonStyle, display: 'inline-flex', width: 'fit-content', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
+const secondaryLinkStyle: CSSProperties = { ...secondaryButtonStyle, display: 'inline-flex', width: 'fit-content', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
+const healthStyle: CSSProperties = { color: '#8298b5', fontSize: 12, fontWeight: 750 }
 const noticeStyle: CSSProperties = { padding: 14, border: '1px solid rgba(155,225,29,.2)', borderRadius: 16, background: 'rgba(7,18,38,.86)', color: '#d5e2f1', fontWeight: 780 }
 const emptyStyle: CSSProperties = { display: 'grid', gap: 6, padding: 20, border: '1px dashed rgba(255,255,255,.16)', borderRadius: 18, color: '#bdcce0' }
 const panelStyle: CSSProperties = { display: 'grid', gap: 14, padding: 22, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, background: 'rgba(7,18,38,.86)' }

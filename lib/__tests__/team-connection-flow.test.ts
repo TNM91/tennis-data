@@ -14,7 +14,9 @@ describe('team connection flow', () => {
     expect(route).toContain('mergeTeamConnectionRoles')
     expect(route).toContain('contactMatchesLinkedPlayer')
     expect(route).toContain("action === 'accept' ? 'accepted' : 'declined'")
-    expect(route).toContain('clearProfileTeamIfMatching')
+    expect(route).toContain('reconcileDefaultTeam')
+    expect(route).toContain("'set_default'")
+    expect(route).toContain('is_default')
   })
 
   it('shows the invitation globally and keeps unlink available', () => {
@@ -47,6 +49,14 @@ describe('team connection flow', () => {
     expect(multiRoleMigration).toContain('team_roles text[]')
     expect(multiRoleMigration).toContain('declined_roles text[]')
     expect(multiRoleMigration).toContain('role_accepted_at jsonb')
+
+    const defaultTeamMigration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260801000800_add_default_team_profile_link.sql'),
+      'utf8',
+    )
+    expect(defaultTeamMigration).toContain('is_default boolean')
+    expect(defaultTeamMigration).toContain('team_profile_links_one_default_per_profile_idx')
+    expect(defaultTeamMigration).toContain("where is_default = true and status = 'accepted'")
   })
 
   it('limits team invitation coupons to recent accepted roles without prior access', () => {
@@ -92,5 +102,17 @@ describe('team connection flow', () => {
     expect(myLab).toContain('Your roster link and player tools now use the same team context.')
     expect(myLab).toContain('buildTeamConnectionHref(connection)')
     expect(myLab).toContain('buildTeamConnectionCaptainHref(connection)')
+    expect(myLab).toContain("action: 'set_default'")
+    expect(myLab).toContain('findNextTeamMatch(connection, matches)')
+  })
+
+  it('uses one disappearing setup checklist and does not label an empty rating as verified', () => {
+    const checklist = readFileSync(join(process.cwd(), 'app/components/tennis-setup-checklist.tsx'), 'utf8')
+    const profile = readFileSync(join(process.cwd(), 'app/profile/page.tsx'), 'utf8')
+
+    expect(checklist).toContain("if (nextIndex === -1) return null")
+    expect(checklist).toContain('Step {nextIndex + 1} of {steps.length}')
+    expect(profile).toContain('hasRatingIdentity ? <div')
+    expect(profile).toContain("? ''")
   })
 })

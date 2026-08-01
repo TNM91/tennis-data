@@ -16,6 +16,7 @@ export type TeamConnection = {
   declinedRoles: TeamConnectionRole[]
   roleAcceptedAt: Partial<Record<TeamConnectionRole, string>>
   matchedPlayerId: string
+  isDefault: boolean
   updatedAt: string
 }
 
@@ -57,6 +58,7 @@ export type TeamProfileLinkRow = {
   source_type?: string | null
   source_record_id?: string | null
   status?: string | null
+  is_default?: boolean | null
   updated_at?: string | null
 }
 
@@ -110,6 +112,13 @@ export function normalizeTeamConnectionStatus(value: string | null | undefined):
 export function normalizeTeamConnectionSourceType(value: string | null | undefined): TeamConnectionSourceType {
   if (value === 'roster_membership' || value === 'tiq_entry' || value === 'manual_invite') return value
   return 'roster_contact'
+}
+
+export function getTeamConnectionSourceLabel(source: TeamConnectionSourceType) {
+  if (source === 'roster_contact') return 'Player Roster contact'
+  if (source === 'roster_membership') return 'Player Roster'
+  if (source === 'tiq_entry') return 'TIQ league'
+  return 'Direct invite'
 }
 
 export function buildTeamConnectionKey(input: {
@@ -210,6 +219,7 @@ export function mapRosterContactCandidate(row: TeamConnectionContactRow): TeamCo
     declinedRoles: [],
     roleAcceptedAt: {},
     matchedPlayerId: '',
+    isDefault: false,
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -232,6 +242,7 @@ export function mapRosterMembershipCandidate(row: TeamConnectionRosterRow): Team
     declinedRoles: [],
     roleAcceptedAt: {},
     matchedPlayerId: cleanText(row.player_id),
+    isDefault: false,
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -259,6 +270,7 @@ export function mapSavedTeamConnection(row: TeamProfileLinkRow): TeamConnection 
     declinedRoles,
     roleAcceptedAt,
     matchedPlayerId: cleanText(row.matched_player_id),
+    isDefault: row.is_default === true,
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -299,6 +311,7 @@ function normalizeRoleAcceptedAt(value: Record<string, unknown> | null | undefin
 }
 
 function compareTeamConnections(left: TeamConnection, right: TeamConnection) {
+  if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1
   const roleDiff = getRolePriority(right.role) - getRolePriority(left.role)
   if (roleDiff) return roleDiff
   const timeDiff = Date.parse(right.updatedAt) - Date.parse(left.updatedAt)
