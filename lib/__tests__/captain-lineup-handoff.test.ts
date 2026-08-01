@@ -45,4 +45,15 @@ describe('captain potential-lineup handoff', () => {
     expect(readCaptainLineupHandoff('{"version":2}')).toBeNull()
     expect(readCaptainLineupHandoff('not json')).toBeNull()
   })
+
+  it('keeps private player links in the saved handoff', () => {
+    const handoff = readCaptainLineupHandoff(JSON.stringify({
+      version: 1,
+      intent: 'confirm-availability',
+      scenario: { id: 'scenario-1' },
+      playerRequestUrls: [{ playerId: 'player-1', playerName: 'Alex Ace', requestUrl: '/availability/private-token' }],
+    }))
+
+    expect(handoff?.playerRequestUrls?.[0].playerName).toBe('Alex Ace')
+  })
 })

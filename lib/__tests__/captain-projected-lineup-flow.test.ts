@@ -22,8 +22,10 @@ describe('Captain projected lineup confirmation flow', () => {
 
     expect(source).toContain("setMessageTitle('Potential lineup availability')")
     expect(source).toContain('buildPotentialLineupAvailabilityMessage({')
-    expect(source).toContain('Open availability texts')
-    expect(source).toContain('Record ${contact.full_name}\'s reply')
+    expect(source).toContain('Text {playerName.split')
+    expect(source).toContain('Record ${playerName}\'s reply')
+    expect(source).toContain('Refresh responses')
+    expect(source).toContain("window.addEventListener('pageshow', refreshWhenVisible)")
   })
 
   it('lets invited players answer future match dates without signing in', () => {
@@ -36,5 +38,17 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(page).not.toContain('useAuth')
     expect(route).toContain("captain_availability_request_responses")
     expect(route).toContain(".from('lineup_availability')")
+    expect(route).toContain(".from('internal_notifications')")
+    expect(route).toContain('lockedPlayer: loaded.lockedPlayer')
+  })
+
+  it('creates private response links and lets captains reopen the live board', () => {
+    const collectionRoute = readSource('app/api/captain/availability-requests/route.ts')
+    const migration = readSource('supabase/migrations/20260801000300_create_captain_availability_request_invites.sql')
+
+    expect(collectionRoute).toContain('export async function GET(request: Request)')
+    expect(collectionRoute).toContain(".from('captain_availability_request_invites')")
+    expect(collectionRoute).toContain('playerRequestUrls:')
+    expect(migration).toContain('response_token uuid not null default gen_random_uuid() unique')
   })
 })

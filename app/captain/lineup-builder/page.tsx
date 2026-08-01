@@ -1714,6 +1714,7 @@ function LineupBuilderContent() {
     }
 
     let availabilityRequestUrl = ''
+    let playerRequestUrls: CaptainLineupHandoff['playerRequestUrls'] = []
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData.session?.access_token
     if (accessToken) {
@@ -1737,8 +1738,14 @@ function LineupBuilderContent() {
             invitedPlayers,
           }),
         })
-        const result = await response.json() as { requestUrl?: string }
-        if (response.ok) availabilityRequestUrl = result.requestUrl || ''
+        const result = await response.json() as {
+          requestUrl?: string
+          playerRequestUrls?: CaptainLineupHandoff['playerRequestUrls']
+        }
+        if (response.ok) {
+          availabilityRequestUrl = result.requestUrl || ''
+          playerRequestUrls = result.playerRequestUrls ?? []
+        }
       } catch {
         // Messaging still works if the shareable response link cannot be created.
       }
@@ -1755,6 +1762,7 @@ function LineupBuilderContent() {
         opponent: opponentTeam,
       },
       availabilityRequestUrl,
+      playerRequestUrls,
       createdAt: new Date().toISOString(),
     }
 

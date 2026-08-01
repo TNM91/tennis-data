@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -133,6 +133,33 @@ type ExternalAvailabilityRow = {
   season_label: string | null
   session_label: string | null
   match_date: string | null
+}
+
+type LiveAvailabilityRequest = {
+  request: null | {
+    id: string
+    scenarioId: string | null
+    teamName: string
+    leagueName: string
+    flight: string
+    matchDate: string
+    opponentTeam: string
+    matchTime: string
+    facility: string
+    slots: unknown
+    invitedPlayers: Array<{ playerId: string; playerName: string }>
+    requestUrl: string
+    updatedAt: string
+  }
+  invites: Array<{ playerId: string; playerName: string; requestUrl: string }>
+  responses: Array<{
+    player_id: string | null
+    player_name: string
+    match_date: string
+    status: 'available' | 'maybe' | 'unavailable'
+    notes: string | null
+    responded_at: string
+  }>
 }
 
 
@@ -538,6 +565,9 @@ function CaptainMessagingContent() {
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
   const [availabilityHandoff] = useState<CaptainLineupHandoff | null>(initialContext.handoff)
+  const [liveAvailabilityRequest, setLiveAvailabilityRequest] = useState<LiveAvailabilityRequest | null>(null)
+  const [liveResponsesLoading, setLiveResponsesLoading] = useState(false)
+  const [lastResponseRefreshAt, setLastResponseRefreshAt] = useState<Date | null>(null)
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const [draftContact, setDraftContact] = useState<DraftContact>({
@@ -937,6 +967,57 @@ function CaptainMessagingContent() {
   }, [scenarioOptions, selectedScenarioId])
 
   const selectedScenario = scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ?? null
+  const availabilityScenarioId = selectedScenario?.id || availabilityHandoff?.scenario.id || ''
+  const availabilityTeamName = selectedScenario?.team_name || availabilityHandoff?.scenario.team_name || inferredTeamName
+  const availabilityMatchDate = selectedScenario?.match_date || availabilityHandoff?.match.date || selectedMatch?.match_date || preferredEventDate
+
+  const loadLiveAvailabilityRequest = useCallback(async (showLoading = false) => {
+    if (!availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) return
+    if (showLoading) setLiveResponsesLoading(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) return
+      const params = new URLSearchParams()
+      if (availabilityScenarioId) params.set('scenarioId', availabilityScenarioId)
+      if (availabilityTeamName) params.set('teamName', availabilityTeamName)
+      if (availabilityMatchDate) params.set('matchDate', availabilityMatchDate)
+      const response = await fetch(`/api/captain/availability-requests?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const result = await response.json() as LiveAvailabilityRequest & { message?: string }
+      if (!response.ok) throw new Error(result.message || 'Availability responses could not be refreshed.')
+      setLiveAvailabilityRequest(result)
+      setLastResponseRefreshAt(new Date())
+    } catch (nextError) {
+      if (showLoading) {
+        setError(nextError instanceof Error ? nextError.message : 'Availability responses could not be refreshed.')
+      }
+    } finally {
+      if (showLoading) setLiveResponsesLoading(false)
+    }
+  }, [availabilityMatchDate, availabilityScenarioId, availabilityTeamName])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public') return
+    void loadLiveAvailabilityRequest()
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadLiveAvailabilityRequest()
+    }
+    const interval = window.setInterval(refreshWhenVisible, 25_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, loadLiveAvailabilityRequest, role])
+
   const lineupRows = useMemo(() => lineups.filter((row) => row.event_key === eventKey), [lineups, eventKey])
   const lineupTextForMessage = useMemo(
     () => lineupRows.length
@@ -1058,8 +1139,12 @@ function CaptainMessagingContent() {
   const recipientsPhones = useMemo(() => selectedRecipients.map((recipient) => recipient.phone).filter(Boolean), [selectedRecipients])
   const smsHref = buildSmsHref(recipientsPhones, messageBody)
   const potentialLineupNames = useMemo(
-    () => availabilityHandoff ? extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json) : [],
-    [availabilityHandoff]
+    () => {
+      const invited = liveAvailabilityRequest?.request?.invitedPlayers ?? []
+      if (invited.length) return invited.map((player) => player.playerName)
+      return availabilityHandoff ? extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json) : []
+    },
+    [availabilityHandoff, liveAvailabilityRequest]
   )
   const potentialLineupContacts = useMemo(() => {
     const names = new Set(potentialLineupNames.map((name) => name.toLowerCase()))
@@ -1073,6 +1158,32 @@ function CaptainMessagingContent() {
     )
     return potentialLineupNames.filter((name) => !readyNames.has(name.trim().toLowerCase()))
   }, [potentialLineupContacts, potentialLineupNames])
+  const liveResponseByPlayer = useMemo(() => {
+    const matchDate = liveAvailabilityRequest?.request?.matchDate || availabilityMatchDate
+    return new Map(
+      (liveAvailabilityRequest?.responses ?? [])
+        .filter((response) => !matchDate || response.match_date === matchDate)
+        .map((response) => [response.player_name.trim().toLowerCase(), response])
+    )
+  }, [availabilityMatchDate, liveAvailabilityRequest])
+  const privateInviteByPlayer = useMemo(() => {
+    const invites = liveAvailabilityRequest?.invites.length
+      ? liveAvailabilityRequest.invites
+      : availabilityHandoff?.playerRequestUrls ?? []
+    return new Map(invites.map((invite) => [invite.playerName.trim().toLowerCase(), invite]))
+  }, [availabilityHandoff, liveAvailabilityRequest])
+  const liveResponseCounts = useMemo(() => {
+    let yes = 0
+    let maybe = 0
+    let no = 0
+    potentialLineupNames.forEach((name) => {
+      const status = liveResponseByPlayer.get(name.trim().toLowerCase())?.status
+      if (status === 'available') yes += 1
+      else if (status === 'maybe') maybe += 1
+      else if (status === 'unavailable') no += 1
+    })
+    return { yes, maybe, no, waiting: Math.max(0, potentialLineupNames.length - yes - maybe - no) }
+  }, [liveResponseByPlayer, potentialLineupNames])
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -1789,6 +1900,38 @@ function CaptainMessagingContent() {
     saveAvailability(next)
   }
 
+  async function recordManualAvailabilityResponse(
+    contact: ContactRow,
+    playerName: string,
+    status: Exclude<WeeklyAvailability['status'], 'no-response'>
+  ) {
+    setAvailabilityStatus(contact.id, status)
+    const invite = privateInviteByPlayer.get(playerName.trim().toLowerCase())
+    const responseUrl = invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl
+    if (!responseUrl || !availabilityMatchDate) return
+    try {
+      const token = new URL(responseUrl, window.location.origin).pathname.split('/').filter(Boolean).pop()
+      if (!token) return
+      const response = await fetch(`/api/captain/availability-requests/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: invite?.playerId || '',
+          playerName,
+          responses: [{
+            matchDate: availabilityMatchDate,
+            status: status === 'tentative' ? 'maybe' : status,
+          }],
+        }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message || 'The reply could not be saved.')
+      await loadLiveAvailabilityRequest()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'The reply could not be saved.')
+    }
+  }
+
   function setResponseStatus(contactId: string, status: WeeklyResponse['status']) {
     const next = responses.filter((row) => !(row.event_key === eventKey && row.contact_id === contactId))
     next.push({ id: createId(), event_key: eventKey, contact_id: contactId, status, note: responseMap.get(contactId)?.note || '', updated_at: new Date().toISOString() })
@@ -2137,57 +2280,94 @@ function importScenarioToLineup() {
             </div>
         </section>
 
-        {availabilityHandoff ? (
+        {availabilityHandoff || liveAvailabilityRequest?.request ? (
           <section style={potentialLineupFlowStyle} aria-labelledby="potential-lineup-confirm-title">
             <div style={tableHeaderStyle}>
               <div>
-                <p style={sectionKicker}>Potential lineup</p>
-                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Confirm who can play</h2>
+                <p style={sectionKicker}>Availability</p>
+                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
                 <p style={mutedTextStyle}>
-                  Choose the players to text. Match details and the availability link are already included.
+                  Text each player their private link. Replies appear here automatically.
                 </p>
               </div>
-              <span style={selectedRecipients.length ? miniPillGreen : warnPill}>
-                {selectedRecipients.length} ready to text
-              </span>
+              <button
+                type="button"
+                onClick={() => void loadLiveAvailabilityRequest(true)}
+                disabled={liveResponsesLoading}
+                style={ghostButtonSmallButton}
+              >
+                {liveResponsesLoading ? 'Refreshing...' : 'Refresh responses'}
+              </button>
+            </div>
+
+            <div style={availabilityCountGridStyle} aria-label="Availability response summary">
+              <span style={availabilityCountStyle('#61c47c')}><strong>{liveResponseCounts.yes}</strong> Yes</span>
+              <span style={availabilityCountStyle('#d6a62a')}><strong>{liveResponseCounts.maybe}</strong> Maybe</span>
+              <span style={availabilityCountStyle('#df6a70')}><strong>{liveResponseCounts.no}</strong> No</span>
+              <span style={availabilityCountStyle('var(--brand-blue-2)')}><strong>{liveResponseCounts.waiting}</strong> Waiting</span>
             </div>
 
             <div style={potentialPlayerGridStyle}>
-              {potentialLineupContacts.map((contact) => {
-                const canText = Boolean(contact.phone && contact.opt_in_text)
-                const checked = selectedRecipientIds.includes(contact.id)
-                const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
+              {potentialLineupNames.map((playerName) => {
+                const playerKey = playerName.trim().toLowerCase()
+                const contact = scopedContacts.find((candidate) => candidate.full_name.trim().toLowerCase() === playerKey)
+                const canText = Boolean(contact?.phone && contact.opt_in_text)
+                const availabilityStatus = contact ? availabilityMap.get(contact.id)?.status ?? 'no-response' : 'no-response'
+                const liveResponse = liveResponseByPlayer.get(playerKey)
+                const invite = privateInviteByPlayer.get(playerKey)
+                const privateMessage = buildPotentialLineupAvailabilityMessage({
+                  teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
+                  opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
+                  dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
+                  time: liveAvailabilityRequest?.request?.matchTime || availabilityHandoff?.match.time || eventArrivalTime,
+                  facility: liveAvailabilityRequest?.request?.facility || availabilityHandoff?.match.facility || eventLocation,
+                  slotsJson: liveAvailabilityRequest?.request?.slots || availabilityHandoff?.scenario.slots_json || [],
+                  availabilityRequestUrl: invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl,
+                })
                 return (
-                  <article key={contact.id} style={potentialPlayerCardStyle}>
-                    <label style={potentialPlayerSelectStyle}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!canText}
-                        onChange={(event) => setSelectedRecipientIds((current) =>
-                          event.target.checked
-                            ? Array.from(new Set([...current, contact.id]))
-                            : current.filter((id) => id !== contact.id)
-                        )}
-                      />
+                  <article key={playerKey} style={potentialPlayerCardStyle}>
+                    <div style={potentialPlayerSelectStyle}>
                       <span>
-                        <strong>{contact.full_name}</strong>
-                        <small style={rowSubtleText}>{canText ? formatPhone(contact.phone) : 'Phone number needed'}</small>
+                        <strong>{playerName}</strong>
+                        <small style={rowSubtleText}>{canText && contact ? formatPhone(contact.phone) : 'Phone number needed'}</small>
                       </span>
-                    </label>
-                    <div style={potentialStatusRowStyle} aria-label={`Record ${contact.full_name}'s reply`}>
-                      {(['available', 'tentative', 'unavailable'] as WeeklyAvailability['status'][]).map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          aria-pressed={availabilityStatus === status}
-                          onClick={() => setAvailabilityStatus(contact.id, status)}
-                          style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}
-                        >
-                          {status === 'available' ? 'Yes' : status === 'tentative' ? 'Maybe' : 'No'}
-                        </button>
-                      ))}
+                      <span style={responseStatusBadgeStyle(liveResponse?.status)}>
+                        {liveResponse?.status === 'available'
+                          ? 'Yes'
+                          : liveResponse?.status === 'maybe'
+                            ? 'Maybe'
+                            : liveResponse?.status === 'unavailable' ? 'No' : 'Waiting'}
+                      </span>
                     </div>
+                    {liveResponse?.responded_at ? (
+                      <small style={rowSubtleText}>Updated {new Date(liveResponse.responded_at).toLocaleString()}</small>
+                    ) : null}
+                    {liveResponse?.notes ? <small style={rowSubtleText}>“{liveResponse.notes}”</small> : null}
+                    {canText && contact ? (
+                      <a href={buildSmsHref([contact.phone], privateMessage)} style={primaryButtonBlock}>
+                        Text {playerName.split(' ')[0]}
+                      </a>
+                    ) : (
+                      <GhostLink href="#captain-contact-setup">Add phone number</GhostLink>
+                    )}
+                    {contact ? (
+                      <details>
+                        <summary style={manualReplySummaryStyle}>Record a text reply</summary>
+                        <div style={potentialStatusRowStyle} aria-label={`Record ${playerName}'s reply`}>
+                          {(['available', 'tentative', 'unavailable'] as const).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              aria-pressed={availabilityStatus === status}
+                              onClick={() => void recordManualAvailabilityResponse(contact, playerName, status)}
+                              style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}
+                            >
+                              {status === 'available' ? 'Yes' : status === 'tentative' ? 'Maybe' : 'No'}
+                            </button>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </article>
                 )
               })}
@@ -2201,28 +2381,15 @@ function importScenarioToLineup() {
               </div>
             ) : null}
 
-            <div style={potentialMessagePreviewStyle}>{messageBody}</div>
             <div style={actionRowStyle}>
-              <a
-                href={selectedRecipients.length ? smsHref : undefined}
-                aria-disabled={!selectedRecipients.length}
-                style={{ ...primaryButton, ...(!selectedRecipients.length ? disabledButtonStyle : {}) }}
-                onClick={(event) => {
-                  if (!selectedRecipients.length) {
-                    event.preventDefault()
-                    setError('Choose at least one player with a saved phone number.')
-                  }
-                }}
-              >
-                Open availability texts
-              </a>
               <GhostLink href="#captain-message-composer">Edit message</GhostLink>
-              {availabilityHandoff.availabilityRequestUrl ? (
-                <GhostLink href={availabilityHandoff.availabilityRequestUrl}>Open player response page</GhostLink>
+              {liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl ? (
+                <GhostLink href={liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || '#'}>Open shared response page</GhostLink>
               ) : null}
             </div>
             <p style={fieldHintStyle}>
-              Players can answer through the link without joining TIQ. If they reply by text, record Yes, Maybe, or No beside their name here.
+              Updates refresh automatically while this page is open and whenever you return.
+              {lastResponseRefreshAt ? ` Last checked ${lastResponseRefreshAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}
             </p>
           </section>
         ) : null}
@@ -4045,6 +4212,25 @@ const potentialPlayerGridStyle: CSSProperties = {
   marginTop: 16,
 }
 
+const availabilityCountGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 8,
+  marginTop: 16,
+}
+
+const availabilityCountStyle = (color: string): CSSProperties => ({
+  display: 'grid',
+  gap: 2,
+  padding: '10px 8px',
+  borderRadius: 14,
+  border: `1px solid color-mix(in srgb, ${color} 48%, var(--shell-panel-border) 52%)`,
+  background: `color-mix(in srgb, ${color} 12%, var(--shell-chip-bg) 88%)`,
+  color: 'var(--shell-copy)',
+  textAlign: 'center',
+  fontSize: 12,
+})
+
 const potentialPlayerCardStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
@@ -4058,9 +4244,31 @@ const potentialPlayerCardStyle: CSSProperties = {
 const potentialPlayerSelectStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'space-between',
   gap: 10,
   color: 'var(--shell-copy)',
+}
+
+const responseStatusBadgeStyle = (status?: 'available' | 'maybe' | 'unavailable'): CSSProperties => {
+  const color = status === 'available' ? '#61c47c' : status === 'maybe' ? '#d6a62a' : status === 'unavailable' ? '#df6a70' : 'var(--brand-blue-2)'
+  return {
+    flex: '0 0 auto',
+    padding: '5px 9px',
+    borderRadius: 999,
+    border: `1px solid color-mix(in srgb, ${color} 54%, var(--shell-panel-border) 46%)`,
+    background: `color-mix(in srgb, ${color} 15%, var(--shell-panel-bg) 85%)`,
+    color: 'var(--shell-copy)',
+    fontSize: 12,
+    fontWeight: 850,
+  }
+}
+
+const manualReplySummaryStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
   cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 750,
+  marginBottom: 8,
 }
 
 const potentialStatusRowStyle: CSSProperties = {
@@ -4077,18 +4285,6 @@ const potentialMissingStyle: CSSProperties = {
   background: 'color-mix(in srgb, #d6a62a 12%, var(--shell-chip-bg) 88%)',
   color: 'var(--shell-copy)',
   lineHeight: 1.5,
-}
-
-const potentialMessagePreviewStyle: CSSProperties = {
-  marginTop: 14,
-  padding: 16,
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  color: 'var(--shell-copy)',
-  lineHeight: 1.55,
-  whiteSpace: 'pre-wrap',
-  overflowWrap: 'anywhere',
 }
 
 const messagePlaybookGridStyle: CSSProperties = {
