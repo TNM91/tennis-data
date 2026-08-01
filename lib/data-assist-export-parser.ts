@@ -72,6 +72,7 @@ function parseTennisLinkExportFile(file: ExportFileInput) {
   ]
   const structuredRows = [
     ...scorecardRows,
+    ...buildStructuredScheduleMeta(rows),
     ...buildStructuredScheduleLines(rows),
     ...buildStructuredRosterLines(rows),
   ]
@@ -119,6 +120,65 @@ function buildStructuredScheduleLines(rows: HtmlRow[]) {
       cells[7],
       cells.join(' '),
     ].join(' | '))
+}
+
+function buildStructuredScheduleMeta(rows: HtmlRow[]) {
+  const scheduleRows = rows.filter(isStructuredScheduleRow)
+  if (!scheduleRows.length) return []
+
+  const lines: string[] = []
+  const metadata = findScheduleMetadata(rows)
+  if (metadata.ustaSection) lines.push(`USTA Section: ${metadata.ustaSection}`)
+  if (metadata.districtArea) lines.push(`District/Area: ${metadata.districtArea}`)
+  if (metadata.leagueName) lines.push(`League: ${metadata.leagueName}`)
+  if (metadata.flight) lines.push(`Flight: ${metadata.flight}`)
+
+  const teamName = inferScheduleTeamName(scheduleRows)
+  if (teamName) lines.push(`Team: ${teamName}`)
+  return lines
+}
+
+function findScheduleMetadata(rows: HtmlRow[]) {
+  for (let rowIndex = 0; rowIndex < rows.length - 1; rowIndex += 1) {
+    const headings = rows[rowIndex]
+    const values = rows[rowIndex + 1]
+    if (!headings.some((heading) => /^(?:USTA\s+)?Section$/i.test(heading))) continue
+    if (!headings.some((heading) => /^District\/Area$/i.test(heading))) continue
+    if (!headings.some((heading) => /^(?:Local\s+)?League(?:\s*\/\s*League Type)?$/i.test(heading))) continue
+    if (!headings.some((heading) => /^(?:Flight|Flight Name)$/i.test(heading))) continue
+
+    return {
+      ustaSection: getMetadataValue(headings, values, /^(?:USTA\s+)?Section$/i),
+      districtArea: getMetadataValue(headings, values, /^District\/Area$/i),
+      leagueName: getMetadataValue(headings, values, /^(?:Local\s+)?League(?:\s*\/\s*League Type)?$/i),
+      flight: getMetadataValue(headings, values, /^(?:Flight|Flight Name)$/i),
+    }
+  }
+
+  return { ustaSection: '', districtArea: '', leagueName: '', flight: '' }
+}
+
+function getMetadataValue(headings: HtmlRow, values: HtmlRow, pattern: RegExp) {
+  const index = headings.findIndex((heading) => pattern.test(heading))
+  return index >= 0 ? values[index] || '' : ''
+}
+
+function inferScheduleTeamName(scheduleRows: HtmlRow[]) {
+  const counts = new Map<string, number>()
+  for (const cells of scheduleRows) {
+    for (const team of [cells[3], cells[5]]) {
+      if (!team) continue
+      counts.set(team, (counts.get(team) || 0) + 1)
+    }
+  }
+
+  const ranked = Array.from(counts.entries()).sort((left, right) => right[1] - left[1])
+  if (!ranked.length || ranked[0][1] === ranked[1]?.[1]) return ''
+  return ranked[0][0]
+}
+
+function isStructuredScheduleRow(cells: HtmlRow) {
+  return /^\d{7,}$/.test(cells[0] || '') && cells.length >= 8
 }
 
 function buildStructuredRosterLines(rows: HtmlRow[]) {
