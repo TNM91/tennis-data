@@ -28,6 +28,13 @@ import SiteShell from '@/app/components/site-shell'
 import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  buildCaptainLineupSlots,
+  getCaptainLineupFormatKey,
+  getTriLevelRatings,
+  isPlayerEligibleForCaptainRating,
+  type CaptainLineupSlot,
+} from '@/lib/captain-lineup-format'
 
 type PlayerRow = {
   id: string
@@ -89,12 +96,7 @@ type SlotPlayer = {
   playerName: string
 }
 
-type LineupSlot = {
-  id: string
-  label: string
-  slotType: 'singles' | 'doubles'
-  players: SlotPlayer[]
-}
+type LineupSlot = CaptainLineupSlot
 
 type ScenarioRow = {
   id: string
@@ -183,21 +185,15 @@ type RecommendationCard = {
   tone: 'good' | 'warn' | 'info'
 }
 
-const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
-  createSinglesSlot('s1', 'Singles 1'),
-  createSinglesSlot('s2', 'Singles 2'),
-  createSinglesSlot('s3', 'Singles 3'),
-  createDoublesSlot('d1', 'Doubles 1'),
-  createDoublesSlot('d2', 'Doubles 2'),
-]
+type AppliedLineupNotice = {
+  title: string
+  changedCourts: number
+  filledCourts: number
+  totalCourts: number
+}
 
-const DEFAULT_OPPONENT_SLOTS: LineupSlot[] = [
-  createSinglesSlot('os1', 'Singles 1'),
-  createSinglesSlot('os2', 'Singles 2'),
-  createSinglesSlot('os3', 'Singles 3'),
-  createDoublesSlot('od1', 'Doubles 1'),
-  createDoublesSlot('od2', 'Doubles 2'),
-]
+const DEFAULT_TEAM_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'team')
+const DEFAULT_OPPONENT_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'opponent')
 
 function createSinglesSlot(id: string, label: string): LineupSlot {
   return {
@@ -431,6 +427,10 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
     const slotType = obj.slotType === 'doubles' ? 'doubles' : 'singles'
     const label = cleanText(obj.label) || `Slot ${index + 1}`
     const id = cleanText(obj.id) || `slot-${index + 1}`
+    const ratingLevel =
+      typeof obj.ratingLevel === 'number' && Number.isFinite(obj.ratingLevel)
+        ? obj.ratingLevel
+        : undefined
 
     const rawPlayers = Array.isArray(obj.players) ? obj.players : []
     const players = rawPlayers.map((player) => {
@@ -448,6 +448,7 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
       id,
       label,
       slotType,
+      ...(ratingLevel !== undefined ? { ratingLevel } : {}),
       players:
         slotType === 'doubles'
           ? [
@@ -457,6 +458,37 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
           : [players[0] ?? { playerId: '', playerName: '' }],
     }
   })
+}
+
+function getPlayerBaseRating(player: PlayerRow) {
+  return player.overall_rating ?? player.doubles_rating ?? null
+}
+
+function fitSlotsToLeagueFormat(
+  slots: LineupSlot[],
+  leagueName: string,
+  flight: string,
+  side: 'team' | 'opponent'
+) {
+  const expected = buildCaptainLineupSlots(leagueName, flight, side)
+  const ratings = getTriLevelRatings(leagueName, flight)
+  if (!ratings.length) return slots.length ? slots : expected
+
+  return expected.map((expectedSlot) => {
+    const matchingSlot = slots.find((slot) => {
+      if (slot.ratingLevel === expectedSlot.ratingLevel) return true
+      if (typeof expectedSlot.ratingLevel !== 'number') return false
+      return slot.label.includes(expectedSlot.ratingLevel.toFixed(1))
+    })
+
+    return matchingSlot
+      ? { ...expectedSlot, players: matchingSlot.players.map((player) => ({ ...player })) }
+      : expectedSlot
+  })
+}
+
+function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot) {
+  return isPlayerEligibleForCaptainRating(getPlayerBaseRating(player), slot.ratingLevel)
 }
 
 function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
@@ -582,13 +614,14 @@ function recommendLineupFromPool(
   const available = [...playerPool]
   const used = new Set<string>()
 
-  const pickBest = (slotType: 'singles' | 'doubles') => {
+  const pickBest = (slot: LineupSlot) => {
     const ranked = available
       .filter((player) => !used.has(player.id))
+      .filter((player) => isPlayerEligibleForSlot(player, slot))
       .map((player) => ({
         player,
         score:
-          scorePoolPlayerForSlot(player, slotType) +
+          scorePoolPlayerForSlot(player, slot.slotType) +
           reliabilityWeight(player.availabilityStatus) * 0.18 +
           (mode === 'ceiling' ? (player.overall_dynamic_rating ?? player.overall_rating ?? 0) * 0.04 : 0),
       }))
@@ -601,13 +634,13 @@ function recommendLineupFromPool(
 
   for (const slot of nextSlots) {
     if (slot.slotType === 'singles') {
-      const best = pickBest('singles')
+      const best = pickBest(slot)
       slot.players = [{ playerId: best?.id ?? '', playerName: best?.name ?? '' }]
       continue
     }
 
-    const first = pickBest('doubles')
-    const second = pickBest('doubles')
+    const first = pickBest(slot)
+    const second = pickBest(slot)
     slot.players = [
       { playerId: first?.id ?? '', playerName: first?.name ?? '' },
       { playerId: second?.id ?? '', playerName: second?.name ?? '' },
@@ -686,13 +719,16 @@ function optimizeLineupFromPool(
   const used = new Set<string>()
   const totalNeeded = teamSlots.reduce((sum, slot) => sum + (slot.slotType === 'doubles' ? 2 : 1), 0)
 
-  const topPool = [...playerPool]
+  const sortedPool = [...playerPool]
     .sort((a, b) => {
       const aOverall = a.overall_dynamic_rating ?? a.overall_rating ?? 0
       const bOverall = b.overall_dynamic_rating ?? b.overall_rating ?? 0
       return bOverall - aOverall
     })
-    .slice(0, Math.max(totalNeeded + 6, 12))
+  const hasRatingCourts = teamSlots.some((slot) => typeof slot.ratingLevel === 'number')
+  const topPool = hasRatingCourts
+    ? sortedPool
+    : sortedPool.slice(0, Math.max(totalNeeded + 6, 12))
 
   const opponentSinglesByStrength = opponentSlots
     .map((slot, index) => ({ slot, index, strength: selectedLineStrength(slot, players) ?? 3.5 }))
@@ -767,40 +803,42 @@ function optimizeLineupFromPool(
     used.add(player.id)
   })
 
-  const remainingAfterSingles = topPool.filter((player) => !used.has(player.id))
   const doublesSlots = teamSlots
     .map((slot, index) => ({ slot, index }))
     .filter((item) => item.slot.slotType === 'doubles')
 
-  const pairCandidates: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
-  for (let i = 0; i < remainingAfterSingles.length; i += 1) {
-    for (let j = i + 1; j < remainingAfterSingles.length; j += 1) {
-      const a = remainingAfterSingles[i]
-      const b = remainingAfterSingles[j]
-      pairCandidates.push({ a, b, score: rankDoubles(a, b) })
-    }
-  }
-
-  pairCandidates.sort((a, b) => b.score - a.score)
-
-  const selectedPairs: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
-  const pairUsed = new Set<string>()
-  for (const pair of pairCandidates) {
-    if (pairUsed.has(pair.a.id) || pairUsed.has(pair.b.id)) continue
-    selectedPairs.push(pair)
-    pairUsed.add(pair.a.id)
-    pairUsed.add(pair.b.id)
-    if (selectedPairs.length >= doublesSlots.length) break
-  }
-
   const orderedDoublesSlots =
-    opponentDoublesByStrength.length === doublesSlots.length
+    hasRatingCourts
+      ? doublesSlots.map((item) => item.index)
+      : opponentDoublesByStrength.length === doublesSlots.length
       ? opponentDoublesByStrength.map((item) => item.index)
       : doublesSlots.map((item) => item.index)
 
-  selectedPairs.forEach((pair, orderIndex) => {
-    const slotIndex = orderedDoublesSlots[orderIndex]
+  orderedDoublesSlots.forEach((slotIndex) => {
     if (typeof slotIndex !== 'number') return
+    const slot = teamSlots[slotIndex]
+    const eligiblePlayers = topPool
+      .filter((player) => !used.has(player.id))
+      .filter((player) => isPlayerEligibleForSlot(player, slot))
+    const pairCandidates: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
+
+    for (let i = 0; i < eligiblePlayers.length; i += 1) {
+      for (let j = i + 1; j < eligiblePlayers.length; j += 1) {
+        const a = eligiblePlayers[i]
+        const b = eligiblePlayers[j]
+        pairCandidates.push({ a, b, score: rankDoubles(a, b) })
+      }
+    }
+
+    const pair = pairCandidates.sort((a, b) => b.score - a.score)[0]
+    if (!pair) {
+      teamSlots[slotIndex].players = [
+        { playerId: '', playerName: '' },
+        { playerId: '', playerName: '' },
+      ]
+      return
+    }
+
     teamSlots[slotIndex].players = [
       { playerId: pair.a.id, playerName: pair.a.name },
       { playerId: pair.b.id, playerName: pair.b.name },
@@ -889,10 +927,11 @@ function rebuildCandidateWithLocks(
     })
   })
 
-  const pickBest = (slotType: 'singles' | 'doubles') => {
+  const pickBest = (slot: LineupSlot) => {
     const ranked = playerPool
       .filter((player) => !used.has(player.id))
-      .map((player) => ({ player, score: scoreForFill(player, slotType) }))
+      .filter((player) => isPlayerEligibleForSlot(player, slot))
+      .map((player) => ({ player, score: scoreForFill(player, slot.slotType) }))
       .sort((a, b) => b.score - a.score)
 
     const best = ranked[0]?.player ?? null
@@ -903,7 +942,7 @@ function rebuildCandidateWithLocks(
   next.forEach((slot) => {
     slot.players = slot.players.map((player) => {
       if (player.playerId) return player
-      const best = pickBest(slot.slotType)
+      const best = pickBest(slot)
       return {
         playerId: best?.id ?? '',
         playerName: best?.name ?? '',
@@ -914,7 +953,11 @@ function rebuildCandidateWithLocks(
   return next
 }
 
-function getLineupWarnings(teamSlots: LineupSlot[], opponentSlots: LineupSlot[]) {
+function getLineupWarnings(
+  teamSlots: LineupSlot[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[]
+) {
   const warnings: string[] = []
 
   const validateSlots = (slots: LineupSlot[], sideLabel: string) => {
@@ -925,6 +968,15 @@ function getLineupWarnings(teamSlots: LineupSlot[], opponentSlots: LineupSlot[])
 
       const ids = filled.map((player) => player.playerId)
       if (new Set(ids).size !== ids.length) warnings.push(`${sideLabel} ${slot.label} contains the same player twice.`)
+
+      if (typeof slot.ratingLevel === 'number') {
+        for (const selected of filled) {
+          const player = players.find((candidate) => candidate.id === selected.playerId)
+          if (player && !isPlayerEligibleForSlot(player, slot)) {
+            warnings.push(`${selected.playerName || 'Selected player'} is not rated ${slot.ratingLevel.toFixed(1)} for ${slot.label}.`)
+          }
+        }
+      }
     }
   }
 
@@ -998,6 +1050,7 @@ function LineupBuilderContent() {
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
 
   const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
   const [leagueName, setLeagueName] = useState(initialContext.league)
@@ -1015,8 +1068,15 @@ function LineupBuilderContent() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
-  const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
-  const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+  const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
+    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team')
+  )
+  const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(() =>
+    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'opponent')
+  )
+  const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
+    getCaptainLineupFormatKey(initialContext.league, initialContext.flight)
+  )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
 
@@ -1030,6 +1090,29 @@ function LineupBuilderContent() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
+  const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
+  const isTriLevel = triLevelRatings.length === 3
+  const lineupFormatKey = useMemo(
+    () => getCaptainLineupFormatKey(leagueName, flight),
+    [flight, leagueName]
+  )
+
+  useEffect(() => {
+    if (lineupFormatKey === activeLineupFormatKey) return
+
+    setTeamSlots(buildCaptainLineupSlots(leagueName, flight, 'team'))
+    setOpponentSlots(buildCaptainLineupSlots(leagueName, flight, 'opponent'))
+    setActiveLineupFormatKey(lineupFormatKey)
+    setLockedSlotIds([])
+    setLockedPlayerIds([])
+    setAppliedLineupNotice(null)
+
+    if (isTriLevel) {
+      setMessage(
+        `Tri-Level format set: ${triLevelRatings.map((rating) => rating.toFixed(1)).join(', ')} doubles.`
+      )
+    }
+  }, [activeLineupFormatKey, flight, isTriLevel, leagueName, lineupFormatKey, triLevelRatings])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -1586,6 +1669,8 @@ function LineupBuilderContent() {
     setNotes('')
     setTeamSlots(cloneSlots(DEFAULT_TEAM_SLOTS))
     setOpponentSlots(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+    setActiveLineupFormatKey('standard')
+    setAppliedLineupNotice(null)
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2063,8 +2148,12 @@ function sendCurrentScenarioToMessaging() {
       })
     }
 
-    setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
-    setOpponentSlots(loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS))
+    const scenarioLeague = scenario.league_name ?? ''
+    const scenarioFlight = scenario.flight ?? ''
+    setTeamSlots(fitSlotsToLeagueFormat(loadedTeamSlots, scenarioLeague, scenarioFlight, 'team'))
+    setOpponentSlots(fitSlotsToLeagueFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent'))
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(scenarioLeague, scenarioFlight))
+    setAppliedLineupNotice(null)
     clearLocks()
 
     setLoadingScenarioId('')
@@ -2114,7 +2203,10 @@ function sendCurrentScenarioToMessaging() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillApplied, prefillScenarioId, prefillSingleId, prefillPairIds, savedScenarios, players])
 
-  const lineupWarnings = useMemo(() => getLineupWarnings(teamSlots, opponentSlots), [teamSlots, opponentSlots])
+  const lineupWarnings = useMemo(
+    () => getLineupWarnings(teamSlots, opponentSlots, builderPlayers),
+    [builderPlayers, opponentSlots, teamSlots]
+  )
 
   const eliteRecommendation = useMemo(() => {
     const balanced = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced')
@@ -2135,6 +2227,26 @@ function sendCurrentScenarioToMessaging() {
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
+  function showAppliedLineupNotice(title: string, nextSlots: LineupSlot[]) {
+    const currentById = new Map(teamSlots.map((slot) => [slot.id, slot]))
+    const changedCourts = nextSlots.filter((slot) => {
+      const current = currentById.get(slot.id)
+      if (!current) return true
+      return current.players.map((player) => player.playerId).join('|') !==
+        slot.players.map((player) => player.playerId).join('|')
+    }).length
+    const filledCourts = nextSlots.filter((slot) =>
+      slot.players.every((player) => Boolean(player.playerId))
+    ).length
+
+    setAppliedLineupNotice({
+      title,
+      changedCourts,
+      filledCourts,
+      totalCourts: nextSlots.length,
+    })
+  }
+
   function applyOptimizedPlan(mode: OptimizerMode) {
     const plan = optimizedPlans.find((item) => item.mode === mode)
     if (!plan) return
@@ -2148,6 +2260,7 @@ function sendCurrentScenarioToMessaging() {
     )
 
     setTeamSlots(nextSlots)
+    showAppliedLineupNotice(plan.title, nextSlots)
     setMessage(`${plan.title} applied${lockedSlotIds.length || lockedPlayerIds.length ? ' with locks preserved' : ''}.`)
     setError('')
   }
@@ -2162,6 +2275,7 @@ function sendCurrentScenarioToMessaging() {
       myPlayerPool
     )
     setTeamSlots(rebuilt)
+    showAppliedLineupNotice('Balanced lineup', rebuilt)
     setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
     setError('')
   }
@@ -2398,12 +2512,35 @@ function sendCurrentScenarioToMessaging() {
             </div>
           </div>
 
+          <p style={optimizerActionHelpStyle}>
+            {isTriLevel
+              ? `Builds one eligible doubles pair for each level: ${triLevelRatings.map((rating) => rating.toFixed(1)).join(', ')}.`
+              : 'Fills or replaces unlocked courts with the strongest projected lineup.'}{' '}
+            Nothing is saved or sent until you choose Save lineup.
+          </p>
+
           <div style={decisionBoardActionRowStyle}>
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
             <GhostBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
+
+          {appliedLineupNotice ? (
+            <div role="status" aria-live="polite" style={appliedLineupNoticeStyle}>
+              <div>
+                <strong>{appliedLineupNotice.title} applied.</strong>{' '}
+                {appliedLineupNotice.changedCourts
+                  ? `${appliedLineupNotice.changedCourts} court${appliedLineupNotice.changedCourts === 1 ? '' : 's'} changed.`
+                  : 'Your current court assignments were already the best match.'}{' '}
+                {appliedLineupNotice.filledCourts} of {appliedLineupNotice.totalCourts} courts are complete.
+              </div>
+              <div style={appliedLineupNoticeFooterStyle}>
+                <span>Review the courts below. Nothing has been saved or sent.</span>
+                <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <details style={surfaceCard}>
@@ -2668,17 +2805,28 @@ function sendCurrentScenarioToMessaging() {
               </div>
             </details>
 
-            <section style={surfaceCardStrong}>
+            <section id="captain-lineup-courts" style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Your lineup</p>
                   <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
-                <div style={actionRowStyle}>
-                  <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
-                  <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
-                </div>
+                {!isTriLevel ? (
+                  <div style={actionRowStyle}>
+                    <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
+                    <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
+                  </div>
+                ) : null}
               </div>
+
+              {isTriLevel ? (
+                <div style={triLevelFormatStyle}>
+                  <strong>Tri-Level · 3 doubles courts</strong>
+                  <span>
+                    One court at each level: {triLevelRatings.map((rating) => rating.toFixed(1)).join(' · ')}. Choose two players rated for each court.
+                  </span>
+                </div>
+              ) : null}
 
               <div style={stackStyle}>
                 {teamSlots.map((slot) => (
@@ -2695,6 +2843,7 @@ function sendCurrentScenarioToMessaging() {
                     toggleLockedPlayer={toggleLockedPlayer}
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
+                    fixedFormat={isTriLevel}
                   />
                 ))}
               </div>
@@ -2708,11 +2857,20 @@ function sendCurrentScenarioToMessaging() {
                   <p style={sectionKicker}>Opponent lineup</p>
                   <h2 style={sectionTitle}>Project the other side</h2>
                 </div>
-                <div style={actionRowStyle}>
-                  <GhostSmallBtn onClick={() => addSlot('opponent', 'singles')}>+ Singles</GhostSmallBtn>
-                  <GhostSmallBtn onClick={() => addSlot('opponent', 'doubles')}>+ Doubles</GhostSmallBtn>
-                </div>
+                {!isTriLevel ? (
+                  <div style={actionRowStyle}>
+                    <GhostSmallBtn onClick={() => addSlot('opponent', 'singles')}>+ Singles</GhostSmallBtn>
+                    <GhostSmallBtn onClick={() => addSlot('opponent', 'doubles')}>+ Doubles</GhostSmallBtn>
+                  </div>
+                ) : null}
               </div>
+
+              {isTriLevel ? (
+                <div style={triLevelFormatStyle}>
+                  <strong>Project the same three levels</strong>
+                  <span>{triLevelRatings.map((rating) => `${rating.toFixed(1)} doubles`).join(' · ')}</span>
+                </div>
+              ) : null}
 
               <div style={stackStyle}>
                 {opponentSlots.map((slot) => (
@@ -2729,6 +2887,7 @@ function sendCurrentScenarioToMessaging() {
                     toggleLockedPlayer={() => undefined}
                     lockedSlotIds={new Set()}
                     lockedPlayerIds={new Set()}
+                    fixedFormat={isTriLevel}
                   />
                 ))}
               </div>
@@ -3243,6 +3402,7 @@ function SlotEditor({
   toggleLockedPlayer,
   lockedSlotIds,
   lockedPlayerIds,
+  fixedFormat,
 }: {
   side: 'team' | 'opponent'
   slot: LineupSlot
@@ -3255,17 +3415,26 @@ function SlotEditor({
   toggleLockedPlayer: (playerId: string) => void
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
+  fixedFormat: boolean
 }) {
+  const selectablePlayerPool = playerPool.filter((player) =>
+    isPlayerEligibleForSlot(player, slot) || slot.players.some((selected) => selected.playerId === player.id)
+  )
+
   return (
     <div style={slotCardStyle}>
       <div style={slotHeaderStyle}>
         <div style={slotHeaderLeftStyle}>
-          <input
-            aria-label={`${side} slot label`}
-            value={slot.label}
-            onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
-            style={slotLabelInputStyle}
-          />
+          {fixedFormat ? (
+            <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
+          ) : (
+            <input
+              aria-label={`${side} slot label`}
+              value={slot.label}
+              onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
+              style={slotLabelInputStyle}
+            />
+          )}
           <span style={miniPillSlateStyle}>{slot.slotType}</span>
           {side === 'team' ? (
             <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
@@ -3274,7 +3443,7 @@ function SlotEditor({
           ) : null}
         </div>
 
-        <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn>
+        {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
       </div>
 
       <div style={slotPlayersGridStyle}>
@@ -3287,7 +3456,7 @@ function SlotEditor({
                 style={inputStyle}
             >
               <option value="">Select player</option>
-              {playerPool.map((poolPlayer) => {
+              {selectablePlayerPool.map((poolPlayer) => {
                 const disabled =
                   poolPlayer.id !== player.playerId &&
                   assignedPlayerIds.has(poolPlayer.id) &&
@@ -3295,7 +3464,7 @@ function SlotEditor({
 
                 return (
                   <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                    {poolPlayer.name} - OVR {formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}
+                    {poolPlayer.name} - {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
                   </option>
                 )
               })}
@@ -3794,6 +3963,29 @@ const slotLabelInputStyle: CSSProperties = {
   outline: 'none',
 }
 
+const fixedSlotLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const triLevelFormatStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  marginBottom: 14,
+  padding: '13px 15px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
@@ -3923,6 +4115,39 @@ const decisionBoardActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
+}
+
+const optimizerActionHelpStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const appliedLineupNoticeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: '15px 17px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const appliedLineupNoticeFooterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  color: 'var(--shell-copy-muted)',
   minWidth: 0,
 }
 

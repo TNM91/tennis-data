@@ -129,4 +129,17 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('rosterRecoveryActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 210px), 1fr))")
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
   })
+
+  it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
+    expect(source).toContain('Nothing is saved or sent until you choose Save lineup.')
+    expect(source).toContain('role="status" aria-live="polite"')
+    expect(source).toContain('Review the courts below. Nothing has been saved or sent.')
+    expect(source).toContain('Tri-Level · 3 doubles courts')
+    expect(source).toContain('isPlayerEligibleForSlot(player, slot)')
+    expect(source).toContain('fixedFormat={isTriLevel}')
+    expect(source).toContain('<section id="captain-lineup-courts" style={surfaceCardStrong}>')
+    expect(source.indexOf('id="captain-lineup-courts"')).toBeLessThan(source.indexOf('<p style={sectionKicker}>Your lineup</p>'))
+    expect(styleBlock('appliedLineupNoticeStyle')).toContain('minWidth: 0')
+    expect(styleBlock('triLevelFormatStyle')).toContain('minWidth: 0')
+  })
 })
