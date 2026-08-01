@@ -1098,6 +1098,17 @@ function LineupBuilderContent() {
   }, [activeLineupFormatKey, flight, isTriLevel, leagueName, lineupFormatKey, triLevelRatings])
 
   useEffect(() => {
+    if (!appliedLineupNotice) return
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-lineup-applied-next')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+  }, [appliedLineupNotice])
+
+  useEffect(() => {
     if (!authResolved || role !== 'public') return
     router.replace('/login?plan=captain&next=%2Fcaptain%2Flineup-builder')
   }, [authResolved, role, router])
@@ -2347,9 +2358,6 @@ function LineupBuilderContent() {
     setError(incompleteCourts.length
       ? `Best lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
       : '')
-    window.requestAnimationFrame(() => {
-      document.getElementById('captain-lineup-courts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
   }
 
   function applyRecommendedTeamLineup() {
@@ -2623,7 +2631,7 @@ function LineupBuilderContent() {
           </div>
 
           {appliedLineupNotice ? (
-            <div role="status" aria-live="polite" style={appliedLineupNoticeStyle}>
+            <div id="captain-lineup-applied-next" role="status" aria-live="polite" style={appliedLineupNoticeStyle}>
               <div>
                 <strong>{appliedLineupNotice.title} applied.</strong>{' '}
                 {appliedLineupNotice.changedCourts
@@ -2632,8 +2640,16 @@ function LineupBuilderContent() {
                 {appliedLineupNotice.filledCourts} of {appliedLineupNotice.totalCourts} courts are complete.
               </div>
               <div style={appliedLineupNoticeFooterStyle}>
-                <span>Review the courts below. Nothing has been saved or sent.</span>
-                <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
+                <div style={appliedLineupNextCopyStyle}>
+                  <strong>Next: confirm availability</strong>
+                  <span>Prepare a message for each player in this potential lineup.</span>
+                </div>
+                <div style={appliedLineupActionStyle}>
+                  <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                    {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+                  </PrimaryBtn>
+                  <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
+                </div>
               </div>
             </div>
           ) : null}
@@ -4239,11 +4255,24 @@ const appliedLineupNoticeStyle: CSSProperties = {
 
 const appliedLineupNoticeFooterStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-end',
   justifyContent: 'space-between',
   flexWrap: 'wrap',
   gap: 10,
   color: 'var(--shell-copy-muted)',
+  minWidth: 0,
+}
+
+const appliedLineupNextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+}
+
+const appliedLineupActionStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
   minWidth: 0,
 }
 
