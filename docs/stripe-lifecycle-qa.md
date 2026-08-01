@@ -12,6 +12,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 - Invited-captain offer: set `STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID` to a $5 USD Stripe coupon configured with duration `once`, and set `CAPTAIN_TEAM_INVITE_OFFER_LABEL` to `First month $4.99, then $9.99/month`.
 - Invited-player Improve offer: set `STRIPE_PLAYER_TEAM_INVITE_COUPON_ID` to a $2.50 USD Stripe coupon configured with duration `once`, and set `PLAYER_TEAM_INVITE_OFFER_LABEL` to `First month $2.49, then $4.99/month`.
 - Both offers require a matching team role accepted within the last 14 days, no active included access, and no prior handled Stripe subscription event for that plan or a plan that included it. Coupon IDs and eligibility stay server-only.
+- Provision or verify the exact live coupons with `npm run setup:stripe-team-invite-offers` after loading the production Stripe secret into the process environment.
 
 ## Live-mode go-live gate
 

@@ -135,6 +135,19 @@ describe('stripe checkout helpers', () => {
     expect(params.get('allow_promotion_codes')).toBeNull()
   })
 
+  it('keeps invitation coupon provisioning exact and repeatable', () => {
+    const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
+    const setupScript = readFileSync(join(process.cwd(), 'scripts/stripe-team-invite-coupons.mjs'), 'utf8')
+
+    expect(packageJson).toContain('"setup:stripe-team-invite-offers"')
+    expect(setupScript).toContain("id: 'tiq_captain_team_invite_first_month_2026'")
+    expect(setupScript).toContain('amountOff: 500')
+    expect(setupScript).toContain("id: 'tiq_player_team_invite_first_month_2026'")
+    expect(setupScript).toContain('amountOff: 250')
+    expect(setupScript).toContain("duration: 'once'")
+    expect(setupScript).not.toContain('console.log(secretKey)')
+  })
+
   it('applies the Improve invitation coupon to Player checkout', () => {
     const params = buildStripeCheckoutSessionParams({
       planId: 'player_plus',
