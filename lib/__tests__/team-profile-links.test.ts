@@ -3,6 +3,7 @@ import {
   buildTeamConnectionKey,
   buildTeamConnections,
   getTeamConnectionRoleLabel,
+  getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
   normalizeTeamConnectionRole,
 } from '../team-profile-links'
@@ -31,6 +32,7 @@ describe('team profile links', () => {
     expect(result.pending[0]).toMatchObject({
       id: 'roster_contact:contact-1',
       role: 'co_captain',
+      roles: ['player', 'co_captain'],
       teamName: 'Net Results',
     })
   })
@@ -79,12 +81,63 @@ describe('team profile links', () => {
       }],
     })
 
-    expect(result.pending[0]).toMatchObject({ role: 'captain', id: 'roster_contact:contact-2' })
+    expect(result.pending[0]).toMatchObject({
+      role: 'captain',
+      roles: ['player', 'captain'],
+      id: 'roster_contact:contact-2',
+      isRoleUpdate: true,
+    })
+  })
+
+  it('keeps player and co-captain roles linked together', () => {
+    const result = buildTeamConnections({
+      savedLinks: [{
+        id: 'link-multi-role',
+        team_name: 'Net Results',
+        league_name: 'Tri-Level',
+        flight: '3.5 / 4.0 / 4.5',
+        team_role: 'co_captain',
+        team_roles: ['player', 'co_captain'],
+        status: 'accepted',
+      }],
+    })
+
+    expect(result.connections[0]).toMatchObject({
+      role: 'co_captain',
+      roles: ['player', 'co_captain'],
+    })
+    expect(getTeamConnectionRolesLabel(result.connections[0].roles)).toBe('player + co-captain')
+  })
+
+  it('does not resurface a role update the member declined', () => {
+    const result = buildTeamConnections({
+      contacts: [{
+        id: 'contact-declined-role',
+        team_name: 'Net Results',
+        league_name: 'Tri-Level',
+        flight: '3.5 / 4.0 / 4.5',
+        role: 'Co-Captain',
+      }],
+      savedLinks: [{
+        id: 'link-player',
+        team_name: 'Net Results',
+        league_name: 'Tri-Level',
+        flight: '3.5 / 4.0 / 4.5',
+        team_role: 'player',
+        team_roles: ['player'],
+        declined_roles: ['co_captain'],
+        status: 'accepted',
+      }],
+    })
+
+    expect(result.pending).toEqual([])
+    expect(result.connections[0].roles).toEqual(['player'])
   })
 
   it('normalizes team roles and stable scope keys', () => {
     expect(normalizeTeamConnectionRole('Co-Captain')).toBe('co_captain')
     expect(getTeamConnectionRoleLabel('co_captain')).toBe('co-captain')
+    expect(getTeamConnectionRolesLabel(['player', 'co_captain'])).toBe('player + co-captain')
     expect(isCaptainTeamConnection('co_captain')).toBe(true)
     expect(buildTeamConnectionKey({
       teamName: ' Net Results ',

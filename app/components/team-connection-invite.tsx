@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import {
-  getTeamConnectionRoleLabel,
+  getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
   type TeamConnection,
 } from '@/lib/team-profile-links'
@@ -81,8 +81,8 @@ export default function TeamConnectionInvite() {
   }
 
   const activeConnection = accepted || invitation
-  const roleLabel = getTeamConnectionRoleLabel(activeConnection.role)
-  const isCaptainConnection = isCaptainTeamConnection(activeConnection.role)
+  const roleLabel = getTeamConnectionRolesLabel(activeConnection.roles)
+  const isCaptainConnection = isCaptainTeamConnection(activeConnection.roles)
   const tierHref = isCaptainConnection
     ? '/upgrade?plan=captain&next=%2Fcaptain&source=team_connection'
     : '/upgrade?plan=player_plus&next=%2Fmylab&source=team_connection'
@@ -101,18 +101,22 @@ export default function TeamConnectionInvite() {
     <section style={bannerWrapStyle} aria-label={accepted ? 'Team connected' : 'Team connection invitation'}>
       <div style={bannerStyle} className="team-connection-invite-banner">
         <div style={copyStyle}>
-          <span style={eyebrowStyle}>{accepted ? 'Team connected' : 'Team invitation'}</span>
+          <span style={eyebrowStyle}>{accepted ? 'Team connected' : activeConnection.isRoleUpdate ? 'Team role update' : 'Team invitation'}</span>
           <strong style={titleStyle}>
             {accepted
               ? `${activeConnection.teamName} is linked to your profile.`
-              : `You were added to ${activeConnection.teamName} as ${roleLabel}.`}
+              : activeConnection.isRoleUpdate
+                ? `We found another role for you on ${activeConnection.teamName}.`
+                : `You were added to ${activeConnection.teamName} as ${roleLabel}.`}
           </strong>
           <span style={bodyStyle}>
             {accepted
               ? hasRecommendedAccess
                 ? `Your ${roleLabel} tools now open with this team context.`
                 : `The team link is free. Unlock the ${isCaptainConnection ? 'Captain' : 'Player'} tools when you want the connected workflow.`
-              : `${formatTeamContext(activeConnection)} Link this team to your profile? You can unlink it later.`}
+              : activeConnection.isRoleUpdate
+                ? `${formatTeamContext(activeConnection)} Link your roles as ${roleLabel}? Your existing team link stays in place.`
+                : `${formatTeamContext(activeConnection)} Link this team to your profile? You can unlink it later.`}
           </span>
           {message ? <span style={errorStyle}>{message}</span> : null}
         </div>
@@ -129,10 +133,10 @@ export default function TeamConnectionInvite() {
           ) : (
             <>
               <button type="button" onClick={() => void act('accept')} disabled={loadingAction} style={primaryButtonStyle}>
-                {loadingAction ? 'Linking' : 'Link team'}
+                {loadingAction ? 'Linking' : activeConnection.isRoleUpdate ? 'Link both roles' : 'Link team'}
               </button>
               <button type="button" onClick={() => void act('decline')} disabled={loadingAction} style={secondaryButtonStyle}>
-                Not mine
+                {activeConnection.isRoleUpdate ? 'Not this role' : 'Not mine'}
               </button>
               <Link href="/team-connections" style={textLinkStyle}>Review all</Link>
             </>

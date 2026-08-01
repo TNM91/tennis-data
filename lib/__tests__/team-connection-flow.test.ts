@@ -10,6 +10,9 @@ describe('team connection flow', () => {
     expect(route).toContain(".eq('email', email)")
     expect(route).toContain(".from('team_roster_members')")
     expect(route).toContain(".eq('player_id', linkedPlayerId)")
+    expect(route).toContain(".in('normalized_name', rosterNames)")
+    expect(route).toContain('mergeTeamConnectionRoles')
+    expect(route).toContain('contactMatchesLinkedPlayer')
     expect(route).toContain("action === 'accept' ? 'accepted' : 'declined'")
     expect(route).toContain('clearProfileTeamIfMatching')
   })
@@ -24,6 +27,7 @@ describe('team connection flow', () => {
     expect(banner).toContain('Link this team to your profile? You can unlink it later.')
     expect(page).toContain("act(connection, 'unlink')")
     expect(page).toContain("act(connection, 'relink')")
+    expect(page).toContain("act(connection, 'restore_roles')")
   })
 
   it('protects stored team links with profile-scoped policies', () => {
@@ -35,6 +39,14 @@ describe('team connection flow', () => {
     expect(migration).toContain('profile_user_id = auth.uid()')
     expect(migration).toContain("team_role in ('player', 'captain', 'co_captain')")
     expect(migration).toContain("status in ('accepted', 'declined', 'unlinked')")
+
+    const multiRoleMigration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260801000700_add_team_profile_link_roles.sql'),
+      'utf8',
+    )
+    expect(multiRoleMigration).toContain('team_roles text[]')
+    expect(multiRoleMigration).toContain('declined_roles text[]')
+    expect(multiRoleMigration).toContain('role_accepted_at jsonb')
   })
 
   it('limits team invitation coupons to recent accepted roles without prior access', () => {
@@ -45,7 +57,7 @@ describe('team connection flow', () => {
     expect(offers).toContain('STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID')
     expect(offers).toContain('STRIPE_PLAYER_TEAM_INVITE_COUPON_ID')
     expect(offers).toContain(".eq('status', 'accepted')")
-    expect(offers).toContain(".gte('accepted_at', acceptedSince)")
+    expect(offers).toContain('link.role_accepted_at?.[role]')
     expect(offers).toContain(".eq('outcome', 'handled')")
     expect(offers).toContain('getTeamInviteOfferAcceptedSince()')
   })
@@ -58,5 +70,16 @@ describe('team connection flow', () => {
     expect(page).toContain('acceptedPlayerLinks')
     expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
+  })
+
+  it('shows a clear multi-role update instead of replacing the player link', () => {
+    const banner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
+
+    expect(banner).toContain('Team role update')
+    expect(banner).toContain('Link both roles')
+    expect(banner).toContain('Your existing team link stays in place.')
+    expect(route).toContain("existing?.status === 'accepted'")
+    expect(route).toContain('declined_roles: declinedRoles')
   })
 })

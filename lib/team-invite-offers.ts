@@ -62,11 +62,9 @@ export async function getTeamInviteOfferEligibility(
       .maybeSingle(),
     supabase
       .from('team_profile_links')
-      .select('id', { count: 'exact', head: true })
+      .select('team_role,team_roles,role_accepted_at,accepted_at')
       .eq('profile_user_id', userId)
-      .eq('status', 'accepted')
-      .in('team_role', [...config.roles])
-      .gte('accepted_at', acceptedSince),
+      .eq('status', 'accepted'),
     supabase
       .from('stripe_billing_events')
       .select('id', { count: 'exact', head: true })
@@ -83,7 +81,18 @@ export async function getTeamInviteOfferEligibility(
   const hasActiveAccess =
     config.activeFields.some((field) => entitlement[field] === true) ||
     config.statusFields.some((field) => entitlement[field] === 'active' || entitlement[field] === 'trial')
-  const hasRecentAcceptedLink = Boolean(linkResult.count)
+  const acceptedSinceMs = Date.parse(acceptedSince)
+  const hasRecentAcceptedLink = ((linkResult.data || []) as Array<{
+    team_role?: string | null
+    team_roles?: string[] | null
+    role_accepted_at?: Record<string, unknown> | null
+    accepted_at?: string | null
+  }>).some((link) => config.roles.some((role) => {
+    const roles = link.team_roles?.length ? link.team_roles : [link.team_role || 'player']
+    if (!roles.includes(role)) return false
+    const acceptedAt = link.role_accepted_at?.[role] || (link.team_role === role ? link.accepted_at : null)
+    return typeof acceptedAt === 'string' && Date.parse(acceptedAt) >= acceptedSinceMs
+  }))
   const hasPriorSubscription = Boolean(billingResult.count)
   return resolveTeamInviteOffer({
     couponId,
