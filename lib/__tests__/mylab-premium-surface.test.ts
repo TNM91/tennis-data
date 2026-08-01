@@ -21,7 +21,7 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('Recent record')
     expect(source).toContain('Matchup read')
     expect(source).toContain('Upload scores')
-    expect(source).toContain('Use a scorecard or team summary to replace the starter rating with verified match context.')
+    expect(source).toContain('Use a scorecard or Player Roster to replace the starter rating with verified match context.')
     expect(source).toContain('Start your TIQ signal with a scorecard, a local league match, a TIQ league, or a close player to test.')
     expect(source).toContain('Open Data Assist')
     expect(source).toContain("headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}")

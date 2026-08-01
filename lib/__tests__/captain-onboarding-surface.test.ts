@@ -32,7 +32,7 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Captain Player ID starter')
     expect(source).toContain('Captain Player ID starter read')
     expect(source).toContain('captainPlayerIdStarterRead.map((item)')
-    expect(source).toContain('Upload a reviewed team summary or schedule through Data Assist')
+    expect(source).toContain('Upload a reviewed Player Roster or schedule through Data Assist')
     expect(source).toContain('Refresh Captain after the upload review connects teams, schedules, and scorecards.')
     expect(source).toContain('Need a team to manage here?')
     expect(source).toContain('Connect a profile team or upload reviewed roster and schedule data')

@@ -11,7 +11,7 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain("actions.push({ label: 'Continue Captain setup', href: '/captain' })")
   })
 
-  it('opens Team Summary help and returns a completed roster import to Build Lineup', () => {
+  it('opens Player Roster help and returns a completed roster import to Build Lineup', () => {
     expect(source).toContain("const requestedImportType = getRequestedImportType(searchParams.get('type'))")
     expect(source).toContain("const exportHelpRequested = searchParams.get('help') === '1'")
     expect(source).toContain("const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))")

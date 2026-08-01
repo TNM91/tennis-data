@@ -1608,7 +1608,7 @@ function LineupBuilderContent() {
     setManualRosterText('')
     setManualRosterOpen(false)
     setError('')
-    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Team Summary later to connect official ratings and availability.`)
+    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Player Roster later to connect ratings and contact details.`)
   }
 
   function setSlotPlayer(
@@ -2510,14 +2510,14 @@ function LineupBuilderContent() {
                 <p style={sectionKicker}>Roster needed</p>
                 <h2 id="lineup-roster-setup-title" style={sectionTitleSmall}>Add your players to build this lineup.</h2>
                 <p style={sectionBodyTextStyle}>
-                  Upload the official Team Summary, or enter player names now and connect ratings later.
+                  Upload the Player Roster, or enter player names now and connect ratings later.
                 </p>
               </div>
               <span style={miniPillWarnStyle}>Setup required</span>
             </div>
 
             <div style={rosterRecoveryActionGridStyle}>
-              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Team Summary</Link>
+              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Player Roster</Link>
               <button
                 type="button"
                 onClick={() => setManualRosterOpen((current) => !current)}
@@ -2541,19 +2541,19 @@ function LineupBuilderContent() {
                   style={manualRosterTextareaStyle}
                 />
                 <p style={subtleHelperTextStyle}>
-                  Enter one player per line. These names save with this lineup; upload the Team Summary later to connect official ratings and availability.
+                  Enter one player per line. These names save with this lineup; upload the Player Roster later to connect ratings and contact details.
                 </p>
                 <PrimaryBtn onClick={addManualRosterPlayers}>Add players to lineup</PrimaryBtn>
               </div>
             ) : null}
 
             <details style={rosterExportHelpStyle}>
-              <summary style={rosterExportSummaryStyle}>How to export the Team Summary from TennisLink</summary>
+              <summary style={rosterExportSummaryStyle}>How to export the Player Roster from TennisLink</summary>
               <ol style={rosterExportStepsStyle}>
                 <li>Sign in to USTA TennisLink and open your league team.</li>
-                <li>Open <strong>Team Summary</strong>.</li>
-                <li>Choose <strong>Send To Excel</strong> and save the TeamSummary .xls file.</li>
-                <li>Return here and choose <strong>Upload Team Summary</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
+                <li>Open <strong>Player Roster</strong>.</li>
+                <li>Choose <strong>Send To Excel</strong> and save the PlayerRoster .xls file.</li>
+                <li>Return here and choose <strong>Upload Player Roster</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
               </ol>
             </details>
           </section>

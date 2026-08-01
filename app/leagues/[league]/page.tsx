@@ -801,7 +801,7 @@ export default function LeagueDetailPage() {
               <section>
                 <div style={dynamicSectionHead}>
                   <div>
-                    <div style={sectionKicker}>Team Summary</div>
+                    <div style={sectionKicker}>Team overview</div>
                     <h2 style={sectionTitle}>Teams</h2>
                     <div style={sectionSub}>
                       Standings-style season snapshot for each team in this league.
