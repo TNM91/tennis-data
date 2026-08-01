@@ -174,6 +174,13 @@ type CaptainTiqTeamEntryScopeRow = {
   entry_status: string | null
 }
 
+type CaptainTeamProfileLinkScopeRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  status: string | null
+}
+
 type CaptainWorkspaceState = {
   lineupReady: boolean
   scenarioReady: boolean
@@ -1682,7 +1689,13 @@ function CaptainHubContent() {
         source: 'profile',
       })
 
-      const [rosterResult, tiqEntryResult] = await Promise.all([
+      const [connectionResult, rosterResult, tiqEntryResult] = await Promise.all([
+        supabase
+          .from('team_profile_links')
+          .select('team_name, league_name, flight, status')
+          .eq('profile_user_id', nextUserId)
+          .eq('status', 'accepted')
+          .limit(200),
         profile?.linked_player_id
           ? supabase
               .from('team_roster_members')
@@ -1697,6 +1710,15 @@ function CaptainHubContent() {
           .eq('entry_status', 'active')
           .limit(200),
       ])
+
+      for (const row of (connectionResult.data || []) as CaptainTeamProfileLinkScopeRow[]) {
+        addCaptainTeamScope(scopes, {
+          team: row.team_name,
+          league: row.league_name,
+          flight: row.flight,
+          source: 'connection',
+        })
+      }
 
       for (const row of (rosterResult.data || []) as CaptainRosterScopeRow[]) {
         addCaptainTeamScope(scopes, {

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
 import PortalToolBar from '@/app/components/portal-tool-bar'
+import TeamConnectionInvite from '@/app/components/team-connection-invite'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 
@@ -111,6 +112,7 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
           onCompactMenuOpenChange={setCompactSiteMenuOpen}
         />
         {showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
+        <TeamConnectionInvite />
         <div id="main-content" className="page-reveal">{children}</div>
         <SiteFooter railLayout={false} railWidth={0} />
       </main>

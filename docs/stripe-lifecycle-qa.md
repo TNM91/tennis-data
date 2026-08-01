@@ -9,6 +9,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 - Keep the canonical production webhook endpoint as `https://www.tenaceiq.com/api/stripe/webhook`.
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
 - Keep all paid checkout price env vars configured anywhere checkout can run: `STRIPE_PLAYER_PRICE_ID`, `STRIPE_COACH_PRICE_ID`, `STRIPE_CAPTAIN_PRICE_ID`, `STRIPE_LEAGUE_PRICE_ID`, and `STRIPE_FULL_COURT_PRICE_ID`.
+- Optional invited-captain offer: set `STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID` to a Stripe coupon configured with duration `once`, and set `CAPTAIN_TEAM_INVITE_OFFER_LABEL` to the exact customer-facing offer (for example, `50% off your first month`). Checkout applies it only to a signed-in user with an accepted captain or co-captain team connection and no active Captain access.
 
 ## Live-mode go-live gate
 

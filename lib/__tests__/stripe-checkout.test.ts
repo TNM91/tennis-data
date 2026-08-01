@@ -119,4 +119,19 @@ describe('stripe checkout helpers', () => {
       'https://tenaceiq.test/upgrade?plan=coach&next=%2Fcoach&checkout=success&request=request-coach&session_id=%7BCHECKOUT_SESSION_ID%7D',
     )
   })
+
+  it('applies an eligible captain invitation coupon instead of a second promotion code', () => {
+    const params = buildStripeCheckoutSessionParams({
+      planId: 'captain',
+      priceId: 'price_captain',
+      requestId: 'request-invited-captain',
+      userId: 'invited-captain',
+      origin: 'https://tenaceiq.test',
+      nextHref: '/captain',
+      couponId: 'coupon_first_month',
+    })
+
+    expect(params.get('discounts[0][coupon]')).toBe('coupon_first_month')
+    expect(params.get('allow_promotion_codes')).toBeNull()
+  })
 })
