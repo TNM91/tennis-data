@@ -46,7 +46,8 @@ describe('suite panel navigation deduplication', () => {
 
     expect(captain).toContain('Team Hub actions')
     expect(captain).toContain('In-tool actions')
-    expect(captain).toContain('roster, schedule, and scorecard uploads can keep Team Hub current.')
+    expect(captain).toContain('aria-label="Improve this team"')
+    expect(captain).toContain('captainPrimaryTeamImprovement')
     expect(captain).not.toContain('Team workspace actions')
     expect(captain).not.toContain('In-workspace actions')
     expect(captain).not.toContain('keep this workspace current')

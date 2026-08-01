@@ -58,9 +58,26 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import {
+  CAPTAIN_ROSTER_CONTACTS_TABLE,
+  type CaptainRosterContactRow,
+} from '@/lib/captain-roster-contacts'
+import {
+  buildCaptainTeamImprovements,
+  type CaptainTeamImprovementId,
+} from '@/lib/captain-team-improvements'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
+const captainScheduleHref = `${dataAssistCaptainHref}&type=schedule&help=1#upload`
+const captainScorecardHref = `${dataAssistCaptainHref}&type=scorecard&help=1#upload`
+const captainTeamImprovementHrefs: Record<CaptainTeamImprovementId, string> = {
+  roster: captainPlayerRosterHref,
+  contacts: captainPlayerRosterHref,
+  schedule: captainScheduleHref,
+  ratings: captainPlayerRosterHref,
+  scorecard: captainScorecardHref,
+}
 const CAPTAIN_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const CAPTAIN_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(CAPTAIN_PLAYER_IDENTITY)
 const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}#level-up-flow`
@@ -1570,6 +1587,7 @@ function CaptainHubContent() {
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [participants, setParticipants] = useState<MatchPlayer[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMember[]>([])
+  const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
 
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingTeam, setLoadingTeam] = useState(false)
@@ -1812,6 +1830,7 @@ function CaptainHubContent() {
   const loadSelectedTeam = useCallback(async () => {
     setLoadingTeam(true)
     setError('')
+    setCaptainRosterContacts([])
 
     try {
       let query = supabase
@@ -1854,9 +1873,19 @@ function CaptainHubContent() {
       if (selectedLeague) scenarioQuery = scenarioQuery.eq('league_name', selectedLeague)
       if (selectedFlight) scenarioQuery = scenarioQuery.eq('flight', selectedFlight)
 
+      let rosterContactsQuery = supabase
+        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+        .select('*')
+        .eq('normalized_team_name', normalizeTeamName(selectedTeam))
+        .order('full_name', { ascending: true })
+
+      if (selectedLeague) rosterContactsQuery = rosterContactsQuery.eq('league_name', selectedLeague)
+      if (selectedFlight) rosterContactsQuery = rosterContactsQuery.eq('flight', selectedFlight)
+
       const [
         participantResult,
         rosterMemberResult,
+        rosterContactsResult,
         { data: scenarioData, error: scenarioError },
       ] = await Promise.all([
         matchIds.length
@@ -1903,6 +1932,7 @@ function CaptainHubContent() {
           `)
           .eq('normalized_team_name', normalizeTeamName(selectedTeam))
           .limit(500),
+        rosterContactsQuery,
         scenarioQuery,
       ])
 
@@ -1911,6 +1941,7 @@ function CaptainHubContent() {
 
       setParticipants((participantResult.data || []) as MatchPlayer[])
       setRosterMembers(rosterMemberResult.error ? [] : ((rosterMemberResult.data || []) as TeamRosterMember[]))
+      setCaptainRosterContacts(rosterContactsResult.error ? [] : ((rosterContactsResult.data || []) as CaptainRosterContactRow[]))
 
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
@@ -2557,6 +2588,11 @@ function CaptainHubContent() {
     gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : undefined,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicCaptainTeamImprovementPrimaryStyle: CSSProperties = {
+    ...captainTeamImprovementPrimaryStyle,
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainTeamImprovementPrimaryStyle.gridTemplateColumns,
   }
 
   const dynamicNextActionShell: CSSProperties = {
@@ -3708,15 +3744,63 @@ function CaptainHubContent() {
     readLocalArray<CaptainMessageContact>(CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY)
       .filter((contact) => safeText(contact.full_name) && contact.is_active !== false)
   ), [])
-  const captainSmsContactTargets = useMemo<CaptainSmsContactTarget[]>(() => (
-    captainMessageContactRows
+  const captainSmsContactTargets = useMemo<CaptainSmsContactTarget[]>(() => {
+    const localContacts = captainMessageContactRows
       .map((contact, index) => ({
         id: safeText(contact.id, `sms-contact-${index}`),
         name: safeText(contact.full_name),
         phone: normalizeCaptainSmsPhone(safeText(contact.phone)),
       }))
       .filter((contact) => contact.name && contact.phone)
-  ), [captainMessageContactRows])
+    const importedContacts = captainRosterContacts
+      .map((contact, index) => ({
+        id: safeText(contact.id, `roster-contact-${index}`),
+        name: safeText(contact.full_name),
+        phone: normalizeCaptainSmsPhone(safeText(contact.phone)),
+      }))
+      .filter((contact) => contact.name && contact.phone)
+    const byName = new Map<string, CaptainSmsContactTarget>()
+
+    importedContacts.forEach((contact) => byName.set(safeKey(contact.name), contact))
+    localContacts.forEach((contact) => byName.set(safeKey(contact.name), contact))
+    return Array.from(byName.values())
+  }, [captainMessageContactRows, captainRosterContacts])
+  const captainTeamPhoneNameKeys = useMemo(
+    () => new Set(captainSmsContactTargets.map((contact) => safeKey(contact.name)).filter(Boolean)),
+    [captainSmsContactTargets],
+  )
+  const captainMissingPhoneCount = useMemo(
+    () => roster.filter((player) => !captainTeamPhoneNameKeys.has(safeKey(player.name))).length,
+    [captainTeamPhoneNameKeys, roster],
+  )
+  const captainMissingRatingCount = useMemo(
+    () => roster.filter((player) => (
+      player.overallBase === null
+      && player.overallUstaDynamic === null
+      && player.singlesDynamic === null
+      && player.doublesDynamic === null
+    )).length,
+    [roster],
+  )
+  const captainRosterAppearanceCount = useMemo(
+    () => roster.reduce((total, player) => total + player.appearances, 0),
+    [roster],
+  )
+  const captainTeamImprovements = useMemo(() => buildCaptainTeamImprovements({
+    rosterCount: roster.length,
+    missingPhoneCount: captainMissingPhoneCount,
+    missingRatingCount: captainMissingRatingCount,
+    scheduleCount: matches.length,
+    appearanceCount: captainRosterAppearanceCount,
+  }), [
+    captainMissingPhoneCount,
+    captainMissingRatingCount,
+    captainRosterAppearanceCount,
+    matches.length,
+    roster.length,
+  ])
+  const captainPrimaryTeamImprovement = captainTeamImprovements[0] || null
+  const captainAdditionalTeamImprovements = captainTeamImprovements.slice(1)
   const captainSmsContactByNameKey = useMemo(() => {
     const contacts = new Map<string, CaptainSmsContactTarget>()
 
@@ -15882,6 +15966,51 @@ function CaptainHubContent() {
               </div>
             ) : null}
 
+            {!loadingTeam && captainPrimaryTeamImprovement ? (
+              <section style={captainTeamImprovementShellStyle} aria-label="Improve this team" aria-live="polite">
+                <div style={dynamicCaptainTeamImprovementPrimaryStyle}>
+                  <div style={captainTeamImprovementCopyStyle}>
+                    <div style={captainTeamImprovementHeaderStyle}>
+                      <span style={sectionKicker}>Improve this team</span>
+                      <span style={warnBadge}>{captainPrimaryTeamImprovement.state}</span>
+                    </div>
+                    <h2 style={captainTeamImprovementTitleStyle}>{captainPrimaryTeamImprovement.title}</h2>
+                    <p style={captainTeamImprovementDetailStyle}>{captainPrimaryTeamImprovement.detail}</p>
+                  </div>
+                  <Link
+                    href={captainTeamImprovementHrefs[captainPrimaryTeamImprovement.id]}
+                    style={{ ...captainDataAssistLinkStyle, width: isMobile ? '100%' : 'auto' }}
+                  >
+                    {captainPrimaryTeamImprovement.cta}
+                  </Link>
+                </div>
+
+                {captainAdditionalTeamImprovements.length ? (
+                  <details style={captainTeamImprovementDetailsStyle}>
+                    <summary style={captainTeamImprovementSummaryStyle}>
+                      {captainAdditionalTeamImprovements.length} more improvement{captainAdditionalTeamImprovements.length === 1 ? '' : 's'}
+                    </summary>
+                    <div style={captainTeamImprovementListStyle}>
+                      {captainAdditionalTeamImprovements.map((improvement) => (
+                        <article key={improvement.id} style={captainTeamImprovementItemStyle}>
+                          <div style={captainTeamImprovementCopyStyle}>
+                            <div style={captainTeamImprovementItemHeaderStyle}>
+                              <strong>{improvement.title}</strong>
+                              <span>{improvement.state}</span>
+                            </div>
+                            <span style={captainTeamImprovementDetailStyle}>{improvement.detail}</span>
+                          </div>
+                          <Link href={captainTeamImprovementHrefs[improvement.id]} style={captainDataAssistLinkStyle}>
+                            {improvement.cta}
+                          </Link>
+                        </article>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </section>
+            ) : null}
+
             {!loadingOptions && !filteredTeamOptions.length ? (
               <div style={captainDataAssistCueStyle}>
                 <div style={captainPlayerIdStarterCopyStyle}>
@@ -15922,18 +16051,6 @@ function CaptainHubContent() {
                     {DATA_ASSIST_STORY.cta}
                   </Link>
                 </div>
-              </div>
-            ) : selectedFromCaptainScope ? (
-              <div style={captainDataAssistCueStyle}>
-                <div>
-                  <strong>Team scope is set.</strong>
-                  <span>
-                    Captain started from {selectedCaptainScopeSourceLabel}; roster, schedule, and scorecard uploads can keep Team Hub current.
-                  </span>
-                </div>
-                <Link href={dataAssistCaptainHref} style={captainDataAssistLinkStyle}>
-                  Refresh with Data Assist
-                </Link>
               </div>
             ) : null}
 
@@ -27640,6 +27757,103 @@ const captainScopeHelpRowStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
+}
+
+const captainTeamImprovementShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  maxWidth: 940,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, #f59e0b 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, #f59e0b 8%, var(--shell-chip-bg) 92%)',
+}
+
+const captainTeamImprovementPrimaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 14,
+  minWidth: 0,
+}
+
+const captainTeamImprovementCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainTeamImprovementHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  flexWrap: 'wrap',
+}
+
+const captainTeamImprovementTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const captainTeamImprovementDetailStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const captainTeamImprovementDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  borderTop: '1px solid color-mix(in srgb, #f59e0b 20%, var(--shell-panel-border) 80%)',
+  paddingTop: 10,
+}
+
+const captainTeamImprovementSummaryStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const captainTeamImprovementListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  paddingTop: 10,
+}
+
+const captainTeamImprovementItemStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  flexWrap: 'wrap',
+}
+
+const captainTeamImprovementItemHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.3,
+  flexWrap: 'wrap',
 }
 
 const captainDataAssistCueStyle: CSSProperties = {
