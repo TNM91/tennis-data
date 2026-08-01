@@ -62,8 +62,9 @@ export default function UpgradePrompt({
   const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
   const visibleUnlockSteps = resolvedUnlockSteps.slice(0, compact ? 2 : resolvedUnlockSteps.length)
   const showDetailedGuidance = !summaryOnly
+  const accessPending = isSignedIn && (!authResolved || entitlements === null)
 
-  if (alreadyHasPlan) return null
+  if (accessPending || alreadyHasPlan) return null
 
   async function startCheckout() {
     if (checkoutSubmitting || !session?.access_token || planId === 'free') return
