@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
@@ -31,7 +31,7 @@ import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
-import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
+import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -231,6 +231,7 @@ export default function DataAssistPage() {
 
 function DataAssistWorkspace() {
   const { userId, authResolved } = useAuth()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const intent = getDataAssistIntent(searchParams.get('intent'))
@@ -668,6 +669,10 @@ function DataAssistWorkspace() {
               ? ocrResult.autoImport.message || 'Team roster imported.'
               : 'Team summary read complete. Review the roster before import.'
           : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
+        if (returnTo && isTeamSummaryParsedDraft(ocrResult.parsedDraft) && ocrResult.autoImport?.ok) {
+          router.replace(returnTo)
+          return
+        }
         window.setTimeout(() => {
           document.getElementById('latest-data-assist-read')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 120)
@@ -702,7 +707,15 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      setLatestScan(null)
+      if (decision === 'confirmed' && result.autoImport?.ok && isTeamSummaryParsedDraft(latestScan.parsedDraft)) {
+        setLatestScan({ ...latestScan, autoImport: result.autoImport })
+        if (returnTo) {
+          router.replace(returnTo)
+          return
+        }
+      } else {
+        setLatestScan(null)
+      }
       setSummary(null)
       setSavedBatchId('')
       await refreshSubmissions()
@@ -729,6 +742,10 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. Contribution credit updated.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
+      if (decision === 'confirmed' && submission.requestedImportType === 'team_summary' && result.autoImport?.ok && returnTo) {
+        router.replace(returnTo)
+        return
+      }
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not review this Data Assist draft.')
@@ -754,6 +771,10 @@ function DataAssistWorkspace() {
         [submission.id]: result,
       }))
       setMessage(result.message)
+      if (action === 'commit' && submission.requestedImportType === 'team_summary' && result.ok && returnTo) {
+        router.replace(returnTo)
+        return
+      }
       if (action === 'commit') await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not run this Data Assist import.')
@@ -2913,7 +2934,7 @@ function isScorecardParsedDraft(value: unknown): value is DataAssistScorecardPar
 
 function isParsedDraftReady(value: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft) {
   if (isScheduleParsedDraft(value)) return value.matches.length > 0 && value.matches.every((match) => match.reviewNotes.length === 0)
-  if (isTeamSummaryParsedDraft(value)) return value.players.length > 0 && value.players.every((player) => player.name && player.ntrp !== null)
+  if (isTeamSummaryParsedDraft(value)) return isTeamSummaryDraftReadyForImport(value)
   return getBlockingScorecardReviewItems(value).length === 0
 }
 

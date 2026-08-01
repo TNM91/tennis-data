@@ -79,8 +79,14 @@ export function buildTeamSummaryOcrDraftFromText(
     extractFirst(rawText, /\bTeam:\s*([^\n]+)/i) ||
     extractFirst(rawText, /\b([A-Z][A-Za-z' /.-]+\/[A-Z][A-Za-z' /.-]+\s*\(S\))/),
   )
-  const leagueName = cleanText(extractFirst(rawText, /\b(20\d{2}\s+(?:Adult|Mixed|Combo|Tri-Level)[^\n]{0,80}?(?:Spring|Summer|Fall|Winter))\b/i))
-  const flight = cleanText(extractFirst(rawText, /\b((?:Men|Women|Mixed)\s*\d\.?[05])\b/i)).replace(/([a-z])\s*(\d)([05])$/i, '$1 $2.$3')
+  const leagueName = cleanText(
+    extractFirst(rawText, /^League:\s*([^\n]+)/im) ||
+    extractFirst(rawText, /\b(20\d{2}\s+(?:Adult|Mixed|Combo|Tri-Level)[^\n]{0,80}?(?:Spring|Summer|Fall|Winter))\b/i),
+  )
+  const flight = cleanText(
+    extractFirst(rawText, /^Flight:\s*([^\n]+)/im) ||
+    extractFirst(rawText, /\b((?:Men|Women|Mixed)\s*\d\.?[05])\b/i),
+  ).replace(/([a-z])\s*(\d)([05])$/i, '$1 $2.$3')
   const ustaSection = /missouri valley/i.test(normalizedText) ? 'USTA/MISSOURI VALLEY' : ''
   const districtArea = /st\.?\s*louis/i.test(normalizedText) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
   const teams = parseTeams(rawText)
@@ -119,6 +125,14 @@ export function buildTeamSummaryOcrDraftFromText(
     provider,
     confidenceScore,
   }
+}
+
+export function isTeamSummaryDraftReadyForImport(parsedDraft: DataAssistTeamSummaryParsedDraft) {
+  return Boolean(
+    parsedDraft.rosterTeamName.trim() &&
+    parsedDraft.players.length > 0 &&
+    parsedDraft.players.every((player) => player.name.trim() && player.ntrp !== null),
+  )
 }
 
 function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSummaryParsedPlayer[] {
@@ -240,6 +254,17 @@ function parseTeams(rawText: string): DataAssistTeamSummaryParsedTeam[] {
     .filter(Boolean)
 
   for (const line of lines) {
+    const structuredMatch = line.match(/^Team standing\s*\|\s*([^|]+?)\s*\|\s*(\d{1,2})\s*\|\s*(\d{1,2})\s*$/i)
+    if (structuredMatch) {
+      const name = cleanTeamName(structuredMatch[1])
+      const key = normalizeKey(name)
+      if (name && !seen.has(key) && !isJunkPlayerName(name)) {
+        seen.add(key)
+        teams.push({ name, wins: Number(structuredMatch[2]), losses: Number(structuredMatch[3]) })
+      }
+      continue
+    }
+
     const match = line.match(/\b([A-Z][A-Za-z' /.-]+?\(S\)|[A-Z][A-Za-z' /.-]+?)\s+(\d{1,2})\s+(\d{1,2})\b/)
     if (!match) continue
     const name = cleanTeamName(match[1])

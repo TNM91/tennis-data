@@ -174,6 +174,14 @@ export async function runDataAssistTeamSummaryImportAction(input: {
   action: DataAssistScorecardImportAction
   validationSummary?: Record<string, unknown> | null
 }): Promise<DataAssistTeamSummaryImportActionResult> {
+  if (!input.parsedDraft.rosterTeamName.trim()) {
+    return {
+      ok: false,
+      action: input.action,
+      message: 'Confirm the roster team before importing this Team Summary.',
+    }
+  }
+
   const payload = buildDataAssistTeamSummaryPayload(input.parsedDraft, input.batchId)
   const importResult = await runTeamSummaryImport(input.supabase, payload, input.action === 'preview' ? 'preview' : 'commit', {
     hasNormalizedPlayerNameColumn: true,

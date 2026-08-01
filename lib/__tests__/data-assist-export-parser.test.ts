@@ -85,6 +85,8 @@ describe('parseTennisLinkExportFiles', () => {
       <table>
         <tr><td>Section</td><td>District/Area</td><td>League</td><td>Flight</td></tr>
         <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS</td><td>2026 Adult 18 & Over Spring</td><td>Men 4.5</td></tr>
+        <tr><td>Captain</td><td>Co-Captain</td><td>League Date</td></tr>
+        <tr><td>Nathan Meinert 314-555-0100</td><td>David Cabrera 314-555-0101</td><td>01/01/2026 - 04/01/2026</td></tr>
         <tr><td>Team Name</td><td>Wins*</td><td>Losses</td></tr>
         <tr><td>Meinert/The Other Guys (S)</td><td>5</td><td>10</td></tr>
         <tr><td>Player Name</td><td>NTRP</td><td>Player Name</td><td>NTRP</td></tr>
@@ -96,8 +98,43 @@ describe('parseTennisLinkExportFiles', () => {
 
     expect(parsed.detectedImportType).toBe('team_summary')
     expect(draft.rosterTeamName).toBe('Meinert/The Other Guys (S)')
+    expect(draft.leagueName).toBe('2026 Adult 18 & Over Spring')
+    expect(draft.flight).toBe('Men 4.5')
+    expect(draft.teams).toEqual([{ name: 'Meinert/The Other Guys (S)', wins: 5, losses: 10 }])
     expect(draft.players.map((player) => player.name)).toContain('Nathan Meinert')
     expect(draft.players.map((player) => player.name)).toContain('Connor Zielonko')
+  })
+
+  it('links a Tri-Level Team Summary to the captain team named in standings', () => {
+    const html = `
+      <table>
+        <tr><td>Section</td><td>District/Area</td><td>League</td><td>Flight</td></tr>
+        <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS - St. Louis Local Leagues</td><td>2026 STL Tri-Level 18 &amp; Over</td><td>Men 3.5/4.0/4.5</td></tr>
+        <tr><td>Captain</td><td>Co-Captain</td><td>League Date</td></tr>
+        <tr><td>Joel Pottebaum 636-555-0100</td><td>Nathan Meinert 636-555-0101</td><td>08/03/2026 - 10/05/2026</td></tr>
+        <tr><td>Team Name</td><td>Wins*</td><td>Losses</td><td>Indiv. Wins</td></tr>
+        <tr><td>Hamilton</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>Gontarz</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>SuperSmash Bros/Pottebaum-Meinart</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>Suddarth</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>Players</td></tr>
+        <tr><td>Player Name</td><td>NTRP</td><td>Player Name</td><td>NTRP</td></tr>
+        <tr><td>Joel Pottebaum</td><td>4</td><td>Miles Yetter</td><td>3.5</td></tr>
+        <tr><td>Nathan Meinert</td><td>4.5</td><td>Sam Edwards</td><td>4</td></tr>
+      </table>
+    `
+    const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
+    const draft = buildTeamSummaryOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
+
+    expect(draft).toMatchObject({
+      rosterTeamName: 'SuperSmash Bros/Pottebaum-Meinart',
+      leagueName: '2026 STL Tri-Level 18 & Over',
+      flight: 'Men 3.5/4.0/4.5',
+      playerCount: 4,
+      teamCount: 4,
+    })
+    expect(draft.players.every((player) => player.teamName === 'SuperSmash Bros/Pottebaum-Meinart')).toBe(true)
+    expect(draft.parserWarnings).toEqual([])
   })
 
   it('flags mixed export types without guessing the import type', () => {

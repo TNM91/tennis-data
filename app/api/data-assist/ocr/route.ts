@@ -17,7 +17,7 @@ import {
   type DataAssistOcrScreenshotInput,
 } from '@/lib/data-assist-ocr'
 import { buildScheduleOcrDraftFromText } from '@/lib/data-assist-schedule-parser'
-import { buildTeamSummaryOcrDraftFromText } from '@/lib/data-assist-team-summary-parser'
+import { buildTeamSummaryOcrDraftFromText, isTeamSummaryDraftReadyForImport } from '@/lib/data-assist-team-summary-parser'
 import { isTennisLinkExportFile, parseTennisLinkExportFiles } from '@/lib/data-assist-export-parser'
 import {
   recognizeDataAssistScheduleScreenshotsWithTesseract,
@@ -429,7 +429,7 @@ export async function POST(request: Request) {
     if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
 
     let autoImport: DataAssistTeamSummaryImportActionResult | undefined
-    const teamSummaryReady = parsedDraft.players.length > 0 && parsedDraft.players.every((player) => player.name && player.ntrp !== null)
+    const teamSummaryReady = isTeamSummaryDraftReadyForImport(parsedDraft)
     if (teamSummaryReady) {
       try {
         autoImport = await runDataAssistTeamSummaryImportAction({

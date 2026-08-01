@@ -271,11 +271,17 @@ function buildRosterPlayerIdSet(
     ids.add(row.player_id)
   }
 
-  for (const row of rosterMembers) {
+  const teamRosterMembers = rosterMembers.filter((row) => (
+    Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
+  ))
+  const scopedRosterMembers = teamRosterMembers.filter((row) => {
+    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) return false
+    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) return false
+    return true
+  })
+
+  for (const row of scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers) {
     if (!row.player_id) continue
-    if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
-    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) continue
     ids.add(row.player_id)
   }
 

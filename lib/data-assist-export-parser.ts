@@ -74,6 +74,7 @@ function parseTennisLinkExportFile(file: ExportFileInput) {
     ...scorecardRows,
     ...buildStructuredScheduleMeta(rows),
     ...buildStructuredScheduleLines(rows),
+    ...buildStructuredTeamSummaryMeta(rows),
     ...buildStructuredRosterLines(rows),
   ]
 
@@ -136,6 +137,65 @@ function buildStructuredScheduleMeta(rows: HtmlRow[]) {
   const teamName = inferScheduleTeamName(scheduleRows)
   if (teamName) lines.push(`Team: ${teamName}`)
   return lines
+}
+
+function buildStructuredTeamSummaryMeta(rows: HtmlRow[]) {
+  const standingsHeaderIndex = rows.findIndex((cells) => (
+    cells.some((cell) => /^Team Name$/i.test(cell)) &&
+    cells.some((cell) => /^Wins\*?$/i.test(cell)) &&
+    cells.some((cell) => /^Losses$/i.test(cell))
+  ))
+  const hasRosterHeader = rows.some((cells) => (
+    cells.some((cell) => /^Player Name$/i.test(cell)) &&
+    cells.some((cell) => /^NTRP$/i.test(cell))
+  ))
+  if (standingsHeaderIndex < 0 || !hasRosterHeader) return []
+
+  const standings: Array<{ name: string; wins: string; losses: string }> = []
+  for (const cells of rows.slice(standingsHeaderIndex + 1)) {
+    const name = cells[0] || ''
+    const wins = cells[1] || ''
+    const losses = cells[2] || ''
+    if (!name || !/^\d+$/.test(wins) || !/^\d+$/.test(losses)) break
+    standings.push({ name, wins, losses })
+  }
+
+  const lines: string[] = []
+  const metadata = findScheduleMetadata(rows)
+  if (metadata.ustaSection) lines.push(`USTA Section: ${metadata.ustaSection}`)
+  if (metadata.districtArea) lines.push(`District/Area: ${metadata.districtArea}`)
+  if (metadata.leagueName) lines.push(`League: ${metadata.leagueName}`)
+  if (metadata.flight) lines.push(`Flight: ${metadata.flight}`)
+
+  const rosterTeamName = inferTeamSummaryRosterTeam(rows, standings.map((team) => team.name))
+  if (rosterTeamName) lines.push(`Team: ${rosterTeamName}`)
+  for (const team of standings) {
+    lines.push(['Team standing', team.name, team.wins, team.losses].join(' | '))
+  }
+  return lines
+}
+
+function inferTeamSummaryRosterTeam(rows: HtmlRow[], teamNames: string[]) {
+  if (teamNames.length === 1) return teamNames[0]
+
+  const captainHeaderIndex = rows.findIndex((cells) => (
+    cells.some((cell) => /^Captain$/i.test(cell)) || cells.some((cell) => /^Co-Captain$/i.test(cell))
+  ))
+  const captainValues = captainHeaderIndex >= 0 ? rows[captainHeaderIndex + 1] || [] : []
+  const captainSurnames = captainValues
+    .map((value) => value.match(/^([A-Za-z'. -]+?)(?=\s+\d|\s+[^\s@]+@|$)/)?.[1] || '')
+    .map((name) => name.trim().split(/\s+/).at(-1) || '')
+    .filter((name) => name.length >= 3)
+
+  const ranked = teamNames
+    .map((teamName) => ({
+      teamName,
+      score: captainSurnames.filter((surname) => new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i').test(teamName)).length,
+    }))
+    .sort((left, right) => right.score - left.score)
+
+  if (!ranked[0]?.score || ranked[0].score === ranked[1]?.score) return ''
+  return ranked[0].teamName
 }
 
 function findScheduleMetadata(rows: HtmlRow[]) {
@@ -277,4 +337,8 @@ function decodeHtmlEntities(value: string) {
 
 function uniqueText(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

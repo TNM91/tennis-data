@@ -132,7 +132,7 @@ describe('Data Assist trust engine', () => {
   })
 
   it('acknowledges review/report URL intents from public trust links', () => {
-    expect(source).toContain("import { useSearchParams } from 'next/navigation'")
+    expect(source).toContain("import { useRouter, useSearchParams } from 'next/navigation'")
     expect(source).toContain("type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'")
     expect(source).toContain('function getDataAssistIntent')
     expect(source).toContain('function getDataAssistContext')
