@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCaptainLineupSlots,
+  fitCaptainLineupSlotsToFormat,
   getCaptainLineupFormatKey,
   getTriLevelRatings,
   isPlayerEligibleForCaptainRating,
@@ -36,7 +37,28 @@ describe('captain lineup formats', () => {
 
   it('keeps non-Tri-Level leagues on the standard format', () => {
     expect(getTriLevelRatings('2026 Adult 18 & Over', 'Men 4.0')).toEqual([])
-    expect(buildCaptainLineupSlots('2026 Adult 18 & Over', 'Men 4.0', 'team')).toHaveLength(5)
+    const slots = buildCaptainLineupSlots('2026 Adult 18 & Over', 'Men 4.0', 'team')
+    expect(slots).toHaveLength(5)
+    expect(slots.map((slot) => slot.label)).toEqual([
+      'Singles 1',
+      'Singles 2',
+      'Doubles 1',
+      'Doubles 2',
+      'Doubles 3',
+    ])
+  })
+
+  it('converts a stale standard lineup back to three Tri-Level doubles courts', () => {
+    const standard = buildCaptainLineupSlots('2026 Adult 18 & Over', 'Men 4.0', 'team')
+    const fitted = fitCaptainLineupSlotsToFormat(
+      standard,
+      '2026 STL Tri-Level 18 & Over',
+      'Men 3.5/4.0/4.5',
+      'team'
+    )
+
+    expect(fitted.map((slot) => slot.label)).toEqual(['3.5 Doubles', '4.0 Doubles', '4.5 Doubles'])
+    expect(fitted.every((slot) => slot.slotType === 'doubles' && slot.players.length === 2)).toBe(true)
   })
 
   it('keeps a Tri-Level court limited to players at that USTA base level', () => {

@@ -64,10 +64,33 @@ export function buildCaptainLineupSlots(
   return [
     createSlot(`${prefix}s1`, 'Singles 1', 'singles'),
     createSlot(`${prefix}s2`, 'Singles 2', 'singles'),
-    createSlot(`${prefix}s3`, 'Singles 3', 'singles'),
     createSlot(`${prefix}d1`, 'Doubles 1', 'doubles'),
     createSlot(`${prefix}d2`, 'Doubles 2', 'doubles'),
+    createSlot(`${prefix}d3`, 'Doubles 3', 'doubles'),
   ]
+}
+
+export function fitCaptainLineupSlotsToFormat(
+  slots: CaptainLineupSlot[],
+  leagueName: string,
+  flight: string,
+  side: 'team' | 'opponent'
+) {
+  const expected = buildCaptainLineupSlots(leagueName, flight, side)
+  const ratings = getTriLevelRatings(leagueName, flight)
+  if (!ratings.length) return slots.length ? slots : expected
+
+  return expected.map((expectedSlot) => {
+    const matchingSlot = slots.find((slot) => {
+      if (slot.ratingLevel === expectedSlot.ratingLevel) return true
+      if (typeof expectedSlot.ratingLevel !== 'number') return false
+      return slot.label.includes(expectedSlot.ratingLevel.toFixed(1))
+    })
+
+    return matchingSlot
+      ? { ...expectedSlot, players: matchingSlot.players.map((player) => ({ ...player })) }
+      : expectedSlot
+  })
 }
 
 function createSlot(
