@@ -1,16 +1,14 @@
 import type { TeamConnection } from './team-profile-links'
+import type { TeamInviteOffer, TeamInviteOffers } from './team-invite-offers-core'
 
-export type CaptainTeamInviteOffer = {
-  available: boolean
-  label: string
-}
+export type { TeamInviteOffer, TeamInviteOffers }
 
 export type TeamConnectionsResponse = {
   ok?: boolean
   pending?: TeamConnection[]
   connections?: TeamConnection[]
   connection?: TeamConnection | null
-  captainOffer?: CaptainTeamInviteOffer
+  offers?: TeamInviteOffers
   message?: string
 }
 
@@ -24,7 +22,10 @@ export async function fetchTeamConnections(accessToken: string) {
   return {
     pending: json.pending || [],
     connections: json.connections || [],
-    captainOffer: json.captainOffer || { available: false, label: '' },
+    offers: json.offers || {
+      captain: { available: false, label: '' },
+      player: { available: false, label: '' },
+    },
   }
 }
 

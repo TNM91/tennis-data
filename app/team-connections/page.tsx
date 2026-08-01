@@ -13,7 +13,7 @@ import {
 import {
   fetchTeamConnections,
   updateTeamConnection,
-  type CaptainTeamInviteOffer,
+  type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
 
 export default function TeamConnectionsPage() {
@@ -28,7 +28,10 @@ function TeamConnectionsContent() {
   const { authResolved, entitlements, role, session, userId } = useAuth()
   const [pending, setPending] = useState<TeamConnection[]>([])
   const [connections, setConnections] = useState<TeamConnection[]>([])
-  const [offer, setOffer] = useState<CaptainTeamInviteOffer>({ available: false, label: '' })
+  const [offers, setOffers] = useState<TeamInviteOffers>({
+    captain: { available: false, label: '' },
+    player: { available: false, label: '' },
+  })
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
@@ -43,7 +46,7 @@ function TeamConnectionsContent() {
       const result = await fetchTeamConnections(accessToken)
       setPending(result.pending)
       setConnections(result.connections)
-      setOffer(result.captainOffer)
+      setOffers(result.offers)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Team connections could not be loaded.')
     } finally {
@@ -83,6 +86,9 @@ function TeamConnectionsContent() {
 
   const acceptedCaptainLinks = connections.filter(
     (connection) => connection.status === 'accepted' && isCaptainTeamConnection(connection.role),
+  )
+  const acceptedPlayerLinks = connections.filter(
+    (connection) => connection.status === 'accepted' && !isCaptainTeamConnection(connection.role),
   )
 
   return (
@@ -167,7 +173,19 @@ function TeamConnectionsContent() {
             <span style={copyStyle}>Manage availability, build projected lineups, confirm players, and send the match plan from one team context.</span>
           </div>
           <Link href="/upgrade?plan=captain&next=%2Fcaptain&source=team_connection" style={primaryLinkStyle}>
-            {offer.available && offer.label ? offer.label : 'Try Captain'}
+            {offers.captain.available && offers.captain.label ? offers.captain.label : 'Try Captain'}
+          </Link>
+        </section>
+      ) : null}
+      {!acceptedCaptainLinks.length && acceptedPlayerLinks.length > 0 && !access.canUseAdvancedPlayerInsights ? (
+        <section style={offerStyle} className="team-connections-offer" aria-label="Improve recommendation">
+          <div style={copyBlockStyle}>
+            <span style={eyebrowStyle}>Improve</span>
+            <strong style={panelTitleStyle}>Your team is linked. Make the player experience yours.</strong>
+            <span style={copyStyle}>Open My Lab, prepare for matchups, and keep your tennis context connected in one place.</span>
+          </div>
+          <Link href="/upgrade?plan=player_plus&next=%2Fmylab&source=team_connection" style={primaryLinkStyle}>
+            {offers.player.available && offers.player.label ? offers.player.label : 'Try Player'}
           </Link>
         </section>
       ) : null}

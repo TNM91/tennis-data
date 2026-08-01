@@ -13,7 +13,7 @@ import {
 import {
   fetchTeamConnections,
   updateTeamConnection,
-  type CaptainTeamInviteOffer,
+  type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
 
 const HIDDEN_ROUTE_PREFIXES = ['/login', '/join', '/forget-password', '/reset-password', '/upgrade', '/team-connections']
@@ -23,7 +23,10 @@ export default function TeamConnectionInvite() {
   const { authResolved, entitlements, role, session, userId } = useAuth()
   const [pending, setPending] = useState<TeamConnection[]>([])
   const [accepted, setAccepted] = useState<TeamConnection | null>(null)
-  const [offer, setOffer] = useState<CaptainTeamInviteOffer>({ available: false, label: '' })
+  const [offers, setOffers] = useState<TeamInviteOffers>({
+    captain: { available: false, label: '' },
+    player: { available: false, label: '' },
+  })
   const [loadingAction, setLoadingAction] = useState(false)
   const [message, setMessage] = useState('')
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
@@ -40,7 +43,7 @@ export default function TeamConnectionInvite() {
       .then((result) => {
         if (!active) return
         setPending(result.pending)
-        setOffer(result.captainOffer)
+        setOffers(result.offers)
       })
       .catch(() => {
         if (active) setPending([])
@@ -65,7 +68,11 @@ export default function TeamConnectionInvite() {
         action,
       })
       setPending((current) => current.filter((item) => item.id !== invitation.id))
-      if (action === 'accept' && connection) setAccepted(connection)
+      if (action === 'accept' && connection) {
+        setAccepted(connection)
+        const refreshed = await fetchTeamConnections(accessToken).catch(() => null)
+        if (refreshed) setOffers(refreshed.offers)
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Team connection could not be updated.')
     } finally {
@@ -83,10 +90,12 @@ export default function TeamConnectionInvite() {
   const openHref = isCaptainConnection ? '/captain' : '/mylab'
   const openLabel = isCaptainConnection ? 'Open Captain' : 'Open My Lab'
   const tierLabel = isCaptainConnection
-    ? offer.available && offer.label
-      ? offer.label
+    ? offers.captain.available && offers.captain.label
+      ? offers.captain.label
       : 'Try Captain'
-    : 'Try Player'
+    : offers.player.available && offers.player.label
+      ? offers.player.label
+      : 'Try Player'
 
   return (
     <section style={bannerWrapStyle} aria-label={accepted ? 'Team connected' : 'Team connection invitation'}>

@@ -10,6 +10,7 @@ import {
   type TeamConnectionRosterRow,
   type TeamProfileLinkRow,
 } from '@/lib/team-profile-links'
+import { getPublicTeamInviteOffers } from '@/lib/team-invite-offers'
 
 export const runtime = 'nodejs'
 
@@ -35,14 +36,17 @@ export async function GET(request: Request) {
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
 
-  const result = await loadTeamConnections(auth.service, auth.userId, auth.email)
+  const [result, offers] = await Promise.all([
+    loadTeamConnections(auth.service, auth.userId, auth.email),
+    getPublicTeamInviteOffers(auth.service, auth.userId),
+  ])
   if (!result.ok) return Response.json({ ok: false, message: result.message }, { status: 500 })
 
   return Response.json({
     ok: true,
     pending: result.pending,
     connections: result.connections,
-    captainOffer: getCaptainInviteOffer(),
+    offers,
   })
 }
 
@@ -381,16 +385,6 @@ async function getTeamConnectionAuth(request: Request) {
     service,
     userId: data.user.id,
     email: cleanText(data.user.email).toLowerCase(),
-  }
-}
-
-function getCaptainInviteOffer() {
-  const couponConfigured = Boolean(process.env.STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID?.trim())
-  return {
-    available: couponConfigured,
-    label: couponConfigured
-      ? cleanText(process.env.CAPTAIN_TEAM_INVITE_OFFER_LABEL) || 'Captain invitation offer'
-      : '',
   }
 }
 

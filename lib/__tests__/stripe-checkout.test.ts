@@ -120,7 +120,7 @@ describe('stripe checkout helpers', () => {
     )
   })
 
-  it('applies an eligible captain invitation coupon instead of a second promotion code', () => {
+  it('applies an eligible team invitation coupon instead of a second promotion code', () => {
     const params = buildStripeCheckoutSessionParams({
       planId: 'captain',
       priceId: 'price_captain',
@@ -132,6 +132,21 @@ describe('stripe checkout helpers', () => {
     })
 
     expect(params.get('discounts[0][coupon]')).toBe('coupon_first_month')
+    expect(params.get('allow_promotion_codes')).toBeNull()
+  })
+
+  it('applies the Improve invitation coupon to Player checkout', () => {
+    const params = buildStripeCheckoutSessionParams({
+      planId: 'player_plus',
+      priceId: 'price_player',
+      requestId: 'request-invited-player',
+      userId: 'invited-player',
+      origin: 'https://tenaceiq.test',
+      nextHref: '/mylab',
+      couponId: 'coupon_player_first_month',
+    })
+
+    expect(params.get('discounts[0][coupon]')).toBe('coupon_player_first_month')
     expect(params.get('allow_promotion_codes')).toBeNull()
   })
 })

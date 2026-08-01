@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
@@ -7,6 +7,7 @@ import {
   getStripePriceId,
   type PaidPricingPlanId,
 } from '@/lib/stripe-checkout'
+import { getTeamInviteOfferEligibility } from '@/lib/team-invite-offers'
 
 export const runtime = 'nodejs'
 
@@ -104,11 +105,9 @@ export async function POST(request: Request) {
     cleanString(body.nextHref) || checkoutTarget.nextHref,
     checkoutTarget.nextHref || '/pricing',
   )
-  const couponId = await getEligibleCaptainTeamInviteCouponId(
-    supabase,
-    checkoutTarget.userId,
-    checkoutTarget.planId,
-  )
+  const inviteOffer = checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'
+    ? await getTeamInviteOfferEligibility(supabase, checkoutTarget.userId, checkoutTarget.planId)
+    : null
   const params = buildStripeCheckoutSessionParams({
     planId: checkoutTarget.planId,
     priceId,
@@ -117,7 +116,7 @@ export async function POST(request: Request) {
     customerEmail: checkoutTarget.email || userResult.email,
     origin,
     nextHref,
-    couponId,
+    couponId: inviteOffer?.couponId,
   })
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -219,37 +218,4 @@ function getBearerToken(request: Request) {
 
 function cleanString(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 1000) : ''
-}
-
-async function getEligibleCaptainTeamInviteCouponId(
-  supabase: SupabaseClient,
-  userId: string,
-  planId: PaidPricingPlanId,
-) {
-  if (planId !== 'captain') return ''
-  const couponId = process.env.STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID?.trim() ?? ''
-  if (!couponId) return ''
-
-  const [{ data: profile }, { count, error }] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('captain_subscription_active,captain_subscription_status')
-      .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('team_profile_links')
-      .select('id', { count: 'exact', head: true })
-      .eq('profile_user_id', userId)
-      .eq('status', 'accepted')
-      .in('team_role', ['captain', 'co_captain']),
-  ])
-
-  const entitlement = (profile || {}) as {
-    captain_subscription_active?: boolean | null
-    captain_subscription_status?: string | null
-  }
-  if (entitlement.captain_subscription_active) return ''
-  if (entitlement.captain_subscription_status === 'active' || entitlement.captain_subscription_status === 'trial') return ''
-  if (error || !count) return ''
-  return couponId
 }
