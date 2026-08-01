@@ -46,18 +46,38 @@ describe('parseTennisLinkExportFiles', () => {
   it('turns match schedule export rows into schedule matches', () => {
     const html = `
       <table>
-        <tr><td>Flight</td><td>USTA Section</td><td>District/Area</td><td>League</td></tr>
-        <tr><td>Men 4.5</td><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS</td><td>2026 Adult 18 & Over Spring</td></tr>
+        <tr><td>Section</td><td>District/Area</td><td>League</td><td>Flight</td></tr>
+        <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS - St. Louis Local Leagues</td><td>2026 STL Tri-Level 18 &amp; Over</td><td>Men 3.5/4.0/4.5</td></tr>
         <tr><td>Match ID</td><td>Schedule Date</td><td>Schedule Time</td><td>Home Team</td><td>Captain/Phone</td><td>Visiting Team</td><td>Captain/Phone</td><td>Facility/Match Site</td></tr>
-        <tr><td>1011650664</td><td>1/18/2026</td><td>12:00 PM</td><td>Schnellaveria (S)</td><td></td><td>Gontarz/Wild William's Wily Wolverines (S)</td><td></td><td>Forest Lake Tennis Club</td></tr>
+        <tr><td>1012000001</td><td>8/3/2026</td><td>6:00 PM</td><td>SuperSmash Bros/Pottebaum-Meinart</td><td>Captain</td><td>Suddarth</td><td>Captain</td><td>Dwight Davis Tennis Center</td></tr>
+        <tr><td>1012000002</td><td>8/10/2026</td><td>7:30 PM</td><td>Hamilton</td><td>Captain</td><td>SuperSmash Bros/Pottebaum-Meinart</td><td>Captain</td><td>Shaw Park</td></tr>
+        <tr><td>1012000003</td><td>8/17/2026</td><td>6:00 PM</td><td>SuperSmash Bros/Pottebaum-Meinart</td><td>Captain</td><td>Gontarz</td><td>Captain</td><td>Dwight Davis Tennis Center</td></tr>
       </table>
     `
     const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
     const draft = buildScheduleOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
 
     expect(parsed.detectedImportType).toBe('schedule')
-    expect(draft.matches[0]?.externalMatchId).toBe('1011650664')
-    expect(draft.matches[0]?.facility).toBe('Forest Lake Tennis Club')
+    expect(draft).toMatchObject({
+      teamName: 'SuperSmash Bros/Pottebaum-Meinart',
+      leagueName: '2026 STL Tri-Level 18 & Over',
+      flight: 'Men 3.5/4.0/4.5',
+      ustaSection: 'USTA/MISSOURI VALLEY',
+      districtArea: 'ST. LOUIS - St. Louis Local Leagues',
+      matchCount: 3,
+    })
+    expect(draft.matches[0]).toMatchObject({
+      externalMatchId: '1012000001',
+      homeTeam: 'SuperSmash Bros/Pottebaum-Meinart',
+      awayTeam: 'Suddarth',
+      facility: 'Dwight Davis Tennis Center',
+      reviewNotes: [],
+    })
+    expect(draft.matches[1]).toMatchObject({
+      homeTeam: 'Hamilton',
+      awayTeam: 'SuperSmash Bros/Pottebaum-Meinart',
+      facility: 'Shaw Park',
+    })
   })
 
   it('turns team summary export rows into roster players', () => {

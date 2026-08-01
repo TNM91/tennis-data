@@ -1069,7 +1069,11 @@ function DataAssistWorkspace() {
             {isTeamSummaryParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
               <TeamSummaryImportedPanel result={latestScan.autoImport} parsedDraft={latestScan.parsedDraft} />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
-              <ScheduleImportedSummaryPanel result={latestScan.autoImport} parsedDraft={latestScan.parsedDraft} />
+              <ScheduleImportedSummaryPanel
+                result={latestScan.autoImport}
+                parsedDraft={latestScan.parsedDraft}
+                context={intentContext}
+              />
             ) : latestScan.autoImport?.importPreview?.duplicateMatch && isScorecardParsedDraft(latestScan.parsedDraft) ? (
               <ImportedSummaryPanel
                 summary={{
@@ -2442,9 +2446,11 @@ function ScheduleReviewPanel({ parsedDraft }: { parsedDraft: DataAssistScheduleP
 function ScheduleImportedSummaryPanel({
   result,
   parsedDraft,
+  context = '',
 }: {
   result: DataAssistImportActionResult
   parsedDraft: DataAssistScheduleParsedDraft
+  context?: string
 }) {
   const scheduleResult = result.importResult?.kind === 'schedule' ? result.importResult.result : null
   const imported = scheduleResult ? scheduleResult.successCount + scheduleResult.updatedCount : parsedDraft.matchCount
@@ -2473,7 +2479,7 @@ function ScheduleImportedSummaryPanel({
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
       </div>
       <PostImportActions
-        actions={buildSchedulePostImportActions(parsedDraft)}
+        actions={buildSchedulePostImportActions(parsedDraft, context)}
       />
     </div>
   )
@@ -2563,8 +2569,11 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
   return actions
 }
 
-function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft) {
+function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
   const actions: Array<{ label: string; href: string }> = []
+  if (/\b(?:captain|team hub)\b/i.test(context)) {
+    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+  }
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-registry' })

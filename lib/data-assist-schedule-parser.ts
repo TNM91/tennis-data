@@ -194,15 +194,23 @@ export function buildScheduleOcrDraftFromText(
   const text = normalizeWhitespace(rawText)
   const structuredRows = parseStructuredScheduleRows(rawText)
   const fallbackRows = parseRawScheduleRows(rawText)
-  const teamName = cleanTeamName(extractFirst(rawText, /\bTeam:\s*([^\n]+)/i))
+  const teamName = cleanTeamName(extractLabeledValue(rawText, 'Team'))
   const matches = filterTeamScheduleRows(
     uniqueMatches([...structuredRows, ...fallbackRows]).map((match) => applyKnownScheduleRowRepair(match, teamName)),
     teamName,
   )
-  const leagueName = cleanText(extractFirst(rawText, /\b(20\d{2}\s+Adult\s+18\s*&\s*Over\s+Spring)\b/i))
-  const flight = cleanText(extractFirst(rawText, /\b(Men\s*4\.?5)\b/i)).replace(/45$/, '4.5')
-  const ustaSection = /missouri valley/i.test(text) ? 'USTA/MISSOURI VALLEY' : ''
-  const districtArea = /st\.?\s*louis/i.test(text) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
+  const leagueName = cleanText(
+    extractLabeledValue(rawText, 'League') ||
+    extractFirst(rawText, /\b(20\d{2}\s+Adult\s+18\s*&\s*Over\s+Spring)\b/i),
+  )
+  const flight = cleanText(
+    extractLabeledValue(rawText, 'Flight') ||
+    extractFirst(rawText, /\b(Men\s*4\.?5)\b/i),
+  ).replace(/45$/, '4.5')
+  const ustaSection = cleanText(extractLabeledValue(rawText, 'USTA Section')) ||
+    (/missouri valley/i.test(text) ? 'USTA/MISSOURI VALLEY' : '')
+  const districtArea = cleanText(extractLabeledValue(rawText, 'District/Area')) ||
+    (/st\.?\s*louis/i.test(text) ? 'ST. LOUIS - St. Louis Local Leagues' : '')
   const warnings: string[] = []
 
   if (!teamName) warnings.push('Team name needs review.')
@@ -249,8 +257,8 @@ function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedM
         externalMatchId,
         matchDate: `${matchDate} ${rowText}`,
         matchTime: `${rowText} ${matchTime}`,
-        homeTeam: isKnownScheduleTeam(cleanedHome) ? cleanedHome : fallbackTeams.homeTeam,
-        awayTeam: isKnownScheduleTeam(cleanedAway) ? cleanedAway : fallbackTeams.awayTeam,
+        homeTeam: cleanedHome || fallbackTeams.homeTeam,
+        awayTeam: cleanedAway || fallbackTeams.awayTeam,
         facility: facility || findKnownFacility(rowText),
       })
     })
@@ -381,11 +389,6 @@ function inferKnownTeams(value: string) {
   return { homeTeam: '', awayTeam: '' }
 }
 
-function isKnownScheduleTeam(value: string) {
-  const key = normalizeTeamKey(value)
-  return KNOWN_TEAM_NAMES.some((team) => key.includes(normalizeTeamKey(team)))
-}
-
 function normalizeExternalMatchId(value: string) {
   const digits = cleanText(value).replace(/\D/g, '')
   if (/^10116508\d{2}$/.test(digits)) return `10116506${digits.slice(-2)}`
@@ -495,6 +498,11 @@ function normalizeTimeToken(value: string) {
 
 function extractFirst(value: string, pattern: RegExp) {
   return value.match(pattern)?.[1] || ''
+}
+
+function extractLabeledValue(value: string, label: string) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return value.match(new RegExp(`^${escapedLabel}:\\s*(.+)$`, 'im'))?.[1] || ''
 }
 
 function normalizeWhitespace(value: string) {
