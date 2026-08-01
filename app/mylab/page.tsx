@@ -21,6 +21,12 @@ import {
 } from '@/lib/competition-layers'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
+  getTeamConnectionRolesLabel,
+  isCaptainTeamConnection,
+  type TeamConnection,
+} from '@/lib/team-profile-links'
+import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import {
   buildScopedLeagueEntityId,
   buildScopedTeamEntityId,
 } from '@/lib/entity-ids'
@@ -773,6 +779,25 @@ function buildTeamHrefFromEntityId(entityId: string) {
   return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
 }
 
+function buildTeamConnectionHref(connection: TeamConnection) {
+  const params = new URLSearchParams()
+  const competitionLayer = connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta'
+  params.set('layer', competitionLayer)
+  if (connection.leagueName) params.set('league', connection.leagueName)
+  if (connection.flight) params.set('flight', connection.flight)
+  const query = params.toString()
+  return `/teams/${encodeURIComponent(connection.teamName)}${query ? `?${query}` : ''}`
+}
+
+function buildTeamConnectionCaptainHref(connection: TeamConnection) {
+  return buildCaptainScopedHref('/captain', {
+    competitionLayer: connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta',
+    team: connection.teamName,
+    league: connection.leagueName,
+    flight: connection.flight,
+  })
+}
+
 function buildLeagueHrefFromEntityId(entityId: string) {
   const { competitionLayer, leagueName, flight, section, district } = parseLeagueEntityId(entityId)
   const params = new URLSearchParams()
@@ -905,6 +930,8 @@ function MyLabPageInner() {
     lastUsedAt: null,
   })
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
+  const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
+  const [teamConnectionsError, setTeamConnectionsError] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
@@ -928,6 +955,33 @@ function MyLabPageInner() {
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
   })
+
+  useEffect(() => {
+    if (!authResolved) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) {
+      setTeamConnections([])
+      setTeamConnectionsError('')
+      return
+    }
+
+    let active = true
+    setTeamConnectionsError('')
+    void fetchTeamConnections(accessToken)
+      .then((result) => {
+        if (!active) return
+        setTeamConnections(result.connections)
+      })
+      .catch((teamError) => {
+        if (!active) return
+        setTeamConnections([])
+        setTeamConnectionsError(teamError instanceof Error ? teamError.message : 'Team links could not be loaded.')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, refreshTick, session?.access_token])
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -2996,6 +3050,9 @@ function MyLabPageInner() {
         }
       })
     : []
+  const acceptedPlayerTeamConnections = teamConnections
+    .filter((connection) => connection.status === 'accepted' && connection.roles.includes('player'))
+    .sort((left, right) => (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0))
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -3156,6 +3213,46 @@ function MyLabPageInner() {
               </Link>
             )}
           </div>
+
+          {acceptedPlayerTeamConnections.length ? (
+            <section style={linkedTeamsPanelStyle} aria-label="Teams linked to My Lab">
+              <div style={sectionHeaderStyle}>
+                <div style={sectionHeaderCopyStyle}>
+                  <p style={sectionKickerStyle}>Your teams</p>
+                  <h2 style={compactSectionTitleStyle}>
+                    {acceptedPlayerTeamConnections.length === 1
+                      ? `${acceptedPlayerTeamConnections[0]?.teamName || 'Your team'} is connected.`
+                      : `${acceptedPlayerTeamConnections.length} teams are connected.`}
+                  </h2>
+                  <p style={sectionTextStyle}>Your roster link and player tools now use the same team context.</p>
+                </div>
+                <Link href="/team-connections" style={smallInlineLinkStyle}>Manage teams</Link>
+              </div>
+              <div style={linkedTeamsGridStyle}>
+                {acceptedPlayerTeamConnections.map((connection) => (
+                  <article key={connection.id} style={linkedTeamCardStyle}>
+                    <div style={linkedTeamCardCopyStyle}>
+                      <span style={linkedTeamRoleStyle}>{getTeamConnectionRolesLabel(connection.roles)}</span>
+                      <strong style={teamPrepTitleStyle}>{connection.teamName}</strong>
+                      <span style={teamPrepMetaStyle}>
+                        {[connection.leagueName, connection.flight].filter(Boolean).join(' - ') || 'Team linked to your profile'}
+                      </span>
+                    </div>
+                    <div style={teamPrepActionRowStyle}>
+                      <Link href={buildTeamConnectionHref(connection)} style={miniActionPillStyle}>View team</Link>
+                      {isCaptainTeamConnection(connection.roles) && access.canUseCaptainWorkflow ? (
+                        <Link href={buildTeamConnectionCaptainHref(connection)} style={smallInlineLinkStyle}>Open Captain</Link>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : teamConnectionsError ? (
+            <div style={warningNoteStyle} role="status">
+              Team links could not load here. <Link href="/team-connections" style={smallInlineLinkStyle}>Review team links</Link>
+            </div>
+          ) : null}
 
           {!isProfileConfirmed ? (
             <section id="my-lab-setup" style={setupPanelStyle(isTablet)} aria-label="Set up My Lab">
@@ -8865,6 +8962,46 @@ const teamPrepRailStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
+}
+
+const linkedTeamsPanelStyle: CSSProperties = {
+  ...teamPrepRailStyle,
+  marginTop: 16,
+}
+
+const linkedTeamsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const linkedTeamCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minHeight: 0,
+  alignContent: 'space-between',
+  minWidth: 0,
+}
+
+const linkedTeamCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const linkedTeamRoleStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  lineHeight: 1.2,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({

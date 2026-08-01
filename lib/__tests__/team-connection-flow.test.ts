@@ -82,4 +82,15 @@ describe('team connection flow', () => {
     expect(route).toContain("existing?.status === 'accepted'")
     expect(route).toContain('declined_roles: declinedRoles')
   })
+
+  it('shows accepted roster links directly in My Lab without requiring match history', () => {
+    const myLab = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+
+    expect(myLab).toContain('fetchTeamConnections(accessToken)')
+    expect(myLab).toContain("connection.status === 'accepted' && connection.roles.includes('player')")
+    expect(myLab).toContain('aria-label="Teams linked to My Lab"')
+    expect(myLab).toContain('Your roster link and player tools now use the same team context.')
+    expect(myLab).toContain('buildTeamConnectionHref(connection)')
+    expect(myLab).toContain('buildTeamConnectionCaptainHref(connection)')
+  })
 })
