@@ -303,6 +303,7 @@ export function LeagueCoordinatorWorkspace() {
   const [participantQuickAddInput, setParticipantQuickAddInput] = useState('')
   const [editingId, setEditingId] = useState('')
   const [setupOpen, setSetupOpen] = useState(false)
+  const [registryLoaded, setRegistryLoaded] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
@@ -334,6 +335,8 @@ export function LeagueCoordinatorWorkspace() {
       setRecords([])
       setStorageSource('local')
       setStorageWarning(error instanceof Error ? error.message : 'League Office data could not load.')
+    } finally {
+      setRegistryLoaded(true)
     }
   }, [])
 
@@ -572,6 +575,8 @@ export function LeagueCoordinatorWorkspace() {
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
+  const hasSavedLeague = records.length > 0
+  const isFirstLeagueSetup = registryLoaded && access.canUseLeagueTools && !hasSavedLeague
   const knownTeamOptions = useMemo(
     () => Array.from(new Set(records.flatMap((record) => record.teams).filter(Boolean))).sort(),
     [records],
@@ -944,6 +949,23 @@ export function LeagueCoordinatorWorkspace() {
       complete: storageSource === 'supabase',
     },
   ]
+  const firstLeagueSteps = [
+    {
+      label: '1',
+      title: 'Name the league',
+      detail: 'Choose a team or player league, then add the season name and start date.',
+    },
+    {
+      label: '2',
+      title: 'Add competitors',
+      detail: 'Add the first teams or players now. You can update the list later.',
+    },
+    {
+      label: '3',
+      title: 'Save and continue',
+      detail: 'Once saved, League Office opens schedules, results, standings, and sharing.',
+    },
+  ] as const
 
   function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
     setDraft(EMPTY_DRAFT)
@@ -1461,17 +1483,23 @@ export function LeagueCoordinatorWorkspace() {
               <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>Start here</div>
                 <h1 style={leagueOpsTitleStyle}>
-                  {access.canUseLeagueTools
-                    ? records.length > 0
-                      ? 'Your next League Office move is ready.'
-                      : 'Set up the first League Office season.'
-                    : 'Unlock League access to save League Office seasons.'}
+                  {!registryLoaded
+                    ? 'Loading League Office...'
+                    : access.canUseLeagueTools
+                      ? hasSavedLeague
+                        ? latestRecord?.leagueName || 'League Office'
+                        : 'Create your first league.'
+                      : 'Unlock League access to save a league.'}
                 </h1>
                 <p style={leagueOpsTextStyle}>
-                  {nextLeagueOpsStep.detail}
+                  {!registryLoaded
+                    ? 'Getting your leagues and season details.'
+                    : isFirstLeagueSetup
+                      ? 'Choose a format, add the first competitors, and save the season.'
+                      : nextLeagueOpsStep.detail}
                 </p>
               </div>
-              {!showMobileUnlockOnly ? (
+              {registryLoaded && hasSavedLeague && !showMobileUnlockOnly ? (
                 <div style={responsiveStartScoreStyle}>
                   <span>{leagueOpsReadinessScore}% ready</span>
                   <span style={leagueOpsTrackStyle}>
@@ -1481,22 +1509,42 @@ export function LeagueCoordinatorWorkspace() {
               ) : null}
             </div>
 
-            <div style={responsiveStartActionRowStyle}>
-              <div style={leagueOpsHeaderCopyStyle}>
-                <span style={startActionLabelStyle}>Next action</span>
-                <strong style={startActionTitleStyle}>{showMobileUnlockOnly ? 'League Office access' : nextLeagueOpsStep.label}</strong>
+            {registryLoaded ? (
+              <div style={responsiveStartActionRowStyle}>
+                <div style={leagueOpsHeaderCopyStyle}>
+                  <span style={startActionLabelStyle}>{isFirstLeagueSetup ? 'First step' : 'Next action'}</span>
+                  <strong style={startActionTitleStyle}>
+                    {showMobileUnlockOnly
+                      ? 'League Office access'
+                      : isFirstLeagueSetup
+                        ? 'Add your league'
+                        : nextLeagueOpsStep.label}
+                  </strong>
+                </div>
+                <GhostLink href={isFirstLeagueSetup ? '#league-setup-form' : nextLeagueOpsStep.href}>
+                  {isFirstLeagueSetup ? 'Start setup' : nextLeagueOpsStep.cta}
+                </GhostLink>
               </div>
-              <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-            </div>
+            ) : null}
 
-            {showMobileUnlockOnly ? null : isMobile ? (
+            {showMobileUnlockOnly || !registryLoaded ? null : isFirstLeagueSetup ? (
+              <div style={startCardGridStyle} aria-label="First league setup steps">
+                {firstLeagueSteps.map((item) => (
+                  <div key={item.label} style={startCardStyle}>
+                    <span style={pillGreen}>Step {item.label}</span>
+                    <strong style={startCardTitleStyle}>{item.title}</strong>
+                    <span style={startCardTextStyle}>{item.detail}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
               <details className="leagueCoordinatorDetailsSection" style={startChecklistDetailsStyle}>
                 <summary style={startChecklistSummaryStyle}>
                   <div style={leagueOpsHeaderCopyStyle}>
-                    <span style={startActionLabelStyle}>Readiness checklist</span>
-                    <strong style={startActionTitleStyle}>Open setup, participants, results, and visibility checks.</strong>
+                    <span style={startActionLabelStyle}>Need help?</span>
+                    <strong style={startActionTitleStyle}>Review League Office setup steps.</strong>
                   </div>
-                  <span style={pillSlate}>{coordinatorStartCards.length} checks</span>
+                  <span style={pillSlate}>{coordinatorStartCards.length} steps</span>
                 </summary>
                 <div style={startChecklistBodyStyle}>
                   <div style={startCardGridStyle}>
@@ -1511,17 +1559,6 @@ export function LeagueCoordinatorWorkspace() {
                   </div>
                 </div>
               </details>
-            ) : (
-              <div style={startCardGridStyle}>
-                {coordinatorStartCards.map((item) => (
-                  <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
-                    <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
-                    <strong style={startCardTitleStyle}>{item.title}</strong>
-                    <span style={startCardTextStyle}>{item.detail}</span>
-                    <span style={startCardCtaStyle}>{item.cta}</span>
-                  </Link>
-                ))}
-              </div>
             )}
           </div>
         </section>
@@ -1531,7 +1568,7 @@ export function LeagueCoordinatorWorkspace() {
             className="leagueCoordinatorDetailsSection"
             id="league-setup-form"
             style={responsivePanelCard}
-            open={setupOpen || !!editingId}
+            open={setupOpen || !!editingId || isFirstLeagueSetup}
             onToggle={(event) => setSetupOpen(event.currentTarget.open)}
           >
             <summary style={responsiveDetailsSummary}>
@@ -1577,7 +1614,7 @@ export function LeagueCoordinatorWorkspace() {
               </div>
             )}
 
-            <div style={setupFocusPanelStyle} aria-label="League setup focus">
+            {!isFirstLeagueSetup ? <div style={setupFocusPanelStyle} aria-label="League setup focus">
               <div style={leagueOpsHeaderStyle}>
                 <div style={leagueOpsHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Setup focus</div>
@@ -1598,7 +1635,7 @@ export function LeagueCoordinatorWorkspace() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> : null}
 
             <div style={responsiveFieldGrid}>
               <label style={fieldLabel}>
@@ -1681,6 +1718,37 @@ export function LeagueCoordinatorWorkspace() {
               </label>
 
               <label style={fieldLabel}>
+                <span>Start date</span>
+                <input
+                  type="date"
+                  value={draft.startsOn}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      startsOn: event.target.value,
+                      endsOn: calculateTiqLeagueEndsOn(event.target.value, current.maxWeeks),
+                    }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+
+            <details
+              className="leagueCoordinatorDetailsSection"
+              style={startChecklistDetailsStyle}
+              open={editingId ? true : undefined}
+            >
+              <summary style={startChecklistSummaryStyle}>
+                <div style={leagueOpsHeaderCopyStyle}>
+                  <span style={startActionLabelStyle}>More season options</span>
+                  <strong style={startActionTitleStyle}>Scheduling, scoring, visibility, and season rules.</strong>
+                </div>
+                <span style={pillSlate}>Optional</span>
+              </summary>
+              <div style={startChecklistBodyStyle}>
+                <div style={responsiveFieldGrid}>
+                  <label style={fieldLabel}>
                 <span>Season status</span>
                 <select
                   value={draft.seasonStatus}
@@ -1704,7 +1772,7 @@ export function LeagueCoordinatorWorkspace() {
                   <option value="completed">Completed</option>
                   <option value="archived">Archived</option>
                 </select>
-              </label>
+                  </label>
 
               <label style={fieldLabel}>
                 <span>League visibility</span>
@@ -1748,22 +1816,6 @@ export function LeagueCoordinatorWorkspace() {
                 <span style={fieldHelpText}>
                   Capped at {MAX_TIQ_LEAGUE_WEEKS} weeks. The end date is calculated from the start date and season length.
                 </span>
-              </label>
-
-              <label style={fieldLabel}>
-                <span>Start date</span>
-                <input
-                  type="date"
-                  value={draft.startsOn}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      startsOn: event.target.value,
-                      endsOn: calculateTiqLeagueEndsOn(event.target.value, current.maxWeeks),
-                    }))
-                  }
-                  style={inputStyle}
-                />
               </label>
 
               <label style={fieldLabel}>
@@ -2053,7 +2105,7 @@ export function LeagueCoordinatorWorkspace() {
               </label>
             </div>
 
-            <div style={responsiveOutcomeInfoGrid}>
+                <div style={responsiveOutcomeInfoGrid}>
               <div style={infoCard}>
                 <div style={sectionEyebrow}>Score format</div>
                 <strong style={infoCardTitle}>
@@ -2083,9 +2135,9 @@ export function LeagueCoordinatorWorkspace() {
                     : 'Record Player A, Player B, result date, winner, and score. Completed results sync into the rating engine and league standings.'}
                 </p>
               </div>
-            </div>
+                </div>
 
-            <div style={setupAssistPanelStyle}>
+                <div style={setupAssistPanelStyle}>
               <div style={leagueOpsHeaderStyle}>
                 <div style={leagueOpsHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season calendar</div>
@@ -2110,7 +2162,9 @@ export function LeagueCoordinatorWorkspace() {
                   </div>
                 ))}
               </div>
-            </div>
+                </div>
+              </div>
+            </details>
 
             <label style={fieldLabel}>
               <span>{draft.leagueFormat === 'team' ? 'Teams' : 'Players'}</span>
@@ -2236,7 +2290,8 @@ export function LeagueCoordinatorWorkspace() {
             ) : null}
           </details>
 
-          <details className="leagueCoordinatorDetailsSection" id="league-registry" style={responsiveRegistryPanel} open={!isCompactViewport}>
+          {hasSavedLeague ? (
+            <details className="leagueCoordinatorDetailsSection" id="league-registry" style={responsiveRegistryPanel} open={!isCompactViewport}>
             <summary style={responsiveOptionalSummary}>
               <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>League registry</div>
@@ -2441,10 +2496,13 @@ export function LeagueCoordinatorWorkspace() {
                 />
               </div>
             ) : null}
-          </details>
+            </details>
+          ) : null}
         </div>
 
-        {isMobile ? (
+        {hasSavedLeague ? (
+          <>
+          {isMobile ? (
           <details className="leagueCoordinatorDetailsSection" style={leaguePathMobileDetailsStyle} aria-label="Today's League Office desk">
             <summary style={leaguePathMobileSummaryStyle}>
               <span style={leaguePathCopyStyle}>
@@ -3062,7 +3120,9 @@ export function LeagueCoordinatorWorkspace() {
           </div>
         </details>
 
-        </LeagueSecondaryToolsGroup>
+          </LeagueSecondaryToolsGroup>
+          </>
+        ) : null}
 
 
     </section>
