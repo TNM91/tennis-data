@@ -60,6 +60,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
+const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
 const CAPTAIN_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const CAPTAIN_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(CAPTAIN_PLAYER_IDENTITY)
 const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}#level-up-flow`
@@ -1448,17 +1449,17 @@ function CaptainFirstUseSetup({
     {
       number: '2',
       status: playerIdReady ? 'Next step' : 'Step 2',
-      title: 'Connect your active team',
-      body: 'Upload a scorecard, Player Roster, or schedule. TenAceIQ will connect your roster and season.',
-      href: `${dataAssistCaptainHref}#upload`,
-      cta: 'Upload team data',
+      title: 'Add your first team',
+      body: 'Upload the TennisLink Player Roster. TenAceIQ will connect the team and bring in player names, ratings, phone numbers, and any emails TennisLink includes.',
+      href: captainPlayerRosterHref,
+      cta: 'Upload Player Roster',
       icon: 'reports' as TiqFeatureIconName,
     },
     {
       number: '3',
       status: 'Step 3',
       title: 'Come back to Captain',
-      body: 'After review, refresh Captain. Your linked team opens first, and you can make any team your default.',
+      body: 'After review, Captain opens your linked team. Add the schedule next when Captain asks for the first match.',
       href: '#captain-setup-refresh',
       cta: 'Refresh Captain',
       icon: 'captainDashboard' as TiqFeatureIconName,
@@ -15828,6 +15829,13 @@ function CaptainHubContent() {
               <SecondarySmallBtn onClick={() => setRefreshTick((current) => current + 1)}>
                 {loadingOptions || loadingTeam ? 'Refreshing...' : 'Refresh data'}
               </SecondarySmallBtn>
+
+              <Link
+                href={captainPlayerRosterHref}
+                style={{ ...captainDataAssistLinkStyle, justifyContent: 'center' }}
+              >
+                Add another team
+              </Link>
 
               <SecondarySmallBtn
                 disabled={!premiumEnabled || !selectedTeamOption || selectedTeamIsDefault || savingDefaultTeam}
