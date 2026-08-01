@@ -22,7 +22,8 @@ describe('Captain projected lineup confirmation flow', () => {
 
     expect(source).toContain("setMessageTitle('Potential lineup availability')")
     expect(source).toContain('buildPotentialLineupAvailabilityMessage({')
-    expect(source).toContain('Text {playerName.split')
+    expect(source).toContain("`Text ${playerName.split(' ')[0]}`")
+    expect(source).toContain('Text next: {nextPotentialTextTarget.playerName.split')
     expect(source).toContain('Record ${playerName}\'s reply')
     expect(source).toContain('Refresh responses')
     expect(source).toContain("window.addEventListener('pageshow', refreshWhenVisible)")

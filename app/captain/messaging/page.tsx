@@ -162,6 +162,18 @@ type LiveAvailabilityRequest = {
   }>
 }
 
+type PotentialAvailabilityStatus = 'available' | 'maybe' | 'unavailable' | 'waiting'
+
+type PotentialLineupQueueItem = {
+  playerName: string
+  playerKey: string
+  contact: ContactRow | undefined
+  canText: boolean
+  status: PotentialAvailabilityStatus
+  liveResponse: LiveAvailabilityRequest['responses'][number] | undefined
+  originalIndex: number
+}
+
 
 type DraftContact = {
   full_name: string
@@ -198,6 +210,7 @@ const AVAILABILITY_STORAGE_KEY = 'tenaceiq_weekly_availability'
 const RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
+const POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX = 'tenaceiq_potential_lineup_text_queue'
 const AVAILABILITY_SOURCE_TABLES = [
   'captain_availability',
   'lineup_availability',
@@ -569,6 +582,9 @@ function CaptainMessagingContent() {
   const [liveResponsesLoading, setLiveResponsesLoading] = useState(false)
   const [lastResponseRefreshAt, setLastResponseRefreshAt] = useState<Date | null>(null)
   const [prefillApplied, setPrefillApplied] = useState(false)
+  const [openedPotentialPlayerKeys, setOpenedPotentialPlayerKeys] = useState<string[]>([])
+  const [inlinePhoneByPlayer, setInlinePhoneByPlayer] = useState<Record<string, string>>({})
+  const [savingInlinePhoneKey, setSavingInlinePhoneKey] = useState('')
 
   const [draftContact, setDraftContact] = useState<DraftContact>({
     full_name: '',
@@ -1172,6 +1188,64 @@ function CaptainMessagingContent() {
       : availabilityHandoff?.playerRequestUrls ?? []
     return new Map(invites.map((invite) => [invite.playerName.trim().toLowerCase(), invite]))
   }, [availabilityHandoff, liveAvailabilityRequest])
+  const potentialTextQueueStorageKey = useMemo(() => {
+    const queueId = availabilityHandoff?.scenario.id || liveAvailabilityRequest?.request?.id || safeKey(
+      teamFilter,
+      leagueFilter,
+      flightFilter,
+      availabilityMatchDate
+    )
+    return `${POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX}:${queueId}`
+  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, teamFilter])
+  const potentialLineupQueue = useMemo<PotentialLineupQueueItem[]>(() => {
+    const statusPriority: Record<PotentialAvailabilityStatus, number> = {
+      unavailable: 0,
+      maybe: 1,
+      waiting: 2,
+      available: 3,
+    }
+
+    return potentialLineupNames
+      .map((playerName, originalIndex) => {
+        const playerKey = playerName.trim().toLowerCase()
+        const contact = scopedContacts.find((candidate) => candidate.full_name.trim().toLowerCase() === playerKey)
+        const liveResponse = liveResponseByPlayer.get(playerKey)
+        const status: PotentialAvailabilityStatus = liveResponse?.status ?? 'waiting'
+        return {
+          playerName,
+          playerKey,
+          contact,
+          canText: Boolean(contact?.phone && contact.opt_in_text),
+          status,
+          liveResponse,
+          originalIndex,
+        }
+      })
+      .sort((left, right) => statusPriority[left.status] - statusPriority[right.status] || left.originalIndex - right.originalIndex)
+  }, [liveResponseByPlayer, potentialLineupNames, scopedContacts])
+  const openedPotentialPlayerKeySet = useMemo(
+    () => new Set(openedPotentialPlayerKeys),
+    [openedPotentialPlayerKeys]
+  )
+  const textablePotentialPlayers = useMemo(
+    () => potentialLineupQueue.filter((player) => player.canText),
+    [potentialLineupQueue]
+  )
+  const openedPotentialTextCount = useMemo(
+    () => textablePotentialPlayers.filter((player) => openedPotentialPlayerKeySet.has(player.playerKey)).length,
+    [openedPotentialPlayerKeySet, textablePotentialPlayers]
+  )
+  const nextPotentialTextTarget = useMemo(
+    () => potentialLineupQueue.find((player) =>
+      player.status === 'waiting' && player.canText && !openedPotentialPlayerKeySet.has(player.playerKey)
+    ) ?? null,
+    [openedPotentialPlayerKeySet, potentialLineupQueue]
+  )
+
+  useEffect(() => {
+    setOpenedPotentialPlayerKeys(readLocal<string>(potentialTextQueueStorageKey))
+  }, [potentialTextQueueStorageKey])
+
   const liveResponseCounts = useMemo(() => {
     let yes = 0
     let maybe = 0
@@ -1793,6 +1867,80 @@ function CaptainMessagingContent() {
     setError(null)
   }
 
+  function buildPotentialPlayerMessage(playerName: string) {
+    const playerKey = playerName.trim().toLowerCase()
+    const invite = privateInviteByPlayer.get(playerKey)
+    return buildPotentialLineupAvailabilityMessage({
+      teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
+      opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
+      dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
+      time: liveAvailabilityRequest?.request?.matchTime || availabilityHandoff?.match.time || eventArrivalTime,
+      facility: liveAvailabilityRequest?.request?.facility || availabilityHandoff?.match.facility || eventLocation,
+      slotsJson: liveAvailabilityRequest?.request?.slots || availabilityHandoff?.scenario.slots_json || [],
+      availabilityRequestUrl: invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl,
+    })
+  }
+
+  function markPotentialPlayerTextOpened(playerKey: string) {
+    setOpenedPotentialPlayerKeys((current) => {
+      if (current.includes(playerKey)) return current
+      const next = [...current, playerKey]
+      writeLocal(potentialTextQueueStorageKey, next)
+      return next
+    })
+  }
+
+  async function savePotentialPlayerPhone(playerName: string) {
+    if (!requireCaptainAccess('Captain tier required to update player phone numbers.')) return
+
+    const playerKey = playerName.trim().toLowerCase()
+    const phone = normalizeText(inlinePhoneByPlayer[playerKey])
+    if (!phone) {
+      setError(`Add a mobile number for ${playerName}.`)
+      return
+    }
+    if (!teamFilter) {
+      setError('Choose the team before adding a player phone number.')
+      return
+    }
+
+    const existingContact = scopedContacts.find((contact) => contact.full_name.trim().toLowerCase() === playerKey)
+      ?? contacts.find((contact) =>
+        contact.full_name.trim().toLowerCase() === playerKey && contact.team_name === teamFilter
+      )
+    const row: ContactRow = {
+      id: existingContact?.id || createId(),
+      team_name: teamFilter,
+      league_name: existingContact?.league_name ?? (leagueFilter || null),
+      flight: existingContact?.flight ?? (flightFilter || null),
+      season_label: existingContact?.season_label ?? (seasonFilter || inferSeasonLabel(selectedMatch?.match_date ?? null) || null),
+      session_label: existingContact?.session_label ?? (sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null),
+      full_name: playerName.trim(),
+      phone,
+      role: existingContact?.role || 'Player',
+      is_captain: existingContact?.is_captain ?? false,
+      is_active: existingContact?.is_active ?? true,
+      opt_in_text: true,
+      notes: existingContact?.notes ?? null,
+    }
+
+    setError(null)
+    setSavingInlinePhoneKey(playerKey)
+    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
+    await saveContacts([...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name)))
+    setSavingInlinePhoneKey('')
+    setInlinePhoneByPlayer((current) => {
+      const next = { ...current }
+      delete next[playerKey]
+      return next
+    })
+    markPotentialPlayerTextOpened(playerKey)
+
+    if (typeof window !== 'undefined') {
+      window.location.href = buildSmsHref([phone], buildPotentialPlayerMessage(playerName))
+    }
+  }
+
   function handleEditContact(contact: ContactRow) {
     setEditingId(contact.id)
     setDraftContact({
@@ -2241,7 +2389,8 @@ function importScenarioToLineup() {
   return (
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
-         <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
+         {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
+          <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
               <div style={messageControlHeaderStyle}>
                 <div>
@@ -2278,7 +2427,8 @@ function importScenarioToLineup() {
                 </button>
               </div>
             </div>
-        </section>
+          </section>
+         ) : null}
 
         {availabilityHandoff || liveAvailabilityRequest?.request ? (
           <section style={potentialLineupFlowStyle} aria-labelledby="potential-lineup-confirm-title">
@@ -2287,7 +2437,7 @@ function importScenarioToLineup() {
                 <p style={sectionKicker}>Availability</p>
                 <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
                 <p style={mutedTextStyle}>
-                  Text each player their private link. Replies appear here automatically.
+                  Open each private text in order. TIQ keeps your place and replies appear here automatically.
                 </p>
               </div>
               <button
@@ -2300,6 +2450,42 @@ function importScenarioToLineup() {
               </button>
             </div>
 
+            <div style={potentialTextQueueStyle}>
+              <div style={potentialTextQueueCopyStyle}>
+                <span style={sectionKicker}>Send availability</span>
+                <strong style={potentialTextQueueTitleStyle}>
+                  {textablePotentialPlayers.length
+                    ? `${openedPotentialTextCount} of ${potentialLineupQueue.length} player texts opened`
+                    : 'Add player phone numbers to start'}
+                </strong>
+                <span style={mutedTextStyle}>
+                  {nextPotentialTextTarget
+                    ? `Next up: ${nextPotentialTextTarget.playerName}. You will return here for the next player.`
+                    : liveResponseCounts.waiting > 0
+                      ? 'All available player texts have been opened. Waiting for replies.'
+                      : 'Every player has replied.'}
+                </span>
+              </div>
+              {nextPotentialTextTarget?.contact ? (
+                <a
+                  href={buildSmsHref(
+                    [nextPotentialTextTarget.contact.phone],
+                    buildPotentialPlayerMessage(nextPotentialTextTarget.playerName)
+                  )}
+                  onClick={() => markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)}
+                  style={primaryButtonBlock}
+                >
+                  Text next: {nextPotentialTextTarget.playerName.split(' ')[0]}
+                </a>
+              ) : (
+                <span style={potentialTextQueueDoneStyle}>
+                  {!textablePotentialPlayers.length
+                    ? 'Add phone numbers'
+                    : liveResponseCounts.waiting > 0 ? 'Texts opened' : 'Replies complete'}
+                </span>
+              )}
+            </div>
+
             <div style={availabilityCountGridStyle} aria-label="Availability response summary">
               <span style={availabilityCountStyle('#61c47c')}><strong>{liveResponseCounts.yes}</strong> Yes</span>
               <span style={availabilityCountStyle('#d6a62a')}><strong>{liveResponseCounts.maybe}</strong> Maybe</span>
@@ -2308,28 +2494,18 @@ function importScenarioToLineup() {
             </div>
 
             <div style={potentialPlayerGridStyle}>
-              {potentialLineupNames.map((playerName) => {
-                const playerKey = playerName.trim().toLowerCase()
-                const contact = scopedContacts.find((candidate) => candidate.full_name.trim().toLowerCase() === playerKey)
-                const canText = Boolean(contact?.phone && contact.opt_in_text)
+              {potentialLineupQueue.map(({ playerName, playerKey, contact, canText, liveResponse }) => {
                 const availabilityStatus = contact ? availabilityMap.get(contact.id)?.status ?? 'no-response' : 'no-response'
-                const liveResponse = liveResponseByPlayer.get(playerKey)
-                const invite = privateInviteByPlayer.get(playerKey)
-                const privateMessage = buildPotentialLineupAvailabilityMessage({
-                  teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
-                  opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
-                  dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
-                  time: liveAvailabilityRequest?.request?.matchTime || availabilityHandoff?.match.time || eventArrivalTime,
-                  facility: liveAvailabilityRequest?.request?.facility || availabilityHandoff?.match.facility || eventLocation,
-                  slotsJson: liveAvailabilityRequest?.request?.slots || availabilityHandoff?.scenario.slots_json || [],
-                  availabilityRequestUrl: invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl,
-                })
+                const privateMessage = buildPotentialPlayerMessage(playerName)
+                const phoneInputId = `potential-phone-${playerKey.replace(/[^a-z0-9]+/g, '-')}`
                 return (
                   <article key={playerKey} style={potentialPlayerCardStyle}>
                     <div style={potentialPlayerSelectStyle}>
                       <span>
                         <strong>{playerName}</strong>
-                        <small style={rowSubtleText}>{canText && contact ? formatPhone(contact.phone) : 'Phone number needed'}</small>
+                        <small style={rowSubtleText}>
+                          {canText && contact ? formatPhone(contact.phone) : contact?.phone ? 'Texting not enabled' : 'Phone number needed'}
+                        </small>
                       </span>
                       <span style={responseStatusBadgeStyle(liveResponse?.status)}>
                         {liveResponse?.status === 'available'
@@ -2344,11 +2520,50 @@ function importScenarioToLineup() {
                     ) : null}
                     {liveResponse?.notes ? <small style={rowSubtleText}>“{liveResponse.notes}”</small> : null}
                     {canText && contact ? (
-                      <a href={buildSmsHref([contact.phone], privateMessage)} style={primaryButtonBlock}>
-                        Text {playerName.split(' ')[0]}
+                      <a
+                        href={buildSmsHref([contact.phone], privateMessage)}
+                        onClick={() => markPotentialPlayerTextOpened(playerKey)}
+                        style={primaryButtonBlock}
+                      >
+                        {openedPotentialPlayerKeySet.has(playerKey) ? 'Text again' : `Text ${playerName.split(' ')[0]}`}
                       </a>
                     ) : (
-                      <GhostLink href="#captain-contact-setup">Add phone number</GhostLink>
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void savePotentialPlayerPhone(playerName)
+                        }}
+                        style={potentialInlinePhoneFormStyle}
+                      >
+                        <label htmlFor={phoneInputId} style={potentialInlinePhoneLabelStyle}>Mobile number</label>
+                        <div style={potentialInlinePhoneRowStyle}>
+                          <input
+                            id={phoneInputId}
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            value={inlinePhoneByPlayer[playerKey] ?? contact?.phone ?? ''}
+                            onChange={(event) => setInlinePhoneByPlayer((current) => ({
+                              ...current,
+                              [playerKey]: event.target.value,
+                            }))}
+                            placeholder="Enter mobile number"
+                            required
+                            style={inputStyle}
+                          />
+                          <button
+                            type="submit"
+                            disabled={savingInlinePhoneKey === playerKey}
+                            style={{
+                              ...primaryButtonBlock,
+                              opacity: savingInlinePhoneKey === playerKey ? 0.55 : 1,
+                              cursor: savingInlinePhoneKey === playerKey ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {savingInlinePhoneKey === playerKey ? 'Saving...' : 'Save & text'}
+                          </button>
+                        </div>
+                      </form>
                     )}
                     {contact ? (
                       <details>
@@ -2375,13 +2590,13 @@ function importScenarioToLineup() {
 
             {missingPotentialLineupNames.length ? (
               <div style={potentialMissingStyle}>
-                <strong>Add a phone number before texting:</strong>{' '}
-                {missingPotentialLineupNames.join(', ')}. The player does not need a TIQ account to answer.
-                <div style={{ marginTop: 10 }}><GhostLink href="#captain-contact-setup">Add phone numbers</GhostLink></div>
+                <strong>Add a mobile number on the player card:</strong>{' '}
+                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TIQ account to answer.
               </div>
             ) : null}
 
             <div style={actionRowStyle}>
+              <GhostLink href="/captain/lineup-builder">Edit lineup</GhostLink>
               <GhostLink href="#captain-message-composer">Edit message</GhostLink>
               {liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl ? (
                 <GhostLink href={liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || '#'}>Open shared response page</GhostLink>
@@ -3869,7 +4084,7 @@ function importScenarioToLineup() {
                 </div>
               </section>
 
-              <details id="captain-contact-setup" open={Boolean(availabilityHandoff && missingPotentialLineupNames.length) || undefined} style={surfaceCard}>
+              <details id="captain-contact-setup" style={surfaceCard}>
                 <summary style={detailsSummaryStyle}>
                   <div>
                     <p style={sectionKicker}>Admin setup</p>
@@ -4212,6 +4427,46 @@ const potentialPlayerGridStyle: CSSProperties = {
   marginTop: 16,
 }
 
+const potentialTextQueueStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  alignItems: 'center',
+  gap: 14,
+  marginTop: 16,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  minWidth: 0,
+}
+
+const potentialTextQueueCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const potentialTextQueueTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const potentialTextQueueDoneStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 46,
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 46%, var(--shell-panel-border) 54%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 850,
+  textAlign: 'center',
+}
+
 const availabilityCountGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
@@ -4247,6 +4502,25 @@ const potentialPlayerSelectStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 10,
   color: 'var(--shell-copy)',
+}
+
+const potentialInlinePhoneFormStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const potentialInlinePhoneLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const potentialInlinePhoneRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
 }
 
 const responseStatusBadgeStyle = (status?: 'available' | 'maybe' | 'unavailable'): CSSProperties => {
