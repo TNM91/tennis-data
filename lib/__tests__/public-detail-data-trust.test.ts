@@ -29,7 +29,7 @@ describe('public detail data trust panels', () => {
   it('surfaces reviewable team trust signals on team detail pages', () => {
     expect(teamDetailSource).toContain("import DataTrustPanel from '@/app/components/data-trust-panel'")
     expect(teamDetailSource).toContain('Team data trust')
-    expect(teamDetailSource).toContain('Team pages combine reviewed team summaries')
+    expect(teamDetailSource).toContain('Team pages combine reviewed Player Rosters')
     expect(teamDetailSource).toContain("label: 'Source'")
     expect(teamDetailSource).toContain("label: 'Freshness'")
     expect(teamDetailSource).toContain("label: 'Confidence'")
@@ -40,7 +40,7 @@ describe('public detail data trust panels', () => {
   it('surfaces reviewable league trust signals on league detail pages', () => {
     expect(leagueDetailSource).toContain("import DataTrustPanel from '@/app/components/data-trust-panel'")
     expect(leagueDetailSource).toContain('League data trust')
-    expect(leagueDetailSource).toContain('League pages combine reviewed schedule rows')
+    expect(leagueDetailSource).toContain('League pages combine reviewed schedules, scorecards, Player Rosters')
     expect(leagueDetailSource).toContain("label: 'Source'")
     expect(leagueDetailSource).toContain("label: 'Freshness'")
     expect(leagueDetailSource).toContain("label: 'Confidence'")

@@ -674,9 +674,9 @@ export default function LeagueDetailPage() {
           <div style={detailDrawerContentStyle}>
             <DataTrustPanel
               title="League data trust"
-              body="League pages combine reviewed schedule rows, scorecards, team summaries, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
+              body="League pages combine reviewed schedules, scorecards, Player Rosters, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
               signals={[
-                { label: 'Source', value: 'Schedules, scorecards, team summaries' },
+                { label: 'Source', value: 'Schedules, scorecards, Player Rosters' },
                 { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
                 { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
                 { label: 'Status', value: 'Report, upload, or request review through Data Assist' },

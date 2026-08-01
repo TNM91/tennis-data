@@ -887,7 +887,7 @@ export default function PlayersPage() {
             >
               <DataTrustPanel
                 title="Why a player may be missing"
-                body="Player records appear after reviewed match, roster, or profile context is available. Data Assist is the fastest path for scorecards, team summaries, and corrections."
+                body="Player records appear after reviewed match, roster, or profile context is available. Data Assist is the fastest path for scorecards, Player Rosters, and corrections."
               />
             </PlayerDirectoryDetails>
           </div>
