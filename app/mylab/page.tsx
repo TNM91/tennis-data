@@ -6,6 +6,7 @@ import Link from 'next/link'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -22,10 +23,12 @@ import {
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
   getTeamConnectionRolesLabel,
+  getTeamConnectionSourceLabel,
   isCaptainTeamConnection,
   type TeamConnection,
 } from '@/lib/team-profile-links'
-import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import { fetchTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import {
   buildScopedLeagueEntityId,
   buildScopedTeamEntityId,
@@ -122,6 +125,8 @@ type PlayerRow = {
 type MatchRow = {
   id: string
   match_date: string | null
+  match_time?: string | null
+  facility?: string | null
   score: string | null
   flight: string | null
   league_name: string | null
@@ -798,6 +803,44 @@ function buildTeamConnectionCaptainHref(connection: TeamConnection) {
   })
 }
 
+function findNextTeamMatch(connection: TeamConnection, matches: MatchRow[]) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const teamKey = normalizeTeamConnectionName(connection.teamName)
+  return matches
+    .filter((match) => {
+      const matchTime = match.match_date ? new Date(`${match.match_date}T00:00:00`).getTime() : Number.NaN
+      const teamMatches = [match.home_team, match.away_team].some((team) => normalizeTeamConnectionName(team) === teamKey)
+      const leagueMatches = !connection.leagueName || normalizeTeamConnectionName(match.league_name) === normalizeTeamConnectionName(connection.leagueName)
+      const flightMatches = !connection.flight || normalizeTeamConnectionName(match.flight) === normalizeTeamConnectionName(connection.flight)
+      return teamMatches && leagueMatches && flightMatches && matchTime >= today.getTime()
+    })
+    .sort((left, right) => Date.parse(left.match_date || '') - Date.parse(right.match_date || ''))[0] || null
+}
+
+function getTeamMatchOpponent(connection: TeamConnection, match: MatchRow) {
+  return normalizeTeamConnectionName(match.home_team) === normalizeTeamConnectionName(connection.teamName)
+    ? match.away_team || 'TBD'
+    : match.home_team || 'TBD'
+}
+
+function formatTeamMatchDate(value: string | null) {
+  if (!value) return 'Date TBD'
+  const date = new Date(`${value}T00:00:00`)
+  if (!Number.isFinite(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
+function formatTeamConnectionDate(value: string) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return 'recently'
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
+function normalizeTeamConnectionName(value: string | null | undefined) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 function buildLeagueHrefFromEntityId(entityId: string) {
   const { competitionLayer, leagueName, flight, section, district } = parseLeagueEntityId(entityId)
   const params = new URLSearchParams()
@@ -932,6 +975,8 @@ function MyLabPageInner() {
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
   const [teamConnectionsError, setTeamConnectionsError] = useState('')
+  const [teamConnectionWorkingId, setTeamConnectionWorkingId] = useState('')
+  const [teamConnectionMessage, setTeamConnectionMessage] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
@@ -982,6 +1027,11 @@ function MyLabPageInner() {
       active = false
     }
   }, [authResolved, refreshTick, session?.access_token])
+
+  useEffect(
+    () => subscribeToTeamConnectionsChanged(() => setRefreshTick((current) => current + 1)),
+    [],
+  )
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -1148,7 +1198,7 @@ function MyLabPageInner() {
       loadMyLabPlayers(),
       supabase
         .from('matches')
-        .select('id,match_date,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
+        .select('id,match_date,match_time,facility,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
         .is('line_number', null)
         .order('match_date', { ascending: false })
         .limit(160),
@@ -2544,7 +2594,7 @@ function MyLabPageInner() {
   }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
-  const myLabTitle = isProfileConfirmed ? welcomeLine : 'Connect your player to start.'
+  const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'
   const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
   const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
   const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
@@ -3052,7 +3102,23 @@ function MyLabPageInner() {
     : []
   const acceptedPlayerTeamConnections = teamConnections
     .filter((connection) => connection.status === 'accepted' && connection.roles.includes('player'))
-    .sort((left, right) => (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0))
+    .sort((left, right) => left.isDefault === right.isDefault
+      ? (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0)
+      : left.isDefault ? -1 : 1)
+  async function makeDefaultTeam(connection: TeamConnection) {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || teamConnectionWorkingId) return
+    setTeamConnectionWorkingId(connection.id)
+    setTeamConnectionMessage('')
+    try {
+      await updateTeamConnection({ accessToken, connectionId: connection.id, action: 'set_default' })
+      setTeamConnectionMessage(`${connection.teamName} will open first across My Lab and Captain.`)
+    } catch (connectionError) {
+      setTeamConnectionMessage(connectionError instanceof Error ? connectionError.message : 'Default team could not be saved.')
+    } finally {
+      setTeamConnectionWorkingId('')
+    }
+  }
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -3192,14 +3258,14 @@ function MyLabPageInner() {
             <div style={sectionTitleClusterStyle}>
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
-                <p style={sectionKickerStyle}>{isProfileConfirmed ? 'Your tennis hub' : 'Start My Lab'}</p>
+                <p style={sectionKickerStyle}>Your tennis hub</p>
                 <h1 style={sectionTitleStyle}>{myLabTitle}</h1>
                 <p style={sectionTextStyle}>
                   {isProfileConfirmed
                     ? isMobile
                       ? 'Pick the next move, then keep the proof connected.'
                       : 'My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.'
-                    : 'Find or create your player record. My Lab can then show your progress, matchups, and next work.'}
+                    : 'Your progress, matchups, and next work live here.'}
                 </p>
               </div>
             </div>
@@ -3207,11 +3273,7 @@ function MyLabPageInner() {
               <Link href={matchupHref} style={secondaryButtonStyle}>
                 Open Matchup
               </Link>
-            ) : (
-              <Link href="/profile#profile-identity" style={matchupPrimaryLinkStyle}>
-                Find my player
-              </Link>
-            )}
+            ) : null}
           </div>
 
           {acceptedPlayerTeamConnections.length ? (
@@ -3229,13 +3291,22 @@ function MyLabPageInner() {
                 <Link href="/team-connections" style={smallInlineLinkStyle}>Manage teams</Link>
               </div>
               <div style={linkedTeamsGridStyle}>
-                {acceptedPlayerTeamConnections.map((connection) => (
-                  <article key={connection.id} style={linkedTeamCardStyle}>
+                {acceptedPlayerTeamConnections.map((connection) => {
+                  const nextMatch = findNextTeamMatch(connection, matches)
+                  return <article key={connection.id} style={linkedTeamCardStyle}>
                     <div style={linkedTeamCardCopyStyle}>
-                      <span style={linkedTeamRoleStyle}>{getTeamConnectionRolesLabel(connection.roles)}</span>
+                      <span style={linkedTeamRoleStyle}>{connection.isDefault ? 'Default team' : getTeamConnectionRolesLabel(connection.roles)}</span>
                       <strong style={teamPrepTitleStyle}>{connection.teamName}</strong>
                       <span style={teamPrepMetaStyle}>
                         {[connection.leagueName, connection.flight].filter(Boolean).join(' - ') || 'Team linked to your profile'}
+                      </span>
+                      <span style={teamPrepMetaStyle}>
+                        {nextMatch
+                          ? `Next match: ${formatTeamMatchDate(nextMatch.match_date)} vs ${getTeamMatchOpponent(connection, nextMatch)}`
+                          : 'Schedule not connected'}
+                      </span>
+                      <span style={teamConnectionHealthStyle}>
+                        {getTeamConnectionSourceLabel(connection.sourceType)} · Updated {formatTeamConnectionDate(connection.updatedAt)}
                       </span>
                     </div>
                     <div style={teamPrepActionRowStyle}>
@@ -3243,10 +3314,22 @@ function MyLabPageInner() {
                       {isCaptainTeamConnection(connection.roles) && access.canUseCaptainWorkflow ? (
                         <Link href={buildTeamConnectionCaptainHref(connection)} style={smallInlineLinkStyle}>Open Captain</Link>
                       ) : null}
+                      {!connection.isDefault ? (
+                        <button
+                          type="button"
+                          onClick={() => void makeDefaultTeam(connection)}
+                          disabled={Boolean(teamConnectionWorkingId)}
+                          style={miniActionButtonStyle}
+                        >
+                          {teamConnectionWorkingId === connection.id ? 'Saving' : 'Make default'}
+                        </button>
+                      ) : null}
+                      {!nextMatch ? <Link href="/data-assist?intent=upload-source&context=Team%20Hub&type=schedule#upload" style={smallInlineLinkStyle}>Add schedule</Link> : null}
                     </div>
                   </article>
-                ))}
+                })}
               </div>
+              {teamConnectionMessage ? <p style={warningNoteStyle} role="status" aria-live="polite">{teamConnectionMessage}</p> : null}
             </section>
           ) : teamConnectionsError ? (
             <div style={warningNoteStyle} role="status">
@@ -3255,43 +3338,13 @@ function MyLabPageInner() {
           ) : null}
 
           {!isProfileConfirmed ? (
-            <section id="my-lab-setup" style={setupPanelStyle(isTablet)} aria-label="Set up My Lab">
-              <div style={setupHeroStyle}>
-                <TiqFeatureIcon name="accountSecurity" size={isMobile ? 'md' : 'lg'} variant="surface" />
-                <div>
-                  <p style={sectionKickerStyle}>First step</p>
-                  <h2 style={setupTitleStyle}>Find or create your player.</h2>
-                  <p style={sectionTextStyle}>
-                    Search the player records first. If you are not there, create a profile. Add a scorecard only when match history is missing.
-                  </p>
-                </div>
-              </div>
-              <div style={setupActionRowStyle}>
-                <Link href="/profile#profile-identity" style={matchupPrimaryLinkStyle}>
-                  Find or create my player
-                </Link>
-                <Link href={dataAssistMyLabHref} style={secondaryButtonStyle}>
-                  Add match data
-                </Link>
-              </div>
-              <div style={setupStepGridStyle}>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>1</span>
-                  <strong>Connect your player</strong>
-                  <p>Choose your public record or create your profile.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>2</span>
-                  <strong>Check your match history</strong>
-                  <p>If results are missing, upload a TennisLink scorecard.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>3</span>
-                  <strong>Return to My Lab</strong>
-                  <p>Your progress, matchup prep, and next work will start here.</p>
-                </div>
-              </div>
-            </section>
+            <TennisSetupChecklist
+              hasPlayer={false}
+              hasTeam={acceptedPlayerTeamConnections.length > 0}
+              hasMatchData={personalMatches.length > 0}
+              teamHref="/data-assist?intent=upload-source&context=My%20Lab&type=team_summary#upload"
+              matchDataHref={dataAssistMyLabHref}
+            />
           ) : (
           <section style={personalLabPathStyle} aria-label="My Lab next action path">
             <div style={personalLabPathHeaderStyle}>
@@ -8190,54 +8243,6 @@ const quickProfileValueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
-  borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
-  padding: isTablet ? 18 : 22,
-  display: 'grid',
-  gap: 18,
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-})
-
-const setupHeroStyle: CSSProperties = {
-  display: 'flex',
-  gap: 14,
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const setupTitleStyle: CSSProperties = {
-  margin: '4px 0 8px',
-  color: 'var(--foreground-strong)',
-  fontSize: '1.55rem',
-  lineHeight: 1.06,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const setupStepGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-}
-
-const setupStepCardStyle: CSSProperties = {
-  borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: 14,
-  display: 'grid',
-  gap: 8,
-  minHeight: 138,
-  alignContent: 'start',
-  color: 'var(--foreground-strong)',
-  minWidth: 0,
-}
-
 const setupStepNumberStyle: CSSProperties = {
   width: 32,
   height: 32,
@@ -8251,13 +8256,6 @@ const setupStepNumberStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 950,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const setupActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-  minWidth: 0,
 }
 
 const todayReadPanelStyle: CSSProperties = {
@@ -9004,6 +9002,13 @@ const linkedTeamRoleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const teamConnectionHealthStyle: CSSProperties = {
+  color: 'var(--shell-copy-faint)',
+  fontSize: 11,
+  fontWeight: 750,
+  lineHeight: 1.4,
+}
+
 const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
@@ -9527,6 +9532,11 @@ const miniActionPillStyle: CSSProperties = {
   textAlign: 'center',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const miniActionButtonStyle: CSSProperties = {
+  ...miniActionPillStyle,
+  cursor: 'pointer',
 }
 
 const notebookFooterStyle: CSSProperties = {

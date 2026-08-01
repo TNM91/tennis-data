@@ -3,18 +3,19 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const checklist = readFileSync(join(process.cwd(), 'app/components/tennis-setup-checklist.tsx'), 'utf8')
 
 describe('My Lab onboarding flow', () => {
   it('puts one player setup path ahead of normal tools for first-time users', () => {
-    expect(source).toContain("const myLabTitle = isProfileConfirmed ? welcomeLine : 'Connect your player to start.'")
+    expect(source).toContain("const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'")
     expect(source).toContain('{!isProfileConfirmed ? (')
-    expect(source).toContain('aria-label="Set up My Lab"')
-    expect(source).toContain('Find or create your player.')
-    expect(source).toContain('Find or create my player')
-    expect(source).toContain('href="/profile#profile-identity"')
-    expect(source).toContain('Check your match history')
-    expect(source).toContain('upload a TennisLink scorecard')
-    expect(source).toContain('Return to My Lab')
+    expect(source).toContain('<TennisSetupChecklist')
+    expect(checklist).toContain('aria-label="Tennis setup"')
+    expect(checklist).toContain('Connect your player.')
+    expect(checklist).toContain('Find my player')
+    expect(checklist).toContain("playerHref = '/profile#profile-identity'")
+    expect(checklist).toContain('Upload a scorecard if your match history is missing.')
+    expect(checklist).toContain('if (nextIndex === -1) return null')
     expect(source).not.toContain('Finish setup')
     expect(source).not.toContain('Set your player profile once.')
   })

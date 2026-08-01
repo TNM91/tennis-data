@@ -23,10 +23,12 @@ describe('profile wording consistency', () => {
   it('keeps My Lab and Captain setup prompts aligned with profile creation', () => {
     const myLab = source('app/mylab/page.tsx')
     const captain = source('app/captain/page.tsx')
+    const checklist = source('app/components/tennis-setup-checklist.tsx')
 
     expect(myLab).toContain('Set your profile to unlock recommendations')
-    expect(myLab).toContain('Find or create your player.')
-    expect(myLab).toContain('Find or create my player')
+    expect(myLab).toContain('<TennisSetupChecklist')
+    expect(checklist).toContain('Connect your player.')
+    expect(checklist).toContain('Find my player')
     expect(myLab).not.toContain('Improve your profile')
     expect(captain).toContain('Set profile')
     expect(captain).not.toContain('Link profile</Link>')

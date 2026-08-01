@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
+const checklistSource = readFileSync(join(process.cwd(), 'app/components/tennis-setup-checklist.tsx'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(styleName: string) {
@@ -100,18 +101,14 @@ describe('Captain onboarding surface', () => {
   })
 
   it('makes first-team setup and the returning default explicit', () => {
-    expect(source).toContain('Find your Player ID')
-    expect(source).toContain('If it is missing, upload USTA data first')
-    expect(source).toContain('Player ID connected')
-    expect(source).toContain("status: playerIdReady ? 'Complete' : 'Step 1'")
-    expect(source).toContain("status: playerIdReady ? 'Next step' : 'Step 2'")
-    expect(source).toContain("href: '/profile?setup=captain'")
+    expect(source).toContain('<TennisSetupChecklist')
+    expect(source).toContain('playerHref="/profile?setup=captain#profile-identity"')
     expect(source).toContain('profile={captainProfileLink}')
-    expect(source).toContain('Add your first team')
-    expect(source).toContain('Upload the TennisLink Player Roster.')
-    expect(source).toContain('phone numbers, and any emails TennisLink includes')
-    expect(source).toContain("href: captainPlayerRosterHref")
-    expect(source).toContain("cta: 'Upload Player Roster'")
+    expect(checklistSource).toContain('Add your first team.')
+    expect(checklistSource).toContain('Upload a TennisLink Player Roster')
+    expect(checklistSource).toContain("action: 'Upload Player Roster'")
+    expect(checklistSource).toContain('if (nextIndex === -1) return null')
+    expect(source).toContain('teamHref={captainPlayerRosterHref}')
     expect(source).toContain('Add another team')
     expect(source).toContain('href={captainPlayerRosterHref}')
     expect(source).toContain('saveUserProfileLink')

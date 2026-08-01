@@ -146,4 +146,16 @@ describe('team profile links', () => {
       role: 'captain',
     })).toBe('net results__tri level__3 5 4 0 4 5__captain')
   })
+
+  it('puts the account default team first', () => {
+    const result = buildTeamConnections({
+      savedLinks: [
+        { id: 'newer', team_name: 'Newer Team', status: 'accepted', updated_at: '2026-08-01T12:00:00Z' },
+        { id: 'default', team_name: 'My Team', status: 'accepted', is_default: true, updated_at: '2026-07-01T12:00:00Z' },
+      ],
+    })
+
+    expect(result.connections.map((connection) => connection.id)).toEqual(['default', 'newer'])
+    expect(result.connections[0].isDefault).toBe(true)
+  })
 })

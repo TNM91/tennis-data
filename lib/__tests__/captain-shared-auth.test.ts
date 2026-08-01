@@ -17,7 +17,7 @@ describe('Captain shared auth access', () => {
   it('keeps the captain hub on shared auth before resolving team scope', () => {
     expect(captainHubSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(captainHubSource).toContain('<SiteShell active="/captain">')
-    expect(captainHubSource).toContain('const { userId, role, entitlements, authResolved } = useAuth()')
+    expect(captainHubSource).toContain('const { userId, role, entitlements, authResolved, session } = useAuth()')
     expect(captainHubSource).toContain("if (!authResolved || role === 'public') return")
     expect(captainHubSource).toContain('void loadCaptainTeamScopes(userId)')
     expect(captainHubSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")

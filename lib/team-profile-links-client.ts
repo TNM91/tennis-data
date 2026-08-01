@@ -1,4 +1,5 @@
 import type { TeamConnection } from './team-profile-links'
+import { notifyTeamConnectionsChanged } from './team-profile-links-events'
 import type { TeamInviteOffer, TeamInviteOffers } from './team-invite-offers-core'
 
 export type { TeamInviteOffer, TeamInviteOffers }
@@ -32,7 +33,7 @@ export async function fetchTeamConnections(accessToken: string) {
 export async function updateTeamConnection(input: {
   accessToken: string
   connectionId: string
-  action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles'
+  action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default'
 }) {
   const response = await fetch('/api/team-connections', {
     method: 'POST',
@@ -44,5 +45,6 @@ export async function updateTeamConnection(input: {
   })
   const json = (await response.json()) as TeamConnectionsResponse
   if (!response.ok || !json.ok) throw new Error(json.message || 'Team connection could not be updated.')
+  notifyTeamConnectionsChanged()
   return json.connection || null
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -22,6 +23,7 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -338,6 +340,14 @@ function ProfilePageInner() {
     }
     void loadProfile()
   }, [authResolved, loadProfile, userId])
+
+  useEffect(() => subscribeToTeamConnectionsChanged(() => {
+    if (!userId) return
+    void loadUserProfileLink(userId).then((result) => {
+      setProfile(result.data)
+      setProfileSource(result.source)
+    })
+  }), [userId])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
   const selectedPlayer = selectedPlayerId ? playerMap.get(selectedPlayerId) || null : null
@@ -661,6 +671,9 @@ function ProfilePageInner() {
   const signedIn = Boolean(userId || session?.user?.id)
   const authPending = !authResolved && !signedIn
   const primaryRating = linkedPlayer || selectedPlayer
+  const hasRatingIdentity = Boolean(primaryRating || typedProfileActive)
+  const profilePlayerId = profile?.linked_player_id || selectedPlayerId
+  const profileHasMatchData = Boolean(profilePlayerId && matchPlayers.some((row) => row.player_id === profilePlayerId))
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -675,7 +688,9 @@ function ProfilePageInner() {
   )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || typedPlayerNameClean || 'Choose player'
   const selfRatingValue = normalizeSelfRating(selfRating)
-  const ratingSourceLabel = (primaryRating?.rating_source === 'self' || typedProfileActive) ? 'Self-rated S' : 'Verified'
+  const ratingSourceLabel = !hasRatingIdentity
+    ? ''
+    : (primaryRating?.rating_source === 'self' || typedProfileActive) ? 'Self-rated S' : 'Verified'
   const tiqOverallValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'overall')
   const tiqSinglesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'singles')
   const tiqDoublesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'doubles')
@@ -738,7 +753,7 @@ function ProfilePageInner() {
       ? `${profileDisplayName} is connected.`
       : `${profileDisplayName} is your player.`
     : signedIn
-      ? 'Set your player identity.'
+      ? 'Your tennis profile.'
       : 'Sign in to set up your profile.'
   const heroCopy = authPending
     ? 'Give TenAceIQ a moment to confirm your access.'
@@ -781,6 +796,14 @@ function ProfilePageInner() {
           </div>
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
+
+          {signedIn ? (
+            <TennisSetupChecklist
+              hasPlayer={profileComplete}
+              hasTeam={Boolean(profile?.linked_team_name || selectedPlayerTeams.length)}
+              hasMatchData={profileHasMatchData}
+            />
+          ) : null}
 
           {signedIn ? (
           <section style={contentGridStyle}>
@@ -873,14 +896,14 @@ function ProfilePageInner() {
                 </div>
               </div>
 
-              <div style={ratingTileGridStyle(isMobile)}>
+              {hasRatingIdentity ? <div style={ratingTileGridStyle(isMobile)}>
                 {ratingTiles.map((tile) => (
                   <div key={tile.label} style={ratingTileStyle}>
                     <span>{tile.label}</span>
                     <strong>{tile.value}</strong>
                   </div>
                 ))}
-              </div>
+              </div> : null}
 
               <details className="profileDetailsSection" style={playerIdPowersStyle}>
                 <summary style={profileDetailsSummaryStyle}>
