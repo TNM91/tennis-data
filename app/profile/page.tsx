@@ -272,6 +272,7 @@ function ProfilePageInner() {
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
+  const [captainSetupEntry, setCaptainSetupEntry] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
@@ -279,7 +280,9 @@ function ProfilePageInner() {
 
   useEffect(() => {
     setPrefs(readProfilePrefs())
-    if (new URLSearchParams(window.location.search).get('billing') === 'returned') {
+    const params = new URLSearchParams(window.location.search)
+    setCaptainSetupEntry(params.get('setup') === 'captain')
+    if (params.get('billing') === 'returned') {
       setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
     }
   }, [])
@@ -684,6 +687,7 @@ function ProfilePageInner() {
     { label: 'Source', value: ratingSourceLabel },
   ]
   const dataAssistProfileHref = '/data-assist?intent=upload-source&context=Profile'
+  const captainTeamSetupHref = '/data-assist?intent=upload-source&context=Team%20Hub#upload'
   const firstTiqMoves = [
     { title: 'Upload scorecard', href: dataAssistProfileHref, icon: 'reports' },
     { title: 'Local leagues', href: '/explore/leagues', icon: 'schedule' },
@@ -730,14 +734,18 @@ function ProfilePageInner() {
   const heroTitle = authPending
     ? 'Checking your account.'
     : profileComplete
-    ? `${profileDisplayName} is your player.`
+    ? captainSetupEntry
+      ? `${profileDisplayName} is connected.`
+      : `${profileDisplayName} is your player.`
     : signedIn
       ? 'Set your player identity.'
       : 'Sign in to set up your profile.'
   const heroCopy = authPending
     ? 'Give TenAceIQ a moment to confirm your access.'
     : profileComplete
-    ? 'My Lab, Matchup, Team, and League now start from this identity.'
+    ? captainSetupEntry
+      ? 'Player ID setup is complete. Next, connect your active team.'
+      : 'My Lab, Matchup, Team, and League now start from this identity.'
     : signedIn
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
@@ -752,10 +760,17 @@ function ProfilePageInner() {
           </div>
           <div style={profileIntroActionsStyle}>
             {profileComplete ? (
-              <>
-                <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
-                <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
-              </>
+              captainSetupEntry ? (
+                <>
+                  <Link href={captainTeamSetupHref} style={primaryButtonStyle}>Connect active team</Link>
+                  <Link href="/captain" style={secondaryButtonStyle}>Back to Captain</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
+                  <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+                </>
+              )
             ) : authPending ? (
               <span style={secondaryButtonStyle}>Checking access</span>
             ) : signedIn ? (
@@ -953,21 +968,36 @@ function ProfilePageInner() {
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
                     <div>
-                      <strong>Next move</strong>
+                      <strong>{captainSetupEntry ? 'Player ID connected' : 'Next move'}</strong>
                       <span>
-                        {ratingSourceLabel === 'Self-rated S'
+                        {captainSetupEntry
+                          ? 'Step 1 is complete. Connect your active team to finish Captain setup.'
+                          : ratingSourceLabel === 'Self-rated S'
                           ? 'Self-rated is live. Add a scorecard or match signal when you are ready.'
                           : 'Your player identity is ready across the portal.'}
                       </span>
                     </div>
                   </div>
                   <div style={newPlayerActionGridStyle}>
-                    {profileNextMoves.map((move) => (
-                      <Link key={move.href} href={move.href} style={newPlayerActionCardStyle}>
-                        <TiqFeatureIcon name={move.icon} size="sm" variant="ghost" />
-                        <span>{move.title}</span>
-                      </Link>
-                    ))}
+                    {captainSetupEntry ? (
+                      <>
+                        <Link href={captainTeamSetupHref} style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name="reports" size="sm" variant="ghost" />
+                          <span>Connect active team</span>
+                        </Link>
+                        <Link href="/captain" style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name="captainDashboard" size="sm" variant="ghost" />
+                          <span>Back to Captain</span>
+                        </Link>
+                      </>
+                    ) : (
+                      profileNextMoves.map((move) => (
+                        <Link key={move.href} href={move.href} style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name={move.icon} size="sm" variant="ghost" />
+                          <span>{move.title}</span>
+                        </Link>
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (

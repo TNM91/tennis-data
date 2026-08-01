@@ -92,6 +92,11 @@ describe('Captain onboarding surface', () => {
   it('makes first-team setup and the returning default explicit', () => {
     expect(source).toContain('Find your Player ID')
     expect(source).toContain('If it is missing, upload USTA data first')
+    expect(source).toContain('Player ID connected')
+    expect(source).toContain("status: playerIdReady ? 'Complete' : 'Step 1'")
+    expect(source).toContain("status: playerIdReady ? 'Next step' : 'Step 2'")
+    expect(source).toContain("href: '/profile?setup=captain'")
+    expect(source).toContain('profile={captainProfileLink}')
     expect(source).toContain('Connect your active team')
     expect(source).toContain('you can make any team your default')
     expect(source).toContain('saveUserProfileLink')
