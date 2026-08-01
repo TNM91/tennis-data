@@ -193,6 +193,18 @@ function getDataAssistQuery(value: string | null): string {
   return (value || '').trim().slice(0, 120)
 }
 
+function getRequestedImportType(value: string | null): DataAssistImportType | null {
+  if (value === 'scorecard' || value === 'schedule' || value === 'team_summary') return value
+  return null
+}
+
+function getSafeDataAssistReturnTo(value: string | null): string {
+  const path = (value || '').trim()
+  if (!path || path.length > 500 || path.startsWith('//')) return ''
+  if (path === '/captain' || path.startsWith('/captain/')) return path
+  return ''
+}
+
 function buildDataAssistIssueHref(context = '', query = '') {
   const details = [
     context ? `Source context: ${context}` : '',
@@ -224,7 +236,10 @@ function DataAssistWorkspace() {
   const intent = getDataAssistIntent(searchParams.get('intent'))
   const intentContext = getDataAssistContext(searchParams.get('context'))
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
-  const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
+  const requestedImportType = getRequestedImportType(searchParams.get('type'))
+  const exportHelpRequested = searchParams.get('help') === '1'
+  const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
+  const [importType, setImportType] = useState<DataAssistImportType>(requestedImportType || 'scorecard')
   const [typeOverrideActive, setTypeOverrideActive] = useState(false)
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
@@ -873,23 +888,30 @@ function DataAssistWorkspace() {
                   eyebrow="Export help"
                   title="Need upload help?"
                   cue="Show steps"
+                  defaultOpen={exportHelpRequested}
                 >
                   <div style={mobileUploadHelpStackStyle}>
                     <div style={simpleHelpStyle}>
                       <strong>{getUploadHelpTitle(importType)}</strong>
                       <span>{getUploadHelpText(importType)}</span>
                     </div>
-                    <div style={seasonGuideStyle}>
-                      <strong>Scorecards can stand alone</strong>
-                      <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
-                    </div>
-                    <ExportHelpPanel importType={importType} />
-                    <DataAssistSourcePathPanel
-                      onSelectImportType={updateImportType}
-                      issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
-                    />
-                    <DataAssistReviewFlowPanel />
-                    <DataAssistTrustEnginePanel />
+                    {!exportHelpRequested ? (
+                      <div style={seasonGuideStyle}>
+                        <strong>Scorecards can stand alone</strong>
+                        <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
+                      </div>
+                    ) : null}
+                    <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} />
+                    {!exportHelpRequested ? (
+                      <>
+                        <DataAssistSourcePathPanel
+                          onSelectImportType={updateImportType}
+                          issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+                        />
+                        <DataAssistReviewFlowPanel />
+                        <DataAssistTrustEnginePanel />
+                      </>
+                    ) : null}
                   </div>
                 </DataAssistDetailsSection>
               ) : (
@@ -898,11 +920,13 @@ function DataAssistWorkspace() {
                     <strong>{getUploadHelpTitle(importType)}</strong>
                     <span>{getUploadHelpText(importType)}</span>
                   </div>
-                  <div style={seasonGuideStyle}>
-                    <strong>Scorecards can stand alone</strong>
-                    <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
-                  </div>
-                  <ExportHelpPanel importType={importType} />
+                  {!exportHelpRequested ? (
+                    <div style={seasonGuideStyle}>
+                      <strong>Scorecards can stand alone</strong>
+                      <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
+                    </div>
+                  ) : null}
+                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} />
                 </>
               )
             ) : null}
@@ -1054,7 +1078,12 @@ function DataAssistWorkspace() {
               </span>
             </div>
             {isTeamSummaryParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
-              <TeamSummaryImportedPanel result={latestScan.autoImport} parsedDraft={latestScan.parsedDraft} />
+              <TeamSummaryImportedPanel
+                result={latestScan.autoImport}
+                parsedDraft={latestScan.parsedDraft}
+                context={intentContext}
+                returnTo={returnTo}
+              />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
               <ScheduleImportedSummaryPanel
                 result={latestScan.autoImport}
@@ -1144,14 +1173,17 @@ function DataAssistDetailsSection({
   eyebrow,
   title,
   cue,
+  defaultOpen = false,
   children,
 }: {
   eyebrow: string
   title: string
   cue: string
+  defaultOpen?: boolean
   children: ReactNode
 }) {
   const { isMobile, isTablet } = useViewportBreakpoints()
+  const [open, setOpen] = useState(defaultOpen)
   const isCompactViewport = isMobile || isTablet
   const dynamicSummaryStyle: CSSProperties = {
     ...dataAssistDetailsSummaryStyle,
@@ -1175,7 +1207,12 @@ function DataAssistDetailsSection({
   }
 
   return (
-    <details className="dataAssistDetailsSection" style={dataAssistDetailsSectionStyle}>
+    <details
+      className="dataAssistDetailsSection"
+      style={dataAssistDetailsSectionStyle}
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary style={dynamicSummaryStyle}>
         <span style={dataAssistDetailsSummaryCopyStyle}>
           <span style={dynamicEyebrowStyle}>{eyebrow}</span>
@@ -2475,9 +2512,13 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
 function TeamSummaryImportedPanel({
   result,
   parsedDraft,
+  context = '',
+  returnTo = '',
 }: {
   result: DataAssistImportActionResult
   parsedDraft: DataAssistTeamSummaryParsedDraft
+  context?: string
+  returnTo?: string
 }) {
   const rosterResult = result.importResult?.kind === 'team_summary' ? result.importResult.result : null
 
@@ -2504,7 +2545,7 @@ function TeamSummaryImportedPanel({
         <span>{result.message || 'Team roster imported to TenAceIQ.'}</span>
       </div>
       <PostImportActions
-        actions={buildRosterPostImportActions(parsedDraft)}
+        actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />
     </div>
   )
@@ -2545,8 +2586,19 @@ function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDra
   return actions
 }
 
-function buildRosterPostImportActions(parsedDraft: DataAssistTeamSummaryParsedDraft) {
+function buildRosterPostImportActions(
+  parsedDraft: DataAssistTeamSummaryParsedDraft,
+  options: { context?: string; returnTo?: string } = {},
+) {
   const actions: Array<{ label: string; href: string }> = []
+  if (options.returnTo) {
+    actions.push({
+      label: options.returnTo.startsWith('/captain/lineup-builder') ? 'Return to Build Lineup' : 'Continue Captain setup',
+      href: options.returnTo,
+    })
+  } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {
+    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+  }
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
