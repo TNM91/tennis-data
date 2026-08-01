@@ -30,6 +30,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   buildCaptainLineupSlots,
+  fitCaptainLineupSlotsToFormat,
   getCaptainLineupFormatKey,
   getTriLevelRatings,
   isPlayerEligibleForCaptainRating,
@@ -466,29 +467,6 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
 
 function getPlayerBaseRating(player: PlayerRow) {
   return player.overall_rating ?? player.doubles_rating ?? null
-}
-
-function fitSlotsToLeagueFormat(
-  slots: LineupSlot[],
-  leagueName: string,
-  flight: string,
-  side: 'team' | 'opponent'
-) {
-  const expected = buildCaptainLineupSlots(leagueName, flight, side)
-  const ratings = getTriLevelRatings(leagueName, flight)
-  if (!ratings.length) return slots.length ? slots : expected
-
-  return expected.map((expectedSlot) => {
-    const matchingSlot = slots.find((slot) => {
-      if (slot.ratingLevel === expectedSlot.ratingLevel) return true
-      if (typeof expectedSlot.ratingLevel !== 'number') return false
-      return slot.label.includes(expectedSlot.ratingLevel.toFixed(1))
-    })
-
-    return matchingSlot
-      ? { ...expectedSlot, players: matchingSlot.players.map((player) => ({ ...player })) }
-      : expectedSlot
-  })
 }
 
 function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot) {
@@ -1071,7 +1049,7 @@ function LineupBuilderContent() {
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
 
-  const [availabilityOnly, setAvailabilityOnly] = useState(true)
+  const [availabilityOnly, setAvailabilityOnly] = useState(false)
   const [hideUnavailable, setHideUnavailable] = useState(true)
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
     buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team')
@@ -1323,12 +1301,18 @@ function LineupBuilderContent() {
   )
 
   const scopedMatchOptions = useMemo(() => {
-    return matches.filter((match) => isSameScope(match, { leagueName, flight, teamName }))
+    return matches.filter((match) => isSameScope(match, {
+      leagueName: teamName ? '' : leagueName,
+      flight: teamName ? '' : flight,
+      teamName,
+    }))
   }, [flight, leagueName, matches, teamName])
 
   const selectedMatch = useMemo(() => {
     return scopedMatchOptions.find((match) => match.id === selectedMatchId) ?? null
   }, [scopedMatchOptions, selectedMatchId])
+  const selectedFormatLeagueName = selectedMatch?.league_name || leagueName
+  const selectedFormatFlight = selectedMatch?.flight || flight
 
   useEffect(() => {
     if (!teamName || !scopedMatchOptions.length) return
@@ -1361,8 +1345,12 @@ function LineupBuilderContent() {
     const opponent = getOpponentForTeam(selectedMatch, teamName)
     if (opponent) setOpponentTeam(opponent)
     if (selectedMatch.match_date) setMatchDate(selectedMatch.match_date)
-    if (selectedMatch.league_name && !leagueName) setLeagueName(selectedMatch.league_name)
-    if (selectedMatch.flight && !flight) setFlight(selectedMatch.flight)
+    if (selectedMatch.league_name && selectedMatch.league_name !== leagueName) {
+      setLeagueName(selectedMatch.league_name)
+    }
+    if (selectedMatch.flight && selectedMatch.flight !== flight) {
+      setFlight(selectedMatch.flight)
+    }
   }, [flight, leagueName, selectedMatch, teamName])
 
   const scenarioOptions = useMemo(() => {
@@ -2225,8 +2213,8 @@ function LineupBuilderContent() {
 
     const scenarioLeague = scenario.league_name ?? ''
     const scenarioFlight = scenario.flight ?? ''
-    setTeamSlots(fitSlotsToLeagueFormat(loadedTeamSlots, scenarioLeague, scenarioFlight, 'team'))
-    setOpponentSlots(fitSlotsToLeagueFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent'))
+    setTeamSlots(fitCaptainLineupSlotsToFormat(loadedTeamSlots, scenarioLeague, scenarioFlight, 'team'))
+    setOpponentSlots(fitCaptainLineupSlotsToFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent'))
     setActiveLineupFormatKey(getCaptainLineupFormatKey(scenarioLeague, scenarioFlight))
     setAppliedLineupNotice(null)
     clearLocks()
@@ -2283,22 +2271,31 @@ function LineupBuilderContent() {
     [builderPlayers, opponentSlots, teamSlots]
   )
 
+  const optimizerTeamSlots = useMemo(
+    () => fitCaptainLineupSlotsToFormat(teamSlots, selectedFormatLeagueName, selectedFormatFlight, 'team'),
+    [selectedFormatFlight, selectedFormatLeagueName, teamSlots]
+  )
+  const optimizerOpponentSlots = useMemo(
+    () => fitCaptainLineupSlotsToFormat(opponentSlots, selectedFormatLeagueName, selectedFormatFlight, 'opponent'),
+    [opponentSlots, selectedFormatFlight, selectedFormatLeagueName]
+  )
+
   const eliteRecommendation = useMemo(() => {
-    const balanced = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced')
+    const balanced = recommendLineupFromPool(optimizerTeamSlots, myPlayerPool, 'balanced')
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
-      analysis: compareLineupStrength(balanced.slots, opponentSlots, builderPlayers),
+      analysis: compareLineupStrength(balanced.slots, optimizerOpponentSlots, builderPlayers),
     }
-  }, [builderPlayers, teamSlots, myPlayerPool, opponentSlots])
+  }, [builderPlayers, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
 
   const optimizedPlans = useMemo(() => {
     return [
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'best'),
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'safe'),
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'upside'),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'best'),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'safe'),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'upside'),
     ]
-  }, [builderPlayers, teamSlots, myPlayerPool, opponentSlots])
+  }, [builderPlayers, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
@@ -2334,10 +2331,25 @@ function LineupBuilderContent() {
       myPlayerPool
     )
 
-    setTeamSlots(nextSlots)
-    showAppliedLineupNotice(plan.title, nextSlots)
+    const formatSafeSlots = fitCaptainLineupSlotsToFormat(
+      nextSlots,
+      selectedFormatLeagueName,
+      selectedFormatFlight,
+      'team'
+    )
+    const incompleteCourts = formatSafeSlots.filter((slot) =>
+      slot.players.some((player) => !player.playerId)
+    )
+
+    setTeamSlots(formatSafeSlots)
+    showAppliedLineupNotice(plan.title, formatSafeSlots)
     setMessage(`${plan.title} applied${lockedSlotIds.length || lockedPlayerIds.length ? ' with locks preserved' : ''}.`)
-    setError('')
+    setError(incompleteCourts.length
+      ? `Best lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
+      : '')
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-lineup-courts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   function applyRecommendedTeamLineup() {
@@ -2349,8 +2361,14 @@ function LineupBuilderContent() {
       lockedPlayerIdSet,
       myPlayerPool
     )
-    setTeamSlots(rebuilt)
-    showAppliedLineupNotice('Balanced lineup', rebuilt)
+    const formatSafeSlots = fitCaptainLineupSlotsToFormat(
+      rebuilt,
+      selectedFormatLeagueName,
+      selectedFormatFlight,
+      'team'
+    )
+    setTeamSlots(formatSafeSlots)
+    showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
     setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
     setError('')
   }
