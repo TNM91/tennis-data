@@ -9,8 +9,8 @@ describe('auth provider stability', () => {
     expect(source).toContain('const AUTH_SESSION_TIMEOUT')
     expect(source).toContain('function isAuthSessionTimeout')
     expect(source).toContain('if (isAuthSessionTimeout(sessionResult))')
-    expect(source).toContain('let resolvedAuthState = false')
-    expect(source).toContain('mountedRef.current && resolvedAuthState')
+    expect(source).toContain('if (isAuthSessionTimeout(sessionResult)) {\n        return null')
+    expect(source).toContain('} catch {\n      return null')
     expect(source).not.toContain("{ data: { session: null }, error: null },")
   })
 
@@ -24,7 +24,25 @@ describe('auth provider stability', () => {
   it('returns the resolved snapshot from manual auth refreshes', () => {
     expect(source).toContain('refreshAuth: () => Promise<AuthRefreshState | null>')
     expect(source).toContain('type AuthRefreshState')
-    expect(source).toContain('userId: nextSession.user.id')
+    expect(source).toContain('userId: nextUserId')
     expect(source).toContain("role: 'public'")
+  })
+
+  it('preserves confirmed access through transient entitlement failures', () => {
+    expect(source).toContain('const sessionRef = useRef<Session | null>(null)')
+    expect(source).toContain('const entitlementsRef = useRef<ProductEntitlementSnapshot | null>(null)')
+    expect(source).toContain('const hasCurrentAccess =')
+    expect(source).toContain('previousUserId && previousUserId !== nextUserId')
+    expect(source).toContain("if (!mountedRef.current || sessionRef.current?.user?.id !== nextUserId) return null")
+    expect(source).toContain('!isAuthEntitlementTimeout(entitlementResult) && entitlementResult !== null')
+    expect(source).toContain('? entitlementsRef.current')
+    expect(source).toContain('if (!hasCurrentAccess) setAuthResolved(false)')
+  })
+
+  it('refreshes auth when a mobile browser restores or reconnects the page', () => {
+    expect(source).toContain("document.addEventListener('visibilitychange', refreshVisiblePage)")
+    expect(source).toContain("window.addEventListener('pageshow', refreshRestoredPage)")
+    expect(source).toContain("window.addEventListener('online', refreshRestoredPage)")
+    expect(source).toContain("window.removeEventListener('pageshow', refreshRestoredPage)")
   })
 })

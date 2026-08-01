@@ -34,6 +34,7 @@ type AuthRefreshState = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const AUTH_PROVIDER_TIMEOUT_MS = 8000
 const AUTH_SESSION_TIMEOUT = { timedOut: true } as const
+const AUTH_ENTITLEMENT_TIMEOUT = { timedOut: true } as const
 
 async function fetchProfileRole(userId: string | null | undefined): Promise<UserRole> {
   if (!userId) return 'public'
@@ -65,6 +66,10 @@ function isAuthSessionTimeout(value: unknown): value is typeof AUTH_SESSION_TIME
   return value === AUTH_SESSION_TIMEOUT
 }
 
+function isAuthEntitlementTimeout(value: unknown): value is typeof AUTH_ENTITLEMENT_TIMEOUT {
+  return value === AUTH_ENTITLEMENT_TIMEOUT
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole>('public')
@@ -72,10 +77,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authResolved, setAuthResolved] = useState(false)
 
   const mountedRef = useRef(true)
+  const sessionRef = useRef<Session | null>(null)
+  const roleRef = useRef<UserRole>('public')
+  const entitlementsRef = useRef<ProductEntitlementSnapshot | null>(null)
+
+  const resolveSignedInSession = useCallback(async (nextSession: Session): Promise<AuthRefreshState | null> => {
+    const nextUserId = nextSession.user.id
+    const previousUserId = sessionRef.current?.user?.id ?? null
+    const hasCurrentAccess =
+      previousUserId === nextUserId && entitlementsRef.current !== null
+
+    if (previousUserId && previousUserId !== nextUserId) {
+      roleRef.current = 'member'
+      entitlementsRef.current = null
+      setRole('member')
+      setEntitlements(null)
+    }
+
+    sessionRef.current = nextSession
+    setSession(nextSession)
+    if (!hasCurrentAccess) setAuthResolved(false)
+
+    const [nextRole, entitlementResult] = await Promise.all([
+      withTimeout(
+        fetchProfileRole(nextUserId),
+        AUTH_PROVIDER_TIMEOUT_MS,
+        hasCurrentAccess ? roleRef.current : 'member' as UserRole,
+      ),
+      withTimeout(
+        getClientEntitlementSnapshot(nextUserId),
+        AUTH_PROVIDER_TIMEOUT_MS,
+        AUTH_ENTITLEMENT_TIMEOUT,
+      ),
+    ])
+
+    if (!mountedRef.current || sessionRef.current?.user?.id !== nextUserId) return null
+
+    roleRef.current = nextRole
+    setRole(nextRole)
+
+    const nextEntitlements =
+      !isAuthEntitlementTimeout(entitlementResult) && entitlementResult !== null
+        ? entitlementResult
+        : hasCurrentAccess
+          ? entitlementsRef.current
+          : null
+
+    if (nextEntitlements !== null) {
+      entitlementsRef.current = nextEntitlements
+      setEntitlements(nextEntitlements)
+      setAuthResolved(true)
+    }
+
+    return {
+      session: nextSession,
+      userId: nextUserId,
+      role: nextRole,
+      entitlements: nextEntitlements,
+    }
+  }, [])
 
   const loadAuth = useCallback(async (): Promise<AuthRefreshState | null> => {
-    let resolvedAuthState = false
-
     try {
       const sessionResult = await withTimeout(
         supabase.auth.getSession(),
@@ -84,30 +146,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (isAuthSessionTimeout(sessionResult)) {
-        if (!mountedRef.current) return null
-        setSession(null)
-        setRole('public')
-        setEntitlements(null)
-        resolvedAuthState = true
-        return {
-          session: null,
-          userId: null,
-          role: 'public',
-          entitlements: null,
-        }
+        return null
       }
 
       const {
         data: { session: nextSession },
       } = sessionResult
 
-      if (!mountedRef.current) return null
-      setSession(nextSession ?? null)
-
       if (!nextSession?.user?.id) {
+        if (!mountedRef.current) return null
+        sessionRef.current = null
+        roleRef.current = 'public'
+        entitlementsRef.current = null
+        setSession(null)
         setRole('public')
         setEntitlements(null)
-        resolvedAuthState = true
+        setAuthResolved(true)
         return {
           session: null,
           userId: null,
@@ -116,98 +170,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [nextRole, nextEntitlements] = await Promise.all([
-        withTimeout(
-          fetchProfileRole(nextSession.user.id),
-          AUTH_PROVIDER_TIMEOUT_MS,
-          'member' as UserRole,
-        ),
-        withTimeout(
-          getClientEntitlementSnapshot(nextSession.user.id),
-          AUTH_PROVIDER_TIMEOUT_MS,
-          null,
-        ),
-      ])
-
-      if (!mountedRef.current) return null
-      setRole(nextRole)
-      setEntitlements(nextEntitlements)
-      resolvedAuthState = true
-      return {
-        session: nextSession,
-        userId: nextSession.user.id,
-        role: nextRole,
-        entitlements: nextEntitlements,
-      }
+      return await resolveSignedInSession(nextSession)
     } catch {
-      if (!mountedRef.current) return null
-      setSession(null)
-      setRole('public')
-      setEntitlements(null)
-      resolvedAuthState = true
       return null
-    } finally {
-      if (mountedRef.current && resolvedAuthState) {
-        setAuthResolved(true)
-      }
     }
-  }, [])
+  }, [resolveSignedInSession])
 
   useEffect(() => {
     mountedRef.current = true
-    void loadAuth()
+    const initialLoadId = window.setTimeout(() => {
+      void loadAuth()
+    }, 0)
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      let resolvedAuthState = false
-
       if (!mountedRef.current) return
 
-      setSession(nextSession ?? null)
-
       if (!nextSession?.user?.id) {
+        sessionRef.current = null
+        roleRef.current = 'public'
+        entitlementsRef.current = null
+        setSession(null)
         setRole('public')
         setEntitlements(null)
         setAuthResolved(true)
         return
       }
 
-      setAuthResolved(false)
-
       try {
-        const [nextRole, nextEntitlements] = await Promise.all([
-          withTimeout(
-            fetchProfileRole(nextSession.user.id),
-            AUTH_PROVIDER_TIMEOUT_MS,
-            'member' as UserRole,
-          ),
-          withTimeout(
-            getClientEntitlementSnapshot(nextSession.user.id),
-            AUTH_PROVIDER_TIMEOUT_MS,
-            null,
-          ),
-        ])
-
-        if (!mountedRef.current) return
-        setRole(nextRole)
-        setEntitlements(nextEntitlements)
-        resolvedAuthState = true
+        await resolveSignedInSession(nextSession)
       } catch {
-        if (!mountedRef.current) return
-        setRole('member')
-        setEntitlements(null)
-        resolvedAuthState = true
-      } finally {
-        if (mountedRef.current && resolvedAuthState) {
-          setAuthResolved(true)
-        }
+        // Keep the last confirmed access while Safari, the network, or storage recovers.
       }
     })
 
     return () => {
       mountedRef.current = false
+      window.clearTimeout(initialLoadId)
       subscription.unsubscribe()
+    }
+  }, [loadAuth, resolveSignedInSession])
+
+  useEffect(() => {
+    function refreshVisiblePage() {
+      if (document.visibilityState === 'visible') void loadAuth()
+    }
+
+    function refreshRestoredPage() {
+      void loadAuth()
+    }
+
+    document.addEventListener('visibilitychange', refreshVisiblePage)
+    window.addEventListener('pageshow', refreshRestoredPage)
+    window.addEventListener('online', refreshRestoredPage)
+
+    return () => {
+      document.removeEventListener('visibilitychange', refreshVisiblePage)
+      window.removeEventListener('pageshow', refreshRestoredPage)
+      window.removeEventListener('online', refreshRestoredPage)
     }
   }, [loadAuth])
 
