@@ -14,7 +14,7 @@ describe('Captain Tri-Level best-lineup flow', () => {
 
   it('normalizes optimizer input and output back to the active league format', () => {
     expect(source).toContain('const optimizerTeamSlots = useMemo(')
-    expect(source).toContain("fitCaptainLineupSlotsToFormat(teamSlots, selectedFormatLeagueName, selectedFormatFlight, 'team')")
+    expect(source).toContain("fitCaptainLineupSlotsToFormat(teamSlots, selectedFormatLeagueName, selectedFormatFlight, 'team', effectiveMatchFormatId)")
     expect(source).toContain('const formatSafeSlots = fitCaptainLineupSlotsToFormat(')
     expect(source).toContain("document.getElementById('captain-lineup-applied-next')?.scrollIntoView")
     expect(source).not.toContain("document.getElementById('captain-lineup-courts')?.scrollIntoView")

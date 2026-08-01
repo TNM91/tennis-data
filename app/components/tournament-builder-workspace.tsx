@@ -9,6 +9,10 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
 import {
+  TOURNAMENT_DRAW_FORMATS,
+  getTournamentDrawFormatDefinition,
+} from '@/lib/competition-format-registry'
+import {
   buildTournamentPreview,
   buildRoundRobinStandings,
   buildTournamentScheduleEvents,
@@ -1227,7 +1231,7 @@ export default function TournamentBuilderWorkspace() {
         <div style={statGridStyle}>
           <Stat label="Saved events" value={String(records.length)} />
           <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
-          <Stat label="Preview" value={format === 'round_robin' ? 'Round robin' : 'Bracket'} />
+          <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
         </div>
         {!canUseLeague && authResolved ? (
           <div style={actionRowStyle}>
@@ -1401,25 +1405,20 @@ export default function TournamentBuilderWorkspace() {
             </label>
           </div>
 
-          <div style={segmentedStyle} aria-label="Tournament format">
-            {[
-              ['single_elimination', 'Single elimination'],
-              ['round_robin', 'Round robin'],
-              ['compass_draw', 'Compass draw'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setFormat(value as TiqTournamentFormat)}
-                style={{
-                  ...segmentButtonStyle,
-                  ...(format === value ? segmentActiveStyle : null),
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <label style={fieldStyle}>
+            Tournament format
+            <select
+              aria-label="Tournament format"
+              value={format}
+              onChange={(event) => setFormat(event.target.value as TiqTournamentFormat)}
+              style={inputStyle}
+            >
+              {TOURNAMENT_DRAW_FORMATS.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            <span style={helperTextStyle}>{getTournamentDrawFormatDefinition(format).description}</span>
+          </label>
 
           <div style={segmentedStyle} aria-label="Entrant type">
             {[
@@ -1550,7 +1549,7 @@ export default function TournamentBuilderWorkspace() {
           <div style={statGridStyle}>
             <Stat label="Saved events" value={String(records.length)} />
             <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
-            <Stat label="Preview" value={format === 'round_robin' ? 'Round robin' : 'Bracket'} />
+            <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
           </div>
           {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
         </div>
@@ -3570,6 +3569,13 @@ const fieldStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   minWidth: 0,
+}
+
+const helperTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 650,
+  lineHeight: 1.45,
 }
 
 const toggleFieldStyle: CSSProperties = {

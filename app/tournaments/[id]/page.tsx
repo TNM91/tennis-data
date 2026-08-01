@@ -20,6 +20,7 @@ import {
   type TiqTournamentRecord,
 } from '@/lib/tiq-tournament-registry'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { getTournamentDrawFormatDefinition } from '@/lib/competition-format-registry'
 
 export const dynamic = 'force-dynamic'
 
@@ -594,7 +595,7 @@ function TournamentPublicInner() {
         <div style={sectionHeaderStyle}>
           <div>
             <div style={eyebrowStyle}>Draw</div>
-            <h2 style={sectionTitleStyle}>{record.format === 'round_robin' ? 'Round robin' : 'Bracket path'}</h2>
+            <h2 style={sectionTitleStyle}>{getTournamentDrawFormatDefinition(record.format).label}</h2>
           </div>
           <span style={pillStyle}>{record.status}</span>
         </div>

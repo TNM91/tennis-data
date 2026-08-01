@@ -1,10 +1,14 @@
 'use client'
 
 import { supabase } from './supabase'
+import {
+  normalizeTournamentDrawFormatId,
+  type TournamentDrawFormatId,
+} from './competition-format-registry'
 
 export const TIQ_TOURNAMENT_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_tournament_registry'
 
-export type TiqTournamentFormat = 'single_elimination' | 'round_robin' | 'compass_draw'
+export type TiqTournamentFormat = TournamentDrawFormatId
 export type TiqTournamentEntrantType = 'players' | 'teams'
 export type TiqTournamentStatus = 'draft' | 'open' | 'scheduled' | 'completed'
 export type TiqTournamentEntryStatus = 'pending' | 'approved' | 'declined'
@@ -346,8 +350,7 @@ function mergeLocalTournamentRecord(record: TiqTournamentRecord) {
 }
 
 export function normalizeTiqTournamentFormat(value: string | null | undefined): TiqTournamentFormat {
-  if (value === 'round_robin' || value === 'compass_draw') return value
-  return 'single_elimination'
+  return normalizeTournamentDrawFormatId(value)
 }
 
 export function normalizeTiqTournamentEntrantType(value: string | null | undefined): TiqTournamentEntrantType {

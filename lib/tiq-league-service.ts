@@ -16,6 +16,7 @@ import {
   writeTiqLeagueRegistry,
 } from '@/lib/tiq-league-registry'
 import { normalizeTiqIndividualCompetitionFormat } from '@/lib/tiq-individual-format'
+import { normalizeTeamMatchFormatId, type TeamMatchFormatId } from '@/lib/competition-format-registry'
 import {
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
@@ -84,6 +85,7 @@ type TiqLeagueRow = {
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
+  team_match_format_id?: string | null
   scoring_system?: string | null
   third_set_rule?: string | null
   league_name?: string | null
@@ -135,6 +137,7 @@ type TiqLeagueRemotePayload = {
   competition_layer: 'tiq'
   league_format: 'team' | 'individual'
   individual_competition_format: 'standard' | 'ladder' | 'round_robin' | 'challenge'
+  team_match_format_id: TeamMatchFormatId
   scoring_system: 'standard' | 'dynamic_points'
   third_set_rule: 'either' | 'full_set' | 'match_tiebreak_10'
   league_name: string
@@ -213,6 +216,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     competitionLayer: 'tiq',
     leagueFormat: row.league_format === 'individual' ? 'individual' : 'team',
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
+    teamMatchFormatId: normalizeTeamMatchFormatId(row.team_match_format_id),
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     thirdSetRule: normalizeTiqLeagueThirdSetRule(row.third_set_rule),
     leagueName: cleanText(row.league_name),
@@ -312,6 +316,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     competition_layer: 'tiq',
     league_format: record.leagueFormat,
     individual_competition_format: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
+    team_match_format_id: normalizeTeamMatchFormatId(record.teamMatchFormatId),
     scoring_system: normalizeTiqLeagueScoringSystem(record.scoringSystem),
     third_set_rule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
     league_name: record.leagueName,
