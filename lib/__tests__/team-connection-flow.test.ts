@@ -37,12 +37,26 @@ describe('team connection flow', () => {
     expect(migration).toContain("status in ('accepted', 'declined', 'unlinked')")
   })
 
-  it('limits the optional first-month coupon to accepted invited captains without access', () => {
+  it('limits team invitation coupons to recent accepted roles without prior access', () => {
     const checkout = readFileSync(join(process.cwd(), 'app/api/checkout/session/route.ts'), 'utf8')
+    const offers = readFileSync(join(process.cwd(), 'lib/team-invite-offers.ts'), 'utf8')
 
-    expect(checkout).toContain('STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID')
-    expect(checkout).toContain(".eq('status', 'accepted')")
-    expect(checkout).toContain(".in('team_role', ['captain', 'co_captain'])")
-    expect(checkout).toContain('if (entitlement.captain_subscription_active) return')
+    expect(checkout).toContain("checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'")
+    expect(offers).toContain('STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID')
+    expect(offers).toContain('STRIPE_PLAYER_TEAM_INVITE_COUPON_ID')
+    expect(offers).toContain(".eq('status', 'accepted')")
+    expect(offers).toContain(".gte('accepted_at', acceptedSince)")
+    expect(offers).toContain(".eq('outcome', 'handled')")
+    expect(offers).toContain('getTeamInviteOfferAcceptedSince()')
+  })
+
+  it('shows the Improve offer after an accepted player team link', () => {
+    const banner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+
+    expect(banner).toContain('offers.player')
+    expect(page).toContain('acceptedPlayerLinks')
+    expect(page).toContain('offers.player.label')
+    expect(page).toContain('aria-label="Improve recommendation"')
   })
 })
