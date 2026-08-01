@@ -2490,6 +2490,7 @@ function MyLabPageInner() {
   }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
+  const myLabTitle = isProfileConfirmed ? welcomeLine : 'Connect your player to start.'
   const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
   const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
   const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
@@ -3134,20 +3135,67 @@ function MyLabPageInner() {
             <div style={sectionTitleClusterStyle}>
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
-                <p style={sectionKickerStyle}>Your tennis hub</p>
-                <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
+                <p style={sectionKickerStyle}>{isProfileConfirmed ? 'Your tennis hub' : 'Start My Lab'}</p>
+                <h1 style={sectionTitleStyle}>{myLabTitle}</h1>
                 <p style={sectionTextStyle}>
-                  {isMobile
-                    ? 'Pick the next move, then keep the proof connected.'
-                    : 'My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.'}
+                  {isProfileConfirmed
+                    ? isMobile
+                      ? 'Pick the next move, then keep the proof connected.'
+                      : 'My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.'
+                    : 'Find or create your player record. My Lab can then show your progress, matchups, and next work.'}
                 </p>
               </div>
             </div>
-            <Link href={matchupHref} style={secondaryButtonStyle}>
-              Open Matchup
-            </Link>
+            {isProfileConfirmed ? (
+              <Link href={matchupHref} style={secondaryButtonStyle}>
+                Open Matchup
+              </Link>
+            ) : (
+              <Link href="/profile#profile-identity" style={matchupPrimaryLinkStyle}>
+                Find my player
+              </Link>
+            )}
           </div>
 
+          {!isProfileConfirmed ? (
+            <section id="my-lab-setup" style={setupPanelStyle(isTablet)} aria-label="Set up My Lab">
+              <div style={setupHeroStyle}>
+                <TiqFeatureIcon name="accountSecurity" size={isMobile ? 'md' : 'lg'} variant="surface" />
+                <div>
+                  <p style={sectionKickerStyle}>First step</p>
+                  <h2 style={setupTitleStyle}>Find or create your player.</h2>
+                  <p style={sectionTextStyle}>
+                    Search the player records first. If you are not there, create a profile. Add a scorecard only when match history is missing.
+                  </p>
+                </div>
+              </div>
+              <div style={setupActionRowStyle}>
+                <Link href="/profile#profile-identity" style={matchupPrimaryLinkStyle}>
+                  Find or create my player
+                </Link>
+                <Link href={dataAssistMyLabHref} style={secondaryButtonStyle}>
+                  Add match data
+                </Link>
+              </div>
+              <div style={setupStepGridStyle}>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>1</span>
+                  <strong>Connect your player</strong>
+                  <p>Choose your public record or create your profile.</p>
+                </div>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>2</span>
+                  <strong>Check your match history</strong>
+                  <p>If results are missing, upload a TennisLink scorecard.</p>
+                </div>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>3</span>
+                  <strong>Return to My Lab</strong>
+                  <p>Your progress, matchup prep, and next work will start here.</p>
+                </div>
+              </div>
+            </section>
+          ) : (
           <section style={personalLabPathStyle} aria-label="My Lab next action path">
             <div style={personalLabPathHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
@@ -3202,17 +3250,18 @@ function MyLabPageInner() {
               </details>
             ) : null}
           </section>
+          )}
 
-          {!showLockedMobileMyLabPreview ? (
-            <details className="myLabDetailsSection" style={isMobile ? labDrawerDetailsStyle : desktopPassthroughDetailsStyle} open={!isMobile}>
-              <summary style={isMobile ? labDrawerSummaryStyle : desktopHiddenSummaryStyle}>
+          {isProfileConfirmed && !showLockedMobileMyLabPreview ? (
+            <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+              <summary style={labDrawerSummaryStyle}>
                 <span style={labDrawerSummaryCopyStyle}>
-                  <strong>Start here</strong>
-                  <em style={labDrawerSummaryHintStyle}>Find yourself and choose a focus.</em>
+                  <strong>Need help?</strong>
+                  <em style={labDrawerSummaryHintStyle}>Review your player, goal, and first read.</em>
                 </span>
                 <span style={optionalContextCountStyle}>Open</span>
               </summary>
-              <div className="myLabDetailsBody" style={isMobile ? labDrawerContentStyle : desktopPassthroughContentStyle}>
+              <div className="myLabDetailsBody" style={labDrawerContentStyle}>
                 <section style={youHubPanelStyle}>
                   <div style={personalCommandGridStyle(isTablet)}>
                     {youHubCards.map((card) => (
@@ -3321,7 +3370,7 @@ function MyLabPageInner() {
             </details>
           ) : null}
 
-          {isMobile ? (
+          {isProfileConfirmed ? (isMobile ? (
             !showLockedMobileMyLabPreview ? (
               <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
                 <summary style={labDrawerSummaryStyle}>
@@ -3420,7 +3469,7 @@ function MyLabPageInner() {
                 onRevokeCalendarLink={revokePlayerCoachCalendarLink}
               />
             </>
-          )}
+          )) : null}
 
           {linkedPlayer ? (
             <>
@@ -3712,91 +3761,7 @@ function MyLabPageInner() {
                 </div>
               </details>
             </>
-          ) : isMobile ? (
-            <section style={setupCompactPanelStyle}>
-              <div style={setupCompactHeroStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
-                <div>
-                  <p style={sectionKickerStyle}>Finish setup</p>
-                  <h3 style={setupCompactTitleStyle}>Set your player profile.</h3>
-                </div>
-              </div>
-              <div style={setupActionRowStyle}>
-                <Link href="/profile" style={matchupPrimaryLinkStyle}>
-                  Set profile
-                </Link>
-                <Link href="/explore/players" style={secondaryButtonStyle}>
-                  Find player
-                </Link>
-              </div>
-              <details className="myLabDetailsSection" style={mobileLabMoveDetailsStyle}>
-                <summary style={mobileLabMoveSummaryStyle}>
-                  <span style={labDrawerSummaryCopyStyle}>
-                    <strong>Setup steps</strong>
-                    <em style={labDrawerSummaryHintStyle}>Profile, context, lab.</em>
-                  </span>
-                  <span style={optionalContextCountStyle}>3 steps</span>
-                </summary>
-                <div className="myLabDetailsBody" style={labDrawerContentStyle}>
-                  <div style={setupStepGridStyle(isTablet)}>
-                    <div style={setupStepCardStyle}>
-                      <span style={setupStepNumberStyle}>1</span>
-                      <strong>Match identity</strong>
-                      <p>Choose your player record in Profile.</p>
-                    </div>
-                    <div style={setupStepCardStyle}>
-                      <span style={setupStepNumberStyle}>2</span>
-                      <strong>Pull tennis context</strong>
-                      <p>Ratings, teams, leagues, and history connect automatically.</p>
-                    </div>
-                    <div style={setupStepCardStyle}>
-                      <span style={setupStepNumberStyle}>3</span>
-                      <strong>Open your lab</strong>
-                      <p>Scorecard, matchup queue, goals, and recent matches unlock here.</p>
-                    </div>
-                  </div>
-                </div>
-              </details>
-            </section>
-          ) : (
-            <section style={setupPanelStyle(isTablet)}>
-              <div style={setupHeroStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="lg" variant="surface" />
-                <div>
-                  <p style={sectionKickerStyle}>Finish setup</p>
-                  <h3 style={setupTitleStyle}>Set your player profile once.</h3>
-                  <p style={sectionTextStyle}>
-                    My Lab becomes your scorecard after your account knows which player is you.
-                  </p>
-                </div>
-              </div>
-              <div style={setupStepGridStyle(isTablet)}>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>1</span>
-                  <strong>Match identity</strong>
-                  <p>Choose your player record in Profile.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>2</span>
-                  <strong>Pull tennis context</strong>
-                  <p>Ratings, teams, leagues, and history connect automatically.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>3</span>
-                  <strong>Open your lab</strong>
-                  <p>Scorecard, matchup queue, goals, and recent matches unlock here.</p>
-                </div>
-              </div>
-              <div style={setupActionRowStyle}>
-                <Link href="/profile" style={matchupPrimaryLinkStyle}>
-                  Set profile
-                </Link>
-                <Link href="/explore/players" style={secondaryButtonStyle}>
-                  Find player
-                </Link>
-              </div>
-            </section>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -4212,10 +4177,10 @@ function MyLabPageInner() {
         </details>
       ) : null}
 
-      {!showLockedMobileMyLabPreview ? (
+      {isProfileConfirmed && !showLockedMobileMyLabPreview ? (
         <details className="myLabDetailsSection" style={optionalContextDetailsStyle}>
           <summary style={optionalContextSummaryStyle}>
-            <span>
+            <span style={optionalContextSummaryCopyStyle}>
               <strong>Watchlist</strong>
               <em>Follows and updates.</em>
             </span>
@@ -8139,24 +8104,12 @@ const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const setupCompactPanelStyle: CSSProperties = {
-  ...setupPanelStyle(true),
-  marginTop: 14,
-  padding: 14,
-  gap: 12,
-}
-
 const setupHeroStyle: CSSProperties = {
   display: 'flex',
   gap: 14,
   alignItems: 'center',
   flexWrap: 'wrap',
   minWidth: 0,
-}
-
-const setupCompactHeroStyle: CSSProperties = {
-  ...setupHeroStyle,
-  gap: 10,
 }
 
 const setupTitleStyle: CSSProperties = {
@@ -8168,20 +8121,12 @@ const setupTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const setupCompactTitleStyle: CSSProperties = {
-  ...setupTitleStyle,
-  margin: '3px 0 0',
-  fontSize: '1.24rem',
-}
-
-const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
+const setupStepGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
   minWidth: 0,
-})
+}
 
 const setupStepCardStyle: CSSProperties = {
   borderRadius: 16,
@@ -9567,22 +9512,6 @@ const labDrawerContentStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const desktopPassthroughDetailsStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  minWidth: 0,
-}
-
-const desktopPassthroughContentStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  minWidth: 0,
-}
-
-const desktopHiddenSummaryStyle: CSSProperties = {
-  display: 'none',
-}
-
 const optionalContextSummaryStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -9596,6 +9525,12 @@ const optionalContextSummaryStyle: CSSProperties = {
   flexWrap: 'wrap',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const optionalContextSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
 }
 
 const optionalContextCountStyle: CSSProperties = {
