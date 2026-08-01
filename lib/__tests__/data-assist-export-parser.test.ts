@@ -105,6 +105,43 @@ describe('parseTennisLinkExportFiles', () => {
     expect(draft.players.map((player) => player.name)).toContain('Connor Zielonko')
   })
 
+  it('turns a Player Roster export into players, ratings, and private captain contacts', () => {
+    const html = `
+      <table>
+        <tr><td>Team Name</td><td>Team Number</td><td>Season Start</td><td>No. Players</td></tr>
+        <tr><td>Example Aces</td><td>123456789</td><td>8/1/2026</td><td>2</td></tr>
+        <tr><td>USTA Section</td><td>USTA District</td><td>Local League / League Type</td><td>Team NTRP/Gender</td><td>Flight Name</td></tr>
+        <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS</td><td>2026 STL Tri-Level 18 &amp; Over</td><td>Men</td><td>Men 3.5/4.0/4.5</td></tr>
+        <tr><td>Captain Name</td><td>Captain Phone</td><td>Captain E-Mail Address</td></tr>
+        <tr><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td></tr>
+        <tr><td>Casey Partner</td><td>314-555-0101</td><td>casey@example.com</td></tr>
+        <tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>NTRP/Rating Date</td><td>Local Matches Played</td><td>Champ Matches Played</td><td>Total Matches Played</td><td>Local Wins by Default</td><td>Champ Wins by Default</td><td>Total Wins by Default</td></tr>
+        <tr><td>1112223334</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>4.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>2223334445</td><td>12/31/2026</td><td>Casey Partner</td><td>314-555-0101</td><td>3.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+      </table>
+    `
+    const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileName: 'PlayerRoster_812026.xls', fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
+    const draft = buildTeamSummaryOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
+
+    expect(parsed.detectedImportType).toBe('team_summary')
+    expect(draft).toMatchObject({
+      rosterTeamName: 'Example Aces',
+      leagueName: '2026 STL Tri-Level 18 & Over',
+      flight: 'Men 3.5/4.0/4.5',
+      playerCount: 2,
+      contactCount: 2,
+    })
+    expect(draft.players).toEqual([
+      expect.objectContaining({ name: 'Alex Captain', ntrp: 4.5, phone: '314-555-0100', email: 'alex@example.com' }),
+      expect.objectContaining({ name: 'Casey Partner', ntrp: 3.5, phone: '314-555-0101', email: 'casey@example.com' }),
+    ])
+    expect(draft.contacts).toEqual([
+      expect.objectContaining({ name: 'Alex Captain', role: 'Captain', isCaptain: true }),
+      expect.objectContaining({ name: 'Casey Partner', role: 'Co-Captain', isCaptain: true }),
+    ])
+    expect(draft.teams).toEqual([])
+  })
+
   it('links a Tri-Level Team Summary to the captain team named in standings', () => {
     const html = `
       <table>

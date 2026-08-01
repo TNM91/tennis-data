@@ -40,7 +40,7 @@ const resourceActions: PublicActionCard[] = [
   },
   {
     title: 'Add or fix tennis data',
-    body: 'Upload a scorecard, schedule, or team summary and review what TenAceIQ found.',
+    body: 'Upload a scorecard, schedule, or Player Roster and review what TenAceIQ found.',
     href: '/data-assist?intent=upload-source&context=Resources',
     cta: 'Open Data Assist',
     meta: 'Data help',

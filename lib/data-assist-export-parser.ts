@@ -76,6 +76,7 @@ function parseTennisLinkExportFile(file: ExportFileInput) {
     ...buildStructuredScheduleLines(rows),
     ...buildStructuredTeamSummaryMeta(rows),
     ...buildStructuredRosterLines(rows),
+    ...buildStructuredRosterContacts(rows),
   ]
 
   return [
@@ -109,8 +110,7 @@ function buildStructuredScorecardTeams(rows: HtmlRow[]) {
 }
 
 function buildStructuredScheduleLines(rows: HtmlRow[]) {
-  return rows
-    .filter((cells) => /^\d{7,}$/.test(cells[0] || '') && cells.length >= 8)
+  return getStructuredScheduleRows(rows)
     .map((cells) => [
       'Schedule row',
       cells[0],
@@ -124,7 +124,7 @@ function buildStructuredScheduleLines(rows: HtmlRow[]) {
 }
 
 function buildStructuredScheduleMeta(rows: HtmlRow[]) {
-  const scheduleRows = rows.filter(isStructuredScheduleRow)
+  const scheduleRows = getStructuredScheduleRows(rows)
   if (!scheduleRows.length) return []
 
   const lines: string[] = []
@@ -145,19 +145,22 @@ function buildStructuredTeamSummaryMeta(rows: HtmlRow[]) {
     cells.some((cell) => /^Wins\*?$/i.test(cell)) &&
     cells.some((cell) => /^Losses$/i.test(cell))
   ))
-  const hasRosterHeader = rows.some((cells) => (
+  const hasLegacyRosterHeader = rows.some((cells) => (
     cells.some((cell) => /^Player Name$/i.test(cell)) &&
     cells.some((cell) => /^NTRP$/i.test(cell))
   ))
-  if (standingsHeaderIndex < 0 || !hasRosterHeader) return []
+  const hasPlayerRosterHeader = rows.some(isPlayerRosterHeader)
+  if ((!hasLegacyRosterHeader || standingsHeaderIndex < 0) && !hasPlayerRosterHeader) return []
 
   const standings: Array<{ name: string; wins: string; losses: string }> = []
-  for (const cells of rows.slice(standingsHeaderIndex + 1)) {
-    const name = cells[0] || ''
-    const wins = cells[1] || ''
-    const losses = cells[2] || ''
-    if (!name || !/^\d+$/.test(wins) || !/^\d+$/.test(losses)) break
-    standings.push({ name, wins, losses })
+  if (standingsHeaderIndex >= 0) {
+    for (const cells of rows.slice(standingsHeaderIndex + 1)) {
+      const name = cells[0] || ''
+      const wins = cells[1] || ''
+      const losses = cells[2] || ''
+      if (!name || !/^\d+$/.test(wins) || !/^\d+$/.test(losses)) break
+      standings.push({ name, wins, losses })
+    }
   }
 
   const lines: string[] = []
@@ -167,7 +170,9 @@ function buildStructuredTeamSummaryMeta(rows: HtmlRow[]) {
   if (metadata.leagueName) lines.push(`League: ${metadata.leagueName}`)
   if (metadata.flight) lines.push(`Flight: ${metadata.flight}`)
 
-  const rosterTeamName = inferTeamSummaryRosterTeam(rows, standings.map((team) => team.name))
+  const rosterTeamName = hasPlayerRosterHeader
+    ? inferPlayerRosterTeamName(rows)
+    : inferTeamSummaryRosterTeam(rows, standings.map((team) => team.name))
   if (rosterTeamName) lines.push(`Team: ${rosterTeamName}`)
   for (const team of standings) {
     lines.push(['Team standing', team.name, team.wins, team.losses].join(' | '))
@@ -203,13 +208,13 @@ function findScheduleMetadata(rows: HtmlRow[]) {
     const headings = rows[rowIndex]
     const values = rows[rowIndex + 1]
     if (!headings.some((heading) => /^(?:USTA\s+)?Section$/i.test(heading))) continue
-    if (!headings.some((heading) => /^District\/Area$/i.test(heading))) continue
+    if (!headings.some((heading) => /^(?:USTA\s+)?District(?:\/Area)?$/i.test(heading))) continue
     if (!headings.some((heading) => /^(?:Local\s+)?League(?:\s*\/\s*League Type)?$/i.test(heading))) continue
     if (!headings.some((heading) => /^(?:Flight|Flight Name)$/i.test(heading))) continue
 
     return {
       ustaSection: getMetadataValue(headings, values, /^(?:USTA\s+)?Section$/i),
-      districtArea: getMetadataValue(headings, values, /^District\/Area$/i),
+      districtArea: getMetadataValue(headings, values, /^(?:USTA\s+)?District(?:\/Area)?$/i),
       leagueName: getMetadataValue(headings, values, /^(?:Local\s+)?League(?:\s*\/\s*League Type)?$/i),
       flight: getMetadataValue(headings, values, /^(?:Flight|Flight Name)$/i),
     }
@@ -241,8 +246,39 @@ function isStructuredScheduleRow(cells: HtmlRow) {
   return /^\d{7,}$/.test(cells[0] || '') && cells.length >= 8
 }
 
+function getStructuredScheduleRows(rows: HtmlRow[]) {
+  const headerIndex = rows.findIndex((cells) => (
+    cells.some((cell) => /^Match ID$/i.test(cell)) &&
+    cells.some((cell) => /^Schedule Date$/i.test(cell)) &&
+    cells.some((cell) => /^Home Team$/i.test(cell)) &&
+    cells.some((cell) => /^Visiting Team$/i.test(cell))
+  ))
+  if (headerIndex < 0) return []
+  return rows.slice(headerIndex + 1).filter(isStructuredScheduleRow)
+}
+
 function buildStructuredRosterLines(rows: HtmlRow[]) {
   const lines: string[] = []
+  const playerRosterHeaderIndex = rows.findIndex(isPlayerRosterHeader)
+  if (playerRosterHeaderIndex >= 0) {
+    const header = rows[playerRosterHeaderIndex]
+    const ustaIndex = findCellIndex(header, /^Usta#$/i)
+    const nameIndex = findCellIndex(header, /^Player$/i)
+    const phoneIndex = findCellIndex(header, /^Phone no$/i)
+    const ratingIndex = findCellIndex(header, /^NTRP\/Rating Date$/i)
+
+    for (const cells of rows.slice(playerRosterHeaderIndex + 1)) {
+      const ustaNumber = cells[ustaIndex] || ''
+      if (!/^\d{9,10}$/.test(ustaNumber)) continue
+      const name = cells[nameIndex] || ''
+      const phone = cells[phoneIndex] || ''
+      const rating = (cells[ratingIndex] || '').match(/\b([2-5](?:\.[05])?)\b/)?.[1] || ''
+      if (!name || !rating) continue
+      lines.push(['Roster player', name, rating, phone, '', ustaNumber].join(' | '))
+    }
+    return lines
+  }
+
   for (const cells of rows) {
     if (cells.length < 2) continue
     for (let index = 0; index < cells.length - 1; index += 2) {
@@ -254,6 +290,52 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
     }
   }
   return lines
+}
+
+function buildStructuredRosterContacts(rows: HtmlRow[]) {
+  const headerIndex = rows.findIndex((cells) => (
+    cells.some((cell) => /^Captain Name$/i.test(cell)) &&
+    cells.some((cell) => /^Captain Phone$/i.test(cell)) &&
+    cells.some((cell) => /^Captain E-Mail Address$/i.test(cell))
+  ))
+  if (headerIndex < 0) return []
+
+  const header = rows[headerIndex]
+  const nameIndex = findCellIndex(header, /^Captain Name$/i)
+  const phoneIndex = findCellIndex(header, /^Captain Phone$/i)
+  const emailIndex = findCellIndex(header, /^Captain E-Mail Address$/i)
+  const lines: string[] = []
+  for (const [offset, cells] of rows.slice(headerIndex + 1, headerIndex + 3).entries()) {
+    const name = cells[nameIndex] || ''
+    const phone = cells[phoneIndex] || ''
+    const email = cells[emailIndex] || ''
+    if (!name || (!phone && !email)) continue
+    lines.push(['Roster contact', offset === 0 ? 'Captain' : 'Co-Captain', name, phone, email].join(' | '))
+  }
+  return lines
+}
+
+function isPlayerRosterHeader(cells: HtmlRow) {
+  return (
+    cells.some((cell) => /^Usta#$/i.test(cell)) &&
+    cells.some((cell) => /^Player$/i.test(cell)) &&
+    cells.some((cell) => /^Phone no$/i.test(cell)) &&
+    cells.some((cell) => /^NTRP\/Rating Date$/i.test(cell))
+  )
+}
+
+function inferPlayerRosterTeamName(rows: HtmlRow[]) {
+  for (let rowIndex = 0; rowIndex < rows.length - 1; rowIndex += 1) {
+    const headings = rows[rowIndex]
+    const teamNameIndex = findCellIndex(headings, /^Team Name$/i)
+    if (teamNameIndex < 0 || !headings.some((heading) => /^Team Number$/i.test(heading))) continue
+    return rows[rowIndex + 1]?.[teamNameIndex] || ''
+  }
+  return ''
+}
+
+function findCellIndex(cells: HtmlRow, pattern: RegExp) {
+  return cells.findIndex((cell) => pattern.test(cell))
 }
 
 function buildStructuredScorecardLines(rows: HtmlRow[]) {

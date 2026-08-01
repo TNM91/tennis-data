@@ -172,7 +172,7 @@ export async function POST(request: Request) {
   const requestedImportType = batch.requested_import_type as DataAssistImportType
   if (exportParseResult?.mixedImportTypes) {
     return Response.json(
-      { ok: false, message: 'Upload one TennisLink export type at a time: scorecard, schedule, or team summary.' },
+      { ok: false, message: 'Upload one TennisLink export type at a time: scorecard, schedule, or Player Roster.' },
       { status: 400 },
     )
   }
@@ -356,7 +356,7 @@ export async function POST(request: Request) {
         : await recognizeDataAssistTeamSummaryScreenshotsWithTesseract(imageInputs)
     } catch (error) {
       return Response.json(
-        { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these team summary screenshots.' },
+        { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these Player Roster screenshots.' },
         { status: 500 },
       )
     }
@@ -406,7 +406,7 @@ export async function POST(request: Request) {
         validation_summary: {
           message: parsedDraft.players.length
             ? 'Team summary read complete. Review the roster before importing.'
-            : 'TenAceIQ could not safely read this team summary.',
+            : 'TenAceIQ could not safely read this Player Roster.',
           importLocked: true,
           sourceScreenshotCount: screenshots.length,
           ocrConfidenceScore: ocrResult.confidenceScore,

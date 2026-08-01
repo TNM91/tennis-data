@@ -9,6 +9,7 @@ import {
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
 
@@ -45,6 +46,8 @@ export type DataAssistTeamSummaryImportActionResult = {
   action: DataAssistScorecardImportAction
   message: string
   importResult?: Extract<RunImportSuccess, { kind: 'team_summary' }>
+  importedContactCount?: number
+  contactWarning?: string
 }
 
 type ExistingMatchRow = {
@@ -178,7 +181,7 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     return {
       ok: false,
       action: input.action,
-      message: 'Confirm the roster team before importing this Team Summary.',
+      message: 'Confirm the team before importing this Player Roster.',
     }
   }
 
@@ -191,7 +194,7 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     return {
       ok: false,
       action: input.action,
-      message: importResult.ok ? 'Team summary import returned an unexpected result.' : importResult.error,
+      message: importResult.ok ? 'Player Roster import returned an unexpected result.' : importResult.error,
     }
   }
 
@@ -200,21 +203,36 @@ export async function runDataAssistTeamSummaryImportAction(input: {
       return {
         ok: false,
         action: input.action,
-        message: importResult.result.errors[0]?.message || 'Team summary import did not commit.',
+        message: importResult.result.errors[0]?.message || 'Player Roster import did not commit.',
         importResult,
       }
     }
 
     const importedAt = new Date().toISOString()
+    let importedContactCount = 0
+    let contactWarning = ''
+    try {
+      importedContactCount = await upsertCaptainRosterContacts({
+        supabase: input.supabase,
+        parsedDraft: input.parsedDraft,
+        captainUserId: input.reviewedBy,
+        batchId: input.batchId,
+      })
+    } catch (error) {
+      contactWarning = error instanceof Error ? error.message : 'Roster contacts could not be saved.'
+    }
     const validationSummary = {
       ...(input.validationSummary || {}),
       importSummary: {
         importedAt,
         importResult,
         rosterPlayers: input.parsedDraft.players,
+        rosterContacts: input.parsedDraft.contacts,
+        importedContactCount,
+        contactWarning: contactWarning || null,
       },
     }
-    const message = buildTeamSummaryImportedReviewNote(importResult)
+    const message = buildTeamSummaryImportedReviewNote(importResult, importedContactCount, contactWarning)
     const [batchUpdate, draftUpdate] = await Promise.all([
       input.supabase
         .from('data_assist_batches')
@@ -239,15 +257,22 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importResult }
     if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importResult }
     await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+
+    return {
+      ok: true,
+      action: input.action,
+      importResult,
+      importedContactCount,
+      contactWarning: contactWarning || undefined,
+      message,
+    }
   }
 
   return {
     ok: true,
     action: input.action,
     importResult,
-    message: input.action === 'commit'
-      ? buildTeamSummaryImportedReviewNote(importResult)
-      : `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
+    message: `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
   }
 }
 
@@ -268,8 +293,15 @@ function buildDataAssistTeamSummaryPayload(parsedDraft: DataAssistTeamSummaryPar
   }
 }
 
-function buildTeamSummaryImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'team_summary' }>) {
-  return `Data Assist roster imported ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'}: ${importResult.result.createdCount} new, ${importResult.result.updatedCount} updated.`
+function buildTeamSummaryImportedReviewNote(
+  importResult: Extract<RunImportSuccess, { kind: 'team_summary' }>,
+  importedContactCount = 0,
+  contactWarning = '',
+) {
+  const rosterMessage = `Data Assist roster imported ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'}: ${importResult.result.createdCount} new, ${importResult.result.updatedCount} updated.`
+  if (contactWarning) return `${rosterMessage} Player contact sync needs another try.`
+  if (importedContactCount) return `${rosterMessage} ${importedContactCount} contact${importedContactCount === 1 ? '' : 's'} ready for captain messages.`
+  return rosterMessage
 }
 
 export async function runDataAssistScorecardImportAction(input: {

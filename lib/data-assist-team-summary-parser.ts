@@ -10,6 +10,17 @@ export type DataAssistTeamSummaryParsedPlayer = {
   name: string
   ntrp: number | null
   teamName: string
+  phone?: string
+  email?: string
+  ustaNumber?: string
+}
+
+export type DataAssistTeamSummaryParsedContact = {
+  name: string
+  phone: string
+  email: string
+  role: 'Player' | 'Captain' | 'Co-Captain'
+  isCaptain: boolean
 }
 
 export type DataAssistTeamSummaryParsedDraft = {
@@ -21,7 +32,9 @@ export type DataAssistTeamSummaryParsedDraft = {
   districtArea: string
   teams: DataAssistTeamSummaryParsedTeam[]
   players: DataAssistTeamSummaryParsedPlayer[]
+  contacts: DataAssistTeamSummaryParsedContact[]
   playerCount: number
+  contactCount: number
   teamCount: number
   parserWarnings: string[]
   rawTextPreview: string
@@ -90,7 +103,10 @@ export function buildTeamSummaryOcrDraftFromText(
   const ustaSection = /missouri valley/i.test(normalizedText) ? 'USTA/MISSOURI VALLEY' : ''
   const districtArea = /st\.?\s*louis/i.test(normalizedText) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
   const teams = parseTeams(rawText)
-  const players = applyKnownRosterRepair(parsePlayers(rawText, rosterTeamName), rosterTeamName, rawText)
+  const parsedPlayers = applyKnownRosterRepair(parsePlayers(rawText, rosterTeamName), rosterTeamName, rawText)
+  const namedContacts = parseContacts(rawText)
+  const players = mergePlayerContacts(parsedPlayers, namedContacts)
+  const contacts = buildRosterContacts(players, namedContacts)
   const parserWarnings: string[] = []
 
   if (!rosterTeamName) parserWarnings.push('Roster team needs review.')
@@ -117,7 +133,9 @@ export function buildTeamSummaryOcrDraftFromText(
     districtArea,
     teams,
     players,
+    contacts,
     playerCount: players.length,
+    contactCount: contacts.length,
     teamCount: teams.length,
     parserWarnings,
     rawTextPreview: rawText.trim().slice(0, 4000),
@@ -144,13 +162,15 @@ function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSu
     .map((line) => line.trim())
     .filter(Boolean)
 
-  for (const line of lines) {
-    const structuredPlayer = parseStructuredPlayerLine(line, rosterTeamName)
-    if (structuredPlayer) {
-      addPlayer(players, seen, structuredPlayer)
-      continue
-    }
+  const structuredPlayers = lines
+    .map((line) => parseStructuredPlayerLine(line, rosterTeamName))
+    .filter((player): player is DataAssistTeamSummaryParsedPlayer => Boolean(player))
+  if (structuredPlayers.length) {
+    for (const player of structuredPlayers) addPlayer(players, seen, player)
+    return players
+  }
 
+  for (const line of lines) {
     const mobilePlayer = parseMobileRosterPlayerLine(line, lines, rosterTeamName)
     if (mobilePlayer) {
       addPlayer(players, seen, mobilePlayer)
@@ -197,15 +217,83 @@ function parseMobileRosterPlayerLine(
 }
 
 function parseStructuredPlayerLine(line: string, rosterTeamName: string): DataAssistTeamSummaryParsedPlayer | null {
-  const match = line.match(/^Roster player\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*$/i)
-  if (!match) return null
-  const name = cleanPlayerName(match[1])
+  const cells = line.split('|').map((cell) => cell.trim())
+  if (!/^Roster player$/i.test(cells[0] || '') || cells.length < 3) return null
+  const name = cleanPlayerName(cells[1])
   if (!name || isJunkPlayerName(name)) return null
+  const phone = normalizePhone(cells[3])
+  const email = normalizeEmail(cells[4])
+  const ustaNumber = normalizeUstaNumber(cells[5])
   return {
     name,
-    ntrp: normalizeRatingToken(match[2]),
+    ntrp: normalizeRatingToken(cells[2]),
     teamName: rosterTeamName,
+    ...(phone ? { phone } : {}),
+    ...(email ? { email } : {}),
+    ...(ustaNumber ? { ustaNumber } : {}),
   }
+}
+
+function parseContacts(rawText: string): DataAssistTeamSummaryParsedContact[] {
+  const contacts: DataAssistTeamSummaryParsedContact[] = []
+  for (const line of rawText.replace(/\r/g, '\n').split('\n')) {
+    const cells = line.split('|').map((cell) => cell.trim())
+    if (!/^Roster contact$/i.test(cells[0] || '') || cells.length < 5) continue
+    const name = cleanPlayerName(cells[2])
+    if (!name || isJunkPlayerName(name)) continue
+    const role = /^Co-Captain$/i.test(cells[1]) ? 'Co-Captain' : 'Captain'
+    contacts.push({
+      name,
+      phone: normalizePhone(cells[3]),
+      email: normalizeEmail(cells[4]),
+      role,
+      isCaptain: true,
+    })
+  }
+  return contacts
+}
+
+function mergePlayerContacts(
+  players: DataAssistTeamSummaryParsedPlayer[],
+  contacts: DataAssistTeamSummaryParsedContact[],
+) {
+  const contactByName = new Map(contacts.map((contact) => [normalizeKey(contact.name), contact]))
+  return players.map((player) => {
+    const contact = contactByName.get(normalizeKey(player.name))
+    const phone = player.phone || contact?.phone || ''
+    const email = player.email || contact?.email || ''
+    return {
+      ...player,
+      ...(phone ? { phone } : {}),
+      ...(email ? { email } : {}),
+    }
+  })
+}
+
+function buildRosterContacts(
+  players: DataAssistTeamSummaryParsedPlayer[],
+  namedContacts: DataAssistTeamSummaryParsedContact[],
+) {
+  const contactsByName = new Map<string, DataAssistTeamSummaryParsedContact>()
+  for (const player of players) {
+    if (!player.phone && !player.email) continue
+    contactsByName.set(normalizeKey(player.name), {
+      name: player.name,
+      phone: player.phone || '',
+      email: player.email || '',
+      role: 'Player',
+      isCaptain: false,
+    })
+  }
+  for (const contact of namedContacts) {
+    const existing = contactsByName.get(normalizeKey(contact.name))
+    contactsByName.set(normalizeKey(contact.name), {
+      ...contact,
+      phone: contact.phone || existing?.phone || '',
+      email: contact.email || existing?.email || '',
+    })
+  }
+  return Array.from(contactsByName.values())
 }
 
 function addPlayer(
@@ -351,6 +439,21 @@ function normalizeRatingToken(value: string): number | null {
   if (!Number.isFinite(rating)) return null
   if (rating >= 2 && rating <= 5) return rating
   return null
+}
+
+function normalizePhone(value: string | undefined) {
+  const phone = cleanText(value).replace(/[^\d+(). -]/g, '').trim()
+  return phone.replace(/\D/g, '').length >= 10 ? phone : ''
+}
+
+function normalizeEmail(value: string | undefined) {
+  const email = cleanText(value).toLowerCase()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : ''
+}
+
+function normalizeUstaNumber(value: string | undefined) {
+  const ustaNumber = cleanText(value).replace(/\D/g, '')
+  return /^\d{9,10}$/.test(ustaNumber) ? ustaNumber : ''
 }
 
 function isJunkPlayerName(value: string) {

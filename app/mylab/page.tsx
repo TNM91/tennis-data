@@ -2891,7 +2891,7 @@ function MyLabPageInner() {
       label: 'Fix tennis context',
       value: isNewSelfRatedProfile ? 'First signal' : 'Refresh',
       note: isNewSelfRatedProfile
-        ? 'Upload a scorecard or team summary to replace the starter signal.'
+        ? 'Upload a scorecard or Player Roster to replace the starter signal.'
         : 'Upload, report, or correct the tennis context behind your read.',
       href: dataAssistMyLabHref,
       cta: 'Open Data Assist',
@@ -3067,7 +3067,7 @@ function MyLabPageInner() {
   const starterActionCards = [
     {
       title: 'Upload scores',
-      text: 'Use a scorecard or team summary to replace the starter rating with verified match context.',
+      text: 'Use a scorecard or Player Roster to replace the starter rating with verified match context.',
       href: dataAssistMyLabHref,
     },
     {

@@ -72,6 +72,7 @@ export function detectImportTypeFromExportText(text: string): DataAssistImportTy
 
   if (
     normalized.includes('team summary') ||
+    (normalized.includes('usta#') && normalized.includes('expiry date') && normalized.includes('phone no') && normalized.includes('ntrp/rating date')) ||
     normalized.includes('team standings') ||
     normalized.includes('championship advancements') ||
     (normalized.includes('player name') && normalized.includes('ntrp')) ||

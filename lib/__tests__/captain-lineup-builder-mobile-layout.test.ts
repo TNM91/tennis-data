@@ -116,15 +116,15 @@ describe('Captain lineup builder mobile layout guards', () => {
 
   it('turns a missing roster into upload, export-help, and manual-entry actions', () => {
     expect(source).toContain('Add your players to build this lineup.')
-    expect(source).toContain('Upload Team Summary')
+    expect(source).toContain('Upload Player Roster')
     expect(source).toContain('Enter players manually')
-    expect(source).toContain('How to export the Team Summary from TennisLink')
+    expect(source).toContain('How to export the Player Roster from TennisLink')
     expect(source).toContain('Choose <strong>Send To Excel</strong>')
     expect(source).toContain("type: 'team_summary'")
     expect(source).toContain("help: '1'")
     expect(source).toContain('returnTo: context.returnTo')
     expect(source).toContain('function addManualRosterPlayers()')
-    expect(source).toContain('Upload the Team Summary later to connect official ratings and availability.')
+    expect(source).toContain('Upload the Player Roster later to connect ratings and contact details.')
     expect(styleBlock('rosterRecoveryCardStyle')).toContain('minWidth: 0')
     expect(styleBlock('rosterRecoveryActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 210px), 1fr))")
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')

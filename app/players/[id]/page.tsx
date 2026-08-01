@@ -2047,7 +2047,7 @@ function PlayerProfileContent() {
           {ustaTeamMemberships.length === 0 ? (
             <div style={{ ...emptyStateStack, marginTop: 16 }}>
               <p style={emptyText}>No USTA roster teams found yet.</p>
-              <p style={sectionText}>Import a team summary with this player on the roster to show their team before any matches are played.</p>
+              <p style={sectionText}>Import a Player Roster with this player to show their team before any matches are played.</p>
             </div>
           ) : (
             <div style={profileDetailListStyle}>

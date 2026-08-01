@@ -42,7 +42,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
 const newPlayerActions = [
-  { href: '/data-assist#upload', label: 'Upload scores', detail: 'Scorecard or team summary' },
+  { href: '/data-assist#upload', label: 'Upload tennis data', detail: 'Scorecard, schedule, or Player Roster' },
   { href: '/explore/leagues', label: 'Local leagues', detail: 'Find a first match lane' },
   { href: '/league-coordinator', label: 'Create TIQ league', detail: 'Start your own group' },
   { href: '/explore/players', label: 'Find players', detail: 'Build your tennis map' },
@@ -65,7 +65,7 @@ const dataAssistPlayerIdSignalPath = [
   {
     label: 'Player ID',
     title: 'Match the source to the right tennis identity.',
-    body: 'Scorecards and team summaries should strengthen the correct player profile, not create mystery records.',
+    body: 'Scorecards and Player Rosters should strengthen the correct player profile, not create mystery records.',
   },
   {
     label: 'Reviewed signal',
@@ -83,7 +83,7 @@ const dataAssistReviewFlow = [
   {
     step: '1',
     title: 'Upload source',
-    body: 'Add a scorecard, schedule, team summary, roster, or correction source.',
+    body: 'Add a scorecard, schedule, Player Roster, or correction source.',
   },
   {
     step: '2',
@@ -145,8 +145,8 @@ const dataAssistSourcePathJobs = [
   {
     id: 'team_summary',
     question: 'Who is on the roster?',
-    title: 'Add team summary',
-    body: 'Use the team summary export when roster names and starting ratings need to connect to player context.',
+    title: 'Add Player Roster',
+    body: 'Import players, starting ratings, and available contact details from one TennisLink export.',
     cta: 'Choose roster',
   },
 ] as const
@@ -165,7 +165,7 @@ const importTypes: Array<{
   },
   {
     id: 'team_summary',
-    label: 'Team summary',
+    label: 'Player Roster',
   },
 ]
 
@@ -375,14 +375,14 @@ function DataAssistWorkspace() {
       return
     }
     if (files.length > 1 && detected.importType !== 'scorecard') {
-      setError('Choose one schedule or team summary export at a time. You can select several scorecard exports when catching up on match results.')
+      setError('Choose one schedule or Player Roster export at a time. You can select several scorecard exports when catching up on match results.')
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
       return
     }
     if (detected.mixed) {
-      setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and team summaries separate.')
+      setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and Player Rosters separate.')
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
@@ -878,7 +878,7 @@ function DataAssistWorkspace() {
               />
               <span style={dropzoneKickerStyle}>Supported Excel exports</span>
               <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose TennisLink .xls export'}</strong>
-              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded.' : 'Scorecard, schedule, and team summary files are identified automatically.'}</small>
+              <small>{scorecardUploadBlocked ? 'Schedules and Player Rosters can still be uploaded.' : 'Scorecard, schedule, and Player Roster files are identified automatically.'}</small>
             </label>
 
             <details style={typeOverrideDetailsStyle}>
@@ -1475,10 +1475,10 @@ function DataAssistIntentPanel({ intent, context, query }: { intent: DataAssistI
         </strong>
         <p style={intentTextStyle}>
           {isUploadSource
-            ? 'Upload a scorecard, schedule, team summary, roster, or correction source so TenAceIQ can connect it to the right player, team, league, tournament, or ranking.'
+            ? 'Upload a scorecard, schedule, Player Roster, or correction source so TenAceIQ can connect it to the right player, team, league, tournament, or ranking.'
             : isReportIssue
               ? 'Use the support path for wrong players, teams, scores, ratings, draws, standings, or source labels.'
-              : 'Upload a scorecard, schedule, team summary, or correction source so the data can move through review.'}
+              : 'Upload a scorecard, schedule, Player Roster, or correction source so the data can move through review.'}
         </p>
         {context ? <span style={intentContextStyle}>From: {context}</span> : null}
         {query ? <span style={intentContextStyle}>Search: {query}</span> : null}
@@ -1612,13 +1612,13 @@ function getBulkScorecardResultDetail(result: BulkScorecardResult) {
 
 function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
-  if (importType === 'team_summary') return 'team summary'
+  if (importType === 'team_summary') return 'Player Roster'
   return 'scorecard'
 }
 
 function getUploadHelpTitle(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'Flight or team schedule export'
-  if (importType === 'team_summary') return 'Team summary export'
+  if (importType === 'team_summary') return 'Player Roster export'
   return 'Scorecard export'
 }
 
@@ -1627,7 +1627,7 @@ function getUploadHelpText(importType: DataAssistImportType) {
     return 'Open the Match Schedule tab and choose Send To Excel. This is season setup; most teams only need it once.'
   }
   if (importType === 'team_summary') {
-    return 'Open Team Summary and choose Send To Excel. This imports roster players and base ratings for the season.'
+    return 'Open Player Roster and choose Send To Excel. This imports players, ratings, and the contact details TennisLink includes.'
   }
   return 'Open each Score Card and choose Send To Excel. Import one match after play or select several scorecards to catch up.'
 }
@@ -1642,9 +1642,9 @@ function getExportHelpSteps(importType: DataAssistImportType) {
   }
   if (importType === 'team_summary') {
     return [
-      'Open TennisLink and go to Team Summary.',
+      'Open TennisLink and go to Player Roster.',
       'Choose Send To Excel.',
-      'Upload the TeamSummary .xls file here.',
+      'Upload the PlayerRoster .xls file here.',
     ]
   }
   return [
@@ -1656,7 +1656,7 @@ function getExportHelpSteps(importType: DataAssistImportType) {
 
 function getExportFileExample(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'MatchSchedule_582026.xls'
-  if (importType === 'team_summary') return 'TeamSummary_582026.xls'
+  if (importType === 'team_summary') return 'PlayerRoster_812026.xls'
   return 'Scorecard_582026.xls'
 }
 
@@ -1721,7 +1721,7 @@ function ScorecardUploadPausedPanel({ message }: { message: string }) {
       <div style={headerCopyStyle}>
         <strong>Scorecard uploads are paused</strong>
         <p style={uploadIssueCopyStyle}>{message}</p>
-        <small style={hintStyle}>Schedule and team summary uploads still work. Admins can restore scorecard upload access after review.</small>
+        <small style={hintStyle}>Schedule and Player Roster uploads still work. Admins can restore scorecard upload access after review.</small>
       </div>
       <Link href="/messages?compose=support&category=data&subject=Scorecard%20upload%20access" style={secondaryButtonStyle}>
         Contact support
@@ -1781,7 +1781,7 @@ function BulkScorecardResultsPanel({
 function getScanSetupText(importType: DataAssistImportType, screenshotCount: number) {
   const plural = screenshotCount === 1 ? 'export' : 'exports'
   if (importType === 'schedule') return `${screenshotCount} ${plural} ready. TenAceIQ will import schedule rows from the table.`
-  if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names and ratings.`
+  if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names, ratings, and available contacts.`
   return `${screenshotCount} ${plural} ready. TenAceIQ will import the match result, line players, scores, and winners.`
 }
 
@@ -1815,7 +1815,7 @@ function getLatestReadDescription(scan: {
 }) {
   if (scan.autoImport?.ok) {
     if (isTeamSummaryParsedDraft(scan.parsedDraft)) {
-      return 'Roster names and starting ratings are now available across TenAceIQ.'
+      return 'Roster names, ratings, and available contacts are ready for captain work.'
     }
     if (isScheduleParsedDraft(scan.parsedDraft)) {
       return 'Visible schedule rows are now available for team and captain planning.'
@@ -1829,7 +1829,7 @@ function getLatestReadDescription(scan: {
     return 'TenAceIQ found a team schedule export. Review the match rows before importing.'
   }
   if (isTeamSummaryParsedDraft(scan.parsedDraft)) {
-    return 'TenAceIQ found a team summary export. Review roster names and ratings before importing.'
+    return 'TenAceIQ found a Player Roster export. Review the team and players before importing.'
   }
   return getScorecardReviewLead(scan.parsedDraft)
 }
@@ -2060,7 +2060,7 @@ function EmptyDataAssistHistory() {
     <div style={emptyHistoryStyle}>
       <div style={emptyHistoryCopyStyle}>
         <strong>First signal starts here.</strong>
-        <span>Upload a scorecard, schedule, or team summary. After review, it feeds your profile, teams, and league tools.</span>
+        <span>Upload a scorecard, schedule, or Player Roster. After review, it feeds your profile, teams, and league tools.</span>
       </div>
       <div style={emptyHistoryActionRowStyle}>
         {emptyHistoryActions.map((action) => (
@@ -2517,14 +2517,15 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
         <ReviewFact label="League" value={parsedDraft.leagueName || 'Check league'} />
         <ReviewFact label="Flight" value={parsedDraft.flight || 'Check flight'} />
         <ReviewFact label="Players" value={String(parsedDraft.playerCount)} />
+        <ReviewFact label="Contacts" value={String(parsedDraft.contactCount || 0)} />
       </div>
       <p style={copyStyle}>
-        TenAceIQ is capturing roster player names and starting NTRP ratings for teams and captains.
+        TenAceIQ found roster players, starting ratings, and the phone or email details included by TennisLink.
       </p>
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
         <strong>{missingRatingCount ? 'Before importing' : 'Roster ready'}</strong>
-        <span>{missingRatingCount ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.` : 'Roster names and ratings are captured for import.'}</span>
+        <span>{missingRatingCount ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.` : `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages.`}</span>
       </div>
     </div>
   )
@@ -2549,7 +2550,7 @@ function TeamSummaryImportedPanel({
         <div style={headerCopyStyle}>
           <strong>Roster imported</strong>
           <p style={copyStyle}>
-            Team roster records and starting ratings are now available for player profiles, team pages, and Team Hub.
+            Players, starting ratings, and available contacts are now connected to player profiles, team pages, and Team Hub.
           </p>
         </div>
         <span style={pillGreenStyle}>Done</span>
@@ -2559,6 +2560,7 @@ function TeamSummaryImportedPanel({
         <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
         <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
         <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
+        <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
       </div>
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={readyImportNoteStyle}>
@@ -2992,7 +2994,9 @@ function toTeamSummaryParsedDraft(value: DataAssistSubmission['parsedPayload']):
     districtArea: typeof value.districtArea === 'string' ? value.districtArea : '',
     teams: Array.isArray(value.teams) ? value.teams : [],
     players: value.players,
+    contacts: Array.isArray(value.contacts) ? value.contacts : [],
     playerCount: typeof value.playerCount === 'number' ? value.playerCount : value.players.length,
+    contactCount: typeof value.contactCount === 'number' ? value.contactCount : Array.isArray(value.contacts) ? value.contacts.length : 0,
     teamCount: typeof value.teamCount === 'number' ? value.teamCount : Array.isArray(value.teams) ? value.teams.length : 0,
     parserWarnings: Array.isArray(value.parserWarnings)
       ? value.parserWarnings.filter((warning): warning is string => typeof warning === 'string')

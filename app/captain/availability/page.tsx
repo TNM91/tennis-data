@@ -779,7 +779,7 @@ function CaptainAvailabilityContent() {
               <div style={stateBox}>Loading roster...</div>
             ) : players.length === 0 ? (
               <div style={stateBox}>
-                No roster is available for this team selection yet. Re-import the team summary, refresh, or widen
+                No roster is available for this team selection yet. Import the Player Roster, refresh, or widen
                 the league and flight filters.
               </div>
             ) : (

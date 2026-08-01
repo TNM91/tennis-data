@@ -1349,7 +1349,7 @@ function TeamPageContent() {
 
             <div style={summaryMetricGrid}>
               <MetricCard label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
-              <MetricCard label="Roster size" value={String(roster.length)} subtle="Players from team summary and match history" />
+              <MetricCard label="Roster size" value={String(roster.length)} subtle="Players from Player Roster and match history" />
               <MetricCard label="Reviewed scorecards" value={String(matches.length)} subtle="Completed team results loaded" />
               <MetricCard
                 label="Latest match"
@@ -1483,7 +1483,7 @@ function TeamPageContent() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
-              This team can exist from a reviewed team summary before results arrive. Use the roster and Team Hub now,
+              This team can exist from a reviewed roster before results arrive. Use the roster and Team Hub now,
               then reviewed Data Assist scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>
@@ -1922,7 +1922,7 @@ function TeamPageContent() {
                       ? 'Roster sorted by singles strength.'
                       : rosterFilter === 'doubles'
                         ? 'Roster sorted by doubles strength.'
-                        : 'Full roster from team summary and match history.'}
+                        : 'Full roster from Player Roster and match history.'}
               </div>
 
               <div style={rosterPlayerIdTrailStyle} aria-label="Roster Player ID trail">
@@ -2084,8 +2084,8 @@ function TeamPageContent() {
               </p>
               <p style={mutedText}>
                 {teamExistsFromSummary
-                  ? `The last team summary can create the ${team} team shell from standings, but roster players only import for the roster team shown in that capture. Open ${team}'s roster/team-summary page in TennisLink and capture that roster, or import scorecards to build usage history.`
-                  : 'Import a team summary with this team selected as the roster team, or capture scorecards to add player usage.'}
+                  ? `Standings can create the ${team} team shell before its players are connected. Open ${team}'s Player Roster in TennisLink and import it, or import scorecards to build usage history.`
+                  : 'Import this team’s Player Roster, or import scorecards to add player usage.'}
               </p>
             </div>
           )}

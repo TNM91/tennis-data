@@ -85,6 +85,8 @@ export type DataAssistImportActionResult = {
   message: string
   importPreview?: DataAssistImportPreview
   importResult?: Extract<RunImportSuccess, { kind: 'scorecard' | 'schedule' | 'team_summary' }>
+  importedContactCount?: number
+  contactWarning?: string
 }
 
 export type DataAssistAdminBatch = {

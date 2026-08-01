@@ -14,6 +14,7 @@ describe('Data Assist export detection', () => {
     expect(detectImportTypeFromFileName('Scorecard_582026.xls')).toBe('scorecard')
     expect(detectImportTypeFromFileName('MatchSchedule_582026.xls')).toBe('schedule')
     expect(detectImportTypeFromFileName('TeamSummary_582026.xls')).toBe('team_summary')
+    expect(detectImportTypeFromFileName('PlayerRoster_812026.xls')).toBe('team_summary')
   })
 
   it('detects scorecard exports from table content when the filename is generic', () => {
@@ -42,6 +43,12 @@ describe('Data Assist export detection', () => {
         <tr><td>Team Standings</td></tr>
         <tr><td>Player Name</td><td>NTRP</td><td>Player Name</td><td>NTRP</td></tr>
       </table>
+    `)).toBe('team_summary')
+  })
+
+  it('detects Player Roster exports from their contact-aware columns', () => {
+    expect(detectImportTypeFromExportText(`
+      <table><tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>NTRP/Rating Date</td></tr></table>
     `)).toBe('team_summary')
   })
 

@@ -45,6 +45,10 @@ import {
   readCaptainLineupHandoff,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import {
+  CAPTAIN_ROSTER_CONTACTS_TABLE,
+  type CaptainRosterContactRow,
+} from '@/lib/captain-roster-contacts'
 
 type ContactRow = {
   id: string
@@ -55,6 +59,7 @@ type ContactRow = {
   session_label: string | null
   full_name: string
   phone: string
+  email?: string | null
   role: string | null
   is_captain: boolean | null
   is_active: boolean | null
@@ -178,6 +183,7 @@ type PotentialLineupQueueItem = {
 type DraftContact = {
   full_name: string
   phone: string
+  email: string
   role: string
   is_captain: boolean
   is_active: boolean
@@ -227,6 +233,49 @@ function normalizeText(value: string | null | undefined) {
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function mapImportedRosterContacts(rows: CaptainRosterContactRow[]): ContactRow[] {
+  return rows.map((row) => ({
+    id: row.id || createId(),
+    team_name: row.team_name,
+    league_name: row.league_name || null,
+    flight: row.flight || null,
+    season_label: null,
+    session_label: null,
+    full_name: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    role: row.role || 'Player',
+    is_captain: row.is_captain,
+    is_active: true,
+    opt_in_text: true,
+    notes: 'Imported from TennisLink Player Roster',
+  }))
+}
+
+function mergeMessageContacts(primary: ContactRow[], imported: ContactRow[]) {
+  const byScope = new Map<string, ContactRow>()
+  for (const contact of imported) byScope.set(messageContactScopeKey(contact), contact)
+  for (const contact of primary) {
+    const key = messageContactScopeKey(contact)
+    const importedContact = byScope.get(key)
+    byScope.set(key, {
+      ...importedContact,
+      ...contact,
+      phone: contact.phone || importedContact?.phone || '',
+      email: contact.email || importedContact?.email || '',
+      role: contact.role || importedContact?.role || 'Player',
+      is_captain: contact.is_captain ?? importedContact?.is_captain ?? false,
+    })
+  }
+  return Array.from(byScope.values()).sort((left, right) => left.full_name.localeCompare(right.full_name))
+}
+
+function messageContactScopeKey(contact: ContactRow) {
+  return [contact.team_name, contact.league_name, contact.flight, contact.full_name]
+    .map((value) => normalizeText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+    .join('|')
 }
 
 function coerceAvailabilityStatus(record: Record<string, unknown>): WeeklyAvailability['status'] {
@@ -589,6 +638,7 @@ function CaptainMessagingContent() {
   const [draftContact, setDraftContact] = useState<DraftContact>({
     full_name: '',
     phone: '',
+    email: '',
     role: 'Player',
     is_captain: false,
     is_active: true,
@@ -631,7 +681,7 @@ function CaptainMessagingContent() {
       setLoading(true)
       setError(null)
       try {
-        const [matchesResult, contactsResult, templatesResult, scenariosResult] = await Promise.all([
+        const [matchesResult, contactsResult, importedContactsResult, templatesResult, scenariosResult] = await Promise.all([
           supabase
             .from('matches')
             .select('id, match_date, match_time, facility, league_name, flight, home_team, away_team, line_number')
@@ -639,6 +689,7 @@ function CaptainMessagingContent() {
             .order('match_date', { ascending: false })
             .limit(400),
           supabase.from(CONTACTS_TABLE).select('*').order('team_name', { ascending: true }).order('full_name', { ascending: true }),
+          supabase.from(CAPTAIN_ROSTER_CONTACTS_TABLE).select('*').order('team_name', { ascending: true }).order('full_name', { ascending: true }),
           supabase.from(TEMPLATES_TABLE).select('*').order('template_name', { ascending: true }),
           supabase
             .from('lineup_scenarios')
@@ -655,6 +706,9 @@ function CaptainMessagingContent() {
         const demoLineupRows = buildDemoLineupRows()
 
         const contactsOk = !contactsResult.error
+        const importedContacts = importedContactsResult.error
+          ? []
+          : mapImportedRosterContacts((importedContactsResult.data ?? []) as CaptainRosterContactRow[])
         const templatesOk = !templatesResult.error
         const matchesData = (matchesResult.data ?? []) as MatchRow[]
         const scenariosData = (scenariosResult.data ?? []) as ScenarioRow[]
@@ -666,21 +720,17 @@ function CaptainMessagingContent() {
 
         if (matchesResult.error) throw matchesResult.error
 
-        const shouldUseDemo = matchesData.length === 0 && scenariosData.length === 0 && localContacts.length === 0
+        const shouldUseDemo = matchesData.length === 0 && scenariosData.length === 0 && localContacts.length === 0 && importedContacts.length === 0
 
         if (!contactsOk || !templatesOk) {
           setStorageMode('local')
-          setContacts(localContacts.length ? localContacts : shouldUseDemo ? demoContacts : [])
+          const mergedLocalContacts = mergeMessageContacts(localContacts, importedContacts)
+          setContacts(mergedLocalContacts.length ? mergedLocalContacts : shouldUseDemo ? demoContacts : [])
           setTemplates(localTemplates)
         } else {
           setStorageMode('supabase')
-          setContacts(
-            (contactsResult.data ?? []).length
-              ? ((contactsResult.data ?? []) as ContactRow[])
-              : shouldUseDemo
-                ? demoContacts
-                : []
-          )
+          const mergedCloudContacts = mergeMessageContacts((contactsResult.data ?? []) as ContactRow[], importedContacts)
+          setContacts(mergedCloudContacts.length ? mergedCloudContacts : shouldUseDemo ? demoContacts : [])
           setTemplates((templatesResult.data ?? []) as TemplateRow[])
         }
 
@@ -1853,6 +1903,7 @@ function CaptainMessagingContent() {
       session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null,
       full_name: fullName,
       phone,
+      email: normalizeText(draftContact.email).toLowerCase(),
       role: draftContact.role || null,
       is_captain: draftContact.is_captain,
       is_active: draftContact.is_active,
@@ -1863,7 +1914,7 @@ function CaptainMessagingContent() {
     const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
     await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
     setEditingId(null)
-    setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
+    setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
     setError(null)
   }
 
@@ -1917,6 +1968,7 @@ function CaptainMessagingContent() {
       session_label: existingContact?.session_label ?? (sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null),
       full_name: playerName.trim(),
       phone,
+      email: existingContact?.email || '',
       role: existingContact?.role || 'Player',
       is_captain: existingContact?.is_captain ?? false,
       is_active: existingContact?.is_active ?? true,
@@ -1946,6 +1998,7 @@ function CaptainMessagingContent() {
     setDraftContact({
       full_name: contact.full_name,
       phone: contact.phone,
+      email: contact.email || '',
       role: contact.role || 'Player',
       is_captain: !!contact.is_captain,
       is_active: !!contact.is_active,
@@ -2868,6 +2921,7 @@ function importScenarioToLineup() {
                             <td style={tdLabelStyle}>
                               <div>{contact.full_name}</div>
                               <div style={rowSubtleText}>{contact.role || 'Player'}</div>
+                              {contact.email ? <div style={rowSubtleText}>{contact.email}</div> : null}
                             </td>
                             <td style={tdStyle}>{formatPhone(contact.phone)}</td>
                             <td style={tdStyle}>
@@ -4131,6 +4185,9 @@ function importScenarioToLineup() {
                     <Field label="Cell phone" htmlFor="draft-contact-phone" hint="Use the number exactly as you want it texted.">
                       <input id="draft-contact-phone" value={draftContact.phone} onChange={(e) => setDraftContact((c) => ({ ...c, phone: e.target.value }))} style={inputStyle} />
                     </Field>
+                    <Field label="Email" htmlFor="draft-contact-email" hint="Optional. Player Roster includes captain emails when TennisLink provides them.">
+                      <input id="draft-contact-email" type="email" value={draftContact.email} onChange={(e) => setDraftContact((c) => ({ ...c, email: e.target.value }))} style={inputStyle} />
+                    </Field>
                     <Field label="Role" htmlFor="draft-contact-role">
                       <input id="draft-contact-role" value={draftContact.role} onChange={(e) => setDraftContact((c) => ({ ...c, role: e.target.value }))} style={inputStyle} />
                     </Field>
@@ -4147,7 +4204,7 @@ function importScenarioToLineup() {
 
                   <div style={actionRowStyle}>
                     <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
-                    {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
+                    {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
                   </div>
 
                   <Field

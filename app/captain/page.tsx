@@ -897,7 +897,7 @@ const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your Player ID so Team Hub can find your profile team.',
-  'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
+  'Upload a reviewed Player Roster or schedule through Data Assist when roster or match history is missing.',
   'Refresh Captain after the upload review connects teams, schedules, and scorecards.',
 ] as const
 
@@ -1449,7 +1449,7 @@ function CaptainFirstUseSetup({
       number: '2',
       status: playerIdReady ? 'Next step' : 'Step 2',
       title: 'Connect your active team',
-      body: 'Upload a scorecard, team summary, or schedule. TenAceIQ will connect your roster and season.',
+      body: 'Upload a scorecard, Player Roster, or schedule. TenAceIQ will connect your roster and season.',
       href: `${dataAssistCaptainHref}#upload`,
       cta: 'Upload team data',
       icon: 'reports' as TiqFeatureIconName,
