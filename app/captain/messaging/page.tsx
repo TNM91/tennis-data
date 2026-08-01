@@ -38,6 +38,13 @@ import {
 import { buildProductAccessState } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
+  buildPotentialLineupAvailabilityMessage,
+  extractPotentialLineupPlayers,
+  readCaptainLineupHandoff,
+  type CaptainLineupHandoff,
+} from '@/lib/captain-lineup-handoff'
 
 type ContactRow = {
   id: string
@@ -74,6 +81,8 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   line_number: string | null
+  match_time: string | null
+  facility: string | null
 }
 
 type ScenarioRow = {
@@ -453,6 +462,7 @@ function readInitialMessagingContext() {
     opponentTeam: '',
     flowSource: '',
     scenario: null as ScenarioRow | null,
+    handoff: null as CaptainLineupHandoff | null,
   }
 
   if (typeof window === 'undefined') return emptyContext
@@ -462,6 +472,9 @@ function readInitialMessagingContext() {
     const resumeState = readCaptainResumeState()
     const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
     const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
+    const handoff = readCaptainLineupHandoff(
+      window.localStorage.getItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY)
+    )
 
     return {
       competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
@@ -471,7 +484,8 @@ function readInitialMessagingContext() {
       eventDate: params.get('date') || resumeState?.eventDate || '',
       opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
       flowSource: params.get('source') || rawFlowSource,
-      scenario: rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null,
+      scenario: handoff?.scenario ?? (rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null),
+      handoff,
     }
   } catch {
     return emptyContext
@@ -523,6 +537,7 @@ function CaptainMessagingContent() {
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
+  const [availabilityHandoff] = useState<CaptainLineupHandoff | null>(initialContext.handoff)
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const [draftContact, setDraftContact] = useState<DraftContact>({
@@ -573,7 +588,7 @@ function CaptainMessagingContent() {
         const [matchesResult, contactsResult, templatesResult, scenariosResult] = await Promise.all([
           supabase
             .from('matches')
-            .select('id, match_date, league_name, flight, home_team, away_team, line_number')
+            .select('id, match_date, match_time, facility, league_name, flight, home_team, away_team, line_number')
             .is('line_number', null)
             .order('match_date', { ascending: false })
             .limit(400),
@@ -757,15 +772,40 @@ function CaptainMessagingContent() {
       setEventMatchId(matchedEvent.id)
     }
 
+    if (availabilityHandoff?.match.time) setEventArrivalTime(availabilityHandoff.match.time)
+    if (availabilityHandoff?.match.facility) setEventLocation(availabilityHandoff.match.facility)
+
     if (nextNotes && !eventNotes.trim()) {
       setEventNotes(nextNotes)
     }
 
-    setRecipientMode('lineup-only')
-    setMessageKind('lineup')
-    setMessageTitle('Lineup Announcement')
+    if (availabilityHandoff) {
+      const lineupNames = new Set(
+        extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json).map((name) => name.toLowerCase())
+      )
+      const matchingContactIds = contacts
+        .filter((contact) => lineupNames.has(contact.full_name.trim().toLowerCase()) && contact.phone && contact.opt_in_text)
+        .map((contact) => contact.id)
+      setSelectedRecipientIds(matchingContactIds)
+      setRecipientMode('custom')
+      setMessageKind('availability')
+      setMessageTitle('Potential lineup availability')
+      setMessageBody(buildPotentialLineupAvailabilityMessage({
+        teamName: nextTeam,
+        opponent: availabilityHandoff.match.opponent || prefillScenarioRaw.opponent_team || '',
+        dateText: formatDate(availabilityHandoff.match.date || nextMatchDate),
+        time: availabilityHandoff.match.time,
+        facility: availabilityHandoff.match.facility,
+        slotsJson: availabilityHandoff.scenario.slots_json,
+        availabilityRequestUrl: availabilityHandoff.availabilityRequestUrl,
+      }))
+    } else {
+      setRecipientMode('lineup-only')
+      setMessageKind('lineup')
+      setMessageTitle('Lineup Announcement')
+    }
     setPrefillApplied(true)
-  }, [loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
+  }, [availabilityHandoff, contacts, loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
 
   const leagueOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.league_name), ...matches.map((m) => m.league_name), ...scenarios.map((s) => s.league_name)]), [contacts, matches, scenarios])
   const flightOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.flight), ...matches.map((m) => m.flight), ...scenarios.map((s) => s.flight)]), [contacts, matches, scenarios])
@@ -970,6 +1010,7 @@ function CaptainMessagingContent() {
 
   useEffect(() => {
     if (!selectedMatch) return
+    if (availabilityHandoff) return
     const nextTitleMap: Record<MessageKind, string> = {
       availability: 'Availability Check',
       lineup: 'Lineup Announcement',
@@ -989,7 +1030,7 @@ function CaptainMessagingContent() {
         lineupText: lineupTextForMessage,
       })
     })
-  }, [messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
+  }, [availabilityHandoff, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -1016,6 +1057,22 @@ function CaptainMessagingContent() {
 
   const recipientsPhones = useMemo(() => selectedRecipients.map((recipient) => recipient.phone).filter(Boolean), [selectedRecipients])
   const smsHref = buildSmsHref(recipientsPhones, messageBody)
+  const potentialLineupNames = useMemo(
+    () => availabilityHandoff ? extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json) : [],
+    [availabilityHandoff]
+  )
+  const potentialLineupContacts = useMemo(() => {
+    const names = new Set(potentialLineupNames.map((name) => name.toLowerCase()))
+    return scopedContacts.filter((contact) => names.has(contact.full_name.trim().toLowerCase()))
+  }, [potentialLineupNames, scopedContacts])
+  const missingPotentialLineupNames = useMemo(() => {
+    const readyNames = new Set(
+      potentialLineupContacts
+        .filter((contact) => contact.phone && contact.opt_in_text)
+        .map((contact) => contact.full_name.trim().toLowerCase())
+    )
+    return potentialLineupNames.filter((name) => !readyNames.has(name.trim().toLowerCase()))
+  }, [potentialLineupContacts, potentialLineupNames])
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -1785,17 +1842,23 @@ useEffect(() => {
     return
   }
 
-  setRecipientMode('lineup-only')
-  setMessageKind('lineup')
-  setMessageTitle('Lineup Announcement')
-  applyWinningLineupToComposer()
+  if (availabilityHandoff) {
+    setMessageKind('availability')
+    setMessageTitle('Potential lineup availability')
+  } else {
+    setRecipientMode('lineup-only')
+    setMessageKind('lineup')
+    setMessageTitle('Lineup Announcement')
+    applyWinningLineupToComposer()
+  }
 
   if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY)
     window.localStorage.removeItem('tenace_selected_scenario')
     window.localStorage.removeItem('tenace_flow_source')
   }
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
+}, [availabilityHandoff, prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
 
 function importScenarioToLineup() {
     if (!selectedScenario) return
@@ -2073,6 +2136,96 @@ function importScenarioToLineup() {
               </div>
             </div>
         </section>
+
+        {availabilityHandoff ? (
+          <section style={potentialLineupFlowStyle} aria-labelledby="potential-lineup-confirm-title">
+            <div style={tableHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Potential lineup</p>
+                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Confirm who can play</h2>
+                <p style={mutedTextStyle}>
+                  Choose the players to text. Match details and the availability link are already included.
+                </p>
+              </div>
+              <span style={selectedRecipients.length ? miniPillGreen : warnPill}>
+                {selectedRecipients.length} ready to text
+              </span>
+            </div>
+
+            <div style={potentialPlayerGridStyle}>
+              {potentialLineupContacts.map((contact) => {
+                const canText = Boolean(contact.phone && contact.opt_in_text)
+                const checked = selectedRecipientIds.includes(contact.id)
+                const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
+                return (
+                  <article key={contact.id} style={potentialPlayerCardStyle}>
+                    <label style={potentialPlayerSelectStyle}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!canText}
+                        onChange={(event) => setSelectedRecipientIds((current) =>
+                          event.target.checked
+                            ? Array.from(new Set([...current, contact.id]))
+                            : current.filter((id) => id !== contact.id)
+                        )}
+                      />
+                      <span>
+                        <strong>{contact.full_name}</strong>
+                        <small style={rowSubtleText}>{canText ? formatPhone(contact.phone) : 'Phone number needed'}</small>
+                      </span>
+                    </label>
+                    <div style={potentialStatusRowStyle} aria-label={`Record ${contact.full_name}'s reply`}>
+                      {(['available', 'tentative', 'unavailable'] as WeeklyAvailability['status'][]).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          aria-pressed={availabilityStatus === status}
+                          onClick={() => setAvailabilityStatus(contact.id, status)}
+                          style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}
+                        >
+                          {status === 'available' ? 'Yes' : status === 'tentative' ? 'Maybe' : 'No'}
+                        </button>
+                      ))}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+
+            {missingPotentialLineupNames.length ? (
+              <div style={potentialMissingStyle}>
+                <strong>Add a phone number before texting:</strong>{' '}
+                {missingPotentialLineupNames.join(', ')}. The player does not need a TIQ account to answer.
+                <div style={{ marginTop: 10 }}><GhostLink href="#captain-contact-setup">Add phone numbers</GhostLink></div>
+              </div>
+            ) : null}
+
+            <div style={potentialMessagePreviewStyle}>{messageBody}</div>
+            <div style={actionRowStyle}>
+              <a
+                href={selectedRecipients.length ? smsHref : undefined}
+                aria-disabled={!selectedRecipients.length}
+                style={{ ...primaryButton, ...(!selectedRecipients.length ? disabledButtonStyle : {}) }}
+                onClick={(event) => {
+                  if (!selectedRecipients.length) {
+                    event.preventDefault()
+                    setError('Choose at least one player with a saved phone number.')
+                  }
+                }}
+              >
+                Open availability texts
+              </a>
+              <GhostLink href="#captain-message-composer">Edit message</GhostLink>
+              {availabilityHandoff.availabilityRequestUrl ? (
+                <GhostLink href={availabilityHandoff.availabilityRequestUrl}>Open player response page</GhostLink>
+              ) : null}
+            </div>
+            <p style={fieldHintStyle}>
+              Players can answer through the link without joining TIQ. If they reply by text, record Yes, Maybe, or No beside their name here.
+            </p>
+          </section>
+        ) : null}
 
         <section style={messagePlaybookSurfaceStyle}>
           <div style={tableHeaderStyle}>
@@ -3549,7 +3702,7 @@ function importScenarioToLineup() {
                 </div>
               </section>
 
-              <details style={surfaceCard}>
+              <details id="captain-contact-setup" open={Boolean(availabilityHandoff && missingPotentialLineupNames.length) || undefined} style={surfaceCard}>
                 <summary style={detailsSummaryStyle}>
                   <div>
                     <p style={sectionKicker}>Admin setup</p>
@@ -3875,6 +4028,67 @@ const messagePlaybookSurfaceStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   minWidth: 0,
+}
+
+const potentialLineupFlowStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  maxWidth: 1280,
+  margin: '0 auto 18px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg-strong) 90%), var(--shell-panel-bg-strong))',
+}
+
+const potentialPlayerGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 10,
+  marginTop: 16,
+}
+
+const potentialPlayerCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const potentialPlayerSelectStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  color: 'var(--shell-copy)',
+  cursor: 'pointer',
+}
+
+const potentialStatusRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+}
+
+const potentialMissingStyle: CSSProperties = {
+  marginTop: 14,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, #d6a62a 55%, var(--shell-panel-border) 45%)',
+  background: 'color-mix(in srgb, #d6a62a 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--shell-copy)',
+  lineHeight: 1.5,
+}
+
+const potentialMessagePreviewStyle: CSSProperties = {
+  marginTop: 14,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy)',
+  lineHeight: 1.55,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
 }
 
 const messagePlaybookGridStyle: CSSProperties = {

@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildPotentialLineupAvailabilityMessage,
+  extractPotentialLineupPlayers,
+  readCaptainLineupHandoff,
+} from '../captain-lineup-handoff'
+
+const slots = [
+  {
+    id: 'd1',
+    label: '3.5 Doubles',
+    players: [
+      { playerId: '1', playerName: 'Alex Ace' },
+      { playerId: '2', playerName: 'Pat Volley' },
+    ],
+  },
+]
+
+describe('captain potential-lineup handoff', () => {
+  it('builds a match-specific availability text that works without a TIQ account', () => {
+    const message = buildPotentialLineupAvailabilityMessage({
+      teamName: 'TIQ Team',
+      opponent: 'Racquet Club',
+      dateText: 'August 8',
+      time: '7:00 PM',
+      facility: 'Forest Lake',
+      slotsJson: slots,
+      availabilityRequestUrl: 'https://www.tenaceiq.com/availability/token',
+    })
+
+    expect(message).toContain('Potential lineup for August 8 vs Racquet Club')
+    expect(message).toContain('3.5 Doubles: Alex Ace / Pat Volley')
+    expect(message).toContain('Reply YES, NO, or MAYBE')
+    expect(message).toContain('Time: 7:00 PM')
+    expect(message).toContain('Location: Forest Lake')
+    expect(message).toContain('Set this match or other season dates')
+    expect(message).toContain('works without a TIQ account')
+  })
+
+  it('extracts each projected player once', () => {
+    expect(extractPotentialLineupPlayers([...slots, ...slots])).toEqual(['Alex Ace', 'Pat Volley'])
+  })
+
+  it('rejects invalid stored handoffs', () => {
+    expect(readCaptainLineupHandoff('{"version":2}')).toBeNull()
+    expect(readCaptainLineupHandoff('not json')).toBeNull()
+  })
+})
