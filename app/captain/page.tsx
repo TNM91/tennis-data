@@ -1424,19 +1424,30 @@ function CaptainLockedSurface({
   )
 }
 
-function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
+function CaptainFirstUseSetup({
+  onRefresh,
+  profile,
+}: {
+  onRefresh: () => void
+  profile: CaptainProfileLinkRow | null
+}) {
   const { isMobile } = useViewportBreakpoints()
+  const playerIdReady = Boolean(profile?.linked_player_id || profile?.linked_player_name)
   const setupSteps = [
     {
       number: '1',
-      title: 'Find your Player ID',
-      body: 'Search your tennis name. If it is missing, upload USTA data first so TenAceIQ can create the record.',
-      href: '/profile',
-      cta: 'Set up Player ID',
+      status: playerIdReady ? 'Complete' : 'Step 1',
+      title: playerIdReady ? 'Player ID connected' : 'Find your Player ID',
+      body: playerIdReady
+        ? `${profile?.linked_player_name || 'Your player'} is connected. Continue to your active team.`
+        : 'Search your tennis name. If it is missing, upload USTA data first so TenAceIQ can create the record.',
+      href: '/profile?setup=captain',
+      cta: playerIdReady ? 'View Player ID' : 'Set up Player ID',
       icon: 'playerRatings' as TiqFeatureIconName,
     },
     {
       number: '2',
+      status: playerIdReady ? 'Next step' : 'Step 2',
       title: 'Connect your active team',
       body: 'Upload a scorecard, team summary, or schedule. TenAceIQ will connect your roster and season.',
       href: `${dataAssistCaptainHref}#upload`,
@@ -1445,6 +1456,7 @@ function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
     },
     {
       number: '3',
+      status: 'Step 3',
       title: 'Come back to Captain',
       body: 'After review, refresh Captain. Your linked team opens first, and you can make any team your default.',
       href: '#captain-setup-refresh',
@@ -1472,7 +1484,9 @@ function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
           <span style={sectionKicker}>Captain setup</span>
           <h1 style={{ ...scopeTitleStyle, margin: 0 }}>Set up your first team.</h1>
           <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.55 }}>
-            Captain needs a linked player and team before availability, lineups, scouting, and messages can work.
+            {playerIdReady
+              ? 'Your Player ID is connected. Next, add your active team so Captain can open availability, lineups, scouting, and messages.'
+              : 'Captain needs a linked player and team before availability, lineups, scouting, and messages can work.'}
           </p>
         </div>
 
@@ -1500,7 +1514,7 @@ function CaptainFirstUseSetup({ onRefresh }: { onRefresh: () => void }) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <span style={badgeGreen}>Step {step.number}</span>
+                <span style={step.status === 'Next step' ? badgeBlue : badgeGreen}>{step.status}</span>
                 <TiqFeatureIcon name={step.icon} size="sm" variant="surface" />
               </div>
               <div style={{ display: 'grid', gap: 6 }}>
@@ -15735,7 +15749,12 @@ function CaptainHubContent() {
   ) : null
 
   if (premiumEnabled && authResolved && teamScopeResolved && !loadingOptions && !filteredTeamOptions.length) {
-    return <CaptainFirstUseSetup onRefresh={() => setRefreshTick((current) => current + 1)} />
+    return (
+      <CaptainFirstUseSetup
+        profile={captainProfileLink}
+        onRefresh={() => setRefreshTick((current) => current + 1)}
+      />
+    )
   }
 
   return (

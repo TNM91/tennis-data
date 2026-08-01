@@ -40,6 +40,15 @@ describe('profile identity first actions', () => {
     expect(source).toContain('const nextMovePathStyle')
   })
 
+  it('continues Captain setup after a Player ID is already connected', () => {
+    expect(source).toContain("setCaptainSetupEntry(params.get('setup') === 'captain')")
+    expect(source).toContain("const captainTeamSetupHref = '/data-assist?intent=upload-source&context=Team%20Hub#upload'")
+    expect(source).toContain('Player ID setup is complete. Next, connect your active team.')
+    expect(source).toContain('Step 1 is complete. Connect your active team to finish Captain setup.')
+    expect(source).toContain('Connect active team')
+    expect(source).toContain('Back to Captain')
+  })
+
   it('explains what the player ID powers after setup', () => {
     expect(source).toContain('const profilePlayerIdBenefits = [')
     expect(source).toContain('Player ID powers')
