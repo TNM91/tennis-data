@@ -131,7 +131,7 @@ describe('Captain lineup builder mobile layout guards', () => {
   })
 
   it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
-    expect(source).toContain('Nothing is saved or sent until you choose Save lineup.')
+    expect(source).toContain('This is a potential lineup. Review it, then confirm each player')
     expect(source).toContain('role="status" aria-live="polite"')
     expect(source).toContain('Review the courts below. Nothing has been saved or sent.')
     expect(source).toContain('Tri-Level · 3 doubles courts')

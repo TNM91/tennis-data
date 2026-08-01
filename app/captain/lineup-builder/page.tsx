@@ -35,6 +35,10 @@ import {
   isPlayerEligibleForCaptainRating,
   type CaptainLineupSlot,
 } from '@/lib/captain-lineup-format'
+import {
+  CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
+  type CaptainLineupHandoff,
+} from '@/lib/captain-lineup-handoff'
 
 type PlayerRow = {
   id: string
@@ -1043,6 +1047,7 @@ function LineupBuilderContent() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [preparingConfirmation, setPreparingConfirmation] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
@@ -1675,41 +1680,101 @@ function LineupBuilderContent() {
     setMessage('Builder reset.')
     setError('')
   }
-function sendCurrentScenarioToMessaging() {
-  if (!currentScenarioId) {
-    setError('Save or load a scenario before sending it to messaging.')
-    setMessage('')
-    return
+  async function confirmPotentialLineupAvailability() {
+    if (!teamName || !matchDate) {
+      setError('Choose the team and match before confirming availability.')
+      setMessage('')
+      return
+    }
+
+    const invitedPlayers = teamSlots
+      .flatMap((slot) => slot.players)
+      .filter((player) => player.playerName.trim())
+      .filter((player, index, all) =>
+        all.findIndex((candidate) =>
+          candidate.playerId === player.playerId ||
+          candidate.playerName.trim().toLowerCase() === player.playerName.trim().toLowerCase()
+        ) === index
+      )
+
+    if (!invitedPlayers.length) {
+      setError('Add at least one player to the potential lineup first.')
+      setMessage('')
+      return
+    }
+
+    setPreparingConfirmation(true)
+    setError('')
+    setMessage('Saving this potential lineup...')
+
+    const savedScenario = await saveScenario(false, true)
+    if (!savedScenario) {
+      setPreparingConfirmation(false)
+      return
+    }
+
+    let availabilityRequestUrl = ''
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData.session?.access_token
+    if (accessToken) {
+      try {
+        const response = await fetch('/api/captain/availability-requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            scenarioId: savedScenario.id,
+            teamName,
+            leagueName,
+            flight,
+            matchDate,
+            opponentTeam,
+            matchTime: selectedMatch?.match_time || '',
+            facility: selectedMatch?.facility || '',
+            slots: teamSlots,
+            invitedPlayers,
+          }),
+        })
+        const result = await response.json() as { requestUrl?: string }
+        if (response.ok) availabilityRequestUrl = result.requestUrl || ''
+      } catch {
+        // Messaging still works if the shareable response link cannot be created.
+      }
+    }
+
+    const handoff: CaptainLineupHandoff = {
+      version: 1,
+      intent: 'confirm-availability',
+      scenario: { ...savedScenario, slots_json: teamSlots },
+      match: {
+        date: matchDate,
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+        opponent: opponentTeam,
+      },
+      availabilityRequestUrl,
+      createdAt: new Date().toISOString(),
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY, JSON.stringify(handoff))
+      window.localStorage.setItem('tenace_selected_scenario', JSON.stringify(handoff.scenario))
+      window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
+    }
+
+    const baseHref = buildCaptainScopedHref('/captain/messaging', {
+      competitionLayer,
+      team: teamName,
+      league: leagueName,
+      flight,
+      date: matchDate,
+      opponent: opponentTeam,
+    })
+    setPreparingConfirmation(false)
+    router.push(`${baseHref}${baseHref.includes('?') ? '&' : '?'}source=lineup_builder`)
   }
-
-  const activeScenario =
-    savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
-
-  if (!activeScenario) {
-    setError('The active scenario could not be found. Save the scenario first, then try again.')
-    setMessage('')
-    return
-  }
-
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('tenace_selected_scenario', JSON.stringify(activeScenario))
-    window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
-  }
-
-  const params = new URLSearchParams()
-  params.set('source', 'lineup_builder')
-
-  const baseHref = buildCaptainScopedHref('/captain/messaging', {
-    competitionLayer,
-    team: teamName,
-    league: leagueName,
-    flight,
-    date: matchDate,
-    opponent: opponentTeam,
-  })
-
-  router.push(`${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}`)
-}
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
       .from('lineup_scenarios')
@@ -1738,9 +1803,9 @@ function sendCurrentScenarioToMessaging() {
     return rows
   }
 
-  function buildScenarioPayload() {
+  function buildScenarioPayload(nextScenarioName = scenarioName.trim()) {
     return {
-      scenario_name: scenarioName.trim(),
+      scenario_name: nextScenarioName,
       league_name: leagueName || null,
       flight: flight || null,
       match_date: matchDate || null,
@@ -2004,24 +2069,22 @@ function sendCurrentScenarioToMessaging() {
     return true
   }
 
-  async function saveScenario(asNew = false) {
+  async function saveScenario(asNew = false, quiet = false): Promise<ScenarioRow | null> {
     setSaving(true)
     setError('')
-    setMessage('')
+    if (!quiet) setMessage('')
 
     if (!isCaptainAccess) {
       setSaving(false)
       setError('Upgrade to Captain tier to save scenarios.')
-      return
+      return null
     }
 
-    if (!scenarioName.trim()) {
-      setSaving(false)
-      setError('Please enter a scenario name.')
-      return
-    }
+    const generatedName = `Potential lineup - ${formatDate(matchDate || null)}${opponentTeam ? ` vs ${opponentTeam}` : ''}`
+    const nextScenarioName = scenarioName.trim() || generatedName
+    if (!scenarioName.trim()) setScenarioName(nextScenarioName)
 
-    const normalizedName = scenarioName.trim().toLowerCase()
+    const normalizedName = nextScenarioName.toLowerCase()
     const duplicate = savedScenarios.find((scenario) => {
       const sameName = scenario.scenario_name.trim().toLowerCase() === normalizedName
       const sameTeam = (scenario.team_name ?? '') === (teamName || '')
@@ -2029,49 +2092,53 @@ function sendCurrentScenarioToMessaging() {
       return sameName && sameTeam && sameDate
     })
 
-    if (duplicate && (asNew || duplicate.id !== currentScenarioId)) {
+    if (duplicate && asNew) {
       setSaving(false)
       setError('A scenario with this name already exists for this team and match date.')
-      return
+      return null
     }
 
-    const payload = buildScenarioPayload()
+    const payload = buildScenarioPayload(nextScenarioName)
+    const targetScenarioId = !asNew ? currentScenarioId || duplicate?.id || '' : ''
 
-    if (currentScenarioId && !asNew) {
-      const { error: updateError } = await supabase.from('lineup_scenarios').update(payload).eq('id', currentScenarioId)
+    if (targetScenarioId) {
+      const { data: updated, error: updateError } = await supabase
+        .from('lineup_scenarios')
+        .update(payload)
+        .eq('id', targetScenarioId)
+        .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
+        .single()
       setSaving(false)
 
       if (updateError) {
         setError(updateError.message)
-        return
+        return null
       }
 
+      setCurrentScenarioId(targetScenarioId)
       await refreshSavedScenarios()
-      const tracked = await trackPredictionSnapshot('scenario-update', currentScenarioId, true)
-      setMessage(tracked ? 'Scenario updated and prediction snapshot tracked.' : 'Scenario updated successfully.')
-      return
+      await trackPredictionSnapshot('scenario-update', targetScenarioId, true)
+      if (!quiet) setMessage('Potential lineup updated.')
+      return updated as ScenarioRow
     }
 
-    const { data, error: insertError } = await supabase.from('lineup_scenarios').insert(payload).select('id').single()
+    const { data, error: insertError } = await supabase
+      .from('lineup_scenarios')
+      .insert(payload)
+      .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
+      .single()
     setSaving(false)
 
     if (insertError) {
       setError(insertError.message)
-      return
+      return null
     }
 
     if (data?.id) setCurrentScenarioId(data.id)
     await refreshSavedScenarios()
-    const tracked = await trackPredictionSnapshot(asNew ? 'scenario-save-new' : 'scenario-save', data?.id ?? null, true)
-    setMessage(
-      tracked
-        ? asNew
-          ? 'Scenario saved as new and prediction snapshot tracked.'
-          : 'Scenario saved and prediction snapshot tracked.'
-        : asNew
-          ? 'Scenario saved as new successfully.'
-          : 'Scenario saved successfully.'
-    )
+    await trackPredictionSnapshot(asNew ? 'scenario-save-new' : 'scenario-save', data?.id ?? null, true)
+    if (!quiet) setMessage(asNew ? 'Potential lineup saved as a new version.' : 'Potential lineup saved.')
+    return data as ScenarioRow
   }
 
   async function deleteScenario(scenarioId: string) {
@@ -2301,15 +2368,14 @@ function sendCurrentScenarioToMessaging() {
   }
 
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
-  const hasScenarioName = !!scenarioName.trim()
   const hasCoreContext = !!teamName && !!opponentTeam && !!matchDate
   const hasComparisonCandidates = scenarioOptions.length > 1
   const lineupHasAssignments = teamSlots.some((slot) => slot.players.some((player) => player.playerId))
   const builderReadiness = [
     {
-      label: 'Scenario named',
-      done: hasScenarioName,
-      detail: hasScenarioName ? scenarioName.trim() : 'Give this build a name before you save or compare it.',
+      label: 'Potential lineup named',
+      done: true,
+      detail: scenarioName.trim() || 'A match-based name will be added when you save.',
     },
     {
       label: 'Match context set',
@@ -2364,7 +2430,7 @@ function sendCurrentScenarioToMessaging() {
           <div style={builderControlHeaderStyle}>
             <div>
               <p style={sectionKicker}>Lineup controls</p>
-              <h1 style={builderControlTitleStyle}>Build, compare, send.</h1>
+              <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
             </div>
             <span style={lineupHasAssignments ? miniPillGreenStyle : miniPillSlateStyle}>
               {lineupHasAssignments ? `${formatPercent(analysis.projection)} projected` : 'Start lineup'}
@@ -2373,10 +2439,12 @@ function sendCurrentScenarioToMessaging() {
 
           <div style={builderControlRowStyle(isSmallMobile)}>
             <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-              {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
+              {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
             </PrimaryBtn>
             <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
-            <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</PrimaryBtn>
+            <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+              {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+            </PrimaryBtn>
             <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
         </section>
@@ -2516,13 +2584,15 @@ function sendCurrentScenarioToMessaging() {
             {isTriLevel
               ? `Builds one eligible doubles pair for each level: ${triLevelRatings.map((rating) => rating.toFixed(1)).join(', ')}.`
               : 'Fills or replaces unlocked courts with the strongest projected lineup.'}{' '}
-            Nothing is saved or sent until you choose Save lineup.
+            This is a potential lineup. Review it, then confirm each player&apos;s availability before finalizing.
           </p>
 
           <div style={decisionBoardActionRowStyle}>
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
-            <GhostBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</GhostBtn>
+            <GhostBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+              {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+            </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
 
@@ -2652,13 +2722,13 @@ function sendCurrentScenarioToMessaging() {
                   <p style={sectionKicker}>Match setup</p>
                   <h2 style={sectionTitle}>Pick the match</h2>
                   <p style={sectionBodyTextStyle}>
-                    Choose the team, match, and name for this lineup.
+                    Choose the team and match. A clear name is added automatically if you leave it blank.
                   </p>
                 </div>
 
                 <div style={actionRowStyle}>
                   <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                    {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
+                    {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
                   </PrimaryBtn>
                   <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as new</GhostBtn>
                   <GhostBtn onClick={() => void trackPredictionSnapshot('manual-track')} disabled={trackingSnapshot}>
@@ -2668,8 +2738,8 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={filtersGridStyle}>
-                <Field label="Scenario name" htmlFor="lineup-builder-scenario-name">
-                  <input id="lineup-builder-scenario-name" value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} style={inputStyle} placeholder="Spring Week 4 best build" />
+                <Field label="Lineup name (optional)" htmlFor="lineup-builder-scenario-name">
+                  <input id="lineup-builder-scenario-name" value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} style={inputStyle} placeholder="Added automatically" />
                 </Field>
                 <Field label="League" htmlFor="lineup-builder-league">
                   <input id="lineup-builder-league" list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} style={inputStyle} placeholder="League name" />
@@ -3297,14 +3367,14 @@ function sendCurrentScenarioToMessaging() {
 
               <div style={scenarioDeckButtonRowStyle}>
                 <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                  {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
                 </PrimaryBtn>
                 <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as new</GhostBtn>
                 <GhostBtn onClick={() => void trackPredictionSnapshot('command-deck-track')} disabled={trackingSnapshot}>
                   {trackingSnapshot ? 'Tracking...' : 'Track snapshot'}
                 </GhostBtn>
-                <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>
-                  Send to messaging
+                <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                  {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
                 </PrimaryBtn>
                 <GhostLink href={compareHref}>Compare versions</GhostLink>
               </div>
