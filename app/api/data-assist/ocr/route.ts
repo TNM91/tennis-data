@@ -154,7 +154,7 @@ export async function POST(request: Request) {
 
   if (exportInputs.length > 1) {
     return Response.json(
-      { ok: false, message: 'Upload one TennisLink Excel export at a time. Import scorecards, schedules, and team summaries as separate uploads.' },
+      { ok: false, message: 'Upload one TennisLink Excel export at a time. Import scorecards, schedules, and Player Rosters as separate uploads.' },
       { status: 400 },
     )
   }
@@ -405,7 +405,7 @@ export async function POST(request: Request) {
         parser_warnings: parsedDraft.parserWarnings,
         validation_summary: {
           message: parsedDraft.players.length
-            ? 'Team summary read complete. Review the roster before importing.'
+            ? 'Player Roster read complete. Review the players before importing.'
             : 'TenAceIQ could not safely read this Player Roster.',
           importLocked: true,
           sourceScreenshotCount: screenshots.length,
@@ -440,7 +440,7 @@ export async function POST(request: Request) {
           reviewedBy: requesterCheck.userId,
           action: 'commit',
           validationSummary: {
-            message: 'Team summary read passed auto-checks.',
+            message: 'Player Roster read passed auto-checks.',
             importLocked: false,
             sourceScreenshotCount: screenshots.length,
             ocrConfidenceScore: ocrResult.confidenceScore,

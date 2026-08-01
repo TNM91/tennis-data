@@ -54,7 +54,7 @@ const teamPathActions = [
     job: 'refresh_roster',
     question: 'How do I refresh the roster?',
     title: 'Upload team data',
-    body: 'Send reviewed team summaries, rosters, or scorecards through Data Assist when team context is stale.',
+    body: 'Send reviewed Player Rosters or scorecards through Data Assist when team context is stale.',
     cta: 'Refresh data',
   },
   {

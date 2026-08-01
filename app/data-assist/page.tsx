@@ -667,7 +667,7 @@ function DataAssistWorkspace() {
           : isTeamSummaryParsedDraft(ocrResult.parsedDraft)
             ? ocrResult.autoImport?.ok
               ? ocrResult.autoImport.message || 'Team roster imported.'
-              : 'Team summary read complete. Review the roster before import.'
+              : 'Player Roster read complete. Review the players before import.'
           : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
         if (returnTo && isTeamSummaryParsedDraft(ocrResult.parsedDraft) && ocrResult.autoImport?.ok) {
           router.replace(returnTo)
@@ -850,7 +850,7 @@ function DataAssistWorkspace() {
                 <StepBadge step={1} label="Upload export" />
                 <h1 style={sectionTitleStyle}>Choose your TennisLink export.</h1>
                 {!isCompactViewport ? (
-                  <p style={copyStyle}>TenAceIQ identifies scorecards, schedules, and team summaries automatically.</p>
+                  <p style={copyStyle}>TenAceIQ identifies scorecards, schedules, and Player Rosters automatically.</p>
                 ) : null}
               </div>
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
@@ -1008,7 +1008,7 @@ function DataAssistWorkspace() {
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
           <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
-          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Team summary, or wait for admins to restore scorecard upload access.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
+          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Player Roster, or wait for admins to restore scorecard upload access.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -1253,7 +1253,7 @@ function DataAssistTrustEnginePanel() {
         <span style={trustEngineEyebrowStyle}>Fix Data / Data Assist</span>
         <h2 id="data-assist-trust-title" style={trustEngineTitleStyle}>Help keep TenAceIQ accurate.</h2>
         <p style={copyStyle}>
-          Upload scorecards, schedules, rosters, team summaries, and corrections. Reviewed data can improve player profiles,
+          Upload scorecards, schedules, Player Rosters, and corrections. Reviewed data can improve player profiles,
           teams, leagues, rankings, matchup reads, and My Lab.
         </p>
       </div>
@@ -1694,14 +1694,14 @@ function UploadIssueNotice({
   message: string
   onStartOver: () => void
 }) {
-  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries|up to \d+ scorecard/i.test(message)
+  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and (?:team summaries|Player Rosters)|schedules and (?:team summaries|Player Rosters)|up to \d+ scorecard/i.test(message)
   return (
     <div style={uploadIssueStyle}>
       <div style={headerCopyStyle}>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
-            ? `Scorecards can be selected together in batches of ${DATA_ASSIST_MAX_BULK_SCORECARDS}. Schedules and team summaries should be uploaded one at a time.`
+            ? `Scorecards can be selected together in batches of ${DATA_ASSIST_MAX_BULK_SCORECARDS}. Schedules and Player Rosters should be uploaded one at a time.`
             : message}
         </p>
         {mixedExportIssue ? <small style={hintStyle}>This keeps season setup clean while still supporting scorecard catch-up batches.</small> : null}

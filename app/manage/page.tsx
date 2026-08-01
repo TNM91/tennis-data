@@ -345,7 +345,7 @@ const manageActions = [
     eyebrow: 'Data Assist',
     title: 'Fix the source of confusion',
     question: 'What source needs review before it shapes the tennis context?',
-    body: 'Upload scorecards, schedules, rosters, team summaries, or corrections when the tennis context needs review.',
+    body: 'Upload scorecards, schedules, Player Rosters, or corrections when the tennis context needs review.',
     metrics: [
       { label: 'Upload', value: 'Source' },
       { label: 'Review', value: 'Needed' },

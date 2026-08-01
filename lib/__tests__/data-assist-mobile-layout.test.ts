@@ -26,7 +26,7 @@ describe('Data Assist mobile layout guards', () => {
     expect(source).toContain('const dropzoneStyle = (status: string, compact = false): CSSProperties')
     expect(source).toContain('minHeight: compact ? 82 : 150')
     expect(source).toContain("dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '', isMobile)")
-    expect(source).toContain('TenAceIQ identifies scorecards, schedules, and team summaries automatically.')
+    expect(source).toContain('TenAceIQ identifies scorecards, schedules, and Player Rosters automatically.')
     expect(source).toContain('<span>Having trouble?</span>')
     expect(source).toContain('<strong>Choose file type</strong>')
     expect(source).toContain('Only use this when TenAceIQ cannot identify the export.')

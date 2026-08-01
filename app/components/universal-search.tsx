@@ -74,14 +74,14 @@ const results: SearchResult[] = [
   {
     group: 'Actions',
     title: 'Open Data Assist',
-    detail: 'Fix tennis context with scorecard uploads, schedule uploads, team summaries, corrections, and review requests.',
+    detail: 'Fix tennis context with scorecards, schedules, Player Rosters, corrections, and review requests.',
     href: '/data-assist?intent=upload-source&context=Universal%20search',
     keywords: ['open data assist', 'data assist', 'fix data', 'upload source'],
   },
   {
     group: 'Actions',
     title: 'Upload a scorecard',
-    detail: 'Open Data Assist to upload scorecards, schedules, team summaries, and corrections.',
+    detail: 'Open Data Assist to upload scorecards, schedules, Player Rosters, and corrections.',
     href: '/data-assist?intent=upload-source&context=Universal%20search',
     keywords: ['scorecard upload', 'fix data', 'upload scorecard', 'data assist'],
   },

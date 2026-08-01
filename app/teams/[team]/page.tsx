@@ -1286,7 +1286,7 @@ function TeamPageContent() {
           title="Opening team context."
           body="Pulling roster, recent matches, league scope, and Captain Tools paths so this team page starts with useful tennis context."
           signals={[
-            { label: 'Source', value: 'Rosters, scorecards, team summaries' },
+            { label: 'Source', value: 'Player Rosters and scorecards' },
             { label: 'Freshness', value: 'Recent matches first' },
             { label: 'Status', value: 'Reviewable through Data Assist' },
           ]}
@@ -1458,9 +1458,9 @@ function TeamPageContent() {
           <div style={detailDrawerContentStyle}>
             <DataTrustPanel
               title="Team data trust"
-              body="Team pages combine reviewed team summaries, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
+              body="Team pages combine reviewed Player Rosters, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
               signals={[
-                { label: 'Source', value: 'Team summaries, scorecards, TIQ league entries' },
+                { label: 'Source', value: 'Player Rosters, scorecards, TIQ league entries' },
                 { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
                 { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
                 { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
@@ -1515,7 +1515,7 @@ function TeamPageContent() {
           <article style={metricCard}>
             <span style={metricLabel}>Roster Size</span>
             <strong style={metricValue}>{roster.length}</strong>
-            <span style={metricSubtle}>Team summary plus match history</span>
+            <span style={metricSubtle}>Player Roster plus match history</span>
           </article>
 
           <article style={metricCard}>

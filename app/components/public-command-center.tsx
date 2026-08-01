@@ -141,7 +141,7 @@ export const homeActionCards: PublicActionCard[] = [
   },
   {
     title: 'Fix Tennis Context',
-    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections when tennis context needs a cleaner source.',
+    body: 'Upload scorecards, schedules, Player Rosters, and corrections when tennis context needs a cleaner source.',
     href: DATA_ASSIST_STORY.href,
     cta: 'Open Data Assist',
     meta: 'Source review',
@@ -256,7 +256,7 @@ const homeSnapshotItems: HomeSnapshotItem[] = [
   {
     label: 'Data trust',
     title: 'Know when the source needs help.',
-    body: 'Upload or review scorecards, rosters, schedules, and team summaries when context needs a cleaner source.',
+    body: 'Upload or review scorecards, schedules, and Player Rosters when context needs a cleaner source.',
     signal: 'Uploads, review, fixes',
     href: DATA_ASSIST_STORY.href,
     cta: DATA_ASSIST_STORY.cta,

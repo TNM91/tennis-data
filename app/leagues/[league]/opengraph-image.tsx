@@ -98,7 +98,7 @@ export default async function Image({
             }}
           >
             <div style={{ fontSize: '26px', color: '#9bd2ff', fontWeight: 800 }}>
-              Team summaries, standings context, and match history
+              Player Rosters, standings context, and match history
             </div>
             <div style={{ fontSize: '24px', color: 'rgba(224,236,249,0.72)' }}>
               TenAceIQ

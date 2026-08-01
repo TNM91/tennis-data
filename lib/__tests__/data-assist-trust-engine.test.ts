@@ -11,7 +11,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('Fix Data / Data Assist')
     expect(source).toContain("import { buildSupportMessageHref } from '@/lib/message-links'")
     expect(source).toContain('Help keep TenAceIQ accurate.')
-    expect(source).toContain('Upload scorecards, schedules, rosters, team summaries, and corrections.')
+    expect(source).toContain('Upload scorecards, schedules, Player Rosters, and corrections.')
     expect(source).toContain('Reviewed data can improve player profiles')
     expect(source).toContain('team pages, and Team Hub')
     expect(source).not.toContain('Captain workspaces')

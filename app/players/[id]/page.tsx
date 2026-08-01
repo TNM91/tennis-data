@@ -1446,7 +1446,7 @@ function PlayerProfileContent() {
           <div style={detailDrawerContentStyle}>
             <DataTrustPanel
               title="Player data trust"
-              body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, team summaries, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
+              body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, Player Rosters, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
               signals={[
                 { label: 'Source', value: 'Player records, scorecards, teams, awards' },
                 { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },

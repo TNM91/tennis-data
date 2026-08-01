@@ -51,7 +51,7 @@ const leaguePathActions = [
     job: 'refresh_league_data',
     question: 'How do I refresh schedules or scorecards?',
     title: 'Upload league data',
-    body: 'Use reviewed Data Assist uploads for schedules, rosters, team summaries, and official scorecards.',
+    body: 'Use reviewed Data Assist uploads for schedules, Player Rosters, and official scorecards.',
     cta: 'Upload data',
   },
   {

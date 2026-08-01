@@ -34,7 +34,7 @@ describe('public loading state polish', () => {
     expect(playerDetailSource).toContain('Open Matchup')
     expect(playerDetailSource).not.toContain('Loading player profile...')
     expect(teamDetailSource).toContain('Opening team context.')
-    expect(teamDetailSource).toContain('Rosters, scorecards, team summaries')
+    expect(teamDetailSource).toContain('Player Rosters and scorecards')
     expect(teamDetailSource).not.toContain('Loading team page...')
     expect(leagueDetailSource).toContain('Opening season context.')
     expect(leagueDetailSource).toContain('titleAs="h2"')
