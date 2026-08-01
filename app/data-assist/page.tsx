@@ -154,36 +154,18 @@ const dataAssistSourcePathJobs = [
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
-  detail: string
-  updates: string
-  exportHint: string
-  cadence: string
-  badge?: string
 }> = [
   {
     id: 'scorecard',
     label: 'Scorecard',
-    detail: 'Weekly results or catch-up',
-    updates: 'Players, scores, winners, and team result',
-    exportHint: 'Score Card > Send To Excel',
-    cadence: 'Use after each match. Select several scorecards when catching up.',
-    badge: 'Recommended',
   },
   {
     id: 'schedule',
     label: 'Schedule',
-    detail: 'Season setup',
-    updates: 'Match IDs, dates, teams, times, and sites',
-    exportHint: 'Match Schedule > Send To Excel',
-    cadence: 'Usually once per season, unless you are loading history.',
   },
   {
     id: 'team_summary',
     label: 'Team summary',
-    detail: 'Roster setup',
-    updates: 'Roster players and baseline USTA ratings',
-    exportHint: 'Team Summary > Send To Excel',
-    cadence: 'Usually once per season after rosters are set.',
   },
 ]
 
@@ -243,6 +225,7 @@ function DataAssistWorkspace() {
   const intentContext = getDataAssistContext(searchParams.get('context'))
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
+  const [typeOverrideActive, setTypeOverrideActive] = useState(false)
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [selectedFileCount, setSelectedFileCount] = useState(0)
@@ -277,11 +260,10 @@ function DataAssistWorkspace() {
   const showLatestReviewStep = Boolean(latestScan)
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
   const showBulkScorecardResults = !hasPreparedScreenshots && !latestScan && bulkScorecardResults.length > 0
-  const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
   const scorecardUploadsPaused = contributorStats?.canUploadScorecards === false
   const scorecardUploadPausedMessage =
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
-  const scorecardUploadBlocked = importType === 'scorecard' && scorecardUploadsPaused
+  const scorecardUploadBlocked = typeOverrideActive && importType === 'scorecard' && scorecardUploadsPaused
   const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
   const isCompactViewport = isMobile || isTablet
   const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
@@ -289,7 +271,6 @@ function DataAssistWorkspace() {
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
   const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
   const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
-  const dynamicStepDividerStyle = isCompactViewport ? compactStepDividerStyle : stepDividerStyle
   function resetUploadFlow() {
     scanRunRef.current += 1
     setSummary(null)
@@ -308,6 +289,7 @@ function DataAssistWorkspace() {
         importType: nextType,
       },
     })
+    setTypeOverrideActive(true)
     setImportType(nextType)
     setSummary((current) => current ? summarizeDataAssistBatch(nextType, current.screenshots) : null)
     setSavedBatchId('')
@@ -390,6 +372,13 @@ function DataAssistWorkspace() {
       event.target.value = ''
       return
     }
+    if (!detected.recognized && !typeOverrideActive) {
+      setError('TenAceIQ could not identify this export. Open “Having trouble?” below, choose the file type, then upload it again.')
+      setPreparing(false)
+      setSelectedFileCount(0)
+      event.target.value = ''
+      return
+    }
     if (files.length > DATA_ASSIST_MAX_BULK_SCORECARDS && detected.importType === 'scorecard') {
       setError(`Choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports at a time. Run another batch for the rest.`)
       setPreparing(false)
@@ -405,6 +394,7 @@ function DataAssistWorkspace() {
       return
     }
     const changedType = detected.importType !== importType
+    if (detected.recognized) setTypeOverrideActive(false)
     void trackProductUsageEvent({
       eventName: detected.importType === 'schedule'
         ? 'schedule_upload_started'
@@ -821,38 +811,13 @@ function DataAssistWorkspace() {
           <section id="upload" style={dynamicPanelStyle}>
             <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
-                <StepBadge step={1} label="Select type" />
-                <h1 style={sectionTitleStyle}>Choose what you are uploading.</h1>
+                <StepBadge step={1} label="Upload export" />
+                <h1 style={sectionTitleStyle}>Choose your TennisLink export.</h1>
                 {!isCompactViewport ? (
-                  <p style={copyStyle}>Pick the source type, then choose the TennisLink export. Scorecards are the usual weekly upload.</p>
+                  <p style={copyStyle}>TenAceIQ identifies scorecards, schedules, and team summaries automatically.</p>
                 ) : null}
               </div>
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
-            </div>
-
-            <div style={uploadChoiceStackStyle}>
-              <label style={dynamicImportTypeSelectWrapStyle}>
-                <span style={dropzoneKickerStyle}>Source type</span>
-                <select
-                  value={importType}
-                  onChange={(event) => updateImportType(event.target.value as DataAssistImportType)}
-                  style={dynamicImportTypeSelectStyle}
-                >
-                  {importTypes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}{item.badge ? ` - ${item.badge}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <small style={dynamicImportTypeSelectHintStyle}>
-                  {scorecardUploadBlocked ? 'Scorecard uploads are temporarily paused.' : isCompactViewport ? getCompactImportTypeHint(importType) : activeImportType.updates}
-                </small>
-              </label>
-            </div>
-
-            <div style={dynamicStepDividerStyle}>
-              <StepBadge step={2} label="Upload export" />
-              <strong>{activeImportType.exportHint}</strong>
             </div>
 
             {authResolved && !userId ? (
@@ -869,16 +834,38 @@ function DataAssistWorkspace() {
             <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '', isMobile)}>
               <input
                 type="file"
-                multiple={importType === 'scorecard'}
+                multiple
                 accept=".xls,.html,application/vnd.ms-excel,text/html"
                 onChange={(event) => void handleFiles(event)}
                 disabled={scorecardUploadBlocked}
                 style={fileInputStyle}
               />
               <span style={dropzoneKickerStyle}>Supported Excel exports</span>
-              <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
-              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded.' : isCompactViewport ? getCompactUploadHint(importType) : `${getUploadHint(importType)} Standard filenames are detected automatically.`}</small>
+              <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose TennisLink .xls export'}</strong>
+              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded.' : 'Scorecard, schedule, and team summary files are identified automatically.'}</small>
             </label>
+
+            <details style={typeOverrideDetailsStyle}>
+              <summary style={typeOverrideSummaryStyle}>
+                <span>Having trouble?</span>
+                <strong>Choose file type</strong>
+              </summary>
+              <label style={dynamicImportTypeSelectWrapStyle}>
+                <span style={dropzoneKickerStyle}>File type override</span>
+                <select
+                  value={importType}
+                  onChange={(event) => updateImportType(event.target.value as DataAssistImportType)}
+                  style={dynamicImportTypeSelectStyle}
+                >
+                  {importTypes.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+                <small style={dynamicImportTypeSelectHintStyle}>
+                  {scorecardUploadBlocked ? 'Scorecard uploads are temporarily paused.' : 'Only use this when TenAceIQ cannot identify the export.'}
+                </small>
+              </label>
+            </details>
 
             {!hasPreparedScreenshots ? (
               isCompactViewport ? (
@@ -1530,29 +1517,6 @@ function buildBulkScorecardMessage({
     failedCount ? `${failedCount} need another try` : '',
   ].filter(Boolean)
   return `Scorecard batch complete: ${parts.join(', ') || `${total} processed`}.`
-}
-
-function getUploadHint(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Use Match Schedule, then Send To Excel.'
-  if (importType === 'team_summary') return 'Use Team Summary, then Send To Excel.'
-  return `Use Score Card, then Send To Excel. Select up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards.`
-}
-
-function getCompactUploadHint(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Upload the Match Schedule .xls export.'
-  if (importType === 'team_summary') return 'Upload the Team Summary .xls export.'
-  return `Upload Score Card .xls exports. Up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} at once.`
-}
-
-function getCompactImportTypeHint(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Match dates, teams, times, and sites.'
-  if (importType === 'team_summary') return 'Roster players and starting ratings.'
-  return 'Players, scores, winners, and team result.'
-}
-
-function getDropzoneTitle(importType: DataAssistImportType) {
-  if (importType === 'scorecard') return 'Tap to choose scorecard .xls exports'
-  return 'Tap to choose .xls export'
 }
 
 function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
@@ -3743,17 +3707,33 @@ const sectionTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const uploadChoiceStackStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minWidth: 0,
-}
-
 const compactPanelStyle: CSSProperties = {
   ...panelStyle,
   borderRadius: 16,
   padding: 8,
   gap: 8,
+}
+
+const typeOverrideDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+}
+
+const typeOverrideSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 44,
+  padding: '9px 12px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  cursor: 'pointer',
+  listStyle: 'none',
 }
 
 const importTypeSelectWrapStyle: CSSProperties = {
@@ -3831,23 +3811,6 @@ const mobileUploadHelpStackStyle: CSSProperties = {
   gap: 10,
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
-
-const stepDividerStyle: CSSProperties = {
-  borderTop: '1px solid var(--shell-panel-border)',
-  paddingTop: 14,
-  display: 'grid',
-  gap: 8,
-  color: 'var(--foreground-strong)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const compactStepDividerStyle: CSSProperties = {
-  ...stepDividerStyle,
-  paddingTop: 9,
-  gap: 5,
-  fontSize: 13,
 }
 
 const stepBadgeStyle: CSSProperties = {
