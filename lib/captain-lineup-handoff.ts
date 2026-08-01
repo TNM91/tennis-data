@@ -23,6 +23,11 @@ export type CaptainLineupHandoff = {
     opponent: string
   }
   availabilityRequestUrl: string
+  playerRequestUrls?: Array<{
+    playerId: string
+    playerName: string
+    requestUrl: string
+  }>
   createdAt: string
 }
 

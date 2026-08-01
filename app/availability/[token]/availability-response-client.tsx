@@ -13,6 +13,7 @@ type MatchOption = {
 }
 type AvailabilityStatus = 'available' | 'maybe' | 'unavailable'
 type AvailabilityPayload = {
+  lockedPlayer: InvitedPlayer | null
   request: {
     teamName: string
     leagueName: string
@@ -48,7 +49,10 @@ export default function AvailabilityResponseClient({ token }: { token: string })
       .then(async (response) => {
         const result = await response.json() as AvailabilityPayload & { message?: string }
         if (!response.ok) throw new Error(result.message || 'This availability link could not be opened.')
-        if (active) setData(result)
+        if (active) {
+          setData(result)
+          if (result.lockedPlayer) setPlayerKey(playerKeyFor(result.lockedPlayer))
+        }
       })
       .catch((nextError: unknown) => {
         if (active) setError(nextError instanceof Error ? nextError.message : 'This availability link could not be opened.')
@@ -129,13 +133,22 @@ export default function AvailabilityResponseClient({ token }: { token: string })
       </section>
 
       <section style={cardStyle}>
-        <label htmlFor="availability-player" style={labelStyle}>Your name</label>
-        <select id="availability-player" value={playerKey} onChange={(event) => setPlayerKey(event.target.value)} style={inputStyle}>
-          <option value="">Choose your name</option>
-          {data.request.invitedPlayers.map((player) => (
-            <option key={playerKeyFor(player)} value={playerKeyFor(player)}>{player.playerName}</option>
-          ))}
-        </select>
+        {data.lockedPlayer ? (
+          <div>
+            <p style={kickerStyle}>Private response link</p>
+            <strong style={matchDateStyle}>Responding as {data.lockedPlayer.playerName}</strong>
+          </div>
+        ) : (
+          <>
+            <label htmlFor="availability-player" style={labelStyle}>Your name</label>
+            <select id="availability-player" value={playerKey} onChange={(event) => setPlayerKey(event.target.value)} style={inputStyle}>
+              <option value="">Choose your name</option>
+              {data.request.invitedPlayers.map((player) => (
+                <option key={playerKeyFor(player)} value={playerKeyFor(player)}>{player.playerName}</option>
+              ))}
+            </select>
+          </>
+        )}
       </section>
 
       {selectedPlayer ? (

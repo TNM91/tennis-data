@@ -20,6 +20,78 @@ type AvailabilityRequestBody = {
   invitedPlayers?: Array<{ playerId?: string; playerName?: string }>
 }
 
+export async function GET(request: Request) {
+  const auth = await getCaptainApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const url = new URL(request.url)
+  const scenarioId = cleanAvailabilityText(url.searchParams.get('scenarioId'), 80)
+  const teamName = cleanAvailabilityText(url.searchParams.get('teamName'))
+  const matchDate = cleanAvailabilityText(url.searchParams.get('matchDate'), 10)
+  if (!isUuid(scenarioId) && (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate))) {
+    return Response.json({ ok: true, request: null, invites: [], responses: [] })
+  }
+
+  const service = getCaptainAvailabilityServiceClient()
+  let requestQuery = service
+    .from('captain_availability_requests')
+    .select('id,request_token,scenario_id,team_name,league_name,flight,match_date,opponent_team,match_time,facility,slots_json,invited_players_json,updated_at')
+    .eq('created_by', auth.userId)
+    .gt('expires_at', new Date().toISOString())
+    .order('updated_at', { ascending: false })
+    .limit(1)
+
+  requestQuery = isUuid(scenarioId)
+    ? requestQuery.eq('scenario_id', scenarioId)
+    : requestQuery.eq('team_name', teamName).eq('match_date', matchDate)
+
+  const { data: requestRows, error: requestError } = await requestQuery
+  if (requestError) return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+  const row = requestRows?.[0]
+  if (!row) return Response.json({ ok: true, request: null, invites: [], responses: [] })
+
+  const [invitesResult, responsesResult] = await Promise.all([
+    service
+      .from('captain_availability_request_invites')
+      .select('player_id,player_name,response_token')
+      .eq('request_id', row.id)
+      .order('created_at', { ascending: true }),
+    service
+      .from('captain_availability_request_responses')
+      .select('player_id,player_name,match_date,status,notes,responded_at')
+      .eq('request_id', row.id)
+      .order('responded_at', { ascending: false }),
+  ])
+  if (invitesResult.error) return Response.json({ ok: false, message: invitesResult.error.message }, { status: 500 })
+  if (responsesResult.error) return Response.json({ ok: false, message: responsesResult.error.message }, { status: 500 })
+
+  const origin = url.origin
+  return Response.json({
+    ok: true,
+    request: {
+      id: row.id,
+      scenarioId: row.scenario_id,
+      teamName: row.team_name,
+      leagueName: row.league_name,
+      flight: row.flight,
+      matchDate: row.match_date,
+      opponentTeam: row.opponent_team,
+      matchTime: row.match_time,
+      facility: row.facility,
+      slots: row.slots_json,
+      invitedPlayers: row.invited_players_json,
+      requestUrl: `${origin}/availability/${encodeURIComponent(row.request_token)}`,
+      updatedAt: row.updated_at,
+    },
+    invites: (invitesResult.data ?? []).map((invite) => ({
+      playerId: invite.player_id ?? '',
+      playerName: invite.player_name,
+      requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
+    })),
+    responses: responsesResult.data ?? [],
+  })
+}
+
 export async function POST(request: Request) {
   const auth = await getCaptainApiAuth(request)
   if (!auth.ok) return auth.response
@@ -86,6 +158,7 @@ export async function POST(request: Request) {
   const { data: existingRows } = await existingQuery
   const existing = existingRows?.[0] as { id: string; request_token: string } | undefined
 
+  let requestId = existing?.id ?? ''
   let token = existing?.request_token ?? ''
   if (existing) {
     const { error } = await service
@@ -97,15 +170,55 @@ export async function POST(request: Request) {
     const { data, error } = await service
       .from('captain_availability_requests')
       .insert(payload)
-      .select('request_token')
+      .select('id,request_token')
       .single()
     if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    requestId = String(data.id)
     token = String(data.request_token)
   }
+
+  const inviteRows = invitedPlayers.map((player) => ({
+    request_id: requestId,
+    player_id: isUuid(player.playerId) ? player.playerId : null,
+    player_name: player.playerName,
+    updated_at: new Date().toISOString(),
+  }))
+  const { error: inviteError } = await service
+    .from('captain_availability_request_invites')
+    .upsert(inviteRows, { onConflict: 'request_id,player_name' })
+  if (inviteError) return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
+
+  const invitedNames = new Set(invitedPlayers.map((player) => player.playerName.toLowerCase()))
+  const { data: currentInvites } = await service
+    .from('captain_availability_request_invites')
+    .select('id,player_name')
+    .eq('request_id', requestId)
+  const staleInviteIds = (currentInvites ?? [])
+    .filter((invite) => !invitedNames.has(String(invite.player_name).toLowerCase()))
+    .map((invite) => invite.id)
+  if (staleInviteIds.length) {
+    await service
+      .from('captain_availability_request_invites')
+      .delete()
+      .in('id', staleInviteIds)
+  }
+
+  const { data: inviteData, error: inviteReadError } = await service
+    .from('captain_availability_request_invites')
+    .select('player_id,player_name,response_token')
+    .eq('request_id', requestId)
+  if (inviteReadError) return Response.json({ ok: false, message: inviteReadError.message }, { status: 500 })
+
+  const origin = new URL(request.url).origin
 
   return Response.json({
     ok: true,
     token,
-    requestUrl: `${new URL(request.url).origin}/availability/${encodeURIComponent(token)}`,
+    requestUrl: `${origin}/availability/${encodeURIComponent(token)}`,
+    playerRequestUrls: (inviteData ?? []).map((invite) => ({
+      playerId: invite.player_id ?? '',
+      playerName: invite.player_name,
+      requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
+    })),
   })
 }

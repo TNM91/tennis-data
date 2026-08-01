@@ -69,6 +69,7 @@ export async function GET(
 
   return Response.json({
     ok: true,
+    lockedPlayer: loaded.lockedPlayer,
     request: {
       teamName: row.team_name,
       leagueName: row.league_name,
@@ -102,9 +103,9 @@ export async function POST(
   if (!loaded.ok) return loaded.response
   const row = loaded.row
   const invited = (Array.isArray(row.invited_players_json) ? row.invited_players_json : []) as InvitedPlayer[]
-  const requestedPlayerId = cleanAvailabilityText(body.playerId, 80)
-  const requestedPlayerName = cleanAvailabilityText(body.playerName)
-  const player = invited.find((candidate) =>
+  const requestedPlayerId = loaded.lockedPlayer?.playerId || cleanAvailabilityText(body.playerId, 80)
+  const requestedPlayerName = loaded.lockedPlayer?.playerName || cleanAvailabilityText(body.playerName)
+  const player = loaded.lockedPlayer ?? invited.find((candidate) =>
     requestedPlayerId
       ? candidate.playerId === requestedPlayerId
       : candidate.playerName.toLowerCase() === requestedPlayerName.toLowerCase()
@@ -143,6 +144,18 @@ export async function POST(
   }
 
   const notes = cleanAvailabilityText(body.notes, 500) || null
+  const { data: previousResponses } = await service
+    .from('captain_availability_request_responses')
+    .select('match_date,status')
+    .eq('request_id', row.id)
+    .eq('player_name', player.playerName)
+    .in('match_date', responses.map((response) => response.matchDate))
+  const previousByDate = new Map(
+    (previousResponses ?? []).map((response) => [String(response.match_date), String(response.status)])
+  )
+  const hasChangedResponse = responses.some(
+    (response) => previousByDate.get(response.matchDate) !== response.status
+  )
   const responseRows = responses.map((response) => ({
     request_id: row.id,
     player_id: isUuid(player.playerId) ? player.playerId : null,
@@ -174,6 +187,28 @@ export async function POST(
       .upsert(lineupRows, { onConflict: 'match_date,team_name,player_id' })
   }
 
+  if (hasChangedResponse) {
+    const primaryResponse = responses.find((response) => response.matchDate === row.match_date) ?? responses[0]
+    const statusLabel = primaryResponse.status === 'available'
+      ? 'Yes'
+      : primaryResponse.status === 'maybe' ? 'Maybe' : 'No'
+    const query = new URLSearchParams({
+      team: row.team_name,
+      league: row.league_name,
+      flight: row.flight,
+      date: row.match_date,
+      opponent: row.opponent_team,
+    })
+    await service.from('internal_notifications').insert({
+      recipient_profile_id: row.created_by,
+      actor_user_id: null,
+      notification_type: 'system',
+      title: 'Availability updated',
+      body: `${player.playerName}: ${statusLabel} for ${primaryResponse.matchDate}.`,
+      href: `/captain/messaging?${query.toString()}`,
+    })
+  }
+
   return Response.json({ ok: true, saved: responses.length })
 }
 
@@ -184,16 +219,56 @@ async function loadRequest(service: ReturnType<typeof getCaptainAvailabilityServ
       response: Response.json({ ok: false, message: 'This availability link is invalid.' }, { status: 404 }),
     }
   }
+  const select = 'id,created_by,team_name,league_name,flight,match_date,opponent_team,match_time,facility,slots_json,invited_players_json,expires_at'
   const { data, error } = await service
     .from('captain_availability_requests')
-    .select('id,team_name,league_name,flight,match_date,opponent_team,match_time,facility,slots_json,invited_players_json,expires_at')
+    .select(select)
     .eq('request_token', token)
     .maybeSingle()
-  if (error || !data || new Date(data.expires_at).getTime() < Date.now()) {
+  if (error) {
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: error.message }, { status: 500 }),
+    }
+  }
+  if (data && new Date(data.expires_at).getTime() >= Date.now()) {
+    return { ok: true as const, row: data, lockedPlayer: null }
+  }
+
+  const { data: invite, error: inviteError } = await service
+    .from('captain_availability_request_invites')
+    .select('request_id,player_id,player_name')
+    .eq('response_token', token)
+    .maybeSingle()
+  if (inviteError) {
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: inviteError.message }, { status: 500 }),
+    }
+  }
+  if (!invite) {
     return {
       ok: false as const,
       response: Response.json({ ok: false, message: 'This availability link is no longer active.' }, { status: 404 }),
     }
   }
-  return { ok: true as const, row: data }
+  const { data: invitedRequest, error: invitedRequestError } = await service
+    .from('captain_availability_requests')
+    .select(select)
+    .eq('id', invite.request_id)
+    .maybeSingle()
+  if (invitedRequestError || !invitedRequest || new Date(invitedRequest.expires_at).getTime() < Date.now()) {
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: 'This availability link is no longer active.' }, { status: 404 }),
+    }
+  }
+  return {
+    ok: true as const,
+    row: invitedRequest,
+    lockedPlayer: {
+      playerId: invite.player_id ?? '',
+      playerName: invite.player_name,
+    },
+  }
 }
