@@ -2713,6 +2713,15 @@ function CaptainHubContent() {
     gap: isMobile ? 8 : captainHomeShortcutGrid.gap,
   }
 
+  const dynamicCaptainMobileTodayActionBarStyle: CSSProperties = {
+    ...captainMobileTodayActionBarStyle,
+    gridTemplateColumns: isSmallMobile
+      ? 'minmax(0, 92px) minmax(0, 1fr)'
+      : captainMobileTodayActionBarStyle.gridTemplateColumns,
+    gap: isSmallMobile ? 8 : captainMobileTodayActionBarStyle.gap,
+    padding: isSmallMobile ? 8 : captainMobileTodayActionBarStyle.padding,
+  }
+
   const dynamicCaptainHomeKickoffGrid: CSSProperties = {
     ...captainHomeKickoffGrid,
     gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : captainHomeKickoffGrid.gridTemplateColumns,
@@ -15659,34 +15668,36 @@ function CaptainHubContent() {
   )
 
   const captainMobileTodayActionBar = isMobile ? (
-    <div style={captainMobileTodayActionBarStyle} aria-label="Captain mobile today action bar">
+    <div style={dynamicCaptainMobileTodayActionBarStyle} aria-label="Captain mobile today action bar">
       <div style={captainMobileTodayActionCopy}>
         <span style={captainMobileTodayActionKicker}>Today</span>
         <strong style={captainMobileTodayActionTitle}>{captainMobileTodayAction.label}</strong>
         {!isSmallMobile ? <span style={captainMobileTodayActionDetail}>{captainMobileTodayAction.detail}</span> : null}
-        <div style={captainMobileTodayStatusRail} aria-label="Captain mobile status rail">
-          {captainMobileTodayStatusChips.map((chip) => (
-            <button
-              type="button"
-              key={chip.label}
-              aria-label={`${chip.ariaLabel}: ${chip.value}`}
-              disabled={!premiumEnabled || !hasTeamScope}
-              onClick={() => handleCaptainAction(chip.href, chip.stage)}
-              style={{
-                ...captainMobileTodayStatusChip,
-                ...(chip.tone === 'warn'
-                  ? captainMobileTodayStatusChipWarn
-                  : chip.tone === 'good'
-                    ? captainMobileTodayStatusChipGood
-                    : captainMobileTodayStatusChipInfo),
-                ...((!premiumEnabled || !hasTeamScope) ? disabledButtonSecondary : null),
-              }}
-            >
-              <span style={captainMobileTodayStatusChipLabel}>{chip.label}</span>
-              {chip.value}
-            </button>
-          ))}
-        </div>
+        {!isSmallMobile ? (
+          <div style={captainMobileTodayStatusRail} aria-label="Captain mobile status rail">
+            {captainMobileTodayStatusChips.map((chip) => (
+              <button
+                type="button"
+                key={chip.label}
+                aria-label={`${chip.ariaLabel}: ${chip.value}`}
+                disabled={!premiumEnabled || !hasTeamScope}
+                onClick={() => handleCaptainAction(chip.href, chip.stage)}
+                style={{
+                  ...captainMobileTodayStatusChip,
+                  ...(chip.tone === 'warn'
+                    ? captainMobileTodayStatusChipWarn
+                    : chip.tone === 'good'
+                      ? captainMobileTodayStatusChipGood
+                      : captainMobileTodayStatusChipInfo),
+                  ...((!premiumEnabled || !hasTeamScope) ? disabledButtonSecondary : null),
+                }}
+              >
+                <span style={captainMobileTodayStatusChipLabel}>{chip.label}</span>
+                {chip.value}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div style={captainMobileTodayActionButtons}>
         <PrimarySmallBtn
@@ -15696,7 +15707,7 @@ function CaptainHubContent() {
         >
           {captainMobileTodayAction.cta}
         </PrimarySmallBtn>
-        {captainMobileMatchShortcutLinks.length > 0 ? (
+        {!isSmallMobile && captainMobileMatchShortcutLinks.length > 0 ? (
           <div style={captainMobileTodayNativeRow} aria-label="Captain mobile match shortcuts">
             {captainMobileMatchShortcutLinks.map((handoff) => (
               <NativeSmallLink
@@ -17552,6 +17563,8 @@ const secondaryButtonSmall: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const primaryButtonButton: CSSProperties = {
@@ -17564,6 +17577,8 @@ const primaryButtonSmallButton: CSSProperties = {
   ...primaryButtonSmall,
   border: 'none',
   cursor: 'pointer',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const secondaryButtonSmallButton: CSSProperties = {

@@ -55,6 +55,17 @@ describe('Data Assist export detection', () => {
     await expect(detectDataAssistExportType([file], 'scorecard')).resolves.toEqual({
       importType: 'schedule',
       mixed: false,
+      recognized: true,
+    })
+  })
+
+  it('marks unknown exports for a manual fallback instead of guessing silently', async () => {
+    const file = exportFile('download.xls', '<table><tr><td>Unknown export</td></tr></table>')
+
+    await expect(detectDataAssistExportType([file], 'team_summary')).resolves.toEqual({
+      importType: 'team_summary',
+      mixed: false,
+      recognized: false,
     })
   })
 
@@ -65,6 +76,7 @@ describe('Data Assist export detection', () => {
     await expect(detectDataAssistExportType([scorecard, roster], 'scorecard')).resolves.toEqual({
       importType: 'scorecard',
       mixed: true,
+      recognized: true,
     })
   })
 })
