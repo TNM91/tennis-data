@@ -139,6 +139,12 @@ type PoolPlayer = PlayerRow & {
   availabilityNotes: string | null
 }
 
+type ManualRosterPlayer = PlayerRow & {
+  manualTeamName: string
+  manualLeagueName: string
+  manualFlight: string
+}
+
 type OptimizerMode = 'best' | 'safe' | 'upside'
 
 type LineProjection = {
@@ -279,6 +285,52 @@ function buildRosterPlayerIdSet(
 function filterPlayerPoolByRoster(playerPool: PoolPlayer[], rosterIds: Set<string>) {
   if (!rosterIds.size) return []
   return playerPool.filter((player) => rosterIds.has(player.id))
+}
+
+function createManualRosterPlayer(
+  name: string,
+  scope: { teamName: string; leagueName: string; flight: string },
+): ManualRosterPlayer {
+  const playerKey = [normalizeTeamName(scope.teamName), normalizeTeamName(name)]
+    .map((value) => encodeURIComponent(value))
+    .join(':')
+
+  return {
+    id: `manual-roster:${playerKey}`,
+    name,
+    location: null,
+    flight: scope.flight || null,
+    preferred_role: null,
+    lineup_notes: 'Entered manually for this lineup.',
+    singles_rating: null,
+    singles_dynamic_rating: null,
+    singles_usta_dynamic_rating: null,
+    doubles_rating: null,
+    doubles_dynamic_rating: null,
+    doubles_usta_dynamic_rating: null,
+    overall_rating: null,
+    overall_dynamic_rating: null,
+    overall_usta_dynamic_rating: null,
+    manualTeamName: scope.teamName,
+    manualLeagueName: scope.leagueName,
+    manualFlight: scope.flight,
+  }
+}
+
+function buildTeamSummaryUploadHref(context: {
+  teamName: string
+  leagueName: string
+  flight: string
+  returnTo: string
+}) {
+  const params = new URLSearchParams({
+    intent: 'upload-source',
+    context: ['Captain lineup', context.teamName, context.leagueName, context.flight].filter(Boolean).join(' - '),
+    type: 'team_summary',
+    help: '1',
+    returnTo: context.returnTo,
+  })
+  return `/data-assist?${params.toString()}#upload`
 }
 
 function formatMatchContext(match: MatchTeamRow | null) {
@@ -951,6 +1003,9 @@ function LineupBuilderContent() {
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
+  const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>([])
+  const [manualRosterText, setManualRosterText] = useState('')
+  const [manualRosterOpen, setManualRosterOpen] = useState(false)
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
@@ -1293,9 +1348,32 @@ function LineupBuilderContent() {
     [opponentTeam, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
   )
 
+  const scopedManualRosterPlayers = useMemo(
+    () => manualRosterPlayers.filter((player) =>
+      normalizeTeamName(player.manualTeamName) === normalizeTeamName(teamName) &&
+      player.manualLeagueName === leagueName &&
+      player.manualFlight === flight
+    ),
+    [flight, leagueName, manualRosterPlayers, teamName]
+  )
+
+  const builderPlayers = useMemo<PlayerRow[]>(
+    () => [...players, ...scopedManualRosterPlayers],
+    [players, scopedManualRosterPlayers]
+  )
+
   const myPlayerPool = useMemo<PoolPlayer[]>(() => {
-    return filterPlayerPoolByRoster(availablePlayerPool, myRosterPlayerIds)
-  }, [availablePlayerPool, myRosterPlayerIds])
+    const importedRoster = filterPlayerPoolByRoster(availablePlayerPool, myRosterPlayerIds)
+    const importedIds = new Set(importedRoster.map((player) => player.id))
+    const manualRoster = scopedManualRosterPlayers
+      .filter((player) => !importedIds.has(player.id))
+      .map((player) => ({
+        ...player,
+        availabilityStatus: null,
+        availabilityNotes: null,
+      }))
+    return [...importedRoster, ...manualRoster]
+  }, [availablePlayerPool, myRosterPlayerIds, scopedManualRosterPlayers])
 
   const opponentPlayerPool = useMemo<PoolPlayer[]>(() => {
     return filterPlayerPoolByRoster(
@@ -1354,6 +1432,28 @@ function LineupBuilderContent() {
     return `${baseHref}${separator}left=${encodeURIComponent(currentScenarioId)}`
   }, [competitionLayer, currentScenarioId, flight, leagueName, matchDate, opponentTeam, teamName])
 
+  const lineupBuilderReturnHref = useMemo(
+    () => buildCaptainScopedHref('/captain/lineup-builder', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    }),
+    [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
+  )
+
+  const teamSummaryUploadHref = useMemo(
+    () => buildTeamSummaryUploadHref({
+      teamName,
+      leagueName,
+      flight,
+      returnTo: lineupBuilderReturnHref,
+    }),
+    [flight, leagueName, lineupBuilderReturnHref, teamName]
+  )
+
   function toggleLockedSlot(slotId: string) {
     setLockedSlotIds((current) =>
       current.includes(slotId) ? current.filter((id) => id !== slotId) : [...current, slotId]
@@ -1373,7 +1473,49 @@ function LineupBuilderContent() {
   }
 
   function getPlayerById(playerId: string) {
-    return players.find((player) => player.id === playerId) ?? null
+    return builderPlayers.find((player) => player.id === playerId) ?? null
+  }
+
+  function addManualRosterPlayers() {
+    if (!teamName.trim()) {
+      setError('Choose your team before entering roster players.')
+      return
+    }
+
+    const enteredNames = uniqueSorted(
+      manualRosterText
+        .split(/\r?\n|;/)
+        .map((name) => cleanText(name))
+        .filter(Boolean)
+    )
+    const seenNames = new Set<string>()
+    const names = enteredNames.filter((name) => {
+      const key = normalizeTeamName(name)
+      if (!key || seenNames.has(key)) return false
+      seenNames.add(key)
+      return true
+    })
+
+    if (!names.length) {
+      setError('Enter at least one player name, one player per line.')
+      return
+    }
+
+    const existingNames = new Set(myPlayerPool.map((player) => normalizeTeamName(player.name)))
+    const newPlayers = names
+      .filter((name) => !existingNames.has(normalizeTeamName(name)))
+      .map((name) => createManualRosterPlayer(name, { teamName, leagueName, flight }))
+
+    if (!newPlayers.length) {
+      setError('Those players are already in this lineup roster.')
+      return
+    }
+
+    setManualRosterPlayers((current) => [...current, ...newPlayers])
+    setManualRosterText('')
+    setManualRosterOpen(false)
+    setError('')
+    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Team Summary later to connect official ratings and availability.`)
   }
 
   function setSlotPlayer(
@@ -1520,8 +1662,8 @@ function sendCurrentScenarioToMessaging() {
   }
 
   const analysis = useMemo(
-    () => compareLineupStrength(teamSlots, opponentSlots, players),
-    [teamSlots, opponentSlots, players]
+    () => compareLineupStrength(teamSlots, opponentSlots, builderPlayers),
+    [builderPlayers, opponentSlots, teamSlots]
   )
 
   const favoredLines = useMemo(
@@ -1896,6 +2038,24 @@ function sendCurrentScenarioToMessaging() {
 
     const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
+    const knownPlayerIds = new Set(players.map((player) => player.id))
+    const recoveredManualPlayers = uniqueSorted(
+      loadedTeamSlots
+        .flatMap((slot) => slot.players)
+        .filter((player) => player.playerId && player.playerName && !knownPlayerIds.has(player.playerId))
+        .map((player) => player.playerName)
+    ).map((name) => createManualRosterPlayer(name, {
+      teamName: scenario.team_name ?? '',
+      leagueName: scenario.league_name ?? '',
+      flight: scenario.flight ?? '',
+    }))
+
+    if (recoveredManualPlayers.length) {
+      setManualRosterPlayers((current) => {
+        const currentIds = new Set(current.map((player) => player.id))
+        return [...current, ...recoveredManualPlayers.filter((player) => !currentIds.has(player.id))]
+      })
+    }
 
     setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
     setOpponentSlots(loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS))
@@ -1955,17 +2115,17 @@ function sendCurrentScenarioToMessaging() {
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
-      analysis: compareLineupStrength(balanced.slots, opponentSlots, players),
+      analysis: compareLineupStrength(balanced.slots, opponentSlots, builderPlayers),
     }
-  }, [teamSlots, myPlayerPool, opponentSlots, players])
+  }, [builderPlayers, teamSlots, myPlayerPool, opponentSlots])
 
   const optimizedPlans = useMemo(() => {
     return [
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'best'),
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'safe'),
-      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'upside'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'best'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'safe'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, builderPlayers, 'upside'),
     ]
-  }, [teamSlots, myPlayerPool, opponentSlots, players])
+  }, [builderPlayers, teamSlots, myPlayerPool, opponentSlots])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
@@ -2121,11 +2281,60 @@ function sendCurrentScenarioToMessaging() {
             compact
           />
         ) : null}
-        {teamName && !myPlayerPool.length ? (
-          <div style={warningCardStyle}>
-            No roster players are available for {teamName} in this league and flight yet. Re-import the team
-            summary, refresh the page, or widen the league and flight filters.
-          </div>
+        {teamName && !loading && !myPlayerPool.length ? (
+          <section style={rosterRecoveryCardStyle} aria-labelledby="lineup-roster-setup-title">
+            <div style={rosterRecoveryHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Roster needed</p>
+                <h2 id="lineup-roster-setup-title" style={sectionTitleSmall}>Add your players to build this lineup.</h2>
+                <p style={sectionBodyTextStyle}>
+                  Upload the official Team Summary, or enter player names now and connect ratings later.
+                </p>
+              </div>
+              <span style={miniPillWarnStyle}>Setup required</span>
+            </div>
+
+            <div style={rosterRecoveryActionGridStyle}>
+              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Team Summary</Link>
+              <button
+                type="button"
+                onClick={() => setManualRosterOpen((current) => !current)}
+                style={ghostButton}
+                aria-expanded={manualRosterOpen}
+                aria-controls="manual-lineup-roster"
+              >
+                {manualRosterOpen ? 'Close manual entry' : 'Enter players manually'}
+              </button>
+            </div>
+
+            {manualRosterOpen ? (
+              <div id="manual-lineup-roster" style={manualRosterEntryStyle}>
+                <label htmlFor="manual-lineup-roster-names" style={labelStyle}>Player names</label>
+                <textarea
+                  id="manual-lineup-roster-names"
+                  value={manualRosterText}
+                  onChange={(event) => setManualRosterText(event.target.value)}
+                  placeholder={'Alex Morgan\nJordan Lee\nTaylor Smith'}
+                  rows={6}
+                  style={manualRosterTextareaStyle}
+                />
+                <p style={subtleHelperTextStyle}>
+                  Enter one player per line. These names save with this lineup; upload the Team Summary later to connect official ratings and availability.
+                </p>
+                <PrimaryBtn onClick={addManualRosterPlayers}>Add players to lineup</PrimaryBtn>
+              </div>
+            ) : null}
+
+            <details style={rosterExportHelpStyle}>
+              <summary style={rosterExportSummaryStyle}>How to export the Team Summary from TennisLink</summary>
+              <ol style={rosterExportStepsStyle}>
+                <li>Sign in to USTA TennisLink and open your league team.</li>
+                <li>Open <strong>Team Summary</strong>.</li>
+                <li>Choose <strong>Send To Excel</strong> and save the TeamSummary .xls file.</li>
+                <li>Return here and choose <strong>Upload Team Summary</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
+              </ol>
+            </details>
+          </section>
         ) : null}
         {opponentTeam && !opponentPlayerPool.length ? (
           <div style={bannerBlueStyle}>
@@ -4035,6 +4244,74 @@ const bannerGreenStyle: CSSProperties = {
   background: 'rgba(34, 197, 94, 0.14)',
   border: '1px solid rgba(34, 197, 94, 0.24)',
   color: '#dcfce7',
+  overflowWrap: 'anywhere',
+}
+
+const rosterRecoveryCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  borderRadius: 22,
+  padding: '18px',
+  background: 'linear-gradient(145deg, rgba(120, 53, 15, 0.30), rgba(8, 13, 28, 0.78))',
+  border: '1px solid rgba(251, 191, 36, 0.28)',
+  boxShadow: '0 18px 42px rgba(2, 8, 23, 0.28)',
+}
+
+const rosterRecoveryHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const rosterRecoveryActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const manualRosterEntryStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(147, 197, 253, 0.20)',
+  background: 'rgba(8, 13, 28, 0.64)',
+}
+
+const manualRosterTextareaStyle: CSSProperties = {
+  ...textareaStyle,
+  minHeight: 132,
+}
+
+const rosterExportHelpStyle: CSSProperties = {
+  minWidth: 0,
+  borderTop: '1px solid rgba(251, 191, 36, 0.20)',
+  paddingTop: 12,
+}
+
+const rosterExportSummaryStyle: CSSProperties = {
+  color: '#fde68a',
+  cursor: 'pointer',
+  fontSize: 14,
+  fontWeight: 850,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const rosterExportStepsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  margin: '12px 0 0',
+  paddingLeft: 22,
+  color: '#e2e8f0',
+  fontSize: 13,
+  lineHeight: 1.55,
   overflowWrap: 'anywhere',
 }
 
