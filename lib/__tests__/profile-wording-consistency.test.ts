@@ -25,7 +25,8 @@ describe('profile wording consistency', () => {
     const captain = source('app/captain/page.tsx')
 
     expect(myLab).toContain('Set your profile to unlock recommendations')
-    expect(myLab).toContain('Set your player profile once.')
+    expect(myLab).toContain('Find or create your player.')
+    expect(myLab).toContain('Find or create my player')
     expect(myLab).not.toContain('Improve your profile')
     expect(captain).toContain('Set profile')
     expect(captain).not.toContain('Link profile</Link>')

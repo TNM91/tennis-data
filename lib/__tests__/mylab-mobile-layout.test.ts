@@ -87,6 +87,7 @@ describe('My Lab mobile layout guards', () => {
       'myLabRefreshProofCardStyle',
       'myLabPlayerIdProofRailStyle',
       'myLabPlayerIdProofCardStyle',
+      'optionalContextSummaryCopyStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -129,6 +130,7 @@ describe('My Lab mobile layout guards', () => {
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')
     expect(source).toContain('<div style={compactSignalCopyStyle}>')
+    expect(source).toContain('<span style={optionalContextSummaryCopyStyle}>')
     expect(styleBlock('quickStartTextStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('quickStartButtonRowStyle')).toContain('minWidth: 0')
     expect(styleBlock('matchupQueueCopyStyle')).toContain("maxWidth: '100%'")
