@@ -10,6 +10,7 @@ export type StripeCheckoutSessionInput = {
   customerEmail?: string
   origin: string
   nextHref: string
+  couponId?: string
 }
 
 export const STRIPE_PRICE_ENV_BY_PLAN: Record<PaidPricingPlanId, string> = {
@@ -37,6 +38,7 @@ export function buildStripeCheckoutSessionParams({
   customerEmail,
   origin,
   nextHref,
+  couponId,
 }: StripeCheckoutSessionInput) {
   const mode = getStripeCheckoutMode(planId)
   const metadata = {
@@ -54,7 +56,11 @@ export function buildStripeCheckoutSessionParams({
   params.set('success_url', successUrl)
   params.set('cancel_url', cancelUrl)
   params.set('client_reference_id', requestId)
-  params.set('allow_promotion_codes', 'true')
+  if (couponId) {
+    params.set('discounts[0][coupon]', couponId)
+  } else {
+    params.set('allow_promotion_codes', 'true')
+  }
   params.set('metadata[upgrade_request_id]', metadata.upgrade_request_id)
   params.set('metadata[user_id]', metadata.user_id)
   params.set('metadata[plan_id]', metadata.plan_id)

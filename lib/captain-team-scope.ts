@@ -1,4 +1,4 @@
-export type CaptainTeamScopeSource = 'profile' | 'roster' | 'tiq'
+export type CaptainTeamScopeSource = 'profile' | 'connection' | 'roster' | 'tiq'
 
 export type CaptainTeamScope = {
   team: string
@@ -83,6 +83,7 @@ export function getCaptainTeamScopeSource(
 
 export function getCaptainTeamScopeSourceLabel(source: CaptainTeamScopeSource | null) {
   if (source === 'profile') return 'your profile team'
+  if (source === 'connection') return 'a team you linked'
   if (source === 'roster') return 'your roster history'
   if (source === 'tiq') return 'your TIQ team entries'
   return 'your team history'
@@ -91,8 +92,9 @@ export function getCaptainTeamScopeSourceLabel(source: CaptainTeamScopeSource | 
 function getScopePriority(option: CaptainTeamOption, scopes: CaptainTeamScope[]) {
   const source = getCaptainTeamScopeSource(option, scopes)
   if (source === 'profile') return 3
-  if (source === 'roster') return 2
-  if (source === 'tiq') return 1
+  if (source === 'connection') return 2
+  if (source === 'roster') return 1
+  if (source === 'tiq') return 0.5
   return 0
 }
 
