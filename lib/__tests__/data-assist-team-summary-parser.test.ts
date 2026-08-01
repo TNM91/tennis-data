@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTeamSummaryOcrDraftFromText } from '../data-assist-team-summary-parser'
+import { buildTeamSummaryOcrDraftFromText, isTeamSummaryDraftReadyForImport } from '../data-assist-team-summary-parser'
 
 describe('buildTeamSummaryOcrDraftFromText', () => {
   it('parses roster players and ratings from TennisLink team summary OCR text', () => {
@@ -87,5 +87,17 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
       { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
     ])
     expect(draft.parserWarnings).toEqual([])
+  })
+
+  it('does not mark an unlinked roster as ready to import', () => {
+    const draft = buildTeamSummaryOcrDraftFromText(
+      'Roster player | Nathan Meinert | 4.5',
+      [],
+      'tennislink_export',
+    )
+
+    expect(draft.players).toHaveLength(1)
+    expect(draft.rosterTeamName).toBe('')
+    expect(isTeamSummaryDraftReadyForImport(draft)).toBe(false)
   })
 })

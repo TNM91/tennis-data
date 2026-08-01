@@ -19,5 +19,7 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain('context={intentContext}')
     expect(source).toContain('returnTo={returnTo}')
     expect(source).toContain("? 'Return to Build Lineup' : 'Continue Captain setup'")
+    expect(source).toContain('router.replace(returnTo)')
+    expect(source).toContain("submission.requestedImportType === 'team_summary'")
   })
 })
