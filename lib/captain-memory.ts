@@ -2,6 +2,11 @@
 
 export const CAPTAIN_RESUME_STORAGE_KEY = 'tenaceiq_captain_resume'
 
+export function getCaptainResumeStorageKey(userId?: string | null) {
+  const accountId = (userId || '').trim()
+  return accountId ? `${CAPTAIN_RESUME_STORAGE_KEY}:${accountId}` : CAPTAIN_RESUME_STORAGE_KEY
+}
+
 export type CaptainToolKey =
   | 'hub'
   | 'availability'
@@ -28,11 +33,11 @@ export type CaptainResumeState = {
   opponentTeam?: string
 }
 
-export function readCaptainResumeState(): CaptainResumeState | null {
+export function readCaptainResumeState(userId?: string | null): CaptainResumeState | null {
   if (typeof window === 'undefined') return null
 
   try {
-    const raw = window.localStorage.getItem(CAPTAIN_RESUME_STORAGE_KEY)
+    const raw = window.localStorage.getItem(getCaptainResumeStorageKey(userId))
     if (!raw) return null
     return JSON.parse(raw) as CaptainResumeState
   } catch {
@@ -40,13 +45,14 @@ export function readCaptainResumeState(): CaptainResumeState | null {
   }
 }
 
-export function writeCaptainResumeState(nextState: CaptainResumeState) {
+export function writeCaptainResumeState(nextState: CaptainResumeState, userId?: string | null) {
   if (typeof window === 'undefined') return
 
   try {
-    const current = readCaptainResumeState() || {}
+    const storageKey = getCaptainResumeStorageKey(userId)
+    const current = readCaptainResumeState(userId) || {}
     window.localStorage.setItem(
-      CAPTAIN_RESUME_STORAGE_KEY,
+      storageKey,
       JSON.stringify({
         ...current,
         ...nextState,

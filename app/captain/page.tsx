@@ -1907,13 +1907,16 @@ function CaptainHubContent() {
   }, [selectedFlight, selectedLeague, selectedTeam])
 
   useEffect(() => {
+    if (!authResolved) return
+
     const params = new URLSearchParams(window.location.search)
-    const resumeState = readCaptainResumeState()
+    const resumeState = readCaptainResumeState(userId)
     setSelectedCompetitionLayer(params.get('layer') || resumeState?.competitionLayer || '')
     setSelectedTeam(params.get('team') || resumeState?.team || '')
     setSelectedLeague(params.get('league') || resumeState?.league || '')
     setSelectedFlight(params.get('flight') || resumeState?.flight || '')
-  }, [])
+    setTeamSelectionInitialized(false)
+  }, [authResolved, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public' || isMember(role)) {
@@ -2089,7 +2092,7 @@ function CaptainHubContent() {
       updated_at?: string
     }>(WEEKLY_RESPONSES_STORAGE_KEY)
     const selectedScenario = readLocalObject<{ id?: string; scenario_name?: string }>('tenace_selected_scenario')
-    const resumeState = readCaptainResumeState()
+    const resumeState = readCaptainResumeState(userId)
 
     const lineupCount = lineupRows.filter((row) => (row.event_key || '') === currentEventKey).length
     const eventDetail = eventDetails.find((row) => (row.key || '') === currentEventKey) || null
@@ -2125,18 +2128,18 @@ function CaptainHubContent() {
       latestResponseUpdateLabel: formatDateTimeShort(latestResponseUpdate),
       lastUpdatedLabel: formatDateTimeShort(resumeState?.lastVisitedAt || null),
     })
-  }, [matches, selectedTeam, selectedLeague, selectedFlight, scenarioCount])
+  }, [matches, scenarioCount, selectedFlight, selectedLeague, selectedTeam, userId])
 
   useEffect(() => {
-    if (!selectedTeam && !selectedLeague && !selectedFlight) return
+    if (!userId || !teamSelectionInitialized || (!selectedTeam && !selectedLeague && !selectedFlight)) return
 
     writeCaptainResumeState({
       competitionLayer: selectedCompetitionLayer || undefined,
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
-    })
-  }, [selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam])
+    }, userId)
+  }, [selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam, teamSelectionInitialized, userId])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -2411,7 +2414,7 @@ function CaptainHubContent() {
     flight: selectedFlight,
   })
 
-  const captainResume = readCaptainResumeState()
+  const captainResume = readCaptainResumeState(userId)
   const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', {
     competitionLayer: selectedCompetitionLayer || captainResume?.competitionLayer,
     team: selectedTeam,
@@ -9639,7 +9642,7 @@ function CaptainHubContent() {
                       : stage === 'tiq-team-matches'
                         ? 'Team Match Results'
                         : 'Captain',
-    })
+    }, userId)
   }
 
   function handleCaptainNav(
