@@ -206,7 +206,7 @@ function ConnectionCard({ connection, children }: { connection: TeamConnection; 
   )
 }
 
-const pageStyle: CSSProperties = { position: 'relative', zIndex: 2, width: 'min(980px, calc(100% - 24px))', margin: '0 auto', padding: 'clamp(28px, 5vw, 64px) 0 80px', color: '#fff' }
+const pageStyle: CSSProperties = { position: 'relative', zIndex: 2, width: 'min(980px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '0 auto', padding: 'clamp(28px, 5vw, 64px) 0 80px', color: '#fff' }
 const heroStyle: CSSProperties = { display: 'grid', gap: 12, marginBottom: 26, padding: 'clamp(22px, 4vw, 34px)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 24, background: 'rgba(7,18,38,.86)' }
 const eyebrowStyle: CSSProperties = { color: '#9be11d', fontSize: 11, fontWeight: 950, letterSpacing: '.12em', textTransform: 'uppercase' }
 const titleStyle: CSSProperties = { margin: 0, maxWidth: 760, fontSize: 'clamp(30px, 6vw, 54px)', lineHeight: 1, letterSpacing: '-.035em' }

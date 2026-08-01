@@ -158,7 +158,7 @@ function formatTeamContext(connection: TeamConnection) {
 const bannerWrapStyle: CSSProperties = {
   position: 'relative',
   zIndex: 18,
-  width: 'min(1180px, calc(100% - 24px))',
+  width: 'min(1180px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '12px auto 0',
 }
 
