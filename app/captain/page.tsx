@@ -72,6 +72,7 @@ import {
   type CaptainTeamImprovementId,
 } from '@/lib/captain-team-improvements'
 import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
+import { buildTeamRoomHref } from '@/lib/team-room'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
@@ -2499,6 +2500,11 @@ function CaptainHubContent() {
     flight: selectedFlight,
     date: matchWeekDate,
     opponent: matchWeekOpponent,
+  })
+  const teamRoomHref = buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
   })
 
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
@@ -15981,6 +15987,12 @@ function CaptainHubContent() {
               >
                 Add another team
               </Link>
+
+              {hasTeamScope ? (
+                <Link href={teamRoomHref} style={primaryButtonSmall}>
+                  Team Room
+                </Link>
+              ) : null}
 
               <SecondarySmallBtn
                 disabled={!premiumEnabled || !selectedTeamOption || selectedTeamIsDefault || savingDefaultTeam}

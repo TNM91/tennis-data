@@ -1,0 +1,390 @@
+.page {
+  width: min(980px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 18px 0 calc(112px + env(safe-area-inset-bottom));
+}
+
+.roomShell,
+.stateCard {
+  overflow: hidden;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 32%),
+    var(--shell-panel-bg);
+  box-shadow: var(--shadow-card);
+}
+
+.stateCard {
+  display: grid;
+  gap: 14px;
+  padding: clamp(22px, 5vw, 36px);
+}
+
+.stateCard h1,
+.stateCard p {
+  margin: 0;
+}
+
+.roomHeader {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid var(--shell-panel-border);
+  background: color-mix(in srgb, var(--shell-chip-bg-strong) 88%, transparent);
+}
+
+.headerTop,
+.roomActions,
+.memberSummary,
+.composerActions,
+.quickActions,
+.installActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.headerTop {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--brand-green);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.roomHeader h1 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.5rem, 5vw, 2.4rem);
+  line-height: 1.04;
+}
+
+.scopeLine,
+.helper,
+.messageTime,
+.memberSummary {
+  color: var(--shell-copy-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.scopeLine {
+  margin: 7px 0 0;
+}
+
+.teamSelect {
+  width: min(100%, 430px);
+  min-height: 44px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.memberBadge,
+.roleBadge,
+.announcementBadge,
+.standaloneBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.memberBadge,
+.roleBadge {
+  border: 1px solid var(--shell-panel-border);
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+}
+
+.announcementBadge,
+.standaloneBadge {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg));
+  color: var(--foreground-strong);
+}
+
+.buttonPrimary,
+.buttonSecondary,
+.buttonQuiet,
+.quickButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 999px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 78%, #163221), #0e5362);
+  color: #fff;
+}
+
+.buttonSecondary,
+.quickButton {
+  border: 1px solid var(--shell-panel-border);
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+}
+
+.buttonQuiet {
+  border: 0;
+  background: transparent;
+  color: var(--shell-copy-muted);
+}
+
+.buttonPrimary:disabled,
+.buttonSecondary:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.messages {
+  display: grid;
+  align-content: end;
+  gap: 13px;
+  min-height: min(58vh, 620px);
+  padding: 20px 18px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--shell-page-bg) 72%, transparent), transparent 16%),
+    var(--shell-page-bg);
+}
+
+.emptyMessages {
+  align-self: center;
+  justify-self: center;
+  max-width: 440px;
+  color: var(--shell-copy-muted);
+  text-align: center;
+  line-height: 1.55;
+}
+
+.messageRow {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.messageMine {
+  justify-items: end;
+}
+
+.messageAnnouncement {
+  justify-items: stretch;
+}
+
+.messageMeta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--shell-copy-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.bubble {
+  max-width: min(84%, 620px);
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 18px 18px 18px 6px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 10px 13px;
+  line-height: 1.48;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.messageMine .bubble {
+  border-color: color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border));
+  border-radius: 18px 18px 6px 18px;
+  background: color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg));
+}
+
+.messageAnnouncement .bubble {
+  width: 100%;
+  max-width: none;
+  border-color: color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border));
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg)), var(--shell-chip-bg));
+}
+
+.systemBubble {
+  justify-self: center;
+  color: var(--shell-copy-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.composer {
+  position: sticky;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 8;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--shell-panel-border);
+  background: color-mix(in srgb, var(--shell-panel-bg) 96%, transparent);
+  padding: 13px 14px calc(13px + env(safe-area-inset-bottom));
+  backdrop-filter: blur(18px);
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 54px;
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 16px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 12px 13px;
+  font: inherit;
+  line-height: 1.42;
+}
+
+.composerActions {
+  justify-content: space-between;
+}
+
+.announcementToggle {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--shell-copy-muted);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.quickActions {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.quickButton {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+}
+
+.installCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg));
+  padding: 14px;
+}
+
+.installCard h2,
+.installCard p {
+  margin: 0;
+}
+
+.installCard h2 {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+}
+
+.installCard p {
+  margin-top: 5px;
+  color: var(--shell-copy-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.iosSteps {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--shell-panel-border);
+  padding-top: 11px;
+  color: var(--foreground);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.notice,
+.error {
+  border-radius: 13px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.notice {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg));
+  color: var(--foreground);
+}
+
+.error {
+  border: 1px solid rgba(255, 111, 111, 0.34);
+  background: rgba(255, 111, 111, 0.09);
+  color: #ffd1d1;
+}
+
+@media (max-width: 700px) {
+  .page {
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .roomShell {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .roomHeader {
+    padding: 15px 14px;
+  }
+
+  .messages {
+    min-height: 54vh;
+    padding: 17px 13px;
+  }
+
+  .bubble {
+    max-width: 88%;
+  }
+
+  .installCard {
+    grid-template-columns: minmax(0, 1fr);
+    margin: 12px;
+  }
+
+  .installActions {
+    width: 100%;
+  }
+
+  .installActions > * {
+    flex: 1 1 140px;
+  }
+}

@@ -51,6 +51,7 @@ import {
   detectCalendarQuickAddCandidate,
   type CalendarQuickAddCandidate,
 } from '@/lib/message-calendar-quick-add'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
@@ -59,7 +60,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
-type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
+type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'team' | 'league' | 'schedule'
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
@@ -167,6 +168,7 @@ function formatMessageTime(value: string) {
 
 function conversationTypeLabel(type: InternalConversation['conversationType']) {
   if (type === 'support') return 'Support'
+  if (type === 'team') return 'Team'
   if (type === 'league') return 'League'
   if (type === 'system') return 'System'
   return 'Direct'
@@ -240,6 +242,7 @@ function conversationMatchesInboxFilter(
   if (filter === 'unread') return conversation.isUnread
   if (filter === 'support') return conversation.conversationType === 'support'
   if (filter === 'direct') return conversation.conversationType === 'direct'
+  if (filter === 'team') return conversation.conversationType === 'team'
   if (filter === 'league') return conversation.conversationType === 'league'
   if (filter === 'schedule') return isScheduleConversation(conversation)
   return true
@@ -282,6 +285,7 @@ function inboxFilterLabel(filter: InboxFilter) {
   if (filter === 'unread') return 'Unread'
   if (filter === 'support') return 'Support'
   if (filter === 'direct') return 'Direct'
+  if (filter === 'team') return 'Teams'
   if (filter === 'league') return 'League'
   if (filter === 'schedule') return 'Scheduling'
   return 'All'
@@ -306,6 +310,7 @@ function replyPlaceholder(conversation: InternalConversation | null) {
   if (!conversation) return 'Write a reply...'
   if (conversation.conversationType === 'support') return 'Reply to this support request...'
   if (conversation.conversationType === 'league') return 'Message this league room...'
+  if (conversation.conversationType === 'team') return 'Message this team room...'
   if (isScheduleConversation(conversation)) return 'Add a schedule note...'
   return 'Write a message...'
 }
@@ -375,6 +380,13 @@ function getQuickReplyActions(
       { label: 'Time works', body: 'That time works for me.' },
       { label: 'Need alternate', body: 'I need an alternate time. I can make:' },
       { label: 'Site note', body: 'Quick site note:' },
+    ]
+  }
+  if (conversation.conversationType === 'team') {
+    return [
+      { label: 'Availability', body: 'My availability for the next match is:' },
+      { label: 'Saw it', body: 'I saw the team update. Thanks.' },
+      { label: 'Ride check', body: 'I need a ride / have room in my car:' },
     ]
   }
   if (conversation.conversationType === 'league') {
@@ -536,6 +548,13 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   if (entityType === 'tiq_league') {
     return `/explore/leagues/tiq/${encodeURIComponent(entityId)}?league_id=${encodeURIComponent(entityId)}`
   }
+  if (entityType === 'team_room') {
+    return buildTeamRoomHref({
+      teamName: conversation.metadata.teamName,
+      leagueName: conversation.metadata.leagueName,
+      flight: conversation.metadata.flight,
+    })
+  }
   if (entityType === 'tiq_individual_result') return '/compete/results'
   if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
   if (entityType === 'coach_player_link') {
@@ -663,6 +682,14 @@ function buildConversationContextPresentation(conversation: InternalConversation
       label: 'League context',
       text: conversation.metadata.leagueName || conversation.relatedEntityId || 'League conversation',
       cta: 'Open league',
+    }
+  }
+
+  if (conversation.conversationType === 'team') {
+    return {
+      label: 'Team Room',
+      text: conversation.metadata.teamName || conversation.subject,
+      cta: 'Open Team Room',
     }
   }
 
@@ -1172,7 +1199,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const inboxFilters = useMemo(() => {
     if (!identity) return [] as Array<{ key: InboxFilter; label: string; count: number }>
-    return (['all', 'pinned', 'needs_reply', 'assignment', 'calendar', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
+    return (['all', 'pinned', 'needs_reply', 'assignment', 'calendar', 'unread', 'support', 'direct', 'team', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
       key: filter,
       label: inboxFilterLabel(filter),
       count: conversations.filter((conversation) =>

@@ -18,6 +18,13 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['sports', 'productivity', 'utilities'],
     shortcuts: [
       {
+        name: 'Open Team Room',
+        short_name: 'Team Room',
+        description: 'Open your default team conversation and match-week updates.',
+        url: '/team-room',
+        icons: [{ src: PWA_ICON, sizes: '192x192', type: 'image/png' }],
+      },
+      {
         name: 'Start Level Up drill',
         short_name: 'Level Up',
         description: 'Open the phone-first tennis drill flow.',
