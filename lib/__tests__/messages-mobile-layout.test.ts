@@ -116,7 +116,7 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('Support requests, user replies, league rooms, and scheduling alerts will land here.')
     expect(source).toContain('Lineup notes, player replies, league messages, and schedule alerts will land here.')
     expect(source).toContain('Coach notes, support replies, schedule updates, and player messages will land here.')
-    expect(source).toContain("type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'")
+    expect(source).toContain("type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'team' | 'league' | 'schedule'")
     expect(source).toContain("type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'")
     expect(source).toContain("if (filter === 'pinned') return 'Pinned'")
     expect(source).toContain("if (filter === 'calendar') return 'Calendar'")

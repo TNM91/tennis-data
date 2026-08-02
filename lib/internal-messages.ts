@@ -5,7 +5,7 @@ import { createInternalNotifications, notifyConversationParticipants, notifyInte
 import { getSupportReplyStatus, shouldNotifySupportAdminsForReply } from '@/lib/internal-message-routing'
 import { supabase } from '@/lib/supabase'
 
-export type InternalConversationType = 'direct' | 'support' | 'league' | 'system'
+export type InternalConversationType = 'direct' | 'support' | 'league' | 'team' | 'system'
 export type InternalConversationStatus = 'open' | 'waiting_on_user' | 'waiting_on_admin' | 'closed'
 export type InternalSupportCategory = 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
 
@@ -44,7 +44,7 @@ export type InternalMessage = {
   conversationId: string
   senderUserId: string
   body: string
-  messageKind: 'message' | 'support_note' | 'system'
+  messageKind: 'message' | 'announcement' | 'support_note' | 'system'
   createdAt: string
 }
 
@@ -115,12 +115,12 @@ function normalizeConversationStatus(value: string | null | undefined): Internal
 }
 
 function normalizeConversationType(value: string | null | undefined): InternalConversationType {
-  if (value === 'support' || value === 'league' || value === 'system') return value
+  if (value === 'support' || value === 'league' || value === 'team' || value === 'system') return value
   return 'direct'
 }
 
 function normalizeMessageKind(value: string | null | undefined): InternalMessage['messageKind'] {
-  if (value === 'support_note' || value === 'system') return value
+  if (value === 'announcement' || value === 'support_note' || value === 'system') return value
   return 'message'
 }
 

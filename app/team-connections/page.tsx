@@ -17,6 +17,7 @@ import {
   type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
+import { buildTeamRoomHref } from '@/lib/team-room'
 
 export default function TeamConnectionsPage() {
   return (
@@ -146,6 +147,13 @@ function TeamConnectionsContent() {
                 <ConnectionCard key={connection.id} connection={connection}>
                   {connection.status === 'accepted' ? (
                     <>
+                      <Link href={buildTeamRoomHref({
+                        teamName: connection.teamName,
+                        leagueName: connection.leagueName,
+                        flight: connection.flight,
+                      })} style={primaryLinkStyle}>
+                        Open Team Room
+                      </Link>
                       <Link href={isCaptainTeamConnection(connection.roles) ? '/captain' : '/mylab'} style={primaryLinkStyle}>
                         {isCaptainTeamConnection(connection.roles) ? 'Open Captain' : 'Open My Lab'}
                       </Link>

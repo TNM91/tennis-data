@@ -36,6 +36,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { buildTeamRoomHref } from '@/lib/team-room'
 
 type TeamMatch = {
   id: string
@@ -1213,6 +1214,11 @@ function TeamPageContent() {
       }),
     },
   ]
+  const teamRoomHref = buildTeamRoomHref({
+    teamName: team,
+    leagueName: leagueFilter || teamMeta.league || undefined,
+    flight: flightFilter || teamMeta.flight || undefined,
+  })
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -1330,8 +1336,9 @@ function TeamPageContent() {
             </div>
 
             <div style={dynamicHeroActions}>
-              <PrimaryLink href={captainLinks[1].href}>Open lineup builder</PrimaryLink>
-              <SecondaryLink href={captainLinks[0].href}>Check availability</SecondaryLink>
+              <PrimaryLink href={teamRoomHref}>Open Team Room</PrimaryLink>
+              <SecondaryLink href={captainLinks[1].href}>Open lineup builder</SecondaryLink>
+              <GhostLink href={captainLinks[0].href}>Check availability</GhostLink>
               <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
