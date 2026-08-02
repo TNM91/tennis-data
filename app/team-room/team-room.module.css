@@ -1,7 +1,7 @@
 .page {
   width: min(980px, calc(100% - 24px));
   margin: 0 auto;
-  padding: 18px 0 calc(112px + env(safe-area-inset-bottom));
+  padding: 12px 0 calc(24px + env(safe-area-inset-bottom));
 }
 
 .roomShell,
@@ -399,7 +399,7 @@
 
 .composer {
   position: sticky;
-  bottom: calc(74px + env(safe-area-inset-bottom));
+  bottom: 0;
   z-index: 8;
   display: grid;
   gap: 10px;
@@ -802,10 +802,372 @@
   color: #ffd1d1;
 }
 
+.appBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 62px;
+  margin-bottom: 10px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--shell-panel-bg) 96%, transparent);
+  padding: 8px 10px;
+  box-shadow: 0 12px 30px rgba(1, 8, 20, 0.25);
+  backdrop-filter: blur(18px);
+}
+
+.appBack,
+.appMembersButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.appBack {
+  gap: 7px;
+  padding-left: 6px;
+}
+
+.appBack img {
+  border-radius: 999px;
+}
+
+.appIdentity {
+  display: grid;
+  min-width: 0;
+  text-align: center;
+}
+
+.appIdentity strong,
+.appIdentity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appIdentity strong {
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+}
+
+.appIdentity span {
+  color: var(--shell-copy-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.memberBadgeButton,
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.memberBadgeButton {
+  border: 1px solid var(--shell-panel-border);
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.liveBadge {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg));
+  color: var(--brand-green);
+}
+
+.replyPreview {
+  display: grid;
+  gap: 2px;
+  max-width: min(84%, 620px);
+  border-left: 3px solid var(--brand-blue-2);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg));
+  padding: 7px 9px;
+  color: var(--shell-copy-muted);
+  font-size: 0.72rem;
+}
+
+.replyPreview strong {
+  color: var(--foreground);
+}
+
+.replyPreview span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubbleDeleted {
+  color: var(--shell-copy-muted);
+  font-style: italic;
+}
+
+.messageActions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  max-width: min(90%, 660px);
+}
+
+.messageActions button,
+.composerContext button,
+.contactActions a,
+.revokeButton {
+  min-height: 30px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg);
+  color: var(--shell-copy-muted);
+  padding: 0 9px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.messageActions .reactionActive {
+  border-color: color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg));
+  color: var(--foreground-strong);
+}
+
+.attachmentCard {
+  display: grid;
+  gap: 8px;
+  width: min(84%, 520px);
+  overflow: hidden;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 16px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.attachmentCard > span:last-child {
+  display: grid;
+  gap: 2px;
+  padding: 0 11px 11px;
+}
+
+.attachmentCard small {
+  color: var(--shell-copy-muted);
+}
+
+.attachmentImage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--shell-page-bg);
+}
+
+.attachmentImage img {
+  object-fit: cover;
+}
+
+.editComposer {
+  display: grid;
+  gap: 8px;
+  width: min(90%, 620px);
+}
+
+.editComposer textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 10px;
+  font: inherit;
+}
+
+.composerContext {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 3px solid var(--brand-blue-2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg));
+  padding: 7px 9px;
+  color: var(--shell-copy-muted);
+  font-size: 0.72rem;
+}
+
+.composerContext span {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composerContext strong {
+  color: var(--foreground);
+}
+
+.composerOptions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  justify-items: end;
+  background: rgba(0, 5, 16, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+.memberDrawer {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(430px, 94vw);
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--shell-panel-border);
+  background: var(--shell-page-bg);
+  padding: max(16px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+  box-shadow: -20px 0 48px rgba(0, 0, 0, 0.34);
+}
+
+.drawerHeader,
+.drawerSectionHeader,
+.memberRow,
+.removedMember {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawerHeader h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 1.25rem;
+}
+
+.memberList,
+.drawerSection {
+  display: grid;
+  gap: 8px;
+}
+
+.memberRow,
+.removedMember,
+.drawerSection {
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-chip-bg);
+  padding: 10px;
+}
+
+.memberRow > div:nth-child(2),
+.drawerSectionHeader > div {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.memberRow strong,
+.drawerSectionHeader strong,
+.drawerSection > strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+}
+
+.memberRow span,
+.drawerSectionHeader span {
+  color: var(--shell-copy-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.presenceDot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--shell-panel-border);
+}
+
+.presenceOnline {
+  background: var(--brand-green);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-green) 12%, transparent);
+}
+
+.contactActions {
+  display: flex;
+  gap: 5px;
+}
+
+.revokeButton {
+  justify-self: start;
+  border-color: rgba(255, 111, 111, 0.3);
+  color: #ffd1d1;
+}
+
 @media (max-width: 700px) {
   .page {
     width: 100%;
     padding-top: 0;
+  }
+
+  .appBar {
+    min-height: calc(58px + env(safe-area-inset-top));
+    margin-bottom: 0;
+    border-top: 0;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+
+  .appBack span {
+    display: none;
+  }
+
+  .appBack {
+    padding-right: 6px;
   }
 
   .roomShell {
@@ -847,6 +1209,14 @@
   .actionQueueActions > button,
   .browserAlertButton {
     width: 100%;
+  }
+
+  .composerActions {
+    align-items: stretch;
+  }
+
+  .composerOptions {
+    flex: 1 1 auto;
   }
 
   .browserAlertButton {

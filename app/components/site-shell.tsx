@@ -14,18 +14,20 @@ type SiteShellProps = {
   children: ReactNode
   active?: string
   showPortalToolBar?: boolean
+  appMode?: boolean
 }
 
-export default function SiteShell({ children, active, showPortalToolBar = true }: SiteShellProps) {
+export default function SiteShell({ children, active, showPortalToolBar = true, appMode = false }: SiteShellProps) {
   return (
     <AuthProvider>
-      <SiteShellContent active={active} showPortalToolBar={showPortalToolBar}>{children}</SiteShellContent>
+      <SiteShellContent active={active} showPortalToolBar={showPortalToolBar} appMode={appMode}>{children}</SiteShellContent>
     </AuthProvider>
   )
 }
 
-function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProps) {
+function SiteShellContent({ children, active, showPortalToolBar, appMode = false }: SiteShellProps) {
   const pathname = usePathname() || '/'
+  const compactAppMode = appMode || pathname === '/team-room'
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
@@ -106,15 +108,17 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
         <div style={topBlueWash} />
         <div className={atmosphereClassName} aria-hidden="true" />
 
-        <SiteHeader
-          active={active}
-          railLayout={false}
-          onCompactMenuOpenChange={setCompactSiteMenuOpen}
-        />
-        {showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
-        <TeamConnectionInvite />
+        {!compactAppMode ? (
+          <SiteHeader
+            active={active}
+            railLayout={false}
+            onCompactMenuOpenChange={setCompactSiteMenuOpen}
+          />
+        ) : null}
+        {!compactAppMode && showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
+        {!compactAppMode ? <TeamConnectionInvite /> : null}
         <div id="main-content" className="page-reveal">{children}</div>
-        <SiteFooter railLayout={false} railWidth={0} />
+        {!compactAppMode ? <SiteFooter railLayout={false} railWidth={0} /> : null}
       </main>
   )
 }

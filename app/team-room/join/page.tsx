@@ -87,6 +87,7 @@ function JoinContent() {
       })
       const payload = await response.json() as { ok?: boolean; message?: string; roomHref?: string }
       if (!response.ok || !payload.ok || !payload.roomHref) throw new Error(payload.message || 'Team could not be joined.')
+      if (browserAlertsGranted) await enableTeamRoomPush(accessToken).catch(() => undefined)
       router.replace(payload.roomHref)
     } catch (joinError) {
       setError(joinError instanceof Error ? joinError.message : 'Team could not be joined.')
@@ -189,4 +190,30 @@ function JoinLoading() {
       </section>
     </main>
   )
+}
+
+async function enableTeamRoomPush(accessToken: string) {
+  const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY?.trim()
+  if (!publicKey || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+  await navigator.serviceWorker.register('/team-room-sw.js', { scope: '/' })
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey),
+  })
+  const serialized = subscription.toJSON()
+  await fetch('/api/team-rooms/push', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'subscribe', endpoint: subscription.endpoint, keys: serialized.keys }),
+  })
+}
+
+function urlBase64ToUint8Array(value: string) {
+  const padding = '='.repeat((4 - (value.length % 4)) % 4)
+  const base64 = (value + padding).replaceAll('-', '+').replaceAll('_', '/')
+  const raw = window.atob(base64)
+  const output = new Uint8Array(raw.length)
+  for (let index = 0; index < raw.length; index += 1) output[index] = raw.charCodeAt(index)
+  return output
 }

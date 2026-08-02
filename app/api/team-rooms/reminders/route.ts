@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseUrl } from '@/lib/supabase'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { parseReminderTargets } from '@/lib/team-room-match-flow'
+import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 
 export const runtime = 'nodejs'
 
@@ -103,6 +104,13 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
     conversation_id: schedule.conversation_id,
   }))).select('id,recipient_profile_id')
   const notifications = (notificationRows ?? []) as NotificationRow[]
+  const notificationBody = matchDate ? `Open the ${matchDate} match card to finish your reply.` : 'Open the latest match card to finish your reply.'
+  await sendTeamRoomPush(service, openTargets.map((target) => target.profileId), {
+    title: `${teamName} needs your reply`,
+    body: notificationBody,
+    href,
+    tag: `team-room-${schedule.conversation_id}`,
+  })
 
   await service.from('internal_messages').insert({
     conversation_id: schedule.conversation_id,
