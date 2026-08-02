@@ -13,6 +13,7 @@ import {
   teamRoomCardState,
   type TeamRoomReminderTarget,
 } from '@/lib/team-room-match-flow'
+import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 
 export const runtime = 'nodejs'
 
@@ -60,6 +61,15 @@ type MessageRow = {
   message_kind: string | null
   metadata: Record<string, unknown> | null
   created_at: string | null
+  edited_at: string | null
+  deleted_at: string | null
+  reply_to_message_id: string | null
+}
+
+type ReactionRow = {
+  message_id: string
+  profile_id: string
+  reaction: 'ack' | 'helpful' | 'celebrate'
 }
 
 type MatchResponseRow = {
@@ -112,6 +122,9 @@ type TeamRoomActionBody = {
   messageId?: unknown
   response?: unknown
   reminderAt?: unknown
+  replyToMessageId?: unknown
+  reaction?: unknown
+  memberId?: unknown
 }
 
 export async function GET(request: Request) {
@@ -179,7 +192,10 @@ export async function POST(request: Request) {
   const roomResult = await ensureTeamRoom(auth.service, selected)
   if (!roomResult.ok) return Response.json({ ok: false, message: roomResult.message }, { status: roomResult.status })
   const conversation = roomResult.conversation
-  await syncTeamRoomParticipants(auth.service, conversation.id, selected)
+  const syncedMembers = await syncTeamRoomParticipants(auth.service, conversation.id, selected)
+  if (!syncedMembers.some((member) => member.id === auth.userId)) {
+    return Response.json({ ok: false, message: 'You no longer have access to this Team Chat.' }, { status: 403 })
+  }
 
   const action = cleanText(body.action)
   if (action === 'send') {
@@ -189,6 +205,19 @@ export async function POST(request: Request) {
     if (isAnnouncement && !canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can post an announcement.' }, { status: 403 })
     }
+    const replyToMessageId = cleanText(body.replyToMessageId)
+    if (replyToMessageId) {
+      const { data: replyTarget } = await auth.service
+        .from('internal_messages')
+        .select('id')
+        .eq('id', replyToMessageId)
+        .eq('conversation_id', conversation.id)
+        .is('deleted_at', null)
+        .maybeSingle()
+      if (!replyTarget) {
+        return Response.json({ ok: false, message: 'The message you replied to is no longer available.' }, { status: 400 })
+      }
+    }
 
     const { data: message, error } = await auth.service
       .from('internal_messages')
@@ -197,8 +226,9 @@ export async function POST(request: Request) {
         sender_user_id: auth.userId,
         body: messageBody,
         message_kind: isAnnouncement ? 'announcement' : 'message',
+        reply_to_message_id: replyToMessageId || null,
       })
-      .select('id,sender_user_id,body,message_kind,metadata,created_at')
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
       .single()
     if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
 
@@ -270,7 +300,7 @@ export async function POST(request: Request) {
           .from('internal_messages')
           .update({ body: cardBody, message_kind: 'announcement', metadata, edited_at: new Date().toISOString() })
           .eq('id', existingId)
-          .select('id,sender_user_id,body,message_kind,metadata,created_at')
+          .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
           .single()
       : await auth.service
           .from('internal_messages')
@@ -281,7 +311,7 @@ export async function POST(request: Request) {
             message_kind: 'announcement',
             metadata,
           })
-          .select('id,sender_user_id,body,message_kind,metadata,created_at')
+          .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
           .single()
     if (writeResult.error) return Response.json({ ok: false, message: writeResult.error.message }, { status: 500 })
 
@@ -518,6 +548,142 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, inviteUrl, expiresAt })
   }
 
+  if (action === 'toggle_reaction') {
+    const messageId = cleanText(body.messageId)
+    const reaction = cleanText(body.reaction) as ReactionRow['reaction']
+    if (!messageId || !['ack', 'helpful', 'celebrate'].includes(reaction)) {
+      return Response.json({ ok: false, message: 'Choose a message acknowledgment.' }, { status: 400 })
+    }
+    const { data: message } = await auth.service
+      .from('internal_messages')
+      .select('id')
+      .eq('id', messageId)
+      .eq('conversation_id', conversation.id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (!message) return Response.json({ ok: false, message: 'This message is no longer available.' }, { status: 404 })
+
+    const { data: existing } = await auth.service
+      .from('team_room_message_reactions')
+      .select('message_id')
+      .eq('message_id', messageId)
+      .eq('profile_id', auth.userId)
+      .eq('reaction', reaction)
+      .maybeSingle()
+    const reactionResult = existing
+      ? await auth.service
+          .from('team_room_message_reactions')
+          .delete()
+          .eq('message_id', messageId)
+          .eq('profile_id', auth.userId)
+          .eq('reaction', reaction)
+      : await auth.service
+          .from('team_room_message_reactions')
+          .insert({ conversation_id: conversation.id, message_id: messageId, profile_id: auth.userId, reaction })
+    if (reactionResult.error) return Response.json({ ok: false, message: reactionResult.error.message }, { status: 500 })
+    return Response.json({ ok: true, active: !existing })
+  }
+
+  if (action === 'edit_message') {
+    const messageId = cleanText(body.messageId)
+    const nextBody = cleanText(body.body).slice(0, 2400)
+    if (!messageId || !nextBody) return Response.json({ ok: false, message: 'Write the updated message first.' }, { status: 400 })
+    const { data: message } = await auth.service
+      .from('internal_messages')
+      .select('id,sender_user_id,deleted_at')
+      .eq('id', messageId)
+      .eq('conversation_id', conversation.id)
+      .maybeSingle()
+    if (!message || message.deleted_at) return Response.json({ ok: false, message: 'This message is no longer available.' }, { status: 404 })
+    if (message.sender_user_id !== auth.userId) {
+      return Response.json({ ok: false, message: 'You can edit only your own message.' }, { status: 403 })
+    }
+    const { error } = await auth.service
+      .from('internal_messages')
+      .update({ body: nextBody, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true })
+  }
+
+  if (action === 'delete_message') {
+    const messageId = cleanText(body.messageId)
+    const { data: message } = await auth.service
+      .from('internal_messages')
+      .select('id,sender_user_id,metadata,deleted_at')
+      .eq('id', messageId)
+      .eq('conversation_id', conversation.id)
+      .maybeSingle()
+    if (!message || message.deleted_at) return Response.json({ ok: false, message: 'This message is already removed.' }, { status: 404 })
+    if (message.sender_user_id !== auth.userId && !canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only the sender or a captain can remove this message.' }, { status: 403 })
+    }
+    const attachment = cleanAttachmentMetadata(message.metadata)
+    const nextMetadata = { ...((message.metadata || {}) as Record<string, unknown>), teamRoomAttachment: null }
+    const { error } = await auth.service
+      .from('internal_messages')
+      .update({ body: 'Message removed.', metadata: nextMetadata, deleted_at: new Date().toISOString(), edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (attachment?.path) await auth.service.storage.from(attachment.bucket).remove([attachment.path])
+    return Response.json({ ok: true })
+  }
+
+  if (action === 'revoke_invites') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can revoke team invites.' }, { status: 403 })
+    }
+    const now = new Date().toISOString()
+    const { data, error } = await auth.service
+      .from('team_room_invites')
+      .update({ revoked_at: now })
+      .eq('conversation_id', conversation.id)
+      .is('revoked_at', null)
+      .gt('expires_at', now)
+      .select('id')
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true, revokedCount: data?.length || 0 })
+  }
+
+  if (action === 'remove_member' || action === 'restore_member') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can manage Team Chat members.' }, { status: 403 })
+    }
+    const memberId = cleanText(body.memberId)
+    if (!memberId || memberId === auth.userId) {
+      return Response.json({ ok: false, message: 'Choose another team member.' }, { status: 400 })
+    }
+    if (action === 'restore_member') {
+      const { error } = await auth.service
+        .from('team_room_member_removals')
+        .delete()
+        .eq('conversation_id', conversation.id)
+        .eq('profile_id', memberId)
+      if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+      return Response.json({ ok: true, restored: true })
+    }
+    const { data: participant } = await auth.service
+      .from('internal_conversation_participants')
+      .select('profile_id,participant_role')
+      .eq('conversation_id', conversation.id)
+      .eq('profile_id', memberId)
+      .maybeSingle()
+    if (!participant) return Response.json({ ok: false, message: 'This member is not in Team Chat.' }, { status: 404 })
+    if (participant.participant_role === 'coordinator') {
+      return Response.json({ ok: false, message: 'Captain access must be changed from the team link first.' }, { status: 400 })
+    }
+    const { error } = await auth.service
+      .from('team_room_member_removals')
+      .upsert({ conversation_id: conversation.id, profile_id: memberId, removed_by_user_id: auth.userId, removed_at: new Date().toISOString() }, { onConflict: 'conversation_id,profile_id' })
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    await auth.service
+      .from('internal_conversation_participants')
+      .delete()
+      .eq('conversation_id', conversation.id)
+      .eq('profile_id', memberId)
+    return Response.json({ ok: true, removed: true })
+  }
+
   if (action === 'set_mute') {
     const muted = body.muted === true
     const { error } = await auth.service
@@ -537,10 +703,13 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   if (!ensured.ok) return ensured
   const conversation = ensured.conversation
   const members = await syncTeamRoomParticipants(service, conversation.id, selected)
+  if (!members.some((member) => member.id === userId)) {
+    return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
+  }
 
   const { data: messageRows, error: messageError } = await service
     .from('internal_messages')
-    .select('id,sender_user_id,body,message_kind,metadata,created_at')
+    .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
     .eq('conversation_id', conversation.id)
     .order('created_at', { ascending: true })
     .limit(300)
@@ -553,26 +722,47 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   ]))
   const profileById = await loadProfileMap(service, senderIds)
   const messageIds = typedMessageRows.map((row) => row.id)
-  const [responseByMessageId, ackByMessageId, reminderByMessageId] = await Promise.all([
+  const [responseByMessageId, ackByMessageId, reminderByMessageId, reactionByMessageId, attachmentUrlByMessageId, management] = await Promise.all([
     loadMatchResponses(service, messageIds),
     loadLineupAcknowledgments(service, messageIds),
     loadReminderSchedules(service, messageIds),
+    loadMessageReactions(service, messageIds),
+    loadAttachmentUrls(service, typedMessageRows),
+    canManageTeamRoom(teamRoles(selected))
+      ? loadTeamRoomManagement(service, userId, conversation.id, selected, members)
+      : Promise.resolve({ rosterMembers: [], removedMembers: [], activeInviteCount: 0 }),
   ])
   const activeCardId = selectActiveTeamRoomCard(typedMessageRows.flatMap((row) => {
-    if (!isMatchCardMetadata(row.metadata)) return []
+    if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
   }))
-  const messages = typedMessageRows.map((row) => toMessage(
-    row,
-    profileById,
-    userId,
-    responseByMessageId.get(row.id) || [],
-    ackByMessageId.get(row.id) || [],
-    reminderByMessageId.get(row.id) || null,
-    isMatchCardMetadata(row.metadata)
-      ? teamRoomCardState({ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }, activeCardId)
-      : null,
-  ))
+  const rowById = new Map(typedMessageRows.map((row) => [row.id, row]))
+  const messages = typedMessageRows.map((row) => {
+    const replyRow = row.reply_to_message_id ? rowById.get(row.reply_to_message_id) : null
+    const baseMessage = toMessage(
+      row,
+      profileById,
+      userId,
+      responseByMessageId.get(row.id) || [],
+      ackByMessageId.get(row.id) || [],
+      reminderByMessageId.get(row.id) || null,
+      isMatchCardMetadata(row.metadata)
+        ? teamRoomCardState({ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }, activeCardId)
+        : null,
+      reactionByMessageId.get(row.id) || [],
+      attachmentUrlByMessageId.get(row.id) || '',
+    )
+    return {
+      ...baseMessage,
+      replyTo: replyRow ? {
+        id: replyRow.id,
+        senderName: profileById.get(replyRow.sender_user_id)?.message_display_name?.trim()
+          || profileById.get(replyRow.sender_user_id)?.linked_player_name?.trim()
+          || 'Team member',
+        body: replyRow.deleted_at ? 'Message removed.' : replyRow.body.slice(0, 220),
+      } : null,
+    }
+  })
   await service
     .from('internal_conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
@@ -592,6 +782,9 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       canManage: canManageTeamRoom(teamRoles(selected)),
       muted: currentParticipant?.muted ?? false,
       members,
+      rosterMembers: management.rosterMembers,
+      removedMembers: management.removedMembers,
+      activeInviteCount: management.activeInviteCount,
       activeCardId,
       actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === activeCardId) || null),
       messages,
@@ -609,6 +802,9 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
   if (!ensured.ok) return ensured
   const conversation = ensured.conversation
   const members = await syncTeamRoomParticipants(service, conversation.id, selected)
+  if (!members.some((member) => member.id === userId)) {
+    return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
+  }
   const [participantResult, messagesResult] = await Promise.all([
     service
       .from('internal_conversation_participants')
@@ -618,7 +814,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       .maybeSingle(),
     service
       .from('internal_messages')
-      .select('id,sender_user_id,body,message_kind,metadata,created_at')
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
       .eq('conversation_id', conversation.id)
       .order('created_at', { ascending: false })
       .limit(300),
@@ -628,11 +824,13 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
   const lastReadAt = cleanText(participantResult.data?.last_read_at)
   const messageRows = (messagesResult.data ?? []) as MessageRow[]
   const unreadCount = messageRows.filter((row) => (
+    !row.deleted_at
+    &&
     row.sender_user_id !== userId
     && (!lastReadAt || new Date(row.created_at || 0).getTime() > new Date(lastReadAt).getTime())
   )).length
   const activeCardId = selectActiveTeamRoomCard(messageRows.flatMap((row) => {
-    if (!isMatchCardMetadata(row.metadata)) return []
+    if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
   }))
   const latestCard = messageRows.find((row) => row.id === activeCardId)
@@ -745,7 +943,14 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
   }) === scopeId)
   if (!scopedLinks.some((link) => link.profile_user_id === selected.profile_user_id)) scopedLinks.push(selected)
 
-  const participantRows = scopedLinks.map((link) => ({
+  const { data: removalRows } = await service
+    .from('team_room_member_removals')
+    .select('profile_id')
+    .eq('conversation_id', conversationId)
+  const removedIds = new Set(((removalRows ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id))
+  const activeLinks = scopedLinks.filter((link) => canManageTeamRoom(teamRoles(link)) || !removedIds.has(link.profile_user_id))
+
+  const participantRows = activeLinks.map((link) => ({
     conversation_id: conversationId,
     profile_id: link.profile_user_id,
     participant_role: canManageTeamRoom(teamRoles(link)) ? 'coordinator' : 'member',
@@ -774,7 +979,7 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
 
   const profileById = await loadProfileMap(service, participantRows.map((row) => row.profile_id))
   const participantById = new Map(((existingRows ?? []) as ParticipantRow[]).map((row) => [row.profile_id, row]))
-  return scopedLinks.map((link) => {
+  return activeLinks.map((link) => {
     const profile = profileById.get(link.profile_user_id)
     return {
       id: link.profile_user_id,
@@ -802,19 +1007,27 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
     .filter((row) => row.profile_id !== input.actorUserId && row.muted !== true)
   if (!recipients.length) return
 
+  const title = input.announcement ? `${input.teamName} announcement` : `New message in ${input.teamName}`
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
   await service.from('internal_notifications').insert(recipients.map((row) => ({
     recipient_profile_id: row.profile_id,
     actor_user_id: input.actorUserId,
     notification_type: 'message',
-    title: input.announcement ? `${input.teamName} announcement` : `New message in ${input.teamName}`,
+    title,
     body: input.body.slice(0, 180),
-    href: buildTeamRoomHref({
-      teamName: input.scope.team_name,
-      leagueName: input.scope.league_name,
-      flight: input.scope.flight,
-    }),
+    href,
     conversation_id: input.conversationId,
   })))
+  await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+    title,
+    body: input.body.slice(0, 180),
+    href,
+    tag: `team-room-${input.conversationId}`,
+  })
 }
 
 async function notifyTeamRoomManagers(service: SupabaseClient, input: {
@@ -834,19 +1047,28 @@ async function notifyTeamRoomManagers(service: SupabaseClient, input: {
   if (!recipients.length) return
 
   const label = input.response === 'yes' ? 'can play' : input.response === 'no' ? 'cannot play' : 'might be able to play'
+  const title = `${input.actorName} replied`
+  const notificationBody = `${input.actorName} ${label} for ${input.teamName}.`
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
   await service.from('internal_notifications').insert(recipients.map((row) => ({
     recipient_profile_id: row.profile_id,
     actor_user_id: input.actorUserId,
     notification_type: 'message',
-    title: `${input.actorName} replied`,
-    body: `${input.actorName} ${label} for ${input.teamName}.`,
-    href: buildTeamRoomHref({
-      teamName: input.scope.team_name,
-      leagueName: input.scope.league_name,
-      flight: input.scope.flight,
-    }),
+    title,
+    body: notificationBody,
+    href,
     conversation_id: input.conversationId,
   })))
+  await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+    title,
+    body: notificationBody,
+    href,
+    tag: `team-room-${input.conversationId}`,
+  })
 }
 
 async function mirrorAvailabilityResponse(service: SupabaseClient, input: {
@@ -956,6 +1178,8 @@ function toMessage(
   acknowledgments: LineupAcknowledgmentRow[] = [],
   reminder: ReminderScheduleRow | null = null,
   cardState: 'active' | 'upcoming' | 'archived' | null = null,
+  reactions: ReactionRow[] = [],
+  attachmentUrl = '',
 ) {
   const profile = profileById.get(row.sender_user_id)
   const yesCount = responses.filter((item) => item.response === 'yes').length
@@ -965,7 +1189,7 @@ function toMessage(
     ? Math.max(0, Number(row.metadata.lineupVersion) || 0)
     : 0
   const currentAcknowledgments = acknowledgments.filter((item) => item.lineup_version === lineupVersion)
-  const card: TeamRoomMessageCardPayload | null = isMatchCardMetadata(row.metadata) ? {
+  const card: TeamRoomMessageCardPayload | null = !row.deleted_at && isMatchCardMetadata(row.metadata) ? {
     ...row.metadata,
     lineup: row.metadata.lineup,
     matchDate: cleanText(row.metadata.matchDate),
@@ -986,16 +1210,31 @@ function toMessage(
       notificationCount: reminder.notification_count || 0,
     } : null,
   } : null
+  const attachment = !row.deleted_at ? cleanAttachmentMetadata(row.metadata) : null
+  const reactionSummary = (['ack', 'helpful', 'celebrate'] as const).map((reaction) => {
+    const matching = reactions.filter((item) => item.reaction === reaction)
+    return {
+      reaction,
+      count: matching.length,
+      profileIds: matching.map((item) => item.profile_id),
+      reacted: matching.some((item) => item.profile_id === currentUserId),
+    }
+  })
   return {
     id: row.id,
     senderUserId: row.sender_user_id,
     senderName: profile?.message_display_name?.trim() || profile?.linked_player_name?.trim() || 'Team member',
-    body: row.body,
+    body: row.deleted_at ? 'Message removed.' : row.body,
     kind: row.message_kind === 'announcement'
       ? 'announcement'
       : row.message_kind === 'system' ? 'system' : 'message',
     createdAt: row.created_at || '',
+    editedAt: row.edited_at || '',
+    deletedAt: row.deleted_at || '',
     isMine: row.sender_user_id === currentUserId,
+    replyToMessageId: row.reply_to_message_id || '',
+    reactions: reactionSummary,
+    attachment: attachment ? { ...attachment, url: attachmentUrl } : null,
     card,
     response: responses.find((item) => item.profile_id === currentUserId)?.response || null,
     responseSummary: { yes: yesCount, maybe: maybeCount, no: noCount, total: responses.length },
@@ -1106,6 +1345,126 @@ async function loadReminderSchedules(service: SupabaseClient, messageIds: string
   return reminderByMessageId
 }
 
+async function loadMessageReactions(service: SupabaseClient, messageIds: string[]) {
+  const reactionByMessageId = new Map<string, ReactionRow[]>()
+  if (!messageIds.length) return reactionByMessageId
+  const { data } = await service
+    .from('team_room_message_reactions')
+    .select('message_id,profile_id,reaction')
+    .in('message_id', messageIds)
+  for (const row of (data ?? []) as ReactionRow[]) {
+    const current = reactionByMessageId.get(row.message_id) || []
+    current.push(row)
+    reactionByMessageId.set(row.message_id, current)
+  }
+  return reactionByMessageId
+}
+
+async function loadAttachmentUrls(service: SupabaseClient, messages: MessageRow[]) {
+  const urlByMessageId = new Map<string, string>()
+  await Promise.all(messages.map(async (message) => {
+    if (message.deleted_at) return
+    const attachment = cleanAttachmentMetadata(message.metadata)
+    if (!attachment) return
+    const { data } = await service.storage.from(attachment.bucket).createSignedUrl(attachment.path, 60 * 60 * 4)
+    if (data?.signedUrl) urlByMessageId.set(message.id, data.signedUrl)
+  }))
+  return urlByMessageId
+}
+
+async function loadTeamRoomManagement(
+  service: SupabaseClient,
+  userId: string,
+  conversationId: string,
+  selected: TeamLinkRow,
+  members: Array<{ id: string; name: string; playerName: string; roles: string[]; muted: boolean }>,
+) {
+  const now = new Date().toISOString()
+  const [contactsResult, removalsResult, invitesResult] = await Promise.all([
+    service
+      .from('captain_roster_contacts')
+      .select('id,full_name,normalized_name,phone,email,role,league_name,flight')
+      .eq('captain_user_id', userId)
+      .eq('normalized_team_name', selected.normalized_team_name)
+      .order('full_name', { ascending: true })
+      .limit(250),
+    service
+      .from('team_room_member_removals')
+      .select('profile_id,removed_at')
+      .eq('conversation_id', conversationId)
+      .order('removed_at', { ascending: false }),
+    service
+      .from('team_room_invites')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .is('revoked_at', null)
+      .gt('expires_at', now),
+  ])
+
+  const memberKeys = new Map<string, string>()
+  for (const member of members) {
+    for (const value of [member.name, member.playerName]) {
+      const key = normalizePersonKey(value)
+      if (key) memberKeys.set(key, member.id)
+    }
+  }
+  const rosterMembers = ((contactsResult.data ?? []) as Array<{
+    id: string
+    full_name: string
+    normalized_name: string
+    phone: string
+    email: string
+    role: string
+    league_name: string
+    flight: string
+  }>).filter((contact) => {
+    const leagueMatches = !contact.league_name || !selected.league_name
+      || normalizeTeamRoomKey(contact.league_name) === normalizeTeamRoomKey(selected.league_name)
+    const flightMatches = !contact.flight || !selected.flight
+      || normalizeTeamRoomKey(contact.flight) === normalizeTeamRoomKey(selected.flight)
+    return leagueMatches && flightMatches
+  }).map((contact) => {
+    const memberId = memberKeys.get(normalizePersonKey(contact.normalized_name || contact.full_name)) || ''
+    return {
+      id: contact.id,
+      name: contact.full_name,
+      phone: contact.phone,
+      email: contact.email,
+      role: contact.role,
+      joined: Boolean(memberId),
+      memberId,
+    }
+  })
+
+  const removedIds = ((removalsResult.data ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id)
+  const removedProfileById = await loadProfileMap(service, removedIds)
+  const removedMembers = removedIds.map((profileId) => ({
+    id: profileId,
+    name: removedProfileById.get(profileId)?.message_display_name?.trim()
+      || removedProfileById.get(profileId)?.linked_player_name?.trim()
+      || 'Team member',
+  }))
+  return {
+    rosterMembers,
+    removedMembers,
+    activeInviteCount: invitesResult.count || 0,
+  }
+}
+
+function cleanAttachmentMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null
+  const raw = (metadata as Record<string, unknown>).teamRoomAttachment
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const attachment = raw as Record<string, unknown>
+  const bucket = cleanText(attachment.bucket)
+  const path = cleanText(attachment.path)
+  const name = cleanText(attachment.name)
+  const mimeType = cleanText(attachment.mimeType)
+  const size = Math.max(0, Number(attachment.size) || 0)
+  if (bucket !== 'team-room-files' || !path || !name || !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(mimeType)) return null
+  return { bucket, path, name, mimeType, size }
+}
+
 async function loadActionableMatchCard(service: SupabaseClient, conversationId: string, requestedMessageId: string) {
   let query = service
     .from('internal_messages')
@@ -1182,15 +1541,25 @@ async function sendTeamRoomReminders(service: SupabaseClient, input: {
     leagueName: input.scope.league_name,
     flight: input.scope.flight,
   })
+  const title = `${input.teamName} needs your reply`
+  const notificationBody = input.matchDate
+    ? `Open the ${input.matchDate} match card to confirm availability or the latest lineup.`
+    : 'Open the match card to reply.'
   const { data } = await service.from('internal_notifications').insert(recipientIds.map((profileId) => ({
     recipient_profile_id: profileId,
     actor_user_id: input.actorUserId,
     notification_type: 'schedule',
-    title: `${input.teamName} needs your reply`,
-    body: input.matchDate ? `Open the ${input.matchDate} match card to confirm availability or the latest lineup.` : 'Open the match card to reply.',
+    title,
+    body: notificationBody,
     href,
     conversation_id: input.conversationId,
   }))).select('id')
+  await sendTeamRoomPush(service, recipientIds, {
+    title,
+    body: notificationBody,
+    href,
+    tag: `team-room-${input.conversationId}`,
+  })
 
   await service.from('internal_messages').insert({
     conversation_id: input.conversationId,
@@ -1260,19 +1629,28 @@ async function notifyTeamRoomManagersOfLineupAck(service: SupabaseClient, input:
   const recipients = ((participants ?? []) as ParticipantRow[])
     .filter((row) => row.profile_id !== input.actorUserId && row.participant_role === 'coordinator' && row.muted !== true)
   if (!recipients.length) return
+  const title = `${input.actorName} saw the lineup`
+  const notificationBody = `${input.actorName} acknowledged the latest ${input.teamName} lineup.`
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
   await service.from('internal_notifications').insert(recipients.map((row) => ({
     recipient_profile_id: row.profile_id,
     actor_user_id: input.actorUserId,
     notification_type: 'message',
-    title: `${input.actorName} saw the lineup`,
-    body: `${input.actorName} acknowledged the latest ${input.teamName} lineup.`,
-    href: buildTeamRoomHref({
-      teamName: input.scope.team_name,
-      leagueName: input.scope.league_name,
-      flight: input.scope.flight,
-    }),
+    title,
+    body: notificationBody,
+    href,
     conversation_id: input.conversationId,
   })))
+  await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+    title,
+    body: notificationBody,
+    href,
+    tag: `team-room-${input.conversationId}`,
+  })
 }
 
 function normalizePersonKey(value: unknown) {

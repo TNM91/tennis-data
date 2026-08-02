@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
 
 type TeamOption = {
@@ -32,11 +34,37 @@ type TeamRoomMessage = {
   body: string
   kind: 'message' | 'announcement' | 'system'
   createdAt: string
+  editedAt: string
+  deletedAt: string
   isMine: boolean
+  replyToMessageId: string
+  replyTo: { id: string; senderName: string; body: string } | null
+  reactions: Array<{
+    reaction: 'ack' | 'helpful' | 'celebrate'
+    count: number
+    profileIds: string[]
+    reacted: boolean
+  }>
+  attachment: {
+    name: string
+    mimeType: string
+    size: number
+    url: string
+  } | null
   card: TeamRoomMatchCard | null
   response: 'yes' | 'maybe' | 'no' | null
   responseSummary: { yes: number; maybe: number; no: number; total: number }
   responseDetails: Array<{ profileId: string; name: string; response: 'yes' | 'maybe' | 'no'; updatedAt: string }>
+}
+
+type TeamRoomRosterMember = {
+  id: string
+  name: string
+  phone: string
+  email: string
+  role: string
+  joined: boolean
+  memberId: string
 }
 
 type TeamRoomMatchCard = {
@@ -89,6 +117,9 @@ type TeamRoom = {
   canManage: boolean
   muted: boolean
   members: TeamRoomMember[]
+  rosterMembers: TeamRoomRosterMember[]
+  removedMembers: Array<{ id: string; name: string }>
+  activeInviteCount: number
   messages: TeamRoomMessage[]
   href: string
   activeCardId: string
@@ -126,7 +157,7 @@ const QUICK_MESSAGES = [
 
 export default function TeamRoomPage() {
   return (
-    <SiteShell active="/messages">
+    <SiteShell active="/messages" appMode>
       <Suspense fallback={<TeamRoomLoading />}>
         <TeamRoomContent />
       </Suspense>
@@ -152,6 +183,14 @@ function TeamRoomContent() {
   const [messageBody, setMessageBody] = useState('')
   const [announcement, setAnnouncement] = useState(false)
   const [showMatchComposer, setShowMatchComposer] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
+  const [replyTo, setReplyTo] = useState<TeamRoomMessage | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [editingId, setEditingId] = useState('')
+  const [editBody, setEditBody] = useState('')
+  const [onlineProfileIds, setOnlineProfileIds] = useState<string[]>([])
+  const [realtimeConnected, setRealtimeConnected] = useState(false)
+  const [draftLoadedRoomId, setDraftLoadedRoomId] = useState('')
   const [matchDraft, setMatchDraft] = useState(() => ({
     matchDate: searchParams.get('date')?.trim() || '',
     opponent: searchParams.get('opponent')?.trim() || '',
@@ -161,7 +200,10 @@ function TeamRoomContent() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement | null>(null)
+  const messagesRef = useRef<HTMLDivElement | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const realtimeRefreshRef = useRef<number | null>(null)
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
@@ -232,12 +274,82 @@ function TeamRoomContent() {
   }, [accessToken, authResolved, loadRoom])
 
   useEffect(() => {
-    if (!accessToken || !room) return
-    const refresh = window.setInterval(() => {
+    if (!accessToken || !room?.id || !userId) return
+    const scheduleRefresh = () => {
+      if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current)
+      realtimeRefreshRef.current = window.setTimeout(() => void loadRoom({ quiet: true }), 180)
+    }
+    const channel = supabase
+      .channel(`team-room:${room.id}`, { config: { presence: { key: userId } } })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_messages', filter: `conversation_id=eq.${room.id}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_room_message_responses', filter: `conversation_id=eq.${room.id}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_room_lineup_acknowledgments', filter: `conversation_id=eq.${room.id}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_room_message_reactions', filter: `conversation_id=eq.${room.id}` }, scheduleRefresh)
+      .on('presence', { event: 'sync' }, () => {
+        setOnlineProfileIds(Object.keys(channel.presenceState()))
+      })
+      .subscribe((status) => {
+        const connected = status === 'SUBSCRIBED'
+        setRealtimeConnected(connected)
+        if (connected) void channel.track({ profileId: userId, onlineAt: new Date().toISOString() })
+      })
+
+    const fallbackRefresh = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
-    }, 9000)
-    return () => window.clearInterval(refresh)
-  }, [accessToken, loadRoom, room])
+    }, 60000)
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
+    }
+    document.addEventListener('visibilitychange', refreshOnReturn)
+    return () => {
+      if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current)
+      window.clearInterval(fallbackRefresh)
+      document.removeEventListener('visibilitychange', refreshOnReturn)
+      setRealtimeConnected(false)
+      setOnlineProfileIds([])
+      void supabase.removeChannel(channel)
+    }
+  }, [accessToken, loadRoom, room?.id, userId])
+
+  useEffect(() => {
+    if (!room?.id) return
+    const draftKey = `tenaceiq-team-room-draft:${room.id}`
+    setMessageBody(window.localStorage.getItem(draftKey) || '')
+    setDraftLoadedRoomId(room.id)
+
+    const scrollKey = `tenaceiq-team-room-scroll:${room.id}`
+    const savedScroll = Number(window.sessionStorage.getItem(scrollKey))
+    if (savedScroll > 0) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: savedScroll, behavior: 'instant' }))
+    }
+    const saveScroll = () => window.sessionStorage.setItem(scrollKey, String(Math.max(0, Math.round(window.scrollY))))
+    window.addEventListener('pagehide', saveScroll)
+    return () => {
+      saveScroll()
+      window.removeEventListener('pagehide', saveScroll)
+    }
+  }, [room?.id])
+
+  useEffect(() => {
+    if (!room?.id || draftLoadedRoomId !== room.id) return
+    const draftKey = `tenaceiq-team-room-draft:${room.id}`
+    if (messageBody) window.localStorage.setItem(draftKey, messageBody)
+    else window.localStorage.removeItem(draftKey)
+  }, [draftLoadedRoomId, messageBody, room?.id])
+
+  useEffect(() => {
+    if (!showMembers) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowMembers(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [showMembers])
 
   async function postAction(input: Record<string, unknown>) {
     if (!accessToken || !room) throw new Error('Open a linked team first.')
@@ -260,13 +372,34 @@ function TeamRoomContent() {
   }
 
   async function sendMessage() {
-    if (!messageBody.trim() || sending) return
+    if ((!messageBody.trim() && !selectedFile) || sending || !room) return
     setSending(true)
     setError('')
     try {
-      await postAction({ action: 'send', body: messageBody, announcement })
+      if (selectedFile) {
+        const form = new FormData()
+        form.set('file', selectedFile)
+        form.set('body', messageBody)
+        form.set('announcement', String(announcement))
+        form.set('replyToMessageId', replyTo?.id || '')
+        form.set('teamName', room.teamName)
+        form.set('leagueName', room.leagueName)
+        form.set('flight', room.flight)
+        const response = await fetch('/api/team-rooms/attachments', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        })
+        const payload = await response.json() as { ok?: boolean; message?: string }
+        if (!response.ok || !payload.ok) throw new Error(payload.message || 'The attachment could not be shared.')
+      } else {
+        await postAction({ action: 'send', body: messageBody, announcement, replyToMessageId: replyTo?.id || '' })
+      }
       setMessageBody('')
       setAnnouncement(false)
+      setReplyTo(null)
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       await loadRoom({ quiet: true })
       window.requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }))
     } catch (sendError) {
@@ -404,13 +537,43 @@ function TeamRoomContent() {
   }
 
   async function enableBrowserAlerts() {
-    if (!('Notification' in window)) {
-      setError('Browser alerts are not supported on this device.')
+    const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY?.trim()
+    if (!publicKey || !('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setError('Background team alerts are not supported on this device yet.')
       return
     }
     const permission = await window.Notification.requestPermission()
-    setShowBrowserAlertPrompt(permission !== 'granted')
-    setNotice(permission === 'granted' ? 'Browser alerts are on for this device.' : 'Browser alerts were not enabled.')
+    if (permission !== 'granted') {
+      setShowBrowserAlertPrompt(true)
+      setNotice('Team alerts were not enabled.')
+      return
+    }
+    try {
+      await navigator.serviceWorker.register('/team-room-sw.js', { scope: '/' })
+      const registration = await navigator.serviceWorker.ready
+      const existing = await registration.pushManager.getSubscription()
+      const subscription = existing || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      })
+      const serialized = subscription.toJSON()
+      const response = await fetch('/api/team-rooms/push', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'subscribe',
+          endpoint: subscription.endpoint,
+          keys: serialized.keys,
+        }),
+      })
+      const payload = await response.json() as { ok?: boolean; message?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Background alerts could not be enabled.')
+      setShowBrowserAlertPrompt(false)
+      setNotice('Background team alerts are on for this device.')
+    } catch (pushError) {
+      setShowBrowserAlertPrompt(true)
+      setError(pushError instanceof Error ? pushError.message : 'Background alerts could not be enabled.')
+    }
   }
 
   async function shareRoom() {
@@ -453,9 +616,108 @@ function TeamRoomContent() {
     }
   }
 
+  async function toggleReaction(messageId: string, reaction: 'ack' | 'helpful' | 'celebrate') {
+    try {
+      await postAction({ action: 'toggle_reaction', messageId, reaction })
+      await loadRoom({ quiet: true })
+    } catch (reactionError) {
+      setError(reactionError instanceof Error ? reactionError.message : 'The acknowledgment could not be saved.')
+    }
+  }
+
+  async function saveEditedMessage(messageId: string) {
+    if (!editBody.trim()) return
+    try {
+      await postAction({ action: 'edit_message', messageId, body: editBody })
+      setEditingId('')
+      setEditBody('')
+      await loadRoom({ quiet: true })
+    } catch (editError) {
+      setError(editError instanceof Error ? editError.message : 'The message could not be updated.')
+    }
+  }
+
+  async function deleteMessage(messageId: string) {
+    if (!window.confirm('Remove this message from Team Chat?')) return
+    try {
+      await postAction({ action: 'delete_message', messageId })
+      if (replyTo?.id === messageId) setReplyTo(null)
+      await loadRoom({ quiet: true })
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'The message could not be removed.')
+    }
+  }
+
+  async function removeMember(member: TeamRoomMember) {
+    if (!window.confirm(`Remove ${member.name} from Team Chat? Their team link stays intact.`)) return
+    try {
+      await postAction({ action: 'remove_member', memberId: member.id })
+      setNotice(`${member.name} was removed from Team Chat.`)
+      await loadRoom({ quiet: true })
+    } catch (memberError) {
+      setError(memberError instanceof Error ? memberError.message : 'The member could not be removed.')
+    }
+  }
+
+  async function restoreMember(member: { id: string; name: string }) {
+    try {
+      await postAction({ action: 'restore_member', memberId: member.id })
+      setNotice(`${member.name} can use Team Chat again.`)
+      await loadRoom({ quiet: true })
+    } catch (memberError) {
+      setError(memberError instanceof Error ? memberError.message : 'The member could not be restored.')
+    }
+  }
+
+  async function revokeInvites() {
+    if (!window.confirm('Revoke every active Team Chat invite link? You can create a new link afterward.')) return
+    try {
+      const payload = await postAction({ action: 'revoke_invites' })
+      const count = Number(payload.revokedCount) || 0
+      setNotice(count ? `${count} active invite ${count === 1 ? 'link was' : 'links were'} revoked.` : 'There were no active invite links.')
+      await loadRoom({ quiet: true })
+    } catch (inviteError) {
+      setError(inviteError instanceof Error ? inviteError.message : 'Invite links could not be revoked.')
+    }
+  }
+
   useEffect(() => {
-    setShowBrowserAlertPrompt('Notification' in window && window.Notification.permission !== 'granted')
+    let cancelled = false
+    async function checkPushStatus() {
+      const supported = Boolean(process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY)
+        && 'Notification' in window
+        && 'serviceWorker' in navigator
+        && 'PushManager' in window
+      if (!supported) return
+      if (window.Notification.permission !== 'granted') {
+        if (!cancelled) setShowBrowserAlertPrompt(true)
+        return
+      }
+      const registration = await navigator.serviceWorker.getRegistration('/')
+      const subscription = await registration?.pushManager.getSubscription()
+      if (!cancelled) setShowBrowserAlertPrompt(!subscription)
+    }
+    void checkPushStatus()
+    return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (!accessToken || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+    let cancelled = false
+    async function refreshPushSubscription() {
+      const registration = await navigator.serviceWorker.getRegistration('/')
+      const subscription = await registration?.pushManager.getSubscription()
+      if (!subscription || cancelled) return
+      const serialized = subscription.toJSON()
+      await fetch('/api/team-rooms/push', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'subscribe', endpoint: subscription.endpoint, keys: serialized.keys }),
+      }).catch(() => null)
+    }
+    void refreshPushSubscription()
+    return () => { cancelled = true }
+  }, [accessToken])
 
   useEffect(() => {
     const sentAt = room?.actionQueue.lastReminderAt || ''
@@ -508,6 +770,19 @@ function TeamRoomContent() {
 
   return (
     <main className={styles.page}>
+      <nav className={styles.appBar} aria-label="Team Chat navigation">
+        <Link className={styles.appBack} href={room.canManage ? captainHref : '/mylab'}>
+          <Image src="/tenaceiq-icon-192.png" alt="" width={32} height={32} />
+          <span>{room.canManage ? 'Captain' : 'My Lab'}</span>
+        </Link>
+        <div className={styles.appIdentity}>
+          <strong>{room.teamName}</strong>
+          <span>{realtimeConnected ? `${Math.max(1, onlineProfileIds.length)} online` : 'Team Chat'}</span>
+        </div>
+        <button className={styles.appMembersButton} type="button" onClick={() => setShowMembers(true)}>
+          Members
+        </button>
+      </nav>
       <section className={styles.roomShell} aria-label={`${room.teamName} Team Room`}>
         <header className={styles.roomHeader}>
           <div className={styles.headerTop}>
@@ -517,18 +792,12 @@ function TeamRoomContent() {
               <p className={styles.scopeLine}>{[room.leagueName, room.flight].filter(Boolean).join(' · ') || 'Linked team conversation'}</p>
             </div>
             <div className={styles.roomActions}>
-              {room.canManage ? <Link className={styles.buttonSecondary} href={captainHref}>Captain</Link> : null}
               {room.canManage ? (
                 <button className={styles.buttonPrimary} type="button" onClick={() => setShowMatchComposer((current) => !current)}>
                   Ask availability
                 </button>
               ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
-              {room.canManage ? (
-                <button className={styles.buttonPrimary} type="button" disabled={sharing} onClick={() => void inviteTeam()}>
-                  {sharing ? 'Preparing…' : 'Invite team'}
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -548,7 +817,10 @@ function TeamRoomContent() {
           ) : null}
 
           <div className={styles.memberSummary}>
-            <span className={styles.memberBadge}>{room.members.length} connected</span>
+            <button className={styles.memberBadgeButton} type="button" onClick={() => setShowMembers(true)}>
+              {room.members.length} connected
+            </button>
+            <span className={styles.liveBadge}>{realtimeConnected ? 'Live' : 'Syncing'}</span>
             <span className={styles.roleBadge}>{room.roles.join(' + ').replaceAll('_', '-')}</span>
             <button className={styles.buttonQuiet} type="button" onClick={() => void toggleMute()}>
               {room.muted ? 'Turn notifications on' : 'Mute room'}
@@ -617,7 +889,7 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        <div className={styles.messages} aria-live="polite">
+        <div ref={messagesRef} className={styles.messages} aria-live="polite">
           {!room.messages.length ? (
             <div className={styles.emptyMessages}>
               Start the team conversation. Match reminders, availability questions, projected lineups, and team updates stay here for everyone to find.
@@ -639,9 +911,58 @@ function TeamRoomContent() {
                 <div className={styles.messageMeta}>
                   <span>{message.isMine ? 'You' : message.senderName}</span>
                   <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+                  {message.editedAt && !message.deletedAt ? <span>Edited</span> : null}
                   {message.kind === 'announcement' ? <span className={styles.announcementBadge}>Announcement</span> : null}
                 </div>
-                <div className={styles.bubble}>{message.body}</div>
+                {message.replyTo ? (
+                  <div className={styles.replyPreview}>
+                    <strong>{message.replyTo.senderName}</strong>
+                    <span>{message.replyTo.body}</span>
+                  </div>
+                ) : null}
+                {editingId === message.id ? (
+                  <div className={styles.editComposer}>
+                    <textarea aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} />
+                    <div className={styles.composerActions}>
+                      <button className={styles.buttonQuiet} type="button" onClick={() => { setEditingId(''); setEditBody('') }}>Cancel</button>
+                      <button className={styles.buttonPrimary} type="button" disabled={!editBody.trim()} onClick={() => void saveEditedMessage(message.id)}>Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className={`${styles.bubble} ${message.deletedAt ? styles.bubbleDeleted : ''}`}>{message.body}</div>
+                    {message.attachment?.url ? (
+                      <a className={styles.attachmentCard} href={message.attachment.url} target="_blank" rel="noreferrer">
+                        {message.attachment.mimeType.startsWith('image/') ? (
+                          <span className={styles.attachmentImage}>
+                            <Image src={message.attachment.url} alt={message.attachment.name} fill sizes="(max-width: 700px) 82vw, 520px" />
+                          </span>
+                        ) : null}
+                        <span>
+                          <strong>{message.attachment.name}</strong>
+                          <small>{formatFileSize(message.attachment.size)} · Open file</small>
+                        </span>
+                      </a>
+                    ) : null}
+                  </>
+                )}
+                {!message.deletedAt && editingId !== message.id ? (
+                  <div className={styles.messageActions} aria-label={`Actions for ${message.senderName}'s message`}>
+                    <button type="button" onClick={() => { setReplyTo(message); window.requestAnimationFrame(() => composerRef.current?.focus()) }}>Reply</button>
+                    {message.reactions.map((reaction) => (
+                      <button
+                        key={reaction.reaction}
+                        className={reaction.reacted ? styles.reactionActive : undefined}
+                        type="button"
+                        onClick={() => void toggleReaction(message.id, reaction.reaction)}
+                      >
+                        {reactionLabel(reaction.reaction)}{reaction.count ? ` ${reaction.count}` : ''}
+                      </button>
+                    ))}
+                    {message.isMine ? <button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body) }}>Edit</button> : null}
+                    {message.isMine || room.canManage ? <button type="button" onClick={() => void deleteMessage(message.id)}>Remove</button> : null}
+                  </div>
+                ) : null}
               </article>
             )
           })}
@@ -661,6 +982,18 @@ function TeamRoomContent() {
               </button>
             ))}
           </div>
+          {replyTo ? (
+            <div className={styles.composerContext}>
+              <span><strong>Replying to {replyTo.senderName}</strong>{replyTo.body.slice(0, 100)}</span>
+              <button type="button" onClick={() => setReplyTo(null)}>Cancel</button>
+            </div>
+          ) : null}
+          {selectedFile ? (
+            <div className={styles.composerContext}>
+              <span><strong>{selectedFile.name}</strong>{formatFileSize(selectedFile.size)}</span>
+              <button type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}>Remove</button>
+            </div>
+          ) : null}
           <textarea
             ref={composerRef}
             aria-label="Team Room message"
@@ -675,26 +1008,152 @@ function TeamRoomContent() {
             }}
           />
           <div className={styles.composerActions}>
-            {room.canManage ? (
-              <label className={styles.announcementToggle}>
-                <input type="checkbox" checked={announcement} onChange={(event) => setAnnouncement(event.target.checked)} />
-                Pin as announcement
-              </label>
-            ) : <span className={styles.helper}>Enter sends · Shift+Enter adds a line</span>}
-            <button className={styles.buttonPrimary} type="button" disabled={sending || !messageBody.trim()} onClick={() => void sendMessage()}>
+            <div className={styles.composerOptions}>
+              <input
+                ref={fileInputRef}
+                className={styles.fileInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+              />
+              <button className={styles.buttonSecondary} type="button" onClick={() => fileInputRef.current?.click()}>Add file</button>
+              {room.canManage ? (
+                <label className={styles.announcementToggle}>
+                  <input type="checkbox" checked={announcement} onChange={(event) => setAnnouncement(event.target.checked)} />
+                  Announcement
+                </label>
+              ) : null}
+            </div>
+            <button className={styles.buttonPrimary} type="button" disabled={sending || (!messageBody.trim() && !selectedFile)} onClick={() => void sendMessage()}>
               {sending ? 'Sending…' : 'Send'}
             </button>
           </div>
         </div>
       </section>
 
+      {showMembers ? (
+        <TeamRoomMemberDrawer
+          room={room}
+          currentUserId={userId || ''}
+          onlineProfileIds={onlineProfileIds}
+          sharing={sharing}
+          onClose={() => setShowMembers(false)}
+          onInvite={() => void inviteTeam()}
+          onRevokeInvites={() => void revokeInvites()}
+          onRemove={(member) => void removeMember(member)}
+          onRestore={(member) => void restoreMember(member)}
+        />
+      ) : null}
+
       <TeamRoomInstallCard room={room} />
       {showBrowserAlertPrompt ? (
         <button className={styles.browserAlertButton} type="button" onClick={() => void enableBrowserAlerts()}>
-          Turn on browser alerts
+          Turn on background alerts
         </button>
       ) : null}
     </main>
+  )
+}
+
+function TeamRoomMemberDrawer({
+  room,
+  currentUserId,
+  onlineProfileIds,
+  sharing,
+  onClose,
+  onInvite,
+  onRevokeInvites,
+  onRemove,
+  onRestore,
+}: {
+  room: TeamRoom
+  currentUserId: string
+  onlineProfileIds: string[]
+  sharing: boolean
+  onClose: () => void
+  onInvite: () => void
+  onRevokeInvites: () => void
+  onRemove: (member: TeamRoomMember) => void
+  onRestore: (member: { id: string; name: string }) => void
+}) {
+  const onlineIds = new Set(onlineProfileIds)
+  const waitingRoster = room.rosterMembers.filter((member) => !member.joined)
+  return (
+    <div className={styles.drawerBackdrop} role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose()
+    }}>
+      <aside className={styles.memberDrawer} role="dialog" aria-modal="true" aria-label={`${room.teamName} members`}>
+        <div className={styles.drawerHeader}>
+          <div>
+            <p className={styles.eyebrow}>Team members</p>
+            <h2>{room.members.length} connected</h2>
+          </div>
+          <button className={styles.buttonSecondary} type="button" onClick={onClose}>Close</button>
+        </div>
+
+        <div className={styles.memberList}>
+          {room.members.map((member) => (
+            <article key={member.id} className={styles.memberRow}>
+              <span className={`${styles.presenceDot} ${onlineIds.has(member.id) ? styles.presenceOnline : ''}`} aria-label={onlineIds.has(member.id) ? 'Online' : 'Offline'} />
+              <div>
+                <strong>{member.name}{member.id === currentUserId ? ' · You' : ''}</strong>
+                <span>{member.roles.join(' + ').replaceAll('_', '-')}</span>
+              </div>
+              {room.canManage && member.id !== currentUserId && !member.roles.some((role) => ['captain', 'co_captain', 'co-captain'].includes(role)) ? (
+                <button className={styles.buttonQuiet} type="button" onClick={() => onRemove(member)}>Remove</button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+
+        {room.canManage ? (
+          <>
+            <div className={styles.drawerSectionHeader}>
+              <div>
+                <strong>Roster not connected</strong>
+                <span>{waitingRoster.length ? `${waitingRoster.length} can still join` : 'Everyone in the imported roster is connected'}</span>
+              </div>
+              <button className={styles.buttonPrimary} type="button" disabled={sharing} onClick={onInvite}>
+                {sharing ? 'Preparing…' : 'Share invite'}
+              </button>
+            </div>
+            {waitingRoster.length ? (
+              <div className={styles.memberList}>
+                {waitingRoster.map((member) => (
+                  <article key={member.id} className={styles.memberRow}>
+                    <span className={styles.presenceDot} aria-hidden="true" />
+                    <div>
+                      <strong>{member.name}</strong>
+                      <span>{[member.role, member.phone ? 'Phone ready' : '', member.email ? 'Email ready' : ''].filter(Boolean).join(' · ')}</span>
+                    </div>
+                    <div className={styles.contactActions}>
+                      {member.phone ? <a href={`tel:${member.phone}`}>Call</a> : null}
+                      {member.email ? <a href={`mailto:${member.email}`}>Email</a> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {room.removedMembers.length ? (
+              <div className={styles.drawerSection}>
+                <strong>Removed from chat</strong>
+                {room.removedMembers.map((member) => (
+                  <div key={member.id} className={styles.removedMember}>
+                    <span>{member.name}</span>
+                    <button className={styles.buttonSecondary} type="button" onClick={() => onRestore(member)}>Restore</button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {room.activeInviteCount ? (
+              <button className={styles.revokeButton} type="button" onClick={onRevokeInvites}>
+                Revoke {room.activeInviteCount} active invite {room.activeInviteCount === 1 ? 'link' : 'links'}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </aside>
+    </div>
   )
 }
 
@@ -1025,4 +1484,25 @@ function formatReminderTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function reactionLabel(reaction: 'ack' | 'helpful' | 'celebrate') {
+  if (reaction === 'helpful') return 'Helpful'
+  if (reaction === 'celebrate') return 'Great'
+  return 'Seen'
+}
+
+function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return 'File'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function urlBase64ToUint8Array(value: string) {
+  const padding = '='.repeat((4 - (value.length % 4)) % 4)
+  const base64 = (value + padding).replaceAll('-', '+').replaceAll('_', '/')
+  const raw = window.atob(base64)
+  const output = new Uint8Array(raw.length)
+  for (let index = 0; index < raw.length; index += 1) output[index] = raw.charCodeAt(index)
+  return output
 }

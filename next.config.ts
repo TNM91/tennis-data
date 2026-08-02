@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: 'pwxppfazbyourjrsutgx.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'pwxppfazbyourjrsutgx.supabase.co',
+        pathname: '/storage/v1/object/sign/**',
+      },
     ],
   },
 
