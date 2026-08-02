@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { selectActiveTeamRoomCard } from '@/lib/team-room-match-flow'
 
 export const runtime = 'nodejs'
 
@@ -55,9 +56,22 @@ export async function POST(request: Request) {
   const auth = await getJoinAuth(request)
   if (!auth.ok) return auth.response
   let token = ''
+  let seasonAvailability: 'available' | 'ask_me' | 'unavailable' = 'ask_me'
+  let emailAlertsEnabled = false
+  let browserAlertsEnabled = false
   try {
-    const body = await request.json() as { token?: unknown }
+    const body = await request.json() as {
+      token?: unknown
+      seasonAvailability?: unknown
+      emailAlertsEnabled?: unknown
+      browserAlertsEnabled?: unknown
+    }
     token = typeof body.token === 'string' ? body.token.trim() : ''
+    seasonAvailability = body.seasonAvailability === 'available' || body.seasonAvailability === 'unavailable'
+      ? body.seasonAvailability
+      : 'ask_me'
+    emailAlertsEnabled = body.emailAlertsEnabled === true
+    browserAlertsEnabled = body.browserAlertsEnabled === true
   } catch {
     return Response.json({ ok: false, message: 'Invalid team invite.' }, { status: 400 })
   }
@@ -122,6 +136,34 @@ export async function POST(request: Request) {
   if (participantError) return Response.json({ ok: false, message: participantError.message }, { status: 500 })
 
   await auth.service
+    .from('team_room_member_preferences')
+    .upsert({
+      conversation_id: row.conversation_id,
+      profile_id: auth.userId,
+      season_availability: seasonAvailability,
+      email_alerts_enabled: emailAlertsEnabled,
+      browser_alerts_enabled: browserAlertsEnabled,
+      updated_at: now,
+    }, { onConflict: 'conversation_id,profile_id' })
+
+  if (seasonAvailability !== 'ask_me') {
+    await applyJoinedMemberAvailabilityDefault(auth.service, {
+      conversationId: row.conversation_id,
+      profileId: auth.userId,
+      seasonAvailability,
+      teamName: row.team_name,
+      leagueName: row.league_name,
+      flight: row.flight,
+    })
+  }
+
+  if (emailAlertsEnabled) {
+    await auth.service
+      .from('internal_notification_preferences')
+      .upsert({ profile_id: auth.userId, email_fallback_enabled: true }, { onConflict: 'profile_id' })
+  }
+
+  await auth.service
     .from('team_room_invites')
     .update({ accepted_count: Math.max(0, row.accepted_count ?? 0) + (existing?.status === 'accepted' ? 0 : 1) })
     .eq('id', row.id)
@@ -174,6 +216,66 @@ async function loadInvite(service: SupabaseClient, token: string) {
   if (error) return { ok: false as const, status: 500, message: error.message }
   if (!data) return { ok: false as const, status: 404, message: 'This team invite has expired or is no longer active.' }
   return { ok: true as const, row: data as InviteRow }
+}
+
+async function applyJoinedMemberAvailabilityDefault(service: SupabaseClient, input: {
+  conversationId: string
+  profileId: string
+  seasonAvailability: 'available' | 'unavailable'
+  teamName: string
+  leagueName: string
+  flight: string
+}) {
+  const { data: messageRows } = await service
+    .from('internal_messages')
+    .select('id,created_at,metadata')
+    .eq('conversation_id', input.conversationId)
+    .contains('metadata', { teamRoomCard: true })
+    .order('created_at', { ascending: false })
+    .limit(100)
+  const rows = (messageRows ?? []) as Array<{
+    id: string
+    created_at: string | null
+    metadata: Record<string, unknown> | null
+  }>
+  const activeMessageId = selectActiveTeamRoomCard(rows.flatMap((message) => {
+    const matchDate = typeof message.metadata?.matchDate === 'string' ? message.metadata.matchDate.trim() : ''
+    return matchDate ? [{ id: message.id, createdAt: message.created_at || '', matchDate }] : []
+  }))
+  if (!activeMessageId) return
+  const activeMessage = rows.find((message) => message.id === activeMessageId)
+  const matchDate = typeof activeMessage?.metadata?.matchDate === 'string' ? activeMessage.metadata.matchDate.trim() : ''
+  const { data: existing } = await service
+    .from('team_room_message_responses')
+    .select('id')
+    .eq('message_id', activeMessageId)
+    .eq('profile_id', input.profileId)
+    .maybeSingle()
+  if (existing) return
+
+  await service.from('team_room_message_responses').insert({
+    conversation_id: input.conversationId,
+    message_id: activeMessageId,
+    profile_id: input.profileId,
+    response: input.seasonAvailability === 'available' ? 'yes' : 'no',
+  })
+  const { data: profile } = await service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', input.profileId)
+    .maybeSingle()
+  const linkedPlayerId = profile?.linked_player_id?.trim()
+  if (linkedPlayerId && matchDate) {
+    await service.from('lineup_availability').upsert({
+      match_date: matchDate,
+      team_name: input.teamName,
+      league_name: input.leagueName,
+      flight: input.flight,
+      player_id: linkedPlayerId,
+      status: input.seasonAvailability === 'available' ? 'available' : 'unavailable',
+      notes: 'Season availability default from Team Room',
+    }, { onConflict: 'match_date,team_name,player_id' })
+  }
 }
 
 async function getJoinAuth(request: Request) {

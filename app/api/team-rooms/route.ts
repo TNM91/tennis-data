@@ -6,6 +6,13 @@ import {
   canManageTeamRoom,
   normalizeTeamRoomKey,
 } from '@/lib/team-room'
+import {
+  buildLineupChanges,
+  normalizeLineupRows,
+  selectActiveTeamRoomCard,
+  teamRoomCardState,
+  type TeamRoomReminderTarget,
+} from '@/lib/team-room-match-flow'
 
 export const runtime = 'nodejs'
 
@@ -62,6 +69,37 @@ type MatchResponseRow = {
   updated_at: string | null
 }
 
+type LineupAcknowledgmentRow = {
+  message_id: string
+  profile_id: string
+  lineup_version: number
+  updated_at: string | null
+}
+
+type ReminderScheduleRow = {
+  message_id: string
+  reminder_at: string
+  status: 'scheduled' | 'sent' | 'cancelled'
+  sent_at: string | null
+  notification_count: number | null
+}
+
+type TeamRoomMessageCardPayload = Record<string, unknown> & {
+  lineup: unknown
+  matchDate: string
+  state: 'active' | 'upcoming' | 'archived'
+  lineupVersion: number
+  lineupChanges: string[]
+  acknowledged: boolean
+  acknowledgmentSummary: { total: number; profileIds: string[] }
+  reminder: {
+    reminderAt: string
+    status: string
+    sentAt: string
+    notificationCount: number
+  } | null
+}
+
 type TeamRoomActionBody = {
   action?: unknown
   teamName?: unknown
@@ -73,6 +111,7 @@ type TeamRoomActionBody = {
   card?: unknown
   messageId?: unknown
   response?: unknown
+  reminderAt?: unknown
 }
 
 export async function GET(request: Request) {
@@ -189,20 +228,43 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'Choose the match date first.' }, { status: 400 })
     }
 
-    const cardBody = card.cardType === 'projected_lineup'
-      ? `Projected lineup for ${card.matchDate}${card.opponent ? ` vs ${card.opponent}` : ''}. Please confirm whether you can play.`
-      : `Can you play on ${card.matchDate}${card.opponent ? ` vs ${card.opponent}` : ''}?`
-    const metadata = { ...card, teamRoomCard: true }
     const { data: existingRows } = await auth.service
       .from('internal_messages')
-      .select('id')
+      .select('id,metadata')
       .eq('conversation_id', conversation.id)
-      .eq('sender_user_id', auth.userId)
       .contains('metadata', { teamRoomCard: true, matchDate: card.matchDate })
       .order('created_at', { ascending: false })
       .limit(1)
 
     const existingId = cleanText(existingRows?.[0]?.id)
+    const previousCard = isMatchCardMetadata(existingRows?.[0]?.metadata)
+      ? cleanMatchCard(existingRows?.[0]?.metadata)
+      : null
+    const effectiveCard = card.cardType === 'availability' && previousCard?.cardType === 'projected_lineup'
+      ? {
+          ...previousCard,
+          opponent: card.opponent || previousCard.opponent,
+          matchTime: card.matchTime || previousCard.matchTime,
+          facility: card.facility || previousCard.facility,
+        }
+      : card
+    const lineupChanges = effectiveCard.cardType === 'projected_lineup'
+      ? buildLineupChanges(previousCard?.lineup || [], effectiveCard.lineup)
+      : []
+    const previousLineupVersion = Math.max(0, Number(existingRows?.[0]?.metadata?.lineupVersion) || 0)
+    const lineupVersion = effectiveCard.cardType === 'projected_lineup'
+      ? Math.max(1, previousLineupVersion + (lineupChanges.length && previousLineupVersion ? 1 : 0))
+      : 0
+    const metadata = {
+      ...effectiveCard,
+      teamRoomCard: true,
+      lineupVersion,
+      lineupChanges,
+      lineupChangedAt: lineupChanges.length ? new Date().toISOString() : cleanText(existingRows?.[0]?.metadata?.lineupChangedAt),
+    }
+    const cardBody = effectiveCard.cardType === 'projected_lineup'
+      ? `Projected lineup for ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}. Please confirm whether you can play.`
+      : `Can you play on ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}?`
     const writeResult = existingId
       ? await auth.service
           .from('internal_messages')
@@ -223,6 +285,13 @@ export async function POST(request: Request) {
           .single()
     if (writeResult.error) return Response.json({ ok: false, message: writeResult.error.message }, { status: 500 })
 
+    await applySeasonAvailabilityDefaults(auth.service, {
+      conversationId: conversation.id,
+      messageId: writeResult.data.id,
+      matchDate: effectiveCard.matchDate,
+      scope: selected,
+    })
+
     await auth.service
       .from('internal_conversations')
       .update({ updated_at: new Date().toISOString() })
@@ -241,9 +310,9 @@ export async function POST(request: Request) {
       leagueName: selected.league_name,
       flight: selected.flight,
       date: card.matchDate,
-      opponent: card.opponent,
-      time: card.matchTime,
-      facility: card.facility,
+      opponent: effectiveCard.opponent,
+      time: effectiveCard.matchTime,
+      facility: effectiveCard.facility,
     }) })
   }
 
@@ -276,6 +345,19 @@ export async function POST(request: Request) {
       }, { onConflict: 'message_id,profile_id' })
     if (responseError) return Response.json({ ok: false, message: responseError.message }, { status: 500 })
 
+    const lineupVersion = Math.max(0, Number((message.metadata as Record<string, unknown>).lineupVersion) || 0)
+    if (cleanText((message.metadata as Record<string, unknown>).cardType) === 'projected_lineup' && lineupVersion > 0) {
+      await auth.service
+        .from('team_room_lineup_acknowledgments')
+        .upsert({
+          conversation_id: conversation.id,
+          message_id: messageId,
+          profile_id: auth.userId,
+          lineup_version: lineupVersion,
+          updated_at: updatedAt,
+        }, { onConflict: 'message_id,profile_id,lineup_version' })
+    }
+
     const profileById = await loadProfileMap(auth.service, [auth.userId])
     const actor = profileById.get(auth.userId)
     const actorName = actor?.message_display_name?.trim() || actor?.linked_player_name?.trim() || 'A team member'
@@ -294,7 +376,106 @@ export async function POST(request: Request) {
       actorName,
       response,
     })
-    return Response.json({ ok: true, response, updatedAt })
+    return Response.json({ ok: true, response, lineupAcknowledged: lineupVersion > 0, updatedAt })
+  }
+
+  if (action === 'acknowledge_lineup') {
+    const messageId = cleanText(body.messageId)
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, messageId)
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const lineupVersion = Math.max(0, Number(cardResult.metadata.lineupVersion) || 0)
+    if (cleanText(cardResult.metadata.cardType) !== 'projected_lineup' || lineupVersion < 1) {
+      return Response.json({ ok: false, message: 'This lineup does not need an acknowledgment.' }, { status: 400 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    const { error } = await auth.service
+      .from('team_room_lineup_acknowledgments')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: cardResult.messageId,
+        profile_id: auth.userId,
+        lineup_version: lineupVersion,
+        updated_at: updatedAt,
+      }, { onConflict: 'message_id,profile_id,lineup_version' })
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+
+    const profileById = await loadProfileMap(auth.service, [auth.userId])
+    const actor = profileById.get(auth.userId)
+    const actorName = actor?.message_display_name?.trim() || actor?.linked_player_name?.trim() || 'A team member'
+    await notifyTeamRoomManagersOfLineupAck(auth.service, {
+      conversationId: conversation.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      actorName,
+    })
+    return Response.json({ ok: true, lineupVersion, updatedAt })
+  }
+
+  if (action === 'schedule_reminder') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can schedule reminders.' }, { status: 403 })
+    }
+    const reminderAt = cleanText(body.reminderAt)
+    const reminderDate = new Date(reminderAt)
+    if (!reminderAt || Number.isNaN(reminderDate.getTime()) || reminderDate.getTime() <= Date.now()) {
+      return Response.json({ ok: false, message: 'Choose a reminder time in the future.' }, { status: 400 })
+    }
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, cleanText(body.messageId))
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const targets = await buildReminderTargets(auth.service, conversation.id, cardResult.messageId, cardResult.metadata)
+    if (!targets.length) {
+      return Response.json({ ok: false, message: 'Everyone has already completed this match update.' }, { status: 400 })
+    }
+    const { error } = await auth.service
+      .from('team_room_reminder_schedules')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: cardResult.messageId,
+        created_by_user_id: auth.userId,
+        reminder_at: reminderDate.toISOString(),
+        targets,
+        status: 'scheduled',
+        sent_at: null,
+        notification_count: 0,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'message_id' })
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true, reminderAt: reminderDate.toISOString(), targetCount: targets.length })
+  }
+
+  if (action === 'remind_waiting') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can send reminders.' }, { status: 403 })
+    }
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, cleanText(body.messageId))
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const targets = await buildReminderTargets(auth.service, conversation.id, cardResult.messageId, cardResult.metadata)
+    if (!targets.length) return Response.json({ ok: true, notificationIds: [], targetCount: 0 })
+    const notificationIds = await sendTeamRoomReminders(auth.service, {
+      conversationId: conversation.id,
+      messageId: cardResult.messageId,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      matchDate: cleanText(cardResult.metadata.matchDate),
+      targets,
+    })
+    await auth.service
+      .from('team_room_reminder_schedules')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: cardResult.messageId,
+        created_by_user_id: auth.userId,
+        reminder_at: new Date().toISOString(),
+        targets,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        notification_count: notificationIds.length,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'message_id' })
+    return Response.json({ ok: true, notificationIds, targetCount: targets.length })
   }
 
   if (action === 'create_invite') {
@@ -365,10 +546,33 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     .limit(300)
   if (messageError) return { ok: false as const, status: 500, message: messageError.message }
 
-  const senderIds = Array.from(new Set(((messageRows ?? []) as MessageRow[]).map((row) => row.sender_user_id)))
+  const typedMessageRows = (messageRows ?? []) as MessageRow[]
+  const senderIds = Array.from(new Set([
+    ...typedMessageRows.map((row) => row.sender_user_id),
+    ...members.map((member) => member.id),
+  ]))
   const profileById = await loadProfileMap(service, senderIds)
-  const messageIds = ((messageRows ?? []) as MessageRow[]).map((row) => row.id)
-  const responseByMessageId = await loadMatchResponses(service, messageIds)
+  const messageIds = typedMessageRows.map((row) => row.id)
+  const [responseByMessageId, ackByMessageId, reminderByMessageId] = await Promise.all([
+    loadMatchResponses(service, messageIds),
+    loadLineupAcknowledgments(service, messageIds),
+    loadReminderSchedules(service, messageIds),
+  ])
+  const activeCardId = selectActiveTeamRoomCard(typedMessageRows.flatMap((row) => {
+    if (!isMatchCardMetadata(row.metadata)) return []
+    return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
+  }))
+  const messages = typedMessageRows.map((row) => toMessage(
+    row,
+    profileById,
+    userId,
+    responseByMessageId.get(row.id) || [],
+    ackByMessageId.get(row.id) || [],
+    reminderByMessageId.get(row.id) || null,
+    isMatchCardMetadata(row.metadata)
+      ? teamRoomCardState({ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }, activeCardId)
+      : null,
+  ))
   await service
     .from('internal_conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
@@ -388,7 +592,9 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       canManage: canManageTeamRoom(teamRoles(selected)),
       muted: currentParticipant?.muted ?? false,
       members,
-      messages: ((messageRows ?? []) as MessageRow[]).map((row) => toMessage(row, profileById, userId, responseByMessageId.get(row.id) || [])),
+      activeCardId,
+      actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === activeCardId) || null),
+      messages,
       href: buildTeamRoomHref({
         teamName: selected.team_name,
         leagueName: selected.league_name,
@@ -425,23 +631,44 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     row.sender_user_id !== userId
     && (!lastReadAt || new Date(row.created_at || 0).getTime() > new Date(lastReadAt).getTime())
   )).length
-  const latestCard = messageRows.find((row) => isMatchCardMetadata(row.metadata))
-  const responses = latestCard ? (await loadMatchResponses(service, [latestCard.id])).get(latestCard.id) || [] : []
-  const pendingCount = latestCard && canManageTeamRoom(teamRoles(selected))
-    ? Math.max(0, members.length - responses.length)
-    : 0
+  const activeCardId = selectActiveTeamRoomCard(messageRows.flatMap((row) => {
+    if (!isMatchCardMetadata(row.metadata)) return []
+    return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
+  }))
+  const latestCard = messageRows.find((row) => row.id === activeCardId)
+  let responses: MatchResponseRow[] = []
+  let acknowledgments: LineupAcknowledgmentRow[] = []
+  let reminders: ReminderScheduleRow | null = null
+  if (latestCard) {
+    ;[responses, acknowledgments, reminders] = await Promise.all([
+      loadMatchResponses(service, [latestCard.id]).then((rows) => rows.get(latestCard.id) || []),
+      loadLineupAcknowledgments(service, [latestCard.id]).then((rows) => rows.get(latestCard.id) || []),
+      loadReminderSchedules(service, [latestCard.id]).then((rows) => rows.get(latestCard.id) || null),
+    ])
+  }
+  const profileById = await loadProfileMap(service, members.map((member) => member.id))
+  const message = latestCard
+    ? toMessage(latestCard, profileById, userId, responses, acknowledgments, reminders, 'active')
+    : null
+  const actionQueue = buildTeamRoomActionQueue(members, message)
+  const pendingCount = canManageTeamRoom(teamRoles(selected)) ? actionQueue.waitingCount : 0
 
   return {
     ok: true as const,
     summary: {
       unreadCount,
       pendingCount,
+      maybeCount: actionQueue.maybeCount,
+      unseenLineupCount: actionQueue.unseenLineupCount,
+      unresolvedCount: actionQueue.unresolvedCount,
       responseCount: responses.length,
       latestResponseAt: responses
         .map((row) => row.updated_at || '')
         .filter(Boolean)
         .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || '',
       latestMatchDate: latestCard ? cleanText(latestCard.metadata?.matchDate) : '',
+      reminderAt: actionQueue.reminderAt,
+      reminderStatus: actionQueue.reminderStatus,
     },
   }
 }
@@ -552,6 +779,7 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
     return {
       id: link.profile_user_id,
       name: profile?.message_display_name?.trim() || profile?.linked_player_name?.trim() || 'Team member',
+      playerName: profile?.linked_player_name?.trim() || '',
       roles: teamRoles(link),
       muted: participantById.get(link.profile_user_id)?.muted === true,
     }
@@ -725,11 +953,39 @@ function toMessage(
   profileById: Map<string, ProfileRow>,
   currentUserId: string,
   responses: MatchResponseRow[] = [],
+  acknowledgments: LineupAcknowledgmentRow[] = [],
+  reminder: ReminderScheduleRow | null = null,
+  cardState: 'active' | 'upcoming' | 'archived' | null = null,
 ) {
   const profile = profileById.get(row.sender_user_id)
   const yesCount = responses.filter((item) => item.response === 'yes').length
   const maybeCount = responses.filter((item) => item.response === 'maybe').length
   const noCount = responses.filter((item) => item.response === 'no').length
+  const lineupVersion = isMatchCardMetadata(row.metadata)
+    ? Math.max(0, Number(row.metadata.lineupVersion) || 0)
+    : 0
+  const currentAcknowledgments = acknowledgments.filter((item) => item.lineup_version === lineupVersion)
+  const card: TeamRoomMessageCardPayload | null = isMatchCardMetadata(row.metadata) ? {
+    ...row.metadata,
+    lineup: row.metadata.lineup,
+    matchDate: cleanText(row.metadata.matchDate),
+    state: cardState || 'upcoming',
+    lineupVersion,
+    lineupChanges: Array.isArray(row.metadata.lineupChanges)
+      ? row.metadata.lineupChanges.map((item) => cleanText(item)).filter(Boolean).slice(0, 12)
+      : [],
+    acknowledged: currentAcknowledgments.some((item) => item.profile_id === currentUserId),
+    acknowledgmentSummary: {
+      total: currentAcknowledgments.length,
+      profileIds: currentAcknowledgments.map((item) => item.profile_id),
+    },
+    reminder: reminder ? {
+      reminderAt: reminder.reminder_at,
+      status: reminder.status,
+      sentAt: reminder.sent_at || '',
+      notificationCount: reminder.notification_count || 0,
+    } : null,
+  } : null
   return {
     id: row.id,
     senderUserId: row.sender_user_id,
@@ -740,9 +996,17 @@ function toMessage(
       : row.message_kind === 'system' ? 'system' : 'message',
     createdAt: row.created_at || '',
     isMine: row.sender_user_id === currentUserId,
-    card: isMatchCardMetadata(row.metadata) ? row.metadata : null,
+    card,
     response: responses.find((item) => item.profile_id === currentUserId)?.response || null,
     responseSummary: { yes: yesCount, maybe: maybeCount, no: noCount, total: responses.length },
+    responseDetails: responses.map((item) => ({
+      profileId: item.profile_id,
+      name: profileById.get(item.profile_id)?.message_display_name?.trim()
+        || profileById.get(item.profile_id)?.linked_player_name?.trim()
+        || 'Team member',
+      response: item.response,
+      updatedAt: item.updated_at || '',
+    })),
   }
 }
 
@@ -761,6 +1025,260 @@ async function loadMatchResponses(service: SupabaseClient, messageIds: string[])
   return responseByMessageId
 }
 
+async function applySeasonAvailabilityDefaults(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  matchDate: string
+  scope: TeamLinkRow
+}) {
+  const [preferencesResult, responsesResult] = await Promise.all([
+    service
+      .from('team_room_member_preferences')
+      .select('profile_id,season_availability')
+      .eq('conversation_id', input.conversationId)
+      .in('season_availability', ['available', 'unavailable']),
+    service
+      .from('team_room_message_responses')
+      .select('profile_id')
+      .eq('message_id', input.messageId),
+  ])
+  const existingIds = new Set(((responsesResult.data ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id))
+  const defaults = ((preferencesResult.data ?? []) as Array<{
+    profile_id: string
+    season_availability: 'available' | 'unavailable'
+  }>).filter((row) => !existingIds.has(row.profile_id))
+  if (!defaults.length) return
+
+  const now = new Date().toISOString()
+  await service.from('team_room_message_responses').insert(defaults.map((row) => ({
+    conversation_id: input.conversationId,
+    message_id: input.messageId,
+    profile_id: row.profile_id,
+    response: row.season_availability === 'available' ? 'yes' : 'no',
+    created_at: now,
+    updated_at: now,
+  })))
+
+  const profileById = await loadProfileMap(service, defaults.map((row) => row.profile_id))
+  const lineupAvailabilityRows = defaults.flatMap((row) => {
+    const linkedPlayerId = profileById.get(row.profile_id)?.linked_player_id?.trim()
+    if (!linkedPlayerId) return []
+    return [{
+      match_date: input.matchDate,
+      team_name: input.scope.team_name,
+      league_name: input.scope.league_name,
+      flight: input.scope.flight,
+      player_id: linkedPlayerId,
+      status: row.season_availability === 'available' ? 'available' : 'unavailable',
+      notes: 'Season availability default from Team Room',
+    }]
+  })
+  if (lineupAvailabilityRows.length) {
+    await service
+      .from('lineup_availability')
+      .upsert(lineupAvailabilityRows, { onConflict: 'match_date,team_name,player_id' })
+  }
+}
+
+async function loadLineupAcknowledgments(service: SupabaseClient, messageIds: string[]) {
+  const ackByMessageId = new Map<string, LineupAcknowledgmentRow[]>()
+  if (!messageIds.length) return ackByMessageId
+  const { data } = await service
+    .from('team_room_lineup_acknowledgments')
+    .select('message_id,profile_id,lineup_version,updated_at')
+    .in('message_id', messageIds)
+  for (const row of (data ?? []) as LineupAcknowledgmentRow[]) {
+    const current = ackByMessageId.get(row.message_id) || []
+    current.push(row)
+    ackByMessageId.set(row.message_id, current)
+  }
+  return ackByMessageId
+}
+
+async function loadReminderSchedules(service: SupabaseClient, messageIds: string[]) {
+  const reminderByMessageId = new Map<string, ReminderScheduleRow>()
+  if (!messageIds.length) return reminderByMessageId
+  const { data } = await service
+    .from('team_room_reminder_schedules')
+    .select('message_id,reminder_at,status,sent_at,notification_count')
+    .in('message_id', messageIds)
+  for (const row of (data ?? []) as ReminderScheduleRow[]) reminderByMessageId.set(row.message_id, row)
+  return reminderByMessageId
+}
+
+async function loadActionableMatchCard(service: SupabaseClient, conversationId: string, requestedMessageId: string) {
+  let query = service
+    .from('internal_messages')
+    .select('id,metadata,created_at')
+    .eq('conversation_id', conversationId)
+    .contains('metadata', { teamRoomCard: true })
+  if (requestedMessageId) query = query.eq('id', requestedMessageId)
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(requestedMessageId ? 1 : 300)
+  if (error) return { ok: false as const, status: 500, message: error.message }
+  const rows = (data ?? []) as Array<{ id: string; metadata: Record<string, unknown> | null; created_at: string | null }>
+  const activeId = selectActiveTeamRoomCard(rows.flatMap((row) => (
+    isMatchCardMetadata(row.metadata)
+      ? [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
+      : []
+  )))
+  const row = requestedMessageId ? rows[0] : rows.find((item) => item.id === activeId)
+  if (!row || !isMatchCardMetadata(row.metadata)) {
+    return { ok: false as const, status: 404, message: 'This match update is no longer active.' }
+  }
+  return { ok: true as const, messageId: row.id, metadata: row.metadata }
+}
+
+async function buildReminderTargets(
+  service: SupabaseClient,
+  conversationId: string,
+  messageId: string,
+  metadata: Record<string, unknown>,
+) {
+  const [{ data: participants }, responses, acknowledgments] = await Promise.all([
+    service
+      .from('internal_conversation_participants')
+      .select('profile_id,muted')
+      .eq('conversation_id', conversationId),
+    loadMatchResponses(service, [messageId]).then((rows) => rows.get(messageId) || []),
+    loadLineupAcknowledgments(service, [messageId]).then((rows) => rows.get(messageId) || []),
+  ])
+  const participantRows = ((participants ?? []) as ParticipantRow[]).filter((row) => row.muted !== true)
+  const profileById = await loadProfileMap(service, participantRows.map((row) => row.profile_id))
+  const responseByProfileId = new Map(responses.map((row) => [row.profile_id, row.response] as const))
+  const lineupVersion = Math.max(0, Number(metadata.lineupVersion) || 0)
+  const acknowledgedIds = new Set(
+    acknowledgments.filter((row) => row.lineup_version === lineupVersion).map((row) => row.profile_id),
+  )
+  const lineupNameKeys = new Set(normalizeLineupRows(metadata.lineup).flatMap((row) => row.players.map(normalizePersonKey)))
+
+  return participantRows.flatMap((participant): TeamRoomReminderTarget[] => {
+    const profile = profileById.get(participant.profile_id)
+    const profileNames = [profile?.message_display_name, profile?.linked_player_name]
+      .map(normalizePersonKey)
+      .filter(Boolean)
+    const isLineupPlayer = lineupVersion > 0 && profileNames.some((name) => lineupNameKeys.has(name))
+    const needsResponse = !responseByProfileId.has(participant.profile_id)
+    const needsMaybeFollowup = responseByProfileId.get(participant.profile_id) === 'maybe'
+    const needsAckVersion = isLineupPlayer && !acknowledgedIds.has(participant.profile_id) ? lineupVersion : 0
+    return needsResponse || needsMaybeFollowup || needsAckVersion
+      ? [{ profileId: participant.profile_id, needsResponse, needsMaybeFollowup, needsAckVersion }]
+      : []
+  })
+}
+
+async function sendTeamRoomReminders(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  actorUserId: string
+  teamName: string
+  scope: TeamLinkRow
+  matchDate: string
+  targets: TeamRoomReminderTarget[]
+}) {
+  const recipientIds = Array.from(new Set(input.targets.map((target) => target.profileId)))
+  if (!recipientIds.length) return []
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
+  const { data } = await service.from('internal_notifications').insert(recipientIds.map((profileId) => ({
+    recipient_profile_id: profileId,
+    actor_user_id: input.actorUserId,
+    notification_type: 'schedule',
+    title: `${input.teamName} needs your reply`,
+    body: input.matchDate ? `Open the ${input.matchDate} match card to confirm availability or the latest lineup.` : 'Open the match card to reply.',
+    href,
+    conversation_id: input.conversationId,
+  }))).select('id')
+
+  await service.from('internal_messages').insert({
+    conversation_id: input.conversationId,
+    sender_user_id: input.actorUserId,
+    body: `Reminder sent to ${recipientIds.length} teammate${recipientIds.length === 1 ? '' : 's'} who still need to reply.`,
+    message_kind: 'system',
+    metadata: { teamRoomReminder: true, matchMessageId: input.messageId },
+  })
+  await service
+    .from('internal_conversations')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', input.conversationId)
+  return ((data ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean)
+}
+
+function buildTeamRoomActionQueue(
+  members: Array<{ id: string; name: string; playerName?: string }>,
+  message: ReturnType<typeof toMessage> | null,
+) {
+  const responseById = new Map((message?.responseDetails || []).map((row) => [row.profileId, row.response] as const))
+  const waitingMembers = members.filter((member) => !responseById.has(member.id))
+  const maybeMembers = members.filter((member) => responseById.get(member.id) === 'maybe')
+  const lineup = normalizeLineupRows(message?.card?.lineup)
+  const lineupKeys = new Set(lineup.flatMap((row) => row.players.map(normalizePersonKey)))
+  const acknowledgedIds = new Set(message?.card?.acknowledgmentSummary.profileIds || [])
+  const unseenLineupMembers = Number(message?.card?.lineupVersion || 0) > 0
+    ? members.filter((member) => (
+        [member.name, member.playerName].map(normalizePersonKey).some((name) => lineupKeys.has(name))
+        && !acknowledgedIds.has(member.id)
+      ))
+    : []
+  const unresolvedIds = new Set([
+    ...waitingMembers.map((member) => member.id),
+    ...maybeMembers.map((member) => member.id),
+    ...unseenLineupMembers.map((member) => member.id),
+  ])
+
+  return {
+    messageId: message?.id || '',
+    matchDate: cleanText(message?.card?.matchDate),
+    waitingCount: waitingMembers.length,
+    waitingNames: waitingMembers.map((member) => member.name),
+    maybeCount: maybeMembers.length,
+    maybeNames: maybeMembers.map((member) => member.name),
+    unseenLineupCount: unseenLineupMembers.length,
+    unseenLineupNames: unseenLineupMembers.map((member) => member.name),
+    lineupChangeCount: Array.isArray(message?.card?.lineupChanges) ? message.card.lineupChanges.length : 0,
+    unresolvedCount: unresolvedIds.size,
+    unresolvedProfileIds: Array.from(unresolvedIds),
+    reminderAt: cleanText(message?.card?.reminder?.reminderAt),
+    reminderStatus: cleanText(message?.card?.reminder?.status),
+    lastReminderAt: cleanText(message?.card?.reminder?.sentAt),
+  }
+}
+
+async function notifyTeamRoomManagersOfLineupAck(service: SupabaseClient, input: {
+  conversationId: string
+  actorUserId: string
+  teamName: string
+  scope: TeamLinkRow
+  actorName: string
+}) {
+  const { data: participants } = await service
+    .from('internal_conversation_participants')
+    .select('profile_id,participant_role,muted')
+    .eq('conversation_id', input.conversationId)
+  const recipients = ((participants ?? []) as ParticipantRow[])
+    .filter((row) => row.profile_id !== input.actorUserId && row.participant_role === 'coordinator' && row.muted !== true)
+  if (!recipients.length) return
+  await service.from('internal_notifications').insert(recipients.map((row) => ({
+    recipient_profile_id: row.profile_id,
+    actor_user_id: input.actorUserId,
+    notification_type: 'message',
+    title: `${input.actorName} saw the lineup`,
+    body: `${input.actorName} acknowledged the latest ${input.teamName} lineup.`,
+    href: buildTeamRoomHref({
+      teamName: input.scope.team_name,
+      leagueName: input.scope.league_name,
+      flight: input.scope.flight,
+    }),
+    conversation_id: input.conversationId,
+  })))
+}
+
+function normalizePersonKey(value: unknown) {
+  return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 function isMatchCardMetadata(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const cardType = cleanText((value as Record<string, unknown>).cardType)
@@ -772,19 +1290,7 @@ function cleanMatchCard(value: unknown) {
   const card = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
-  const rawLineup = Array.isArray(card.lineup) ? card.lineup : []
-  const lineup = rawLineup.slice(0, 12).map((entry) => {
-    const row = entry && typeof entry === 'object' && !Array.isArray(entry)
-      ? entry as Record<string, unknown>
-      : {}
-    return {
-      label: cleanText(row.label).slice(0, 80),
-      players: (Array.isArray(row.players) ? row.players : [])
-        .map((player) => cleanText(player).slice(0, 120))
-        .filter(Boolean)
-        .slice(0, 4),
-    }
-  }).filter((row) => row.label || row.players.length)
+  const lineup = normalizeLineupRows(card.lineup)
 
   return {
     cardType: cleanText(card.cardType) === 'projected_lineup' ? 'projected_lineup' : 'availability',

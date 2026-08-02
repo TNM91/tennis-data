@@ -36,6 +36,8 @@ function JoinContent() {
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState('')
+  const [seasonAvailability, setSeasonAvailability] = useState<'available' | 'ask_me' | 'unavailable'>('ask_me')
+  const [browserAlertsEnabled, setBrowserAlertsEnabled] = useState(false)
 
   useEffect(() => {
     if (!authResolved) return
@@ -67,13 +69,21 @@ function JoinContent() {
     setJoining(true)
     setError('')
     try {
+      let browserAlertsGranted = false
+      if (browserAlertsEnabled && 'Notification' in window) {
+        browserAlertsGranted = (await window.Notification.requestPermission()) === 'granted'
+      }
       const response = await fetch('/api/team-rooms/join', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({
+          token,
+          seasonAvailability,
+          browserAlertsEnabled: browserAlertsGranted,
+        }),
       })
       const payload = await response.json() as { ok?: boolean; message?: string; roomHref?: string }
       if (!response.ok || !payload.ok || !payload.roomHref) throw new Error(payload.message || 'Team could not be joined.')
@@ -125,13 +135,42 @@ function JoinContent() {
           {[invite.leagueName, invite.flight].filter(Boolean).join(' · ') || 'Team Room'}
         </p>
         <p className={styles.helper}>Connect this team to your profile to receive announcements, share match-week updates, and keep the conversation in one place.</p>
+        {!invite.alreadyJoined ? (
+          <div className={styles.joinSetup} aria-label="Team setup preferences">
+            <div>
+              <strong>Season availability</strong>
+              <span>Your captain can still ask about each match.</span>
+            </div>
+            <div className={styles.choiceRow} role="group" aria-label="Season availability">
+              {([
+                ['available', 'Usually available'],
+                ['ask_me', 'Ask each match'],
+                ['unavailable', 'Usually unavailable'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`${styles.choiceButton} ${seasonAvailability === value ? styles.choiceSelected : ''}`}
+                  aria-pressed={seasonAvailability === value}
+                  onClick={() => setSeasonAvailability(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className={styles.preferenceToggle}>
+              <input type="checkbox" checked={browserAlertsEnabled} onChange={(event) => setBrowserAlertsEnabled(event.target.checked)} />
+              <span><strong>Browser alerts</strong><small>Show match reminders on this device when supported.</small></span>
+            </label>
+          </div>
+        ) : null}
         {error ? <div className={styles.error} role="alert">{error}</div> : null}
         <div className={styles.roomActions}>
           {invite.alreadyJoined ? (
             <Link className={styles.buttonPrimary} href={invite.roomHref}>Open Team Room</Link>
           ) : (
             <button className={styles.buttonPrimary} type="button" disabled={joining} onClick={() => void joinTeam()}>
-              {joining ? 'Joining…' : 'Join team'}
+              {joining ? 'Joining…' : 'Join team and open chat'}
             </button>
           )}
           <Link className={styles.buttonSecondary} href="/team-connections">Review my teams</Link>
