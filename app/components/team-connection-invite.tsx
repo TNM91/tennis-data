@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
   getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
@@ -87,8 +88,17 @@ export default function TeamConnectionInvite() {
     ? '/upgrade?plan=captain&next=%2Fcaptain&source=team_connection'
     : '/upgrade?plan=player_plus&next=%2Fmylab&source=team_connection'
   const hasRecommendedAccess = isCaptainConnection ? access.canUseCaptainWorkflow : access.canUseAdvancedPlayerInsights
-  const openHref = isCaptainConnection ? '/captain' : '/mylab'
-  const openLabel = isCaptainConnection ? 'Open Captain' : 'Open My Lab'
+  const captainHref = buildCaptainScopedHref('/captain', {
+    competitionLayer: activeConnection.sourceType === 'tiq_entry' ? 'tiq' : 'usta',
+    team: activeConnection.teamName,
+    league: activeConnection.leagueName,
+    flight: activeConnection.flight,
+  })
+  const openHref = isCaptainConnection ? `${captainHref}#captain-team-scope` : '/mylab'
+  const alreadyAtDestination = isCaptainConnection ? pathname.startsWith('/captain') : pathname.startsWith('/mylab')
+  const openLabel = alreadyAtDestination
+    ? 'Continue with team'
+    : isCaptainConnection ? 'Open Captain' : 'Open My Lab'
   const tierLabel = isCaptainConnection
     ? offers.captain.available && offers.captain.label
       ? offers.captain.label
@@ -124,7 +134,11 @@ export default function TeamConnectionInvite() {
         <div style={actionsStyle} className="team-connection-invite-actions">
           {accepted ? (
             <>
-              <Link href={hasRecommendedAccess ? openHref : tierHref} style={primaryLinkStyle}>
+              <Link
+                href={hasRecommendedAccess ? openHref : tierHref}
+                onClick={() => setAccepted(null)}
+                style={primaryLinkStyle}
+              >
                 {hasRecommendedAccess ? openLabel : tierLabel}
               </Link>
               <Link href="/team-connections" style={secondaryLinkStyle}>Manage link</Link>

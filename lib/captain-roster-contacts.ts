@@ -23,6 +23,61 @@ export type CaptainRosterContactRow = {
   source_batch_id: string | null
 }
 
+type CaptainContactScopeRow = {
+  team_name?: string | null
+  league_name?: string | null
+  flight?: string | null
+  full_name?: string | null
+  phone?: string | null
+}
+
+export function normalizeCaptainRosterContactKey(value: string | null | undefined) {
+  return (value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+export function selectCaptainContactRowsForScope<T extends CaptainContactScopeRow>(input: {
+  rows: T[]
+  team: string
+  league?: string
+  flight?: string
+}) {
+  const teamKey = normalizeCaptainRosterContactKey(input.team)
+  const teamRows = input.rows.filter((row) => (
+    !teamKey || normalizeCaptainRosterContactKey(row.team_name) === teamKey
+  ))
+  if (!teamRows.length) return []
+
+  const leagueKey = normalizeCaptainRosterContactKey(input.league)
+  const flightKey = normalizeCaptainRosterContactKey(input.flight)
+  const exactScopeRows = teamRows.filter((row) => {
+    const leagueMatches = !leagueKey || normalizeCaptainRosterContactKey(row.league_name) === leagueKey
+    const flightMatches = !flightKey || normalizeCaptainRosterContactKey(row.flight) === flightKey
+    return leagueMatches && flightMatches
+  })
+
+  return exactScopeRows.length ? exactScopeRows : teamRows
+}
+
+export function getCaptainRosterPhoneCoverage(input: {
+  rosterNames: string[]
+  contacts: CaptainContactScopeRow[]
+}) {
+  const phoneNameKeys = new Set(
+    input.contacts
+      .filter((contact) => Boolean((contact.phone || '').replace(/\D/g, '')))
+      .map((contact) => normalizeCaptainRosterContactKey(contact.full_name))
+      .filter(Boolean),
+  )
+  const missingNames = input.rosterNames.filter(
+    (name) => !phoneNameKeys.has(normalizeCaptainRosterContactKey(name)),
+  )
+  return {
+    readyCount: Math.max(0, input.rosterNames.length - missingNames.length),
+    missingCount: missingNames.length,
+    missingNames,
+  }
+}
+
 export function buildCaptainRosterContactRows(input: {
   parsedDraft: DataAssistTeamSummaryParsedDraft
   captainUserId: string
@@ -41,7 +96,7 @@ export function buildCaptainRosterContactRows(input: {
   const byName = new Map<string, DataAssistTeamSummaryParsedContact>()
 
   for (const contact of sourceContacts) {
-    const normalizedName = normalizeContactKey(contact.name)
+    const normalizedName = normalizeCaptainRosterContactKey(contact.name)
     if (!normalizedName || (!contact.phone && !contact.email)) continue
     const existing = byName.get(normalizedName)
     byName.set(normalizedName, {
@@ -53,7 +108,7 @@ export function buildCaptainRosterContactRows(input: {
     })
   }
 
-  const normalizedTeamName = normalizeContactKey(parsedDraft.rosterTeamName)
+  const normalizedTeamName = normalizeCaptainRosterContactKey(parsedDraft.rosterTeamName)
   return Array.from(byName.values()).map((contact) => ({
     captain_user_id: input.captainUserId,
     team_name: parsedDraft.rosterTeamName.trim(),
@@ -61,7 +116,7 @@ export function buildCaptainRosterContactRows(input: {
     league_name: parsedDraft.leagueName.trim(),
     flight: parsedDraft.flight.trim(),
     full_name: contact.name.trim(),
-    normalized_name: normalizeContactKey(contact.name),
+    normalized_name: normalizeCaptainRosterContactKey(contact.name),
     phone: contact.phone.trim(),
     email: contact.email.trim().toLowerCase(),
     role: contact.role,
@@ -87,8 +142,4 @@ export async function upsertCaptainRosterContacts(input: {
     })
   if (error) throw new Error(`Roster contacts could not be saved: ${error.message}`)
   return rows.length
-}
-
-function normalizeContactKey(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }

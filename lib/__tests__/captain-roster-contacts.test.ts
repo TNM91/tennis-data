@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildCaptainRosterContactRows, upsertCaptainRosterContacts } from '../captain-roster-contacts'
+import {
+  buildCaptainRosterContactRows,
+  getCaptainRosterPhoneCoverage,
+  normalizeCaptainRosterContactKey,
+  selectCaptainContactRowsForScope,
+  upsertCaptainRosterContacts,
+} from '../captain-roster-contacts'
 import type { DataAssistTeamSummaryParsedDraft } from '../data-assist-team-summary-parser'
 
 const parsedDraft: DataAssistTeamSummaryParsedDraft = {
@@ -23,6 +29,33 @@ const parsedDraft: DataAssistTeamSummaryParsedDraft = {
 }
 
 describe('captain roster contacts', () => {
+  it('uses the same punctuation-insensitive team key for imports and Captain lookup', () => {
+    expect(normalizeCaptainRosterContactKey('SuperSmash Bros/Pottebaum-Meinart'))
+      .toBe('supersmash bros pottebaum meinart')
+  })
+
+  it('falls back to team contacts when TennisLink scope labels differ', () => {
+    const contacts = [
+      { team_name: 'SuperSmash Bros/Pottebaum-Meinart', league_name: '2026 Adult Tri-Level', flight: '3.5/4.0/4.5', full_name: 'Alex Captain', phone: '3145550100' },
+    ]
+    expect(selectCaptainContactRowsForScope({
+      rows: contacts,
+      team: 'SuperSmash Bros / Pottebaum-Meinart',
+      league: 'Tri Level 2026',
+      flight: 'Men 3.5 / 4.0 / 4.5',
+    })).toEqual(contacts)
+  })
+
+  it('matches imported phones to roster names without punctuation or case sensitivity', () => {
+    expect(getCaptainRosterPhoneCoverage({
+      rosterNames: ["Alex O'Brien", 'Jamie Smith'],
+      contacts: [
+        { full_name: 'ALEX O BRIEN', phone: '(314) 555-0100' },
+        { full_name: 'Jamie Smith', phone: '314-555-0101' },
+      ],
+    })).toMatchObject({ readyCount: 2, missingCount: 0 })
+  })
+
   it('scopes imported contact rows to the captain and team', () => {
     expect(buildCaptainRosterContactRows({ parsedDraft, captainUserId: 'captain-1', batchId: 'batch-1' })).toEqual([
       expect.objectContaining({

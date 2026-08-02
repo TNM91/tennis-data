@@ -10,6 +10,7 @@ export type CaptainTeamImprovement = {
 
 export function buildCaptainTeamImprovements(input: {
   rosterCount: number
+  phoneReadyCount: number
   missingPhoneCount: number
   missingRatingCount: number
   scheduleCount: number
@@ -26,12 +27,15 @@ export function buildCaptainTeamImprovements(input: {
       cta: 'Upload Player Roster',
     })
   } else if (input.missingPhoneCount > 0) {
+    const hasImportedPhones = input.phoneReadyCount > 0
     improvements.push({
       id: 'contacts',
-      title: 'Add team phone numbers',
+      title: hasImportedPhones ? 'Finish team phone numbers' : 'Add team phone numbers',
       state: `${input.missingPhoneCount} missing`,
-      detail: `Upload the Player Roster to add phone numbers for ${input.missingPhoneCount} roster player${input.missingPhoneCount === 1 ? '' : 's'}.`,
-      cta: 'Add phone numbers',
+      detail: hasImportedPhones
+        ? `${input.phoneReadyCount} phone number${input.phoneReadyCount === 1 ? ' is' : 's are'} ready from your Player Roster. Review the ${input.missingPhoneCount} still missing.`
+        : `Upload the Player Roster to add phone numbers for ${input.missingPhoneCount} roster player${input.missingPhoneCount === 1 ? '' : 's'}.`,
+      cta: hasImportedPhones ? 'Review contacts' : 'Upload Player Roster',
     })
   }
 

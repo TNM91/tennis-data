@@ -48,6 +48,7 @@ import {
 } from '@/lib/captain-lineup-handoff'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
+  selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
 } from '@/lib/captain-roster-contacts'
 
@@ -911,13 +912,16 @@ function CaptainMessagingContent() {
   const teamOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.team_name), ...matches.flatMap((m) => [m.home_team, m.away_team]), ...scenarios.map((s) => s.team_name)]), [contacts, matches, scenarios])
 
   const scopedContacts = useMemo(() => {
-    return contacts.filter((contact) => {
-      const leagueMatch = !leagueFilter || contact.league_name === leagueFilter
-      const flightMatch = !flightFilter || contact.flight === flightFilter
+    const teamContacts = selectCaptainContactRowsForScope({
+      rows: contacts,
+      team: teamFilter,
+      league: leagueFilter,
+      flight: flightFilter,
+    })
+    return teamContacts.filter((contact) => {
       const seasonMatch = !seasonFilter || normalizeText(contact.season_label) === seasonFilter
       const sessionMatch = !sessionFilter || normalizeText(contact.session_label) === sessionFilter
-      const teamMatch = !teamFilter || contact.team_name === teamFilter
-      return leagueMatch && flightMatch && seasonMatch && sessionMatch && teamMatch
+      return seasonMatch && sessionMatch
     })
   }, [contacts, leagueFilter, flightFilter, seasonFilter, sessionFilter, teamFilter])
 
@@ -4180,7 +4184,7 @@ function importScenarioToLineup() {
                   </div>
                 </section>
 
-                <section style={surfaceCard}>
+                <section id="captain-contact-manager" style={surfaceCard}>
                   <div style={tableHeaderStyle}>
                     <div>
                       <p style={sectionKicker}>Contact roster manager</p>

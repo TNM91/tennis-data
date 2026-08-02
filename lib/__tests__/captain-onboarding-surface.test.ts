@@ -124,6 +124,10 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('readCaptainImportHandoff(searchParams)')
     expect(source).toContain('CaptainImportConnectedCard')
     expect(source).toContain('Build projected lineup')
+    expect(source).toContain('Player Roster contacts')
+    expect(source).toContain('phone numbers ready')
+    expect(source).toContain('normalizeCaptainRosterContactKey(selectedTeam)')
+    expect(source).toContain('#captain-contact-manager')
     expect(source).toContain('for (const scope of captainTeamScopes)')
   })
 
