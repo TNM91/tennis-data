@@ -12,6 +12,8 @@ export type CaptainImportHandoff = {
   contacts: number
   matches: number
   captainRoles: number
+  nextMatchDate: string
+  opponent: string
 }
 
 export function isCaptainImportDraft(
@@ -31,6 +33,7 @@ export function buildCaptainImportHandoff(input: {
     const importResult = input.result?.importResult?.kind === 'schedule'
       ? input.result.importResult.result
       : null
+    const nextMatch = getNextScheduleMatch(input.parsedDraft)
     return {
       importType: 'schedule',
       batchId: input.batchId,
@@ -43,6 +46,8 @@ export function buildCaptainImportHandoff(input: {
         ? importResult.successCount + importResult.updatedCount
         : input.parsedDraft.matchCount,
       captainRoles: 0,
+      nextMatchDate: nextMatch ? normalizeDate(nextMatch.matchDate) : '',
+      opponent: nextMatch ? getScheduleOpponent(nextMatch, input.parsedDraft.teamName) : '',
     }
   }
 
@@ -59,6 +64,8 @@ export function buildCaptainImportHandoff(input: {
     contacts: input.result?.importedContactCount ?? input.parsedDraft.contactCount,
     matches: 0,
     captainRoles: input.parsedDraft.contacts.filter((contact) => contact.isCaptain).length,
+    nextMatchDate: '',
+    opponent: '',
   }
 }
 
@@ -70,7 +77,7 @@ export function buildCaptainImportReturnHref(returnTo: string, handoff: CaptainI
   const hash = hashIndex >= 0 ? safeReturnTo.slice(hashIndex) : ''
   const pathAndQuery = hashIndex >= 0 ? safeReturnTo.slice(0, hashIndex) : safeReturnTo
   const queryIndex = pathAndQuery.indexOf('?')
-  const path = queryIndex >= 0 ? pathAndQuery.slice(0, queryIndex) : pathAndQuery
+  let path = queryIndex >= 0 ? pathAndQuery.slice(0, queryIndex) : pathAndQuery
   const params = new URLSearchParams(queryIndex >= 0 ? pathAndQuery.slice(queryIndex + 1) : '')
 
   params.set('captainImport', handoff.importType)
@@ -82,6 +89,12 @@ export function buildCaptainImportReturnHref(returnTo: string, handoff: CaptainI
   setCount(params, 'importContacts', handoff.contacts)
   setCount(params, 'importMatches', handoff.matches)
   setCount(params, 'importRoles', handoff.captainRoles)
+  setIfPresent(params, 'date', handoff.nextMatchDate)
+  setIfPresent(params, 'opponent', handoff.opponent)
+
+  if (path === '/captain' && handoff.importType === 'schedule' && handoff.nextMatchDate) {
+    path = '/captain/availability'
+  }
 
   const query = params.toString()
   return `${path}${query ? `?${query}` : ''}${hash}`
@@ -105,7 +118,44 @@ export function readCaptainImportHandoff(searchParams: Pick<URLSearchParams, 'ge
     contacts: readCount(searchParams.get('importContacts')),
     matches: readCount(searchParams.get('importMatches')),
     captainRoles: readCount(searchParams.get('importRoles')),
+    nextMatchDate: cleanText(searchParams.get('date')),
+    opponent: cleanText(searchParams.get('opponent')),
   }
+}
+
+function getNextScheduleMatch(draft: DataAssistScheduleParsedDraft) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return [...draft.matches]
+    .map((match) => ({ match, time: parseScheduleDate(match.matchDate) }))
+    .filter((entry) => entry.time !== null && entry.time >= today.getTime())
+    .sort((a, b) => (a.time ?? 0) - (b.time ?? 0))[0]?.match ?? null
+}
+
+function parseScheduleDate(value: string) {
+  const normalized = normalizeDate(value)
+  if (!normalized) return null
+  const parsed = new Date(`${normalized}T00:00:00`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+}
+
+function normalizeDate(value: string) {
+  const text = cleanText(value)
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text)
+  if (slash) return `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text)
+  return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : ''
+}
+
+function getScheduleOpponent(match: DataAssistScheduleParsedDraft['matches'][number], teamName: string) {
+  const team = normalizeScheduleTeam(teamName)
+  if (normalizeScheduleTeam(match.homeTeam) === team) return cleanText(match.awayTeam)
+  if (normalizeScheduleTeam(match.awayTeam) === team) return cleanText(match.homeTeam)
+  return cleanText(match.awayTeam || match.homeTeam)
+}
+
+function normalizeScheduleTeam(value: string) {
+  return cleanText(value).replace(/\s*\([A-Za-z]\)\s*$/, '').toLowerCase()
 }
 
 function getSafeCaptainReturnTo(value: string) {

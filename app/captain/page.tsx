@@ -2444,11 +2444,17 @@ function CaptainHubContent() {
       }).toString()}`
     : '/explore/teams'
 
+  const captainResume = readCaptainResumeState(userId)
+  const matchWeekDate = nextMatch?.date || captainResume?.eventDate
+  const matchWeekOpponent = nextMatch?.opponent || captainResume?.opponentTeam
+
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
     competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', {
@@ -2456,6 +2462,8 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const availabilityHref = buildCaptainScopedHref('/captain/availability', {
@@ -2463,6 +2471,8 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const practiceHref = buildCaptainScopedHref('/captain/practice', {
@@ -2470,6 +2480,8 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const scenarioHref = buildCaptainScopedHref('/captain/scenario-builder', {
@@ -2477,6 +2489,8 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const messagingHref = buildCaptainScopedHref('/captain/messaging', {
@@ -2484,6 +2498,8 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
 
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
@@ -2493,7 +2509,6 @@ function CaptainHubContent() {
     flight: selectedFlight,
   })
 
-  const captainResume = readCaptainResumeState(userId)
   const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', {
     competitionLayer: selectedCompetitionLayer || captainResume?.competitionLayer,
     team: selectedTeam,
@@ -16877,6 +16892,17 @@ function CaptainHubContent() {
               <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
                 <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)', border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
               </div>
+            </div>
+          </section>
+        ) : selectedTeam ? (
+          <section style={{ ...sectionCard, borderColor: 'color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' as const }}>
+              <div>
+                <div style={{ ...sectionKicker, color: '#93c5fd' }}>Match week</div>
+                <h2 style={{ ...sectionTitle, margin: '4px 0 0' }}>No upcoming match found.</h2>
+                <div style={{ ...sectionSub, marginTop: 6 }}>Add or update the schedule to start availability and lineup planning.</div>
+              </div>
+              <Link href={captainScheduleHref} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)', border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Add schedule</Link>
             </div>
           </section>
         ) : null}

@@ -58,7 +58,18 @@ describe('Captain import handoff', () => {
       flight: '4.0 / 4.5 / 5.0',
       ustaSection: '',
       districtArea: '',
-      matches: [],
+      matches: [
+        {
+          externalMatchId: 'future-1',
+          matchDate: '1/15/2099',
+          matchTime: '6:00 PM',
+          homeTeam: 'Tri-Level Team',
+          awayTeam: 'Net Results',
+          facility: 'TIQ Courts',
+          confidenceScore: 1,
+          reviewNotes: [],
+        },
+      ],
       matchCount: 8,
       parserWarnings: [],
       rawTextPreview: '',
@@ -69,6 +80,12 @@ describe('Captain import handoff', () => {
     const handoff = buildCaptainImportHandoff({ batchId: 'schedule-1', parsedDraft: schedule })
 
     expect(handoff.matches).toBe(8)
+    expect(handoff.nextMatchDate).toBe('2099-01-15')
+    expect(handoff.opponent).toBe('Net Results')
+    const returnHref = new URL(buildCaptainImportReturnHref('/captain', handoff), 'https://tenaceiq.example')
+    expect(returnHref.pathname).toBe('/captain/availability')
+    expect(returnHref.searchParams.get('date')).toBe('2099-01-15')
+    expect(returnHref.searchParams.get('opponent')).toBe('Net Results')
     expect(buildCaptainImportReturnHref('https://bad.example', handoff)).toBe('/captain')
     expect(isCaptainImportDraft(schedule)).toBe(true)
     expect(isCaptainImportDraft({ draftKind: 'scorecard' })).toBe(false)

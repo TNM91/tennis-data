@@ -16,6 +16,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
+import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -334,20 +335,17 @@ function CaptainAvailabilityContent() {
 
       const roster = [...rosterMap.values()].sort((a, b) => a.name.localeCompare(b.name))
 
-      const seeded = roster.map((player, index) => {
-        if (index < 5) return { ...player, status: 'in' as AvailabilityStatus }
-        if (index < 7) return { ...player, status: 'out' as AvailabilityStatus }
-        if (index < 9) return { ...player, status: 'maybe' as AvailabilityStatus }
-        return player
-      })
-
-      setPlayers(seeded)
+      setPlayers(roster)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load availability')
     } finally {
       setLoadingRoster(false)
     }
   }, [preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedMatchId, selectedTeam])
+
+  const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
+  const selectedOpponent = selectedMatch ? getOpponent(selectedMatch, selectedTeam) : preferredOpponent
+  const selectedEventDate = selectedMatch?.match_date || preferredMatchDate
 
   useEffect(() => {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
@@ -357,12 +355,12 @@ function CaptainAvailabilityContent() {
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
-      eventDate: preferredMatchDate || undefined,
-      opponentTeam: preferredOpponent || undefined,
+      eventDate: selectedEventDate || undefined,
+      opponentTeam: selectedOpponent || undefined,
       lastTool: 'availability',
       lastToolLabel: 'Availability',
     })
-  }, [competitionLayerParam, preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedTeam])
+  }, [competitionLayerParam, selectedEventDate, selectedFlight, selectedLeague, selectedOpponent, selectedTeam])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -399,18 +397,24 @@ function CaptainAvailabilityContent() {
     team: hasScope ? selectedTeam : undefined,
     league: hasScope ? selectedLeague : undefined,
     flight: hasScope ? selectedFlight : undefined,
+    date: selectedEventDate || undefined,
+    opponent: selectedOpponent || undefined,
   })
   const messagingHref = buildCaptainScopedHref('/captain/messaging', {
     competitionLayer: hasScope ? competitionLayerParam : undefined,
     team: hasScope ? selectedTeam : undefined,
     league: hasScope ? selectedLeague : undefined,
     flight: hasScope ? selectedFlight : undefined,
+    date: selectedEventDate || undefined,
+    opponent: selectedOpponent || undefined,
   })
   const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', {
     competitionLayer: hasScope ? competitionLayerParam : undefined,
     team: hasScope ? selectedTeam : undefined,
     league: hasScope ? selectedLeague : undefined,
     flight: hasScope ? selectedFlight : undefined,
+    date: selectedEventDate || undefined,
+    opponent: selectedOpponent || undefined,
   })
 
   const counts = useMemo(() => {
@@ -439,7 +443,6 @@ function CaptainAvailabilityContent() {
       : counts.in === 0 && counts.out === 0 && counts.maybe === 0
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
-  const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
   const availabilityActionCards = useMemo<AvailabilityActionCard[]>(() => {
     const responseValue =
       responseTotal > 0
@@ -525,6 +528,17 @@ function CaptainAvailabilityContent() {
   return (
     <div style={pageWrap}>
         {!isMobile ? <CaptainSuitePanel active="availability" teamLabel={selectedTeam || 'Team week'} /> : null}
+        <CaptainMatchWeekRail
+          current="availability"
+          scope={{
+            competitionLayer: competitionLayerParam,
+            team: selectedTeam,
+            league: selectedLeague,
+            flight: selectedFlight,
+            date: selectedEventDate || undefined,
+            opponent: selectedOpponent || undefined,
+          }}
+        />
         <section style={availabilityControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
