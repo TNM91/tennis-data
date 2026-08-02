@@ -63,6 +63,8 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
+  getCaptainRosterPhoneCoverage,
+  normalizeCaptainRosterContactKey,
   type CaptainRosterContactRow,
 } from '@/lib/captain-roster-contacts'
 import {
@@ -1883,14 +1885,11 @@ function CaptainHubContent() {
       if (selectedLeague) scenarioQuery = scenarioQuery.eq('league_name', selectedLeague)
       if (selectedFlight) scenarioQuery = scenarioQuery.eq('flight', selectedFlight)
 
-      let rosterContactsQuery = supabase
+      const rosterContactsQuery = supabase
         .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
         .select('*')
-        .eq('normalized_team_name', normalizeTeamName(selectedTeam))
+        .eq('normalized_team_name', normalizeCaptainRosterContactKey(selectedTeam))
         .order('full_name', { ascending: true })
-
-      if (selectedLeague) rosterContactsQuery = rosterContactsQuery.eq('league_name', selectedLeague)
-      if (selectedFlight) rosterContactsQuery = rosterContactsQuery.eq('flight', selectedFlight)
 
       const [
         participantResult,
@@ -3809,18 +3808,19 @@ function CaptainHubContent() {
       .filter((contact) => contact.name && contact.phone)
     const byName = new Map<string, CaptainSmsContactTarget>()
 
-    importedContacts.forEach((contact) => byName.set(safeKey(contact.name), contact))
-    localContacts.forEach((contact) => byName.set(safeKey(contact.name), contact))
+    importedContacts.forEach((contact) => byName.set(normalizeCaptainRosterContactKey(contact.name), contact))
+    localContacts.forEach((contact) => byName.set(normalizeCaptainRosterContactKey(contact.name), contact))
     return Array.from(byName.values())
   }, [captainMessageContactRows, captainRosterContacts])
-  const captainTeamPhoneNameKeys = useMemo(
-    () => new Set(captainSmsContactTargets.map((contact) => safeKey(contact.name)).filter(Boolean)),
-    [captainSmsContactTargets],
-  )
-  const captainMissingPhoneCount = useMemo(
-    () => roster.filter((player) => !captainTeamPhoneNameKeys.has(safeKey(player.name))).length,
-    [captainTeamPhoneNameKeys, roster],
-  )
+  const captainPhoneCoverage = useMemo(() => getCaptainRosterPhoneCoverage({
+    rosterNames: roster.map((player) => player.name),
+    contacts: captainSmsContactTargets.map((contact) => ({
+      full_name: contact.name,
+      phone: contact.phone,
+    })),
+  }), [captainSmsContactTargets, roster])
+  const captainMissingPhoneCount = captainPhoneCoverage.missingCount
+  const captainPhoneReadyCount = captainPhoneCoverage.readyCount
   const captainMissingRatingCount = useMemo(
     () => roster.filter((player) => (
       player.overallBase === null
@@ -3836,6 +3836,7 @@ function CaptainHubContent() {
   )
   const captainTeamImprovements = useMemo(() => buildCaptainTeamImprovements({
     rosterCount: roster.length,
+    phoneReadyCount: captainPhoneReadyCount,
     missingPhoneCount: captainMissingPhoneCount,
     missingRatingCount: captainMissingRatingCount,
     scheduleCount: matches.length,
@@ -3843,12 +3844,18 @@ function CaptainHubContent() {
   }), [
     captainMissingPhoneCount,
     captainMissingRatingCount,
+    captainPhoneReadyCount,
     captainRosterAppearanceCount,
     matches.length,
     roster.length,
   ])
   const captainPrimaryTeamImprovement = captainTeamImprovements[0] || null
   const captainAdditionalTeamImprovements = captainTeamImprovements.slice(1)
+  const getCaptainTeamImprovementHref = (improvement: CaptainTeamImprovementId) => (
+    improvement === 'contacts' && captainPhoneReadyCount > 0
+      ? `${messagingHref}#captain-contact-manager`
+      : captainTeamImprovementHrefs[improvement]
+  )
   const captainSmsContactByNameKey = useMemo(() => {
     const contacts = new Map<string, CaptainSmsContactTarget>()
 
@@ -16020,6 +16027,21 @@ function CaptainHubContent() {
               </div>
             ) : null}
 
+            {!loadingTeam && roster.length > 0 && captainPhoneReadyCount > 0 ? (
+              <div style={captainRosterContactCoverageStyle} aria-label="Player Roster contact coverage">
+                <div style={captainRosterContactCoverageCopyStyle}>
+                  <span style={sectionKicker}>Player Roster contacts</span>
+                  <strong>{captainPhoneReadyCount} of {roster.length} phone numbers ready</strong>
+                  <span>
+                    {captainMissingPhoneCount > 0
+                      ? `${captainMissingPhoneCount} still need a number before you can text the full team.`
+                      : 'Ready for availability and lineup messages.'}
+                  </span>
+                </div>
+                <Link href={`${messagingHref}#captain-contact-manager`} style={secondaryButtonSmall}>Review contacts</Link>
+              </div>
+            ) : null}
+
             {!loadingTeam && captainPrimaryTeamImprovement ? (
               <section style={captainTeamImprovementShellStyle} aria-label="Improve this team" aria-live="polite">
                 <div style={dynamicCaptainTeamImprovementPrimaryStyle}>
@@ -16032,7 +16054,7 @@ function CaptainHubContent() {
                     <p style={captainTeamImprovementDetailStyle}>{captainPrimaryTeamImprovement.detail}</p>
                   </div>
                   <Link
-                    href={captainTeamImprovementHrefs[captainPrimaryTeamImprovement.id]}
+                    href={getCaptainTeamImprovementHref(captainPrimaryTeamImprovement.id)}
                     style={{ ...captainDataAssistLinkStyle, width: isMobile ? '100%' : 'auto' }}
                   >
                     {captainPrimaryTeamImprovement.cta}
@@ -16054,7 +16076,7 @@ function CaptainHubContent() {
                             </div>
                             <span style={captainTeamImprovementDetailStyle}>{improvement.detail}</span>
                           </div>
-                          <Link href={captainTeamImprovementHrefs[improvement.id]} style={captainDataAssistLinkStyle}>
+                          <Link href={getCaptainTeamImprovementHref(improvement.id)} style={captainDataAssistLinkStyle}>
                             {improvement.cta}
                           </Link>
                         </article>
@@ -27822,6 +27844,30 @@ const captainScopeHelpRowStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
+}
+
+const captainRosterContactCoverageStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  maxWidth: 940,
+  padding: '11px 12px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const captainRosterContactCoverageCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const captainTeamImprovementShellStyle: CSSProperties = {

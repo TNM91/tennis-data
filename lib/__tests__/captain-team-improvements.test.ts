@@ -5,6 +5,7 @@ describe('Captain team improvements', () => {
   it('prioritizes a missing roster and schedule without showing contact or rating gaps', () => {
     expect(buildCaptainTeamImprovements({
       rosterCount: 0,
+      phoneReadyCount: 0,
       missingPhoneCount: 0,
       missingRatingCount: 0,
       scheduleCount: 0,
@@ -15,6 +16,7 @@ describe('Captain team improvements', () => {
   it('quantifies contact and rating gaps for an existing roster', () => {
     const improvements = buildCaptainTeamImprovements({
       rosterCount: 10,
+      phoneReadyCount: 2,
       missingPhoneCount: 8,
       missingRatingCount: 3,
       scheduleCount: 9,
@@ -23,15 +25,16 @@ describe('Captain team improvements', () => {
 
     expect(improvements.map((item) => item.id)).toEqual(['contacts', 'ratings'])
     expect(improvements[0]).toMatchObject({
-      title: 'Add team phone numbers',
+      title: 'Finish team phone numbers',
       state: '8 missing',
-      cta: 'Add phone numbers',
+      cta: 'Review contacts',
     })
   })
 
   it('suggests one scorecard when roster and schedule exist without match history', () => {
     expect(buildCaptainTeamImprovements({
       rosterCount: 10,
+      phoneReadyCount: 10,
       missingPhoneCount: 0,
       missingRatingCount: 0,
       scheduleCount: 8,
@@ -44,6 +47,7 @@ describe('Captain team improvements', () => {
   it('disappears when the selected team has no meaningful data gaps', () => {
     expect(buildCaptainTeamImprovements({
       rosterCount: 10,
+      phoneReadyCount: 10,
       missingPhoneCount: 0,
       missingRatingCount: 0,
       scheduleCount: 8,
