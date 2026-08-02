@@ -1,6 +1,6 @@
 export type TeamConnectionRole = 'player' | 'captain' | 'co_captain'
 export type TeamConnectionStatus = 'pending' | 'accepted' | 'declined' | 'unlinked'
-export type TeamConnectionSourceType = 'roster_contact' | 'roster_membership' | 'tiq_entry' | 'manual_invite'
+export type TeamConnectionSourceType = 'roster_contact' | 'roster_membership' | 'tiq_entry' | 'manual_invite' | 'data_assist_import'
 
 export type TeamConnection = {
   id: string
@@ -110,7 +110,7 @@ export function normalizeTeamConnectionStatus(value: string | null | undefined):
 }
 
 export function normalizeTeamConnectionSourceType(value: string | null | undefined): TeamConnectionSourceType {
-  if (value === 'roster_membership' || value === 'tiq_entry' || value === 'manual_invite') return value
+  if (value === 'roster_membership' || value === 'tiq_entry' || value === 'manual_invite' || value === 'data_assist_import') return value
   return 'roster_contact'
 }
 
@@ -118,6 +118,7 @@ export function getTeamConnectionSourceLabel(source: TeamConnectionSourceType) {
   if (source === 'roster_contact') return 'Player Roster contact'
   if (source === 'roster_membership') return 'Player Roster'
   if (source === 'tiq_entry') return 'TIQ league'
+  if (source === 'data_assist_import') return 'Captain import'
   return 'Direct invite'
 }
 

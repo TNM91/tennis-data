@@ -69,10 +69,11 @@ import {
   buildCaptainTeamImprovements,
   type CaptainTeamImprovementId,
 } from '@/lib/captain-team-improvements'
+import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
-const captainScheduleHref = `${dataAssistCaptainHref}&type=schedule&help=1#upload`
+const captainScheduleHref = `${dataAssistCaptainHref}&type=schedule&help=1&returnTo=%2Fcaptain#upload`
 const captainScorecardHref = `${dataAssistCaptainHref}&type=scorecard&help=1#upload`
 const captainTeamImprovementHrefs: Record<CaptainTeamImprovementId, string> = {
   roster: captainPlayerRosterHref,
@@ -925,8 +926,8 @@ const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your Player ID so Team Hub can find your profile team.',
-  'Upload a reviewed Player Roster or schedule through Data Assist when roster or match history is missing.',
-  'Refresh Captain after the upload review connects teams, schedules, and scorecards.',
+  'Upload a Player Roster. Captain will connect the team and bring you back here.',
+  'Add the schedule when you are ready to plan availability and projected lineups.',
 ] as const
 
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
@@ -1452,13 +1453,7 @@ function CaptainLockedSurface({
   )
 }
 
-function CaptainFirstUseSetup({
-  onRefresh,
-  profile,
-}: {
-  onRefresh: () => void
-  profile: CaptainProfileLinkRow | null
-}) {
+function CaptainFirstUseSetup({ profile }: { profile: CaptainProfileLinkRow | null }) {
   const playerIdReady = Boolean(profile?.linked_player_id || profile?.linked_player_name)
 
   return (
@@ -1472,10 +1467,78 @@ function CaptainFirstUseSetup({
         matchDataHref={captainScheduleHref}
         context="captain"
       />
-      <button type="button" onClick={onRefresh} style={{ ...secondaryButtonSmallButton, justifySelf: 'start' }}>
-        Check again
-      </button>
     </div>
+  )
+}
+
+function CaptainImportConnectedCard({
+  handoff,
+  scheduleHref,
+  availabilityHref,
+  lineupHref,
+  messagingHref,
+}: {
+  handoff: CaptainImportHandoff
+  scheduleHref: string
+  availabilityHref: string
+  lineupHref: string
+  messagingHref: string
+}) {
+  const facts = [
+    handoff.players ? { label: 'Players', value: handoff.players } : null,
+    handoff.contacts ? { label: 'Contacts', value: handoff.contacts } : null,
+    handoff.matches ? { label: 'Matches', value: handoff.matches } : null,
+    handoff.captainRoles ? { label: 'Team roles', value: handoff.captainRoles } : null,
+  ].filter((fact): fact is { label: string; value: number } => Boolean(fact))
+  const rosterImport = handoff.importType === 'team_summary'
+
+  return (
+    <section
+      aria-label="Captain import connected"
+      role="status"
+      style={{
+        ...sectionCard,
+        marginBottom: 12,
+        borderColor: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+        background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+      }}
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={sectionKicker}>{rosterImport ? 'Roster connected' : 'Schedule connected'}</div>
+            <h2 style={{ ...sectionTitle, margin: '4px 0 0', overflowWrap: 'anywhere' }}>{handoff.team}</h2>
+            <p style={{ ...sectionSub, margin: '6px 0 0' }}>
+              {rosterImport
+                ? 'Your players and available contacts are ready.'
+                : 'Your match dates are ready for availability and projected lineups.'}
+            </p>
+          </div>
+          <span style={badgeGreen}>Connected</span>
+        </div>
+
+        {facts.length ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8 }}>
+            {facts.map((fact) => (
+              <div key={fact.label} style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }}>
+                <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>{fact.label}</div>
+                <strong style={{ display: 'block', marginTop: 3, fontSize: 18 }}>{fact.value}</strong>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {rosterImport && !handoff.matches ? (
+            <Link href={scheduleHref} style={primaryButton}>Add schedule</Link>
+          ) : (
+            <Link href={availabilityHref} style={primaryButton}>Confirm availability</Link>
+          )}
+          <Link href={lineupHref} style={secondaryButtonSmall}>Build projected lineup</Link>
+          <Link href={messagingHref} style={secondaryButtonSmall}>Message team</Link>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -1485,6 +1548,7 @@ function CaptainHubContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
+  const captainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -1695,6 +1759,23 @@ function CaptainHubContent() {
           }
 
           map.get(key)!.matches += 1
+        }
+      }
+
+      for (const scope of captainTeamScopes) {
+        const team = safeText(scope.team, '')
+        const league = safeText(scope.league, '')
+        const flight = safeText(scope.flight, '')
+        if (!team || !league || !flight) continue
+        const key = `${team}__${league}__${flight}`
+        if (!map.has(key)) {
+          map.set(key, {
+            team,
+            league,
+            flight,
+            matches: 0,
+            lastMatchDate: null,
+          })
         }
       }
 
@@ -15798,15 +15879,21 @@ function CaptainHubContent() {
 
   if (premiumEnabled && authResolved && teamScopeResolved && !loadingOptions && !filteredTeamOptions.length) {
     return (
-      <CaptainFirstUseSetup
-        profile={captainProfileLink}
-        onRefresh={() => setRefreshTick((current) => current + 1)}
-      />
+      <CaptainFirstUseSetup profile={captainProfileLink} />
     )
   }
 
   return (
     <div style={pageWrap}>
+        {captainImportHandoff ? (
+          <CaptainImportConnectedCard
+            handoff={captainImportHandoff}
+            scheduleHref={captainScheduleHref}
+            availabilityHref={availabilityHref}
+            lineupHref={lineupBuilderHref}
+            messagingHref={messagingHref}
+          />
+        ) : null}
         <section style={dynamicHeroCard} aria-label="Captain team scope">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroLeft}>

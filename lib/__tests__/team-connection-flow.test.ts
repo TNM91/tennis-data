@@ -19,6 +19,28 @@ describe('team connection flow', () => {
     expect(route).toContain('is_default')
   })
 
+  it('connects an authenticated Captain import and defaults the first team', () => {
+    const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
+    const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
+
+    expect(route).toContain("action === 'accept_import'")
+    expect(route).toContain(".eq('submitted_by_user_id', input.userId)")
+    expect(route).toContain("batchRow.status !== 'imported' || draftRow.status !== 'imported'")
+    expect(route).toContain("payload.draftKind !== 'schedule' && payload.draftKind !== 'team_summary'")
+    expect(route).toContain("mergeTeamConnectionRoles(")
+    expect(route).toContain("playsOnTeam ? ['player'] : []")
+    expect(route).toContain("source_type: 'data_assist_import'")
+    expect(route).toContain('reconcileDefaultTeam(input.service, input.userId, savedId)')
+    expect(client).toContain('acceptCaptainImportConnection')
+    expect(client).toContain("action: 'accept_import'")
+
+    const sourceMigration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260801000900_add_data_assist_team_link_source.sql'),
+      'utf8',
+    )
+    expect(sourceMigration).toContain("'data_assist_import'")
+  })
+
   it('shows the invitation globally and keeps unlink available', () => {
     const shell = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
     const banner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
