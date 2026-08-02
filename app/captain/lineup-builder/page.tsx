@@ -24,6 +24,7 @@ import {
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
@@ -1752,7 +1753,9 @@ function LineupBuilderContent() {
     }
 
     let availabilityRequestUrl = ''
+    let availabilityRequestId = ''
     let playerRequestUrls: CaptainLineupHandoff['playerRequestUrls'] = []
+    let teamRoomCardPosted = false
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData.session?.access_token
     if (accessToken) {
@@ -1777,12 +1780,45 @@ function LineupBuilderContent() {
           }),
         })
         const result = await response.json() as {
+          requestId?: string
           requestUrl?: string
           playerRequestUrls?: CaptainLineupHandoff['playerRequestUrls']
         }
         if (response.ok) {
+          availabilityRequestId = result.requestId || ''
           availabilityRequestUrl = result.requestUrl || ''
           playerRequestUrls = result.playerRequestUrls ?? []
+        }
+
+        if (response.ok) {
+          const teamRoomResponse = await fetch('/api/team-rooms', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              action: 'post_match_card',
+              teamName,
+              leagueName,
+              flight,
+              card: {
+                cardType: 'projected_lineup',
+                title: 'Projected lineup — can you play?',
+                matchDate,
+                opponent: opponentTeam,
+                matchTime: selectedMatch?.match_time || '',
+                facility: selectedMatch?.facility || '',
+                availabilityRequestId,
+                availabilityRequestUrl,
+                lineup: teamSlots.map((slot) => ({
+                  label: slot.label,
+                  players: slot.players.map((player) => player.playerName).filter(Boolean),
+                })),
+              },
+            }),
+          })
+          teamRoomCardPosted = teamRoomResponse.ok
         }
       } catch {
         // Messaging still works if the shareable response link cannot be created.
@@ -1810,7 +1846,20 @@ function LineupBuilderContent() {
       window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
     }
 
-    const baseHref = buildCaptainScopedHref('/captain/messaging', {
+    setPreparingConfirmation(false)
+    if (teamRoomCardPosted) {
+      router.push(buildTeamRoomHref({
+        teamName,
+        leagueName,
+        flight,
+        date: matchDate,
+        opponent: opponentTeam,
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+      }))
+      return
+    }
+    const messagingHref = buildCaptainScopedHref('/captain/messaging', {
       competitionLayer,
       team: teamName,
       league: leagueName,
@@ -1818,8 +1867,7 @@ function LineupBuilderContent() {
       date: matchDate,
       opponent: opponentTeam,
     })
-    setPreparingConfirmation(false)
-    router.push(`${baseHref}${baseHref.includes('?') ? '&' : '?'}source=lineup_builder`)
+    router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
   }
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
@@ -2529,7 +2577,7 @@ function LineupBuilderContent() {
             </PrimaryBtn>
             <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
             <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-              {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+              {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
             </PrimaryBtn>
             <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
@@ -2677,7 +2725,7 @@ function LineupBuilderContent() {
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
             <GhostBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-              {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+              {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
             </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
@@ -2694,11 +2742,11 @@ function LineupBuilderContent() {
               <div style={appliedLineupNoticeFooterStyle}>
                 <div style={appliedLineupNextCopyStyle}>
                   <strong>Next: confirm availability</strong>
-                  <span>Prepare a message for each player in this potential lineup.</span>
+                  <span>Post this lineup to Team Chat. Text links stay ready for players who are not connected.</span>
                 </div>
                 <div style={appliedLineupActionStyle}>
                   <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                    {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+                    {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
                   </PrimaryBtn>
                   <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
                 </div>
@@ -3485,7 +3533,7 @@ function LineupBuilderContent() {
                   {trackingSnapshot ? 'Tracking...' : 'Track snapshot'}
                 </GhostBtn>
                 <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                  {preparingConfirmation ? 'Preparing texts...' : 'Confirm availability'}
+                  {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
                 </PrimaryBtn>
                 <GhostLink href={compareHref}>Compare versions</GhostLink>
               </div>

@@ -135,7 +135,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('role="status" aria-live="polite"')
     expect(source).toContain('id="captain-lineup-applied-next"')
     expect(source).toContain('<strong>Next: confirm availability</strong>')
-    expect(source).toContain('Prepare a message for each player in this potential lineup.')
+    expect(source).toContain('Post this lineup to Team Chat. Text links stay ready for players who are not connected.')
     expect(source).toContain('{resolvedMatchFormat.label} · {matchFormatSummary.courts} courts')
     expect(source).toContain("resolvedMatchFormat.id === 'tri_level' || resolvedMatchFormat.id === 'mixed_tri_level'")
     expect(source).toContain('isPlayerEligibleForSlot(player, slot)')

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import styles from './team-room.module.css'
 
 type TeamOption = {
@@ -31,6 +32,21 @@ type TeamRoomMessage = {
   kind: 'message' | 'announcement' | 'system'
   createdAt: string
   isMine: boolean
+  card: TeamRoomMatchCard | null
+  response: 'yes' | 'maybe' | 'no' | null
+  responseSummary: { yes: number; maybe: number; no: number; total: number }
+}
+
+type TeamRoomMatchCard = {
+  cardType: 'availability' | 'projected_lineup'
+  title: string
+  matchDate: string
+  opponent: string
+  matchTime: string
+  facility: string
+  lineup: Array<{ label: string; players: string[] }>
+  availabilityRequestId: string
+  availabilityRequestUrl: string
 }
 
 type TeamRoom = {
@@ -95,21 +111,42 @@ function TeamRoomContent() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [respondingId, setRespondingId] = useState('')
   const [messageBody, setMessageBody] = useState('')
   const [announcement, setAnnouncement] = useState(false)
+  const [showMatchComposer, setShowMatchComposer] = useState(false)
+  const [matchDraft, setMatchDraft] = useState(() => ({
+    matchDate: searchParams.get('date')?.trim() || '',
+    opponent: searchParams.get('opponent')?.trim() || '',
+    matchTime: searchParams.get('time')?.trim() || '',
+    facility: searchParams.get('facility')?.trim() || '',
+  }))
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
-    for (const key of ['team', 'league', 'flight']) {
+    for (const key of ['team', 'league', 'flight', 'date', 'opponent', 'time', 'facility']) {
       const value = searchParams.get(key)?.trim()
       if (value) params.set(key, value)
     }
     const query = params.toString()
     return query ? `?${query}` : ''
   }, [searchParams])
+
+  const pinnedMessage = useMemo(
+    () => room?.messages.slice().reverse().find((message) => message.card) || null,
+    [room?.messages],
+  )
+  const captainHref = useMemo(() => buildCaptainScopedHref('/captain', {
+    team: room?.teamName,
+    league: room?.leagueName,
+    flight: room?.flight,
+    date: pinnedMessage?.card?.matchDate || matchDraft.matchDate,
+    opponent: pinnedMessage?.card?.opponent || matchDraft.opponent,
+  }), [matchDraft.matchDate, matchDraft.opponent, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.opponent, room?.flight, room?.leagueName, room?.teamName])
 
   const loadRoom = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!accessToken) return
@@ -153,10 +190,6 @@ function TeamRoomContent() {
     return () => window.clearInterval(refresh)
   }, [accessToken, loadRoom, room])
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
-  }, [room?.messages.length])
-
   async function postAction(input: Record<string, unknown>) {
     if (!accessToken || !room) throw new Error('Open a linked team first.')
     const response = await fetch('/api/team-rooms', {
@@ -186,10 +219,68 @@ function TeamRoomContent() {
       setMessageBody('')
       setAnnouncement(false)
       await loadRoom({ quiet: true })
+      window.requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }))
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'Message could not be sent.')
     } finally {
       setSending(false)
+    }
+  }
+
+  async function postAvailabilityCard() {
+    if (!room || !matchDraft.matchDate) {
+      setError('Choose the match date first.')
+      return
+    }
+    setSending(true)
+    setError('')
+    try {
+      await postAction({
+        action: 'post_match_card',
+        card: {
+          cardType: 'availability',
+          title: 'Can you play?',
+          ...matchDraft,
+        },
+      })
+      setShowMatchComposer(false)
+      setNotice('Availability check posted. Team replies will update here.')
+      await loadRoom({ quiet: true })
+    } catch (postError) {
+      setError(postError instanceof Error ? postError.message : 'Availability check could not be posted.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function respondToMatch(messageId: string, response: 'yes' | 'maybe' | 'no') {
+    if (!room || respondingId) return
+    setRespondingId(messageId)
+    setError('')
+    try {
+      await postAction({ action: 'respond', messageId, response })
+      setRoom({
+        ...room,
+        messages: room.messages.map((message) => {
+          if (message.id !== messageId) return message
+          const previous = message.response
+          return {
+            ...message,
+            response,
+            responseSummary: {
+              yes: message.responseSummary.yes + (response === 'yes' ? 1 : 0) - (previous === 'yes' ? 1 : 0),
+              maybe: message.responseSummary.maybe + (response === 'maybe' ? 1 : 0) - (previous === 'maybe' ? 1 : 0),
+              no: message.responseSummary.no + (response === 'no' ? 1 : 0) - (previous === 'no' ? 1 : 0),
+              total: message.responseSummary.total + (previous ? 0 : 1),
+            },
+          }
+        }),
+      })
+      setNotice(response === 'yes' ? 'You are marked available.' : response === 'no' ? 'You are marked unavailable.' : 'You are marked maybe.')
+    } catch (responseError) {
+      setError(responseError instanceof Error ? responseError.message : 'Your reply could not be saved.')
+    } finally {
+      setRespondingId('')
     }
   }
 
@@ -278,6 +369,12 @@ function TeamRoomContent() {
               <p className={styles.scopeLine}>{[room.leagueName, room.flight].filter(Boolean).join(' · ') || 'Linked team conversation'}</p>
             </div>
             <div className={styles.roomActions}>
+              {room.canManage ? <Link className={styles.buttonSecondary} href={captainHref}>Captain</Link> : null}
+              {room.canManage ? (
+                <button className={styles.buttonPrimary} type="button" onClick={() => setShowMatchComposer((current) => !current)}>
+                  Ask availability
+                </button>
+              ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
               {room.canManage ? (
                 <button className={styles.buttonPrimary} type="button" disabled={sharing} onClick={() => void inviteTeam()}>
@@ -313,6 +410,49 @@ function TeamRoomContent() {
           {error ? <div className={styles.error} role="alert">{error}</div> : null}
         </header>
 
+        {showMatchComposer ? (
+          <div className={styles.pinnedArea}>
+            <div className={styles.matchComposer}>
+              <div className={styles.matchComposerHeader}>
+                <strong>Next match</strong>
+                <span>Post one question. Replies stay with this match.</span>
+              </div>
+              <div className={styles.matchFields}>
+                <label>Date<input type="date" value={matchDraft.matchDate} onChange={(event) => setMatchDraft((current) => ({ ...current, matchDate: event.target.value }))} /></label>
+                <label>Opponent<input value={matchDraft.opponent} onChange={(event) => setMatchDraft((current) => ({ ...current, opponent: event.target.value }))} placeholder="Opponent" /></label>
+                <label>Time<input value={matchDraft.matchTime} onChange={(event) => setMatchDraft((current) => ({ ...current, matchTime: event.target.value }))} placeholder="Match time" /></label>
+                <label>Location<input value={matchDraft.facility} onChange={(event) => setMatchDraft((current) => ({ ...current, facility: event.target.value }))} placeholder="Courts or facility" /></label>
+              </div>
+              <div className={styles.composerActions}>
+                <button className={styles.buttonQuiet} type="button" onClick={() => setShowMatchComposer(false)}>Cancel</button>
+                <button className={styles.buttonPrimary} type="button" disabled={sending || !matchDraft.matchDate} onClick={() => void postAvailabilityCard()}>
+                  {sending ? 'Posting…' : 'Ask team'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {pinnedMessage?.card ? (
+          <div className={styles.pinnedArea}>
+            <MatchCard
+              message={pinnedMessage}
+              memberCount={room.members.length}
+              canManage={room.canManage}
+              teamName={room.teamName}
+              leagueName={room.leagueName}
+              flight={room.flight}
+              captainHref={captainHref}
+              responding={respondingId === pinnedMessage.id}
+              onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
+              onAskCaptain={() => {
+                setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
+                window.requestAnimationFrame(() => composerRef.current?.focus())
+              }}
+            />
+          </div>
+        ) : null}
+
         <div className={styles.messages} aria-live="polite">
           {!room.messages.length ? (
             <div className={styles.emptyMessages}>
@@ -320,6 +460,7 @@ function TeamRoomContent() {
             </div>
           ) : null}
           {room.messages.map((message) => {
+            if (message.id === pinnedMessage?.id) return null
             const isSystem = message.kind === 'system'
             if (isSystem) return <div key={message.id} className={styles.systemBubble}>{message.body}</div>
             const rowClass = [
@@ -343,6 +484,11 @@ function TeamRoomContent() {
 
         <div className={styles.composer}>
           <div className={styles.quickActions} aria-label="Quick team messages">
+            {room.canManage ? (
+              <button className={styles.quickButtonPrimary} type="button" onClick={() => setShowMatchComposer((current) => !current)}>
+                Ask availability
+              </button>
+            ) : null}
             {QUICK_MESSAGES.map((quick) => (
               <button key={quick.label} className={styles.quickButton} type="button" onClick={() => setMessageBody(quick.body)}>
                 {quick.label}
@@ -350,6 +496,7 @@ function TeamRoomContent() {
             ))}
           </div>
           <textarea
+            ref={composerRef}
             aria-label="Team Room message"
             placeholder="Message the team…"
             value={messageBody}
@@ -377,6 +524,102 @@ function TeamRoomContent() {
 
       <TeamRoomInstallCard room={room} />
     </main>
+  )
+}
+
+function MatchCard({
+  message,
+  memberCount,
+  canManage,
+  teamName,
+  leagueName,
+  flight,
+  captainHref,
+  responding,
+  onRespond,
+  onAskCaptain,
+}: {
+  message: TeamRoomMessage
+  memberCount: number
+  canManage: boolean
+  teamName: string
+  leagueName: string
+  flight: string
+  captainHref: string
+  responding: boolean
+  onRespond: (response: 'yes' | 'maybe' | 'no') => void
+  onAskCaptain: () => void
+}) {
+  const card = message.card
+  if (!card) return null
+  const waiting = Math.max(0, memberCount - message.responseSummary.total)
+  const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    team: teamName,
+    league: leagueName,
+    flight,
+    date: card.matchDate,
+    opponent: card.opponent,
+  })
+
+  return (
+    <article className={styles.matchCard} aria-label={`${card.title} for ${formatMatchDate(card.matchDate)}`}>
+      <div className={styles.matchCardTop}>
+        <div>
+          <p className={styles.matchCardEyebrow}>{card.cardType === 'projected_lineup' ? 'Projected lineup' : 'Next match'}</p>
+          <h2>{card.title}</h2>
+        </div>
+        <span className={styles.pinnedBadge}>Pinned</span>
+      </div>
+      <div className={styles.matchIdentity}>
+        <strong>{formatMatchDate(card.matchDate)}</strong>
+        {card.opponent ? <span>vs {card.opponent}</span> : null}
+        {card.matchTime ? <span>{card.matchTime}</span> : null}
+        {card.facility ? <span>{card.facility}</span> : null}
+      </div>
+
+      {card.lineup.length ? (
+        <div className={styles.lineupPreview} aria-label="Projected courts">
+          {card.lineup.map((row, index) => (
+            <div key={`${row.label}-${index}`} className={styles.lineupRow}>
+              <strong>{row.label || `Court ${index + 1}`}</strong>
+              <span>{row.players.join(' / ') || 'Open'}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={styles.replySummary}>
+        <span><strong>{message.responseSummary.yes}</strong> yes</span>
+        <span><strong>{message.responseSummary.maybe}</strong> maybe</span>
+        <span><strong>{message.responseSummary.no}</strong> no</span>
+        <span><strong>{waiting}</strong> waiting</span>
+      </div>
+      <div className={styles.responseActions} aria-label="Your availability">
+        {([
+          ['yes', 'Confirm'],
+          ['maybe', 'Maybe'],
+          ['no', "Can't play"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            className={`${styles.responseButton} ${message.response === value ? styles.responseSelected : ''}`}
+            type="button"
+            disabled={responding}
+            aria-pressed={message.response === value}
+            onClick={() => onRespond(value)}
+          >
+            {label}
+          </button>
+        ))}
+        {!canManage ? <button className={styles.responseButton} type="button" onClick={onAskCaptain}>Ask captain</button> : null}
+      </div>
+      {canManage ? (
+        <div className={styles.captainCardActions}>
+          <Link className={styles.buttonPrimary} href={messagingHref}>Text players not connected</Link>
+          <Link className={styles.buttonSecondary} href={captainHref}>Back to Captain</Link>
+        </div>
+      ) : null}
+    </article>
   )
 }
 
@@ -466,4 +709,11 @@ function formatMessageTime(value: string) {
   return sameDay
     ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function formatMatchDate(value: string) {
+  if (!value) return 'Next match'
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 }

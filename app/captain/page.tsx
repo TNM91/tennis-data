@@ -203,6 +203,14 @@ type CaptainWorkspaceState = {
   lastUpdatedLabel: string
 }
 
+type CaptainTeamRoomSummary = {
+  unreadCount: number
+  pendingCount: number
+  responseCount: number
+  latestResponseAt: string
+  latestMatchDate: string
+}
+
 type CaptainResumeStage =
   | 'lineup'
   | 'projection'
@@ -1582,6 +1590,13 @@ function CaptainHubContent() {
     home: boolean
   } | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  const [teamRoomSummary, setTeamRoomSummary] = useState<CaptainTeamRoomSummary>({
+    unreadCount: 0,
+    pendingCount: 0,
+    responseCount: 0,
+    latestResponseAt: '',
+    latestMatchDate: '',
+  })
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
@@ -2040,6 +2055,35 @@ function CaptainHubContent() {
     })()
     return () => { active = false }
   }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
+
+  useEffect(() => {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !selectedTeam) {
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '' })
+      return
+    }
+    let active = true
+    const roomHref = buildTeamRoomHref({
+      teamName: selectedTeam,
+      leagueName: selectedLeague,
+      flight: selectedFlight,
+    }).replace('/team-room', '/api/team-rooms')
+    const summaryHref = `${roomHref}${roomHref.includes('?') ? '&' : '?'}summary=1`
+    void (async () => {
+      try {
+        const response = await fetch(summaryHref, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+        })
+        const payload = await response.json() as { ok?: boolean; summary?: CaptainTeamRoomSummary }
+        if (!active || !response.ok || !payload.ok || !payload.summary) return
+        setTeamRoomSummary(payload.summary)
+      } catch {
+        // Team Room remains optional while a team link is being completed.
+      }
+    })()
+    return () => { active = false }
+  }, [refreshTick, selectedFlight, selectedLeague, selectedTeam, session?.access_token])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
@@ -2506,6 +2550,10 @@ function CaptainHubContent() {
     teamName: selectedTeam,
     leagueName: selectedLeague,
     flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
   })
 
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
@@ -14765,11 +14813,17 @@ function CaptainHubContent() {
     {
       id: 'chat',
       label: 'Team chat',
-      detail: 'Message everyone',
+      detail: teamRoomSummary.unreadCount > 0
+        ? `${teamRoomSummary.unreadCount} unread${teamRoomSummary.pendingCount > 0 ? ` · ${teamRoomSummary.pendingCount} waiting` : ''}`
+        : teamRoomSummary.pendingCount > 0
+          ? `${teamRoomSummary.pendingCount} waiting`
+          : teamRoomSummary.responseCount > 0
+            ? `${teamRoomSummary.responseCount} replied`
+            : 'Message everyone',
       href: teamRoomHref,
       stage: 'messaging' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: false,
+      primary: teamRoomSummary.unreadCount > 0 || teamRoomSummary.pendingCount > 0,
     },
     {
       id: 'scorecard',
