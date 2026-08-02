@@ -17,6 +17,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
+import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -2499,6 +2500,17 @@ function LineupBuilderContent() {
   return (
     <div style={pageWrap}>
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
+         <CaptainMatchWeekRail
+           current="lineup"
+           scope={{
+             competitionLayer,
+             team: teamName,
+             league: leagueName,
+             flight,
+             date: matchDate,
+             opponent: opponentTeam,
+           }}
+         />
          <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={builderControlHeaderStyle}>

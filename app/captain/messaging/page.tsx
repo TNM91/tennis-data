@@ -10,8 +10,9 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
+import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import { useAuth } from '@/app/components/auth-provider'
-import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import {
   buildCaptainWeekStatusKey,
@@ -998,6 +999,15 @@ function CaptainMessagingContent() {
   )
   const weekStatusKey = useMemo(() => buildCaptainWeekStatusKey(weekStatusScope), [weekStatusScope])
   const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
+  const matchWeekScope = useMemo(() => ({
+    competitionLayer,
+    team: teamFilter || inferredTeamName,
+    league: leagueFilter || selectedMatch?.league_name || '',
+    flight: flightFilter || selectedMatch?.flight || '',
+    date: selectedMatch?.match_date || preferredEventDate,
+    opponent: inferredOpponent,
+  }), [competitionLayer, flightFilter, inferredOpponent, inferredTeamName, leagueFilter, preferredEventDate, selectedMatch, teamFilter])
+  const scopedLineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', matchWeekScope)
 
   useEffect(() => {
     const saved = readCaptainWeekStatus(weekStatusScope)
@@ -2442,6 +2452,7 @@ function importScenarioToLineup() {
   return (
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
+         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
          {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
           <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
@@ -2456,7 +2467,7 @@ function importScenarioToLineup() {
               </div>
               <div style={messageControlButtonRowStyle}>
                 <PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>
-                <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
+                <PrimaryLink href={scopedLineupBuilderHref}>Edit lineup</PrimaryLink>
                 <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
                 <GhostLink href="/captain">Back to Captain</GhostLink>
               </div>
