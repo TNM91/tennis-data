@@ -38,6 +38,12 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import {
+  buildCaptainImportHandoff,
+  buildCaptainImportReturnHref,
+  isCaptainImportDraft,
+} from '@/lib/captain-import-handoff'
+import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
@@ -230,7 +236,7 @@ export default function DataAssistPage() {
 }
 
 function DataAssistWorkspace() {
-  const { userId, authResolved } = useAuth()
+  const { userId, authResolved, session } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
@@ -287,6 +293,24 @@ function DataAssistWorkspace() {
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
   const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
   const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
+
+  async function finishCaptainImport(input: {
+    batchId: string
+    parsedDraft: DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
+    result?: DataAssistImportActionResult
+  }) {
+    if (!returnTo || !isCaptainImportDraft(input.parsedDraft)) return false
+    const handoff = buildCaptainImportHandoff(input)
+    if (session?.access_token) {
+      await acceptCaptainImportConnection({
+        accessToken: session.access_token,
+        batchId: input.batchId,
+      })
+    }
+    router.replace(buildCaptainImportReturnHref(returnTo, handoff))
+    return true
+  }
+
   function resetUploadFlow() {
     scanRunRef.current += 1
     setSummary(null)
@@ -669,9 +693,13 @@ function DataAssistWorkspace() {
               ? ocrResult.autoImport.message || 'Team roster imported.'
               : 'Player Roster read complete. Review the players before import.'
           : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
-        if (returnTo && isTeamSummaryParsedDraft(ocrResult.parsedDraft) && ocrResult.autoImport?.ok) {
-          router.replace(returnTo)
-          return
+        if (ocrResult.autoImport?.ok && isCaptainImportDraft(ocrResult.parsedDraft)) {
+          const didReturn = await finishCaptainImport({
+            batchId: result.batchId,
+            parsedDraft: ocrResult.parsedDraft,
+            result: ocrResult.autoImport,
+          })
+          if (didReturn) return
         }
         window.setTimeout(() => {
           document.getElementById('latest-data-assist-read')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -707,12 +735,14 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      if (decision === 'confirmed' && result.autoImport?.ok && isTeamSummaryParsedDraft(latestScan.parsedDraft)) {
+      if (decision === 'confirmed' && result.autoImport?.ok && isCaptainImportDraft(latestScan.parsedDraft)) {
         setLatestScan({ ...latestScan, autoImport: result.autoImport })
-        if (returnTo) {
-          router.replace(returnTo)
-          return
-        }
+        const didReturn = await finishCaptainImport({
+          batchId: latestScan.batchId,
+          parsedDraft: latestScan.parsedDraft,
+          result: result.autoImport,
+        })
+        if (didReturn) return
       } else {
         setLatestScan(null)
       }
@@ -742,9 +772,13 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. Contribution credit updated.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      if (decision === 'confirmed' && submission.requestedImportType === 'team_summary' && result.autoImport?.ok && returnTo) {
-        router.replace(returnTo)
-        return
+      if (decision === 'confirmed' && result.autoImport?.ok && isCaptainImportDraft(submission.parsedPayload)) {
+        const didReturn = await finishCaptainImport({
+          batchId: submission.id,
+          parsedDraft: submission.parsedPayload,
+          result: result.autoImport,
+        })
+        if (didReturn) return
       }
       await refreshSubmissions()
     } catch (err) {
@@ -771,9 +805,13 @@ function DataAssistWorkspace() {
         [submission.id]: result,
       }))
       setMessage(result.message)
-      if (action === 'commit' && submission.requestedImportType === 'team_summary' && result.ok && returnTo) {
-        router.replace(returnTo)
-        return
+      if (action === 'commit' && result.ok && isCaptainImportDraft(submission.parsedPayload)) {
+        const didReturn = await finishCaptainImport({
+          batchId: submission.id,
+          parsedDraft: submission.parsedPayload,
+          result,
+        })
+        if (didReturn) return
       }
       if (action === 'commit') await refreshSubmissions()
     } catch (err) {

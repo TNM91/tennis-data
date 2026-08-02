@@ -48,3 +48,21 @@ export async function updateTeamConnection(input: {
   notifyTeamConnectionsChanged()
   return json.connection || null
 }
+
+export async function acceptCaptainImportConnection(input: {
+  accessToken: string
+  batchId: string
+}) {
+  const response = await fetch('/api/team-connections', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action: 'accept_import', importBatchId: input.batchId }),
+  })
+  const json = (await response.json()) as TeamConnectionsResponse
+  if (!response.ok || !json.ok) throw new Error(json.message || 'Imported team could not be connected.')
+  notifyTeamConnectionsChanged()
+  return json.connection || null
+}

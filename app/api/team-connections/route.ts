@@ -20,11 +20,12 @@ export const runtime = 'nodejs'
 const TEAM_LINK_SELECT =
   'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,accepted_at,updated_at'
 
-type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default'
+type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default' | 'accept_import'
 
 type TeamConnectionActionBody = {
   action?: unknown
   connectionId?: unknown
+  importBatchId?: unknown
 }
 
 type ProfileConnectionRow = {
@@ -66,7 +67,27 @@ export async function POST(request: Request) {
 
   const action = normalizeAction(body.action)
   const connectionId = cleanText(body.connectionId)
-  if (!action || !connectionId) {
+  if (!action) {
+    return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
+  }
+
+  if (action === 'accept_import') {
+    const importBatchId = cleanText(body.importBatchId)
+    if (!importBatchId) {
+      return Response.json({ ok: false, message: 'Choose the imported team to connect.' }, { status: 400 })
+    }
+    const importedResult = await acceptImportedCaptainTeam({
+      service: auth.service,
+      userId: auth.userId,
+      batchId: importBatchId,
+    })
+    if (!importedResult.ok) {
+      return Response.json({ ok: false, message: importedResult.message }, { status: importedResult.status })
+    }
+    return Response.json({ ok: true, connection: importedResult.connection })
+  }
+
+  if (!connectionId) {
     return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
   }
 
@@ -513,6 +534,130 @@ async function updateSavedConnection(input: {
   return { ok: true as const, connection: refreshedConnection }
 }
 
+async function acceptImportedCaptainTeam(input: {
+  service: SupabaseClient
+  userId: string
+  batchId: string
+}) {
+  const [{ data: batch, error: batchError }, { data: draft, error: draftError }] = await Promise.all([
+    input.service
+      .from('data_assist_batches')
+      .select('id,submitted_by_user_id,status,requested_import_type')
+      .eq('id', input.batchId)
+      .eq('submitted_by_user_id', input.userId)
+      .maybeSingle(),
+    input.service
+      .from('data_assist_drafts')
+      .select('status,parsed_payload')
+      .eq('batch_id', input.batchId)
+      .maybeSingle(),
+  ])
+
+  const loadError = batchError || draftError
+  if (loadError) return { ok: false as const, status: 500, message: loadError.message }
+  const batchRow = batch as {
+    status?: string | null
+    requested_import_type?: string | null
+  } | null
+  const draftRow = draft as {
+    status?: string | null
+    parsed_payload?: Record<string, unknown> | null
+  } | null
+  if (!batchRow || !draftRow) {
+    return { ok: false as const, status: 404, message: 'Imported team was not found.' }
+  }
+  if (batchRow.status !== 'imported' || draftRow.status !== 'imported') {
+    return { ok: false as const, status: 409, message: 'Finish the import before connecting this team.' }
+  }
+  const payload = draftRow.parsed_payload || {}
+  if (payload.draftKind !== 'schedule' && payload.draftKind !== 'team_summary') {
+    return { ok: false as const, status: 400, message: 'This upload does not contain a captain team.' }
+  }
+  const teamName = cleanText(payload.draftKind === 'schedule' ? payload.teamName : payload.rosterTeamName)
+  const leagueName = cleanText(payload.leagueName)
+  const flight = cleanText(payload.flight)
+  if (!teamName) {
+    return { ok: false as const, status: 409, message: 'Confirm the imported team name before continuing.' }
+  }
+
+  const now = new Date().toISOString()
+  const normalizedTeamName = normalizeKey(teamName)
+  const { data: profile } = await input.service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', input.userId)
+    .maybeSingle()
+  const linkedPlayerId = cleanText((profile as ProfileConnectionRow | null)?.linked_player_id)
+  let playsOnTeam = false
+  if (linkedPlayerId) {
+    const { data: memberships } = await input.service
+      .from('team_roster_members')
+      .select('id')
+      .eq('player_id', linkedPlayerId)
+      .eq('normalized_team_name', normalizedTeamName)
+      .eq('league_name', leagueName)
+      .eq('flight', flight)
+      .limit(1)
+    playsOnTeam = Boolean(memberships?.length)
+  }
+  const { data: existing } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', input.userId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', leagueName)
+    .eq('flight', flight)
+    .maybeSingle()
+  const existingLink = existing as TeamProfileLinkRow | null
+  const existingRoles = existingLink
+    ? normalizeTeamConnectionRoles(existingLink.team_roles, existingLink.team_role)
+    : []
+  const roles = mergeTeamConnectionRoles(
+    existingRoles,
+    ['captain'],
+    playsOnTeam ? ['player'] : [],
+  )
+  const roleAcceptedAt = Object.fromEntries(roles.map((role) => [role, now]))
+  const { data: saved, error: saveError } = await input.service
+    .from('team_profile_links')
+    .upsert({
+      profile_user_id: input.userId,
+      source_actor_user_id: input.userId,
+      team_name: teamName,
+      normalized_team_name: normalizedTeamName,
+      league_name: leagueName,
+      flight,
+      team_role: getPrimaryTeamConnectionRole(roles),
+      team_roles: roles,
+      declined_roles: [],
+      role_accepted_at: roleAcceptedAt,
+      matched_player_id: linkedPlayerId || null,
+      source_type: 'data_assist_import',
+      source_record_id: input.batchId,
+      status: 'accepted',
+      accepted_at: now,
+      unlinked_at: null,
+      updated_at: now,
+    }, {
+      onConflict: 'profile_user_id,normalized_team_name,league_name,flight',
+    })
+    .select(TEAM_LINK_SELECT)
+    .single()
+
+  if (saveError) return { ok: false as const, status: 500, message: saveError.message }
+  const savedId = cleanText((saved as TeamProfileLinkRow).id)
+  const defaultResult = await reconcileDefaultTeam(input.service, input.userId, savedId)
+  if (!defaultResult.ok) return defaultResult
+
+  const { data: refreshed } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', savedId)
+    .maybeSingle()
+  const connection = buildTeamConnections({ savedLinks: [(refreshed || saved) as TeamProfileLinkRow] }).connections[0] ?? null
+  return { ok: true as const, connection }
+}
+
 async function linkAcceptedTeamToProfile(input: {
   service: SupabaseClient
   userId: string
@@ -614,7 +759,7 @@ async function getTeamConnectionAuth(request: Request) {
 }
 
 function normalizeAction(value: unknown): TeamConnectionAction | null {
-  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles' || value === 'set_default'
+  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles' || value === 'set_default' || value === 'accept_import'
     ? value
     : null
 }
