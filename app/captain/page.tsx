@@ -206,9 +206,14 @@ type CaptainWorkspaceState = {
 type CaptainTeamRoomSummary = {
   unreadCount: number
   pendingCount: number
+  maybeCount: number
+  unseenLineupCount: number
+  unresolvedCount: number
   responseCount: number
   latestResponseAt: string
   latestMatchDate: string
+  reminderAt: string
+  reminderStatus: string
 }
 
 type CaptainResumeStage =
@@ -1593,9 +1598,14 @@ function CaptainHubContent() {
   const [teamRoomSummary, setTeamRoomSummary] = useState<CaptainTeamRoomSummary>({
     unreadCount: 0,
     pendingCount: 0,
+    maybeCount: 0,
+    unseenLineupCount: 0,
+    unresolvedCount: 0,
     responseCount: 0,
     latestResponseAt: '',
     latestMatchDate: '',
+    reminderAt: '',
+    reminderStatus: '',
   })
 
   const [scenarioCount, setScenarioCount] = useState(0)
@@ -2059,7 +2069,7 @@ function CaptainHubContent() {
   useEffect(() => {
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '' })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '' })
       return
     }
     let active = true
@@ -14814,16 +14824,20 @@ function CaptainHubContent() {
       id: 'chat',
       label: 'Team chat',
       detail: teamRoomSummary.unreadCount > 0
-        ? `${teamRoomSummary.unreadCount} unread${teamRoomSummary.pendingCount > 0 ? ` · ${teamRoomSummary.pendingCount} waiting` : ''}`
-        : teamRoomSummary.pendingCount > 0
-          ? `${teamRoomSummary.pendingCount} waiting`
+        ? `${teamRoomSummary.unreadCount} unread${teamRoomSummary.unresolvedCount > 0 ? ` · ${teamRoomSummary.unresolvedCount} open` : ''}`
+        : teamRoomSummary.unresolvedCount > 0
+          ? [
+              teamRoomSummary.pendingCount ? `${teamRoomSummary.pendingCount} waiting` : '',
+              teamRoomSummary.maybeCount ? `${teamRoomSummary.maybeCount} maybe` : '',
+              teamRoomSummary.unseenLineupCount ? `${teamRoomSummary.unseenLineupCount} lineup unseen` : '',
+            ].filter(Boolean).join(' · ')
           : teamRoomSummary.responseCount > 0
             ? `${teamRoomSummary.responseCount} replied`
             : 'Message everyone',
       href: teamRoomHref,
       stage: 'messaging' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: teamRoomSummary.unreadCount > 0 || teamRoomSummary.pendingCount > 0,
+      primary: teamRoomSummary.unreadCount > 0 || teamRoomSummary.unresolvedCount > 0,
     },
     {
       id: 'scorecard',

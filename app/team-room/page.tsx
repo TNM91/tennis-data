@@ -20,6 +20,7 @@ type TeamOption = {
 type TeamRoomMember = {
   id: string
   name: string
+  playerName: string
   roles: string[]
   muted: boolean
 }
@@ -35,6 +36,7 @@ type TeamRoomMessage = {
   card: TeamRoomMatchCard | null
   response: 'yes' | 'maybe' | 'no' | null
   responseSummary: { yes: number; maybe: number; no: number; total: number }
+  responseDetails: Array<{ profileId: string; name: string; response: 'yes' | 'maybe' | 'no'; updatedAt: string }>
 }
 
 type TeamRoomMatchCard = {
@@ -47,6 +49,34 @@ type TeamRoomMatchCard = {
   lineup: Array<{ label: string; players: string[] }>
   availabilityRequestId: string
   availabilityRequestUrl: string
+  state: 'active' | 'upcoming' | 'archived'
+  lineupVersion: number
+  lineupChanges: string[]
+  acknowledged: boolean
+  acknowledgmentSummary: { total: number; profileIds: string[] }
+  reminder: {
+    reminderAt: string
+    status: 'scheduled' | 'sent' | 'cancelled'
+    sentAt: string
+    notificationCount: number
+  } | null
+}
+
+type TeamRoomActionQueue = {
+  messageId: string
+  matchDate: string
+  waitingCount: number
+  waitingNames: string[]
+  maybeCount: number
+  maybeNames: string[]
+  unseenLineupCount: number
+  unseenLineupNames: string[]
+  lineupChangeCount: number
+  unresolvedCount: number
+  unresolvedProfileIds: string[]
+  reminderAt: string
+  reminderStatus: string
+  lastReminderAt: string
 }
 
 type TeamRoom = {
@@ -61,6 +91,8 @@ type TeamRoom = {
   members: TeamRoomMember[]
   messages: TeamRoomMessage[]
   href: string
+  activeCardId: string
+  actionQueue: TeamRoomActionQueue
 }
 
 type BeforeInstallPromptEvent = Event & {
@@ -105,13 +137,18 @@ export default function TeamRoomPage() {
 function TeamRoomContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { authResolved, session } = useAuth()
+  const { authResolved, session, userId } = useAuth()
   const [teams, setTeams] = useState<TeamOption[]>([])
   const [room, setRoom] = useState<TeamRoom | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [respondingId, setRespondingId] = useState('')
+  const [acknowledgingId, setAcknowledgingId] = useState('')
+  const [reminding, setReminding] = useState(false)
+  const [schedulingReminder, setSchedulingReminder] = useState(false)
+  const [reminderAt, setReminderAt] = useState('')
+  const [showBrowserAlertPrompt, setShowBrowserAlertPrompt] = useState(false)
   const [messageBody, setMessageBody] = useState('')
   const [announcement, setAnnouncement] = useState(false)
   const [showMatchComposer, setShowMatchComposer] = useState(false)
@@ -137,8 +174,8 @@ function TeamRoomContent() {
   }, [searchParams])
 
   const pinnedMessage = useMemo(
-    () => room?.messages.slice().reverse().find((message) => message.card) || null,
-    [room?.messages],
+    () => room?.messages.find((message) => message.id === room.activeCardId) || null,
+    [room?.activeCardId, room?.messages],
   )
   const captainHref = useMemo(() => buildCaptainScopedHref('/captain', {
     team: room?.teamName,
@@ -147,6 +184,18 @@ function TeamRoomContent() {
     date: pinnedMessage?.card?.matchDate || matchDraft.matchDate,
     opponent: pinnedMessage?.card?.opponent || matchDraft.opponent,
   }), [matchDraft.matchDate, matchDraft.opponent, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.opponent, room?.flight, room?.leagueName, room?.teamName])
+
+  const pinnedMatchDate = pinnedMessage?.card?.matchDate || ''
+  const pinnedReminderAt = pinnedMessage?.card?.reminder?.reminderAt || ''
+  const pinnedReminderStatus = pinnedMessage?.card?.reminder?.status || ''
+  useEffect(() => {
+    if (!pinnedMatchDate) return
+    setReminderAt(toLocalDateTimeInput(
+      pinnedReminderStatus === 'scheduled'
+        ? pinnedReminderAt
+        : defaultReminderTime(pinnedMatchDate),
+    ))
+  }, [pinnedMatchDate, pinnedReminderAt, pinnedReminderStatus, pinnedMessage?.id])
 
   const loadRoom = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!accessToken) return
@@ -267,6 +316,16 @@ function TeamRoomContent() {
           return {
             ...message,
             response,
+            card: message.card?.cardType === 'projected_lineup' && !message.card.acknowledged
+              ? {
+                  ...message.card,
+                  acknowledged: true,
+                  acknowledgmentSummary: {
+                    ...message.card.acknowledgmentSummary,
+                    total: message.card.acknowledgmentSummary.total + 1,
+                  },
+                }
+              : message.card,
             responseSummary: {
               yes: message.responseSummary.yes + (response === 'yes' ? 1 : 0) - (previous === 'yes' ? 1 : 0),
               maybe: message.responseSummary.maybe + (response === 'maybe' ? 1 : 0) - (previous === 'maybe' ? 1 : 0),
@@ -282,6 +341,76 @@ function TeamRoomContent() {
     } finally {
       setRespondingId('')
     }
+  }
+
+  async function acknowledgeLineup(messageId: string) {
+    if (!room || acknowledgingId) return
+    setAcknowledgingId(messageId)
+    setError('')
+    try {
+      await postAction({ action: 'acknowledge_lineup', messageId })
+      setNotice('The captain can now see that you reviewed this lineup.')
+      await loadRoom({ quiet: true })
+    } catch (ackError) {
+      setError(ackError instanceof Error ? ackError.message : 'Your acknowledgment could not be saved.')
+    } finally {
+      setAcknowledgingId('')
+    }
+  }
+
+  async function remindWaiting(messageId: string) {
+    if (!room || reminding) return
+    setReminding(true)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'remind_waiting', messageId })
+      const notificationIds = Array.isArray(payload.notificationIds)
+        ? payload.notificationIds.filter((id): id is string => typeof id === 'string')
+        : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      const targetCount = Number(payload.targetCount) || 0
+      setNotice(targetCount ? `Reminder sent to ${targetCount} teammate${targetCount === 1 ? '' : 's'}.` : 'Everyone is caught up.')
+      await loadRoom({ quiet: true })
+    } catch (reminderError) {
+      setError(reminderError instanceof Error ? reminderError.message : 'The reminder could not be sent.')
+    } finally {
+      setReminding(false)
+    }
+  }
+
+  async function scheduleReminder(messageId: string) {
+    if (!room || !reminderAt || schedulingReminder) return
+    setSchedulingReminder(true)
+    setError('')
+    try {
+      const localDate = new Date(reminderAt)
+      await postAction({ action: 'schedule_reminder', messageId, reminderAt: localDate.toISOString() })
+      setNotice(`Reminder set for ${formatReminderTime(localDate.toISOString())}.`)
+      await loadRoom({ quiet: true })
+    } catch (scheduleError) {
+      setError(scheduleError instanceof Error ? scheduleError.message : 'The reminder could not be scheduled.')
+    } finally {
+      setSchedulingReminder(false)
+    }
+  }
+
+  async function enableBrowserAlerts() {
+    if (!('Notification' in window)) {
+      setError('Browser alerts are not supported on this device.')
+      return
+    }
+    const permission = await window.Notification.requestPermission()
+    setShowBrowserAlertPrompt(permission !== 'granted')
+    setNotice(permission === 'granted' ? 'Browser alerts are on for this device.' : 'Browser alerts were not enabled.')
   }
 
   async function shareRoom() {
@@ -323,6 +452,25 @@ function TeamRoomContent() {
       setError(muteError instanceof Error ? muteError.message : 'Notification setting could not be changed.')
     }
   }
+
+  useEffect(() => {
+    setShowBrowserAlertPrompt('Notification' in window && window.Notification.permission !== 'granted')
+  }, [])
+
+  useEffect(() => {
+    const sentAt = room?.actionQueue.lastReminderAt || ''
+    if (!sentAt || !userId || !room?.actionQueue.unresolvedProfileIds.includes(userId)) return
+    if (!('Notification' in window) || window.Notification.permission !== 'granted') return
+    const storageKey = `tenaceiq-team-reminder:${room.id}:${sentAt}`
+    if (window.localStorage.getItem(storageKey)) return
+    window.localStorage.setItem(storageKey, 'shown')
+    new window.Notification(`${room.teamName} needs your reply`, {
+      body: room.actionQueue.matchDate
+        ? `Open the ${formatMatchDate(room.actionQueue.matchDate)} match card.`
+        : 'Open Team Chat to review the latest match update.',
+      icon: '/tenaceiq-icon-192.png',
+    })
+  }, [room?.actionQueue.lastReminderAt, room?.actionQueue.matchDate, room?.actionQueue.unresolvedProfileIds, room?.id, room?.teamName, userId])
 
   if (!authResolved || loading) return <TeamRoomLoading />
   if (!accessToken) {
@@ -433,6 +581,20 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
+        {room.canManage && pinnedMessage?.card ? (
+          <div className={styles.pinnedArea}>
+            <CaptainActionQueue
+              queue={room.actionQueue}
+              reminderAt={reminderAt}
+              reminding={reminding}
+              scheduling={schedulingReminder}
+              onReminderAtChange={setReminderAt}
+              onRemind={() => void remindWaiting(pinnedMessage.id)}
+              onSchedule={() => void scheduleReminder(pinnedMessage.id)}
+            />
+          </div>
+        ) : null}
+
         {pinnedMessage?.card ? (
           <div className={styles.pinnedArea}>
             <MatchCard
@@ -444,7 +606,9 @@ function TeamRoomContent() {
               flight={room.flight}
               captainHref={captainHref}
               responding={respondingId === pinnedMessage.id}
+              acknowledging={acknowledgingId === pinnedMessage.id}
               onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
+              onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
               onAskCaptain={() => {
                 setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
                 window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -463,6 +627,8 @@ function TeamRoomContent() {
             if (message.id === pinnedMessage?.id) return null
             const isSystem = message.kind === 'system'
             if (isSystem) return <div key={message.id} className={styles.systemBubble}>{message.body}</div>
+            if (message.card?.state === 'archived') return <MatchRecap key={message.id} message={message} />
+            if (message.card?.state === 'upcoming') return <UpcomingMatchCard key={message.id} message={message} />
             const rowClass = [
               styles.messageRow,
               message.isMine ? styles.messageMine : '',
@@ -523,7 +689,103 @@ function TeamRoomContent() {
       </section>
 
       <TeamRoomInstallCard room={room} />
+      {showBrowserAlertPrompt ? (
+        <button className={styles.browserAlertButton} type="button" onClick={() => void enableBrowserAlerts()}>
+          Turn on browser alerts
+        </button>
+      ) : null}
     </main>
+  )
+}
+
+function CaptainActionQueue({
+  queue,
+  reminderAt,
+  reminding,
+  scheduling,
+  onReminderAtChange,
+  onRemind,
+  onSchedule,
+}: {
+  queue: TeamRoomActionQueue
+  reminderAt: string
+  reminding: boolean
+  scheduling: boolean
+  onReminderAtChange: (value: string) => void
+  onRemind: () => void
+  onSchedule: () => void
+}) {
+  const needsAttention = queue.unresolvedCount > 0
+  const summary = [
+    queue.waitingCount ? `${queue.waitingCount} waiting` : '',
+    queue.maybeCount ? `${queue.maybeCount} maybe` : '',
+    queue.unseenLineupCount ? `${queue.unseenLineupCount} lineup unseen` : '',
+  ].filter(Boolean)
+  const names = Array.from(new Set([
+    ...queue.waitingNames,
+    ...queue.maybeNames,
+    ...queue.unseenLineupNames,
+  ])).slice(0, 5)
+
+  return (
+    <section className={`${styles.actionQueue} ${needsAttention ? styles.actionQueueOpen : styles.actionQueueClear}`} aria-label="Captain action queue">
+      <div className={styles.actionQueueTop}>
+        <div>
+          <p className={styles.matchCardEyebrow}>Needs attention</p>
+          <h2>{needsAttention ? summary.join(' · ') : 'Everyone is caught up'}</h2>
+          {names.length ? <p>{names.join(', ')}{queue.unresolvedCount > names.length ? ` +${queue.unresolvedCount - names.length}` : ''}</p> : null}
+        </div>
+        <span className={needsAttention ? styles.queueCountOpen : styles.queueCountClear}>{queue.unresolvedCount}</span>
+      </div>
+      {needsAttention ? (
+        <div className={styles.actionQueueActions}>
+          <button className={styles.buttonPrimary} type="button" disabled={reminding} onClick={onRemind}>
+            {reminding ? 'Sending…' : `Remind ${queue.unresolvedCount}`}
+          </button>
+          <label className={styles.reminderField}>
+            <span>Automatic follow-up</span>
+            <input type="datetime-local" value={reminderAt} onChange={(event) => onReminderAtChange(event.target.value)} />
+          </label>
+          <button className={styles.buttonSecondary} type="button" disabled={scheduling || !reminderAt} onClick={onSchedule}>
+            {scheduling ? 'Setting…' : queue.reminderStatus === 'scheduled' ? 'Update reminder' : 'Set reminder'}
+          </button>
+        </div>
+      ) : null}
+      {queue.reminderStatus === 'scheduled' && queue.reminderAt ? (
+        <p className={styles.reminderStatus}>TIQ will remind only unfinished players {formatReminderTime(queue.reminderAt)}.</p>
+      ) : queue.lastReminderAt ? (
+        <p className={styles.reminderStatus}>Last reminder sent {formatReminderTime(queue.lastReminderAt)}.</p>
+      ) : null}
+    </section>
+  )
+}
+
+function MatchRecap({ message }: { message: TeamRoomMessage }) {
+  const card = message.card
+  if (!card) return null
+  return (
+    <details className={styles.matchRecap}>
+      <summary>
+        <span><strong>{formatMatchDate(card.matchDate)}</strong>{card.opponent ? ` vs ${card.opponent}` : ''}</span>
+        <span>{message.responseSummary.yes} yes · {message.responseSummary.maybe} maybe · {message.responseSummary.no} no</span>
+      </summary>
+      {card.lineup.length ? (
+        <div className={styles.lineupPreview}>
+          {card.lineup.map((row, index) => <div key={`${row.label}-${index}`} className={styles.lineupRow}><strong>{row.label}</strong><span>{row.players.join(' / ') || 'Open'}</span></div>)}
+        </div>
+      ) : <p>{message.body}</p>}
+    </details>
+  )
+}
+
+function UpcomingMatchCard({ message }: { message: TeamRoomMessage }) {
+  const card = message.card
+  if (!card) return null
+  return (
+    <article className={styles.upcomingMatch}>
+      <span>Coming up</span>
+      <strong>{formatMatchDate(card.matchDate)}{card.opponent ? ` vs ${card.opponent}` : ''}</strong>
+    </article>
   )
 }
 
@@ -536,7 +798,9 @@ function MatchCard({
   flight,
   captainHref,
   responding,
+  acknowledging,
   onRespond,
+  onAcknowledge,
   onAskCaptain,
 }: {
   message: TeamRoomMessage
@@ -547,7 +811,9 @@ function MatchCard({
   flight: string
   captainHref: string
   responding: boolean
+  acknowledging: boolean
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
+  onAcknowledge: () => void
   onAskCaptain: () => void
 }) {
   const card = message.card
@@ -588,6 +854,13 @@ function MatchCard({
         </div>
       ) : null}
 
+      {card.lineupChanges.length ? (
+        <div className={styles.lineupChanges}>
+          <strong>{card.lineupVersion > 1 ? 'What changed' : 'Lineup posted'}</strong>
+          {card.lineupChanges.slice(0, 4).map((change) => <span key={change}>{change}</span>)}
+        </div>
+      ) : null}
+
       <div className={styles.replySummary}>
         <span><strong>{message.responseSummary.yes}</strong> yes</span>
         <span><strong>{message.responseSummary.maybe}</strong> maybe</span>
@@ -611,8 +884,22 @@ function MatchCard({
             {label}
           </button>
         ))}
+        {card.cardType === 'projected_lineup' ? (
+          <button
+            className={`${styles.responseButton} ${card.acknowledged ? styles.responseSelected : ''}`}
+            type="button"
+            disabled={acknowledging || card.acknowledged}
+            aria-pressed={card.acknowledged}
+            onClick={onAcknowledge}
+          >
+            {card.acknowledged ? 'Seen' : acknowledging ? 'Saving…' : 'Mark seen'}
+          </button>
+        ) : null}
         {!canManage ? <button className={styles.responseButton} type="button" onClick={onAskCaptain}>Ask captain</button> : null}
       </div>
+      {card.cardType === 'projected_lineup' ? (
+        <p className={styles.ackSummary}>{card.acknowledgmentSummary.total} teammate{card.acknowledgmentSummary.total === 1 ? '' : 's'} saw version {card.lineupVersion}.</p>
+      ) : null}
       {canManage ? (
         <div className={styles.captainCardActions}>
           <Link className={styles.buttonPrimary} href={messagingHref}>Text players not connected</Link>
@@ -716,4 +1003,26 @@ function formatMatchDate(value: string) {
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function defaultReminderTime(matchDate: string) {
+  const reminder = new Date(`${matchDate}T18:00:00`)
+  reminder.setDate(reminder.getDate() - 1)
+  if (Number.isNaN(reminder.getTime()) || reminder.getTime() <= Date.now()) {
+    return new Date(Date.now() + (2 * 60 * 60 * 1000)).toISOString()
+  }
+  return reminder.toISOString()
+}
+
+function toLocalDateTimeInput(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60_000))
+  return local.toISOString().slice(0, 16)
+}
+
+function formatReminderTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
