@@ -73,6 +73,7 @@ import {
 } from '@/lib/captain-team-improvements'
 import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
@@ -2628,6 +2629,12 @@ function CaptainHubContent() {
         ? `${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to start planning.'
 
+  const dynamicPageWrap: CSSProperties = {
+    ...pageWrap,
+    gap: isMobile ? 10 : pageWrap.gap,
+    padding: isMobile ? '10px 0 28px' : pageWrap.padding,
+  }
+
   const dynamicHeroCard: CSSProperties = {
     ...heroCard,
     gridTemplateColumns: 'minmax(0, 1fr)',
@@ -2805,6 +2812,7 @@ function CaptainHubContent() {
 
   const dynamicCaptainMobileTodayActionBarStyle: CSSProperties = {
     ...captainMobileTodayActionBarStyle,
+    display: 'none',
     gridTemplateColumns: isSmallMobile
       ? 'minmax(0, 92px) minmax(0, 1fr)'
       : captainMobileTodayActionBarStyle.gridTemplateColumns,
@@ -14731,6 +14739,208 @@ function CaptainHubContent() {
     },
   ] as const
 
+  const captainMobileCommandActions = [
+    {
+      id: 'availability',
+      label: 'Who can play',
+      detail: workspaceState.pendingResponseCount > 0
+        ? `${workspaceState.pendingResponseCount} still need a reply`
+        : 'Check availability',
+      href: availabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      icon: 'schedule' as TiqFeatureIconName,
+      primary: workspaceState.pendingResponseCount > 0,
+    },
+    {
+      id: 'lineup',
+      label: workspaceState.lineupReady ? 'Review lineup' : 'Build lineup',
+      detail: workspaceState.lineupReady
+        ? `${workspaceState.lineupCount} courts saved`
+        : 'Set projected courts',
+      href: lineupBuilderHref,
+      stage: 'lineup' as CaptainResumeStage,
+      icon: 'lineupBuilder' as TiqFeatureIconName,
+      primary: !workspaceState.lineupReady,
+    },
+    {
+      id: 'chat',
+      label: 'Team chat',
+      detail: 'Message everyone',
+      href: teamRoomHref,
+      stage: 'messaging' as CaptainResumeStage,
+      icon: 'messagingCenter' as TiqFeatureIconName,
+      primary: false,
+    },
+    {
+      id: 'scorecard',
+      label: 'Add scorecard',
+      detail: 'Save match results',
+      href: captainScorecardHref,
+      stage: 'team' as CaptainResumeStage,
+      icon: 'reports' as TiqFeatureIconName,
+      primary: false,
+    },
+  ] as const
+
+  const captainMobileAttention = captainPrimaryTeamImprovement
+    ? {
+        title: captainPrimaryTeamImprovement.title,
+        detail: captainPrimaryTeamImprovement.detail,
+        cta: captainPrimaryTeamImprovement.cta,
+        href: getCaptainTeamImprovementHref(captainPrimaryTeamImprovement.id),
+        stage: 'team' as CaptainResumeStage,
+      }
+    : captainHomeShortcutPrimaryItem?.tone === 'warn'
+      ? {
+          title: captainHomeShortcutPrimaryItem.label,
+          detail: captainHomeShortcutPrimaryItem.detail,
+          cta: captainHomeShortcutPrimaryItem.cta,
+          href: captainHomeShortcutPrimaryItem.href,
+          stage: captainHomeShortcutPrimaryItem.stage,
+        }
+      : null
+
+  const captainMobileCommandCenter = (
+    <section className={mobileCommandStyles.shell} aria-label="Captain mobile command center">
+      <div className={mobileCommandStyles.header}>
+        <div className={mobileCommandStyles.headerCopy}>
+          <span className={mobileCommandStyles.eyebrow}>Captain</span>
+          <h1 className={mobileCommandStyles.teamName}>{selectedTeam || 'Choose your team'}</h1>
+          <span className={mobileCommandStyles.matchContext}>
+            {hasTeamScope
+              ? `${weekAtGlance.eventDateLabel} · ${weekAtGlance.opponentLabel}`
+              : 'Select a linked team to start.'}
+          </span>
+        </div>
+        <span className={captainMobileAttention ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
+          {captainMobileAttention ? 'Needs action' : 'Ready'}
+        </span>
+      </div>
+
+      <select
+        className={mobileCommandStyles.teamSelect}
+        aria-label="Captain team"
+        value={selectedTeamOptionKey}
+        disabled={loadingOptions || !filteredTeamOptions.length}
+        onChange={(event) => {
+          const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === event.target.value)
+          if (!option) return
+          setDefaultTeamMessage('')
+          setSelectedTeam(option.team)
+          setSelectedLeague(option.league)
+          setSelectedFlight(option.flight)
+          void trackProductUsageEvent({
+            eventName: 'captain_team_scope_selected',
+            surface: 'captain',
+            planId: 'captain',
+            metadata: { team: option.team, league: option.league, flight: option.flight },
+          })
+        }}
+      >
+        {loadingOptions && !filteredTeamOptions.length ? (
+          <option value="">Loading teams...</option>
+        ) : !filteredTeamOptions.length ? (
+          <option value="">No linked teams</option>
+        ) : (
+          filteredTeamOptions.map((option) => (
+            <option key={`${option.team}__${option.league}__${option.flight}`} value={buildTeamOptionKey(option)}>
+              {option.team} · {option.league} · {option.flight}
+            </option>
+          ))
+        )}
+      </select>
+
+      {captainImportHandoff ? (
+        <div className={mobileCommandStyles.importNotice} role="status">
+          <div className={mobileCommandStyles.noticeCopy}>
+            <strong>{captainImportHandoff.team} connected</strong>
+            <span>Your imported team data is ready.</span>
+          </div>
+          <Link
+            className={mobileCommandStyles.noticeAction}
+            href={captainImportHandoff.importType === 'team_summary' && !captainImportHandoff.matches ? captainScheduleHref : teamRoomHref}
+          >
+            {captainImportHandoff.importType === 'team_summary' && !captainImportHandoff.matches ? 'Add schedule' : 'Open chat'}
+          </Link>
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className={mobileCommandStyles.attentionRow} role="alert">
+          <div className={mobileCommandStyles.noticeCopy}>
+            <strong>Captain data needs a refresh</strong>
+            <span>{error}</span>
+          </div>
+          <button className={mobileCommandStyles.noticeAction} type="button" onClick={() => setRefreshTick((current) => current + 1)}>Retry</button>
+        </div>
+      ) : null}
+
+      {captainMobileAttention ? (
+        <div className={mobileCommandStyles.attentionRow}>
+          <div className={mobileCommandStyles.noticeCopy}>
+            <strong>{captainMobileAttention.title}</strong>
+            <span>{captainMobileAttention.detail}</span>
+          </div>
+          <button
+            className={mobileCommandStyles.noticeAction}
+            type="button"
+            onClick={() => handleCaptainAction(captainMobileAttention.href, captainMobileAttention.stage)}
+          >
+            {captainMobileAttention.cta}
+          </button>
+        </div>
+      ) : null}
+
+      <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
+        {captainMobileCommandActions.map((item) => {
+          const disabled = !hasTeamScope || (!premiumEnabled && item.id !== 'chat')
+          return (
+            <button
+              key={item.id}
+              className={`${mobileCommandStyles.action} ${item.primary ? mobileCommandStyles.actionPrimary : ''}`}
+              type="button"
+              disabled={disabled}
+              onClick={() => item.id === 'chat' ? router.push(item.href) : handleCaptainAction(item.href, item.stage)}
+            >
+              <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
+              <span className={mobileCommandStyles.actionCopy}>
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <details className={mobileCommandStyles.more}>
+        <summary className={mobileCommandStyles.moreSummary}>
+          <span>More</span>
+          <span>Pairings, setup, and extras</span>
+        </summary>
+        <div className={mobileCommandStyles.moreBody}>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(lineupProjectionHref, 'projection')}>Check pairings</button>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(scenarioHref, 'scenario')}>Compare lineups</button>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(teamBriefHref, 'brief')}>Team brief</button>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(practiceHref, 'team')}>Plan practice</button>
+          <Link className={mobileCommandStyles.moreLink} href={captainPlayerRosterHref}>Upload Player Roster</Link>
+          <Link className={mobileCommandStyles.moreLink} href={captainScheduleHref}>Add schedule</Link>
+          <Link className={mobileCommandStyles.moreLink} href="/team-connections">Manage teams</Link>
+          <button
+            className={mobileCommandStyles.moreButton}
+            type="button"
+            disabled={!premiumEnabled || !selectedTeamOption || selectedTeamIsDefault || savingDefaultTeam}
+            onClick={() => void handleSetDefaultTeam()}
+          >
+            {savingDefaultTeam ? 'Saving default' : selectedTeamIsDefault ? 'Default team' : 'Make default'}
+          </button>
+          <button className={`${mobileCommandStyles.moreButton} ${mobileCommandStyles.moreLinkWide}`} type="button" onClick={() => setRefreshTick((current) => current + 1)}>
+            {loadingOptions || loadingTeam ? 'Refreshing team data' : 'Refresh team data'}
+          </button>
+        </div>
+      </details>
+    </section>
+  )
+
   const captainHomeShortcut = (
     <section style={dynamicCaptainHomeShortcutShell} aria-label="Captain home shortcut">
       <div style={captainHomeShortcutHeader}>
@@ -15912,8 +16122,8 @@ function CaptainHubContent() {
   }
 
   return (
-    <div style={pageWrap}>
-        {captainImportHandoff ? (
+    <div style={dynamicPageWrap}>
+        {captainImportHandoff && !isMobile ? (
           <CaptainImportConnectedCard
             handoff={captainImportHandoff}
             scheduleHref={captainScheduleHref}
@@ -15922,6 +16132,9 @@ function CaptainHubContent() {
             messagingHref={messagingHref}
           />
         ) : null}
+        {captainMobileCommandCenter}
+        {!isMobile ? (
+        <>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroLeft}>
@@ -17109,6 +17322,8 @@ function CaptainHubContent() {
             )}
           </div>
         </section>
+        </>
+        ) : null}
         {captainMobileTodayActionBar}
       </div>
   )

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import {
   getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
@@ -94,10 +95,17 @@ export default function TeamConnectionInvite() {
     league: activeConnection.leagueName,
     flight: activeConnection.flight,
   })
-  const openHref = isCaptainConnection ? `${captainHref}#captain-team-scope` : '/mylab'
   const alreadyAtDestination = isCaptainConnection ? pathname.startsWith('/captain') : pathname.startsWith('/mylab')
+  const teamRoomHref = buildTeamRoomHref({
+    teamName: activeConnection.teamName,
+    leagueName: activeConnection.leagueName,
+    flight: activeConnection.flight,
+  })
+  const openHref = isCaptainConnection
+    ? alreadyAtDestination ? teamRoomHref : `${captainHref}#captain-team-scope`
+    : '/mylab'
   const openLabel = alreadyAtDestination
-    ? 'Continue with team'
+    ? isCaptainConnection ? 'Open Team Chat' : 'Continue with team'
     : isCaptainConnection ? 'Open Captain' : 'Open My Lab'
   const tierLabel = isCaptainConnection
     ? offers.captain.available && offers.captain.label
@@ -109,7 +117,7 @@ export default function TeamConnectionInvite() {
 
   return (
     <section style={bannerWrapStyle} aria-label={accepted ? 'Team connected' : 'Team connection invitation'}>
-      <div style={bannerStyle} className="team-connection-invite-banner">
+      <div style={bannerStyle} className={`team-connection-invite-banner${accepted ? ' is-accepted' : ''}`}>
         <div style={copyStyle}>
           <span style={eyebrowStyle}>{accepted ? 'Team connected' : activeConnection.isRoleUpdate ? 'Team role update' : 'Team invitation'}</span>
           <strong style={titleStyle}>
@@ -119,7 +127,7 @@ export default function TeamConnectionInvite() {
                 ? `We found another role for you on ${activeConnection.teamName}.`
                 : `You were added to ${activeConnection.teamName} as ${roleLabel}.`}
           </strong>
-          <span style={bodyStyle}>
+          <span style={bodyStyle} className="team-connection-invite-body">
             {accepted
               ? hasRecommendedAccess
                 ? `Your ${roleLabel} tools now open with this team context.`
@@ -141,7 +149,6 @@ export default function TeamConnectionInvite() {
               >
                 {hasRecommendedAccess ? openLabel : tierLabel}
               </Link>
-              <Link href="/team-connections" style={secondaryLinkStyle}>Manage link</Link>
               <button type="button" onClick={() => setAccepted(null)} style={textButtonStyle}>Done</button>
             </>
           ) : (
@@ -159,6 +166,14 @@ export default function TeamConnectionInvite() {
       </div>
       <style jsx>{`
         @media (max-width: 720px) {
+          .team-connection-invite-banner.is-accepted {
+            gap: 10px !important;
+            padding: 12px !important;
+            border-radius: 16px !important;
+          }
+          .team-connection-invite-banner.is-accepted .team-connection-invite-body {
+            display: none !important;
+          }
           .team-connection-invite-banner {
             align-items: stretch !important;
             grid-template-columns: minmax(0, 1fr) !important;
@@ -167,7 +182,7 @@ export default function TeamConnectionInvite() {
             display: grid !important;
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
           }
-          .team-connection-invite-actions > :last-child {
+          .team-connection-invite-banner:not(.is-accepted) .team-connection-invite-actions > :last-child {
             grid-column: 1 / -1;
             text-align: center !important;
           }
@@ -213,5 +228,4 @@ const primaryButtonStyle: CSSProperties = { border: 0, borderRadius: 999, backgr
 const secondaryButtonStyle: CSSProperties = { border: '1px solid rgba(255,255,255,.2)', borderRadius: 999, background: 'rgba(255,255,255,.06)', color: '#fff', padding: '10px 15px', fontWeight: 900, cursor: 'pointer' }
 const textButtonStyle: CSSProperties = { border: 0, background: 'transparent', color: '#c6d4e5', padding: '8px 4px', fontWeight: 850, cursor: 'pointer' }
 const primaryLinkStyle: CSSProperties = { ...primaryButtonStyle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
-const secondaryLinkStyle: CSSProperties = { ...secondaryButtonStyle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
 const textLinkStyle: CSSProperties = { color: '#c6d4e5', padding: '8px 4px', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
