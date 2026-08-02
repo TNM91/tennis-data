@@ -213,6 +213,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
+    requestId,
     token,
     requestUrl: `${origin}/availability/${encodeURIComponent(token)}`,
     playerRequestUrls: (inviteData ?? []).map((invite) => ({
