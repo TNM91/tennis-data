@@ -45,6 +45,8 @@ export default function RoleActionHome({
   steps,
   showSteps = false,
   resumeKey,
+  preferPrimaryAction = false,
+  onAction,
 }: {
   roleLabel: string
   contextLabel: string
@@ -55,6 +57,8 @@ export default function RoleActionHome({
   steps: readonly RoleHomeStep[]
   showSteps?: boolean
   resumeKey?: string
+  preferPrimaryAction?: boolean
+  onAction?: (action: Pick<RoleHomeAction, 'title' | 'detail' | 'href' | 'icon'>) => void
 }) {
   const subscribe = useCallback(
     (onChange: () => void) => subscribeToRoleHomeResume(resumeKey || '', onChange),
@@ -79,11 +83,12 @@ export default function RoleActionHome({
   }, [primaryAction.icon, resumeSnapshot])
 
   const displayedPrimaryAction = useMemo(
-    () => resumeAction || primaryAction,
-    [primaryAction, resumeAction],
+    () => (preferPrimaryAction ? primaryAction : resumeAction || primaryAction),
+    [preferPrimaryAction, primaryAction, resumeAction],
   )
 
   function rememberAction(action: Pick<RoleHomeAction, 'title' | 'detail' | 'href' | 'icon'>) {
+    onAction?.(action)
     if (!resumeKey) return
     writeRoleHomeResume(resumeKey, {
       href: action.href,

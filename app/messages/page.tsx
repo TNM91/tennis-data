@@ -54,6 +54,7 @@ import {
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
+import { syncCoachResumeState, writeCoachResumeState } from '@/lib/coach-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -1123,6 +1124,13 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId],
   )
+  const selectedCoachStudent = useMemo(
+    () => {
+      if (!selectedConversation || selectedConversation.relatedEntityType !== 'coach_player_link') return null
+      const studentLinkId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+      return coachContacts.find((contact) => contact.relationship === 'student' && contact.linkId === studentLinkId) ?? null
+    }, [coachContacts, selectedConversation],
+  )
   const selectedScheduleEvent = scheduleEvents[0] ?? null
   const canManageSchedule = Boolean(
     identity &&
@@ -1444,6 +1452,22 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   useEffect(() => {
     setReplyBody(selectedConversation ? readMessageDraft(selectedConversation.id) : '')
   }, [selectedConversation])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !selectedCoachStudent) return
+
+    const nextState = {
+      studentLinkId: selectedCoachStudent.linkId,
+      playerName: selectedCoachStudent.name,
+      identitySlug: selectedCoachStudent.identitySlug,
+      conversationId: selectedConversation.id,
+      lastSurface: 'conversation' as const,
+      lastSurfaceLabel: 'Player Conversation',
+      lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+    }
+    writeCoachResumeState(nextState, userId)
+    void syncCoachResumeState(nextState, userId, session?.access_token)
+  }, [selectedCoachStudent, selectedConversation, session?.access_token, userId])
 
   useEffect(() => {
     if (!selectedId) {
