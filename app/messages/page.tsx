@@ -55,6 +55,14 @@ import { buildTeamRoomHref } from '@/lib/team-room'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { syncCoachResumeState, writeCoachResumeState } from '@/lib/coach-memory'
+import {
+  chooseLatestPlayerImproveResumeState,
+  loadPlayerImproveResumeStateFromCloud,
+  readPlayerImproveResumeState,
+  syncPlayerImproveResumeState,
+  writePlayerImproveResumeState,
+  type PlayerImproveResumeState,
+} from '@/lib/player-improve-memory'
 import { buildProductAccessState } from '@/lib/access-model'
 import {
   syncLeagueCoordinatorResumeState,
@@ -1103,6 +1111,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [subject, setSubject] = useState(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
   const [body, setBody] = useState('')
   const [replyBody, setReplyBody] = useState('')
+  const [playerResumeConversationResolvedId, setPlayerResumeConversationResolvedId] = useState('')
   const [draftThreadIds, setDraftThreadIds] = useState<Set<string>>(() => new Set())
   const [pinnedThreadIds, setPinnedThreadIds] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
@@ -1135,6 +1144,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       if (!selectedConversation || selectedConversation.relatedEntityType !== 'coach_player_link') return null
       const studentLinkId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
       return coachContacts.find((contact) => contact.relationship === 'student' && contact.linkId === studentLinkId) ?? null
+    }, [coachContacts, selectedConversation],
+  )
+  const selectedCoachContact = useMemo(
+    () => {
+      if (!selectedConversation) return null
+      const entityType = selectedConversation.metadata.entityType || selectedConversation.relatedEntityType
+      const linkId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+      if (entityType !== 'coach_player_link' || !linkId) return null
+      return coachContacts.find((contact) => contact.relationship === 'coach' && contact.linkId === linkId) ?? null
     }, [coachContacts, selectedConversation],
   )
   const selectedScheduleEvent = scheduleEvents[0] ?? null
@@ -1458,6 +1476,72 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   useEffect(() => {
     setReplyBody(selectedConversation ? readMessageDraft(selectedConversation.id) : '')
   }, [selectedConversation])
+
+  useEffect(() => {
+    setPlayerResumeConversationResolvedId('')
+    if (!userId || !selectedConversation || !selectedCoachContact) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readPlayerImproveResumeState(userId)
+      const cloudState = accessToken ? await loadPlayerImproveResumeStateFromCloud(accessToken) : null
+      const latest = chooseLatestPlayerImproveResumeState(localState, cloudState)
+      if (!active) return
+      if (latest) writePlayerImproveResumeState(latest, userId)
+      if (latest?.conversationId !== selectedConversation.id || !latest.conversationDraft) return
+      setReplyBody((current) => {
+        if (current.trim()) return current
+        writeMessageDraft(selectedConversation.id, latest.conversationDraft || '')
+        return latest.conversationDraft || ''
+      })
+    })().finally(() => {
+      if (active) setPlayerResumeConversationResolvedId(selectedConversation.id)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [selectedCoachContact, selectedConversation, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !selectedCoachContact) return
+    if (playerResumeConversationResolvedId !== selectedConversation.id) return
+
+    const timeout = window.setTimeout(() => {
+      const playerIdentity = getPlayerDevelopmentIdentity(selectedCoachContact.identitySlug)
+      const assignmentId = selectedConversation.metadata.assignmentId || ''
+      const assignmentTitle = selectedConversation.metadata.assignmentTitle || ''
+      const assignmentFocus = selectedConversation.metadata.assignmentFocus || ''
+      const nextState: PlayerImproveResumeState = {
+        ...(readPlayerImproveResumeState(userId) || {}),
+        identitySlug: selectedCoachContact.identitySlug || playerIdentity.slug,
+        identityTitle: playerIdentity.title.replace(/^The /, ''),
+        studentLinkId: selectedCoachContact.linkId,
+        assignmentId,
+        assignmentTitle,
+        assignmentFocus,
+        conversationId: selectedConversation.id,
+        conversationDraft: replyBody,
+        lastSurface: 'conversation',
+        lastSurfaceLabel: assignmentTitle ? `Coach note: ${assignmentTitle}` : 'Coach conversation',
+        lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+        lastVisitedAt: new Date().toISOString(),
+        sessionDraft: {},
+      }
+      writePlayerImproveResumeState(nextState, userId)
+      void syncPlayerImproveResumeState(nextState, userId, session?.access_token)
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    playerResumeConversationResolvedId,
+    replyBody,
+    selectedCoachContact,
+    selectedConversation,
+    session?.access_token,
+    userId,
+  ])
 
   useEffect(() => {
     if (!userId || !selectedConversation || !selectedCoachStudent) return

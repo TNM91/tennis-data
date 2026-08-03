@@ -3,7 +3,6 @@ import { create as createQrCode } from 'qrcode'
 import type { ReactNode } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
-import RoleActionHome from '@/app/components/role-action-home'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import TiqCourt from '@/components/tactical/TiqCourt'
@@ -27,7 +26,9 @@ import {
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import PlayerDevelopmentPrintControls from './player-development-print-controls'
+import ImproveLandingHub from './improve-landing-hub'
 import PlayerLiveWorkbench from './player-live-workbench'
+import PlayerDevelopmentResumeTracker from './player-development-resume-tracker'
 import styles from './player-development.module.css'
 
 type PlayerDevelopmentSystemProps = {
@@ -51,7 +52,18 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
     <main className={`${styles.shell} ${packetView ? styles.packetShell : ''} player-development-print-surface`}>
         {!packetView ? (
           <>
-            {improveLanding ? <ImproveLandingHub identity={identity} /> : null}
+            {improveLanding ? (
+              <ImproveLandingHub
+                identitySlug={identity.slug}
+                identityTitle={identity.title.replace(/^The /, '')}
+                tacticsHref={buildPlayerDevelopmentTacticsHref(identity, getIdentityStarterLevelUpCard(identity))}
+              />
+            ) : (
+              <PlayerDevelopmentResumeTracker
+                identitySlug={identity.slug}
+                identityTitle={identity.title.replace(/^The /, '')}
+              />
+            )}
             {improveLanding ? (
               <details className={styles.improveAllTools}>
                 <summary className={styles.overviewDetailsSummary}>
@@ -330,72 +342,6 @@ function buildPlayerDevelopmentTacticsHref(identity: PlayerDevelopmentIdentity, 
   }
 
   return `/tactics?${params.toString()}`
-}
-
-function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }) {
-  const starterCard = getIdentityStarterLevelUpCard(identity)
-  const tacticsHref = buildPlayerDevelopmentTacticsHref(identity, starterCard)
-  const primaryAction = {
-    detail: 'Run one court rep, score the proof, and save what comes next.',
-    cta: 'Start Level Up',
-    href: `/level-up/${identity.slug}#level-up-flow`,
-    icon: 'reports' as const,
-    label: 'Start here',
-    title: 'Start today\'s Level Up',
-  }
-  const quickActions = [
-    {
-      detail: 'Goals, proof, and assignments',
-      href: '/mylab#player-workshop',
-      icon: 'myLab' as const,
-      title: 'My Lab',
-    },
-    {
-      detail: 'Map the next point pattern',
-      href: tacticsHref,
-      icon: 'scenarioBuilder' as const,
-      title: 'Tactic plan',
-    },
-    {
-      detail: 'Review your tennis identity',
-      href: `/player-development/${identity.slug}`,
-      icon: 'playerRatings' as const,
-      title: 'Player path',
-    },
-    {
-      detail: 'Prepare for the next opponent',
-      href: '/matchup',
-      icon: 'matchupAnalysis' as const,
-      title: 'Match prep',
-    },
-  ]
-  const steps = [
-    {
-      title: 'Choose one focus',
-      detail: 'Open your Player path and pick the court habit that matters now.',
-    },
-    {
-      title: 'Train and score it',
-      detail: 'Run Level Up and save a simple 0-5 proof score.',
-    },
-    {
-      title: 'Use the result',
-      detail: 'Repeat, progress, or take the cue into your next match plan.',
-    },
-  ]
-
-  return (
-    <RoleActionHome
-      roleLabel="Improve"
-      contextLabel="Player path"
-      contextValue={identity.title.replace(/^The /, '')}
-      primaryAction={primaryAction}
-      quickActions={quickActions}
-      helpTitle="Need help getting started?"
-      steps={steps}
-      resumeKey="improve"
-    />
-  )
 }
 
 function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {

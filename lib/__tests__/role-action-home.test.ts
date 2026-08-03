@@ -6,7 +6,7 @@ const component = readFileSync(join(process.cwd(), 'app/components/role-action-h
 const styles = readFileSync(join(process.cwd(), 'app/components/role-action-home.module.css'), 'utf8')
 const coach = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const league = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
-const improve = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
+const improve = readFileSync(join(process.cwd(), 'app/player-development/_components/improve-landing-hub.tsx'), 'utf8')
 const compete = readFileSync(join(process.cwd(), 'app/compete/page.tsx'), 'utf8')
 
 describe('role action home', () => {
@@ -30,7 +30,7 @@ describe('role action home', () => {
     expect(component).toContain("label: 'Continue'")
     expect(coach).toContain('resumeKey={userId ? `coach:${userId}` : undefined}')
     expect(league).toContain('resumeKey={userId ? `league:${userId}` : undefined}')
-    expect(improve).toContain('resumeKey="improve"')
+    expect(improve).toContain('resumeKey={userId ? `improve:${userId}` : \'improve\'}')
     expect(compete).toContain('resumeKey="compete"')
   })
 
