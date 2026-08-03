@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import TrackedProductLink, { type ProductLinkEvent } from './tracked-product-link'
 import styles from './role-action-home.module.css'
 
 export type RoleHomeAction = {
@@ -10,6 +10,7 @@ export type RoleHomeAction = {
   cta: string
   href: string
   icon: TiqFeatureIconName
+  event?: ProductLinkEvent
 }
 
 export type RoleHomeQuickAction = {
@@ -17,6 +18,7 @@ export type RoleHomeQuickAction = {
   detail: string
   href: string
   icon: TiqFeatureIconName
+  event?: ProductLinkEvent
 }
 
 export type RoleHomeStep = {
@@ -65,20 +67,20 @@ export default function RoleActionHome({
           <strong>{primaryAction.title}</strong>
           <span>{primaryAction.detail}</span>
         </div>
-        <Link href={primaryAction.href} className={styles.primaryAction}>
+        <TrackedProductLink href={primaryAction.href} className={styles.primaryAction} event={primaryAction.event}>
           {primaryAction.cta}
-        </Link>
+        </TrackedProductLink>
       </div>
 
       <nav className={styles.quickGrid} aria-label={`${roleLabel} quick actions`}>
         {quickActions.slice(0, 4).map((action) => (
-          <Link key={action.title} href={action.href} className={styles.quickAction}>
+          <TrackedProductLink key={action.title} href={action.href} className={styles.quickAction} event={action.event}>
             <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
             <span className={styles.quickCopy}>
               <strong>{action.title}</strong>
               <span>{action.detail}</span>
             </span>
-          </Link>
+          </TrackedProductLink>
         ))}
       </nav>
 

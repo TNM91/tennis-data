@@ -24,7 +24,7 @@ const matchupSource = source('app/matchup/page.tsx')
 const appGlobalsSource = source('app/globals.css')
 
 function source(path: string) {
-  return readFileSync(join(process.cwd(), path), 'utf8')
+  return readFileSync(join(process.cwd(), path), 'utf8').replace(/\r\n/g, '\n')
 }
 
 function styleBlock(sourceText: string, styleName: string) {
@@ -547,8 +547,9 @@ describe('Explore responsive surfaces', () => {
     expect(playerDevelopmentSource).toContain('playerQuestionStripInline')
     expect(playerDevelopmentSource).toContain('playerQuestionStripDrawer')
     expect(playerDevelopmentSource).toContain('Open tennis moves for today')
-    expect(playerDevelopmentSource).toContain('improveHubMoreActions')
-    expect(playerDevelopmentSource).toContain('Open My Lab or build a tactic plan.')
+    expect(playerDevelopmentSource).toContain('<RoleActionHome')
+    expect(playerDevelopmentSource).toContain('All Improve tools')
+    expect(playerDevelopmentSource).toContain('improveAllTools')
     expect(playerDevelopmentSource).toContain('playerIdActionPlanMore')
     expect(playerDevelopmentSource).toContain('Show prove and use cues.')
     expect(playerDevelopmentSource).toContain('overviewDetailsDesktopStack')

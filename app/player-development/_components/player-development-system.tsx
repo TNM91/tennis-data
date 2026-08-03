@@ -3,6 +3,7 @@ import { create as createQrCode } from 'qrcode'
 import type { ReactNode } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
+import RoleActionHome from '@/app/components/role-action-home'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import TiqCourt from '@/components/tactical/TiqCourt'
@@ -51,80 +52,30 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
         {!packetView ? (
           <>
             {improveLanding ? <ImproveLandingHub identity={identity} /> : null}
-
-            <section className={styles.hero} data-compact={improveLanding ? 'true' : undefined}>
-              <div className={styles.heroCopy}>
-                <div className={styles.brandRow}>
-                  <BrandWordmark top />
-                  <span className={styles.printBadge}>Phone-first Level Up</span>
+            {improveLanding ? (
+              <details className={styles.improveAllTools}>
+                <summary className={styles.overviewDetailsSummary}>
+                  <span>All Improve tools</span>
+                  <strong>Open Player ID, paths, and guides</strong>
+                  <em>Show tools</em>
+                </summary>
+                <div className={styles.improveAllToolsBody}>
+                  <PlayerDevelopmentOverviewTools
+                    identity={identity}
+                    identityHeroDiagram={identityHeroDiagram}
+                    identityShortTitle={identityShortTitle}
+                    compact
+                    includeSupportingPaths
+                  />
                 </div>
-                <p className={styles.kicker}>TenAceIQ Player ID + Level Up</p>
-                {improveLanding ? (
-                  <h2 className={styles.heroTitle}>{identity.title}</h2>
-                ) : (
-                  <h1 className={styles.heroTitle}>{identity.title}</h1>
-                )}
-                <p className={styles.heroText}>
-                  Choose today&apos;s court habit, run one rep, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}.
-                </p>
-                <div className={styles.actions}>
-                  <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
-                    Start Level Up
-                  </Link>
-                  <Link className="button-secondary" href={`/level-up/${identity.slug}#level-up-flow`}>
-                    Drill mode
-                  </Link>
-                  <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
-                    Coach handoff
-                  </Link>
-                </div>
-              </div>
-              <div className={styles.heroPanel}>
-                <CourtDiagram diagram={identityHeroDiagram} title={`${identityShortTitle} court map`} />
-                <div className={styles.identityCard}>
-                  <TiqFeatureIcon name="myLab" size="md" variant="surface" />
-                  <div>
-                    <span>Player identity</span>
-                    <strong>{identityShortTitle}</strong>
-                    <p>{identity.mantra}</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <PlayerIdActionPlan identity={identity} />
-
-            <OverviewDetails eyebrow="Player tools" title="See how Level Up fits with My Lab" cue="Show tools">
-              <PlayerSuitePanel
-                active="development"
-                playerLabel={`${playerTier.name} development path`}
-                flow={['lab', 'development', 'matchup', 'refresh']}
+              </details>
+            ) : (
+              <PlayerDevelopmentOverviewTools
+                identity={identity}
+                identityHeroDiagram={identityHeroDiagram}
+                identityShortTitle={identityShortTitle}
               />
-            </OverviewDetails>
-
-            <PlayerQuestionStrip identity={identity} />
-
-            <OverviewDetails eyebrow="Player ID" title="Choose or review a player path" cue="Show player paths">
-              <PlayerIdentitySnapshot identity={identity} />
-              <IdentitySelector activeSlug={identity.slug} />
-            </OverviewDetails>
-
-            <OverviewDetails eyebrow="How it works" title="See the development structure" cue="Show guide">
-              <section className={styles.structurePanel} aria-labelledby="structure-title">
-                <div className={styles.sectionHead}>
-                  <p className={styles.kicker}>Player Development</p>
-                  <h2 id="structure-title">Turn match goals into phone-ready court work.</h2>
-                  <p>
-                    Use Level Up, phone court mode, weekly proof scores, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons. Print backups stay available when a coach or player wants paper.
-                  </p>
-                </div>
-                <div className={styles.planGrid}>
-                  <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
-                  <PlanCard icon="reports" title="Phone Level Up" items={['On-court reps', 'Timer', '0-5 proof', 'Next action']} />
-                  <PlanCard icon="schedule" title="Coach handoff" items={['Assignment cue', 'Proof standard', 'Review prompt', 'Print backup']} />
-                </div>
-              </section>
-            </OverviewDetails>
+            )}
           </>
         ) : (
           <section className={styles.packetHeader} aria-label="Paper backup">
@@ -175,7 +126,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
           </section>
         ) : null}
 
-        {focus === 'overview' ? (
+        {focus === 'overview' && !improveLanding ? (
           <>
             <div className={styles.overviewDetailsDesktopStack}>
               <OverviewDetails eyebrow="Level Up guide" title="See the full Level Up path" cue="Show path">
@@ -249,6 +200,112 @@ function OverviewDetails({
   )
 }
 
+function PlayerDevelopmentOverviewTools({
+  identity,
+  identityHeroDiagram,
+  identityShortTitle,
+  compact = false,
+  includeSupportingPaths = false,
+}: {
+  identity: PlayerDevelopmentIdentity
+  identityHeroDiagram: PlayerDevelopmentDiagram
+  identityShortTitle: string
+  compact?: boolean
+  includeSupportingPaths?: boolean
+}) {
+  return (
+    <>
+      <section className={styles.hero} data-compact={compact ? 'true' : undefined}>
+        <div className={styles.heroCopy}>
+          <div className={styles.brandRow}>
+            <BrandWordmark top />
+            <span className={styles.printBadge}>Phone-first Level Up</span>
+          </div>
+          <p className={styles.kicker}>TenAceIQ Player ID + Level Up</p>
+          {compact ? (
+            <h2 className={styles.heroTitle}>{identity.title}</h2>
+          ) : (
+            <h1 className={styles.heroTitle}>{identity.title}</h1>
+          )}
+          <p className={styles.heroText}>
+            Choose today&apos;s court habit, run one rep, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}.
+          </p>
+          <div className={styles.actions}>
+            <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
+              Start Level Up
+            </Link>
+            <Link className="button-secondary" href={`/level-up/${identity.slug}#level-up-flow`}>
+              Drill mode
+            </Link>
+            <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
+              Coach handoff
+            </Link>
+          </div>
+        </div>
+        <div className={styles.heroPanel}>
+          <CourtDiagram diagram={identityHeroDiagram} title={`${identityShortTitle} court map`} />
+          <div className={styles.identityCard}>
+            <TiqFeatureIcon name="myLab" size="md" variant="surface" />
+            <div>
+              <span>Player identity</span>
+              <strong>{identityShortTitle}</strong>
+              <p>{identity.mantra}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <PlayerIdActionPlan identity={identity} />
+
+      <OverviewDetails eyebrow="Player tools" title="See how Level Up fits with My Lab" cue="Show tools">
+        <PlayerSuitePanel
+          active="development"
+          playerLabel={`${playerTier.name} development path`}
+          flow={['lab', 'development', 'matchup', 'refresh']}
+        />
+      </OverviewDetails>
+
+      <PlayerQuestionStrip identity={identity} />
+
+      <OverviewDetails eyebrow="Player ID" title="Choose or review a player path" cue="Show player paths">
+        <PlayerIdentitySnapshot identity={identity} />
+        <IdentitySelector activeSlug={identity.slug} />
+      </OverviewDetails>
+
+      <OverviewDetails eyebrow="How it works" title="See the development structure" cue="Show guide">
+        <section className={styles.structurePanel} aria-labelledby="structure-title">
+          <div className={styles.sectionHead}>
+            <p className={styles.kicker}>Player Development</p>
+            <h2 id="structure-title">Turn match goals into phone-ready court work.</h2>
+            <p>
+              Use Level Up, phone court mode, weekly proof scores, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons. Print backups stay available when a coach or player wants paper.
+            </p>
+          </div>
+          <div className={styles.planGrid}>
+            <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
+            <PlanCard icon="reports" title="Phone Level Up" items={['On-court reps', 'Timer', '0-5 proof', 'Next action']} />
+            <PlanCard icon="schedule" title="Coach handoff" items={['Assignment cue', 'Proof standard', 'Review prompt', 'Print backup']} />
+          </div>
+        </section>
+      </OverviewDetails>
+
+      {includeSupportingPaths ? (
+        <>
+          <OverviewDetails eyebrow="Level Up guide" title="See the full Level Up path" cue="Show path">
+            <LevelUpOverviewPanel identity={identity} />
+          </OverviewDetails>
+          <OverviewDetails eyebrow="Weekly plan" title="Open the mission dashboard" cue="Show dashboard">
+            <PlayerMissionDashboard identity={identity} />
+          </OverviewDetails>
+          <OverviewDetails eyebrow="Saved work" title="Connect proof, coach notes, and Data Assist" cue="Show companion">
+            <ConnectedCompanion identity={identity} />
+          </OverviewDetails>
+        </>
+      ) : null}
+    </>
+  )
+}
+
 function getIdentityHeroDiagram(identity: PlayerDevelopmentIdentity): PlayerDevelopmentDiagram {
   return identity.weeks.find((week) => week.diagram !== 'player-led-review')?.diagram ?? 'movement-screen'
 }
@@ -279,87 +336,64 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
   const starterCard = getIdentityStarterLevelUpCard(identity)
   const tacticsHref = buildPlayerDevelopmentTacticsHref(identity, starterCard)
   const primaryAction = {
-    body: 'Run the next court rep, score one proof, and decide whether to repeat, progress, or test it in a match.',
+    detail: 'Run one court rep, score the proof, and save what comes next.',
     cta: 'Start Level Up',
     href: `/level-up/${identity.slug}#level-up-flow`,
     icon: 'reports' as const,
-    markers: ['Phone court mode', '0-5 proof', 'Repeat, progress, or test'],
-    title: 'Start Level Up',
+    label: 'Start here',
+    title: 'Start today\'s Level Up',
   }
-  const actions = [
+  const quickActions = [
     {
-      body: 'Keep goals, match notes, proof history, follows, and coach assignments close to your player profile.',
-      cta: 'Open My Lab',
+      detail: 'Goals, proof, and assignments',
       href: '/mylab#player-workshop',
       icon: 'myLab' as const,
-      marker: 'Saved proof trail',
-      title: 'Open My Lab',
+      title: 'My Lab',
     },
     {
-      body: 'Turn the next Player ID cue into a simple crosscourt point plan before you compete.',
-      cta: 'Build a tactic plan',
+      detail: 'Map the next point pattern',
       href: tacticsHref,
       icon: 'scenarioBuilder' as const,
-      marker: 'Crosscourt point plan',
-      title: 'Build a tactic plan',
+      title: 'Tactic plan',
+    },
+    {
+      detail: 'Review your tennis identity',
+      href: `/player-development/${identity.slug}`,
+      icon: 'playerRatings' as const,
+      title: 'Player path',
+    },
+    {
+      detail: 'Prepare for the next opponent',
+      href: '/matchup',
+      icon: 'matchupAnalysis' as const,
+      title: 'Match prep',
+    },
+  ]
+  const steps = [
+    {
+      title: 'Choose one focus',
+      detail: 'Open your Player path and pick the court habit that matters now.',
+    },
+    {
+      title: 'Train and score it',
+      detail: 'Run Level Up and save a simple 0-5 proof score.',
+    },
+    {
+      title: 'Use the result',
+      detail: 'Repeat, progress, or take the cue into your next match plan.',
     },
   ]
 
   return (
-    <section className={styles.improveHub} aria-labelledby="improve-hub-title">
-      <div className={styles.improveHubCopy}>
-        <h1 id="improve-hub-title">Improve</h1>
-        <p>
-          Start with the work you can do today: train one rep, save one player signal,
-          or map the tactic you want to use in the next match.
-        </p>
-      </div>
-      <div className={styles.improveHubActions} aria-label="Improve actions">
-        <Link className={styles.improveHubPrimaryAction} href={primaryAction.href}>
-          <span className={styles.improveHubActionTopline}>
-            <TiqFeatureIcon name={primaryAction.icon} size="md" variant="surface" />
-            <span>Today</span>
-          </span>
-          <strong>{primaryAction.title}</strong>
-          <p>{primaryAction.body}</p>
-          <ul className={styles.improveHubSignals} aria-label={`${primaryAction.title} next steps`}>
-            {primaryAction.markers.map((marker) => (
-              <li key={marker}>{marker}</li>
-            ))}
-          </ul>
-          <em>{primaryAction.cta}</em>
-        </Link>
-        <div className={styles.improveHubSecondaryActions}>
-          {actions.map((action) => (
-            <Link className={styles.improveHubAction} href={action.href} key={action.title}>
-              <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
-              <span>{action.marker}</span>
-              <strong>{action.title}</strong>
-              <p>{action.body}</p>
-              <em>{action.cta}</em>
-            </Link>
-          ))}
-        </div>
-        <details className={styles.improveHubMoreActions}>
-          <summary>
-            <span>More improve moves</span>
-            <strong>Open My Lab or build a tactic plan.</strong>
-            <em>{actions.length} moves</em>
-          </summary>
-          <div>
-            {actions.map((action) => (
-              <Link className={styles.improveHubAction} href={action.href} key={action.title}>
-                <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
-                <span>{action.marker}</span>
-                <strong>{action.title}</strong>
-                <p>{action.body}</p>
-                <em>{action.cta}</em>
-              </Link>
-            ))}
-          </div>
-        </details>
-      </div>
-    </section>
+    <RoleActionHome
+      roleLabel="Improve"
+      contextLabel="Player path"
+      contextValue={identity.title.replace(/^The /, '')}
+      primaryAction={primaryAction}
+      quickActions={quickActions}
+      helpTitle="Need help getting started?"
+      steps={steps}
+    />
   )
 }
 

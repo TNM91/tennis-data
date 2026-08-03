@@ -109,7 +109,7 @@
   min-width: 132px;
   padding: 0 18px;
   color: var(--text-dark);
-  background: linear-gradient(135deg, var(--brand-green), var(--brand-lime));
+  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-3));
   box-shadow: 0 12px 28px rgba(155, 225, 29, 0.14);
 }
 
@@ -190,7 +190,7 @@
   place-items: center;
   border-radius: 999px;
   color: var(--text-dark);
-  background: var(--brand-lime);
+  background: var(--brand-green-3);
   font-size: 12px;
   font-weight: 950;
 }

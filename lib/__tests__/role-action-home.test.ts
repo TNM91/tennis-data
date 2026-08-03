@@ -6,9 +6,11 @@ const component = readFileSync(join(process.cwd(), 'app/components/role-action-h
 const styles = readFileSync(join(process.cwd(), 'app/components/role-action-home.module.css'), 'utf8')
 const coach = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const league = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
+const improve = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
+const compete = readFileSync(join(process.cwd(), 'app/compete/page.tsx'), 'utf8')
 
 describe('role action home', () => {
-  it('gives Coach and League the same task-first entry pattern', () => {
+  it('gives the main action lanes the same task-first entry pattern', () => {
     expect(component).toContain('What do you need to do?')
     expect(component).toContain('primaryAction')
     expect(component).toContain('quickActions.slice(0, 4)')
@@ -17,6 +19,12 @@ describe('role action home', () => {
     expect(coach).toContain('roleLabel="Coach"')
     expect(league).toContain('<RoleActionHome')
     expect(league).toContain('roleLabel="League"')
+    expect(improve).toContain('<RoleActionHome')
+    expect(improve).toContain('roleLabel="Improve"')
+    expect(compete).toContain('<RoleActionHome')
+    expect(compete).toContain('roleLabel="Compete"')
+    expect(compete).toContain('compactHome')
+    expect(compete).toContain('More Compete tools')
   })
 
   it('keeps the mobile home compact and touch friendly', () => {
@@ -25,6 +33,8 @@ describe('role action home', () => {
     expect(styles).toContain('min-height: 58px;')
     expect(styles).toContain('.primaryAction')
     expect(styles).toContain('width: 100%;')
+    expect(styles).toContain('linear-gradient(135deg, var(--brand-green), var(--brand-green-3))')
+    expect(styles).not.toContain('var(--brand-lime)')
   })
 
   it('opens setup only for first-time users', () => {

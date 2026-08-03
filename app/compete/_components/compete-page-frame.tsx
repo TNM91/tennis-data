@@ -14,6 +14,7 @@ type FrameProps = {
   eyebrow: string
   description: string
   children: ReactNode
+  compactHome?: boolean
 }
 
 const HERO_SIGNALS = [
@@ -66,6 +67,7 @@ export default function CompetePageFrame({
   eyebrow,
   description,
   children,
+  compactHome = false,
 }: FrameProps) {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -87,7 +89,7 @@ export default function CompetePageFrame({
             minWidth: 0,
           }}
         >
-          <div
+          {!compactHome ? <div
             style={{
               position: 'relative',
               overflow: 'hidden',
@@ -174,11 +176,11 @@ export default function CompetePageFrame({
 
               </div>
             </div>
-          </div>
+          </div> : null}
 
           {children}
 
-          <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+          {!compactHome ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
             <summary style={competeSupportSummaryStyle}>
               <span style={competeSupportSummaryTextStyle}>Use your Player ID before match prep</span>
               <span>Open</span>
@@ -228,9 +230,9 @@ export default function CompetePageFrame({
                 </div>
               </section>
             </div>
-          </details>
+          </details> : null}
 
-          <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+          {!compactHome ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
             <summary style={competeSupportSummaryStyle}>
               <span style={competeSupportSummaryTextStyle}>Turn this into a captain move</span>
               <span>Open</span>
@@ -269,7 +271,7 @@ export default function CompetePageFrame({
                 </div>
               </section>
             </div>
-          </details>
+          </details> : null}
         </div>
       </section>
     </SiteShell>
