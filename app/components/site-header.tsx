@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
+import { usePlatformResume } from '@/app/components/use-platform-resume'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
@@ -68,6 +69,16 @@ function MobileItemLabel({ label, description }: { label: string; description?: 
     <span style={mobileItemCopyStyle}>
       <span style={mobilePlainItemTextStyle}>{label}</span>
       {description ? <span style={mobileItemDescriptionStyle}>{description}</span> : null}
+    </span>
+  )
+}
+
+function ResumeItemLabel({ lane, label, context }: { lane: string; label: string; context?: string }) {
+  return (
+    <span style={resumeItemCopyStyle}>
+      <span style={resumeItemLaneStyle}>{lane}</span>
+      <span style={resumeItemLabelStyle}>{label}</span>
+      {context ? <span style={resumeItemContextStyle}>{context}</span> : null}
     </span>
   )
 }
@@ -205,6 +216,18 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
   })
+  const savedResumeItems = usePlatformResume({
+    accessToken: session?.access_token,
+    userId,
+    refreshKey: pathname,
+  })
+  const resumeItems = accessPending ? [] : savedResumeItems.filter((item) => {
+    if (item.id === 'captain') return access.canUseCaptainWorkflow
+    if (item.id === 'coach') return access.canUseCoachWorkflow
+    if (item.id === 'league') return access.canUseLeagueTools
+    return true
+  })
+  const resumePrimary = resumeItems[0]
 
   return (
     <>
@@ -308,6 +331,24 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               maxWidth: '100%',
             }}
           >
+            {authenticated && resumePrimary ? (
+              <Link
+                href={resumePrimary.href}
+                aria-label={`Continue ${resumePrimary.lane}: ${resumePrimary.label}`}
+                onClick={() => {
+                  setMenuOpen(false)
+                  setSearchOpen(false)
+                }}
+                style={{
+                  ...resumeShortcutStyle,
+                  minHeight: useCompactHeader ? 36 : 42,
+                  padding: useCompactHeader ? '0 11px' : '0 13px',
+                }}
+              >
+                {useCompactHeader ? 'Continue' : `Continue ${resumePrimary.lane}`}
+              </Link>
+            ) : null}
+
             {useCompactHeader ? null : (
               <>
                 <button
@@ -409,6 +450,17 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               <span aria-live="polite" style={desktopMenuStatusStyle}>Checking account access</span>
             ) : authenticated ? (
               <>
+                {resumeItems.length ? (
+                  <div aria-label="Recent work" style={desktopResumeSectionStyle}>
+                    <div style={mobileSectionLabelStyle}>Pick up where you left off</div>
+                    {resumeItems.slice(0, 3).map((item) => (
+                      <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeLinkStyle}>
+                        <ResumeItemLabel lane={item.lane} label={item.label} context={item.context} />
+                        <span aria-hidden="true" style={{ opacity: 0.56 }}>{'\u2192'}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
                 {workspaceShortcut ? (
                   <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
                     {workspaceShortcut.label}
@@ -492,6 +544,17 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
 
               {authPending ? null : authenticated ? (
                 <>
+                  {resumeItems.length ? (
+                    <div aria-label="Recent work" style={mobileResumeSectionStyle}>
+                      <div style={mobileSectionLabelStyle}>Pick up where you left off</div>
+                      {resumeItems.slice(0, 2).map((item) => (
+                        <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
+                          <MobileItemLabel label={`${item.lane}: ${item.label}`} description={item.context || undefined} />
+                          <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
                   {PRIMARY_NAV_ITEMS.map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <MobileItemLabel label={item.label} description={item.description} />
@@ -700,6 +763,15 @@ const workspaceShortcutStyle = {
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
+const resumeShortcutStyle: CSSProperties = {
+  ...workspaceShortcutStyle,
+  flex: '0 0 auto',
+  whiteSpace: 'nowrap',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
+  borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+}
+
 const desktopMenuPanelStyle: CSSProperties = {
   position: 'absolute',
   zIndex: 3,
@@ -794,6 +866,50 @@ const desktopMenuDividerStyle: CSSProperties = {
   margin: '2px 0',
 }
 
+const desktopResumeSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  paddingBottom: 2,
+}
+
+const desktopResumeLinkStyle: CSSProperties = {
+  ...desktopMenuLinkStyle,
+  alignItems: 'center',
+  minHeight: 52,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const resumeItemCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+}
+
+const resumeItemLaneStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const resumeItemLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 900,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const resumeItemContextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 720,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
 const desktopMenuCueStyle: CSSProperties = {
   margin: 0,
   borderRadius: 10,
@@ -867,6 +983,12 @@ const mobileWorkspaceItemStyle = {
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
 } as const
+
+const mobileResumeSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  padding: '2px 0',
+}
 
 const mobilePlainItemTextStyle = {
   minWidth: 0,
