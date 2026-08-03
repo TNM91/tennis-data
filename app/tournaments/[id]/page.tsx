@@ -21,6 +21,7 @@ import {
 } from '@/lib/tiq-tournament-registry'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getTournamentDrawFormatDefinition } from '@/lib/competition-format-registry'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 
 export const dynamic = 'force-dynamic'
 
@@ -240,6 +241,13 @@ function TournamentPublicInner() {
 
   return (
     <main style={pageStyle}>
+      <CompeteResumeTracker
+        surface={entryFocusedField || entryName || entryEmail || entryPhone ? 'tournament-entry' : 'tournament'}
+        label={entryFocusedField || entryName || entryEmail || entryPhone ? 'tournament entry' : 'tournament'}
+        href={`/tournaments/${encodeURIComponent(record.id)}${entryFocusedField || entryName || entryEmail || entryPhone ? '#enter-tournament' : ''}`}
+        tournamentId={record.id}
+        tournamentName={record.name}
+      />
       <section style={heroStyle}>
         <span aria-hidden="true" style={watermarkStyle} />
         <div style={heroCopyStyle}>

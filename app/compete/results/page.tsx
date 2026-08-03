@@ -101,6 +101,9 @@ export default function CompeteResultsPage() {
       eyebrow="Results"
       title="Use results without digging."
       description="Review recent outcomes, log scores, compare the next matchup, or upload a scorecard."
+      resumeSurface="results"
+      resumeLabel="results"
+      resumeHref="/compete/results"
     >
       <CompeteResultsContent />
     </CompetePageFrame>

@@ -6,6 +6,8 @@ import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
+import type { CompeteResumeSurface } from '@/lib/compete-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -15,6 +17,9 @@ type FrameProps = {
   description: string
   children: ReactNode
   compactHome?: boolean
+  resumeSurface?: CompeteResumeSurface
+  resumeLabel?: string
+  resumeHref?: string
 }
 
 const HERO_SIGNALS = [
@@ -68,11 +73,17 @@ export default function CompetePageFrame({
   description,
   children,
   compactHome = false,
+  resumeSurface,
+  resumeLabel,
+  resumeHref,
 }: FrameProps) {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   return (
     <SiteShell active="/compete">
+      {resumeSurface && resumeLabel && resumeHref ? (
+        <CompeteResumeTracker surface={resumeSurface} label={resumeLabel} href={resumeHref} />
+      ) : null}
       <section
         style={{
           padding: isMobile ? '16px 0 48px' : '20px 0 64px',

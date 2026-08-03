@@ -8,6 +8,7 @@ const coach = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const league = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
 const improve = readFileSync(join(process.cwd(), 'app/player-development/_components/improve-landing-hub.tsx'), 'utf8')
 const compete = readFileSync(join(process.cwd(), 'app/compete/page.tsx'), 'utf8')
+const competeHome = readFileSync(join(process.cwd(), 'app/compete/_components/compete-home.tsx'), 'utf8')
 
 describe('role action home', () => {
   it('gives the main action lanes the same task-first entry pattern', () => {
@@ -21,8 +22,8 @@ describe('role action home', () => {
     expect(league).toContain('roleLabel="League"')
     expect(improve).toContain('<RoleActionHome')
     expect(improve).toContain('roleLabel="Improve"')
-    expect(compete).toContain('<RoleActionHome')
-    expect(compete).toContain('roleLabel="Compete"')
+    expect(competeHome).toContain('<RoleActionHome')
+    expect(competeHome).toContain('roleLabel="Compete"')
     expect(compete).toContain('compactHome')
     expect(compete).toContain('More Compete tools')
     expect(component).toContain('parseRoleHomeResumeSnapshot')
@@ -31,7 +32,7 @@ describe('role action home', () => {
     expect(coach).toContain('resumeKey={userId ? `coach:${userId}` : undefined}')
     expect(league).toContain('resumeKey={userId ? `league:${userId}` : undefined}')
     expect(improve).toContain('resumeKey={userId ? `improve:${userId}` : \'improve\'}')
-    expect(compete).toContain('resumeKey="compete"')
+    expect(competeHome).toContain('resumeKey={userId ? `compete:${userId}` : \'compete\'}')
   })
 
   it('keeps the mobile home compact and touch friendly', () => {
