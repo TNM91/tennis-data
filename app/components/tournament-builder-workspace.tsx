@@ -6,6 +6,14 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
 import { supabase } from '@/lib/supabase'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
 import {
@@ -119,7 +127,7 @@ const tournamentDeskPaths = [
 ] as const
 
 export default function TournamentBuilderWorkspace() {
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const canUseLeague = access.canUseLeagueTools
@@ -168,6 +176,9 @@ export default function TournamentBuilderWorkspace() {
     third: '',
   })
   const [awardRefresh, setAwardRefresh] = useState(0)
+  const [resumeTargetTournamentId, setResumeTargetTournamentId] = useState('')
+  const [appliedResumeTournamentId, setAppliedResumeTournamentId] = useState('')
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
 
   const selectedRecord = records.find((record) => record.id === selectedId) || null
   const selectedRecordId = selectedRecord?.id || ''
@@ -528,6 +539,109 @@ export default function TournamentBuilderWorkspace() {
       active = false
     }
   }, [authResolved, userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const requestedId = new URLSearchParams(window.location.search).get('tournamentId') || ''
+      const targetId = requestedId || (resumeState?.lastSurface === 'tournament' ? resumeState.tournamentId || '' : '')
+      setResumeTargetTournamentId(targetId)
+      const draft = resumeState?.lastSurface === 'tournament' ? resumeState.tournamentDraft : null
+      if (draft && (!targetId || !draft.tournamentId || draft.tournamentId === targetId)) {
+        setSelectedId(draft.tournamentId || targetId)
+        setName(draft.name || 'Saturday Smash')
+        if (draft.format && TOURNAMENT_DRAW_FORMATS.some((item) => item.id === draft.format)) {
+          setFormat(draft.format as TiqTournamentFormat)
+        }
+        setEntrantType(draft.entrantType || 'players')
+        setStartsOn(draft.startsOn || '')
+        setLocationLabel(draft.locationLabel || '')
+        setDirectorNotes(draft.directorNotes || '')
+        setEntrantsText(draft.entrantsText || sampleEntrants.join('\n'))
+        setIsPublic(Boolean(draft.isPublic))
+        setAppliedResumeTournamentId(draft.tournamentId || targetId || 'new')
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!resumeTargetTournamentId || appliedResumeTournamentId) return
+    const record = records.find((item) => item.id === resumeTargetTournamentId)
+    if (!record) return
+    setSelectedId(record.id)
+    setName(record.name)
+    setFormat(record.format)
+    setEntrantType(record.entrantType)
+    setStartsOn(record.startsOn)
+    setLocationLabel(record.locationLabel)
+    setDirectorNotes(record.directorNotes)
+    setEntrantsText(record.entrants.join('\n'))
+    setIsPublic(record.isPublic)
+    setScoreInputs(buildScoreInputState(record))
+    setScheduleInputs(buildScheduleInputState(record))
+    setContactInputs(buildContactInputState(record))
+    setAwardRecipients(buildAwardRecipientState(record))
+    setAppliedResumeTournamentId(record.id)
+  }, [appliedResumeTournamentId, records, resumeTargetTournamentId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canUseLeague) return
+
+    const selected = records.find((record) => record.id === selectedId) || null
+    const nextState: LeagueCoordinatorResumeState = {
+      tournamentId: selectedId || undefined,
+      tournamentName: name.trim() || selected?.name || 'New tournament',
+      lastSurface: 'tournament',
+      lastSurfaceLabel: selectedId ? 'Tournament Desk' : 'Tournament Draft',
+      lastHref: `/league-coordinator/tournaments${selectedId ? `?tournamentId=${encodeURIComponent(selectedId)}` : ''}#tournament-setup`,
+      tournamentDraft: {
+        tournamentId: selectedId || undefined,
+        name,
+        format,
+        entrantType,
+        startsOn,
+        locationLabel,
+        directorNotes,
+        entrantsText,
+        isPublic,
+      },
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    canUseLeague,
+    coordinatorResumeResolved,
+    directorNotes,
+    entrantType,
+    entrantsText,
+    format,
+    isPublic,
+    locationLabel,
+    name,
+    records,
+    selectedId,
+    session?.access_token,
+    startsOn,
+    userId,
+  ])
 
   useEffect(() => {
     let active = true

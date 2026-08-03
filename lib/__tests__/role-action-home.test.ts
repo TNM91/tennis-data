@@ -48,7 +48,7 @@ describe('role action home', () => {
     expect(coach).toContain('showSteps={!savedStudents.length}')
     expect(league).toContain('showSteps={isFirstLeagueSetup}')
     expect(coach).toContain('contextValue={activeMobileBenchCard?.student.playerName')
-    expect(league).toContain('contextValue={latestRecord?.leagueName')
+    expect(league).toContain('contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName')
     expect(league).toContain('{access.canUseLeagueTools ? (')
   })
 })
