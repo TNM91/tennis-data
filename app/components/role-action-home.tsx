@@ -1,5 +1,14 @@
+'use client'
+
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import {
+  getRoleHomeResumeSnapshot,
+  parseRoleHomeResumeSnapshot,
+  subscribeToRoleHomeResume,
+  writeRoleHomeResume,
+} from '@/lib/role-home-resume'
 import TrackedProductLink, { type ProductLinkEvent } from './tracked-product-link'
 import styles from './role-action-home.module.css'
 
@@ -35,6 +44,7 @@ export default function RoleActionHome({
   helpTitle,
   steps,
   showSteps = false,
+  resumeKey,
 }: {
   roleLabel: string
   contextLabel: string
@@ -44,7 +54,46 @@ export default function RoleActionHome({
   helpTitle: string
   steps: readonly RoleHomeStep[]
   showSteps?: boolean
+  resumeKey?: string
 }) {
+  const subscribe = useCallback(
+    (onChange: () => void) => subscribeToRoleHomeResume(resumeKey || '', onChange),
+    [resumeKey],
+  )
+  const getSnapshot = useCallback(
+    () => getRoleHomeResumeSnapshot(resumeKey || ''),
+    [resumeKey],
+  )
+  const resumeSnapshot = useSyncExternalStore(subscribe, getSnapshot, () => '')
+  const resumeAction = useMemo<RoleHomeAction | null>(() => {
+    const saved = parseRoleHomeResumeSnapshot(resumeSnapshot)
+    if (!saved) return null
+    return {
+      label: 'Continue',
+      title: saved.title,
+      detail: saved.contextValue ? `${saved.detail} ${saved.contextValue}.` : saved.detail,
+      cta: 'Continue',
+      href: saved.href,
+      icon: primaryAction.icon,
+    }
+  }, [primaryAction.icon, resumeSnapshot])
+
+  const displayedPrimaryAction = useMemo(
+    () => resumeAction || primaryAction,
+    [primaryAction, resumeAction],
+  )
+
+  function rememberAction(action: Pick<RoleHomeAction, 'title' | 'detail' | 'href' | 'icon'>) {
+    if (!resumeKey) return
+    writeRoleHomeResume(resumeKey, {
+      href: action.href,
+      title: action.title,
+      detail: action.detail,
+      icon: action.icon,
+      contextValue,
+    })
+  }
+
   return (
     <section className={styles.shell} aria-label={`${roleLabel} home`}>
       <header className={styles.header}>
@@ -60,21 +109,32 @@ export default function RoleActionHome({
 
       <div className={styles.primary}>
         <div className={styles.primaryIcon}>
-          <TiqFeatureIcon name={primaryAction.icon} size="md" variant="surface" />
+          <TiqFeatureIcon name={displayedPrimaryAction.icon} size="md" variant="surface" />
         </div>
         <div className={styles.primaryCopy}>
-          <span className={styles.primaryLabel}>{primaryAction.label}</span>
-          <strong>{primaryAction.title}</strong>
-          <span>{primaryAction.detail}</span>
+          <span className={styles.primaryLabel}>{displayedPrimaryAction.label}</span>
+          <strong>{displayedPrimaryAction.title}</strong>
+          <span>{displayedPrimaryAction.detail}</span>
         </div>
-        <TrackedProductLink href={primaryAction.href} className={styles.primaryAction} event={primaryAction.event}>
-          {primaryAction.cta}
+        <TrackedProductLink
+          href={displayedPrimaryAction.href}
+          className={styles.primaryAction}
+          event={displayedPrimaryAction.event}
+          onClick={() => rememberAction(displayedPrimaryAction)}
+        >
+          {displayedPrimaryAction.cta}
         </TrackedProductLink>
       </div>
 
       <nav className={styles.quickGrid} aria-label={`${roleLabel} quick actions`}>
         {quickActions.slice(0, 4).map((action) => (
-          <TrackedProductLink key={action.title} href={action.href} className={styles.quickAction} event={action.event}>
+          <TrackedProductLink
+            key={action.title}
+            href={action.href}
+            className={styles.quickAction}
+            event={action.event}
+            onClick={() => rememberAction({ ...action, detail: action.detail })}
+          >
             <TiqFeatureIcon name={action.icon} size="sm" variant="ghost" />
             <span className={styles.quickCopy}>
               <strong>{action.title}</strong>

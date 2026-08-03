@@ -18,6 +18,7 @@ export default function TrackedProductLink({
   className,
   ariaLabel,
   event,
+  onClick,
   onMouseEnter,
   onMouseLeave,
 }: {
@@ -27,12 +28,13 @@ export default function TrackedProductLink({
   className?: string
   ariaLabel?: string
   event?: ProductLinkEvent
+  onClick?: MouseEventHandler<HTMLAnchorElement>
   onMouseEnter?: MouseEventHandler<HTMLAnchorElement>
   onMouseLeave?: MouseEventHandler<HTMLAnchorElement>
 }) {
-  const handleClick: MouseEventHandler<HTMLAnchorElement> = () => {
-    if (!event) return
-    void trackProductUsageEvent(event)
+  const handleClick: MouseEventHandler<HTMLAnchorElement> = (clickEvent) => {
+    if (event) void trackProductUsageEvent(event)
+    onClick?.(clickEvent)
   }
 
   return (

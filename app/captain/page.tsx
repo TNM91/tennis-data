@@ -72,6 +72,7 @@ import {
   type CaptainTeamImprovementId,
 } from '@/lib/captain-team-improvements'
 import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
+import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
@@ -1470,19 +1471,18 @@ function CaptainLockedSurface({
   )
 }
 
-function CaptainFirstUseSetup({ profile }: { profile: CaptainProfileLinkRow | null }) {
-  const playerIdReady = Boolean(profile?.linked_player_id || profile?.linked_player_name)
-
+function CaptainFirstUseSetup({ progress, setupResult }: { progress: CaptainSetupProgress; setupResult: string }) {
   return (
     <div style={{ ...pageWrap, display: 'grid', gap: 12 }}>
       <TennisSetupChecklist
-        hasPlayer={playerIdReady}
-        hasTeam={false}
-        hasMatchData={false}
-        playerHref="/profile?setup=captain#profile-identity"
+        hasPlayer={progress.hasPlayer}
+        hasTeam={progress.hasTeam}
+        hasMatchData={progress.hasMatchData}
+        playerHref="/profile?setup=captain&returnTo=%2Fcaptain#profile-identity"
         teamHref={captainPlayerRosterHref}
         matchDataHref={captainScheduleHref}
         context="captain"
+        statusMessage={setupResult === 'player-linked' ? 'Player connected. Add your team next.' : undefined}
       />
     </div>
   )
@@ -2668,6 +2668,13 @@ function CaptainHubContent() {
   const captainUnlockHref = getPlanUnlockHref('captain', '/captain')
   const captainWorkflowHref = (href: string) => premiumEnabled ? href : captainUnlockHref
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const captainSetupProgress = useMemo(() => getCaptainSetupProgress({
+    profile: captainProfileLink,
+    teamScopes: captainTeamScopes,
+    teamOptions: filteredTeamOptions,
+    importHandoff: captainImportHandoff,
+  }), [captainImportHandoff, captainProfileLink, captainTeamScopes, filteredTeamOptions])
+  const captainSetupResult = searchParams.get('setupResult') || ''
 
   useEffect(() => {
     setCaptainHomeChecklistDoneById(hasTeamScope ? readCaptainHomeChecklist(captainWeekStatusKey) : {})
@@ -16183,9 +16190,16 @@ function CaptainHubContent() {
     </div>
   ) : null
 
-  if (premiumEnabled && authResolved && teamScopeResolved && !loadingOptions && !filteredTeamOptions.length) {
+  if (
+    premiumEnabled
+    && authResolved
+    && teamScopeResolved
+    && !loadingOptions
+    && !filteredTeamOptions.length
+    && captainSetupProgress.nextStep !== 'ready'
+  ) {
     return (
-      <CaptainFirstUseSetup profile={captainProfileLink} />
+      <CaptainFirstUseSetup progress={captainSetupProgress} setupResult={captainSetupResult} />
     )
   }
 

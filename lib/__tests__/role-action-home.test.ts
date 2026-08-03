@@ -25,6 +25,13 @@ describe('role action home', () => {
     expect(compete).toContain('roleLabel="Compete"')
     expect(compete).toContain('compactHome')
     expect(compete).toContain('More Compete tools')
+    expect(component).toContain('parseRoleHomeResumeSnapshot')
+    expect(component).toContain('writeRoleHomeResume')
+    expect(component).toContain("label: 'Continue'")
+    expect(coach).toContain('resumeKey={userId ? `coach:${userId}` : undefined}')
+    expect(league).toContain('resumeKey={userId ? `league:${userId}` : undefined}')
+    expect(improve).toContain('resumeKey="improve"')
+    expect(compete).toContain('resumeKey="compete"')
   })
 
   it('keeps the mobile home compact and touch friendly', () => {

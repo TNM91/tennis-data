@@ -2770,6 +2770,7 @@ function CoachContent() {
         helpTitle={savedStudents.length ? 'Need help with Coach setup?' : 'Set up Coach in three steps'}
         steps={COACH_HOME_STEPS}
         showSteps={!savedStudents.length}
+        resumeKey={userId ? `coach:${userId}` : undefined}
       />
 
       {!isMobile ? (

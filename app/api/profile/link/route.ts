@@ -27,6 +27,16 @@ type PlayerRow = {
   rating_source?: string | null
 }
 
+type ProfileLinkRow = {
+  linked_player_id?: string | null
+  linked_player_name?: string | null
+  linked_team_name?: string | null
+  linked_league_name?: string | null
+  linked_flight?: string | null
+  profile_photo_url?: string | null
+  message_display_name?: string | null
+}
+
 const PLAYER_SELECT_WITH_SOURCE = `
   id,
   name,
@@ -143,15 +153,16 @@ export async function POST(request: Request) {
       )
     }
 
+    const existingProfile = await loadProfileLink(supabase, requester.userId)
     const profilePayload = {
       id: requester.userId,
       linked_player_id: player.id,
       linked_player_name: player.name,
-      linked_team_name: null,
-      linked_league_name: null,
-      linked_flight: player.flight ?? null,
+      linked_team_name: cleanString(existingProfile?.linked_team_name) || null,
+      linked_league_name: cleanString(existingProfile?.linked_league_name) || null,
+      linked_flight: cleanString(existingProfile?.linked_flight) || player.flight || null,
       linked_team_at: new Date().toISOString(),
-      message_display_name: player.name,
+      message_display_name: cleanString(existingProfile?.message_display_name) || player.name,
     }
 
     const profileRes = await saveProfileLink(supabase, profilePayload)
@@ -169,14 +180,14 @@ export async function POST(request: Request) {
   }
 }
 
-async function loadProfileLink(supabase: SupabaseClient, userId: string) {
+async function loadProfileLink(supabase: SupabaseClient, userId: string): Promise<ProfileLinkRow | null> {
   const fullRes = await supabase
     .from('profiles')
     .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url,message_display_name')
     .eq('id', userId)
     .maybeSingle()
 
-  if (!fullRes.error) return fullRes.data ?? null
+  if (!fullRes.error) return (fullRes.data as ProfileLinkRow | null) ?? null
   if (!isMissingProfileLinkSchemaError(fullRes.error.message)) throw new Error(fullRes.error.message)
 
   const compatibilityRes = await supabase
@@ -185,7 +196,7 @@ async function loadProfileLink(supabase: SupabaseClient, userId: string) {
     .eq('id', userId)
     .maybeSingle()
 
-  if (!compatibilityRes.error) return compatibilityRes.data ?? null
+  if (!compatibilityRes.error) return (compatibilityRes.data as ProfileLinkRow | null) ?? null
   if (!isMissingProfileLinkSchemaError(compatibilityRes.error.message)) throw new Error(compatibilityRes.error.message)
 
   const minimalRes = await supabase
@@ -195,7 +206,7 @@ async function loadProfileLink(supabase: SupabaseClient, userId: string) {
     .maybeSingle()
 
   if (minimalRes.error) throw new Error(minimalRes.error.message)
-  return minimalRes.data ?? null
+  return (minimalRes.data as ProfileLinkRow | null) ?? null
 }
 
 async function saveProfileLink(supabase: SupabaseClient, profilePayload: {

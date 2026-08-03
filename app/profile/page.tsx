@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
@@ -24,6 +25,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
+import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -257,6 +259,7 @@ export default function ProfilePage() {
 }
 
 function ProfilePageInner() {
+  const router = useRouter()
   const { role, entitlements, session, userId, authResolved } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -496,9 +499,9 @@ function ProfilePageInner() {
       const payload: UserProfileLink & { linked_team_at: string } = {
         linked_player_id: nextPlayer?.id || null,
         linked_player_name: nextPlayer?.name || typedPlayerNameClean || null,
-        linked_team_name: null,
-        linked_league_name: null,
-        linked_flight: null,
+        linked_team_name: profile?.linked_team_name || null,
+        linked_league_name: profile?.linked_league_name || null,
+        linked_flight: profile?.linked_flight || nextPlayer?.flight || null,
         linked_team_at: new Date().toISOString(),
       }
 
@@ -542,6 +545,14 @@ function ProfilePageInner() {
             teamCount: selectedPlayerTeams.length,
           },
         })
+      }
+      const currentParams = new URLSearchParams(window.location.search)
+      const returnTo = getSafeWorkflowReturnTo(
+        currentParams.get('returnTo'),
+        currentParams.get('setup') === 'captain' ? '/captain' : '',
+      )
+      if (returnTo) {
+        router.replace(addWorkflowResult(returnTo, 'player-linked'))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save your profile.')
