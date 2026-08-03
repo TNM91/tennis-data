@@ -100,6 +100,7 @@ describe('suite panel navigation deduplication', () => {
     expect(myLab).toContain("const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'")
     expect(myLab).toContain('<h1 style={sectionTitleStyle}>{myLabTitle}</h1>')
     expect(captain).toContain('<h1 style={scopeTitleStyle}>Choose the week.</h1>')
-    expect(league).toContain('<h1 style={leagueOpsTitleStyle}>')
+    expect(league).toContain('<RoleActionHome')
+    expect(league).toContain('roleLabel="League"')
   })
 })

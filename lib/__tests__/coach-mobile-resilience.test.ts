@@ -9,9 +9,10 @@ const lockedPlanSource = readFileSync(join(process.cwd(), 'app/components/locked
 describe('coach mobile resilience', () => {
   it('keeps the phone coach page from stacking duplicate portal-like headers', () => {
     expect(coachSource).toContain('const { isMobile } = useViewportBreakpoints()')
-    expect(coachSource).toContain('isMobile ? (')
-    expect(coachSource).toContain('<h1 style={visuallyHiddenStyle}>Coach Hub</h1>')
-    expect(coachSource).toContain('<section style={heroStyle}>')
+    expect(coachSource).toContain('<RoleActionHome')
+    expect(coachSource).toContain('roleLabel="Coach"')
+    expect(coachSource).toContain('{!isMobile ? (')
+    expect(coachSource).toContain('<details style={coachToolsDetailsStyle}>')
     expect(coachSource).toContain('<section style={coachSupportPathStyle}')
     expect(coachSource).toContain('<section style={commandGridStyle}')
   })

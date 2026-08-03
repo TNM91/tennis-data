@@ -6,6 +6,11 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import RoleActionHome, {
+  type RoleHomeAction,
+  type RoleHomeQuickAction,
+  type RoleHomeStep,
+} from '@/app/components/role-action-home'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -57,9 +62,6 @@ const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
 const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
 const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'
 const COACH_LAST_STUDENT_SETUP_KEY = 'tenaceiq.coach.lastStudentSetup.v1'
-const COACH_HUB_LAUNCH_PROMISE =
-  'Coach Hub helps coaches plan lessons, assign drills, track player development, review proof, and support students between sessions.'
-
 const PENDING_INVITE_STEPS = [
   {
     label: 'Text',
@@ -216,6 +218,39 @@ const COACH_SUPPORT_PATHS = [
     icon: 'messagingCenter',
   },
 ] as const
+
+const COACH_HOME_QUICK_ACTIONS: readonly RoleHomeQuickAction[] = [
+  {
+    title: 'Player bench',
+    detail: 'Open a player and see what needs attention.',
+    href: '#coach-linked-dashboard',
+    icon: 'playerRatings',
+  },
+  {
+    title: 'Assign next step',
+    detail: 'Create one clear task for the next session.',
+    href: '#coach-lesson-frame',
+    icon: 'matchPrep',
+  },
+  {
+    title: 'Add player',
+    detail: 'Start a new coach connection.',
+    href: '#coach-student-board',
+    icon: 'myLab',
+  },
+  {
+    title: 'Tactical Studio',
+    detail: 'Build the visual plan for the court.',
+    href: COACH_TACTICS_BOARD_HREF,
+    icon: 'scenarioBuilder',
+  },
+]
+
+const COACH_HOME_STEPS: readonly RoleHomeStep[] = [
+  { title: 'Add a player', detail: 'Start with the player you coach most often.' },
+  { title: 'Send the setup link', detail: 'The player accepts once and stays connected.' },
+  { title: 'Assign the next step', detail: 'Give the player one task, due date, and proof target.' },
+]
 
 type CoachLevelUpHandoffPack = {
   id: string
@@ -1373,6 +1408,59 @@ function CoachContent() {
   const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
+  const coachHomeAction: RoleHomeAction = !savedStudents.length
+    ? {
+        label: 'Start here',
+        title: 'Add your first player',
+        detail: 'Create the player connection first. Assignments, check-ins, and proof all build from it.',
+        cta: 'Add player',
+        href: '#coach-student-board',
+        icon: 'playerRatings',
+      }
+    : pendingInviteCount > 0
+      ? {
+          label: 'Next up',
+          title: 'Finish player setup',
+          detail: `${pendingInviteCount} player connection${pendingInviteCount === 1 ? '' : 's'} still need to be accepted.`,
+          cta: 'Open player bench',
+          href: '#coach-linked-dashboard',
+          icon: 'alerts',
+        }
+      : firstProofReviewCommand
+        ? {
+            label: 'Needs review',
+            title: `Review ${firstProofReviewCommand.student?.playerName || 'player'} proof`,
+            detail: firstProofReviewCommand.assignment.title,
+            cta: 'Review proof',
+            href: firstProofReviewCommand.href,
+            icon: 'reports',
+          }
+        : overduePlayersCount > 0
+          ? {
+              label: 'Due now',
+              title: `Check ${overduePlayersCount} player${overduePlayersCount === 1 ? '' : 's'}`,
+              detail: 'Open the player bench and move the most urgent work forward.',
+              cta: 'Open player bench',
+              href: '#coach-linked-dashboard',
+              icon: 'alerts',
+            }
+          : activeAssignmentsCount === 0
+            ? {
+                label: 'Next up',
+                title: 'Assign the next step',
+                detail: `Give ${activeMobileBenchCard?.student.playerName || 'a player'} one clear task before the next lesson.`,
+                cta: 'Create assignment',
+                href: '#coach-lesson-frame',
+                icon: 'matchPrep',
+              }
+            : {
+                label: 'Ready',
+                title: 'Open your player bench',
+                detail: `${activeAssignmentsCount} active assignment${activeAssignmentsCount === 1 ? '' : 's'} across ${savedStudents.length} player${savedStudents.length === 1 ? '' : 's'}.`,
+                cta: 'Open player bench',
+                href: '#coach-linked-dashboard',
+                icon: 'playerRatings',
+              }
   const assignmentReviewQueueHasPriority = assignmentsNeedingReview.length > 0
   const assignmentReviewQueueOpen = !isMobile || assignmentReviewQueueHasPriority || mobileReviewQueueOpen
   const coachQueueActions = useMemo(
@@ -2673,33 +2761,27 @@ function CoachContent() {
 
   return (
     <main style={pageStyle}>
-      {isMobile ? (
-        <>
-          <h1 style={visuallyHiddenStyle}>Coach Hub</h1>
-          <p style={mobileCoachPromiseStyle}>{COACH_HUB_LAUNCH_PROMISE}</p>
-        </>
-      ) : (
-        <>
-          <section style={heroStyle}>
-            <div style={heroCopyStyle}>
-              <div style={eyebrowStyle}>Coach Hub</div>
-              <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
-              <p style={bodyStyle}>
-                {COACH_HUB_LAUNCH_PROMISE} Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
-                Team competition operations stay in Captain; Full-Court includes both.
-              </p>
-              <div style={heroActionsStyle}>
-                <Link href={COACH_TACTICS_BOARD_HREF} style={primaryLinkStyle}>Open Tactical Studio</Link>
-                <Link href="/player-development" style={secondaryLinkStyle}>Open development paths</Link>
-              </div>
-            </div>
-            <div style={heroPanelStyle}>
-              <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
-              <strong>Player connection</strong>
-              <span>Linked players get phone check-ins, assignments, reviewed proof, and progress history inside TenAceIQ. Print stays a backup when paper helps.</span>
-            </div>
-          </section>
+      <RoleActionHome
+        roleLabel="Coach"
+        contextLabel="Working with"
+        contextValue={activeMobileBenchCard?.student.playerName || (savedStudents.length ? `${savedStudents.length} players` : 'No player selected')}
+        primaryAction={coachHomeAction}
+        quickActions={COACH_HOME_QUICK_ACTIONS}
+        helpTitle={savedStudents.length ? 'Need help with Coach setup?' : 'Set up Coach in three steps'}
+        steps={COACH_HOME_STEPS}
+        showSteps={!savedStudents.length}
+      />
 
+      {!isMobile ? (
+        <details style={coachToolsDetailsStyle}>
+          <summary style={coachToolsSummaryStyle}>
+            <span>
+              <strong>All coach tools</strong>
+              <small>Development paths, review queues, and coaching workspaces.</small>
+            </span>
+            <span>Open</span>
+          </summary>
+          <div style={coachToolsBodyStyle}>
           <section style={coachLoopStripStyle} aria-label="Coach player loop">
             {coachLoopItems.map((item) => (
               <a key={item.label} href={item.href} style={coachLoopItemStyle}>
@@ -2753,8 +2835,9 @@ function CoachContent() {
               </Link>
             ))}
           </section>
-        </>
-      )}
+          </div>
+        </details>
+      ) : null}
 
       {levelUpHandoffPack ? (
         <section style={levelUpCoachHandoffStyle} aria-label="Level Up coach assignment bridge">
@@ -4622,67 +4705,12 @@ const pageStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const visuallyHiddenStyle: CSSProperties = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-}
-
-const heroStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 16,
-  alignItems: 'stretch',
-  padding: 24,
-  borderRadius: 28,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'radial-gradient(circle at 84% 18%, rgba(155,225,29,0.18), transparent 30%), linear-gradient(145deg, rgba(7,17,31,0.96), rgba(5,11,22,0.92))',
-  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.42)',
-  overflow: 'hidden',
-}
-
-const heroCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 13,
-  alignContent: 'center',
-  minWidth: 0,
-}
-
-const mobileCoachPromiseStyle: CSSProperties = {
-  margin: 0,
-  padding: 16,
-  borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(145deg, rgba(7,17,31,0.96), rgba(5,11,22,0.92))',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.55,
-  fontWeight: 760,
-}
-
 const eyebrowStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-}
-
-const titleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.5rem, 6vw, 5.7rem)',
-  lineHeight: 0.92,
-  fontWeight: 950,
-  letterSpacing: 0,
-  maxWidth: 920,
 }
 
 const bodyStyle: CSSProperties = {
@@ -4692,52 +4720,6 @@ const bodyStyle: CSSProperties = {
   lineHeight: 1.7,
   fontWeight: 760,
   maxWidth: 780,
-}
-
-const heroActionsStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-}
-
-const linkBaseStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 42,
-  padding: '0 14px',
-  borderRadius: 999,
-  fontSize: 13,
-  fontWeight: 950,
-  textDecoration: 'none',
-}
-
-const primaryLinkStyle: CSSProperties = {
-  ...linkBaseStyle,
-  border: '1px solid rgba(155,225,29,0.42)',
-  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
-  color: '#07111f',
-}
-
-const secondaryLinkStyle: CSSProperties = {
-  ...linkBaseStyle,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.055)',
-  color: 'var(--foreground-strong)',
-}
-
-const heroPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  alignContent: 'center',
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid rgba(223,248,194,0.14)',
-  background: 'rgba(255,255,255,0.055)',
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  lineHeight: 1.55,
-  fontWeight: 820,
 }
 
 const coachLoopStripStyle: CSSProperties = {
@@ -6754,4 +6736,31 @@ const integrationPillStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 850,
+}
+
+const coachToolsDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  overflow: 'hidden',
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 22,
+  background: 'var(--shell-panel-bg)',
+}
+
+const coachToolsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  minHeight: 64,
+  padding: '14px 18px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+}
+
+const coachToolsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
+  padding: '0 16px 16px',
 }

@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import RoleActionHome, {
+  type RoleHomeAction,
+  type RoleHomeQuickAction,
+} from '@/app/components/role-action-home'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
@@ -107,6 +111,48 @@ const emptyJoinRequestActions = [
   { href: '/compete/leagues', label: 'Share league lane' },
   { href: '#league-setup-form', label: 'Review setup' },
 ] as const
+
+const LEAGUE_HOME_QUICK_ACTIONS: readonly RoleHomeQuickAction[] = [
+  {
+    title: 'Add league',
+    detail: 'Create a team or player season.',
+    href: '#league-setup-form',
+    icon: 'teamRankings',
+  },
+  {
+    title: 'Participants',
+    detail: 'Review teams, players, and requests.',
+    href: '#league-registry',
+    icon: 'playerRatings',
+  },
+  {
+    title: 'Results',
+    detail: 'Record scores and clear review cues.',
+    href: '/league-coordinator/results',
+    icon: 'reports',
+  },
+  {
+    title: 'Public page',
+    detail: 'Check what members can see.',
+    href: '#league-public-pages',
+    icon: 'myLab',
+  },
+]
+
+const LEAGUE_HOME_LOCKED_ACTIONS: readonly RoleHomeQuickAction[] = [
+  {
+    title: 'See League plan',
+    detail: 'Compare access and season tools.',
+    href: '/pricing#league',
+    icon: 'teamRankings',
+  },
+  {
+    title: 'Explore leagues',
+    detail: 'See public leagues and standings.',
+    href: '/compete/leagues',
+    icon: 'schedule',
+  },
+]
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
@@ -790,6 +836,12 @@ export function LeagueCoordinatorWorkspace() {
       ? teamResultEntryHref
       : individualResultEntryHref
     : '#league-setup-form'
+  const leagueHomeQuickActions = useMemo(
+    () => LEAGUE_HOME_QUICK_ACTIONS.map((action) => (
+      action.title === 'Results' ? { ...action, href: resultEntryHref } : action
+    )),
+    [resultEntryHref],
+  )
   const resultReadinessDetail =
     teamLeagues.length > 0 && individualLeagues.length > 0
       ? 'Team Results handles team match events and line scores; Player Results handles individual league matches.'
@@ -917,57 +969,6 @@ export function LeagueCoordinatorWorkspace() {
   const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
   const leagueOpsReadinessScore = Math.round((leagueOpsCompleteCount / leagueOpsChecks.length) * 100)
   const nextLeagueOpsStep = leagueOpsChecks.find((item) => !item.complete) || leagueOpsChecks[leagueOpsChecks.length - 1]
-  const coordinatorStartCards = [
-    {
-      label: 'Setup',
-      title: records.length > 0 ? 'Manage league setup' : 'Create the first league',
-      detail:
-        records.length > 0
-          ? `${records.length} league setup${records.length === 1 ? '' : 's'} saved. Keep format, season, and participants current.`
-          : 'Choose team or individual format, name the season, and add the first teams or players.',
-      href: '#league-setup-form',
-      cta: records.length > 0 ? 'Edit setup' : 'Create league',
-      complete: records.length > 0,
-    },
-    {
-      label: 'Participants',
-      title: activeParticipantCount > 0 ? 'Participant list is started' : 'Add teams or players',
-      detail:
-        activeParticipantCount > 0
-          ? `${activeParticipantCount} participants are tracked across League Office.`
-          : 'A league becomes usable once the competing teams or players are in the record.',
-      href: '#league-setup-form',
-      cta: activeParticipantCount > 0 ? 'Review participants' : 'Add participants',
-      complete: activeParticipantCount > 0,
-    },
-    {
-      label: 'Season window',
-      title: records.length > 0 && scheduleCapacityIssueCount === 0 ? 'Season capacity is clear' : 'Check season capacity',
-      detail: scheduleReadinessDetail,
-      href: '#league-setup-form',
-      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review setup',
-      complete: records.length > 0 && scheduleReadyLeagueCount === records.length && scheduleCapacityIssueCount === 0,
-    },
-    {
-      label: 'Results',
-      title: hasResultReadyLeague ? 'Open result entry' : 'Results unlock after setup',
-      detail: resultReadinessDetail,
-      href: resultEntryHref,
-      cta: hasResultReadyLeague ? 'Record results' : 'Finish setup',
-      complete: hasResultReadyLeague,
-    },
-    {
-      label: 'Visibility',
-      title: storageSource === 'supabase' ? 'Live league record' : 'Saved preview record',
-      detail:
-        storageSource === 'supabase'
-          ? 'League setup is synced for public pages, standings, and coordinator review.'
-          : 'This League Office tool is still using saved preview data until live sync is available.',
-      href: records.length > 0 ? '/leagues' : '#league-setup-form',
-      cta: records.length > 0 ? 'View public leagues' : 'Create first',
-      complete: storageSource === 'supabase',
-    },
-  ]
   const firstLeagueSteps = [
     {
       label: '1',
@@ -1281,7 +1282,6 @@ export function LeagueCoordinatorWorkspace() {
 
   const isCompactViewport = isMobile || isTablet
   const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
-  const responsiveStartPanelStyle = isCompactViewport ? { ...startPanelStyle, ...compactStartPanelStyle } : startPanelStyle
   const responsivePanelCard = isCompactViewport ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle } : panelCard
   const responsiveRegistryPanel = isCompactViewport
     ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
@@ -1309,10 +1309,7 @@ export function LeagueCoordinatorWorkspace() {
   const responsiveNextActionButtonRowStyle = isMobile
     ? { ...nextActionButtonRowStyle, ...mobileStackedActionRowStyle, justifyContent: 'stretch' }
     : nextActionButtonRowStyle
-  const responsiveStartScoreStyle = isMobile ? { ...startScoreStyle, ...mobileScoreStyle } : startScoreStyle
   const responsiveLeagueOpsScoreStyle = isMobile ? { ...leagueOpsScoreStyle, ...mobileScoreStyle } : leagueOpsScoreStyle
-  const responsiveStartActionRowStyle = isMobile ? { ...startActionRowStyle, ...mobileActionRowStyle } : startActionRowStyle
-  const showMobileUnlockOnly = isMobile && !access.canUseLeagueTools
   const calculatedEndsOn = calculateTiqLeagueEndsOn(draft.startsOn, draft.maxWeeks)
   const seasonWindowText = draft.startsOn
     ? calculatedEndsOn
@@ -1422,6 +1419,32 @@ export function LeagueCoordinatorWorkspace() {
                   href: '/compete/schedule',
                   cta: 'Open calendar',
                 }
+  const leagueHomeAction: RoleHomeAction = !registryLoaded
+    ? {
+        label: 'Loading',
+        title: 'Getting your leagues',
+        detail: 'Loading season setup, participants, and results.',
+        href: '#league-setup-form',
+        cta: 'Please wait',
+        icon: 'schedule',
+      }
+    : !access.canUseLeagueTools
+      ? {
+          label: 'Start here',
+          title: 'Unlock League Office',
+          detail: 'Create leagues, manage participants, record results, and publish the season from one place.',
+          href: '/pricing#league',
+          cta: 'See plan',
+          icon: 'teamRankings',
+        }
+      : {
+          label: isFirstLeagueSetup ? 'Start here' : 'Next up',
+          title: sharedSchedulerNextMove.label,
+          detail: sharedSchedulerNextMove.detail,
+          href: sharedSchedulerNextMove.href,
+          cta: sharedSchedulerNextMove.cta,
+          icon: resultQueueItemCount > 0 ? 'reports' : pendingEntryRequestCount > 0 ? 'alerts' : 'schedule',
+        }
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
   const leagueDeskContent = (
@@ -1496,93 +1519,21 @@ export function LeagueCoordinatorWorkspace() {
       <section style={responsivePageWrap}>
         {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
-        <section style={responsiveStartPanelStyle} data-league-start-panel>
-          <span aria-hidden="true" style={portalWatermarkStyle} />
-          <div style={portalPanelContentStyle}>
-            <div style={leagueOpsHeaderStyle}>
-              <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>Start here</div>
-                <h1 style={leagueOpsTitleStyle}>
-                  {!registryLoaded
-                    ? 'Loading League Office...'
-                    : access.canUseLeagueTools
-                      ? hasSavedLeague
-                        ? latestRecord?.leagueName || 'League Office'
-                        : 'Create your first league.'
-                      : 'Unlock League access to save a league.'}
-                </h1>
-                <p style={leagueOpsTextStyle}>
-                  {!registryLoaded
-                    ? 'Getting your leagues and season details.'
-                    : isFirstLeagueSetup
-                      ? 'Choose a format, add the first competitors, and save the season.'
-                      : nextLeagueOpsStep.detail}
-                </p>
-              </div>
-              {registryLoaded && hasSavedLeague && !showMobileUnlockOnly ? (
-                <div style={responsiveStartScoreStyle}>
-                  <span>{leagueOpsReadinessScore}% ready</span>
-                  <span style={leagueOpsTrackStyle}>
-                    <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
-                  </span>
-                </div>
-              ) : null}
-            </div>
+        <div data-league-start-panel>
+          <RoleActionHome
+            roleLabel="League"
+            contextLabel="Current season"
+            contextValue={latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}
+            primaryAction={leagueHomeAction}
+            quickActions={access.canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}
+            helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}
+            steps={firstLeagueSteps}
+            showSteps={isFirstLeagueSetup}
+          />
+        </div>
 
-            {registryLoaded ? (
-              <div style={responsiveStartActionRowStyle}>
-                <div style={leagueOpsHeaderCopyStyle}>
-                  <span style={startActionLabelStyle}>{isFirstLeagueSetup ? 'First step' : 'Next action'}</span>
-                  <strong style={startActionTitleStyle}>
-                    {showMobileUnlockOnly
-                      ? 'League Office access'
-                      : isFirstLeagueSetup
-                        ? 'Add your league'
-                        : nextLeagueOpsStep.label}
-                  </strong>
-                </div>
-                <GhostLink href={isFirstLeagueSetup ? '#league-setup-form' : nextLeagueOpsStep.href}>
-                  {isFirstLeagueSetup ? 'Start setup' : nextLeagueOpsStep.cta}
-                </GhostLink>
-              </div>
-            ) : null}
-
-            {showMobileUnlockOnly || !registryLoaded ? null : isFirstLeagueSetup ? (
-              <div style={startCardGridStyle} aria-label="First league setup steps">
-                {firstLeagueSteps.map((item) => (
-                  <div key={item.label} style={startCardStyle}>
-                    <span style={pillGreen}>Step {item.label}</span>
-                    <strong style={startCardTitleStyle}>{item.title}</strong>
-                    <span style={startCardTextStyle}>{item.detail}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <details className="leagueCoordinatorDetailsSection" style={startChecklistDetailsStyle}>
-                <summary style={startChecklistSummaryStyle}>
-                  <div style={leagueOpsHeaderCopyStyle}>
-                    <span style={startActionLabelStyle}>Need help?</span>
-                    <strong style={startActionTitleStyle}>Review League Office setup steps.</strong>
-                  </div>
-                  <span style={pillSlate}>{coordinatorStartCards.length} steps</span>
-                </summary>
-                <div style={startChecklistBodyStyle}>
-                  <div style={startCardGridStyle}>
-                    {coordinatorStartCards.map((item) => (
-                      <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
-                        <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
-                        <strong style={startCardTitleStyle}>{item.title}</strong>
-                        <span style={startCardTextStyle}>{item.detail}</span>
-                        <span style={startCardCtaStyle}>{item.cta}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </details>
-            )}
-          </div>
-        </section>
-
+        {access.canUseLeagueTools ? (
+          <>
         <div style={responsiveLayoutGrid}>
           <details
             className="leagueCoordinatorDetailsSection"
@@ -3170,8 +3121,8 @@ export function LeagueCoordinatorWorkspace() {
           </LeagueSecondaryToolsGroup>
           </>
         ) : null}
-
-
+          </>
+        ) : null}
     </section>
   )
 }
@@ -3959,25 +3910,6 @@ const leagueAwardCandidateCopyStyle: CSSProperties = {
   fontWeight: 800,
 }
 
-const startPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  padding: '20px',
-  borderRadius: '26px',
-  border: '1px solid rgba(116,190,255,0.15)',
-  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
-  boxShadow: '0 26px 78px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
-  minWidth: 0,
-  position: 'relative',
-  overflow: 'hidden',
-}
-
-const compactStartPanelStyle: CSSProperties = {
-  gap: '10px',
-  padding: '14px',
-  borderRadius: '20px',
-}
-
 const portalWatermarkStyle: CSSProperties = {
   position: 'absolute',
   right: 0,
@@ -4290,11 +4222,6 @@ const leagueOpsScoreStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const startScoreStyle: CSSProperties = {
-  ...leagueOpsScoreStyle,
-  minWidth: 0,
-}
-
 const mobileScoreStyle: CSSProperties = {
   justifyItems: 'start',
   minWidth: 0,
@@ -4320,25 +4247,6 @@ const leagueOpsFillStyle = (value: number): CSSProperties => ({
   background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
 })
 
-const startActionRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '14px',
-  flexWrap: 'wrap',
-  padding: '14px 16px',
-  borderRadius: '18px',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background: 'var(--shell-chip-bg)',
-  minWidth: 0,
-}
-
-const mobileActionRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  alignItems: 'stretch',
-}
-
 const startActionLabelStyle: CSSProperties = {
   display: 'block',
   color: 'var(--brand-blue-2)',
@@ -4357,13 +4265,6 @@ const startActionTitleStyle: CSSProperties = {
   lineHeight: 1.15,
   fontWeight: 950,
   overflowWrap: 'anywhere',
-}
-
-const startCardGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
-  gap: '10px',
-  minWidth: 0,
 }
 
 const startChecklistDetailsStyle: CSSProperties = {
@@ -4392,52 +4293,6 @@ const startChecklistBodyStyle: CSSProperties = {
   gap: '10px',
   padding: '0 12px 12px',
   minWidth: 0,
-}
-
-const startCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '9px',
-  alignContent: 'start',
-  minHeight: '166px',
-  padding: '14px',
-  borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  textDecoration: 'none',
-  minWidth: 0,
-}
-
-const startCardCompleteStyle: CSSProperties = {
-  ...startCardStyle,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
-}
-
-const startCardTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  lineHeight: 1.2,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const startCardTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.55,
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const startCardCtaStyle: CSSProperties = {
-  alignSelf: 'end',
-  color: 'var(--brand-lime)',
-  fontSize: '12px',
-  fontWeight: 950,
-  letterSpacing: 0,
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
 }
 
 const leagueOfficeOperationProofStyle: CSSProperties = {
