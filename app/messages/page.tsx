@@ -55,6 +55,11 @@ import { buildTeamRoomHref } from '@/lib/team-room'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { syncCoachResumeState, writeCoachResumeState } from '@/lib/coach-memory'
+import { buildProductAccessState } from '@/lib/access-model'
+import {
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -1066,8 +1071,9 @@ function MessagesLoadingShell() {
 }
 
 function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
-  const { userId, authResolved, session } = useAuth()
+  const { userId, authResolved, session, role, entitlements } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const productAccess = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const [identity, setIdentity] = useState<InternalIdentity | null>(null)
   const [conversations, setConversations] = useState<InternalConversation[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -1468,6 +1474,24 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     writeCoachResumeState(nextState, userId)
     void syncCoachResumeState(nextState, userId, session?.access_token)
   }, [selectedCoachStudent, selectedConversation, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !productAccess.canUseLeagueTools) return
+    if (selectedConversation.conversationType !== 'league') return
+
+    const leagueId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+    const leagueName = selectedConversation.metadata.leagueName || selectedConversation.subject
+    const nextState = {
+      ...(leagueId ? { leagueId } : {}),
+      ...(leagueName ? { leagueName } : {}),
+      conversationId: selectedConversation.id,
+      lastSurface: 'conversation' as const,
+      lastSurfaceLabel: 'League Conversation',
+      lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+    }
+    writeLeagueCoordinatorResumeState(nextState, userId)
+    void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+  }, [productAccess.canUseLeagueTools, selectedConversation, session?.access_token, userId])
 
   useEffect(() => {
     if (!selectedId) {

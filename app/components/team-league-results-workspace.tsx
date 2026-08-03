@@ -8,6 +8,15 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+  type LeagueCoordinatorTeamResultDraft,
+} from '@/lib/league-coordinator-memory'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
 import type { MembershipTierId } from '@/lib/product-story'
@@ -1209,11 +1218,13 @@ function NewEventForm({
   leagues,
   defaultLeagueId,
   scheduledDefaults,
+  onDraftChange,
   onCreated,
 }: {
   leagues: TiqLeagueRecord[]
   defaultLeagueId: string
   scheduledDefaults?: Partial<EventFormState>
+  onDraftChange?: (draft: LeagueCoordinatorTeamResultDraft) => void
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
   const [form, setForm] = useState<EventFormState>(() =>
@@ -1227,6 +1238,10 @@ function NewEventForm({
     [form.leagueId, leagues],
   )
   const teamOptions = useMemo(() => teamOptionsForLeague(selectedLeague), [selectedLeague])
+
+  useEffect(() => {
+    onDraftChange?.(form)
+  }, [form, onDraftChange])
 
   async function handleCreate() {
     if (!form.leagueId || !form.teamAName || !form.teamBName || !form.matchDate) {
@@ -1363,7 +1378,7 @@ function TeamLeagueResultsWorkspaceInner({
 }: TeamLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
   const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
@@ -1385,6 +1400,8 @@ function TeamLeagueResultsWorkspaceInner({
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
+  const [resumeTeamResultDraft, setResumeTeamResultDraft] = useState<LeagueCoordinatorTeamResultDraft | null>(null)
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const canEditResults = access.canEnterTiqTeamLeague
   const accessResolved = authResolved && Boolean(userId)
@@ -1498,6 +1515,73 @@ function TeamLeagueResultsWorkspaceInner({
       router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))
     }
   }, [authResolved, loginNextHref, loginPlanId, router, userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const draft = resumeState?.lastSurface === 'team-results' ? resumeState.teamResultDraft : null
+      if (draft && !scheduledEventItemId && (!initialLeagueId || !draft.leagueId || draft.leagueId === initialLeagueId)) {
+        setResumeTeamResultDraft(draft)
+        setFilterLeagueId(draft.leagueId || initialLeagueId)
+        setNewMatchFormOpen(true)
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, initialLeagueId, scheduledEventItemId, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canEditResults) return
+
+    const leagueId = resumeTeamResultDraft?.leagueId || filterLeagueId
+    const league = leagues.find((item) => item.id === leagueId) || null
+    if (!league) return
+    const hasDraft = Boolean(
+      newMatchFormOpen && resumeTeamResultDraft && (
+        resumeTeamResultDraft.teamAName || resumeTeamResultDraft.teamBName || resumeTeamResultDraft.matchDate ||
+        resumeTeamResultDraft.facility || resumeTeamResultDraft.notes
+      ),
+    )
+    const nextState: LeagueCoordinatorResumeState = {
+      leagueId: league.id,
+      leagueName: league.leagueName,
+      leagueFormat: 'team',
+      eventId: activeEntryEventId || undefined,
+      lastSurface: 'team-results',
+      lastSurfaceLabel: activeEntryEventId ? 'Team Match Lines' : hasDraft ? 'Team Match Draft' : 'Team Results',
+      lastHref: `${resultsHref}?leagueId=${encodeURIComponent(league.id)}${newMatchFormOpen ? '#team-match-entry' : ''}`,
+      teamResultDraft: hasDraft ? resumeTeamResultDraft || undefined : undefined,
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    activeEntryEventId,
+    canEditResults,
+    coordinatorResumeResolved,
+    filterLeagueId,
+    leagues,
+    newMatchFormOpen,
+    resultsHref,
+    resumeTeamResultDraft,
+    session?.access_token,
+    userId,
+  ])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -1837,11 +1921,14 @@ function TeamLeagueResultsWorkspaceInner({
           </summary>
           {canEditResults ? (
             <NewEventForm
-              key={`${filterLeagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
+              key={`${filterLeagueId || resumeTeamResultDraft?.leagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
               leagues={leagues}
               defaultLeagueId={filterLeagueId}
-              scheduledDefaults={scheduledEventDefaults}
+              scheduledDefaults={scheduledEventItemId ? scheduledEventDefaults : resumeTeamResultDraft || scheduledEventDefaults}
+              onDraftChange={setResumeTeamResultDraft}
               onCreated={(event) => {
+                setResumeTeamResultDraft(null)
+                setNewMatchFormOpen(false)
                 setActiveEntryEventId(event.id)
                 setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))
                 setEvents((prev) => [event, ...prev])

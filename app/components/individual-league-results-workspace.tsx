@@ -8,6 +8,14 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
 import type { MembershipTierId } from '@/lib/product-story'
@@ -744,7 +752,7 @@ function IndividualLeagueResultsWorkspaceInner({
 }: IndividualLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const suggestedResultPlayerA =
     searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
@@ -775,6 +783,7 @@ function IndividualLeagueResultsWorkspaceInner({
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [resultFormOpen, setResultFormOpen] = useState(false)
   const [appliedSuggestedResultKey, setAppliedSuggestedResultKey] = useState('')
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const canEditResults = access.canCreateTiqIndividualLeague
   const accessMessage = access.individualLeagueMessage
@@ -920,6 +929,95 @@ function IndividualLeagueResultsWorkspaceInner({
       router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))
     }
   }, [authResolved, loginNextHref, loginPlanId, router, userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const draft = resumeState?.lastSurface === 'individual-results'
+        ? resumeState.individualResultDraft
+        : null
+      if (draft && (!initialLeagueId || !draft.leagueId || draft.leagueId === initialLeagueId)) {
+        setFormLeagueId(draft.leagueId || initialLeagueId)
+        setFilterLeagueId(draft.leagueId || initialLeagueId)
+        setResultPlayerA(draft.playerA || '')
+        setResultPlayerB(draft.playerB || '')
+        setResultWinner(draft.winner || '')
+        setResultScore(draft.score || '')
+        setResultDate(draft.resultDate || new Date().toISOString().slice(0, 10))
+        setResultNotes(draft.notes || '')
+        setEditingResultId(draft.editingResultId || '')
+        setResultFormOpen(Boolean(draft.formOpen))
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, initialLeagueId, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canEditResults) return
+
+    const league = leagues.find((item) => item.id === formLeagueId) || null
+    if (!league) return
+    const hasDraft = Boolean(
+      resultFormOpen || resultPlayerA || resultPlayerB || resultWinner || resultScore.trim() || resultNotes.trim() || editingResultId,
+    )
+    const href = `${resultsHref}?leagueId=${encodeURIComponent(league.id)}${hasDraft ? '#player-result-entry' : ''}`
+    const nextState: LeagueCoordinatorResumeState = {
+      leagueId: league.id,
+      leagueName: league.leagueName,
+      leagueFormat: 'individual',
+      lastSurface: 'individual-results',
+      lastSurfaceLabel: hasDraft ? 'Player Result Draft' : 'Player Results',
+      lastHref: href,
+      individualResultDraft: hasDraft
+        ? {
+            leagueId: league.id,
+            playerA: resultPlayerA,
+            playerB: resultPlayerB,
+            winner: resultWinner,
+            score: resultScore,
+            resultDate,
+            notes: resultNotes,
+            editingResultId,
+            formOpen: resultFormOpen,
+          }
+        : undefined,
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    canEditResults,
+    coordinatorResumeResolved,
+    editingResultId,
+    formLeagueId,
+    leagues,
+    resultDate,
+    resultFormOpen,
+    resultNotes,
+    resultPlayerA,
+    resultPlayerB,
+    resultScore,
+    resultWinner,
+    resultsHref,
+    session?.access_token,
+    userId,
+  ])
 
   const refreshResults = useCallback(async (leagueId: string) => {
     const result = await listTiqIndividualLeagueResults({ leagueId: leagueId || null })
@@ -1161,6 +1259,7 @@ function IndividualLeagueResultsWorkspaceInner({
         }.${scheduleCompletion ? ' Scheduled match marked complete.' : ''}`,
       )
       resetResultForm()
+      setResultFormOpen(false)
     } catch (saveError) {
       setStatus(saveError instanceof Error ? saveError.message : 'Unable to save this TIQ result.')
     } finally {

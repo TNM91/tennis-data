@@ -10,6 +10,16 @@ import RoleActionHome, {
 } from '@/app/components/role-action-home'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  getLeagueCoordinatorResumeHref,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeSurface,
+} from '@/lib/league-coordinator-memory'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
@@ -346,7 +356,7 @@ function buildTeamResultLineSummaryMap(
 export function LeagueCoordinatorWorkspace() {
   const searchParams = useSearchParams()
   const { isMobile, isTablet } = useViewportBreakpoints()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
@@ -377,6 +387,8 @@ export function LeagueCoordinatorWorkspace() {
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
   const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
   const [leagueAwardRefresh, setLeagueAwardRefresh] = useState(0)
+  const [coordinatorResumeState, setCoordinatorResumeState] = useState<LeagueCoordinatorResumeState | null>(null)
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
 
   const refreshRegistry = useCallback(async () => {
     try {
@@ -400,6 +412,34 @@ export function LeagueCoordinatorWorkspace() {
 
     return () => window.clearTimeout(timeoutId)
   }, [refreshRegistry])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    if (!userId || !accessToken) {
+      setCoordinatorResumeState(readLeagueCoordinatorResumeState(userId))
+      setCoordinatorResumeResolved(true)
+      return
+    }
+
+    setCoordinatorResumeResolved(false)
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = await loadLeagueCoordinatorResumeStateFromCloud(accessToken)
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+      setCoordinatorResumeState(resumeState)
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, session?.access_token, userId])
 
   useEffect(() => {
     let active = true
@@ -1199,6 +1239,35 @@ export function LeagueCoordinatorWorkspace() {
     return () => window.clearTimeout(timeoutId)
   }, [appliedEditHandoffId, editingId, records, requestedEditLeagueId, startEditing])
 
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !editingId || !access.canUseLeagueTools) return
+    const league = records.find((record) => record.id === editingId)
+    if (!league) return
+
+    const nextState: LeagueCoordinatorResumeState = {
+      leagueId: league.id,
+      leagueName: league.leagueName,
+      leagueFormat: league.leagueFormat,
+      lastSurface: 'setup',
+      lastSurfaceLabel: 'League Setup',
+      lastHref: `/league-coordinator?leagueId=${encodeURIComponent(league.id)}#league-setup-form`,
+    }
+    const timeout = window.setTimeout(() => {
+      const saved = writeLeagueCoordinatorResumeState(nextState, userId)
+      if (saved) setCoordinatorResumeState(saved)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    access.canUseLeagueTools,
+    coordinatorResumeResolved,
+    editingId,
+    records,
+    session?.access_token,
+    userId,
+  ])
+
   async function removeRecord(id: string) {
     const result = await removeTiqLeague(id)
     await refreshRegistry()
@@ -1445,6 +1514,60 @@ export function LeagueCoordinatorWorkspace() {
           cta: sharedSchedulerNextMove.cta,
           icon: resultQueueItemCount > 0 ? 'reports' : pendingEntryRequestCount > 0 ? 'alerts' : 'schedule',
         }
+  const coordinatorResumeHref = getLeagueCoordinatorResumeHref(coordinatorResumeState)
+  const coordinatorResumeLeague = coordinatorResumeState?.leagueId
+    ? records.find((record) => record.id === coordinatorResumeState.leagueId) || null
+    : null
+  const coordinatorResumeIsAvailable = Boolean(
+    coordinatorResumeHref &&
+    (!coordinatorResumeState?.leagueId || coordinatorResumeLeague || coordinatorResumeState.lastSurface === 'tournament'),
+  )
+  const coordinatorContinueAction: RoleHomeAction | null =
+    coordinatorResumeResolved && registryLoaded && coordinatorResumeIsAvailable
+      ? {
+          label: 'Continue',
+          title: `Continue ${coordinatorResumeState?.lastSurfaceLabel || 'league work'}`,
+          detail: [
+            coordinatorResumeLeague?.leagueName || coordinatorResumeState?.leagueName || '',
+            coordinatorResumeState?.tournamentName || '',
+          ].filter(Boolean).join(' / ') || 'Open the exact league job you left.',
+          href: coordinatorResumeHref,
+          cta: 'Continue',
+          icon: coordinatorResumeState?.lastSurface === 'conversation'
+            ? 'messagingCenter'
+            : coordinatorResumeState?.lastSurface === 'tournament'
+              ? 'teamRankings'
+              : coordinatorResumeState?.lastSurface?.includes('results')
+                ? 'reports'
+                : 'schedule',
+        }
+      : null
+
+  function handleLeagueHomeAction(action: Pick<RoleHomeAction, 'title' | 'href'>) {
+    const surface: LeagueCoordinatorResumeSurface = action.href.includes('/messages')
+      ? 'conversation'
+      : action.href.includes('/tournaments')
+        ? 'tournament'
+        : action.href.includes('/individual-results')
+          ? 'individual-results'
+          : action.href.includes('/results')
+            ? 'team-results'
+            : action.href.includes('league-setup-form')
+              ? 'setup'
+              : 'hub'
+    const league = coordinatorResumeLeague || latestRecord || null
+    const nextState: LeagueCoordinatorResumeState = {
+      ...(league
+        ? { leagueId: league.id, leagueName: league.leagueName, leagueFormat: league.leagueFormat }
+        : {}),
+      lastSurface: surface,
+      lastSurfaceLabel: action.title,
+      lastHref: action.href,
+    }
+    const saved = writeLeagueCoordinatorResumeState(nextState, userId)
+    if (saved) setCoordinatorResumeState(saved)
+    void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+  }
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
   const leagueDeskContent = (
@@ -1523,13 +1646,15 @@ export function LeagueCoordinatorWorkspace() {
           <RoleActionHome
             roleLabel="League"
             contextLabel="Current season"
-            contextValue={latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}
-            primaryAction={leagueHomeAction}
+            contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}
+            primaryAction={coordinatorContinueAction || leagueHomeAction}
             quickActions={access.canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}
             helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}
             steps={firstLeagueSteps}
             showSteps={isFirstLeagueSetup}
             resumeKey={userId ? `league:${userId}` : undefined}
+            preferPrimaryAction={Boolean(coordinatorContinueAction)}
+            onAction={handleLeagueHomeAction}
           />
         </div>
 
