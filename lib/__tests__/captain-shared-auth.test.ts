@@ -97,7 +97,7 @@ describe('Captain shared auth access', () => {
   it('keeps captain lineup builder on shared auth before loading builder data', () => {
     expect(lineupBuilderSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(lineupBuilderSource).toContain('<SiteShell active="/captain">')
-    expect(lineupBuilderSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(lineupBuilderSource).toContain('const { role, entitlements, authResolved, userId, session } = useAuth()')
     expect(lineupBuilderSource).toContain("if (!authResolved || role === 'public') return")
     expect(lineupBuilderSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
     expect(lineupBuilderSource).not.toContain('const [authLoading, setAuthLoading]')

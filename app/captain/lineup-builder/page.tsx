@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -20,8 +21,10 @@ import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
+  chooseLatestCaptainResumeState,
+  loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
-  writeCaptainResumeState,
+  syncCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -988,7 +991,7 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
   return bannerBlueStyle
 }
 
-function readInitialLineupBuilderContext() {
+function readInitialLineupBuilderContext(userId?: string | null) {
   if (typeof window === 'undefined') {
     return {
       competitionLayer: '',
@@ -997,6 +1000,7 @@ function readInitialLineupBuilderContext() {
       flight: '',
       eventDate: '',
       opponentTeam: '',
+      matchId: '',
       scenario: '',
       pairIds: [] as string[],
       singleId: '',
@@ -1005,7 +1009,7 @@ function readInitialLineupBuilderContext() {
   }
 
   const params = new URLSearchParams(window.location.search)
-  const resumeState = readCaptainResumeState()
+  const resumeState = readCaptainResumeState(userId)
 
   return {
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
@@ -1014,7 +1018,8 @@ function readInitialLineupBuilderContext() {
     flight: params.get('flight') || resumeState?.flight || '',
     eventDate: params.get('date') || resumeState?.eventDate || '',
     opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
-    scenario: params.get('scenario') || params.get('left') || '',
+    matchId: params.get('match') || resumeState?.matchId || '',
+    scenario: params.get('scenario') || params.get('left') || resumeState?.scenarioId || '',
     pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
     singleId: params.get('single') || '',
     matchFormat: params.get('matchFormat') || 'auto',
@@ -1031,7 +1036,8 @@ export default function LineupBuilderPage() {
 
 function LineupBuilderContent() {
   const router = useRouter()
-  const initialContext = readInitialLineupBuilderContext()
+  const { role, entitlements, authResolved, userId, session } = useAuth()
+  const initialContext = readInitialLineupBuilderContext(userId)
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
@@ -1062,7 +1068,7 @@ function LineupBuilderContent() {
   const [teamName, setTeamName] = useState(initialContext.team)
   const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
   const [matchDate, setMatchDate] = useState(initialContext.eventDate)
-  const [selectedMatchId, setSelectedMatchId] = useState('')
+  const [selectedMatchId, setSelectedMatchId] = useState(initialContext.matchId)
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -1084,13 +1090,14 @@ function LineupBuilderContent() {
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
 
-  const [prefillScenarioId] = useState(initialContext.scenario)
+  const [prefillScenarioId, setPrefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
   const [prefillSingleId] = useState(initialContext.singleId)
   const [prefillApplied, setPrefillApplied] = useState(false)
+  const [scopedResumeResolved, setScopedResumeResolved] = useState(false)
+  const scopedResumeAppliedRef = useRef(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { role, entitlements, authResolved } = useAuth()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
@@ -1148,9 +1155,59 @@ function LineupBuilderContent() {
   }, [authResolved, role, router])
 
   useEffect(() => {
-    if (!teamName && !leagueName && !flight) return
+    if (!authResolved || scopedResumeAppliedRef.current) return
+    if (!userId || !session?.access_token) {
+      scopedResumeAppliedRef.current = true
+      setScopedResumeResolved(true)
+      return
+    }
+    scopedResumeAppliedRef.current = true
 
-    writeCaptainResumeState({
+    const params = new URLSearchParams(window.location.search)
+    if (['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left'].some((key) => Boolean(params.get(key)?.trim()))) {
+      setScopedResumeResolved(true)
+      return
+    }
+
+    let active = true
+    void (async () => {
+      const localState = readCaptainResumeState(userId)
+      const cloudState = await loadCaptainResumeStateFromCloud(session.access_token)
+      const resumeState = chooseLatestCaptainResumeState(localState, cloudState)
+      if (!active || !resumeState) return
+
+      setCompetitionLayer(resumeState.competitionLayer || '')
+      setTeamName(resumeState.team || '')
+      setLeagueName(resumeState.league || '')
+      setFlight(resumeState.flight || '')
+      setMatchDate(resumeState.eventDate || '')
+      setOpponentTeam(resumeState.opponentTeam || '')
+      setSelectedMatchId(resumeState.matchId || '')
+      setPrefillScenarioId(resumeState.scenarioId || '')
+      setPrefillApplied(false)
+    })().finally(() => {
+      if (active) setScopedResumeResolved(true)
+    })
+
+    return () => { active = false }
+  }, [authResolved, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!scopedResumeResolved || (!teamName && !leagueName && !flight)) return
+
+    const scenarioId = currentScenarioId || prefillScenarioId || undefined
+    const matchId = selectedMatchId || initialContext.matchId || undefined
+    const lastHref = buildCaptainScopedHref('/captain/lineup-builder', {
+      competitionLayer: competitionLayer || undefined,
+      team: teamName,
+      league: leagueName,
+      flight,
+      date: matchDate || undefined,
+      opponent: opponentTeam || undefined,
+      matchId,
+      scenarioId,
+    })
+    void syncCaptainResumeState({
       competitionLayer: competitionLayer || undefined,
       team: teamName,
       league: leagueName,
@@ -1159,8 +1216,11 @@ function LineupBuilderContent() {
       lastToolLabel: 'Lineup Builder',
       eventDate: matchDate || undefined,
       opponentTeam: opponentTeam || undefined,
-    })
-  }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
+      matchId,
+      scenarioId,
+      lastHref,
+    }, userId, session?.access_token)
+  }, [competitionLayer, currentScenarioId, flight, initialContext.matchId, leagueName, matchDate, opponentTeam, prefillScenarioId, scopedResumeResolved, selectedMatchId, session?.access_token, teamName, userId])
 
   const sharedCaptainNotes = useMemo(
     () =>
