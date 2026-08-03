@@ -393,6 +393,7 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
       quickActions={quickActions}
       helpTitle="Need help getting started?"
       steps={steps}
+      resumeKey="improve"
     />
   )
 }

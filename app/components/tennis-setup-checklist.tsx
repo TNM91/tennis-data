@@ -11,6 +11,7 @@ type TennisSetupChecklistProps = {
   teamHref?: string
   matchDataHref?: string
   context?: 'player' | 'captain'
+  statusMessage?: string
 }
 
 export default function TennisSetupChecklist({
@@ -21,6 +22,7 @@ export default function TennisSetupChecklist({
   teamHref = '/data-assist?intent=upload-source&context=Team%20Hub#upload',
   matchDataHref = '/data-assist?intent=upload-source&context=My%20Lab#upload',
   context = 'player',
+  statusMessage,
 }: TennisSetupChecklistProps) {
   const steps = [
     {
@@ -56,6 +58,7 @@ export default function TennisSetupChecklist({
 
   return (
     <section aria-label="Tennis setup" style={panelStyle}>
+      {statusMessage ? <div role="status" style={statusStyle}>{statusMessage}</div> : null}
       <div style={copyStyle}>
         <span style={eyebrowStyle}>Get started · Step {nextIndex + 1} of {steps.length}</span>
         <h2 style={titleStyle}>{next.title}</h2>
@@ -97,3 +100,4 @@ const progressStyle: CSSProperties = { gridColumn: '1 / -1', display: 'flex', fl
 const progressItemStyle = (complete: boolean, current: boolean): CSSProperties => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, border: `1px solid ${current ? 'var(--brand-blue)' : 'var(--shell-panel-border)'}`, background: complete ? 'color-mix(in srgb, var(--brand-green) 14%, transparent)' : 'var(--shell-chip-bg)', color: complete ? 'var(--brand-green)' : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 850 })
 const helpStyle: CSSProperties = { gridColumn: '1 / -1', width: 'fit-content', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 800 }
 const srOnlyStyle: CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }
+const statusStyle: CSSProperties = { padding: '9px 12px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 850 }

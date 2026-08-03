@@ -1529,6 +1529,7 @@ export function LeagueCoordinatorWorkspace() {
             helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}
             steps={firstLeagueSteps}
             showSteps={isFirstLeagueSetup}
+            resumeKey={userId ? `league:${userId}` : undefined}
           />
         </div>
 

@@ -103,8 +103,11 @@ describe('Captain onboarding surface', () => {
 
   it('makes first-team setup and the returning default explicit', () => {
     expect(source).toContain('<TennisSetupChecklist')
-    expect(source).toContain('playerHref="/profile?setup=captain#profile-identity"')
-    expect(source).toContain('profile={captainProfileLink}')
+    expect(source).toContain('playerHref="/profile?setup=captain&returnTo=%2Fcaptain#profile-identity"')
+    expect(source).toContain('getCaptainSetupProgress')
+    expect(source).toContain('captainSetupProgress.nextStep')
+    expect(source).toContain("statusMessage={setupResult === 'player-linked' ? 'Player connected. Add your team next.' : undefined}")
+    expect(source).toContain('progress={captainSetupProgress}')
     expect(checklistSource).toContain('Add your first team.')
     expect(checklistSource).toContain('Upload a TennisLink Player Roster')
     expect(checklistSource).toContain("action: 'Upload Player Roster'")

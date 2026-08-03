@@ -77,6 +77,7 @@ export default function CompetePage() {
         quickActions={competeQuickActions}
         helpTitle="Need help with match prep?"
         steps={competeSteps}
+        resumeKey="compete"
       />
 
       <details className={styles.moreTools}>
