@@ -37,6 +37,7 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type TeamMatch = {
   id: string
@@ -286,6 +287,7 @@ function TeamPageContent() {
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
   const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const [showFullRoster, setShowFullRoster] = useState(false)
+  const [detailReady, setDetailReady] = useState(false)
   const [selectedRosterPlayerIds, setSelectedRosterPlayerIds] = useState<string[]>([])
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
@@ -296,6 +298,32 @@ function TeamPageContent() {
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { userId: currentUserId, authResolved } = useAuth()
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    setSeasonFilter(query.get('season') || 'all')
+    const nextRoster = query.get('roster')
+    if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'all') {
+      setRosterFilter(nextRoster)
+    }
+    setDetailReady(true)
+  }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const query = new URLSearchParams()
+    if (layerFilter) query.set('layer', layerFilter)
+    if (leagueFilter) query.set('league', leagueFilter)
+    if (flightFilter) query.set('flight', flightFilter)
+    if (seasonFilter !== 'all') query.set('season', seasonFilter)
+    if (rosterFilter !== 'all') query.set('roster', rosterFilter)
+    const search = query.toString()
+    return `/teams/${rawTeam}${search ? `?${search}` : ''}`
+  }, [flightFilter, layerFilter, leagueFilter, rawTeam, rosterFilter, seasonFilter])
+
+  useEffect(() => {
+    if (!detailReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [detailReady, exploreResumeHref])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1308,6 +1336,13 @@ function TeamPageContent() {
 
   return (
     <section style={pageContent}>
+        <ExploreResumeTracker
+          surface="team"
+          label="team"
+          href={exploreResumeHref}
+          contextLabel={team}
+          enabled={detailReady}
+        />
         <section style={dynamicHeroShell}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
