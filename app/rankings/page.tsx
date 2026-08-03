@@ -23,6 +23,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -149,6 +150,7 @@ export default function RankingsPage() {
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const [showFullRankings, setShowFullRankings] = useState(false)
+  const [directoryReady, setDirectoryReady] = useState(false)
   const { isMobile, isSmallMobile, isTablet } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
@@ -159,6 +161,36 @@ export default function RankingsPage() {
   useEffect(() => {
     void loadPlayers()
   }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSearchText(params.get('q')?.trim() || '')
+    setLocationFilter(params.get('location')?.trim() || '')
+    const nextRating = params.get('rating')
+    if (nextRating === 'singles' || nextRating === 'doubles' || nextRating === 'overall') setRatingView(nextRating)
+    setHideInactive(params.get('active') === '1')
+    const nextSort = params.get('sort')
+    if (nextSort === 'tiq' || nextSort === 'trend' || nextSort === 'form' || nextSort === 'winRate' || nextSort === 'matches') setSortCol(nextSort)
+    setSortDir(params.get('dir') === 'asc' ? 'asc' : 'desc')
+    setDirectoryReady(true)
+  }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (searchText.trim()) params.set('q', searchText.trim())
+    if (locationFilter) params.set('location', locationFilter)
+    if (ratingView !== 'overall') params.set('rating', ratingView)
+    if (hideInactive) params.set('active', '1')
+    if (sortCol !== 'tiq') params.set('sort', sortCol)
+    if (sortDir !== 'desc') params.set('dir', sortDir)
+    const query = params.toString()
+    return `/explore/rankings${query ? `?${query}` : ''}`
+  }, [hideInactive, locationFilter, ratingView, searchText, sortCol, sortDir])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [directoryReady, exploreResumeHref])
 
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
@@ -610,6 +642,13 @@ export default function RankingsPage() {
 
   return (
     <SiteShell active="rankings">
+      <ExploreResumeTracker
+        surface="rankings"
+        label="rankings"
+        href={exploreResumeHref}
+        contextLabel={searchText.trim() || locationFilter || `${ratingViewLabel} rankings`}
+        enabled={directoryReady}
+      />
       <JsonLd id="rankings-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Rankings', '/rankings')} />
       <section style={contentWrap}>
         <div style={dynamicControlsCard}>

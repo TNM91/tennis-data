@@ -18,6 +18,7 @@ import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/l
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type MatchRow = {
   id: string
@@ -116,6 +117,7 @@ export default function TeamsPage() {
   const [browseAll, setBrowseAll] = useState(false)
   const [showAllTeams, setShowAllTeams] = useState(false)
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
+  const [directoryReady, setDirectoryReady] = useState(false)
 
   const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const isTinyMobile = screenWidth < 360
@@ -152,7 +154,25 @@ export default function TeamsPage() {
     setLeagueFilter(nextLeague)
     setFlightFilter(nextFlight)
     setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight))
+    const nextSort = params.get('sort') as SortKey | null
+    if (nextSort === 'team' || nextSort === 'matches' || nextSort === 'players' || nextSort === 'recent' || nextSort === 'winpct') setSortBy(nextSort)
+    setDirectoryReady(true)
   }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search.trim()) params.set('q', search.trim())
+    if (leagueFilter) params.set('league', leagueFilter)
+    if (flightFilter) params.set('flight', flightFilter)
+    if (sortBy !== 'matches') params.set('sort', sortBy)
+    const query = params.toString()
+    return `/explore/teams${query ? `?${query}` : ''}`
+  }, [flightFilter, leagueFilter, search, sortBy])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [directoryReady, exploreResumeHref])
 
   async function loadTeams() {
     setLoading(true)
@@ -470,6 +490,13 @@ export default function TeamsPage() {
 
   return (
     <SiteShell active="teams">
+      <ExploreResumeTracker
+        surface="teams"
+        label="team directory"
+        href={exploreResumeHref}
+        contextLabel={search.trim() || leagueFilter || flightFilter || 'Teams'}
+        enabled={directoryReady}
+      />
       <main style={pageWrap}>
         <JsonLd id="teams-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Teams', '/teams')} />
         <section style={contentWrap}>

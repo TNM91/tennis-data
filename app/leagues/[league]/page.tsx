@@ -22,6 +22,7 @@ import { formatDate, cleanText } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type LeagueMatchRow = {
   id: string
@@ -72,13 +73,24 @@ function buildTeamHref(teamName: string, leagueName: string, flight: string, com
   return `/teams/${encodeTeamRouteSegment(teamName)}${query ? `?${query}` : ''}`
 }
 
-function buildLeagueScopeHref(leagueName: string, flight: string, section: string, district: string) {
+function buildLeagueScopeHref(
+  leagueName: string,
+  flight: string,
+  section: string,
+  district: string,
+  format = '',
+  team = 'all',
+  view = 'cards',
+) {
   const params = new URLSearchParams()
 
   if (leagueName) params.set('league', leagueName)
   if (flight) params.set('flight', flight)
   if (section) params.set('section', section)
   if (district) params.set('district', district)
+  if (format) params.set('format', format)
+  if (team !== 'all') params.set('team', team)
+  if (view !== 'cards') params.set('view', view)
 
   const query = params.toString()
   return `/leagues/${encodeURIComponent(leagueName || 'league')}${query ? `?${query}` : ''}`
@@ -104,10 +116,23 @@ export default function LeagueDetailPage() {
   const [nearbyRows, setNearbyRows] = useState<LeagueMatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [teamFilter, setTeamFilter] = useState('all')
+  const [teamFilter, setTeamFilter] = useState(() => searchParams.get('team') || 'all')
   const [teamFilterFocused, setTeamFilterFocused] = useState(false)
-  const [standingsView, setStandingsView] = useState<'cards' | 'table'>('cards')
+  const [standingsView, setStandingsView] = useState<'cards' | 'table'>(() => searchParams.get('view') === 'table' ? 'table' : 'cards')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const exploreResumeHref = buildLeagueScopeHref(
+    leagueFromRoute,
+    flight,
+    section,
+    district,
+    formatHint,
+    teamFilter,
+    standingsView,
+  )
+
+  useEffect(() => {
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [exploreResumeHref])
 
   const loadLeagueMatches = useCallback(async () => {
     setLoading(true)
@@ -602,6 +627,12 @@ export default function LeagueDetailPage() {
       : []
   return (
     <SiteShell active="/leagues">
+      <ExploreResumeTracker
+        surface="league"
+        label="league"
+        href={exploreResumeHref}
+        contextLabel={[leagueFromRoute, flight].filter(Boolean).join(' / ')}
+      />
       <section style={pageContent}>
         <section style={dynamicHeroShell}>
           <span aria-hidden="true" style={watermarkStyle} />

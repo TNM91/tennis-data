@@ -91,6 +91,7 @@ import {
 } from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 function formatDateTime(value: string | null | undefined) {
   const parsed = value ? new Date(value) : null
@@ -2191,6 +2192,12 @@ function TiqLeagueDetailContent() {
               href={`/explore/leagues/tiq/${encodeURIComponent(routeSlug)}${leagueIdParam ? `?league_id=${encodeURIComponent(leagueIdParam)}` : ''}`}
               leagueId={league.id}
               leagueName={league.leagueName}
+            />
+            <ExploreResumeTracker
+              surface="league"
+              label="league"
+              href={`/explore/leagues/tiq/${encodeURIComponent(routeSlug)}${leagueIdParam ? `?league_id=${encodeURIComponent(leagueIdParam)}` : ''}`}
+              contextLabel={league.leagueName}
             />
             <section style={dynamicHeroCard}>
               <span aria-hidden="true" style={watermarkStyle} />

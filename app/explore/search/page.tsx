@@ -26,6 +26,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -188,8 +189,30 @@ function ExploreSearchContent() {
         ? nextScope
         : 'players',
     )
+    setRatingBand((params.get('rating') as typeof ratingBand) || 'all')
+    setYearFilter(params.get('year') || 'all')
+    setSeasonFilter(params.get('season') || 'all')
+    setGenderFilter(params.get('gender') || 'all')
+    setLeagueRatingFilter(params.get('leagueRating') || 'all')
     setSearchReady(true)
   }, [])
+
+  const resumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (query.trim()) params.set('q', query.trim())
+    params.set('scope', scope)
+    if (ratingBand !== 'all') params.set('rating', ratingBand)
+    if (yearFilter !== 'all') params.set('year', yearFilter)
+    if (seasonFilter !== 'all') params.set('season', seasonFilter)
+    if (genderFilter !== 'all') params.set('gender', genderFilter)
+    if (leagueRatingFilter !== 'all') params.set('leagueRating', leagueRatingFilter)
+    return `/explore/search?${params.toString()}`
+  }, [genderFilter, leagueRatingFilter, query, ratingBand, scope, seasonFilter, yearFilter])
+
+  useEffect(() => {
+    if (!searchReady) return
+    window.history.replaceState(null, '', resumeHref)
+  }, [resumeHref, searchReady])
 
   useEffect(() => {
     if (!searchReady) return
@@ -240,11 +263,11 @@ function ExploreSearchContent() {
   }, [query, scope, searchReady])
 
   function syncUrl(nextQuery: string, nextScope: SearchScope) {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(resumeHref.split('?')[1] || '')
     if (nextQuery.trim()) params.set('q', nextQuery.trim())
+    else params.delete('q')
     params.set('scope', nextScope)
-    const nextSearch = params.toString()
-    window.history.replaceState(null, '', nextSearch ? `?${nextSearch}` : window.location.pathname)
+    window.history.replaceState(null, '', `/explore/search?${params.toString()}`)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -359,6 +382,13 @@ function ExploreSearchContent() {
           paddingTop: isMobile ? 14 : 20,
         }}
       >
+        <ExploreResumeTracker
+          surface="search"
+          label="search"
+          href={resumeHref}
+          contextLabel={query.trim() ? `${scope}: ${query.trim()}` : scope}
+          enabled={searchReady}
+        />
         <section
           style={{
             ...surfaceCardStrong,

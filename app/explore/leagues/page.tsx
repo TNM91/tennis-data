@@ -32,6 +32,7 @@ import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 const LEAGUE_SECTION_DEFAULT_LIMIT = 1
@@ -66,6 +67,7 @@ function ExploreLeaguesContent() {
   const [seasonFilter, setSeasonFilter] = useState('all')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
+  const [directoryReady, setDirectoryReady] = useState(false)
   const [summary, setSummary] = useState({
     totalMatches: 0,
     totalFlights: 0,
@@ -91,7 +93,29 @@ function ExploreLeaguesContent() {
 
     setSearch(nextSearch)
     setLayerFilter(nextLayer === 'usta' || nextLayer === 'tiq' ? nextLayer : 'all')
+    setYearFilter(params.get('year') || 'all')
+    setSeasonFilter(params.get('season') || 'all')
+    setGenderFilter(params.get('gender') || 'all')
+    setRatingFilter(params.get('rating') || 'all')
+    setDirectoryReady(true)
   }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search.trim()) params.set('q', search.trim())
+    if (layerFilter !== 'all') params.set('layer', layerFilter)
+    if (yearFilter !== 'all') params.set('year', yearFilter)
+    if (seasonFilter !== 'all') params.set('season', seasonFilter)
+    if (genderFilter !== 'all') params.set('gender', genderFilter)
+    if (ratingFilter !== 'all') params.set('rating', ratingFilter)
+    const query = params.toString()
+    return `/explore/leagues${query ? `?${query}` : ''}`
+  }, [genderFilter, layerFilter, ratingFilter, search, seasonFilter, yearFilter])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [directoryReady, exploreResumeHref])
 
   async function loadLeagueSummary() {
     setLoading(true)
@@ -250,6 +274,13 @@ function ExploreLeaguesContent() {
 
   return (
     <section style={wrapStyle}>
+        <ExploreResumeTracker
+          surface="leagues"
+          label="league directory"
+          href={exploreResumeHref}
+          contextLabel={search.trim() || (layerFilter !== 'all' ? `${layerFilter.toUpperCase()} leagues` : 'Leagues')}
+          enabled={directoryReady}
+        />
         <div style={dynamicHeroStyle} aria-label="League discovery controls">
           <div aria-hidden="true" style={watermarkStyle} />
           <div style={dynamicPanelHeaderStyle}>

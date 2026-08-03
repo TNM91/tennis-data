@@ -13,6 +13,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ExploreContinueCard from '@/app/explore/_components/explore-continue-card'
 
 const FIND_COMMAND_STEPS: Array<{
   href: string
@@ -171,6 +172,7 @@ export default function ExplorePage() {
                 </p>
               ) : null}
               <UniversalSearch compact showResults={false} />
+              <ExploreContinueCard />
             </div>
 
           </div>

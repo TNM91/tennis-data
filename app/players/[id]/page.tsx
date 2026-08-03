@@ -42,6 +42,7 @@ import {
   readTiqAwardsForRecipient,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -238,10 +239,35 @@ function PlayerProfileContent() {
   const [nearbyPlayers, setNearbyPlayers] = useState<Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>>([])
   const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
   const [playerAwards, setPlayerAwards] = useState<TiqAwardRecord[]>([])
+  const [detailReady, setDetailReady] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !currentUserId ? role : 'member'
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    const nextRating = query.get('rating')
+    if (nextRating === 'singles' || nextRating === 'doubles' || nextRating === 'overall') setRatingView(nextRating)
+    const nextWindow = query.get('window')
+    if (nextWindow === '30d' || nextWindow === '90d' || nextWindow === 'all') setChartWindow(nextWindow)
+    setHistoryMode(query.get('history') === 'table' ? 'table' : 'chart')
+    setDetailReady(true)
+  }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const query = new URLSearchParams()
+    if (ratingView !== 'overall') query.set('rating', ratingView)
+    if (chartWindow !== 'all') query.set('window', chartWindow)
+    if (historyMode !== 'chart') query.set('history', historyMode)
+    const search = query.toString()
+    return `/players/${encodeURIComponent(playerId)}${search ? `?${search}` : ''}`
+  }, [chartWindow, historyMode, playerId, ratingView])
+
+  useEffect(() => {
+    if (!detailReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [detailReady, exploreResumeHref])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1230,6 +1256,13 @@ function PlayerProfileContent() {
 
   return (
     <>
+      <ExploreResumeTracker
+        surface="player"
+        label="player"
+        href={exploreResumeHref}
+        contextLabel={player.name}
+        enabled={detailReady}
+      />
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />

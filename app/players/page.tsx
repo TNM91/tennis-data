@@ -21,6 +21,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
@@ -153,6 +154,7 @@ export default function PlayersPage() {
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const [browseAll, setBrowseAll] = useState(false)
   const [showAllPlayers, setShowAllPlayers] = useState(false)
+  const [directoryReady, setDirectoryReady] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, user, authResolved } = useProductAccess()
@@ -215,6 +217,8 @@ export default function PlayersPage() {
     const params = new URLSearchParams(window.location.search)
     const nextSearch = params.get('q')?.trim() || ''
     const nextFlight = params.get('flight')?.trim() as FlightFilter | undefined
+    const nextSort = params.get('sort') as SortKey | null
+    const nextFilter = params.get('filter') as FilterKey | null
 
     setSearch(nextSearch)
     setFlightFilter(
@@ -228,7 +232,25 @@ export default function PlayersPage() {
         : 'all',
     )
     setBrowseAll(Boolean(nextSearch || (nextFlight && nextFlight !== 'all')))
+    if (nextSort === 'overall' || nextSort === 'singles' || nextSort === 'doubles' || nextSort === 'name') setSortBy(nextSort)
+    if (nextFilter === 'all' || nextFilter === 'with-matches' || nextFilter === 'high-rated' || nextFilter === 'trending-up' || nextFilter === 'at-risk') setFilterBy(nextFilter)
+    setDirectoryReady(true)
   }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search.trim()) params.set('q', search.trim())
+    if (sortBy !== 'overall') params.set('sort', sortBy)
+    if (filterBy !== 'all') params.set('filter', filterBy)
+    if (flightFilter !== 'all') params.set('flight', flightFilter)
+    const query = params.toString()
+    return `/explore/players${query ? `?${query}` : ''}`
+  }, [filterBy, flightFilter, search, sortBy])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [directoryReady, exploreResumeHref])
 
   useEffect(() => {
     setShowAllPlayers(false)
@@ -599,6 +621,13 @@ export default function PlayersPage() {
 
   return (
     <SiteShell active="players">
+      <ExploreResumeTracker
+        surface="players"
+        label="player directory"
+        href={exploreResumeHref}
+        contextLabel={search.trim() || (flightFilter !== 'all' ? `${flightFilter} players` : 'Players')}
+        enabled={directoryReady}
+      />
       <JsonLd id="players-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Players', '/players')} />
       <section style={playerToolWrap}>
         <div style={dynamicControlsShell}>
