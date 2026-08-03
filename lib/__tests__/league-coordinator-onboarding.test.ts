@@ -11,17 +11,18 @@ describe('League Coordinator first-use path', () => {
   it('waits for the league registry before choosing first-use or returning copy', () => {
     expect(source).toContain('const [registryLoaded, setRegistryLoaded] = useState(false)')
     expect(source).toContain('setRegistryLoaded(true)')
-    expect(source).toContain('Loading League Office...')
+    expect(source).toContain("title: 'Getting your leagues'")
+    expect(source).toContain("contextValue={latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}")
     expect(source).toContain('const isFirstLeagueSetup = registryLoaded && access.canUseLeagueTools && !hasSavedLeague')
   })
 
   it('guides a new coordinator through one setup path', () => {
-    expect(source).toContain('Create your first league.')
-    expect(source).toContain('aria-label="First league setup steps"')
+    expect(source).toContain('roleLabel="League"')
+    expect(source).toContain("helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}")
     expect(source).toContain("title: 'Name the league'")
     expect(source).toContain("title: 'Add competitors'")
     expect(source).toContain("title: 'Save and continue'")
-    expect(source).toContain("isFirstLeagueSetup ? 'Start setup' : nextLeagueOpsStep.cta")
+    expect(source).toContain('showSteps={isFirstLeagueSetup}')
     expect(source).toContain('open={setupOpen || !!editingId || isFirstLeagueSetup}')
   })
 
@@ -34,8 +35,8 @@ describe('League Coordinator first-use path', () => {
   })
 
   it('puts completed onboarding behind help for returning coordinators', () => {
-    expect(source).toContain('Need help?')
-    expect(source).toContain('Review League Office setup steps.')
-    expect(source).toContain('{coordinatorStartCards.length} steps')
+    expect(source).toContain('Need help with League setup?')
+    expect(source).toContain('steps={firstLeagueSteps}')
+    expect(source).toContain('showSteps={isFirstLeagueSetup}')
   })
 })

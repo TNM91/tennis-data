@@ -39,10 +39,10 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'leagueSecondaryToolsDetailsStyle')).toContain('overflow: \'hidden\'')
     expect(styleBlock(source, 'leagueSecondaryToolsSummaryStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(source, 'leagueSecondaryToolsBodyStyle')).toContain('minWidth: 0')
-    expect(source).toContain('const showMobileUnlockOnly = isMobile && !access.canUseLeagueTools')
-    expect(source).toContain('registryLoaded && hasSavedLeague && !showMobileUnlockOnly ? (')
-    expect(source).toContain("showMobileUnlockOnly\n                      ? 'League Office access'")
-    expect(source).toContain('{showMobileUnlockOnly || !registryLoaded ? null : isFirstLeagueSetup ? (')
+    expect(source).toContain('<RoleActionHome')
+    expect(source).toContain('quickActions={access.canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}')
+    expect(source).toContain("title: 'Unlock League Office'")
+    expect(source).toContain("title: 'Explore leagues'")
     expect(source).toContain('summaryOnly={isMobile}')
     expect(shellSmokeSource).toContain("type: 'league-mobile-summary-repeated-guidance'")
     expect(shellSmokeSource).toContain("type: 'league-mobile-summary-prompt-too-tall'")
@@ -69,8 +69,8 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('sharedCalendarStepGridStyle')
     expect(source).toContain('Player-arranged scheduling preview')
     expect(source).toContain('League Office-published schedule preview')
-    expect(source).toContain('Create your first league.')
-    expect(source).toContain('Review League Office setup steps.')
+    expect(source).toContain('Set up League in three steps')
+    expect(source).toContain('Need help with League setup?')
     expect(source).toContain('League Office sets schedule')
     expect(source).toContain('League Office approval required')
     expect(source).toContain('League Office approval keeps join requests')
@@ -207,7 +207,6 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOfficeOperationProofHeaderStyle',
       'leagueOfficeOperationProofGridStyle',
       'leagueOfficeOperationProofStepStyle',
-      'startCardGridStyle',
       'leaguePathGridStyle',
       'leaguePathCardStyle',
       'leaguePathMobileDetailsStyle',
@@ -264,7 +263,6 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOfficeOperationProofHeaderStyle',
       'leagueOfficeOperationProofStepStyle',
       'startActionLabelStyle',
-      'startCardCtaStyle',
       'leaguePathCopyStyle',
       'leagueSecondaryToolsDetailsStyle',
       'leagueSecondaryToolsSummaryStyle',
@@ -327,7 +325,6 @@ describe('League Coordinator mobile layout guards', () => {
       'publicReadinessGridStyle',
       'resultBookGridStyle',
       'resultBookMetricRowStyle',
-      'startCardGridStyle',
       'leaguePathGridStyle',
       'fieldGrid',
       'outcomeInfoGrid',
