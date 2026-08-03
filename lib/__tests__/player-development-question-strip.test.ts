@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
+const improveHomeSource = readFileSync(join(process.cwd(), 'app/player-development/_components/improve-landing-hub.tsx'), 'utf8')
 const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
 
 describe('player development question strip', () => {
@@ -20,7 +21,7 @@ describe('player development question strip', () => {
     expect(systemSource).toContain("['Prove', firstCard?.proof ?? actionRead.proofTarget]")
     expect(systemSource).toContain("['Use it', actionRead.nextCue]")
     expect(systemSource).toContain('Open drill mode')
-    expect(systemSource).toContain('<RoleActionHome')
+    expect(improveHomeSource).toContain('<RoleActionHome')
     expect(systemSource).toContain('All Improve tools')
     expect(systemSource).toContain('improveAllTools')
     expect(systemSource).toContain('PlayerQuestionStrip')

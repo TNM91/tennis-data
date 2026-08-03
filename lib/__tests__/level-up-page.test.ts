@@ -1801,7 +1801,7 @@ describe('Level Up page', () => {
     expect(liveWorkbenchSource).toContain('Logged')
     expect(liveWorkbenchSource).toContain('Shared with coach')
     expect(liveWorkbenchSource).toContain('normalizeAssignmentWorkType')
-    expect(liveWorkbenchSource).toContain('useState(requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ?')
+    expect(liveWorkbenchSource).toContain('useState(requestedDrillId || (requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ?')
     expect(liveWorkbenchSource).toContain("buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : undefined)")
     expect(liveWorkbenchSource).toContain('const nextDrillId = requestedCard ? `card-${requestedCard.id}` : `${nextFocusId}-coach-${nextWorkType}`')
     expect(liveWorkbenchSource).toContain('setActiveDrillId(nextDrillId)')

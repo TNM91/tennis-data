@@ -2,8 +2,18 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import {
+  buildPlayerImproveLevelUpHref,
+  chooseLatestPlayerImproveResumeState,
+  loadPlayerImproveResumeStateFromCloud,
+  readPlayerImproveResumeState,
+  syncPlayerImproveResumeState,
+  writePlayerImproveResumeState,
+  type PlayerImproveResumeState,
+} from '@/lib/player-improve-memory'
 import type { PlayerDevelopmentIdentityCourtsideRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
@@ -320,6 +330,7 @@ export default function PlayerLiveWorkbench({
   performance,
 }: PlayerLiveWorkbenchProps) {
   const searchParams = useSearchParams()
+  const { userId, authResolved, session } = useAuth()
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
@@ -334,12 +345,14 @@ export default function PlayerLiveWorkbench({
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
   const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
+  const requestedFocusId = searchParams.get('focus')?.trim() ?? ''
+  const requestedDrillId = searchParams.get('drill')?.trim() ?? ''
   const requestedCardId = searchParams.get('card')?.trim() ?? ''
   const customQuestId = searchParams.get('quest')?.trim() ?? ''
   const requestedCard = LEVEL_UP_CARDS.find((card) => card.id === requestedCardId)
   const requestedContext = normalizeTrainingContext(searchParams.get('context'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
-  const hasQuickStart = !hasCoachAssignment && Boolean(requestedCardId || customQuestId || searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
+  const hasQuickStart = !hasCoachAssignment && Boolean(requestedCardId || requestedDrillId || customQuestId || requestedFocusId || searchParams.get('workType') || searchParams.get('context'))
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
@@ -349,14 +362,15 @@ export default function PlayerLiveWorkbench({
     () => findAssignmentFocus(playableFocuses, assignmentFocus),
     [assignmentFocus, playableFocuses],
   )
-  const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
+  const requestedFocusMatch = playableFocuses.find((focus) => focus.id === requestedFocusId)
+  const initialFocusId = assignmentFocusMatch?.id ?? requestedFocusMatch?.id ?? defaultFocusId
   const initialWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType ?? 'court'
   const initialContext = hasCoachAssignment && requestedCard ? 'coach' : requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
   const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : initialContext)
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
-  const [activeDrillId, setActiveDrillId] = useState(requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
+  const [activeDrillId, setActiveDrillId] = useState(requestedDrillId || (requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : ''))
   const [sessionDockActive, setSessionDockActive] = useState(hasCoachAssignment || hasQuickStart)
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
   const [draft, setDraft] = useState(() => getEmptySessionDraft(true))
@@ -369,6 +383,7 @@ export default function PlayerLiveWorkbench({
   const [questCreditMessage, setQuestCreditMessage] = useState('')
   const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
   const [proofCounter, setProofCounter] = useState(0)
+  const [resumeResolved, setResumeResolved] = useState(false)
   const [recapCopyStatus, setRecapCopyStatus] = useState<RecapCopyStatus>('idle')
   const [recapMode, setRecapMode] = useState<RecapMode>('text')
   const [selectedNextCueId, setSelectedNextCueId] = useState<SavedNextCueId>('smart')
@@ -521,6 +536,80 @@ export default function PlayerLiveWorkbench({
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment, requestedCard])
 
   useEffect(() => {
+    if (!authResolved) return
+    if (!userId) {
+      setResumeResolved(true)
+      return
+    }
+
+    setResumeResolved(false)
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readPlayerImproveResumeState(userId)
+      const cloudState = accessToken ? await loadPlayerImproveResumeStateFromCloud(accessToken) : null
+      const latest = chooseLatestPlayerImproveResumeState(localState, cloudState)
+      if (!active || !latest) return
+      if (latest.identitySlug && latest.identitySlug !== identitySlug) return
+      if (assignmentId && latest.assignmentId && latest.assignmentId !== assignmentId) return
+      if (requestedCardId && latest.cardId && latest.cardId !== requestedCardId) return
+      if (requestedDrillId && latest.drillId && latest.drillId !== requestedDrillId) return
+      if (latest.lastSurface !== 'level-up' && latest.lastSurface !== 'assignment') return
+
+      writePlayerImproveResumeState(latest, userId)
+      if (latest.focusId && playableFocuses.some((focus) => focus.id === latest.focusId)) {
+        setActiveFocusId(latest.focusId)
+      }
+      if (latest.workType) setWorkType(latest.workType)
+      if (hasCoachAssignment) {
+        setContext('coach')
+        setAccessMode('coach_invited')
+      } else {
+        if (latest.trainingContext) setContext(latest.trainingContext)
+        if (latest.sessionDraft?.accessMode) setAccessMode(latest.sessionDraft.accessMode)
+      }
+      if (latest.drillId) {
+        const restoredDraft: SessionDraft = {
+          rating: latest.sessionDraft?.rating ?? null,
+          feeling: latest.sessionDraft?.feeling ?? 'ready',
+          note: latest.sessionDraft?.note ?? '',
+          sharedWithCoach: hasCoachAssignment || latest.sessionDraft?.sharedWithCoach === true,
+        }
+        window.sessionStorage.setItem(levelUpDraftStorageKey(latest.drillId), JSON.stringify(restoredDraft))
+        if ((latest.sessionDraft?.elapsedSeconds ?? 0) > 0) {
+          window.sessionStorage.setItem(timerStorageKey(latest.drillId), String(latest.sessionDraft?.elapsedSeconds))
+        }
+        if ((latest.sessionDraft?.proofCounter ?? 0) > 0) {
+          window.sessionStorage.setItem(proofCounterStorageKey(latest.drillId), String(latest.sessionDraft?.proofCounter))
+        }
+        setActiveDrillId(latest.drillId)
+        setDraft(restoredDraft)
+        setProofCounter(latest.sessionDraft?.proofCounter ?? 0)
+        setReadiness(latest.sessionDraft?.readiness ?? 'okay')
+        setScoringDrillId(latest.sessionDraft?.scoring ? latest.drillId : '')
+        setEditingStep(null)
+        setSessionDockActive(true)
+      }
+    })().finally(() => {
+      if (active) setResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [
+    assignmentId,
+    authResolved,
+    hasCoachAssignment,
+    identitySlug,
+    playableFocuses,
+    requestedCardId,
+    requestedDrillId,
+    session?.access_token,
+    userId,
+  ])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
 
     const updateSessionDock = () => {
@@ -614,6 +703,85 @@ export default function PlayerLiveWorkbench({
 
     window.sessionStorage.setItem(key, JSON.stringify(draft))
   }, [activeDrill, accessMode, draft, lastSavedSession])
+
+  const resumeTimerSeconds = activeTimerSnapshot?.running
+    ? Math.floor(activeTimerSeconds / 15) * 15
+    : activeTimerSeconds
+
+  useEffect(() => {
+    if (!resumeResolved || !userId || !activeFocus || !activeDrill) return
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        const accessToken = session?.access_token || ''
+        const current = readPlayerImproveResumeState(userId)
+        const hasActiveDraft = !isEmptySessionDraft(draft, accessMode) || resumeTimerSeconds > 0 || proofCounter > 0 || scoringDrillId === activeDrill.id
+        const nextState: PlayerImproveResumeState = {
+          ...current,
+          identitySlug,
+          identityTitle,
+          focusId: activeFocus.id,
+          workType,
+          trainingContext: context,
+          drillId: activeDrill.id,
+          cardId: activeDrill.sourceCard?.id || '',
+          questId: customQuestId,
+          assignmentId,
+          assignmentTitle,
+          assignmentFocus,
+          studentLinkId,
+          conversationId: '',
+          conversationDraft: '',
+          lastSurface: hasCoachAssignment ? 'assignment' : 'level-up',
+          lastSurfaceLabel: hasCoachAssignment
+            ? assignmentTitle || `Coach challenge: ${activeDrill.title}`
+            : activeDrill.title,
+          lastVisitedAt: new Date().toISOString(),
+          sessionDraft: hasActiveDraft
+            ? {
+                rating: draft.rating,
+                feeling: draft.feeling,
+                note: draft.note,
+                sharedWithCoach: draft.sharedWithCoach,
+                proofCounter,
+                elapsedSeconds: resumeTimerSeconds,
+                readiness,
+                accessMode,
+                scoring: scoringDrillId === activeDrill.id,
+              }
+            : {},
+        }
+        nextState.lastHref = buildPlayerImproveLevelUpHref(nextState)
+        writePlayerImproveResumeState(nextState, userId)
+        void syncPlayerImproveResumeState(nextState, userId, accessToken)
+      })()
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    accessMode,
+    activeDrill,
+    activeFocus,
+    activeTimerSnapshot?.running,
+    assignmentFocus,
+    assignmentId,
+    assignmentTitle,
+    context,
+    customQuestId,
+    draft,
+    hasCoachAssignment,
+    identitySlug,
+    identityTitle,
+    proofCounter,
+    readiness,
+    resumeResolved,
+    resumeTimerSeconds,
+    scoringDrillId,
+    session?.access_token,
+    studentLinkId,
+    userId,
+    workType,
+  ])
 
   useEffect(() => {
     if (!lastSavedSession) return
