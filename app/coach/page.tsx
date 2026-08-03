@@ -43,6 +43,17 @@ import {
   getCoachSessionPreset,
 } from '@/lib/coach-workspace'
 import { buildCoachStudentCalendarEvents } from '@/lib/coach-calendar'
+import {
+  buildCoachWorkspaceHref,
+  chooseLatestCoachResumeState,
+  getCoachResumeHref,
+  loadCoachResumeStateFromCloud,
+  readCoachResumeState,
+  syncCoachResumeState,
+  writeCoachResumeState,
+  type CoachResumeState,
+  type CoachResumeSurface,
+} from '@/lib/coach-memory'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
@@ -368,6 +379,8 @@ function CoachContent() {
   const [calendarFeedStatusByStudentId, setCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
   const [shareOrigin, setShareOrigin] = useState('')
+  const [coachResumeState, setCoachResumeState] = useState<CoachResumeState | null>(null)
+  const [coachResumeResolved, setCoachResumeResolved] = useState(false)
   const studentPhoneDigits = getPhoneDigits(studentPhone)
   const requestedStudentLinkId = searchParams.get('studentLinkId') || ''
   const firstAssignmentRequestActive = searchParams.get('firstAssignment') === '1'
@@ -574,6 +587,150 @@ function CoachContent() {
     sessionPresetId,
   ])
 
+  useEffect(() => {
+    if (!authResolved || !assignmentDraftHydrated) return
+
+    const accessToken = session?.access_token || ''
+    if (!userId || !accessToken) {
+      setCoachResumeState(readCoachResumeState(userId))
+      setCoachResumeResolved(true)
+      return
+    }
+
+    setCoachResumeResolved(false)
+    let active = true
+    void (async () => {
+      const localState = readCoachResumeState(userId)
+      const cloudState = await loadCoachResumeStateFromCloud(accessToken)
+      const resumeState = chooseLatestCoachResumeState(localState, cloudState)
+      if (!active) return
+      if (!resumeState) return
+
+      writeCoachResumeState(resumeState, userId)
+      setCoachResumeState(resumeState)
+
+      const resumeStudentId = requestedStudentLinkId || resumeState.studentLinkId || ''
+      if (resumeStudentId) {
+        setActiveMobileBenchStudentId(resumeStudentId)
+        setAssignmentStudentId(resumeStudentId)
+        setContactStudentId(resumeStudentId)
+      }
+
+      const draft = resumeState.assignmentDraft
+      if (!draft || firstAssignmentRequestActive) return
+
+      setAssignmentRouteRequestKey(draft.routeRequestKey || '')
+      setAssignmentTitle(draft.title || '')
+      setAssignmentFocus(draft.focus || '')
+      setAssignmentDueDate(draft.dueDate || '')
+      setAssignmentTemplateId(draft.templateId || COACH_ASSIGNMENT_TEMPLATES[0]?.id || '')
+      setAssignmentPresetId(draft.presetId || '')
+      setAssignmentStarterId(draft.starterId || '')
+      setAssignmentLevelUpCardId(draft.levelUpCardId || '')
+      setAssignmentLevelUpPackId(draft.levelUpPackId || '')
+      setAssignmentEditId(draft.editId || '')
+      setLessonDateTime(draft.lessonDateTime || '')
+      setLessonFocus(draft.lessonFocus || '')
+      setLessonLocation(draft.lessonLocation || '')
+      setSessionPresetId(draft.sessionPresetId || COACH_SESSION_PRESETS[0]?.id || '')
+    })().finally(() => {
+      if (active) setCoachResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [
+    assignmentDraftHydrated,
+    authResolved,
+    firstAssignmentRequestActive,
+    requestedStudentLinkId,
+    session?.access_token,
+    userId,
+  ])
+
+  useEffect(() => {
+    if (!coachResumeResolved || !userId || !access.canUseCoachWorkflow) return
+
+    const assignmentDraft = {
+      routeRequestKey: assignmentRouteRequestKey,
+      title: assignmentTitle,
+      focus: assignmentFocus,
+      dueDate: assignmentDueDate,
+      templateId: assignmentTemplateId,
+      presetId: assignmentPresetId,
+      starterId: assignmentStarterId,
+      levelUpCardId: assignmentLevelUpCardId,
+      levelUpPackId: assignmentLevelUpPackId,
+      editId: assignmentEditId,
+      lessonDateTime,
+      lessonFocus,
+      lessonLocation,
+      sessionPresetId,
+    }
+    const hasAssignmentDraft = Boolean(
+      assignmentRouteRequestKey ||
+      assignmentTitle.trim() ||
+      assignmentFocus.trim() ||
+      assignmentDueDate ||
+      assignmentPresetId ||
+      assignmentStarterId ||
+      assignmentLevelUpCardId ||
+      assignmentLevelUpPackId ||
+      assignmentEditId ||
+      lessonDateTime ||
+      lessonFocus.trim() ||
+      lessonLocation.trim(),
+    )
+    const activeStudentId = hasAssignmentDraft
+      ? assignmentStudentId || activeMobileBenchStudentId || contactStudentId
+      : activeMobileBenchStudentId || contactStudentId || assignmentStudentId
+    const activeStudent = savedStudents.find((student) => student.id === activeStudentId) ?? null
+    if (!activeStudent && !hasAssignmentDraft) return
+
+    const timeout = window.setTimeout(() => {
+      const nextState: CoachResumeState = {
+        ...(activeStudentId ? { studentLinkId: activeStudent?.id || activeStudentId } : {}),
+        ...(activeStudent
+          ? {
+              playerName: activeStudent.playerName,
+              playerUserId: activeStudent.playerUserId || undefined,
+              identitySlug: activeStudent.identitySlug,
+            }
+          : {}),
+        assignmentDraft: hasAssignmentDraft ? assignmentDraft : undefined,
+      }
+      const saved = writeCoachResumeState(nextState, userId)
+      if (saved) setCoachResumeState(saved)
+      void syncCoachResumeState(nextState, userId, session?.access_token)
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    access.canUseCoachWorkflow,
+    activeMobileBenchStudentId,
+    assignmentDueDate,
+    assignmentEditId,
+    assignmentFocus,
+    assignmentLevelUpCardId,
+    assignmentLevelUpPackId,
+    assignmentPresetId,
+    assignmentRouteRequestKey,
+    assignmentStarterId,
+    assignmentStudentId,
+    assignmentTemplateId,
+    assignmentTitle,
+    coachResumeResolved,
+    contactStudentId,
+    lessonDateTime,
+    lessonFocus,
+    lessonLocation,
+    savedStudents,
+    session?.access_token,
+    sessionPresetId,
+    userId,
+  ])
+
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
     setWorkspaceLoading(true)
@@ -761,6 +918,12 @@ function CoachContent() {
       setContactStudentId(savedStudent.id)
       setActiveMobileBenchStudentId(savedStudent.id)
       setLastCreatedStudentSetup({ student: savedStudent, invite: createdInvite })
+      rememberCoachResume(
+        'bench',
+        buildCoachWorkspaceHref('coach-linked-dashboard', savedStudent.id),
+        savedStudent,
+        'Player Bench',
+      )
       setStudentName('')
       setStudentLevel('')
       setStudentCustomIdentity('')
@@ -937,6 +1100,13 @@ function CoachContent() {
       setLessonDateTime('')
       setLessonFocus('')
       setLessonLocation('')
+      rememberCoachResume(
+        'assignment',
+        buildCoachWorkspaceHref('coach-lesson-frame', savedAssignment.studentLinkId),
+        savedStudents.find((student) => student.id === savedAssignment.studentLinkId),
+        status === 'draft' ? 'Assignment Draft' : 'Player Assignment',
+        { assignmentId: savedAssignment.id },
+      )
       setWorkspaceMessage(
         status === 'draft'
           ? 'Level Up pack draft saved. Review it in Coach Hub, then assign it when the player is ready.'
@@ -976,6 +1146,13 @@ function CoachContent() {
       setAssignments((current) => current.map((item) => (item.id === assignment.id ? json.assignment! : item)))
       setLastCreatedAssignment(status === 'assigned' ? json.assignment : null)
       setContactStudentId(json.assignment.studentLinkId)
+      rememberCoachResume(
+        'assignment',
+        buildCoachWorkspaceHref('coach-lesson-frame', json.assignment.studentLinkId),
+        savedStudents.find((student) => student.id === json.assignment?.studentLinkId),
+        status === 'assigned' ? 'Player Assignment' : 'Assignment',
+        { assignmentId: json.assignment.id },
+      )
       setWorkspaceMessage(status === 'assigned' ? 'Draft assigned. Send the player a quick note.' : 'Assignment archived.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not update assignment.')
@@ -1408,6 +1585,28 @@ function CoachContent() {
   const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
+  const coachResumeHref = getCoachResumeHref(coachResumeState)
+  const coachResumeMatchesPlayer = Boolean(
+    coachResumeHref &&
+    (!coachResumeState?.studentLinkId || savedStudents.some((student) => student.id === coachResumeState.studentLinkId)),
+  )
+  const coachContinueAction: RoleHomeAction | null = coachResumeResolved && coachResumeMatchesPlayer
+    ? {
+        label: 'Continue',
+        title: `Continue ${coachResumeState?.lastSurfaceLabel || 'coaching'}`,
+        detail: [
+          coachResumeState?.playerName || '',
+          coachResumeState?.assignmentDraft?.title || '',
+        ].filter(Boolean).join(' / ') || 'Open the exact player work you left.',
+        cta: 'Continue',
+        href: coachResumeHref,
+        icon: coachResumeState?.lastSurface === 'conversation'
+          ? 'messagingCenter'
+          : coachResumeState?.lastSurface === 'assignment'
+            ? 'matchPrep'
+            : 'playerRatings',
+      }
+    : null
   const coachHomeAction: RoleHomeAction = !savedStudents.length
     ? {
         label: 'Start here',
@@ -1517,7 +1716,6 @@ function CoachContent() {
     if (!mobileCoachContextHydrated) return
 
     if (!linkedPlayerCards.length) {
-      if (activeMobileBenchStudentId) setActiveMobileBenchStudentId('')
       return
     }
 
@@ -1525,6 +1723,15 @@ function CoachContent() {
       setActiveMobileBenchStudentId(linkedPlayerCards[0].student.id)
     }
   }, [activeMobileBenchStudentId, linkedPlayerCards, mobileCoachContextHydrated])
+
+  useEffect(() => {
+    if (!requestedStudentLinkId || !savedStudents.length) return
+    if (!savedStudents.some((student) => student.id === requestedStudentLinkId)) return
+
+    setActiveMobileBenchStudentId(requestedStudentLinkId)
+    setAssignmentStudentId(requestedStudentLinkId)
+    setContactStudentId(requestedStudentLinkId)
+  }, [requestedStudentLinkId, savedStudents])
 
   useEffect(() => {
     if (!firstAssignmentRequestKey || coachRouteHandoffHandled === firstAssignmentRequestKey) return
@@ -1631,7 +1838,12 @@ function CoachContent() {
           <span style={connectionBadgeStyle(card.connection)}>{card.connectionLabel}</span>
         </div>
         <div style={playerProfileRouteStyle}>
-          <Link href={profileHref} style={playerProfileLinkStyle} aria-label={`Open ${card.student.playerName} player hub`}>
+          <Link
+            href={profileHref}
+            style={playerProfileLinkStyle}
+            aria-label={`Open ${card.student.playerName} player hub`}
+            onClick={() => rememberCoachResume('player-hub', profileHref, card.student, 'Player Hub')}
+          >
             Open player hub
           </Link>
           <span>{card.student.playerId ? 'TIQ profile' : 'Development path'}</span>
@@ -1673,18 +1885,41 @@ function CoachContent() {
             ))}
           </div>
           {card.student.playerUserId ? (
-            <Link href={identityMessageHref} style={coachBenchHandoffMessageStyle}>
+            <Link
+              href={identityMessageHref}
+              style={coachBenchHandoffMessageStyle}
+              onClick={() => rememberCoachResume('conversation', identityMessageHref, card.student, 'Player Conversation')}
+            >
               Message Player ID plan
             </Link>
           ) : null}
         </div>
         <div style={isMobile ? mobileStudentActionRowStyle : studentActionRowStyle}>
           {assignmentCourtHref ? (
-            <Link href={assignmentCourtHref} style={actionLinkStyle}>
+            <Link
+              href={assignmentCourtHref}
+              style={actionLinkStyle}
+              onClick={() => rememberCoachResume(
+                'assignment',
+                assignmentCourtHref,
+                card.student,
+                'Current Assignment',
+                { assignmentId: card.latestAssignment?.id },
+              )}
+            >
               Current work
             </Link>
           ) : null}
-          <Link href={getCoachPlannerHref(card.student.identitySlug)} style={actionLinkStyle}>
+          <Link
+            href={getCoachPlannerHref(card.student.identitySlug)}
+            style={actionLinkStyle}
+            onClick={() => rememberCoachResume(
+              'development-plan',
+              getCoachPlannerHref(card.student.identitySlug),
+              card.student,
+              'Development Plan',
+            )}
+          >
             Development path
           </Link>
           <button
@@ -1718,7 +1953,16 @@ function CoachContent() {
             </SmsActionLink>
           ) : null}
           {card.student.playerUserId ? (
-            <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={actionLinkStyle}>
+            <Link
+              href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)}
+              style={actionLinkStyle}
+              onClick={() => rememberCoachResume(
+                'conversation',
+                buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `),
+                card.student,
+                'Player Conversation',
+              )}
+            >
               Message
             </Link>
           ) : card.pendingInvite ? (
@@ -1758,10 +2002,65 @@ function CoachContent() {
     scrollToCoachSection('coach-student-setup-ready')
   }
 
+  function rememberCoachResume(
+    surface: CoachResumeSurface,
+    href: string,
+    student?: CoachStudentLink | null,
+    label?: string,
+    extra: Pick<CoachResumeState, 'assignmentId' | 'conversationId'> = {},
+  ) {
+    const selectedStudent = student ??
+      savedStudents.find((candidate) => candidate.id === (activeMobileBenchStudentId || assignmentStudentId || contactStudentId)) ??
+      null
+    const surfaceLabel = label || ({
+      bench: 'Player Bench',
+      'add-player': 'Add Player',
+      'player-hub': 'Player Hub',
+      'development-plan': 'Development Plan',
+      assignment: 'Assignment',
+      conversation: 'Player Conversation',
+    } satisfies Record<CoachResumeSurface, string>)[surface]
+    const nextState: CoachResumeState = {
+      ...(selectedStudent
+        ? {
+            studentLinkId: selectedStudent.id,
+            playerName: selectedStudent.playerName,
+            playerUserId: selectedStudent.playerUserId || undefined,
+            identitySlug: selectedStudent.identitySlug,
+          }
+        : {}),
+      ...extra,
+      lastSurface: surface,
+      lastSurfaceLabel: surfaceLabel,
+      lastHref: href,
+    }
+    const saved = writeCoachResumeState(nextState, userId)
+    if (saved) setCoachResumeState(saved)
+    void syncCoachResumeState(nextState, userId, session?.access_token)
+  }
+
+  function handleCoachHomeAction(action: Pick<RoleHomeAction, 'title' | 'href'>) {
+    const surface: CoachResumeSurface = action.href.includes('/messages')
+      ? 'conversation'
+      : action.href.includes('coach-lesson-frame')
+        ? 'assignment'
+        : action.href.includes('coach-student-board')
+          ? 'add-player'
+          : action.href.includes('/player-development')
+            ? 'development-plan'
+            : 'bench'
+    rememberCoachResume(surface, action.href, activeMobileBenchCard?.student, action.title)
+  }
+
   function chooseMobileBenchPlayer(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
     setContactStudentId(card.student.id)
+    rememberCoachResume(
+      'bench',
+      buildCoachWorkspaceHref('coach-linked-dashboard', card.student.id),
+      card.student,
+    )
   }
 
   function renderMobileBenchCommandCenter(card: LinkedPlayerCard) {
@@ -1839,7 +2138,11 @@ function CoachContent() {
             ))}
           </div>
           {card.student.playerUserId ? (
-            <Link href={identityMessageHref} style={coachBenchHandoffMessageStyle}>
+            <Link
+              href={identityMessageHref}
+              style={coachBenchHandoffMessageStyle}
+              onClick={() => rememberCoachResume('conversation', identityMessageHref, card.student, 'Player Conversation')}
+            >
               Message Player ID plan
             </Link>
           ) : null}
@@ -1871,21 +2174,54 @@ function CoachContent() {
               Contact
             </button>
           )}
-          <Link href={profileHref} style={mobileBenchActionStyle} aria-label={`Open ${card.student.playerName} player hub`}>
+          <Link
+            href={profileHref}
+            style={mobileBenchActionStyle}
+            aria-label={`Open ${card.student.playerName} player hub`}
+            onClick={() => rememberCoachResume('player-hub', profileHref, card.student, 'Player Hub')}
+          >
             Hub
           </Link>
         </div>
         <div style={mobileBenchSecondaryActionRowStyle}>
           {assignmentCourtHref ? (
-            <Link href={assignmentCourtHref} style={mobileBenchSecondaryActionStyle}>
+            <Link
+              href={assignmentCourtHref}
+              style={mobileBenchSecondaryActionStyle}
+              onClick={() => rememberCoachResume(
+                'assignment',
+                assignmentCourtHref,
+                card.student,
+                'Current Assignment',
+                { assignmentId: card.latestAssignment?.id },
+              )}
+            >
               Current work
             </Link>
           ) : null}
-          <Link href={getCoachPlannerHref(card.student.identitySlug)} style={mobileBenchSecondaryActionStyle}>
+          <Link
+            href={getCoachPlannerHref(card.student.identitySlug)}
+            style={mobileBenchSecondaryActionStyle}
+            onClick={() => rememberCoachResume(
+              'development-plan',
+              getCoachPlannerHref(card.student.identitySlug),
+              card.student,
+              'Development Plan',
+            )}
+          >
             Development path
           </Link>
           {card.student.playerUserId ? (
-            <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={mobileBenchSecondaryActionStyle}>
+            <Link
+              href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)}
+              style={mobileBenchSecondaryActionStyle}
+              onClick={() => rememberCoachResume(
+                'conversation',
+                buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `),
+                card.student,
+                'Player Conversation',
+              )}
+            >
               Message
             </Link>
           ) : card.pendingInvite ? (
@@ -2003,6 +2339,12 @@ function CoachContent() {
     setAssignmentStarterId('')
     setAssignmentLevelUpPackId('')
     setAssignmentLevelUpCardId('')
+    rememberCoachResume(
+      'assignment',
+      buildCoachWorkspaceHref('coach-lesson-frame', card.student.id),
+      card.student,
+      'Assignment Draft',
+    )
     setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
     scrollToCoachLessonFrame()
   }
@@ -2011,6 +2353,12 @@ function CoachContent() {
     setActiveMobileBenchStudentId(card.student.id)
     setContactStudentId(card.student.id)
     setMobileContactPanelOpen(true)
+    rememberCoachResume(
+      'conversation',
+      buildCoachWorkspaceHref('coach-contact-panel', card.student.id),
+      card.student,
+      'Player Contact',
+    )
     setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
     scrollToCoachContactPanel()
   }
@@ -2023,6 +2371,12 @@ function CoachContent() {
     setAssignmentStudentId(card.student.id)
     setContactStudentId(card.student.id)
     loadLevelUpHandoffPack(pack)
+    rememberCoachResume(
+      'assignment',
+      buildCoachWorkspaceHref('coach-lesson-frame', card.student.id),
+      card.student,
+      'Level Up Assignment',
+    )
     setWorkspaceMessage(`${pack.title} loaded for ${card.student.playerName}. Review the Level Up cards, then save a draft or create the assignment.`)
     scrollToCoachLessonFrame()
   }
@@ -2041,7 +2395,10 @@ function CoachContent() {
           <button type="button" onClick={scrollToCoachBench} style={mobileBenchActionButtonStyle}>
             Bench
           </button>
-          <Link href={profileHref} style={mobileBenchActionStyle} aria-label={`Open ${activeMobileBenchCard.student.playerName} player hub`}>
+          <Link href={profileHref} style={mobileBenchActionStyle}
+            aria-label={`Open ${activeMobileBenchCard.student.playerName} player hub`}
+            onClick={() => rememberCoachResume('player-hub', profileHref, activeMobileBenchCard.student, 'Player Hub')}
+          >
             Hub
           </Link>
           <button type="button" onClick={() => loadStudentLevelUpPack(activeMobileBenchCard)} style={mobileBenchActionButtonStyle}>
@@ -2738,6 +3095,13 @@ function CoachContent() {
     setAssignmentLevelUpPackId(packId)
     setAssignmentLevelUpCardId(cardId || packProgress?.pack.items[0]?.cardId || '')
     setLessonFocus(assignment.focus)
+    rememberCoachResume(
+      'assignment',
+      buildCoachWorkspaceHref('coach-lesson-frame', assignment.studentLinkId),
+      savedStudents.find((student) => student.id === assignment.studentLinkId),
+      'Assignment Draft',
+      { assignmentId: assignment.id },
+    )
     setWorkspaceMessage(`${assignment.title} loaded from drafts. Update it or assign when ready.`)
   }
 
@@ -2765,12 +3129,14 @@ function CoachContent() {
         roleLabel="Coach"
         contextLabel="Working with"
         contextValue={activeMobileBenchCard?.student.playerName || (savedStudents.length ? `${savedStudents.length} players` : 'No player selected')}
-        primaryAction={coachHomeAction}
+        primaryAction={coachContinueAction || coachHomeAction}
         quickActions={COACH_HOME_QUICK_ACTIONS}
         helpTitle={savedStudents.length ? 'Need help with Coach setup?' : 'Set up Coach in three steps'}
         steps={COACH_HOME_STEPS}
         showSteps={!savedStudents.length}
         resumeKey={userId ? `coach:${userId}` : undefined}
+        preferPrimaryAction={Boolean(coachContinueAction)}
+        onAction={handleCoachHomeAction}
       />
 
       {!isMobile ? (
