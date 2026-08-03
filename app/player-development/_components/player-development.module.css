@@ -145,6 +145,7 @@
 
 .hero,
 .improveHub,
+.improveAllTools,
 .overviewDetails,
 .auditPanel,
 .structurePanel,
@@ -263,6 +264,19 @@
   border-radius: var(--radius-lg);
 }
 
+.improveAllTools {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.improveAllToolsBody {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 12px 12px;
+}
+
 .overviewDetailsDesktopStack {
   display: contents;
 }
@@ -340,6 +354,7 @@
 
 .overviewDetails:not([open]) > .overviewDetailsContent,
 .overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody,
+.improveAllTools:not([open]) > .improveAllToolsBody,
 .improveHubMoreActions:not([open]) > div,
 .playerIdActionPlanMore:not([open]) > div,
 .playerQuestionStripDrawer:not([open]) > .playerQuestionStripDrawerBody {
