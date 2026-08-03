@@ -13,8 +13,13 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
 import {
   buildCaptainScopedHref,
+  chooseLatestCaptainResumeState,
+  getCaptainResumeHref,
+  loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
+  syncCaptainResumeState,
   writeCaptainResumeState,
+  type CaptainResumeState,
 } from '@/lib/captain-memory'
 import {
   addCaptainTeamScope,
@@ -228,6 +233,7 @@ type CaptainResumeStage =
   | 'brief'
   | 'season-dashboard'
   | 'tiq-team-matches'
+  | 'team-room'
 
 type CaptainCommandStep = {
   label: string
@@ -1578,6 +1584,8 @@ function CaptainHubContent() {
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedLeague, setSelectedLeague] = useState('')
   const [selectedFlight, setSelectedFlight] = useState('')
+  const [captainResumeState, setCaptainResumeState] = useState<CaptainResumeState | null>(null)
+  const [captainResumeResolved, setCaptainResumeResolved] = useState(false)
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [participants, setParticipants] = useState<MatchPlayer[]>([])
@@ -1993,12 +2001,47 @@ function CaptainHubContent() {
 
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState(userId)
+    setCaptainResumeState(resumeState)
     setSelectedCompetitionLayer(params.get('layer') || resumeState?.competitionLayer || '')
     setSelectedTeam(params.get('team') || resumeState?.team || '')
     setSelectedLeague(params.get('league') || resumeState?.league || '')
     setSelectedFlight(params.get('flight') || resumeState?.flight || '')
     setTeamSelectionInitialized(false)
   }, [authResolved, userId])
+
+  useEffect(() => {
+    const accessToken = session?.access_token || ''
+    if (!authResolved) return
+    if (!userId || !accessToken) {
+      setCaptainResumeResolved(true)
+      return
+    }
+
+    setCaptainResumeResolved(false)
+    let active = true
+    void (async () => {
+      const localState = readCaptainResumeState(userId)
+      const cloudState = await loadCaptainResumeStateFromCloud(accessToken)
+      const resumeState = chooseLatestCaptainResumeState(localState, cloudState)
+      if (!active || !resumeState) return
+
+      writeCaptainResumeState(resumeState, userId)
+      setCaptainResumeState(resumeState)
+
+      const params = new URLSearchParams(window.location.search)
+      const hasExplicitScope = ['layer', 'team', 'league', 'flight'].some((key) => Boolean(params.get(key)?.trim()))
+      if (hasExplicitScope) return
+
+      setSelectedCompetitionLayer(resumeState.competitionLayer || '')
+      setSelectedTeam(resumeState.team || '')
+      setSelectedLeague(resumeState.league || '')
+      setSelectedFlight(resumeState.flight || '')
+    })().finally(() => {
+      if (active) setCaptainResumeResolved(true)
+    })
+
+    return () => { active = false }
+  }, [authResolved, session?.access_token, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public' || isMember(role)) {
@@ -2265,15 +2308,22 @@ function CaptainHubContent() {
   }, [matches, scenarioCount, selectedFlight, selectedLeague, selectedTeam, userId])
 
   useEffect(() => {
-    if (!userId || !teamSelectionInitialized || (!selectedTeam && !selectedLeague && !selectedFlight)) return
+    if (!captainResumeResolved || !userId || !teamSelectionInitialized || (!selectedTeam && !selectedLeague && !selectedFlight)) return
 
-    writeCaptainResumeState({
-      competitionLayer: selectedCompetitionLayer || undefined,
-      team: selectedTeam,
-      league: selectedLeague,
-      flight: selectedFlight,
-    }, userId)
-  }, [selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam, teamSelectionInitialized, userId])
+    const timeout = window.setTimeout(() => {
+      const nextState = {
+        competitionLayer: selectedCompetitionLayer || undefined,
+        team: selectedTeam,
+        league: selectedLeague,
+        flight: selectedFlight,
+      }
+      const saved = writeCaptainResumeState(nextState, userId)
+      if (saved) setCaptainResumeState(saved)
+      void syncCaptainResumeState(nextState, userId, session?.access_token)
+    }, 250)
+
+    return () => window.clearTimeout(timeout)
+  }, [captainResumeResolved, selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam, session?.access_token, teamSelectionInitialized, userId])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -2499,9 +2549,16 @@ function CaptainHubContent() {
       }).toString()}`
     : '/explore/teams'
 
-  const captainResume = readCaptainResumeState(userId)
+  const captainResume = captainResumeState || readCaptainResumeState(userId)
   const matchWeekDate = nextMatch?.date || captainResume?.eventDate
   const matchWeekOpponent = nextMatch?.opponent || captainResume?.opponentTeam
+  const captainResumeHref = getCaptainResumeHref(captainResume)
+  const captainResumeMatchesScope = Boolean(
+    captainResumeHref
+    && (!captainResume?.team || captainResume.team === selectedTeam)
+    && (!captainResume?.league || captainResume.league === selectedLeague)
+    && (!captainResume?.flight || captainResume.flight === selectedFlight),
+  )
 
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
     competitionLayer: selectedCompetitionLayer,
@@ -2565,6 +2622,39 @@ function CaptainHubContent() {
     time: nextMatch?.time || '',
     facility: nextMatch?.facility || '',
   })
+  const captainResumeStage: CaptainResumeStage = captainResume?.lastTool === 'lineup-builder'
+    ? 'lineup'
+    : captainResume?.lastTool === 'lineup-projection'
+      ? 'projection'
+      : captainResume?.lastTool === 'scenario-builder'
+        ? 'scenario'
+        : captainResume?.lastTool === 'availability' || captainResume?.lastTool === 'lineup-availability'
+          ? 'availability'
+          : captainResume?.lastTool === 'team-room'
+            ? 'team-room'
+            : captainResume?.lastTool === 'messaging'
+              ? 'messaging'
+              : captainResume?.lastTool === 'weekly-brief' || captainResume?.lastTool === 'team-brief'
+                ? 'brief'
+                : captainResume?.lastTool === 'season-dashboard'
+                  ? 'season-dashboard'
+                  : captainResume?.lastTool === 'tiq-team-matches'
+                    ? 'tiq-team-matches'
+                    : 'analytics'
+  const captainContinueAction = captainResumeMatchesScope && captainResumeHref
+    ? {
+        id: 'continue-captain-work',
+        label: `Continue ${captainResume?.lastToolLabel || 'your work'}`,
+        state: 'Saved',
+        detail: [matchWeekDate ? formatDateShort(matchWeekDate) : '', matchWeekOpponent ? `vs ${matchWeekOpponent}` : '']
+          .filter(Boolean)
+          .join(' · ') || `Open ${selectedTeam || 'your team'} where you stopped.`,
+        href: captainResumeHref,
+        stage: captainResumeStage,
+        cta: 'Continue',
+        tone: 'info' as const,
+      }
+    : null
 
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
     competitionLayer: selectedCompetitionLayer,
@@ -9421,6 +9511,8 @@ function CaptainHubContent() {
       }
     : captainFirstSeasonReadinessPrimaryItem.tone !== 'good'
       ? captainFirstSeasonReadinessPrimaryItem
+      : captainContinueAction
+        ? captainContinueAction
       : {
           id: captainHomeShortcutPrimaryItem?.id || 'mobile-today',
           label: captainHomeShortcutPrimaryItem?.label || 'Today checklist',
@@ -9838,12 +9930,15 @@ function CaptainHubContent() {
     handleCaptainAction(item.href, item.stage)
   }
 
-  function rememberCaptainResume(stage: CaptainResumeStage) {
-    writeCaptainResumeState({
+  function rememberCaptainResume(stage: CaptainResumeStage, href: string) {
+    const nextState: CaptainResumeState = {
       competitionLayer: selectedCompetitionLayer || undefined,
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
+      eventDate: matchWeekDate || undefined,
+      opponentTeam: matchWeekOpponent || undefined,
+      lastHref: href,
       lastTool:
         stage === 'lineup'
           ? 'lineup-builder'
@@ -9863,6 +9958,8 @@ function CaptainHubContent() {
                       ? 'season-dashboard'
                       : stage === 'tiq-team-matches'
                         ? 'tiq-team-matches'
+                        : stage === 'team-room'
+                          ? 'team-room'
                         : 'hub',
       lastToolLabel:
         stage === 'lineup'
@@ -9883,8 +9980,13 @@ function CaptainHubContent() {
                       ? 'League Office'
                       : stage === 'tiq-team-matches'
                         ? 'Team Match Results'
+                        : stage === 'team-room'
+                          ? 'Team Chat'
                         : 'Captain',
-    }, userId)
+    }
+    const saved = writeCaptainResumeState(nextState, userId)
+    if (saved) setCaptainResumeState(saved)
+    void syncCaptainResumeState(nextState, userId, session?.access_token)
   }
 
   function handleCaptainNav(
@@ -9897,7 +9999,12 @@ function CaptainHubContent() {
       return
     }
 
-    rememberCaptainResume(stage)
+    rememberCaptainResume(stage, href)
+    router.push(href)
+  }
+
+  function handleCaptainTeamRoomNav(href: string) {
+    rememberCaptainResume('team-room', href)
     router.push(href)
   }
 
@@ -14842,7 +14949,7 @@ function CaptainHubContent() {
             ? `${teamRoomSummary.responseCount} replied`
             : 'Message everyone',
       href: teamRoomHref,
-      stage: 'messaging' as CaptainResumeStage,
+      stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
       primary: teamRoomSummary.unreadCount > 0 || teamRoomSummary.unresolvedCount > 0,
     },
@@ -14856,6 +14963,8 @@ function CaptainHubContent() {
       primary: false,
     },
   ] as const
+
+  const captainHomePrimaryAction = captainContinueAction || captainHomeShortcutPrimaryItem
 
   const captainMobileAttention = captainPrimaryTeamImprovement
     ? {
@@ -14975,7 +15084,7 @@ function CaptainHubContent() {
               className={`${mobileCommandStyles.action} ${item.primary ? mobileCommandStyles.actionPrimary : ''}`}
               type="button"
               disabled={disabled}
-              onClick={() => item.id === 'chat' ? router.push(item.href) : handleCaptainAction(item.href, item.stage)}
+              onClick={() => item.id === 'chat' ? handleCaptainTeamRoomNav(item.href) : handleCaptainAction(item.href, item.stage)}
             >
               <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
               <span className={mobileCommandStyles.actionCopy}>
@@ -15023,8 +15132,8 @@ function CaptainHubContent() {
           <div style={sectionKicker}>Captain home</div>
           <h2 style={captainHomeShortcutTitle}>What do you need to do?</h2>
         </div>
-        <span style={captainHomeShortcutPrimaryItem?.tone === 'warn' ? warnBadge : captainHomeShortcutPrimaryItem?.tone === 'good' ? badgeGreen : badgeBlue}>
-          {captainHomeShortcutStatus}
+        <span style={captainHomePrimaryAction?.tone === 'warn' ? warnBadge : captainHomePrimaryAction?.tone === 'good' ? badgeGreen : badgeBlue}>
+          {captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus}
         </span>
       </div>
       <div style={captainHomeShortcutSub}>
@@ -15034,13 +15143,13 @@ function CaptainHubContent() {
       <div style={dynamicCaptainHomeShortcutHero}>
         <div>
           <div style={commandCenterLabel}>Next up</div>
-          <div style={captainHomeShortcutFocus}>{captainHomeShortcutPrimaryItem?.label || 'Today checklist'}</div>
+          <div style={captainHomeShortcutFocus}>{captainHomePrimaryAction?.label || 'Today checklist'}</div>
           <p style={captainHomeShortcutDetail}>
-            {captainHomeShortcutPrimaryItem?.detail || 'Open the highest-value captain tool for this match week.'}
+            {captainHomePrimaryAction?.detail || 'Open the highest-value captain tool for this match week.'}
           </p>
         </div>
-        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomeShortcutPrimaryItem} onClick={() => captainHomeShortcutPrimaryItem ? handleCaptainAction(captainHomeShortcutPrimaryItem.href, captainHomeShortcutPrimaryItem.stage) : undefined}>
-          {captainHomeShortcutPrimaryItem?.cta || 'Open shortcut'}
+        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomePrimaryAction} onClick={() => captainHomePrimaryAction ? handleCaptainAction(captainHomePrimaryAction.href, captainHomePrimaryAction.stage) : undefined}>
+          {captainHomePrimaryAction?.cta || 'Open shortcut'}
         </PrimarySmallBtn>
       </div>
 

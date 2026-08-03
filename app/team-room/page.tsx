@@ -6,7 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import {
+  buildCaptainScopedHref,
+  chooseLatestCaptainResumeState,
+  getCaptainResumeHref,
+  loadCaptainResumeStateFromCloud,
+  readCaptainResumeState,
+  syncCaptainResumeState,
+} from '@/lib/captain-memory'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
 
@@ -191,6 +199,7 @@ function TeamRoomContent() {
   const [onlineProfileIds, setOnlineProfileIds] = useState<string[]>([])
   const [realtimeConnected, setRealtimeConnected] = useState(false)
   const [draftLoadedRoomId, setDraftLoadedRoomId] = useState('')
+  const [roomResumeResolved, setRoomResumeResolved] = useState(false)
   const [matchDraft, setMatchDraft] = useState(() => ({
     matchDate: searchParams.get('date')?.trim() || '',
     opponent: searchParams.get('opponent')?.trim() || '',
@@ -272,6 +281,54 @@ function TeamRoomContent() {
     }
     void loadRoom()
   }, [accessToken, authResolved, loadRoom])
+
+  useEffect(() => {
+    if (!authResolved) return
+    if (!accessToken || requestedQuery) {
+      setRoomResumeResolved(true)
+      return
+    }
+    setRoomResumeResolved(false)
+    let active = true
+    let redirecting = false
+    void (async () => {
+      const cloudState = await loadCaptainResumeStateFromCloud(accessToken)
+      const resumeState = chooseLatestCaptainResumeState(readCaptainResumeState(userId), cloudState)
+      const resumeHref = getCaptainResumeHref(resumeState)
+      if (!active || resumeState?.lastTool !== 'team-room' || !resumeHref.startsWith('/team-room?')) return
+      redirecting = true
+      router.replace(resumeHref)
+    })().finally(() => {
+      if (active && !redirecting) setRoomResumeResolved(true)
+    })
+    return () => { active = false }
+  }, [accessToken, authResolved, requestedQuery, router, userId])
+
+  useEffect(() => {
+    if (!roomResumeResolved || !room?.id || !userId) return
+    const matchDate = pinnedMessage?.card?.matchDate || matchDraft.matchDate
+    const opponent = pinnedMessage?.card?.opponent || matchDraft.opponent
+    const lastHref = buildTeamRoomHref({
+      teamName: room.teamName,
+      leagueName: room.leagueName,
+      flight: room.flight,
+      date: matchDate,
+      opponent,
+      time: pinnedMessage?.card?.matchTime || matchDraft.matchTime,
+      facility: pinnedMessage?.card?.facility || matchDraft.facility,
+    })
+    void syncCaptainResumeState({
+      team: room.teamName,
+      league: room.leagueName,
+      flight: room.flight,
+      lastTool: 'team-room',
+      lastToolLabel: 'Team Chat',
+      lastHref,
+      eventDate: matchDate || undefined,
+      opponentTeam: opponent || undefined,
+      teamRoomId: room.id,
+    }, userId, accessToken)
+  }, [accessToken, matchDraft.facility, matchDraft.matchDate, matchDraft.matchTime, matchDraft.opponent, pinnedMessage?.card?.facility, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.matchTime, pinnedMessage?.card?.opponent, room?.flight, room?.id, room?.leagueName, room?.teamName, roomResumeResolved, userId])
 
   useEffect(() => {
     if (!accessToken || !room?.id || !userId) return
