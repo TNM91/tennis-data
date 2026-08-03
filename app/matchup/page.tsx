@@ -24,6 +24,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 
 const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchup'
 
@@ -1699,8 +1700,22 @@ export default function MatchupPage() {
     </>
   )
 
+  const matchupResumeHref = buildMatchupResumeHref({
+    matchType,
+    playerAId,
+    playerBId,
+    teamA1Id,
+    teamA2Id,
+    teamB1Id,
+    teamB2Id,
+  })
+  const matchupResumeLabel = comparison
+    ? `${comparison.leftLabel} vs ${comparison.rightLabel}`
+    : matchType === 'doubles' ? 'Doubles matchup' : 'Singles matchup'
+
   return (
     <SiteShell active="/matchup">
+      <CompeteResumeTracker surface="matchup" label="matchup" href={matchupResumeHref} matchupLabel={matchupResumeLabel} />
       <JsonLd id="matchup-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Matchup', '/matchup')} />
       <section style={contentWrap}>
         {!isMobile ? <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} /> : null}
@@ -2556,6 +2571,36 @@ export default function MatchupPage() {
       ) : null}
     </SiteShell>
   )
+}
+
+function buildMatchupResumeHref({
+  matchType,
+  playerAId,
+  playerBId,
+  teamA1Id,
+  teamA2Id,
+  teamB1Id,
+  teamB2Id,
+}: {
+  matchType: MatchType
+  playerAId: string
+  playerBId: string
+  teamA1Id: string
+  teamA2Id: string
+  teamB1Id: string
+  teamB2Id: string
+}) {
+  const params = new URLSearchParams({ type: matchType })
+  if (matchType === 'singles') {
+    if (playerAId) params.set('playerA', playerAId)
+    if (playerBId) params.set('playerB', playerBId)
+  } else {
+    if (teamA1Id) params.set('a1', teamA1Id)
+    if (teamA2Id) params.set('a2', teamA2Id)
+    if (teamB1Id) params.set('b1', teamB1Id)
+    if (teamB2Id) params.set('b2', teamB2Id)
+  }
+  return `/matchup?${params.toString()}`
 }
 
 function MatchupDetailsSection({

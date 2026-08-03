@@ -8,6 +8,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { loadTiqTournamentRecord, type TiqTournamentRecord } from '@/lib/tiq-tournament-registry'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 
 export const dynamic = 'force-dynamic'
 
@@ -137,6 +138,14 @@ function TournamentPreferencesInner() {
 
   return (
     <main style={{ ...pageStyle, padding: isMobile ? '12px' : pageStyle.padding }}>
+      <CompeteResumeTracker
+        surface="tournament-alerts"
+        label="tournament alerts"
+        href={`/tournaments/${encodeURIComponent(tournamentId)}/preferences`}
+        tournamentId={tournamentId}
+        tournamentName={record?.name}
+        enabled={!loading && Boolean(record)}
+      />
       <section
         style={{
           ...panelStyle,

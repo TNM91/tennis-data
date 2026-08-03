@@ -121,6 +121,9 @@ export default function CompeteLeaguesPage() {
       eyebrow="League Office directory"
       title="Open the league room you need."
       description="Run a season, find a league, refresh data, or move into team-week work."
+      resumeSurface="leagues"
+      resumeLabel="league directory"
+      resumeHref="/compete/leagues"
     >
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
 

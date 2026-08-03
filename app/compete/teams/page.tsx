@@ -81,6 +81,9 @@ export default function CompeteTeamsPage() {
       eyebrow="My Teams"
       title="Find the team move fast."
       description="Open the team, refresh roster data, build a lineup, or send match history to the team book."
+      resumeSurface="teams"
+      resumeLabel="team directory"
+      resumeHref="/compete/teams"
     >
       <CompeteTeamsContent />
     </CompetePageFrame>

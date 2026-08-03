@@ -112,6 +112,9 @@ export default function CompeteSchedulePage() {
       eyebrow="Schedule"
       title="Find the next match fast."
       description="Check dates, add schedules, prep the team week, or move finished matches to results."
+      resumeSurface="schedule"
+      resumeLabel="schedule"
+      resumeHref="/compete/schedule"
     >
       <CompeteScheduleContent />
     </CompetePageFrame>
