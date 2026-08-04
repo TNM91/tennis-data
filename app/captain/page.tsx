@@ -105,6 +105,7 @@ const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
 const captainScheduleHref = `${dataAssistCaptainHref}&type=schedule&help=1&returnTo=%2Fcaptain#upload`
 const captainScorecardHref = `${dataAssistCaptainHref}&type=scorecard&help=1#upload`
+const TEAM_ROOM_SUMMARY_REFRESH_MS = 30_000
 const captainTeamImprovementHrefs: Record<CaptainTeamImprovementId, string> = {
   roster: captainPlayerRosterHref,
   contacts: captainPlayerRosterHref,
@@ -1662,6 +1663,7 @@ function CaptainHubContent() {
   const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
   const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
   const captainAvailabilityRequestScopeRef = useRef('')
+  const teamRoomSummaryRequestRef = useRef(0)
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
@@ -2156,34 +2158,61 @@ function CaptainHubContent() {
     return () => { active = false }
   }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
 
-  useEffect(() => {
+  const loadTeamRoomSummary = useCallback(async () => {
+    const requestId = teamRoomSummaryRequestRef.current + 1
+    teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
       setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
-    let active = true
     const roomHref = buildTeamRoomHref({
       teamName: selectedTeam,
       leagueName: selectedLeague,
       flight: selectedFlight,
     }).replace('/team-room', '/api/team-rooms')
     const summaryHref = `${roomHref}${roomHref.includes('?') ? '&' : '?'}summary=1`
-    void (async () => {
-      try {
-        const response = await fetch(summaryHref, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        })
-        const payload = await response.json() as { ok?: boolean; summary?: CaptainTeamRoomSummary }
-        if (!active || !response.ok || !payload.ok || !payload.summary) return
-        setTeamRoomSummary(payload.summary)
-      } catch {
-        // Team Room remains optional while a team link is being completed.
-      }
-    })()
-    return () => { active = false }
-  }, [refreshTick, selectedFlight, selectedLeague, selectedTeam, session?.access_token])
+    try {
+      const response = await fetch(summaryHref, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const payload = await response.json() as { ok?: boolean; summary?: CaptainTeamRoomSummary }
+      if (requestId !== teamRoomSummaryRequestRef.current || !response.ok || !payload.ok || !payload.summary) return
+      setTeamRoomSummary(payload.summary)
+    } catch {
+      // Team Room remains optional while a team link is being completed.
+    }
+  }, [selectedFlight, selectedLeague, selectedTeam, session?.access_token])
+
+  useEffect(() => {
+    void loadTeamRoomSummary()
+  }, [loadTeamRoomSummary, refreshTick])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !selectedTeam) return
+
+    function refreshVisibleTeamRoomSummary() {
+      if (document.visibilityState === 'visible') void loadTeamRoomSummary()
+    }
+
+    function refreshRestoredTeamRoomSummary() {
+      void loadTeamRoomSummary()
+    }
+
+    const refreshTimer = window.setInterval(refreshVisibleTeamRoomSummary, TEAM_ROOM_SUMMARY_REFRESH_MS)
+    document.addEventListener('visibilitychange', refreshVisibleTeamRoomSummary)
+    window.addEventListener('pageshow', refreshRestoredTeamRoomSummary)
+    return () => {
+      window.clearInterval(refreshTimer)
+      document.removeEventListener('visibilitychange', refreshVisibleTeamRoomSummary)
+      window.removeEventListener('pageshow', refreshRestoredTeamRoomSummary)
+    }
+  }, [authResolved, loadTeamRoomSummary, role, selectedTeam])
+
+  useEffect(() => () => {
+    teamRoomSummaryRequestRef.current += 1
+  }, [])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
