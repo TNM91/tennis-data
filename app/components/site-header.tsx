@@ -13,7 +13,7 @@ import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'
-import type { PlatformResumeCandidate } from '@/lib/platform-resume'
+import { getPlatformResumeDetail, type PlatformResumeCandidate } from '@/lib/platform-resume'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -389,7 +389,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
             {authenticated && resumePrimary ? (
               <Link
                 href={resumePrimary.href}
-                aria-label={`${resumePrimary.actionLabel}: ${resumePrimary.reason || resumePrimary.label}`}
+                aria-label={`${resumePrimary.actionLabel}: ${getPlatformResumeDetail(resumePrimary) || resumePrimary.label}`}
                 onClick={() => {
                   setMenuOpen(false)
                   setSearchOpen(false)
@@ -518,7 +518,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                           <ResumeItemLabel
                             lane={item.lane}
                             label={item.status === 'unfinished' ? item.actionLabel : item.label}
-                            context={item.reason || item.context}
+                            context={getPlatformResumeDetail(item)}
                             unfinished={item.status === 'unfinished'}
                           />
                           <span aria-hidden="true" style={{ opacity: 0.56 }}>{'\u2192'}</span>
@@ -621,7 +621,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                           <Link href={item.href} onClick={() => setMenuOpen(false)} style={mobileResumeCardLinkStyle}>
                             <MobileItemLabel
                               label={`${item.lane}: ${item.status === 'unfinished' ? item.actionLabel : item.label}`}
-                              description={item.reason || item.context || undefined}
+                              description={getPlatformResumeDetail(item) || undefined}
                             />
                             <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                           </Link>

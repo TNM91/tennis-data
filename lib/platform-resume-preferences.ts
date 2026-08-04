@@ -38,7 +38,7 @@ export function getPlatformResumeCloudSeedStorageKey(userId?: string | null) {
 
 export function getPlatformResumeFingerprint(candidate: PlatformResumeCandidate) {
   return candidate.status === 'unfinished'
-    ? [candidate.id, candidate.status, candidate.actionLabel, candidate.href, candidate.reason].join('|')
+    ? [candidate.id, candidate.status, candidate.actionLabel, candidate.href, candidate.reason, candidate.dueAt || ''].join('|')
     : [candidate.id, candidate.status, candidate.href, candidate.visitedAt].join('|')
 }
 
