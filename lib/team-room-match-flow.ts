@@ -15,6 +15,11 @@ export type TeamRoomLineupChangeNotice = TeamRoomLineupChangeContext & {
   afterPlayers: string[]
 }
 
+export function canRespondToLineupChange(replacementPlayerName: string, identityNames: string[]) {
+  const replacementKey = normalizeName(replacementPlayerName)
+  return Boolean(replacementKey && identityNames.some((name) => normalizeName(name) === replacementKey))
+}
+
 export type TeamRoomMatchCardState = 'active' | 'upcoming' | 'archived'
 
 export type TeamRoomCardCandidate = {

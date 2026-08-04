@@ -73,6 +73,23 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.lineupChangeSent')
   })
 
+  it('lets the linked replacement answer and reopens the exact court after a decline', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain("if (action === 'respond_lineup_change')")
+    expect(roomApi).toContain('Only the replacement player can answer this lineup change.')
+    expect(roomApi).toContain("response === 'accepted' ? 'yes' : 'no'")
+    expect(roomApi).toContain('notifyManagersOfLineupChangeResponse')
+    expect(roomPage).toContain("action: 'respond_lineup_change'")
+    expect(roomPage).toContain('Can you play this court?')
+    expect(roomPage).toContain('Find another player')
+    expect(roomPage).toContain("lineupChangeNotice?.response === 'declined'")
+    expect(roomStyles).toContain('.lineupChangeDecision')
+    expect(roomStyles).toContain('.lineupChangeDeclined')
+  })
+
   it('opens reply alerts on the exact card and highlights the affected court', () => {
     const roomPage = readSource('app/team-room/page.tsx')
     const roomStyles = readSource('app/team-room/team-room.module.css')

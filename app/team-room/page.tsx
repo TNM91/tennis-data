@@ -16,6 +16,7 @@ import {
 } from '@/lib/captain-memory'
 import { notifyPlatformResumeUpdated } from '@/lib/platform-resume-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { canRespondToLineupChange } from '@/lib/team-room-match-flow'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
@@ -100,6 +101,10 @@ type TeamRoomMatchCard = {
     pending: boolean
     notifiedAt: string
     notifiedCount: number
+    response: '' | 'accepted' | 'declined'
+    respondedAt: string
+    responderProfileId: string
+    responderName: string
   } | null
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
@@ -210,6 +215,7 @@ function TeamRoomContent() {
   const [respondingId, setRespondingId] = useState('')
   const [acknowledgingId, setAcknowledgingId] = useState('')
   const [notifyingLineupChangeId, setNotifyingLineupChangeId] = useState('')
+  const [respondingLineupChangeId, setRespondingLineupChangeId] = useState('')
   const [reminding, setReminding] = useState(false)
   const [schedulingReminder, setSchedulingReminder] = useState(false)
   const [reminderAt, setReminderAt] = useState('')
@@ -653,6 +659,33 @@ function TeamRoomContent() {
     }
   }
 
+  async function respondToLineupChange(messageId: string, response: 'accepted' | 'declined') {
+    if (!room || respondingLineupChangeId) return
+    setRespondingLineupChangeId(messageId)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'respond_lineup_change', messageId, response })
+      const notificationIds = Array.isArray(payload.notificationIds)
+        ? payload.notificationIds.filter((id): id is string => typeof id === 'string')
+        : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      setNotice(response === 'accepted'
+        ? 'You’re confirmed for this court. The captain has been updated.'
+        : 'The captain knows you can’t play and can choose another player.')
+      await loadRoom({ quiet: true })
+    } catch (responseError) {
+      setError(responseError instanceof Error ? responseError.message : 'Your lineup answer could not be saved.')
+    } finally {
+      setRespondingLineupChangeId('')
+    }
+  }
+
   async function remindWaiting(messageId: string) {
     if (!room || reminding) return
     setReminding(true)
@@ -1046,9 +1079,14 @@ function TeamRoomContent() {
               responding={respondingId === pinnedMessage.id}
               acknowledging={acknowledgingId === pinnedMessage.id}
               notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
+              respondingLineupChange={respondingLineupChangeId === pinnedMessage.id}
+              currentPlayerNames={room.members
+                .filter((member) => member.id === userId)
+                .flatMap((member) => [member.playerName, member.name])}
               onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
               onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
               onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
+              onRespondLineupChange={(response) => void respondToLineupChange(pinnedMessage.id, response)}
               onAskCaptain={() => {
                 setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
                 window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -1431,9 +1469,12 @@ function MatchCard({
   responding,
   acknowledging,
   notifyingLineupChange,
+  respondingLineupChange,
+  currentPlayerNames,
   onRespond,
   onAcknowledge,
   onNotifyLineupChange,
+  onRespondLineupChange,
   onAskCaptain,
 }: {
   message: TeamRoomMessage
@@ -1450,9 +1491,12 @@ function MatchCard({
   responding: boolean
   acknowledging: boolean
   notifyingLineupChange: boolean
+  respondingLineupChange: boolean
+  currentPlayerNames: string[]
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
   onAcknowledge: () => void
   onNotifyLineupChange: () => void
+  onRespondLineupChange: (response: 'accepted' | 'declined') => void
   onAskCaptain: () => void
 }) {
   const card = message.card
@@ -1494,6 +1538,25 @@ function MatchCard({
     courtLabel: primaryRisk.courtLabel,
   }) : ''
   const lineupChangeNotice = card.lineupChangeNotice
+  const canAnswerLineupChange = Boolean(
+    lineupChangeNotice
+    && !lineupChangeNotice.pending
+    && canRespondToLineupChange(lineupChangeNotice.replacementPlayerName, currentPlayerNames),
+  )
+  const declinedReplacementHref = lineupChangeNotice?.response === 'declined'
+    ? buildCaptainReplyReviewHref({
+        teamName,
+        leagueName,
+        flight,
+        matchDate: card.matchDate,
+        opponent: card.opponent,
+        messageId: message.id,
+        availabilityRequestId: card.availabilityRequestId,
+        playerName: lineupChangeNotice.replacementPlayerName,
+        status: 'unavailable',
+        courtLabel: lineupChangeNotice.courtLabel,
+      })
+    : ''
 
   return (
     <article
@@ -1550,21 +1613,52 @@ function MatchCard({
       ) : null}
 
       {lineupChangeNotice ? (
-        <div className={lineupChangeNotice.pending ? styles.lineupChangePending : styles.lineupChangeSent}>
-          <strong>{lineupChangeNotice.pending ? 'Ready to notify affected players' : 'Lineup update sent'}</strong>
+        <div className={lineupChangeNotice.pending
+          ? styles.lineupChangePending
+          : lineupChangeNotice.response === 'declined' ? styles.lineupChangeDeclined : styles.lineupChangeSent}>
+          <strong>{lineupChangeNotice.pending
+            ? 'Ready to notify affected players'
+            : lineupChangeNotice.response === 'accepted'
+              ? 'Replacement confirmed'
+              : lineupChangeNotice.response === 'declined' ? 'Replacement can’t play' : 'Waiting for replacement'}</strong>
           <span>
             {lineupChangeNotice.replacementPlayerName} replaces {lineupChangeNotice.outgoingPlayerName} on {lineupChangeNotice.courtLabel}.
           </span>
           {!lineupChangeNotice.pending ? (
-            <small>{lineupChangeNotice.notifiedCount
-              ? `${lineupChangeNotice.notifiedCount} connected player${lineupChangeNotice.notifiedCount === 1 ? '' : 's'} notified.`
-              : 'Direct-share update prepared.'}</small>
+            <small>{lineupChangeNotice.response === 'accepted'
+              ? `${lineupChangeNotice.responderName || lineupChangeNotice.replacementPlayerName} accepted this court.`
+              : lineupChangeNotice.response === 'declined'
+                ? 'Choose another player for this court.'
+                : lineupChangeNotice.notifiedCount
+                  ? `${lineupChangeNotice.notifiedCount} connected player${lineupChangeNotice.notifiedCount === 1 ? '' : 's'} notified.`
+                  : 'Direct-share update prepared.'}</small>
+          ) : null}
+          {canAnswerLineupChange ? (
+            <div className={styles.lineupChangeDecision} role="group" aria-label={`Can you play ${lineupChangeNotice.courtLabel}?`}>
+              <span>{lineupChangeNotice.response ? 'Your answer' : 'Can you play this court?'}</span>
+              <button
+                type="button"
+                disabled={respondingLineupChange}
+                aria-pressed={lineupChangeNotice.response === 'accepted'}
+                onClick={() => onRespondLineupChange('accepted')}
+              >
+                {respondingLineupChange ? 'Saving…' : 'Accept'}
+              </button>
+              <button
+                type="button"
+                disabled={respondingLineupChange}
+                aria-pressed={lineupChangeNotice.response === 'declined'}
+                onClick={() => onRespondLineupChange('declined')}
+              >
+                Can’t play
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}
 
       <div className={styles.responseActions} aria-label="Your availability">
-        {([
+        {!canAnswerLineupChange ? ([
           ['yes', 'Confirm'],
           ['maybe', 'Maybe'],
           ['no', "Can't play"],
@@ -1579,8 +1673,8 @@ function MatchCard({
           >
             {label}
           </button>
-        ))}
-        {card.cardType === 'projected_lineup' ? (
+        )) : null}
+        {card.cardType === 'projected_lineup' && !canAnswerLineupChange ? (
           <button
             className={`${styles.responseButton} ${card.acknowledged ? styles.responseSelected : ''}`}
             type="button"
@@ -1604,6 +1698,8 @@ function MatchCard({
                 <button className={styles.buttonPrimary} type="button" disabled={notifyingLineupChange} onClick={onNotifyLineupChange}>
                   {notifyingLineupChange ? 'Notifying…' : `Notify ${lineupChangeNotice.affectedNames.length} affected`}
                 </button>
+              ) : lineupChangeNotice?.response === 'declined' ? (
+                <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Find another player</Link>
               ) : primaryRisk ? (
                 <Link className={styles.buttonPrimary} href={captainReplyHref}>Find replacement</Link>
               ) : waiting ? (
@@ -1611,7 +1707,7 @@ function MatchCard({
               ) : (
                 <span className={styles.captainActionComplete}>All replied</span>
               )}
-              {lineupChangeNotice?.pending ? (
+              {lineupChangeNotice?.pending || lineupChangeNotice?.response === 'declined' ? (
                 <Link className={styles.buttonSecondary} href={lineupHref}>Review lineup</Link>
               ) : primaryRisk && waiting ? (
                 <Link className={styles.buttonSecondary} href={messagingHref}>Nudge {waiting} waiting</Link>
