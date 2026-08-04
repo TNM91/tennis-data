@@ -278,6 +278,10 @@
     background: linear-gradient(135deg, rgba(155, 225, 29, 0.14), rgba(26, 135, 181, 0.1));
   }
 
+  .action:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
   .actionCopy {
     display: grid;
     gap: 2px;
