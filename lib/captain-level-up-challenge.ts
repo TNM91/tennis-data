@@ -7,6 +7,40 @@ export type CaptainLevelUpChallenge = {
   cardIds: string[]
 }
 
+export type CaptainLevelUpChallengeProgress = {
+  launched: boolean
+  completedCount: number
+  connectedCount: number
+  launchedAt: string
+  messageId: string
+}
+
+export type CaptainLevelUpSessionSignal = {
+  playerUserId: string
+  focusId: string
+  drillTitle: string
+}
+
+export const CAPTAIN_LEVEL_UP_IDENTITY_SLUG = 'relentless-competitor-4-0'
+
+const CAPTAIN_LEVEL_UP_CARD_TITLES: Record<string, string> = {
+  'split-step-rhythm': 'Split-Step Rhythm',
+  'wall-rally-rhythm': 'Wall Rally Rhythm',
+  'dynamic-tennis-warm-up': 'Dynamic Tennis Warm-Up',
+  'crosscourt-consistency': 'Crosscourt Consistency',
+  'wide-ball-neutralizer': 'Wide-Ball Neutralizer',
+  'post-play-mobility-reset': 'Post-Play Mobility Reset',
+  'serve-target-call': 'Serve Target Call',
+  'return-depth-lane': 'Return Depth Lane',
+  '30-30-pressure-game': '30-30 Pressure Game',
+  'five-minute-match-primer': 'Five-Minute Match Primer',
+  'return-30-30-game': 'Return 30-30 Game',
+  'post-match-five-minute-debrief': 'Post-Match Five-Minute Debrief',
+  'partner-first-move-call': 'Partner First-Move Call',
+  'poach-timing-shadow': 'Poach Timing Shadow',
+  'doubles-30-30-game': 'Doubles 30-30 Game',
+}
+
 export const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
   {
     id: 'rhythm-builder',
@@ -71,7 +105,62 @@ export function appendLevelUpChallengeHref(href: string, challengeId: string, ca
   return hash ? `${nextPath}#${hash}` : nextPath
 }
 
-export function getCaptainLevelUpAggregateCompletionLabel(challenge: CaptainLevelUpChallenge) {
-  if (challenge.id === 'match-day-routine') return '8 of 12 players completed match-day routine'
-  return `0 of 12 players completed ${challenge.title.toLowerCase()}`
+export function getCaptainLevelUpCardDetails(challenge: Pick<CaptainLevelUpChallenge, 'cardIds'>) {
+  return challenge.cardIds.map((cardId) => ({
+    id: cardId,
+    title: CAPTAIN_LEVEL_UP_CARD_TITLES[cardId] ?? formatCardTitle(cardId),
+  }))
+}
+
+export function buildCaptainLevelUpCardHref(cardId: string) {
+  const params = new URLSearchParams({ card: cardId })
+  return `/level-up/${CAPTAIN_LEVEL_UP_IDENTITY_SLUG}?${params.toString()}#level-up-flow`
+}
+
+export function getCaptainLevelUpCompletedPlayerIds(
+  challenge: CaptainLevelUpChallenge,
+  sessions: CaptainLevelUpSessionSignal[],
+) {
+  const cards = getCaptainLevelUpCardDetails(challenge)
+  const cardIdByTitle = new Map(cards.map((card) => [normalizeCardSignal(card.title), card.id] as const))
+  const requiredCardIds = new Set(cards.map((card) => card.id))
+  const completedByPlayer = new Map<string, Set<string>>()
+
+  for (const session of sessions) {
+    const playerUserId = session.playerUserId.trim()
+    if (!playerUserId) continue
+    const cardId = requiredCardIds.has(session.focusId)
+      ? session.focusId
+      : cardIdByTitle.get(normalizeCardSignal(session.drillTitle))
+    if (!cardId) continue
+    const completed = completedByPlayer.get(playerUserId) ?? new Set<string>()
+    completed.add(cardId)
+    completedByPlayer.set(playerUserId, completed)
+  }
+
+  return Array.from(completedByPlayer.entries())
+    .filter(([, completed]) => requiredCardIds.size > 0 && completed.size === requiredCardIds.size)
+    .map(([playerUserId]) => playerUserId)
+}
+
+export function getCaptainLevelUpAggregateCompletionLabel(progress: CaptainLevelUpChallengeProgress | null) {
+  if (!progress) return 'Checking connected team progress...'
+  if (!progress.launched) {
+    return progress.connectedCount
+      ? `${progress.connectedCount} connected teammate${progress.connectedCount === 1 ? '' : 's'} can join`
+      : 'Connect teammates to track progress'
+  }
+  return `${progress.completedCount} of ${progress.connectedCount} connected teammate${progress.connectedCount === 1 ? '' : 's'} completed`
+}
+
+function normalizeCardSignal(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function formatCardTitle(cardId: string) {
+  return cardId
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : '')
+    .join(' ')
 }

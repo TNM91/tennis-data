@@ -87,6 +87,7 @@ import {
   buildCaptainLevelUpChallenge,
   getCaptainLevelUpAggregateCompletionLabel,
   type CaptainLevelUpChallenge,
+  type CaptainLevelUpChallengeProgress,
 } from '@/lib/captain-level-up-challenge'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -1628,6 +1629,9 @@ function CaptainHubContent() {
   const [levelUpTeamChallenge, setLevelUpTeamChallenge] = useState<CaptainLevelUpChallenge | null>(
     incomingLevelUpTeamChallenge,
   )
+  const [levelUpChallengeProgress, setLevelUpChallengeProgress] = useState<CaptainLevelUpChallengeProgress | null>(null)
+  const [levelUpChallengeShareState, setLevelUpChallengeShareState] = useState<'idle' | 'sharing' | 'shared' | 'error'>('idle')
+  const [levelUpChallengeMessage, setLevelUpChallengeMessage] = useState('')
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -2243,6 +2247,86 @@ function CaptainHubContent() {
   useEffect(() => {
     void loadTeamRoomSummary()
   }, [loadTeamRoomSummary, refreshTick])
+
+  const loadLevelUpChallengeProgress = useCallback(async () => {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !premiumEnabled || !selectedTeam || !levelUpTeamChallenge) {
+      setLevelUpChallengeProgress(null)
+      return
+    }
+    const challengeHref = buildTeamRoomHref({
+      teamName: selectedTeam,
+      leagueName: selectedLeague,
+      flight: selectedFlight,
+    }).replace('/team-room', '/api/team-rooms')
+    const params = new URLSearchParams({ levelUpChallenge: levelUpTeamChallenge.id })
+    try {
+      const response = await fetch(`${challengeHref}${challengeHref.includes('?') ? '&' : '?'}${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const payload = await response.json() as { ok?: boolean; progress?: CaptainLevelUpChallengeProgress }
+      if (response.ok && payload.ok && payload.progress) setLevelUpChallengeProgress(payload.progress)
+    } catch {
+      setLevelUpChallengeProgress(null)
+    }
+  }, [levelUpTeamChallenge, premiumEnabled, selectedFlight, selectedLeague, selectedTeam, session?.access_token])
+
+  useEffect(() => {
+    setLevelUpChallengeShareState('idle')
+    setLevelUpChallengeMessage('')
+    void loadLevelUpChallengeProgress()
+  }, [loadLevelUpChallengeProgress])
+
+  useEffect(() => {
+    if (!levelUpTeamChallenge || !selectedTeam) return
+    const refreshVisibleProgress = () => {
+      if (document.visibilityState === 'visible') void loadLevelUpChallengeProgress()
+    }
+    const refreshTimer = window.setInterval(refreshVisibleProgress, TEAM_ROOM_SUMMARY_REFRESH_MS)
+    document.addEventListener('visibilitychange', refreshVisibleProgress)
+    window.addEventListener('pageshow', refreshVisibleProgress)
+    return () => {
+      window.clearInterval(refreshTimer)
+      document.removeEventListener('visibilitychange', refreshVisibleProgress)
+      window.removeEventListener('pageshow', refreshVisibleProgress)
+    }
+  }, [levelUpTeamChallenge, loadLevelUpChallengeProgress, selectedTeam])
+
+  async function handleShareLevelUpChallenge() {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !selectedTeam || !levelUpTeamChallenge || levelUpChallengeShareState === 'sharing') return
+    setLevelUpChallengeShareState('sharing')
+    setLevelUpChallengeMessage('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'post_level_up_challenge',
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          challengeId: levelUpTeamChallenge.id,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        message?: string
+        progress?: CaptainLevelUpChallengeProgress
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Could not share this challenge yet.')
+      if (payload.progress) setLevelUpChallengeProgress(payload.progress)
+      setLevelUpChallengeShareState('shared')
+      setLevelUpChallengeMessage('Shared. Teammates can open every card from Team Room.')
+    } catch (shareError) {
+      setLevelUpChallengeShareState('error')
+      setLevelUpChallengeMessage(shareError instanceof Error ? shareError.message : 'Could not share this challenge yet.')
+    }
+  }
 
   useEffect(() => {
     if (!authResolved || role === 'public' || !selectedTeam) return
@@ -17439,16 +17523,40 @@ function CaptainHubContent() {
               </article>
               <article style={captainLevelUpChallengeCardStyle}>
                 <span style={captainLaneTopline}>Aggregate progress</span>
-                <strong>{getCaptainLevelUpAggregateCompletionLabel(levelUpTeamChallenge)}</strong>
-                <small>Team challenge mode shows completion count only. Private player proof, scores, and notes stay private.</small>
+                <strong>{getCaptainLevelUpAggregateCompletionLabel(levelUpChallengeProgress)}</strong>
+                <small>
+                  {levelUpChallengeProgress?.launched
+                    ? 'Counts update from completed Level Up cards or a teammate marking the challenge complete. Private proof, scores, and notes stay private.'
+                    : 'Share it in Team Room to start the team count. Private proof, scores, and notes stay private.'}
+                </small>
               </article>
             </div>
             <div style={dynamicGlanceActionRow}>
-              <PrimaryLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</PrimaryLink>
+              <PrimarySmallBtn
+                disabled={!hasTeamScope || levelUpChallengeShareState === 'sharing'}
+                onClick={() => {
+                  if (levelUpChallengeProgress?.launched) {
+                    void loadLevelUpChallengeProgress()
+                    return
+                  }
+                  void handleShareLevelUpChallenge()
+                }}
+              >
+                {levelUpChallengeShareState === 'sharing'
+                  ? 'Sharing...'
+                  : levelUpChallengeProgress?.launched ? 'Refresh progress' : 'Share with team'}
+              </PrimarySmallBtn>
+              {levelUpChallengeProgress?.launched ? (
+                <SecondarySmallLink href={teamRoomHref}>Open Team Room</SecondarySmallLink>
+              ) : null}
+              <SecondarySmallLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</SecondarySmallLink>
               <SecondarySmallLink href={captainWorkflowHref(availabilityHref)}>Check availability</SecondarySmallLink>
               <SecondarySmallLink href={captainWorkflowHref(levelUpWeeklyBriefHref)}>Add to weekly brief</SecondarySmallLink>
               <SecondarySmallBtn onClick={() => setLevelUpTeamChallenge(null)}>Dismiss</SecondarySmallBtn>
             </div>
+            {levelUpChallengeMessage ? (
+              <div role="status" style={sectionSub}>{levelUpChallengeMessage}</div>
+            ) : null}
           </section>
         ) : null}
 
