@@ -1006,6 +1006,9 @@ function readInitialLineupBuilderContext(userId?: string | null) {
       pairIds: [] as string[],
       singleId: '',
       matchFormat: 'auto' as const,
+      replacePlayer: '',
+      replacementPlayer: '',
+      replacementCourt: '',
     }
   }
 
@@ -1024,6 +1027,9 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
     singleId: params.get('single') || '',
     matchFormat: params.get('matchFormat') || 'auto',
+    replacePlayer: params.get('replace') || '',
+    replacementPlayer: params.get('replacement') || '',
+    replacementCourt: params.get('court') || '',
   }
 }
 
@@ -1079,6 +1085,13 @@ function LineupBuilderContent() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(false)
   const [hideUnavailable, setHideUnavailable] = useState(true)
+  const replacementHandoff = initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
+    ? {
+        outPlayer: initialContext.replacePlayer,
+        replacementPlayer: initialContext.replacementPlayer,
+        courtLabel: initialContext.replacementCourt,
+      }
+    : null
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
     buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
   )
@@ -2736,6 +2749,26 @@ function LineupBuilderContent() {
           </div>
         ) : null}
 
+        {replacementHandoff ? (
+          <section
+            id="captain-lineup-handoff"
+            style={{
+              ...replacementHandoffStyle,
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : replacementHandoffStyle.gridTemplateColumns,
+            }}
+            aria-label="Suggested availability change"
+          >
+            <div style={replacementHandoffCopyStyle}>
+              <p style={sectionKicker}>Suggested availability change</p>
+              <strong>{replacementHandoff.replacementPlayer} for {replacementHandoff.courtLabel}</strong>
+              <span>
+                {replacementHandoff.outPlayer} is no longer confirmed. Review the suggested replacement against the full lineup. No court was changed automatically.
+              </span>
+            </div>
+            <Link href="#captain-lineup-courts" style={primaryButton}>Review this court</Link>
+          </section>
+        ) : null}
+
         <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
@@ -3796,6 +3829,28 @@ const pageWrap: CSSProperties = {
   minWidth: 0,
   overflowX: 'clip',
   boxSizing: 'border-box',
+}
+
+const replacementHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 14,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(155, 225, 29, 0.28)',
+  background: 'linear-gradient(135deg, rgba(155, 225, 29, 0.12), rgba(49, 154, 230, 0.08))',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const replacementHandoffCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({
