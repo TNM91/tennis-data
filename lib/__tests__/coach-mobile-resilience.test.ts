@@ -303,6 +303,7 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('scrollToCoachBench')
     expect(coachSource).toContain("searchParams.get('studentLinkId')")
     expect(coachSource).toContain("searchParams.get('firstAssignment') === '1'")
+    expect(coachSource).toContain("consumeCoachHandoffParams(['firstAssignment'], '#coach-lesson-frame')")
     expect(coachSource).toContain('firstAssignmentRequestKey')
     expect(coachSource).toContain('firstAssignmentRequestStudent')
     expect(coachSource).toContain('firstAssignmentRequestStarter')

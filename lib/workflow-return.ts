@@ -29,3 +29,30 @@ export function addWorkflowResult(href: string, result: string) {
   params.set('setupResult', result.trim())
   return `${path}?${params.toString()}${hash}`
 }
+
+export function readWorkflowResult(searchParams: Pick<URLSearchParams, 'get'>) {
+  return (searchParams.get('setupResult') || '').trim()
+}
+
+export function buildConsumedWorkflowHref(
+  pathname: string,
+  searchParams: Pick<URLSearchParams, 'toString'>,
+  keys: readonly string[],
+  hash = '',
+) {
+  const safePath = getSafeWorkflowReturnTo(pathname)
+  if (!safePath) return ''
+
+  const params = new URLSearchParams(searchParams.toString())
+  for (const key of keys) params.delete(key)
+  const safeHash = hash.startsWith('#') ? hash : ''
+  return `${safePath}${params.size ? `?${params.toString()}` : ''}${safeHash}`
+}
+
+export function buildConsumedWorkflowResultHref(
+  pathname: string,
+  searchParams: Pick<URLSearchParams, 'toString'>,
+  hash = '',
+) {
+  return buildConsumedWorkflowHref(pathname, searchParams, ['setupResult'], hash)
+}

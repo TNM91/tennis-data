@@ -23,6 +23,7 @@ const CAPTAIN_IMPORT_COMPLETION_QUERY_KEYS = [
   'importContacts',
   'importMatches',
   'importRoles',
+  'setupResult',
 ] as const
 
 export function isCaptainImportDraft(
@@ -132,7 +133,7 @@ export function readCaptainImportHandoff(searchParams: Pick<URLSearchParams, 'ge
   }
 }
 
-export function buildConsumedCaptainImportHref(
+export function buildConsumedCaptainHandoffHref(
   searchParams: Pick<URLSearchParams, 'toString'>,
   hash = '',
 ) {

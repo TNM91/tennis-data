@@ -390,6 +390,11 @@ export function LeagueCoordinatorWorkspace() {
   const [coordinatorResumeState, setCoordinatorResumeState] = useState<LeagueCoordinatorResumeState | null>(null)
   const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
 
+  function dismissLeagueSetupConfirmation() {
+    setLastSavedRecord(null)
+    setStatus('')
+  }
+
   const refreshRegistry = useCallback(async () => {
     try {
       const result = await listTiqLeagues()
@@ -2374,12 +2379,15 @@ export function LeagueCoordinatorWorkspace() {
                   </div>
                 </div>
                 <div style={responsiveNextActionButtonRowStyle}>
-                  <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)}>
+                  <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)} onClick={dismissLeagueSetupConfirmation}>
                     {getLeagueResultEntryLabel(lastSavedRecord)}
                   </GhostLink>
-                  <GhostLink href={buildTiqLeaguePageHref(lastSavedRecord)}>
+                  <GhostLink href={buildTiqLeaguePageHref(lastSavedRecord)} onClick={dismissLeagueSetupConfirmation}>
                     View public league
                   </GhostLink>
+                  <GhostBtn onClick={dismissLeagueSetupConfirmation}>
+                    Done
+                  </GhostBtn>
                 </div>
               </div>
             ) : null}
@@ -3446,7 +3454,7 @@ function EmptyJoinRequestPanel() {
   )
 }
 
-function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+function GhostLink({ href, children, onClick }: { href: string; children: ReactNode; onClick?: () => void }) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
@@ -3463,6 +3471,7 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
     >
       {children}
     </Link>

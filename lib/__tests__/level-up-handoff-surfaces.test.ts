@@ -21,6 +21,8 @@ describe('Level Up handoff surfaces', () => {
     expect(coachSource).toContain('setAssignmentTitle(pack.assignmentTitle)')
     expect(coachSource).toContain('setAssignmentLevelUpPackId(pack.id)')
     expect(coachSource).toContain('setAssignmentLevelUpCardId')
+    expect(coachSource).toContain("consumeCoachHandoffParams(['levelUpPack', 'card'], '#coach-lesson-frame')")
+    expect(coachSource).toContain("consumeCoachHandoffParams(['levelUpPack', 'card'])")
     expect(coachSource).toContain('levelUpPack')
     expect(coachSource).toContain("'level-up-pack-handoff'")
     expect(coachSource).toContain("saveCoachAssignment('draft', pack)")

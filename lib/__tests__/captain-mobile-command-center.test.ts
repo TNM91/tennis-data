@@ -16,7 +16,7 @@ describe('Captain mobile command center', () => {
     expect(page).toContain('{showCaptainMobileTeamSelect ? (')
     expect(page).toContain('aria-label="Captain team"')
     expect(page).toContain('href="/team-connections">Manage teams')
-    expect(page).toContain('buildConsumedCaptainImportHref(searchParams, window.location.hash)')
+    expect(page).toContain('buildConsumedCaptainHandoffHref(searchParams, window.location.hash)')
     expect(page).toContain('onClick={() => setCaptainImportHandoff(null)}')
     expect(styles).toContain('.noticeDismiss')
     expect(page).toContain('aria-label="Captain now"')
