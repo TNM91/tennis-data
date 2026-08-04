@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -79,6 +79,11 @@ import {
 import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import {
+  buildCaptainAvailabilityProgress,
+  type CaptainAvailabilityInvite,
+  type CaptainAvailabilityResponse,
+} from '@/lib/captain-availability-progress'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
@@ -220,6 +225,19 @@ type CaptainTeamRoomSummary = {
   latestMatchDate: string
   reminderAt: string
   reminderStatus: string
+}
+
+type CaptainAvailabilityRequestSummary = {
+  request: {
+    teamName: string
+    matchDate: string
+    opponentTeam: string
+    matchTime: string
+    facility: string
+    requestUrl: string
+  } | null
+  invites: CaptainAvailabilityInvite[]
+  responses: CaptainAvailabilityResponse[]
 }
 
 type CaptainResumeStage =
@@ -1615,6 +1633,9 @@ function CaptainHubContent() {
     reminderAt: '',
     reminderStatus: '',
   })
+  const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
+  const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
+  const captainAvailabilityRequestScopeRef = useRef('')
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
@@ -2555,6 +2576,59 @@ function CaptainHubContent() {
   const captainResume = captainResumeState || readCaptainResumeState(userId)
   const matchWeekDate = nextMatch?.date || captainResume?.eventDate
   const matchWeekOpponent = nextMatch?.opponent || captainResume?.opponentTeam
+  const loadCaptainAvailabilityRequestSummary = useCallback(async () => {
+    const accessToken = session?.access_token || ''
+    const requestScope = `${selectedTeam}__${matchWeekDate?.slice(0, 10) || ''}`
+    captainAvailabilityRequestScopeRef.current = requestScope
+    if (!accessToken || !selectedTeam || !matchWeekDate) {
+      setCaptainAvailabilityRequestSummary(null)
+      setCaptainAvailabilityRequestLoading(false)
+      return
+    }
+
+    setCaptainAvailabilityRequestLoading(true)
+    setCaptainAvailabilityRequestSummary((current) => (
+      current?.request?.teamName === selectedTeam && current.request.matchDate.slice(0, 10) === matchWeekDate.slice(0, 10)
+        ? current
+        : null
+    ))
+    try {
+      const query = new URLSearchParams({
+        teamName: selectedTeam,
+        matchDate: matchWeekDate.slice(0, 10),
+      })
+      const response = await fetch(`/api/captain/availability-requests?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const result = await response.json() as CaptainAvailabilityRequestSummary & { ok?: boolean }
+      if (captainAvailabilityRequestScopeRef.current !== requestScope) return
+      if (!response.ok || !result.ok || !result.request) {
+        setCaptainAvailabilityRequestSummary(null)
+        return
+      }
+      setCaptainAvailabilityRequestSummary(result)
+    } catch {
+      // Captain Home keeps its saved device view if the live request cannot be refreshed.
+    } finally {
+      if (captainAvailabilityRequestScopeRef.current === requestScope) setCaptainAvailabilityRequestLoading(false)
+    }
+  }, [matchWeekDate, selectedTeam, session?.access_token])
+
+  useEffect(() => {
+    void loadCaptainAvailabilityRequestSummary()
+
+    function refreshVisibleAvailability() {
+      if (document.visibilityState === 'visible') void loadCaptainAvailabilityRequestSummary()
+    }
+
+    document.addEventListener('visibilitychange', refreshVisibleAvailability)
+    window.addEventListener('pageshow', refreshVisibleAvailability)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshVisibleAvailability)
+      window.removeEventListener('pageshow', refreshVisibleAvailability)
+    }
+  }, [loadCaptainAvailabilityRequestSummary, refreshTick])
   const captainResumeHref = getCaptainResumeHref(captainResume)
   const captainResumeMatchesScope = Boolean(
     captainResumeHref
@@ -3958,6 +4032,53 @@ function CaptainHubContent() {
     return readLocalArray<CaptainWeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY)
       .filter((row) => safeText(row.event_key) === workspaceState.currentEventKey)
   }, [workspaceState.currentEventKey])
+
+  const captainLiveAvailabilityPeople = useMemo(() => {
+    const summary = captainAvailabilityRequestSummary
+    if (!summary?.request) return null
+    return buildCaptainAvailabilityProgress({
+      matchDate: summary.request.matchDate,
+      invites: summary.invites,
+      responses: summary.responses,
+    })
+  }, [captainAvailabilityRequestSummary])
+  const captainAvailabilityPeople = captainLiveAvailabilityPeople?.people ?? null
+  const captainAvailabilityInvitedCount = captainLiveAvailabilityPeople?.invitedCount ?? 0
+  const captainAvailabilityAnsweredCount = captainLiveAvailabilityPeople?.answeredCount ?? 0
+  const captainAvailabilityUnansweredNames = captainLiveAvailabilityPeople?.unansweredNames ?? []
+  const captainAvailabilityPendingCount = captainLiveAvailabilityPeople
+    ? captainLiveAvailabilityPeople.pendingCount
+    : workspaceState.pendingResponseCount
+  const captainAvailabilityHasReplies = captainLiveAvailabilityPeople
+    ? captainAvailabilityAnsweredCount > 0
+    : matchDayResponseRows.length > 0
+
+  useEffect(() => {
+    if (!captainAvailabilityRequestSummary?.request) return
+    const latestResponseAt = captainAvailabilityRequestSummary.responses
+      .map((response) => response.responded_at || '')
+      .filter(Boolean)
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || null
+
+    setWorkspaceState((current) => {
+      const latestResponseUpdateLabel = formatDateTimeShort(latestResponseAt)
+      if (
+        current.pendingResponseCount === captainAvailabilityPendingCount
+        && current.latestResponseUpdateLabel === latestResponseUpdateLabel
+      ) return current
+      return {
+        ...current,
+        briefReady: current.briefReady || captainAvailabilityInvitedCount > 0,
+        pendingResponseCount: captainAvailabilityPendingCount,
+        latestResponseUpdateLabel,
+      }
+    })
+  }, [
+    captainAvailabilityInvitedCount,
+    captainAvailabilityPendingCount,
+    captainAvailabilityRequestSummary,
+    workspaceState.pendingResponseCount,
+  ])
 
   const captainMessageContactRows = useMemo(() => (
     readLocalArray<CaptainMessageContact>(CAPTAIN_MESSAGE_CONTACTS_STORAGE_KEY)
@@ -6132,7 +6253,7 @@ function CaptainHubContent() {
         .map((name) => safeText(name))
         .filter(Boolean),
     ))
-    const people = captainMessageContactRows.length
+    const people = captainAvailabilityPeople ?? (captainMessageContactRows.length
       ? captainMessageContactRows.map((contact, index) => {
           const contactId = safeText(contact.id)
           const response = contactId ? responseByContactId.get(contactId) : undefined
@@ -6146,7 +6267,7 @@ function CaptainHubContent() {
           id: safeKey(name) || `availability-player-${index}`,
           name,
           status: matchDayResponseRows.length ? 'no-response' : '',
-        }))
+        })))
     const openNames = people
       .filter((person) => !person.status || person.status === 'no-response' || person.status === 'viewed')
       .map((person) => person.name)
@@ -6165,6 +6286,8 @@ function CaptainHubContent() {
     const confirmedLabel = confirmedNames.slice(0, isMobile ? 4 : 7).join(', ') || 'confirmed players'
     const unavailableLabel = unavailableNames.slice(0, isMobile ? 4 : 7).join(', ') || 'out players'
     const allLabel = allNames.slice(0, isMobile ? 5 : 8).join(', ') || 'the team'
+    const responseLink = safeText(captainAvailabilityRequestSummary?.request?.requestUrl)
+    const responseLinkLine = responseLink ? ` Respond here: ${responseLink}` : ''
 
     return [
       {
@@ -6175,7 +6298,7 @@ function CaptainHubContent() {
           ? `${openLabel} still need a clean In, Out, or Maybe.`
           : 'No silent or viewed-only replies are blocking the lineup.',
         names: openNames,
-        body: openNames.length ? `Quick availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I still need In, Out, or Maybe from ${openLabel}. Please reply today so I can set the lineup.` : '',
+        body: openNames.length ? `Quick availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}: I still need In, Out, or Maybe from ${openLabel}. Please reply today so I can set the lineup.${responseLinkLine}` : '',
         href: levelUpAvailabilityHref,
         stage: 'availability',
         tone: openNames.length ? 'warn' : 'good',
@@ -6231,7 +6354,7 @@ function CaptainHubContent() {
           ? `Use this before the first wave of replies from ${allLabel}.`
           : 'Choose a team or refresh roster data before sending the ask.',
         names: allNames,
-        body: `Team, availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}. Please reply In, Out, or Maybe today. Match details: ${matchDayArrivalLabel} at ${matchDayLocationLabel}.`,
+        body: `Team, availability check for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}. Please reply In, Out, or Maybe today. Match details: ${matchDayArrivalLabel} at ${matchDayLocationLabel}.${responseLinkLine}`,
         href: levelUpAvailabilityHref,
         stage: 'availability',
         tone: allNames.length ? 'info' : 'warn',
@@ -6239,6 +6362,8 @@ function CaptainHubContent() {
       },
     ]
   }, [
+    captainAvailabilityRequestSummary?.request?.requestUrl,
+    captainAvailabilityPeople,
     captainMessageContactRows,
     isMobile,
     levelUpAvailabilityHref,
@@ -6276,6 +6401,53 @@ function CaptainHubContent() {
     names: captainHomeAvailabilitySelectedGroup.names,
     emptyDetail: 'No saved phone numbers match this availability group yet.',
   })
+  const captainHomeUnansweredSmsHandoff = buildCaptainSmsHandoff({
+    id: 'home-unanswered-sms',
+    label: 'Remind unanswered',
+    body: captainAvailabilityReminderPrimaryGroup.body,
+    names: captainAvailabilityReminderPrimaryGroup.names,
+    emptyDetail: 'Upload the Player Roster to add phone numbers for the unanswered players.',
+  })
+  const captainAvailabilityProgressNames = captainAvailabilityUnansweredNames.slice(0, isMobile ? 3 : 6)
+  const captainAvailabilityProgressDetail = captainAvailabilityPendingCount > 0
+    ? `Waiting on ${captainAvailabilityProgressNames.join(', ')}${captainAvailabilityUnansweredNames.length > captainAvailabilityProgressNames.length ? ` and ${captainAvailabilityUnansweredNames.length - captainAvailabilityProgressNames.length} more` : ''}.`
+    : 'Everyone invited for this match has replied.'
+  const captainHomeAvailabilityProgress = captainAvailabilityRequestSummary?.request ? (
+    <div
+      style={{
+        ...captainHomeAvailabilityProgressShell,
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeAvailabilityProgressShell.gridTemplateColumns,
+      }}
+      aria-label="Upcoming match availability progress"
+    >
+      <div style={captainHomeAvailabilityProgressCopy}>
+        <span style={commandCenterLabel}>Upcoming match availability</span>
+        <strong style={captainHomeAvailabilityProgressTitle}>
+          {captainAvailabilityAnsweredCount}/{captainAvailabilityInvitedCount} replied
+        </strong>
+        <span style={captainHomeAvailabilityProgressDetailStyle}>{captainAvailabilityProgressDetail}</span>
+      </div>
+      <div style={captainHomeAvailabilityProgressActions}>
+        {captainAvailabilityPendingCount > 0 ? (
+          <SmsSmallLink
+            handoff={captainHomeUnansweredSmsHandoff}
+            fullWidth={isMobile}
+            disabled={!hasTeamScope || !premiumEnabled}
+          >
+            Remind unanswered
+          </SmsSmallLink>
+        ) : null}
+        <SecondarySmallBtn
+          fullWidth={isMobile}
+          disabled={!hasTeamScope || !premiumEnabled}
+          onClick={() => handleCaptainAction(levelUpAvailabilityHref, 'availability')}
+        >
+          Review replies
+        </SecondarySmallBtn>
+        {captainAvailabilityRequestLoading ? <span style={captainHomeAvailabilityProgressRefresh}>Refreshing...</span> : null}
+      </div>
+    </div>
+  ) : null
   const captainBackupSendBody = captainCourtSwapNeedsCount > 0
     ? `${captainCourtSwapPrimaryItem.inPlayer}, can you stay ready for ${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel}? ${captainCourtSwapPrimaryItem.courtLabel} may need cover. I will confirm before warm-up.`
     : captainBenchReadyCount > 0
@@ -7873,7 +8045,7 @@ function CaptainHubContent() {
   const captainHomeTextChaseTotal = Math.max(
     captainAvailabilityReminderPrimaryGroup.names.length,
     captainReplyReminderTargets.length,
-    workspaceState.pendingResponseCount,
+    captainAvailabilityPendingCount,
   )
   const captainHomeTextChaseItems = useMemo<CaptainHomeTextChaseItem[]>(() => {
     const textTargets = captainReplyReminderTargets.slice(0, isMobile ? 3 : 5).map((target) => ({
@@ -7934,15 +8106,15 @@ function CaptainHubContent() {
     const reminderMoment = captainSendRhythmMoments.find((item) => item.id === 'where-when')
       ?? captainSendRhythmMoments.find((item) => item.id === 'team-reminder')
       ?? captainSendRhythmPrimaryMoment
-    const availabilityHasReplies = matchDayResponseRows.length > 0
-    const availabilityHasOpenReplies = workspaceState.pendingResponseCount > 0
+    const availabilityHasReplies = captainAvailabilityHasReplies
+    const availabilityHasOpenReplies = captainAvailabilityPendingCount > 0
 
     return [
       {
         id: 'availability',
         label: 'Availability',
         state: availabilityHasOpenReplies
-          ? `${workspaceState.pendingResponseCount} waiting`
+          ? `${captainAvailabilityPendingCount} waiting`
           : availabilityHasReplies
             ? 'Clear'
             : 'Ask team',
@@ -8007,18 +8179,18 @@ function CaptainHubContent() {
     ]
   }, [
     captainPostMatchRecapCopied,
+    captainAvailabilityHasReplies,
+    captainAvailabilityPendingCount,
     captainScoreCaptureLoggedCount,
     captainSendRhythmMoments,
     captainSendRhythmPrimaryMoment,
     copiedCaptainMatchLogistics,
     levelUpAvailabilityHref,
     lineupBuilderHref,
-    matchDayResponseRows.length,
     postMatchClosed,
     workspaceState.lineupCount,
     workspaceState.lineupReady,
     workspaceState.messagingReady,
-    workspaceState.pendingResponseCount,
   ])
   const captainHomePriorityReadyCount = captainHomePriorityItems.filter((item) => item.tone === 'good').length
   const captainHomePriorityIssueCount = captainHomePriorityItems.filter((item) => item.tone === 'warn').length
@@ -14878,12 +15050,12 @@ function CaptainHubContent() {
     {
       id: 'availability',
       label: 'Who can play?',
-      state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Check team',
+      state: captainAvailabilityPendingCount > 0 ? `${captainAvailabilityPendingCount} waiting` : captainAvailabilityHasReplies ? 'Replies complete' : 'Check team',
       detail: 'See who is in, out, maybe, or still needs a reply.',
       href: levelUpAvailabilityHref,
       stage: 'availability' as CaptainResumeStage,
       cta: 'Check availability',
-      tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'info',
+      tone: captainAvailabilityPendingCount > 0 ? 'warn' : captainAvailabilityHasReplies ? 'good' : 'info',
     },
     {
       id: 'lineup',
@@ -14920,14 +15092,14 @@ function CaptainHubContent() {
   const captainMobileCommandActions = [
     {
       id: 'availability',
-      label: 'Who can play',
-      detail: workspaceState.pendingResponseCount > 0
-        ? `${workspaceState.pendingResponseCount} still need a reply`
-        : 'Check availability',
+      label: captainAvailabilityPendingCount > 0 ? 'Remind unanswered' : 'Who can play',
+      detail: captainAvailabilityPendingCount > 0
+        ? `${captainAvailabilityAnsweredCount}/${captainAvailabilityInvitedCount} replied`
+        : captainAvailabilityHasReplies ? 'Everyone replied' : 'Check availability',
       href: availabilityHref,
       stage: 'availability' as CaptainResumeStage,
       icon: 'schedule' as TiqFeatureIconName,
-      primary: workspaceState.pendingResponseCount > 0,
+      primary: captainAvailabilityPendingCount > 0,
     },
     {
       id: 'lineup',
@@ -15081,6 +15253,8 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
+      {captainHomeAvailabilityProgress}
+
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileCommandActions.map((item) => {
           const disabled = !hasTeamScope || (!premiumEnabled && item.id !== 'chat')
@@ -15090,7 +15264,17 @@ function CaptainHubContent() {
               className={`${mobileCommandStyles.action} ${item.primary ? mobileCommandStyles.actionPrimary : ''}`}
               type="button"
               disabled={disabled}
-              onClick={() => item.id === 'chat' ? handleCaptainTeamRoomNav(item.href) : handleCaptainAction(item.href, item.stage)}
+              onClick={() => {
+                if (item.id === 'chat') {
+                  handleCaptainTeamRoomNav(item.href)
+                  return
+                }
+                if (item.id === 'availability' && captainAvailabilityPendingCount > 0 && captainHomeUnansweredSmsHandoff.href) {
+                  window.location.href = captainHomeUnansweredSmsHandoff.href
+                  return
+                }
+                handleCaptainAction(item.href, item.stage)
+              }}
             >
               <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
               <span className={mobileCommandStyles.actionCopy}>
@@ -15145,6 +15329,8 @@ function CaptainHubContent() {
       <div style={captainHomeShortcutSub}>
         Open the team job you need. Captain keeps the selected team and week with you.
       </div>
+
+      {captainHomeAvailabilityProgress}
 
       <div style={dynamicCaptainHomeShortcutHero}>
         <div>
@@ -24109,6 +24295,55 @@ const captainHomeShortcutSub: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 800,
   overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityProgressShell: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 17,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(49,154,230,0.08))',
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityProgressCopy: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const captainHomeAvailabilityProgressTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const captainHomeAvailabilityProgressDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainHomeAvailabilityProgressActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainHomeAvailabilityProgressRefresh: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
 }
 
 const captainHomeShortcutHero: CSSProperties = {
