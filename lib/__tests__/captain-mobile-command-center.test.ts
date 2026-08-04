@@ -17,7 +17,7 @@ describe('Captain mobile command center', () => {
     expect(page).toContain('aria-label="Captain team"')
     expect(page).toContain('href="/team-connections">Manage teams')
     expect(page).toContain('buildConsumedCaptainHandoffHref(')
-    expect(page).toContain("incomingLevelUpTeamChallenge ? ['levelUpChallenge', 'card'] : []")
+    expect(page).toContain("incomingLevelUpTeamChallenge && canConsumeLevelUpHandoff ? ['levelUpChallenge', 'card'] : []")
     expect(page).toContain('onClick={() => setCaptainImportHandoff(null)}')
     expect(styles).toContain('.noticeDismiss')
     expect(page).toContain('aria-label="Captain now"')
