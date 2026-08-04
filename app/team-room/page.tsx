@@ -22,6 +22,7 @@ import {
   type TeamRoomCourtReadiness,
 } from '@/lib/team-room-match-flow'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
+import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
 
@@ -67,9 +68,20 @@ type TeamRoomMessage = {
     url: string
   } | null
   card: TeamRoomMatchCard | null
+  levelUpChallenge: TeamRoomLevelUpChallenge | null
   response: 'yes' | 'maybe' | 'no' | null
   responseSummary: { yes: number; maybe: number; no: number; total: number }
   responseDetails: Array<{ profileId: string; name: string; response: 'yes' | 'maybe' | 'no'; updatedAt: string }>
+}
+
+type TeamRoomLevelUpChallenge = {
+  id: string
+  title: string
+  focus: string
+  detail: string
+  cardIds: string[]
+  completed: boolean
+  completedCount: number
 }
 
 type TeamRoomRosterMember = {
@@ -1147,6 +1159,15 @@ function TeamRoomContent() {
           ) : null}
           {room.messages.map((message) => {
             if (message.id === pinnedMessage?.id) return null
+            if (message.levelUpChallenge) {
+              return (
+                <LevelUpChallengeCard
+                  key={message.id}
+                  message={message}
+                  onComplete={() => void toggleReaction(message.id, 'ack')}
+                />
+              )
+            }
             const isSystem = message.kind === 'system'
             if (isSystem) return <div key={message.id} className={styles.systemBubble}>{message.body}</div>
             if (message.card?.state === 'archived') return <MatchRecap key={message.id} message={message} />
@@ -1302,6 +1323,54 @@ function TeamRoomContent() {
         </button>
       ) : null}
     </main>
+  )
+}
+
+function LevelUpChallengeCard({
+  message,
+  onComplete,
+}: {
+  message: TeamRoomMessage
+  onComplete: () => void
+}) {
+  const challenge = message.levelUpChallenge
+  if (!challenge) return null
+  const cards = getCaptainLevelUpCardDetails(challenge)
+
+  return (
+    <article className={styles.levelUpChallengeCard}>
+      <div className={styles.matchCardTop}>
+        <div>
+          <p className={styles.matchCardEyebrow}>Team Level Up challenge</p>
+          <h2>{challenge.title}</h2>
+        </div>
+        <span className={styles.pinnedBadge}>{challenge.completedCount} marked complete</span>
+      </div>
+      <p>{challenge.focus}</p>
+      <div className={styles.levelUpChallengeSteps}>
+        {cards.map((card, index) => (
+          <Link key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>
+            <span>{index + 1}</span>
+            <strong>{card.title}</strong>
+            <small>Open card</small>
+          </Link>
+        ))}
+      </div>
+      <div className={styles.levelUpChallengeActions}>
+        <Link className={styles.buttonPrimary} href={buildCaptainLevelUpCardHref(cards[0]?.id || challenge.cardIds[0])}>
+          Start challenge
+        </Link>
+        <button
+          className={styles.buttonSecondary}
+          type="button"
+          disabled={challenge.completed}
+          onClick={onComplete}
+        >
+          {challenge.completed ? 'Challenge complete' : 'Mark all complete'}
+        </button>
+      </div>
+      <small className={styles.helper}>Only the team completion count is shared. Your proof, scores, and notes stay private.</small>
+    </article>
   )
 }
 

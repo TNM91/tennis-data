@@ -24,6 +24,11 @@ import {
 } from '@/lib/team-room-availability'
 import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/captain-reply-alert'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
+import {
+  buildCaptainLevelUpChallenge,
+  getCaptainLevelUpCompletedPlayerIds,
+  type CaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
 
 export const runtime = 'nodejs'
 
@@ -139,6 +144,17 @@ type TeamRoomActionBody = {
   silent?: unknown
   changeContext?: unknown
   deadlineDate?: unknown
+  challengeId?: unknown
+}
+
+type TeamRoomLevelUpChallengePayload = {
+  id: string
+  title: string
+  focus: string
+  detail: string
+  cardIds: string[]
+  completed: boolean
+  completedCount: number
 }
 
 type StoredLineupChangeNotice = {
@@ -183,6 +199,17 @@ export async function GET(request: Request) {
   })
   if (!selected) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
+  }
+
+  const challengeId = url.searchParams.get('levelUpChallenge')?.trim() || ''
+  if (challengeId) {
+    const challenge = buildCaptainLevelUpChallenge(challengeId)
+    if (!challenge) return Response.json({ ok: false, message: 'Choose a valid Level Up challenge.' }, { status: 400 })
+    const progressResult = await loadTeamLevelUpChallengeProgress(auth.service, auth.userId, selected, challenge)
+    if (!progressResult.ok) {
+      return Response.json({ ok: false, message: progressResult.message }, { status: progressResult.status })
+    }
+    return Response.json({ ok: true, progress: progressResult.progress })
   }
 
   if (url.searchParams.get('summary') === '1') {
@@ -280,6 +307,59 @@ export async function POST(request: Request) {
     })
 
     return Response.json({ ok: true, message: toMessage(message as MessageRow, new Map(), auth.userId) })
+  }
+
+  if (action === 'post_level_up_challenge') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can share a team challenge.' }, { status: 403 })
+    }
+    const challenge = buildCaptainLevelUpChallenge(cleanText(body.challengeId))
+    if (!challenge) {
+      return Response.json({ ok: false, message: 'Choose a valid Level Up challenge.' }, { status: 400 })
+    }
+    const launchedAt = new Date().toISOString()
+    const { data: message, error } = await auth.service
+      .from('internal_messages')
+      .insert({
+        conversation_id: conversation.id,
+        sender_user_id: auth.userId,
+        body: `${challenge.title}: ${challenge.focus}`,
+        message_kind: 'announcement',
+        metadata: {
+          teamLevelUpChallenge: true,
+          challengeId: challenge.id,
+          cardIds: challenge.cardIds,
+          launchedAt,
+        },
+      })
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
+      .single()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: launchedAt })
+      .eq('id', conversation.id)
+    await notifyTeamRoom(auth.service, {
+      conversationId: conversation.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      body: `${challenge.title} is ready. Open the team challenge and complete all ${challenge.cardIds.length} cards.`,
+      announcement: true,
+    })
+
+    return Response.json({
+      ok: true,
+      message: toMessage(message as MessageRow, new Map(), auth.userId),
+      progress: {
+        launched: true,
+        completedCount: 0,
+        connectedCount: syncedMembers.length,
+        launchedAt,
+        messageId: cleanText(message?.id),
+      },
+    })
   }
 
   if (action === 'post_match_card') {
@@ -1000,6 +1080,86 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ ok: false, message: 'Choose a Team Room action.' }, { status: 400 })
+}
+
+async function loadTeamLevelUpChallengeProgress(
+  service: SupabaseClient,
+  userId: string,
+  selected: TeamLinkRow,
+  challenge: CaptainLevelUpChallenge,
+) {
+  const ensured = await ensureTeamRoom(service, selected)
+  if (!ensured.ok) return ensured
+  const conversation = ensured.conversation
+  const members = await syncTeamRoomParticipants(service, conversation.id, selected)
+  if (!members.some((member) => member.id === userId)) {
+    return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
+  }
+
+  const { data: launchRows, error: launchError } = await service
+    .from('internal_messages')
+    .select('id,created_at,metadata')
+    .eq('conversation_id', conversation.id)
+    .contains('metadata', { teamLevelUpChallenge: true, challengeId: challenge.id })
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+  if (launchError) return { ok: false as const, status: 500, message: launchError.message }
+
+  const launch = (launchRows ?? [])[0] as { id?: string | null; created_at?: string | null } | undefined
+  const launchedAt = cleanText(launch?.created_at)
+  const messageId = cleanText(launch?.id)
+  if (!messageId || !launchedAt) {
+    return {
+      ok: true as const,
+      progress: { launched: false, completedCount: 0, connectedCount: members.length, launchedAt: '', messageId: '' },
+    }
+  }
+
+  const memberIds = members.map((member) => member.id)
+  const [sessionResult, reactionResult] = await Promise.all([
+    memberIds.length
+      ? service
+          .from('level_up_sessions')
+          .select('player_user_id,focus_id,drill_title')
+          .in('player_user_id', memberIds)
+          .gte('completed_at', launchedAt)
+      : Promise.resolve({ data: [], error: null }),
+    service
+      .from('team_room_message_reactions')
+      .select('profile_id,reaction')
+      .eq('message_id', messageId)
+      .eq('reaction', 'ack'),
+  ])
+  if (sessionResult.error) return { ok: false as const, status: 500, message: sessionResult.error.message }
+  if (reactionResult.error) return { ok: false as const, status: 500, message: reactionResult.error.message }
+
+  const automaticCompletedIds = getCaptainLevelUpCompletedPlayerIds(
+    challenge,
+    ((sessionResult.data ?? []) as Array<{ player_user_id: string; focus_id: string; drill_title: string }>).map((row) => ({
+      playerUserId: row.player_user_id,
+      focusId: row.focus_id,
+      drillTitle: row.drill_title,
+    })),
+  )
+  const memberIdSet = new Set(memberIds)
+  const completedIds = new Set([
+    ...automaticCompletedIds,
+    ...((reactionResult.data ?? []) as ReactionRow[])
+      .map((row) => row.profile_id)
+      .filter((profileId) => memberIdSet.has(profileId)),
+  ])
+
+  return {
+    ok: true as const,
+    progress: {
+      launched: true,
+      completedCount: completedIds.size,
+      connectedCount: members.length,
+      launchedAt,
+      messageId,
+    },
+  }
 }
 
 async function loadTeamRoom(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
@@ -1734,6 +1894,9 @@ function toMessage(
       reacted: matching.some((item) => item.profile_id === currentUserId),
     }
   })
+  const levelUpChallenge = !row.deleted_at && isLevelUpChallengeMetadata(row.metadata)
+    ? buildTeamRoomLevelUpChallengePayload(row.metadata, currentUserId, reactions)
+    : null
   return {
     id: row.id,
     senderUserId: row.sender_user_id,
@@ -1750,6 +1913,7 @@ function toMessage(
     reactions: reactionSummary,
     attachment: attachment ? { ...attachment, url: attachmentUrl } : null,
     card,
+    levelUpChallenge,
     response: responses.find((item) => item.profile_id === currentUserId)?.response || null,
     responseSummary: availabilitySummary
       ? {
@@ -1767,6 +1931,27 @@ function toMessage(
       response: item.response,
       updatedAt: item.updated_at || '',
     })),
+  }
+}
+
+function buildTeamRoomLevelUpChallengePayload(
+  metadata: Record<string, unknown>,
+  currentUserId: string,
+  reactions: ReactionRow[],
+): TeamRoomLevelUpChallengePayload | null {
+  const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
+  if (!challenge) return null
+  const completedProfileIds = reactions
+    .filter((reaction) => reaction.reaction === 'ack')
+    .map((reaction) => reaction.profile_id)
+  return {
+    id: challenge.id,
+    title: challenge.title,
+    focus: challenge.focus,
+    detail: challenge.detail,
+    cardIds: challenge.cardIds,
+    completed: completedProfileIds.includes(currentUserId),
+    completedCount: new Set(completedProfileIds).size,
   }
 }
 
@@ -2240,6 +2425,12 @@ function isMatchCardMetadata(value: unknown): value is Record<string, unknown> {
   const cardType = cleanText((value as Record<string, unknown>).cardType)
   return (value as Record<string, unknown>).teamRoomCard === true
     && ['availability', 'projected_lineup'].includes(cardType)
+}
+
+function isLevelUpChallengeMetadata(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const metadata = value as Record<string, unknown>
+  return metadata.teamLevelUpChallenge === true && Boolean(cleanText(metadata.challengeId))
 }
 
 function cleanMatchCard(value: unknown) {
