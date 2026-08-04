@@ -1401,9 +1401,11 @@ export default function CaptainHubPage() {
 function CaptainLockedSurface({
   secondaryLabel,
   secondaryHref,
+  returnToHref,
 }: {
   secondaryLabel: string
   secondaryHref: string
+  returnToHref: string
 }) {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const lockedHeroCard: CSSProperties = {
@@ -1449,7 +1451,7 @@ function CaptainLockedSurface({
     fontSize: isMobile ? 11 : captainPreviewStepCopyStyle.fontSize,
     lineHeight: isMobile ? 1.25 : captainPreviewStepCopyStyle.lineHeight,
   }
-  const captainUnlockHref = getPlanUnlockHref('captain')
+  const captainUnlockHref = getPlanUnlockHref('captain', returnToHref)
 
   return (
     <div style={pageWrap}>
@@ -1495,6 +1497,7 @@ function CaptainLockedSurface({
           ctaLabel={CAPTAIN_STORY.upgradeCta}
           secondaryLabel={secondaryLabel}
           secondaryHref={secondaryHref}
+          ctaHref={captainUnlockHref}
           compact
           summaryOnly={isMobile}
         />
@@ -1609,6 +1612,8 @@ function CaptainHubContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
+  const productAccess = buildProductAccessState(role, entitlements)
+  const premiumEnabled = productAccess.canUseCaptainWorkflow
   const incomingCaptainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
   const incomingCaptainSetupResult = useMemo(() => readWorkflowResult(searchParams), [searchParams])
   const incomingLevelUpTeamChallenge = useMemo(
@@ -1629,24 +1634,32 @@ function CaptainHubContent() {
   const [teamSelectionInitialized, setTeamSelectionInitialized] = useState(false)
   const [savingDefaultTeam, setSavingDefaultTeam] = useState(false)
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
+  const captainEntryHref = `/captain${searchParams.size ? `?${searchParams.toString()}` : ''}`
+  const canConsumeLevelUpHandoff = authResolved && premiumEnabled
 
   useEffect(() => {
-    if (!incomingCaptainImportHandoff && !incomingCaptainSetupResult && !incomingLevelUpTeamChallenge) return
+    if (
+      !incomingCaptainImportHandoff &&
+      !incomingCaptainSetupResult &&
+      !(incomingLevelUpTeamChallenge && canConsumeLevelUpHandoff)
+    ) return
     if (incomingCaptainImportHandoff && captainImportBatchRef.current !== incomingCaptainImportHandoff.batchId) {
       captainImportBatchRef.current = incomingCaptainImportHandoff.batchId
       setCaptainImportHandoff(incomingCaptainImportHandoff)
     }
     if (incomingCaptainSetupResult) setCaptainSetupResult(incomingCaptainSetupResult)
-    if (incomingLevelUpTeamChallenge) setLevelUpTeamChallenge(incomingLevelUpTeamChallenge)
+    if (incomingLevelUpTeamChallenge && canConsumeLevelUpHandoff) {
+      setLevelUpTeamChallenge(incomingLevelUpTeamChallenge)
+    }
     router.replace(
       buildConsumedCaptainHandoffHref(
         searchParams,
         window.location.hash,
-        incomingLevelUpTeamChallenge ? ['levelUpChallenge', 'card'] : [],
+        incomingLevelUpTeamChallenge && canConsumeLevelUpHandoff ? ['levelUpChallenge', 'card'] : [],
       ),
       { scroll: false },
     )
-  }, [incomingCaptainImportHandoff, incomingCaptainSetupResult, incomingLevelUpTeamChallenge, router, searchParams])
+  }, [canConsumeLevelUpHandoff, incomingCaptainImportHandoff, incomingCaptainSetupResult, incomingLevelUpTeamChallenge, router, searchParams])
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -2958,8 +2971,6 @@ function CaptainHubContent() {
     setWeekStatus(saved?.status || 'draft-lineup')
   }, [captainWeekStatusKey, captainWeekStatusScope])
 
-  const productAccess = buildProductAccessState(role, entitlements)
-  const premiumEnabled = productAccess.canUseCaptainWorkflow
   const leagueToolsEnabled = productAccess.canUseLeagueTools
   const captainUnlockHref = getPlanUnlockHref('captain', '/captain')
   const captainWorkflowHref = (href: string) => premiumEnabled ? href : captainUnlockHref
@@ -11567,11 +11578,11 @@ function CaptainHubContent() {
   }
 
   if (role === 'public') {
-    return <CaptainLockedSurface secondaryLabel="Compare plans" secondaryHref="/pricing" />
+    return <CaptainLockedSurface secondaryLabel="Compare plans" secondaryHref="/pricing" returnToHref={captainEntryHref} />
   }
 
   if (!premiumEnabled) {
-    return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" />
+    return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" returnToHref={captainEntryHref} />
   }
 
   const captainMatchDayLockScreenSurface = (
