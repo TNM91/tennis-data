@@ -236,6 +236,24 @@
   gap: 8px;
 }
 
+.levelUpChallengeDetails {
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-chip-bg);
+  padding: 10px;
+}
+
+.levelUpChallengeDetails summary {
+  color: var(--foreground-strong);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.levelUpChallengeDetails[open] summary {
+  margin-bottom: 10px;
+}
+
 .levelUpChallengeSteps a {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;

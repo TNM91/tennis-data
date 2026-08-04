@@ -7,6 +7,7 @@ import {
   getCaptainLevelUpAggregateCompletionLabel,
   getCaptainLevelUpCardDetails,
   getCaptainLevelUpCompletedPlayerIds,
+  selectActiveCaptainLevelUpChallenge,
 } from '../captain-level-up-challenge'
 
 describe('Captain Level Up challenge handoff', () => {
@@ -69,5 +70,16 @@ describe('Captain Level Up challenge handoff', () => {
       launchedAt: '2026-08-04T12:00:00.000Z',
       messageId: 'message-1',
     })).toBe('2 of 3 connected teammates completed')
+  })
+
+  it('pins the newest open challenge and leaves ended challenges in history', () => {
+    expect(selectActiveCaptainLevelUpChallenge([
+      { id: 'older-open', createdAt: '2026-08-01T12:00:00.000Z' },
+      { id: 'newer-closed', createdAt: '2026-08-03T12:00:00.000Z', status: 'closed' },
+      { id: 'newest-open', createdAt: '2026-08-02T12:00:00.000Z', status: 'active' },
+    ])).toBe('newest-open')
+    expect(selectActiveCaptainLevelUpChallenge([
+      { id: 'closed', createdAt: '2026-08-03T12:00:00.000Z', status: 'closed' },
+    ])).toBe('')
   })
 })

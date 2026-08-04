@@ -82,6 +82,8 @@ type TeamRoomLevelUpChallenge = {
   cardIds: string[]
   completed: boolean
   completedCount: number
+  connectedCount: number
+  status: 'active' | 'closed'
 }
 
 type TeamRoomRosterMember = {
@@ -180,6 +182,7 @@ type TeamRoom = {
   messages: TeamRoomMessage[]
   href: string
   activeCardId: string
+  activeLevelUpChallengeId: string
   actionQueue: TeamRoomActionQueue
 }
 
@@ -238,6 +241,8 @@ function TeamRoomContent() {
   const [schedulingLineupChangeDeadlineId, setSchedulingLineupChangeDeadlineId] = useState('')
   const [lineupChangeDeadlineDate, setLineupChangeDeadlineDate] = useState('')
   const [reminding, setReminding] = useState(false)
+  const [remindingChallengeId, setRemindingChallengeId] = useState('')
+  const [closingChallengeId, setClosingChallengeId] = useState('')
   const [schedulingReminder, setSchedulingReminder] = useState(false)
   const [reminderAt, setReminderAt] = useState('')
   const [showBrowserAlertPrompt, setShowBrowserAlertPrompt] = useState(false)
@@ -288,6 +293,15 @@ function TeamRoomContent() {
       || room?.messages.find((message) => message.id === room.activeCardId)
       || null,
     [focusedMessageId, room?.activeCardId, room?.messages],
+  )
+  const pinnedLevelUpChallenge = useMemo(
+    () => room?.messages.find((message) => (
+      message.id === focusedMessageId
+      && message.levelUpChallenge?.status === 'active'
+    ))
+      || room?.messages.find((message) => message.id === room.activeLevelUpChallengeId)
+      || null,
+    [focusedMessageId, room?.activeLevelUpChallengeId, room?.messages],
   )
   const captainHref = useMemo(() => buildCaptainScopedHref('/captain', {
     team: room?.teamName,
@@ -762,6 +776,55 @@ function TeamRoomContent() {
     }
   }
 
+  async function remindLevelUpChallenge(messageId: string) {
+    if (!room || remindingChallengeId) return
+    setRemindingChallengeId(messageId)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'remind_level_up_challenge', messageId })
+      const notificationIds = Array.isArray(payload.notificationIds)
+        ? payload.notificationIds.filter((id): id is string => typeof id === 'string')
+        : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      const targetCount = Number(payload.targetCount) || 0
+      const incompleteCount = Number(payload.incompleteCount) || 0
+      setNotice(targetCount
+        ? `Challenge reminder sent to ${targetCount} teammate${targetCount === 1 ? '' : 's'}.`
+        : incompleteCount
+          ? 'Incomplete teammates have Team Room alerts muted.'
+          : 'Every connected teammate is caught up.')
+      await loadRoom({ quiet: true })
+    } catch (reminderError) {
+      setError(reminderError instanceof Error ? reminderError.message : 'The challenge reminder could not be sent.')
+    } finally {
+      setRemindingChallengeId('')
+    }
+  }
+
+  async function closeLevelUpChallenge(messageId: string) {
+    if (!room || closingChallengeId) return
+    setClosingChallengeId(messageId)
+    setError('')
+    try {
+      await postAction({ action: 'close_level_up_challenge', messageId })
+      setNotice('Challenge moved to the team history.')
+      await loadRoom({ quiet: true })
+    } catch (closeError) {
+      setError(closeError instanceof Error ? closeError.message : 'The challenge could not be ended.')
+    } finally {
+      setClosingChallengeId('')
+    }
+  }
+
   async function scheduleReminder(messageId: string) {
     if (!room || !reminderAt || schedulingReminder) return
     setSchedulingReminder(true)
@@ -1114,6 +1177,21 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
+        {pinnedLevelUpChallenge?.levelUpChallenge ? (
+          <div className={styles.pinnedArea}>
+            <LevelUpChallengeCard
+              message={pinnedLevelUpChallenge}
+              pinned
+              canManage={room.canManage}
+              reminding={remindingChallengeId === pinnedLevelUpChallenge.id}
+              closing={closingChallengeId === pinnedLevelUpChallenge.id}
+              onComplete={() => void toggleReaction(pinnedLevelUpChallenge.id, 'ack')}
+              onRemind={() => void remindLevelUpChallenge(pinnedLevelUpChallenge.id)}
+              onClose={() => void closeLevelUpChallenge(pinnedLevelUpChallenge.id)}
+            />
+          </div>
+        ) : null}
+
         {pinnedMessage?.card ? (
           <div className={styles.pinnedArea}>
             <MatchCard
@@ -1159,12 +1237,18 @@ function TeamRoomContent() {
           ) : null}
           {room.messages.map((message) => {
             if (message.id === pinnedMessage?.id) return null
+            if (message.id === pinnedLevelUpChallenge?.id) return null
             if (message.levelUpChallenge) {
               return (
                 <LevelUpChallengeCard
                   key={message.id}
                   message={message}
+                  canManage={false}
+                  reminding={false}
+                  closing={false}
                   onComplete={() => void toggleReaction(message.id, 'ack')}
+                  onRemind={() => undefined}
+                  onClose={() => undefined}
                 />
               )
             }
@@ -1328,10 +1412,22 @@ function TeamRoomContent() {
 
 function LevelUpChallengeCard({
   message,
+  pinned = false,
+  canManage,
+  reminding,
+  closing,
   onComplete,
+  onRemind,
+  onClose,
 }: {
   message: TeamRoomMessage
+  pinned?: boolean
+  canManage: boolean
+  reminding: boolean
+  closing: boolean
   onComplete: () => void
+  onRemind: () => void
+  onClose: () => void
 }) {
   const challenge = message.levelUpChallenge
   if (!challenge) return null
@@ -1341,21 +1437,22 @@ function LevelUpChallengeCard({
     <article className={styles.levelUpChallengeCard}>
       <div className={styles.matchCardTop}>
         <div>
-          <p className={styles.matchCardEyebrow}>Team Level Up challenge</p>
+          <p className={styles.matchCardEyebrow}>{pinned ? 'Active team challenge' : 'Team Level Up challenge'}</p>
           <h2>{challenge.title}</h2>
         </div>
-        <span className={styles.pinnedBadge}>{challenge.completedCount} marked complete</span>
+        <span className={styles.pinnedBadge}>
+          {challenge.connectedCount
+            ? `${challenge.completedCount} of ${challenge.connectedCount} complete`
+            : `${challenge.completedCount} marked complete`}
+        </span>
       </div>
       <p>{challenge.focus}</p>
-      <div className={styles.levelUpChallengeSteps}>
-        {cards.map((card, index) => (
-          <Link key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>
-            <span>{index + 1}</span>
-            <strong>{card.title}</strong>
-            <small>Open card</small>
-          </Link>
-        ))}
-      </div>
+      {pinned ? (
+        <details className={styles.levelUpChallengeDetails}>
+          <summary>View {cards.length} challenge cards</summary>
+          <LevelUpChallengeSteps cards={cards} />
+        </details>
+      ) : <LevelUpChallengeSteps cards={cards} />}
       <div className={styles.levelUpChallengeActions}>
         <Link className={styles.buttonPrimary} href={buildCaptainLevelUpCardHref(cards[0]?.id || challenge.cardIds[0])}>
           Start challenge
@@ -1368,9 +1465,45 @@ function LevelUpChallengeCard({
         >
           {challenge.completed ? 'Challenge complete' : 'Mark all complete'}
         </button>
+        {pinned && canManage ? (
+          <>
+            <button
+              className={styles.buttonSecondary}
+              type="button"
+              disabled={reminding || closing}
+              onClick={onRemind}
+            >
+              {reminding ? 'Sending…' : 'Remind incomplete'}
+            </button>
+            <button
+              className={styles.buttonQuiet}
+              type="button"
+              disabled={reminding || closing}
+              onClick={onClose}
+            >
+              {closing ? 'Ending…' : 'End challenge'}
+            </button>
+          </>
+        ) : null}
       </div>
       <small className={styles.helper}>Only the team completion count is shared. Your proof, scores, and notes stay private.</small>
     </article>
+  )
+}
+
+function LevelUpChallengeSteps({ cards }: {
+  cards: Array<{ id: string; title: string }>
+}) {
+  return (
+    <div className={styles.levelUpChallengeSteps}>
+      {cards.map((card, index) => (
+        <Link key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>
+          <span>{index + 1}</span>
+          <strong>{card.title}</strong>
+          <small>Open card</small>
+        </Link>
+      ))}
+    </div>
   )
 }
 
