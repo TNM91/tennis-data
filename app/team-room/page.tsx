@@ -105,6 +105,9 @@ type TeamRoomMatchCard = {
     respondedAt: string
     responderProfileId: string
     responderName: string
+    deadlineAt: string
+    deadlineStatus: '' | 'scheduled' | 'reminded' | 'answered'
+    reminderSentAt: string
   } | null
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
@@ -216,6 +219,8 @@ function TeamRoomContent() {
   const [acknowledgingId, setAcknowledgingId] = useState('')
   const [notifyingLineupChangeId, setNotifyingLineupChangeId] = useState('')
   const [respondingLineupChangeId, setRespondingLineupChangeId] = useState('')
+  const [schedulingLineupChangeDeadlineId, setSchedulingLineupChangeDeadlineId] = useState('')
+  const [lineupChangeDeadlineDate, setLineupChangeDeadlineDate] = useState('')
   const [reminding, setReminding] = useState(false)
   const [schedulingReminder, setSchedulingReminder] = useState(false)
   const [reminderAt, setReminderAt] = useState('')
@@ -279,6 +284,7 @@ function TeamRoomContent() {
   const pinnedMatchDate = pinnedMessage?.card?.matchDate || ''
   const pinnedReminderAt = pinnedMessage?.card?.reminder?.reminderAt || ''
   const pinnedReminderStatus = pinnedMessage?.card?.reminder?.status || ''
+  const pinnedLineupChangeDeadlineAt = pinnedMessage?.card?.lineupChangeNotice?.deadlineAt || ''
   useEffect(() => {
     if (!pinnedMatchDate) return
     setReminderAt(toLocalDateTimeInput(
@@ -287,6 +293,12 @@ function TeamRoomContent() {
         : defaultReminderTime(pinnedMatchDate),
     ))
   }, [pinnedMatchDate, pinnedReminderAt, pinnedReminderStatus, pinnedMessage?.id])
+
+  useEffect(() => {
+    setLineupChangeDeadlineDate(
+      pinnedLineupChangeDeadlineAt.slice(0, 10) || defaultLineupChangeDeadlineDate(pinnedMatchDate),
+    )
+  }, [pinnedLineupChangeDeadlineAt, pinnedMatchDate, pinnedMessage?.id])
 
   useEffect(() => {
     if (!focusedMessageId || pinnedMessage?.id !== focusedMessageId) return
@@ -686,6 +698,25 @@ function TeamRoomContent() {
     }
   }
 
+  async function scheduleLineupChangeDeadline(messageId: string) {
+    if (!room || !lineupChangeDeadlineDate || schedulingLineupChangeDeadlineId) return
+    setSchedulingLineupChangeDeadlineId(messageId)
+    setError('')
+    try {
+      await postAction({
+        action: 'schedule_lineup_change_deadline',
+        messageId,
+        deadlineDate: lineupChangeDeadlineDate,
+      })
+      setNotice(`Reply-by date set for ${formatDateOnly(lineupChangeDeadlineDate)}. TIQ will check that morning.`)
+      await loadRoom({ quiet: true })
+    } catch (scheduleError) {
+      setError(scheduleError instanceof Error ? scheduleError.message : 'The reply-by date could not be set.')
+    } finally {
+      setSchedulingLineupChangeDeadlineId('')
+    }
+  }
+
   async function remindWaiting(messageId: string) {
     if (!room || reminding) return
     setReminding(true)
@@ -1048,7 +1079,12 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {room.canManage && pinnedMessage?.card && !pinnedMessage.card.availabilitySummary ? (
+        {room.canManage
+        && pinnedMessage?.card
+        && !pinnedMessage.card.availabilitySummary
+        && !(pinnedMessage.card.lineupChangeNotice
+          && !pinnedMessage.card.lineupChangeNotice.pending
+          && !pinnedMessage.card.lineupChangeNotice.response) ? (
           <div className={styles.pinnedArea}>
             <CaptainActionQueue
               queue={room.actionQueue}
@@ -1080,6 +1116,8 @@ function TeamRoomContent() {
               acknowledging={acknowledgingId === pinnedMessage.id}
               notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
               respondingLineupChange={respondingLineupChangeId === pinnedMessage.id}
+              schedulingLineupChangeDeadline={schedulingLineupChangeDeadlineId === pinnedMessage.id}
+              lineupChangeDeadlineDate={lineupChangeDeadlineDate}
               currentPlayerNames={room.members
                 .filter((member) => member.id === userId)
                 .flatMap((member) => [member.playerName, member.name])}
@@ -1087,6 +1125,8 @@ function TeamRoomContent() {
               onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
               onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
               onRespondLineupChange={(response) => void respondToLineupChange(pinnedMessage.id, response)}
+              onLineupChangeDeadlineDate={setLineupChangeDeadlineDate}
+              onScheduleLineupChangeDeadline={() => void scheduleLineupChangeDeadline(pinnedMessage.id)}
               onAskCaptain={() => {
                 setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
                 window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -1470,11 +1510,15 @@ function MatchCard({
   acknowledging,
   notifyingLineupChange,
   respondingLineupChange,
+  schedulingLineupChangeDeadline,
+  lineupChangeDeadlineDate,
   currentPlayerNames,
   onRespond,
   onAcknowledge,
   onNotifyLineupChange,
   onRespondLineupChange,
+  onLineupChangeDeadlineDate,
+  onScheduleLineupChangeDeadline,
   onAskCaptain,
 }: {
   message: TeamRoomMessage
@@ -1492,11 +1536,15 @@ function MatchCard({
   acknowledging: boolean
   notifyingLineupChange: boolean
   respondingLineupChange: boolean
+  schedulingLineupChangeDeadline: boolean
+  lineupChangeDeadlineDate: string
   currentPlayerNames: string[]
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
   onAcknowledge: () => void
   onNotifyLineupChange: () => void
   onRespondLineupChange: (response: 'accepted' | 'declined') => void
+  onLineupChangeDeadlineDate: (value: string) => void
+  onScheduleLineupChangeDeadline: () => void
   onAskCaptain: () => void
 }) {
   const card = message.card
@@ -1543,6 +1591,9 @@ function MatchCard({
     && !lineupChangeNotice.pending
     && canRespondToLineupChange(lineupChangeNotice.replacementPlayerName, currentPlayerNames),
   )
+  const replacementNeedsAnswer = Boolean(lineupChangeNotice && !lineupChangeNotice.pending && !lineupChangeNotice.response)
+  const lineupChangeOverdue = replacementNeedsAnswer && lineupChangeNotice?.deadlineStatus === 'reminded'
+  const canScheduleLineupChangeDeadline = Boolean(card.matchDate && card.matchDate > localDateInputKey(new Date()))
   const declinedReplacementHref = lineupChangeNotice?.response === 'declined'
     ? buildCaptainReplyReviewHref({
         teamName,
@@ -1554,6 +1605,20 @@ function MatchCard({
         availabilityRequestId: card.availabilityRequestId,
         playerName: lineupChangeNotice.replacementPlayerName,
         status: 'unavailable',
+        courtLabel: lineupChangeNotice.courtLabel,
+      })
+    : ''
+  const waitingReplacementHref = lineupChangeOverdue && lineupChangeNotice
+    ? buildCaptainReplyReviewHref({
+        teamName,
+        leagueName,
+        flight,
+        matchDate: card.matchDate,
+        opponent: card.opponent,
+        messageId: message.id,
+        availabilityRequestId: card.availabilityRequestId,
+        playerName: lineupChangeNotice.replacementPlayerName,
+        status: 'maybe',
         courtLabel: lineupChangeNotice.courtLabel,
       })
     : ''
@@ -1615,12 +1680,16 @@ function MatchCard({
       {lineupChangeNotice ? (
         <div className={lineupChangeNotice.pending
           ? styles.lineupChangePending
-          : lineupChangeNotice.response === 'declined' ? styles.lineupChangeDeclined : styles.lineupChangeSent}>
+          : lineupChangeNotice.response === 'declined'
+            ? styles.lineupChangeDeclined
+            : lineupChangeOverdue ? styles.lineupChangeOverdue : styles.lineupChangeSent}>
           <strong>{lineupChangeNotice.pending
             ? 'Ready to notify affected players'
             : lineupChangeNotice.response === 'accepted'
               ? 'Replacement confirmed'
-              : lineupChangeNotice.response === 'declined' ? 'Replacement can’t play' : 'Waiting for replacement'}</strong>
+              : lineupChangeNotice.response === 'declined'
+                ? 'Replacement can’t play'
+                : lineupChangeOverdue ? 'Response overdue' : 'Waiting for replacement'}</strong>
           <span>
             {lineupChangeNotice.replacementPlayerName} replaces {lineupChangeNotice.outgoingPlayerName} on {lineupChangeNotice.courtLabel}.
           </span>
@@ -1629,9 +1698,38 @@ function MatchCard({
               ? `${lineupChangeNotice.responderName || lineupChangeNotice.replacementPlayerName} accepted this court.`
               : lineupChangeNotice.response === 'declined'
                 ? 'Choose another player for this court.'
+                : lineupChangeOverdue
+                  ? 'TIQ sent one reminder. Review this court now.'
+                  : lineupChangeNotice.deadlineStatus === 'scheduled' && lineupChangeNotice.deadlineAt
+                    ? `TIQ will remind them on the morning of ${formatDateOnly(lineupChangeNotice.deadlineAt.slice(0, 10))}.`
                 : lineupChangeNotice.notifiedCount
                   ? `${lineupChangeNotice.notifiedCount} connected player${lineupChangeNotice.notifiedCount === 1 ? '' : 's'} notified.`
                   : 'Direct-share update prepared.'}</small>
+          ) : null}
+          {canManage && replacementNeedsAnswer && !lineupChangeOverdue ? (
+            canScheduleLineupChangeDeadline ? (
+              <div className={styles.lineupChangeDeadline}>
+                <label>
+                  <span>Reply by</span>
+                  <input
+                    type="date"
+                    min={defaultLineupChangeDeadlineDate(card.matchDate)}
+                    max={card.matchDate}
+                    value={lineupChangeDeadlineDate}
+                    onChange={(event) => onLineupChangeDeadlineDate(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={schedulingLineupChangeDeadline || !lineupChangeDeadlineDate}
+                  onClick={onScheduleLineupChangeDeadline}
+                >
+                  {schedulingLineupChangeDeadline
+                    ? 'Setting…'
+                    : lineupChangeNotice.deadlineStatus === 'scheduled' ? 'Update date' : 'Set date'}
+                </button>
+              </div>
+            ) : <small>Match day is too close for an automatic morning reminder. Follow up directly.</small>
           ) : null}
           {canAnswerLineupChange ? (
             <div className={styles.lineupChangeDecision} role="group" aria-label={`Can you play ${lineupChangeNotice.courtLabel}?`}>
@@ -1700,6 +1798,8 @@ function MatchCard({
                 </button>
               ) : lineupChangeNotice?.response === 'declined' ? (
                 <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Find another player</Link>
+              ) : lineupChangeOverdue ? (
+                <Link className={styles.buttonPrimary} href={waitingReplacementHref}>Review this court</Link>
               ) : primaryRisk ? (
                 <Link className={styles.buttonPrimary} href={captainReplyHref}>Find replacement</Link>
               ) : waiting ? (
@@ -1707,7 +1807,7 @@ function MatchCard({
               ) : (
                 <span className={styles.captainActionComplete}>All replied</span>
               )}
-              {lineupChangeNotice?.pending || lineupChangeNotice?.response === 'declined' ? (
+              {lineupChangeNotice?.pending || lineupChangeNotice?.response === 'declined' || lineupChangeOverdue ? (
                 <Link className={styles.buttonSecondary} href={lineupHref}>Review lineup</Link>
               ) : primaryRisk && waiting ? (
                 <Link className={styles.buttonSecondary} href={messagingHref}>Nudge {waiting} waiting</Link>
@@ -1972,6 +2072,26 @@ function formatMessageTime(value: string) {
 
 function formatMatchDate(value: string) {
   if (!value) return 'Next match'
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function localDateInputKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function defaultLineupChangeDeadlineDate(matchDate: string) {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowKey = localDateInputKey(tomorrow)
+  return matchDate && matchDate < tomorrowKey ? matchDate : tomorrowKey
+}
+
+function formatDateOnly(value: string) {
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })

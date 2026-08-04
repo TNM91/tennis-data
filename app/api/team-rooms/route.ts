@@ -10,7 +10,9 @@ import {
   buildLineupChangeNotice,
   buildLineupChanges,
   canRespondToLineupChange,
+  getLineupChangeReminderAt,
   normalizeLineupRows,
+  parseReminderTargets,
   selectActiveTeamRoomCard,
   teamRoomCardState,
   type TeamRoomReminderTarget,
@@ -135,6 +137,7 @@ type TeamRoomActionBody = {
   memberId?: unknown
   silent?: unknown
   changeContext?: unknown
+  deadlineDate?: unknown
 }
 
 type StoredLineupChangeNotice = {
@@ -151,6 +154,9 @@ type StoredLineupChangeNotice = {
   respondedAt: string
   responderProfileId: string
   responderName: string
+  deadlineAt: string
+  deadlineStatus: '' | 'scheduled' | 'reminded' | 'answered'
+  reminderSentAt: string
 }
 
 export async function GET(request: Request) {
@@ -340,6 +346,9 @@ export async function POST(request: Request) {
         respondedAt: '',
         responderProfileId: '',
         responderName: '',
+        deadlineAt: '',
+        deadlineStatus: '',
+        reminderSentAt: '',
       } : null,
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
@@ -494,6 +503,7 @@ export async function POST(request: Request) {
       respondedAt,
       responderProfileId: auth.userId,
       responderName: actorName,
+      deadlineStatus: changeNotice.deadlineAt ? 'answered' : '',
     }
     const availabilityResponse: MatchResponseRow['response'] = response === 'accepted' ? 'yes' : 'no'
     const { error: responseError } = await auth.service
@@ -537,6 +547,18 @@ export async function POST(request: Request) {
       .eq('id', cardResult.messageId)
       .eq('conversation_id', conversation.id)
     if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
+    const { data: replacementSchedule } = await auth.service
+      .from('team_room_reminder_schedules')
+      .select('id,targets')
+      .eq('message_id', cardResult.messageId)
+      .eq('status', 'scheduled')
+      .maybeSingle()
+    if (replacementSchedule && parseReminderTargets(replacementSchedule.targets).some((target) => target.needsLineupChangeResponse)) {
+      await auth.service
+        .from('team_room_reminder_schedules')
+        .update({ status: 'cancelled', updated_at: respondedAt })
+        .eq('id', replacementSchedule.id)
+    }
     await auth.service
       .from('internal_conversations')
       .update({ updated_at: respondedAt })
@@ -553,6 +575,76 @@ export async function POST(request: Request) {
       notice: nextNotice,
     })
     return Response.json({ ok: true, response, respondedAt, notificationIds })
+  }
+
+  if (action === 'schedule_lineup_change_deadline') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can set a reply-by date.' }, { status: 403 })
+    }
+    const reminderAt = getLineupChangeReminderAt(cleanText(body.deadlineDate))
+    if (!reminderAt || new Date(reminderAt).getTime() <= Date.now()) {
+      return Response.json({ ok: false, message: 'Choose a future reply-by date.' }, { status: 400 })
+    }
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, cleanText(body.messageId))
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const matchDate = cleanText(cardResult.metadata.matchDate).slice(0, 10)
+    if (matchDate && reminderAt.slice(0, 10) > matchDate) {
+      return Response.json({ ok: false, message: 'Choose a reply-by date on or before match day.' }, { status: 400 })
+    }
+    const changeNotice = cleanStoredLineupChangeNotice(cardResult.metadata.lineupChangeNotice)
+    if (!changeNotice || changeNotice.pending) {
+      return Response.json({ ok: false, message: 'Send the lineup update before setting a reply-by date.' }, { status: 409 })
+    }
+    if (changeNotice.response) {
+      return Response.json({ ok: false, message: 'The replacement has already answered.' }, { status: 409 })
+    }
+    const replacement = await findLineupChangeReplacementParticipant(auth.service, conversation.id, changeNotice)
+    if (!replacement) {
+      return Response.json({ ok: false, message: 'This replacement is not connected to Team Chat or has alerts muted.' }, { status: 409 })
+    }
+
+    const targets: TeamRoomReminderTarget[] = [{
+      profileId: replacement.profile_id,
+      needsResponse: false,
+      needsMaybeFollowup: false,
+      needsAckVersion: 0,
+      needsLineupChangeResponse: true,
+    }]
+    const updatedAt = new Date().toISOString()
+    const { error: scheduleError } = await auth.service
+      .from('team_room_reminder_schedules')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: cardResult.messageId,
+        created_by_user_id: auth.userId,
+        reminder_at: reminderAt,
+        targets,
+        status: 'scheduled',
+        sent_at: null,
+        notification_count: 0,
+        updated_at: updatedAt,
+      }, { onConflict: 'message_id' })
+    if (scheduleError) return Response.json({ ok: false, message: scheduleError.message }, { status: 500 })
+
+    const nextNotice: StoredLineupChangeNotice = {
+      ...changeNotice,
+      deadlineAt: reminderAt,
+      deadlineStatus: 'scheduled',
+      reminderSentAt: '',
+    }
+    const { error: messageError } = await auth.service
+      .from('internal_messages')
+      .update({ metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice }, edited_at: updatedAt })
+      .eq('id', cardResult.messageId)
+      .eq('conversation_id', conversation.id)
+    if (messageError) {
+      await auth.service
+        .from('team_room_reminder_schedules')
+        .update({ status: 'cancelled', updated_at: updatedAt })
+        .eq('message_id', cardResult.messageId)
+      return Response.json({ ok: false, message: messageError.message }, { status: 500 })
+    }
+    return Response.json({ ok: true, deadlineAt: reminderAt })
   }
 
   if (action === 'respond') {
@@ -1327,6 +1419,26 @@ async function notifyAffectedLineupPlayers(service: SupabaseClient, input: {
   }
 }
 
+async function findLineupChangeReplacementParticipant(
+  service: SupabaseClient,
+  conversationId: string,
+  notice: StoredLineupChangeNotice,
+) {
+  const { data } = await service
+    .from('internal_conversation_participants')
+    .select('profile_id,muted')
+    .eq('conversation_id', conversationId)
+  const participants = ((data ?? []) as ParticipantRow[]).filter((participant) => participant.muted !== true)
+  const profileById = await loadProfileMap(service, participants.map((participant) => participant.profile_id))
+  return participants.find((participant) => {
+    const profile = profileById.get(participant.profile_id)
+    return canRespondToLineupChange(notice.replacementPlayerName, [
+      profile?.linked_player_name || '',
+      profile?.message_display_name || '',
+    ])
+  }) || null
+}
+
 async function notifyManagersOfLineupChangeResponse(service: SupabaseClient, input: {
   conversationId: string
   messageId: string
@@ -1940,7 +2052,13 @@ async function buildReminderTargets(
     const needsMaybeFollowup = responseByProfileId.get(participant.profile_id) === 'maybe'
     const needsAckVersion = isLineupPlayer && !acknowledgedIds.has(participant.profile_id) ? lineupVersion : 0
     return needsResponse || needsMaybeFollowup || needsAckVersion
-      ? [{ profileId: participant.profile_id, needsResponse, needsMaybeFollowup, needsAckVersion }]
+      ? [{
+          profileId: participant.profile_id,
+          needsResponse,
+          needsMaybeFollowup,
+          needsAckVersion,
+          needsLineupChangeResponse: false,
+        }]
       : []
   })
 }
@@ -2144,6 +2262,13 @@ function cleanStoredLineupChangeNotice(value: unknown): StoredLineupChangeNotice
     respondedAt: cleanText(row.respondedAt),
     responderProfileId: cleanText(row.responderProfileId),
     responderName: cleanText(row.responderName).slice(0, 120),
+    deadlineAt: cleanText(row.deadlineAt),
+    deadlineStatus: cleanText(row.deadlineStatus) === 'scheduled'
+      ? 'scheduled'
+      : cleanText(row.deadlineStatus) === 'reminded'
+        ? 'reminded'
+        : cleanText(row.deadlineStatus) === 'answered' ? 'answered' : '',
+    reminderSentAt: cleanText(row.reminderSentAt),
   }
 }
 

@@ -3,6 +3,7 @@ import {
   buildLineupChangeNotice,
   buildLineupChanges,
   canRespondToLineupChange,
+  getLineupChangeReminderAt,
   parseReminderTargets,
   selectActiveTeamRoomCard,
   teamRoomCardState,
@@ -68,13 +69,19 @@ describe('Team Room match-week flow', () => {
 
   it('deduplicates and validates reminder targets', () => {
     expect(parseReminderTargets([
-      { profileId: 'player-1', needsResponse: true, needsMaybeFollowup: false, needsAckVersion: 2 },
-      { profileId: 'player-1', needsResponse: false, needsMaybeFollowup: false, needsAckVersion: 0 },
-      { profileId: 'player-2', needsResponse: false, needsMaybeFollowup: true, needsAckVersion: 1 },
+      { profileId: 'player-1', needsResponse: true, needsMaybeFollowup: false, needsAckVersion: 2, needsLineupChangeResponse: false },
+      { profileId: 'player-1', needsResponse: false, needsMaybeFollowup: false, needsAckVersion: 0, needsLineupChangeResponse: false },
+      { profileId: 'player-2', needsResponse: false, needsMaybeFollowup: true, needsAckVersion: 1, needsLineupChangeResponse: true },
       { profileId: '', needsResponse: true },
     ])).toEqual([
-      { profileId: 'player-1', needsResponse: true, needsMaybeFollowup: false, needsAckVersion: 2 },
-      { profileId: 'player-2', needsResponse: false, needsMaybeFollowup: true, needsAckVersion: 1 },
+      { profileId: 'player-1', needsResponse: true, needsMaybeFollowup: false, needsAckVersion: 2, needsLineupChangeResponse: false },
+      { profileId: 'player-2', needsResponse: false, needsMaybeFollowup: true, needsAckVersion: 1, needsLineupChangeResponse: true },
     ])
+  })
+
+  it('maps a captain reply-by date to the free morning reminder run', () => {
+    expect(getLineupChangeReminderAt('2026-08-08')).toBe('2026-08-08T13:55:00.000Z')
+    expect(getLineupChangeReminderAt('2026-02-30')).toBe('')
+    expect(getLineupChangeReminderAt('not-a-date')).toBe('')
   })
 })

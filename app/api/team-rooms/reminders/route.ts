@@ -71,42 +71,58 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
   ])
   const responseByProfileId = new Map(((responsesResult.data ?? []) as Array<{ profile_id: string; response?: string }>).map((row) => [row.profile_id, row.response || ''] as const))
   const acknowledgedKeys = new Set(((acknowledgmentsResult.data ?? []) as Array<{ profile_id: string; lineup_version: number }>).map((row) => `${row.profile_id}:${row.lineup_version}`))
+  const metadata = messageResult.data?.metadata && typeof messageResult.data.metadata === 'object'
+    ? messageResult.data.metadata as Record<string, unknown>
+    : {}
+  const lineupChangeNotice = metadata.lineupChangeNotice && typeof metadata.lineupChangeNotice === 'object' && !Array.isArray(metadata.lineupChangeNotice)
+    ? metadata.lineupChangeNotice as Record<string, unknown>
+    : null
+  const lineupChangeAnswered = ['accepted', 'declined'].includes(cleanText(lineupChangeNotice?.response))
   const openTargets = targets.filter((target) => (
     (target.needsResponse && !responseByProfileId.has(target.profileId))
     || (target.needsMaybeFollowup && responseByProfileId.get(target.profileId) === 'maybe')
     || (target.needsAckVersion > 0 && !acknowledgedKeys.has(`${target.profileId}:${target.needsAckVersion}`))
+    || (target.needsLineupChangeResponse && !lineupChangeAnswered)
   ))
   if (!openTargets.length) {
     await service.from('team_room_reminder_schedules').update({ notification_count: 0 }).eq('id', schedule.id)
     return { completed: true, sent: 0 }
   }
 
-  const metadata = messageResult.data?.metadata && typeof messageResult.data.metadata === 'object'
-    ? messageResult.data.metadata as Record<string, unknown>
-    : {}
   const teamName = cleanText(conversationResult.data?.subject).replace(/ Team Room$/i, '') || 'Your team'
   const matchDate = cleanText(metadata.matchDate)
   const conversationMetadata = conversationResult.data?.metadata && typeof conversationResult.data.metadata === 'object'
     ? conversationResult.data.metadata as Record<string, unknown>
     : {}
-  const href = buildTeamRoomHref({
+  const roomHref = buildTeamRoomHref({
     teamName: cleanText(conversationMetadata.teamName) || teamName,
     leagueName: cleanText(conversationMetadata.leagueName),
     flight: cleanText(conversationMetadata.flight),
   })
+  const isLineupChangeReminder = openTargets.some((target) => target.needsLineupChangeResponse)
+  const courtLabel = cleanText(lineupChangeNotice?.courtLabel)
+  const replacementPlayerName = cleanText(lineupChangeNotice?.replacementPlayerName)
+  const href = isLineupChangeReminder
+    ? buildFocusedMatchHref(roomHref, schedule.message_id, courtLabel)
+    : roomHref
+  const notificationTitle = isLineupChangeReminder
+    ? `${teamName}: ${courtLabel || 'lineup'} needs your answer`
+    : `${teamName} needs your reply`
+  const notificationBody = isLineupChangeReminder
+    ? `Accept or choose Can’t play for ${courtLabel || 'your court'}.`
+    : matchDate ? `Open the ${matchDate} match card to finish your reply.` : 'Open the latest match card to finish your reply.'
   const { data: notificationRows } = await service.from('internal_notifications').insert(openTargets.map((target) => ({
     recipient_profile_id: target.profileId,
     actor_user_id: schedule.created_by_user_id,
     notification_type: 'schedule',
-    title: `${teamName} needs your reply`,
-    body: matchDate ? `Open the ${matchDate} match card to finish your reply.` : 'Open the latest match card to finish your reply.',
+    title: notificationTitle,
+    body: notificationBody,
     href,
     conversation_id: schedule.conversation_id,
   }))).select('id,recipient_profile_id')
   const notifications = (notificationRows ?? []) as NotificationRow[]
-  const notificationBody = matchDate ? `Open the ${matchDate} match card to finish your reply.` : 'Open the latest match card to finish your reply.'
   await sendTeamRoomPush(service, openTargets.map((target) => target.profileId), {
-    title: `${teamName} needs your reply`,
+    title: notificationTitle,
     body: notificationBody,
     href,
     tag: `team-room-${schedule.conversation_id}`,
@@ -115,17 +131,47 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
   await service.from('internal_messages').insert({
     conversation_id: schedule.conversation_id,
     sender_user_id: schedule.created_by_user_id,
-    body: `Automatic reminder sent to ${openTargets.length} teammate${openTargets.length === 1 ? '' : 's'} who still need to reply.`,
+    body: isLineupChangeReminder
+      ? `Automatic reminder sent to ${replacementPlayerName || 'the replacement player'} for ${courtLabel || 'the lineup change'}.`
+      : `Automatic reminder sent to ${openTargets.length} teammate${openTargets.length === 1 ? '' : 's'} who still need to reply.`,
     message_kind: 'system',
     metadata: { teamRoomReminder: true, matchMessageId: schedule.message_id, automatic: true },
   })
+  if (isLineupChangeReminder && lineupChangeNotice) {
+    const { data: latestMessage } = await service
+      .from('internal_messages')
+      .select('metadata')
+      .eq('id', schedule.message_id)
+      .maybeSingle()
+    const latestMetadata = latestMessage?.metadata && typeof latestMessage.metadata === 'object'
+      ? latestMessage.metadata as Record<string, unknown>
+      : metadata
+    const latestNotice = latestMetadata.lineupChangeNotice && typeof latestMetadata.lineupChangeNotice === 'object' && !Array.isArray(latestMetadata.lineupChangeNotice)
+      ? latestMetadata.lineupChangeNotice as Record<string, unknown>
+      : lineupChangeNotice
+    if (!['accepted', 'declined'].includes(cleanText(latestNotice.response))) {
+      await service.from('internal_messages').update({
+        metadata: {
+          ...latestMetadata,
+          lineupChangeNotice: { ...latestNotice, deadlineStatus: 'reminded', reminderSentAt: now },
+        },
+        edited_at: now,
+      }).eq('id', schedule.message_id)
+    }
+  }
   await service.from('team_room_reminder_schedules').update({ notification_count: notifications.length }).eq('id', schedule.id)
   await service.from('internal_conversations').update({ updated_at: now }).eq('id', schedule.conversation_id)
-  await sendOptInEmails(service, notifications, requestUrl, href)
+  await sendOptInEmails(service, notifications, requestUrl, href, isLineupChangeReminder)
   return { completed: true, sent: notifications.length }
 }
 
-async function sendOptInEmails(service: SupabaseClient, notifications: NotificationRow[], requestUrl: string, href: string) {
+async function sendOptInEmails(
+  service: SupabaseClient,
+  notifications: NotificationRow[],
+  requestUrl: string,
+  href: string,
+  isLineupChangeReminder: boolean,
+) {
   const apiKey = process.env.RESEND_API_KEY?.trim()
   if (!apiKey || !notifications.length) return
   const profileIds = notifications.map((notification) => notification.recipient_profile_id)
@@ -152,8 +198,8 @@ async function sendOptInEmails(service: SupabaseClient, notifications: Notificat
       body: JSON.stringify({
         from: process.env.TENACEIQ_EMAIL_FROM?.trim() || 'TenAceIQ <notifications@tenaceiq.com>',
         to: email,
-        subject: 'Your team needs a match reply',
-        html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a"><h1 style="font-size:20px">Your team needs your reply.</h1><p>Open the current TenAceIQ match card to confirm availability or acknowledge the latest lineup.</p><p><a href="${escapeAttribute(new URL(href, siteOrigin(requestUrl)).toString())}" style="color:#2563eb;font-weight:700">Open Team Chat</a></p></div>`,
+        subject: isLineupChangeReminder ? 'Your captain needs your lineup answer' : 'Your team needs a match reply',
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a"><h1 style="font-size:20px">${isLineupChangeReminder ? 'Can you play this court?' : 'Your team needs your reply.'}</h1><p>${isLineupChangeReminder ? 'Open Team Chat to accept the lineup change or let your captain know you cannot play.' : 'Open the current TenAceIQ match card to confirm availability or acknowledge the latest lineup.'}</p><p><a href="${escapeAttribute(new URL(href, siteOrigin(requestUrl)).toString())}" style="color:#2563eb;font-weight:700">Open Team Chat</a></p></div>`,
       }),
     })
     await service.from('internal_notifications').update(response.ok
@@ -161,6 +207,14 @@ async function sendOptInEmails(service: SupabaseClient, notifications: Notificat
       : { email_fallback_requested_at: nowIso(), email_fallback_error: 'Automatic reminder email failed.' }
     ).eq('id', notification.id)
   }
+}
+
+function buildFocusedMatchHref(roomHref: string, messageId: string, courtLabel: string) {
+  const url = new URL(roomHref, 'https://tenaceiq.local')
+  url.searchParams.set('message', messageId)
+  if (courtLabel) url.searchParams.set('court', courtLabel)
+  url.hash = `match-card-${encodeURIComponent(messageId)}`
+  return `${url.pathname}${url.search}${url.hash}`
 }
 
 function siteOrigin(requestUrl: string) {
