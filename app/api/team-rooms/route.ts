@@ -27,6 +27,7 @@ import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
   buildCaptainLevelUpChallenge,
   getCaptainLevelUpCompletedPlayerIds,
+  selectActiveCaptainLevelUpChallenge,
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
 
@@ -155,6 +156,8 @@ type TeamRoomLevelUpChallengePayload = {
   cardIds: string[]
   completed: boolean
   completedCount: number
+  connectedCount: number
+  status: 'active' | 'closed'
 }
 
 type StoredLineupChangeNotice = {
@@ -318,6 +321,10 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'Choose a valid Level Up challenge.' }, { status: 400 })
     }
     const launchedAt = new Date().toISOString()
+    const closeResult = await closeOpenLevelUpChallenges(auth.service, conversation.id, launchedAt)
+    if (!closeResult.ok) {
+      return Response.json({ ok: false, message: closeResult.message }, { status: 500 })
+    }
     const { data: message, error } = await auth.service
       .from('internal_messages')
       .insert({
@@ -360,6 +367,71 @@ export async function POST(request: Request) {
         messageId: cleanText(message?.id),
       },
     })
+  }
+
+  if (action === 'remind_level_up_challenge') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can send challenge reminders.' }, { status: 403 })
+    }
+    const challengeResult = await loadActionableLevelUpChallenge(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+      syncedMembers,
+    )
+    if (!challengeResult.ok) {
+      return Response.json({ ok: false, message: challengeResult.message }, { status: challengeResult.status })
+    }
+    const incompleteMembers = syncedMembers.filter((member) => (
+      member.id !== auth.userId
+      && !challengeResult.completedIds.has(member.id)
+    ))
+    const targets = incompleteMembers.filter((member) => member.muted !== true)
+    if (!targets.length) {
+      return Response.json({
+        ok: true,
+        notificationIds: [],
+        targetCount: 0,
+        incompleteCount: incompleteMembers.length,
+      })
+    }
+
+    const notificationIds = await sendTeamLevelUpChallengeReminders(auth.service, {
+      conversationId: conversation.id,
+      messageId: challengeResult.message.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      challenge: challengeResult.challenge,
+      recipientIds: targets.map((member) => member.id),
+    })
+    return Response.json({
+      ok: true,
+      notificationIds,
+      targetCount: targets.length,
+      incompleteCount: incompleteMembers.length,
+    })
+  }
+
+  if (action === 'close_level_up_challenge') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can end a team challenge.' }, { status: 403 })
+    }
+    const messageId = cleanText(body.messageId)
+    const { data: message, error: messageError } = await auth.service
+      .from('internal_messages')
+      .select('id,metadata')
+      .eq('id', messageId)
+      .eq('conversation_id', conversation.id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (messageError) return Response.json({ ok: false, message: messageError.message }, { status: 500 })
+    if (!message || !isLevelUpChallengeMetadata(message.metadata as Record<string, unknown> | null)) {
+      return Response.json({ ok: false, message: 'This team challenge is no longer available.' }, { status: 404 })
+    }
+    const closeResult = await closeOpenLevelUpChallenges(auth.service, conversation.id, new Date().toISOString())
+    if (!closeResult.ok) return Response.json({ ok: false, message: closeResult.message }, { status: 500 })
+    return Response.json({ ok: true })
   }
 
   if (action === 'post_match_card') {
@@ -1082,6 +1154,32 @@ export async function POST(request: Request) {
   return Response.json({ ok: false, message: 'Choose a Team Room action.' }, { status: 400 })
 }
 
+async function closeOpenLevelUpChallenges(
+  service: SupabaseClient,
+  conversationId: string,
+  closedAt: string,
+) {
+  const { data, error } = await service
+    .from('internal_messages')
+    .select('id,metadata')
+    .eq('conversation_id', conversationId)
+    .contains('metadata', { teamLevelUpChallenge: true })
+    .is('deleted_at', null)
+  if (error) return { ok: false as const, message: error.message }
+
+  const openRows = ((data ?? []) as Array<{ id: string; metadata: Record<string, unknown> | null }>)
+    .filter((row) => isLevelUpChallengeMetadata(row.metadata) && cleanText(row.metadata.challengeStatus) !== 'closed')
+  const results = await Promise.all(openRows.map((row) => service
+    .from('internal_messages')
+    .update({ metadata: { ...row.metadata, challengeStatus: 'closed', closedAt } })
+    .eq('id', row.id)
+    .eq('conversation_id', conversationId)))
+  const updateError = results.find((result) => result.error)?.error
+  return updateError
+    ? { ok: false as const, message: updateError.message }
+    : { ok: true as const }
+}
+
 async function loadTeamLevelUpChallengeProgress(
   service: SupabaseClient,
   userId: string,
@@ -1103,10 +1201,20 @@ async function loadTeamLevelUpChallengeProgress(
     .contains('metadata', { teamLevelUpChallenge: true, challengeId: challenge.id })
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
-    .limit(1)
+    .limit(50)
   if (launchError) return { ok: false as const, status: 500, message: launchError.message }
 
-  const launch = (launchRows ?? [])[0] as { id?: string | null; created_at?: string | null } | undefined
+  const typedLaunchRows = (launchRows ?? []) as Array<{
+    id?: string | null
+    created_at?: string | null
+    metadata?: Record<string, unknown> | null
+  }>
+  const activeLaunchId = selectActiveCaptainLevelUpChallenge(typedLaunchRows.map((row) => ({
+    id: cleanText(row.id),
+    createdAt: cleanText(row.created_at),
+    status: cleanText(row.metadata?.challengeStatus),
+  })))
+  const launch = typedLaunchRows.find((row) => cleanText(row.id) === activeLaunchId)
   const launchedAt = cleanText(launch?.created_at)
   const messageId = cleanText(launch?.id)
   if (!messageId || !launchedAt) {
@@ -1116,7 +1224,35 @@ async function loadTeamLevelUpChallengeProgress(
     }
   }
 
-  const memberIds = members.map((member) => member.id)
+  const completionResult = await loadTeamLevelUpChallengeCompletion(
+    service,
+    challenge,
+    members.map((member) => member.id),
+    messageId,
+    launchedAt,
+  )
+  if (!completionResult.ok) return completionResult
+
+  return {
+    ok: true as const,
+    progress: {
+      launched: true,
+      completedCount: completionResult.completedIds.size,
+      connectedCount: members.length,
+      launchedAt,
+      messageId,
+    },
+  }
+}
+
+async function loadTeamLevelUpChallengeCompletion(
+  service: SupabaseClient,
+  challenge: CaptainLevelUpChallenge,
+  memberIds: string[],
+  messageId: string,
+  launchedAt: string,
+  knownReactions?: ReactionRow[],
+) {
   const [sessionResult, reactionResult] = await Promise.all([
     memberIds.length
       ? service
@@ -1125,11 +1261,13 @@ async function loadTeamLevelUpChallengeProgress(
           .in('player_user_id', memberIds)
           .gte('completed_at', launchedAt)
       : Promise.resolve({ data: [], error: null }),
-    service
-      .from('team_room_message_reactions')
-      .select('profile_id,reaction')
-      .eq('message_id', messageId)
-      .eq('reaction', 'ack'),
+    knownReactions
+      ? Promise.resolve({ data: knownReactions, error: null })
+      : service
+          .from('team_room_message_reactions')
+          .select('message_id,profile_id,reaction')
+          .eq('message_id', messageId)
+          .eq('reaction', 'ack'),
   ])
   if (sessionResult.error) return { ok: false as const, status: 500, message: sessionResult.error.message }
   if (reactionResult.error) return { ok: false as const, status: 500, message: reactionResult.error.message }
@@ -1143,23 +1281,47 @@ async function loadTeamLevelUpChallengeProgress(
     })),
   )
   const memberIdSet = new Set(memberIds)
-  const completedIds = new Set([
-    ...automaticCompletedIds,
-    ...((reactionResult.data ?? []) as ReactionRow[])
-      .map((row) => row.profile_id)
-      .filter((profileId) => memberIdSet.has(profileId)),
-  ])
-
   return {
     ok: true as const,
-    progress: {
-      launched: true,
-      completedCount: completedIds.size,
-      connectedCount: members.length,
-      launchedAt,
-      messageId,
-    },
+    completedIds: new Set([
+      ...automaticCompletedIds,
+      ...((reactionResult.data ?? []) as ReactionRow[])
+        .map((row) => row.profile_id)
+        .filter((profileId) => memberIdSet.has(profileId)),
+    ]),
   }
+}
+
+async function loadActionableLevelUpChallenge(
+  service: SupabaseClient,
+  conversationId: string,
+  messageId: string,
+  members: Array<{ id: string }>,
+) {
+  if (!messageId) return { ok: false as const, status: 400, message: 'Choose a team challenge.' }
+  const { data, error } = await service
+    .from('internal_messages')
+    .select('id,metadata,created_at')
+    .eq('id', messageId)
+    .eq('conversation_id', conversationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error) return { ok: false as const, status: 500, message: error.message }
+  const metadata = data?.metadata as Record<string, unknown> | null
+  if (!data || !isLevelUpChallengeMetadata(metadata) || cleanText(metadata?.challengeStatus) === 'closed') {
+    return { ok: false as const, status: 404, message: 'This team challenge is no longer active.' }
+  }
+  const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
+  if (!challenge) return { ok: false as const, status: 400, message: 'This team challenge is no longer available.' }
+  const completionResult = await loadTeamLevelUpChallengeCompletion(
+    service,
+    challenge,
+    members.map((member) => member.id),
+    data.id,
+    cleanText(metadata.launchedAt) || cleanText(data.created_at),
+  )
+  if (!completionResult.ok) return completionResult
+  return { ok: true as const, message: data, challenge, completedIds: completionResult.completedIds }
 }
 
 async function loadTeamRoom(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
@@ -1201,6 +1363,29 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
   }))
+  const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(typedMessageRows.flatMap((row) => {
+    if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
+    return [{
+      id: row.id,
+      createdAt: row.created_at || '',
+      status: cleanText(row.metadata.challengeStatus),
+    }]
+  }))
+  const activeLevelUpRow = typedMessageRows.find((row) => row.id === activeLevelUpChallengeId)
+  const activeLevelUpChallenge = activeLevelUpRow
+    ? buildCaptainLevelUpChallenge(cleanText(activeLevelUpRow.metadata?.challengeId))
+    : null
+  const activeLevelUpCompletion = activeLevelUpRow && activeLevelUpChallenge
+    ? await loadTeamLevelUpChallengeCompletion(
+        service,
+        activeLevelUpChallenge,
+        members.map((member) => member.id),
+        activeLevelUpRow.id,
+        cleanText(activeLevelUpRow.metadata?.launchedAt) || cleanText(activeLevelUpRow.created_at),
+        reactionByMessageId.get(activeLevelUpRow.id) || [],
+      )
+    : { ok: true as const, completedIds: new Set<string>() }
+  if (!activeLevelUpCompletion.ok) return activeLevelUpCompletion
   const rowById = new Map(typedMessageRows.map((row) => [row.id, row]))
   const messages = typedMessageRows.map((row) => {
     const replyRow = row.reply_to_message_id ? rowById.get(row.reply_to_message_id) : null
@@ -1219,6 +1404,8 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       isMatchCardMetadata(row.metadata)
         ? availabilityByRequestId.get(cleanText(row.metadata.availabilityRequestId)) || null
         : null,
+      row.id === activeLevelUpChallengeId ? Array.from(activeLevelUpCompletion.completedIds) : [],
+      members.length,
     )
     return {
       ...baseMessage,
@@ -1254,6 +1441,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       removedMembers: management.removedMembers,
       activeInviteCount: management.activeInviteCount,
       activeCardId,
+      activeLevelUpChallengeId,
       actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === activeCardId) || null),
       messages,
       href: buildTeamRoomHref({
@@ -1853,6 +2041,8 @@ function toMessage(
   reactions: ReactionRow[] = [],
   attachmentUrl = '',
   availabilitySummary: TeamRoomAvailabilitySummary | null = null,
+  levelUpCompletedProfileIds: string[] = [],
+  connectedCount = 0,
 ) {
   const profile = profileById.get(row.sender_user_id)
   const yesCount = responses.filter((item) => item.response === 'yes').length
@@ -1895,7 +2085,13 @@ function toMessage(
     }
   })
   const levelUpChallenge = !row.deleted_at && isLevelUpChallengeMetadata(row.metadata)
-    ? buildTeamRoomLevelUpChallengePayload(row.metadata, currentUserId, reactions)
+    ? buildTeamRoomLevelUpChallengePayload(
+        row.metadata,
+        currentUserId,
+        reactions,
+        levelUpCompletedProfileIds,
+        connectedCount,
+      )
     : null
   return {
     id: row.id,
@@ -1938,20 +2134,25 @@ function buildTeamRoomLevelUpChallengePayload(
   metadata: Record<string, unknown>,
   currentUserId: string,
   reactions: ReactionRow[],
+  completedProfileIds: string[] = [],
+  connectedCount = 0,
 ): TeamRoomLevelUpChallengePayload | null {
   const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
   if (!challenge) return null
-  const completedProfileIds = reactions
+  const acknowledgedProfileIds = reactions
     .filter((reaction) => reaction.reaction === 'ack')
     .map((reaction) => reaction.profile_id)
+  const aggregateCompletedIds = completedProfileIds.length ? completedProfileIds : acknowledgedProfileIds
   return {
     id: challenge.id,
     title: challenge.title,
     focus: challenge.focus,
     detail: challenge.detail,
     cardIds: challenge.cardIds,
-    completed: completedProfileIds.includes(currentUserId),
-    completedCount: new Set(completedProfileIds).size,
+    completed: aggregateCompletedIds.includes(currentUserId),
+    completedCount: new Set(aggregateCompletedIds).size,
+    connectedCount,
+    status: cleanText(metadata.challengeStatus) === 'closed' ? 'closed' : 'active',
   }
 }
 
@@ -2332,6 +2533,41 @@ async function sendTeamRoomReminders(service: SupabaseClient, input: {
     .from('internal_conversations')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', input.conversationId)
+  return ((data ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean)
+}
+
+async function sendTeamLevelUpChallengeReminders(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  actorUserId: string
+  teamName: string
+  scope: TeamLinkRow
+  challenge: CaptainLevelUpChallenge
+  recipientIds: string[]
+}) {
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+    messageId: input.messageId,
+  })
+  const title = `${input.teamName} challenge reminder`
+  const body = `Finish ${input.challenge.title}: open all ${input.challenge.cardIds.length} cards, then mark the challenge complete.`
+  const { data } = await service.from('internal_notifications').insert(input.recipientIds.map((profileId) => ({
+    recipient_profile_id: profileId,
+    actor_user_id: input.actorUserId,
+    notification_type: 'message',
+    title,
+    body,
+    href,
+    conversation_id: input.conversationId,
+  }))).select('id')
+  await sendTeamRoomPush(service, input.recipientIds, {
+    title,
+    body,
+    href,
+    tag: `team-room-challenge-${input.messageId}`,
+  })
   return ((data ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean)
 }
 

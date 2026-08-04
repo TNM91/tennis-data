@@ -30,4 +30,16 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(teamRoomSource).toContain('Mark all complete')
     expect(teamRoomSource).toContain('Your proof, scores, and notes stay private.')
   })
+
+  it('pins the active challenge and lets captains remind only incomplete connected teammates', () => {
+    expect(teamRoomApiSource).toContain('selectActiveCaptainLevelUpChallenge')
+    expect(teamRoomApiSource).toContain("action === 'remind_level_up_challenge'")
+    expect(teamRoomApiSource).toContain('!challengeResult.completedIds.has(member.id)')
+    expect(teamRoomApiSource).toContain('incompleteMembers.filter((member) => member.muted !== true)')
+    expect(teamRoomApiSource).toContain('sendTeamLevelUpChallengeReminders')
+    expect(teamRoomApiSource).toContain('closeOpenLevelUpChallenges')
+    expect(teamRoomSource).toContain('room.activeLevelUpChallengeId')
+    expect(teamRoomSource).toContain('Remind incomplete')
+    expect(teamRoomSource).toContain('End challenge')
+  })
 })

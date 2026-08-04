@@ -21,6 +21,12 @@ export type CaptainLevelUpSessionSignal = {
   drillTitle: string
 }
 
+export type CaptainLevelUpChallengeLaunch = {
+  id: string
+  createdAt: string
+  status?: string
+}
+
 export const CAPTAIN_LEVEL_UP_IDENTITY_SLUG = 'relentless-competitor-4-0'
 
 const CAPTAIN_LEVEL_UP_CARD_TITLES: Record<string, string> = {
@@ -141,6 +147,21 @@ export function getCaptainLevelUpCompletedPlayerIds(
   return Array.from(completedByPlayer.entries())
     .filter(([, completed]) => requiredCardIds.size > 0 && completed.size === requiredCardIds.size)
     .map(([playerUserId]) => playerUserId)
+}
+
+export function selectActiveCaptainLevelUpChallenge(
+  launches: CaptainLevelUpChallengeLaunch[],
+) {
+  let selected: CaptainLevelUpChallengeLaunch | null = null
+  for (const launch of launches) {
+    if (!launch.id || launch.status === 'closed') continue
+    const launchTime = new Date(launch.createdAt).getTime()
+    const selectedTime = selected ? new Date(selected.createdAt).getTime() : Number.NEGATIVE_INFINITY
+    if (!selected || launchTime > selectedTime || (launchTime === selectedTime && launch.id > selected.id)) {
+      selected = launch
+    }
+  }
+  return selected?.id || ''
 }
 
 export function getCaptainLevelUpAggregateCompletionLabel(progress: CaptainLevelUpChallengeProgress | null) {
