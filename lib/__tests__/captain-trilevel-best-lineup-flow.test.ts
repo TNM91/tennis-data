@@ -22,9 +22,9 @@ describe('Captain Tri-Level best-lineup flow', () => {
 
   it('hands an applied lineup directly to availability confirmation', () => {
     expect(source).toContain('id="captain-lineup-applied-next"')
-    expect(source).toContain('<strong>Next: confirm availability</strong>')
-    expect(source).toContain('Post this lineup to Team Chat. Text links stay ready for players who are not connected.')
-    expect(source).toContain("{preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}")
+    expect(source).toContain('<strong>Next: ask your players</strong>')
+    expect(source).toContain('Saves this lineup, then opens messages with the players and match details ready.')
+    expect(source).toContain('{saveAndAskLabel}')
     expect(source).toContain('<GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>')
   })
 
