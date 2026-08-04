@@ -24,6 +24,7 @@ describe('Team Room availability summary', () => {
       no: 1,
       waiting: 1,
       total: 4,
+      yesNames: ['Alex Ace'],
       waitingNames: ['Taylor Tennis'],
       maybeNames: ['Casey Court'],
       noNames: ['Morgan Match'],

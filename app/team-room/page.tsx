@@ -16,6 +16,7 @@ import {
 } from '@/lib/captain-memory'
 import { notifyPlatformResumeUpdated } from '@/lib/platform-resume-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
 
@@ -97,6 +98,7 @@ type TeamRoomMatchCard = {
     no: number
     waiting: number
     total: number
+    yesNames: string[]
     waitingNames: string[]
     maybeNames: string[]
     noNames: string[]
@@ -1418,6 +1420,20 @@ function MatchCard({
   const focusedStatusLabel = focusedReplyStatus === 'available' || focusedReplyStatus === 'yes'
     ? 'In'
     : focusedReplyStatus === 'unavailable' || focusedReplyStatus === 'no' ? 'Out' : 'Maybe'
+  const replyGroups = buildMatchReplyGroups(message, waiting)
+  const primaryRisk = findPrimaryLineupRisk(card.lineup, replyGroups)
+  const captainReplyHref = primaryRisk ? buildCaptainReplyReviewHref({
+    teamName,
+    leagueName,
+    flight,
+    matchDate: card.matchDate,
+    opponent: card.opponent,
+    messageId: message.id,
+    availabilityRequestId: card.availabilityRequestId,
+    playerName: primaryRisk.playerName,
+    status: primaryRisk.status,
+    courtLabel: primaryRisk.courtLabel,
+  }) : ''
 
   return (
     <article
@@ -1447,6 +1463,8 @@ function MatchCard({
         </div>
       ) : null}
 
+      <MatchReplyDigest groups={replyGroups} primaryRisk={primaryRisk} />
+
       {card.lineup.length ? (
         <div className={styles.lineupPreview} aria-label="Projected courts">
           {card.lineup.map((row, index) => {
@@ -1471,12 +1489,6 @@ function MatchCard({
         </div>
       ) : null}
 
-      <div className={styles.replySummary} aria-live="polite" aria-label="Availability response summary">
-        <span><strong>{message.responseSummary.yes}</strong> In</span>
-        <span><strong>{message.responseSummary.no}</strong> Out</span>
-        <span><strong>{message.responseSummary.maybe}</strong> Maybe</span>
-        <span><strong>{waiting}</strong> Waiting</span>
-      </div>
       <div className={styles.responseActions} aria-label="Your availability">
         {([
           ['yes', 'Confirm'],
@@ -1514,12 +1526,18 @@ function MatchCard({
         <div className={styles.captainCardActions}>
           {card.cardType === 'projected_lineup' ? (
             <>
-              {waiting ? (
+              {primaryRisk ? (
+                <Link className={styles.buttonPrimary} href={captainReplyHref}>Find replacement</Link>
+              ) : waiting ? (
                 <Link className={styles.buttonPrimary} href={messagingHref}>Nudge {waiting} waiting</Link>
               ) : (
                 <span className={styles.captainActionComplete}>All replied</span>
               )}
-              <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>
+              {primaryRisk && waiting ? (
+                <Link className={styles.buttonSecondary} href={messagingHref}>Nudge {waiting} waiting</Link>
+              ) : (
+                <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>
+              )}
             </>
           ) : (
             <>
@@ -1531,6 +1549,157 @@ function MatchCard({
       ) : null}
     </article>
   )
+}
+
+type MatchReplyGroup = {
+  status: 'yes' | 'no' | 'maybe' | 'waiting'
+  label: 'In' | 'Out' | 'Maybe' | 'Waiting'
+  count: number
+  names: string[]
+}
+
+type PrimaryLineupRisk = {
+  playerName: string
+  status: 'unavailable' | 'maybe'
+  statusLabel: 'Out' | 'Maybe'
+  courtLabel: string
+}
+
+function MatchReplyDigest({
+  groups,
+  primaryRisk,
+}: {
+  groups: MatchReplyGroup[]
+  primaryRisk: PrimaryLineupRisk | null
+}) {
+  const attentionCount = groups
+    .filter((group) => group.status === 'no' || group.status === 'maybe')
+    .reduce((total, group) => total + group.count, 0)
+  const waitingCount = groups.find((group) => group.status === 'waiting')?.count || 0
+  const answeredCount = groups
+    .filter((group) => group.status !== 'waiting')
+    .reduce((total, group) => total + group.count, 0)
+  const namedGroups = groups.filter((group) => group.count > 0 && group.names.length > 0)
+  const headline = attentionCount > 0
+    ? `${attentionCount} need a decision`
+    : waitingCount > 0 ? `${waitingCount} ${waitingCount === 1 ? 'reply' : 'replies'} left` : 'Everyone replied'
+
+  return (
+    <section className={styles.replyDigest} aria-label="Match reply summary">
+      <div className={styles.replyDigestTop}>
+        <div>
+          <span>Match replies</span>
+          <strong>{headline}</strong>
+        </div>
+        <small>{answeredCount} answered</small>
+      </div>
+      <div className={styles.replySummary} aria-live="polite" aria-label="Availability response summary">
+        {groups.map((group) => (
+          <span key={group.status} className={group.status === 'no' || group.status === 'maybe' ? styles.replySummaryAttention : ''}>
+            <strong>{group.count}</strong> {group.label}
+          </span>
+        ))}
+      </div>
+      {primaryRisk ? (
+        <div className={styles.replyPriority}>
+          <strong>{primaryRisk.playerName} is {primaryRisk.statusLabel}</strong>
+          <span>{primaryRisk.courtLabel} needs the first decision.</span>
+        </div>
+      ) : null}
+      {namedGroups.length ? (
+        <details className={styles.replyDetails}>
+          <summary>See player statuses</summary>
+          <div>
+            {namedGroups.map((group) => (
+              <p key={group.status}>
+                <strong>{group.label}</strong>
+                <span>{formatReplyNames(group.names, group.count)}</span>
+              </p>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
+  )
+}
+
+function buildMatchReplyGroups(message: TeamRoomMessage, waiting: number): MatchReplyGroup[] {
+  const summary = message.card?.availabilitySummary
+  const responseNames = (status: 'yes' | 'maybe' | 'no') => uniqueReplyNames(
+    message.responseDetails.filter((detail) => detail.response === status).map((detail) => detail.name),
+  )
+  return [
+    { status: 'yes', label: 'In', count: message.responseSummary.yes, names: summary?.yesNames ?? responseNames('yes') },
+    { status: 'no', label: 'Out', count: message.responseSummary.no, names: summary?.noNames ?? responseNames('no') },
+    { status: 'maybe', label: 'Maybe', count: message.responseSummary.maybe, names: summary?.maybeNames ?? responseNames('maybe') },
+    { status: 'waiting', label: 'Waiting', count: waiting, names: summary?.waitingNames ?? [] },
+  ]
+}
+
+function findPrimaryLineupRisk(lineup: TeamRoomMatchCard['lineup'], groups: MatchReplyGroup[]): PrimaryLineupRisk | null {
+  const riskGroups = groups.filter((group) => group.status === 'no' || group.status === 'maybe')
+  for (const group of riskGroups) {
+    for (const playerName of group.names) {
+      const row = lineup.find((court) => court.players.some((player) => (
+        normalizeTeamRoomPlayerName(player) === normalizeTeamRoomPlayerName(playerName)
+      )))
+      if (!row) continue
+      return {
+        playerName,
+        status: group.status === 'no' ? 'unavailable' : 'maybe',
+        statusLabel: group.status === 'no' ? 'Out' : 'Maybe',
+        courtLabel: row.label || 'Projected court',
+      }
+    }
+  }
+  return null
+}
+
+function buildCaptainReplyReviewHref(input: {
+  teamName: string
+  leagueName: string
+  flight: string
+  matchDate: string
+  opponent: string
+  messageId: string
+  availabilityRequestId: string
+  playerName: string
+  status: 'unavailable' | 'maybe'
+  courtLabel: string
+}) {
+  const baseHref = buildCaptainScopedHref('/captain', {
+    team: input.teamName,
+    league: input.leagueName,
+    flight: input.flight,
+    date: input.matchDate,
+    opponent: input.opponent,
+  })
+  const params = new URLSearchParams({
+    notice: CAPTAIN_AVAILABILITY_REPLY_NOTICE,
+    player: input.playerName,
+    status: input.status,
+    court: input.courtLabel,
+    message: input.messageId,
+    source: 'team_room',
+  })
+  if (input.availabilityRequestId) params.set('availabilityRequest', input.availabilityRequestId)
+  return `${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}#captain-reply-alert`
+}
+
+function uniqueReplyNames(names: string[]) {
+  const byKey = new Map<string, string>()
+  for (const name of names) {
+    const cleanName = name.trim()
+    const key = normalizeTeamRoomPlayerName(cleanName)
+    if (key && !byKey.has(key)) byKey.set(key, cleanName)
+  }
+  return Array.from(byKey.values())
+}
+
+function formatReplyNames(names: string[], count: number) {
+  const visible = names.slice(0, 4)
+  const remaining = Math.max(0, count - visible.length)
+  return `${visible.join(', ')}${remaining ? ` +${remaining} more` : ''}`
 }
 
 function normalizeTeamRoomPlayerName(value: string) {
