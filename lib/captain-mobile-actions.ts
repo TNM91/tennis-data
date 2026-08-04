@@ -2,6 +2,23 @@ export type CaptainMobileActionId = 'availability' | 'lineup' | 'chat' | 'scorec
 
 export type CaptainMobileMatchPhase = 'setup' | 'upcoming' | 'match_day' | 'past'
 
+export type CaptainMobileNowItemId =
+  | 'reply-focus'
+  | 'court-readiness'
+  | 'reply'
+  | 'availability-open'
+  | 'team-improvement'
+  | 'availability-complete'
+
+const CAPTAIN_MOBILE_NOW_PRIORITY: Record<CaptainMobileNowItemId, number> = {
+  'reply-focus': 0,
+  'court-readiness': 1,
+  reply: 2,
+  'availability-open': 3,
+  'team-improvement': 4,
+  'availability-complete': 5,
+}
+
 type CaptainMobileActionLayoutInput = {
   matchDate?: string | null
   todayDate?: string | null
@@ -62,4 +79,14 @@ export function getCaptainMobileActionLayout(input: CaptainMobileActionLayoutInp
     visible: ['availability', 'lineup', 'chat'],
     overflow: ['scorecard'],
   }
+}
+
+export function orderCaptainMobileNowItems<T extends { id: CaptainMobileNowItemId }>(items: T[]) {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => (
+      CAPTAIN_MOBILE_NOW_PRIORITY[left.item.id] - CAPTAIN_MOBILE_NOW_PRIORITY[right.item.id]
+      || left.index - right.index
+    ))
+    .map(({ item }) => item)
 }

@@ -3,6 +3,7 @@ import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
   getCaptainMobileMatchPhase,
+  orderCaptainMobileNowItems,
 } from '../captain-mobile-actions'
 
 describe('Captain mobile action priority', () => {
@@ -64,5 +65,27 @@ describe('Captain mobile action priority', () => {
       visible: ['scorecard', 'chat'],
       overflow: ['availability', 'lineup'],
     })
+  })
+
+  it('keeps only the most urgent Captain notice open', () => {
+    const items = orderCaptainMobileNowItems([
+      { id: 'availability-complete' as const, label: 'Complete' },
+      { id: 'team-improvement' as const, label: 'Improve' },
+      { id: 'availability-open' as const, label: 'Availability' },
+      { id: 'reply' as const, label: 'Reply' },
+      { id: 'court-readiness' as const, label: 'Court' },
+    ])
+
+    expect(items.map((item) => item.label)).toEqual(['Court', 'Reply', 'Availability', 'Improve', 'Complete'])
+  })
+
+  it('puts a directly linked reply ahead of every other notice', () => {
+    const items = orderCaptainMobileNowItems([
+      { id: 'court-readiness' as const, label: 'Court' },
+      { id: 'reply-focus' as const, label: 'Focused reply' },
+      { id: 'availability-open' as const, label: 'Availability' },
+    ])
+
+    expect(items[0]?.label).toBe('Focused reply')
   })
 })

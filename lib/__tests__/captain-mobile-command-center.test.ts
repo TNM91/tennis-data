@@ -12,6 +12,14 @@ describe('Captain mobile command center', () => {
     const chatAction = page.slice(chatActionStart, page.indexOf("id: 'scorecard'", chatActionStart))
 
     expect(page).toContain('aria-label="Captain mobile command center"')
+    expect(page).toContain('aria-label="Captain now"')
+    expect(page).toContain('orderCaptainMobileNowItems(')
+    expect(page).toContain("some((item) => item.id !== 'availability-complete')")
+    expect(page).toContain('const captainMobileNowPrimary = captainMobileNowItems[0]')
+    expect(page).toContain('const captainMobileNowSecondary = captainMobileNowItems.slice(1)')
+    expect(page).toContain('View {captainMobileNowSecondary.length} more')
+    expect(page).toContain('{captainMobileNow}')
+    expect(page).toContain('`${captainAvailabilityPendingCount} waiting`')
     expect(page).toContain('aria-label="Captain one tap actions"')
     expect(page).toContain('getCaptainMobileActionLayout({')
     expect(page).toContain('captainMobileVisibleActions.map')
@@ -56,6 +64,8 @@ describe('Captain mobile command center', () => {
     expect(styles).toContain('.readinessGrid')
     expect(styles).toContain('minmax(min(100%, 118px), 1fr)')
     expect(styles).toContain('.attentionBadgeButton')
+    expect(styles).toContain('.nowMoreSummary')
+    expect(styles).toContain('.nowMoreBody')
   })
 
   it('hides the catalog-style Captain surfaces and overlapping action bar on phones', () => {
