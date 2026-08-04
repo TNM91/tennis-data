@@ -9,6 +9,8 @@ export type TeamRoomMatchContext = {
   opponent: string
   time: string
   facility: string
+  messageId: string
+  court: string
 }
 
 export function normalizeTeamRoomKey(value: string | null | undefined) {
@@ -30,6 +32,8 @@ export function buildTeamRoomHref(scope: Partial<TeamRoomScope & TeamRoomMatchCo
   if (scope.opponent?.trim()) params.set('opponent', scope.opponent.trim())
   if (scope.time?.trim()) params.set('time', scope.time.trim())
   if (scope.facility?.trim()) params.set('facility', scope.facility.trim())
+  if (scope.messageId?.trim()) params.set('message', scope.messageId.trim())
+  if (scope.court?.trim()) params.set('court', scope.court.trim())
   const query = params.toString()
   return query ? `/team-room?${query}` : '/team-room'
 }

@@ -139,4 +139,13 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.readinessReplyDetails')
     expect(roomStyles).toContain('.lineupRow:target')
   })
+
+  it('shares unresolved court readiness with Captain Home without another request', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+
+    expect(roomApi).toContain('buildTeamRoomCourtReadiness({')
+    expect(roomApi).toContain('courtReadiness: {')
+    expect(roomApi).toContain("court.status === 'confirmed'")
+    expect(roomApi).toContain("status: court.status")
+  })
 })

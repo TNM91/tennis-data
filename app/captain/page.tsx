@@ -240,6 +240,15 @@ type CaptainTeamRoomSummary = {
   latestMatchDate: string
   reminderAt: string
   reminderStatus: string
+  courtReadiness?: {
+    messageId: string
+    confirmedCount: number
+    totalCount: number
+    courts: Array<{
+      label: string
+      status: 'waiting' | 'needs_captain'
+    }>
+  }
 }
 
 type CaptainAvailabilityRequestSummary = {
@@ -1647,6 +1656,7 @@ function CaptainHubContent() {
     latestMatchDate: '',
     reminderAt: '',
     reminderStatus: '',
+    courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] },
   })
   const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
   const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
@@ -2149,7 +2159,7 @@ function CaptainHubContent() {
   useEffect(() => {
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '' })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
     let active = true
@@ -15326,6 +15336,48 @@ function CaptainHubContent() {
     },
   ] as const
 
+  const captainCourtReadiness = teamRoomSummary.courtReadiness
+  const captainUnresolvedCourts = captainCourtReadiness?.courts ?? []
+  const captainCourtReadinessCard = captainCourtReadiness?.messageId && captainUnresolvedCourts.length ? (
+    <section className={mobileCommandStyles.readiness} aria-label="Courts needing captain attention">
+      <div className={mobileCommandStyles.readinessHeader}>
+        <div>
+          <span>Lineup readiness</span>
+          <strong>{captainUnresolvedCourts.length} {captainUnresolvedCourts.length === 1 ? 'court' : 'courts'} to handle</strong>
+        </div>
+        <span>{captainCourtReadiness.confirmedCount}/{captainCourtReadiness.totalCount} confirmed</span>
+      </div>
+      <div className={mobileCommandStyles.readinessGrid}>
+        {captainUnresolvedCourts.map((court, index) => {
+          const courtHref = buildTeamRoomHref({
+            teamName: selectedTeam,
+            leagueName: selectedLeague,
+            flight: selectedFlight,
+            date: teamRoomSummary.latestMatchDate || matchWeekDate,
+            opponent: matchWeekOpponent,
+            time: nextMatch?.time || '',
+            facility: nextMatch?.facility || '',
+            messageId: captainCourtReadiness.messageId,
+            court: court.label,
+          })
+          const needsCaptain = court.status === 'needs_captain'
+          return (
+            <button
+              key={`${court.label}-${index}`}
+              className={`${mobileCommandStyles.readinessCourt} ${needsCaptain ? mobileCommandStyles.readinessCourtCaptain : mobileCommandStyles.readinessCourtWaiting}`}
+              type="button"
+              aria-label={`Open ${court.label} in Team Chat: ${needsCaptain ? 'Needs captain' : 'Waiting'}`}
+              onClick={() => handleCaptainTeamRoomNav(courtHref)}
+            >
+              <strong>{court.label}</strong>
+              <span>{needsCaptain ? 'Needs captain' : 'Waiting'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  ) : null
+
   const captainMobileCommandActions = [
     {
       id: 'availability',
@@ -15496,6 +15548,8 @@ function CaptainHubContent() {
 
       {captainHomeAvailabilityProgress}
 
+      {captainCourtReadinessCard}
+
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileCommandActions.map((item) => {
           const disabled = !hasTeamScope || (!premiumEnabled && item.id !== 'chat')
@@ -15574,6 +15628,8 @@ function CaptainHubContent() {
       {captainReplyAlertSurface}
 
       {captainHomeAvailabilityProgress}
+
+      {captainCourtReadinessCard}
 
       <div style={dynamicCaptainHomeShortcutHero}>
         <div>
