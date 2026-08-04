@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainImportHandoff,
   buildCaptainImportReturnHref,
+  buildConsumedCaptainImportHref,
   isCaptainImportDraft,
   readCaptainImportHandoff,
 } from '../captain-import-handoff'
@@ -48,6 +49,21 @@ describe('Captain import handoff', () => {
     expect(url.searchParams.get('importContacts')).toBe('1')
     expect(url.hash).toBe('#captain-team-scope')
     expect(readCaptainImportHandoff(url.searchParams)).toEqual(handoff)
+
+    const consumedHref = new URL(
+      buildConsumedCaptainImportHref(url.searchParams, url.hash),
+      'https://tenaceiq.example',
+    )
+    expect(consumedHref.searchParams.get('captainImport')).toBeNull()
+    expect(consumedHref.searchParams.get('importBatch')).toBeNull()
+    expect(consumedHref.searchParams.get('importPlayers')).toBeNull()
+    expect(consumedHref.searchParams.get('importContacts')).toBeNull()
+    expect(consumedHref.searchParams.get('team')).toBe('Meinert Tri-Level')
+    expect(consumedHref.searchParams.get('league')).toBe('2026 Tri-Level')
+    expect(consumedHref.searchParams.get('flight')).toBe('3.5 / 4.0 / 4.5')
+    expect(consumedHref.searchParams.get('layer')).toBe('usta')
+    expect(consumedHref.hash).toBe('#captain-team-scope')
+    expect(readCaptainImportHandoff(consumedHref.searchParams)).toBeNull()
   })
 
   it('captures imported schedule matches and rejects unrelated drafts', () => {

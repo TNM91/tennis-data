@@ -76,7 +76,11 @@ import {
   buildCaptainTeamImprovements,
   type CaptainTeamImprovementId,
 } from '@/lib/captain-team-improvements'
-import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
+import {
+  buildConsumedCaptainImportHref,
+  readCaptainImportHandoff,
+  type CaptainImportHandoff,
+} from '@/lib/captain-import-handoff'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
@@ -1567,12 +1571,14 @@ function CaptainImportConnectedCard({
   availabilityHref,
   lineupHref,
   messagingHref,
+  onComplete,
 }: {
   handoff: CaptainImportHandoff
   scheduleHref: string
   availabilityHref: string
   lineupHref: string
   messagingHref: string
+  onComplete: () => void
 }) {
   const facts = [
     handoff.players ? { label: 'Players', value: handoff.players } : null,
@@ -1620,12 +1626,13 @@ function CaptainImportConnectedCard({
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {rosterImport && !handoff.matches ? (
-            <Link href={scheduleHref} style={primaryButton}>Add schedule</Link>
+            <Link href={scheduleHref} onClick={onComplete} style={primaryButton}>Add schedule</Link>
           ) : (
-            <Link href={availabilityHref} style={primaryButton}>Confirm availability</Link>
+            <Link href={availabilityHref} onClick={onComplete} style={primaryButton}>Confirm availability</Link>
           )}
-          <Link href={lineupHref} style={secondaryButtonSmall}>Build projected lineup</Link>
-          <Link href={messagingHref} style={secondaryButtonSmall}>Message team</Link>
+          <Link href={lineupHref} onClick={onComplete} style={secondaryButtonSmall}>Build projected lineup</Link>
+          <Link href={messagingHref} onClick={onComplete} style={secondaryButtonSmall}>Message team</Link>
+          <button type="button" onClick={onComplete} style={secondaryButtonSmall}>Done</button>
         </div>
       </div>
     </section>
@@ -1638,13 +1645,29 @@ function CaptainHubContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
-  const captainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
+  const incomingCaptainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
+  const [captainImportHandoff, setCaptainImportHandoff] = useState<CaptainImportHandoff | null>(
+    incomingCaptainImportHandoff,
+  )
+  const captainImportBatchRef = useRef(incomingCaptainImportHandoff?.batchId || '')
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
   const [teamSelectionInitialized, setTeamSelectionInitialized] = useState(false)
   const [savingDefaultTeam, setSavingDefaultTeam] = useState(false)
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
+
+  useEffect(() => {
+    if (!incomingCaptainImportHandoff) return
+    if (captainImportBatchRef.current !== incomingCaptainImportHandoff.batchId) {
+      captainImportBatchRef.current = incomingCaptainImportHandoff.batchId
+      setCaptainImportHandoff(incomingCaptainImportHandoff)
+    }
+    router.replace(
+      buildConsumedCaptainImportHref(searchParams, window.location.hash),
+      { scroll: false },
+    )
+  }, [incomingCaptainImportHandoff, router, searchParams])
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -15696,9 +15719,17 @@ function CaptainHubContent() {
           <Link
             className={mobileCommandStyles.noticeAction}
             href={captainImportHandoff.importType === 'team_summary' && !captainImportHandoff.matches ? captainScheduleHref : teamRoomHref}
+            onClick={() => setCaptainImportHandoff(null)}
           >
             {captainImportHandoff.importType === 'team_summary' && !captainImportHandoff.matches ? 'Add schedule' : 'Open chat'}
           </Link>
+          <button
+            className={mobileCommandStyles.noticeDismiss}
+            type="button"
+            onClick={() => setCaptainImportHandoff(null)}
+          >
+            Done
+          </button>
         </div>
       ) : null}
 
@@ -16977,6 +17008,7 @@ function CaptainHubContent() {
             availabilityHref={availabilityHref}
             lineupHref={lineupBuilderHref}
             messagingHref={messagingHref}
+            onComplete={() => setCaptainImportHandoff(null)}
           />
         ) : null}
         {captainMobileCommandCenter}

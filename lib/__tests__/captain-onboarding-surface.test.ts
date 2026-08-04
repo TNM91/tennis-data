@@ -125,6 +125,8 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('teamSelectionInitialized')
     expect(source).toContain("eventName: 'captain_default_team_saved'")
     expect(source).toContain('readCaptainImportHandoff(searchParams)')
+    expect(source).toContain('buildConsumedCaptainImportHref(searchParams, window.location.hash)')
+    expect(source).toContain('onComplete={() => setCaptainImportHandoff(null)}')
     expect(source).toContain('CaptainImportConnectedCard')
     expect(source).toContain('Build projected lineup')
     expect(source).toContain('Player Roster contacts')
