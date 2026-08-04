@@ -316,7 +316,8 @@ function CaptainWeeklyBriefContent() {
 
   const displayedLevelUpChallenge = levelUpChallenge ?? connectedWeekChallenge?.challenge ?? null
   const displayedChallengeHistory = levelUpChallenge ? null : connectedWeekChallenge?.history ?? null
-  const displayedTeamRoomHref = connectedWeekChallenge?.challenge.id === displayedLevelUpChallenge?.id
+  const displayedTeamRoomHref = connectedWeekChallenge
+    && connectedWeekChallenge.challenge.id === displayedLevelUpChallenge?.id
     ? connectedWeekChallenge.teamRoomHref
     : ''
 
