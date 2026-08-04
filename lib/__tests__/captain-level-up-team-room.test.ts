@@ -42,4 +42,18 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(teamRoomSource).toContain('Remind incomplete')
     expect(teamRoomSource).toContain('End challenge')
   })
+
+  it('shows compact aggregate challenge history and can restart an ended challenge', () => {
+    expect(teamRoomApiSource).toContain("url.searchParams.get('levelUpHistory') === '1'")
+    expect(teamRoomApiSource).toContain('loadTeamLevelUpChallengeHistory')
+    expect(teamRoomApiSource).toContain(".select('player_user_id,focus_id,drill_title,completed_at')")
+    expect(teamRoomApiSource).toContain('getCaptainLevelUpCompletedPlayerIdsForRun')
+    expect(teamRoomApiSource).toContain("status: row.id === activeMessageId ? 'active' : 'closed'")
+    expect(teamRoomApiSource).not.toContain('proof,score,notes')
+    expect(captainSource).toContain('Team challenge history')
+    expect(captainSource).toContain('handleRunLevelUpChallenge')
+    expect(captainSource).toContain('Run again')
+    expect(captainSource).toContain('levelUpChallengeHistoryRequestRef')
+    expect(captainSource).toContain('Team totals only. Player proof, scores, and notes stay private.')
+  })
 })
