@@ -9,6 +9,7 @@ import {
 import {
   buildLineupChangeNotice,
   buildLineupChanges,
+  buildTeamRoomCourtReadiness,
   canRespondToLineupChange,
   getLineupChangeReminderAt,
   normalizeLineupRows,
@@ -1169,6 +1170,33 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     : null
   const actionQueue = buildTeamRoomActionQueue(members, message)
   const pendingCount = canManageTeamRoom(teamRoles(selected)) ? actionQueue.waitingCount : 0
+  const availabilitySummary = message?.card?.availabilitySummary
+  const responseNames = (status: MatchResponseRow['response']) => Array.from(new Set(
+    responses
+      .filter((response) => response.response === status)
+      .flatMap((response) => {
+        const profile = profileById.get(response.profile_id)
+        return [profile?.message_display_name || '', profile?.linked_player_name || '']
+      })
+      .map(cleanText)
+      .filter(Boolean),
+  ))
+  const responseIds = new Set(responses.map((response) => response.profile_id))
+  const waitingNames = members
+    .filter((member) => !responseIds.has(member.id))
+    .flatMap((member) => [member.name, member.playerName || ''])
+    .map(cleanText)
+    .filter(Boolean)
+  const courtReadiness = buildTeamRoomCourtReadiness({
+    lineup: normalizeLineupRows(message?.card?.lineup),
+    replies: [
+      { status: 'yes', names: availabilitySummary?.yesNames ?? responseNames('yes') },
+      { status: 'no', names: availabilitySummary?.noNames ?? responseNames('no') },
+      { status: 'maybe', names: availabilitySummary?.maybeNames ?? responseNames('maybe') },
+      { status: 'waiting', names: availabilitySummary?.waitingNames ?? waitingNames },
+    ],
+    lineupChange: cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice),
+  })
 
   return {
     ok: true as const,
@@ -1186,6 +1214,15 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       latestMatchDate: latestCard ? cleanText(latestCard.metadata?.matchDate) : '',
       reminderAt: actionQueue.reminderAt,
       reminderStatus: actionQueue.reminderStatus,
+      courtReadiness: {
+        messageId: message?.id || '',
+        confirmedCount: courtReadiness.filter((court) => court.status === 'confirmed').length,
+        totalCount: courtReadiness.length,
+        courts: courtReadiness.flatMap((court, index) => court.status === 'confirmed' ? [] : [{
+          label: court.label || `Court ${index + 1}`,
+          status: court.status,
+        }]),
+      },
     },
   }
 }

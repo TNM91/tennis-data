@@ -34,7 +34,9 @@ describe('Team Room', () => {
       opponent: 'Baseline Crew',
       time: '6:00 PM',
       facility: 'North Courts',
-    })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts')
+      messageId: 'match-card-1',
+      court: '4.5 Doubles',
+    })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts&message=match-card-1&court=4.5+Doubles')
   })
 
   it('limits team invitations and announcements to team leaders', () => {
