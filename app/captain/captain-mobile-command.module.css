@@ -245,6 +245,70 @@
     cursor: pointer;
   }
 
+  .now {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid rgba(125, 211, 252, 0.16);
+    border-radius: 15px;
+    background: rgba(5, 11, 22, 0.3);
+  }
+
+  .nowHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .nowHeader strong {
+    color: var(--brand-green-3);
+    font-size: 0.7rem;
+    font-weight: 950;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .nowHeader span {
+    color: var(--shell-copy-muted);
+    font-size: 0.68rem;
+    font-weight: 820;
+  }
+
+  .nowPrimary,
+  .nowMoreBody,
+  .nowMoreBody > div {
+    min-width: 0;
+  }
+
+  .nowMore {
+    min-width: 0;
+    border-top: 1px solid rgba(125, 211, 252, 0.12);
+  }
+
+  .nowMoreSummary {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    color: var(--brand-blue-2);
+    font-size: 0.72rem;
+    font-weight: 900;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .nowMoreSummary::-webkit-details-marker {
+    display: none;
+  }
+
+  .nowMoreBody {
+    display: grid;
+    gap: 8px;
+    padding-top: 2px;
+  }
+
   .actionGrid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

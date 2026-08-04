@@ -83,7 +83,9 @@ import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
 import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
+  orderCaptainMobileNowItems,
   type CaptainMobileActionId,
+  type CaptainMobileNowItemId,
 } from '@/lib/captain-mobile-actions'
 import {
   buildCaptainAvailabilityProgress,
@@ -305,6 +307,11 @@ type CaptainMobileCommandAction = {
   stage: CaptainResumeStage
   icon: TiqFeatureIconName
   primary: boolean
+}
+
+type CaptainMobileNowItem = {
+  id: CaptainMobileNowItemId
+  content: ReactNode
 }
 
 type CaptainSaveSignal = {
@@ -15552,6 +15559,62 @@ function CaptainHubContent() {
         }
       : null
 
+  const captainMobileAttentionSurface = captainMobileAttention ? (
+    <div className={mobileCommandStyles.attentionRow}>
+      <div className={mobileCommandStyles.noticeCopy}>
+        <strong>{captainMobileAttention.title}</strong>
+        <span>{captainMobileAttention.detail}</span>
+      </div>
+      <button
+        className={mobileCommandStyles.noticeAction}
+        type="button"
+        onClick={() => handleCaptainAction(captainMobileAttention.href, captainMobileAttention.stage)}
+      >
+        {captainMobileAttention.cta}
+      </button>
+    </div>
+  ) : null
+  const captainMobileNowCandidates: Array<CaptainMobileNowItem | null> = [
+    captainCourtReadinessCard ? { id: 'court-readiness', content: captainCourtReadinessCard } : null,
+    captainReplyAlertSurface
+      ? { id: captainReplyFocusAlert ? 'reply-focus' : 'reply', content: captainReplyAlertSurface }
+      : null,
+    captainHomeAvailabilityProgress && captainAvailabilityPendingCount > 0
+      ? { id: 'availability-open', content: captainHomeAvailabilityProgress }
+      : null,
+    captainMobileAttentionSurface ? { id: 'team-improvement', content: captainMobileAttentionSurface } : null,
+    captainHomeAvailabilityProgress && captainAvailabilityPendingCount === 0
+      ? { id: 'availability-complete', content: captainHomeAvailabilityProgress }
+      : null,
+  ]
+  const captainMobileNowOrderedItems = orderCaptainMobileNowItems(
+    captainMobileNowCandidates.filter((item): item is CaptainMobileNowItem => item !== null),
+  )
+  const captainMobileNowItems = captainMobileNowOrderedItems.some((item) => item.id !== 'availability-complete')
+    ? captainMobileNowOrderedItems
+    : []
+  const captainMobileNowPrimary = captainMobileNowItems[0] ?? null
+  const captainMobileNowSecondary = captainMobileNowItems.slice(1)
+  const captainMobileNow = captainMobileNowPrimary ? (
+    <section className={mobileCommandStyles.now} aria-label="Captain now">
+      <div className={mobileCommandStyles.nowHeader}>
+        <strong>Now</strong>
+        {captainMobileNowItems.length > 1 ? <span>{captainMobileNowItems.length} updates</span> : null}
+      </div>
+      <div className={mobileCommandStyles.nowPrimary}>{captainMobileNowPrimary.content}</div>
+      {captainMobileNowSecondary.length ? (
+        <details className={mobileCommandStyles.nowMore}>
+          <summary className={mobileCommandStyles.nowMoreSummary}>
+            View {captainMobileNowSecondary.length} more
+          </summary>
+          <div className={mobileCommandStyles.nowMoreBody}>
+            {captainMobileNowSecondary.map((item) => <div key={item.id}>{item.content}</div>)}
+          </div>
+        </details>
+      ) : null}
+    </section>
+  ) : null
+
   const captainMobileCommandCenter = (
     <section className={mobileCommandStyles.shell} aria-label="Captain mobile command center">
       <div className={mobileCommandStyles.header}>
@@ -15574,10 +15637,12 @@ function CaptainHubContent() {
             {captainUnresolvedCourts.length} {captainUnresolvedCourts.length === 1 ? 'court' : 'courts'} open
           </button>
         ) : (
-          <span className={captainMobileAttention || captainLatestReplyAlert ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
+          <span className={captainMobileNowItems.length ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
             {captainLatestReplyAlert
               ? `${captainReplyAlerts.length} new ${captainReplyAlerts.length === 1 ? 'reply' : 'replies'}`
-              : captainMobileAttention ? 'Needs action' : 'Ready'}
+              : captainAvailabilityPendingCount > 0
+                ? `${captainAvailabilityPendingCount} waiting`
+                : captainMobileAttention ? 'Needs action' : 'Ready'}
           </span>
         )}
       </div>
@@ -15640,27 +15705,7 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
-      {captainCourtReadinessCard}
-
-      {captainReplyAlertSurface}
-
-      {captainMobileAttention ? (
-        <div className={mobileCommandStyles.attentionRow}>
-          <div className={mobileCommandStyles.noticeCopy}>
-            <strong>{captainMobileAttention.title}</strong>
-            <span>{captainMobileAttention.detail}</span>
-          </div>
-          <button
-            className={mobileCommandStyles.noticeAction}
-            type="button"
-            onClick={() => handleCaptainAction(captainMobileAttention.href, captainMobileAttention.stage)}
-          >
-            {captainMobileAttention.cta}
-          </button>
-        </div>
-      ) : null}
-
-      {captainHomeAvailabilityProgress}
+      {captainMobileNow}
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileVisibleActions.map((item) => {
