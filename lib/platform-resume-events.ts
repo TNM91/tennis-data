@@ -8,6 +8,7 @@ export type PlatformResumeSource =
   | 'explore'
   | 'league'
   | 'team-chat'
+  | 'preferences'
 
 export function notifyPlatformResumeUpdated(source: PlatformResumeSource) {
   if (typeof window === 'undefined') return

@@ -51,8 +51,18 @@ describe('platform-wide pick up continuity', () => {
     expect(header).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(hook).toContain('tenaceiq-team-room-draft:')
     expect(hook).toContain('getPlatformResumeCompletionMessage(previousUnfinished.actionLabel)')
-    expect(header).toContain('role="status" aria-live="polite"')
+    expect(header).toContain('role="status"')
+    expect(header).toContain('aria-live="polite"')
     expect(header).toContain('Next: ${resumePrimary.actionLabel}.')
+  })
+
+  it('lets users defer a shortcut without clearing the underlying work', () => {
+    expect(hook).toContain('filterPlatformResumeCandidates(')
+    expect(hook).toContain("suppressItem(candidate, 'later')")
+    expect(hook).toContain("suppressItem(candidate, 'hidden')")
+    expect(header).toContain('Move ${itemLabel} to Later')
+    expect(header).toContain('Hide ${itemLabel}')
+    expect(header).toContain('undoResumeAction')
   })
 
   it('carries Captain lineup and reply state between devices', () => {
