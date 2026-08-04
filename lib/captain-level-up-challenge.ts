@@ -31,6 +31,23 @@ export type CaptainLevelUpChallengeLaunch = {
   status?: string
 }
 
+export type CaptainLevelUpRecommendationInput = {
+  teamName?: string
+  leagueName?: string
+  flight?: string
+  singlesLines: number
+  doublesLines: number
+  pendingResponseCount: number
+  lineupReady: boolean
+  matchDate?: string
+  todayDate?: string
+}
+
+export type CaptainLevelUpRecommendation = {
+  challenge: CaptainLevelUpChallenge
+  reason: string
+}
+
 export const CAPTAIN_LEVEL_UP_IDENTITY_SLUG = 'relentless-competitor-4-0'
 
 const CAPTAIN_LEVEL_UP_CARD_TITLES: Record<string, string> = {
@@ -104,6 +121,50 @@ export function buildCaptainLevelUpChallenge(challengeId: string, requestedCardI
     ...challenge,
     cardIds: [requestedCardId, ...challenge.cardIds.filter((cardId) => cardId !== requestedCardId)],
   }
+}
+
+export function recommendCaptainLevelUpChallenge(
+  input: CaptainLevelUpRecommendationInput,
+): CaptainLevelUpRecommendation {
+  const scopeLabel = [input.teamName, input.leagueName, input.flight].filter(Boolean).join(' ')
+  const isTriLevel = /\btri[\s-]?level\b/i.test(scopeLabel)
+  const isDoublesOnly = isTriLevel || (input.doublesLines >= 3 && input.singlesLines === 0)
+
+  if (isDoublesOnly) {
+    return buildRecommendation(
+      'doubles-readiness',
+      isTriLevel
+        ? 'Tri-Level is doubles only, so partner movement and poach timing matter most.'
+        : 'This team plays doubles first, so partner movement and poach timing matter most.',
+    )
+  }
+
+  const daysUntilMatch = getDaysBetweenDateKeys(input.todayDate, input.matchDate)
+  if (daysUntilMatch !== null && daysUntilMatch >= 0 && daysUntilMatch <= 2) {
+    return buildRecommendation(
+      'match-day-routine',
+      'Match day is close, so warm-up and return intent come first.',
+    )
+  }
+
+  if (input.pendingResponseCount > 0) {
+    return buildRecommendation(
+      'rhythm-builder',
+      'Keep preparation moving with a short routine while availability replies come in.',
+    )
+  }
+
+  if (input.lineupReady) {
+    return buildRecommendation(
+      'point-start-routine',
+      'The lineup is taking shape. Give every court the same point-start plan.',
+    )
+  }
+
+  return buildRecommendation(
+    'consistency-builder',
+    'Build repeatable rally habits before the lineup is locked.',
+  )
 }
 
 export function appendLevelUpChallengeHref(href: string, challengeId: string, cardId = '') {
@@ -197,6 +258,29 @@ export function getCaptainLevelUpAggregateCompletionLabel(progress: CaptainLevel
 
 function normalizeCardSignal(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function buildRecommendation(challengeId: string, reason: string): CaptainLevelUpRecommendation {
+  const challenge = buildCaptainLevelUpChallenge(challengeId)
+  if (!challenge) throw new Error(`Unknown Captain Level Up challenge: ${challengeId}`)
+  return { challenge, reason }
+}
+
+function getDaysBetweenDateKeys(startValue = '', endValue = '') {
+  const start = parseDateKey(startValue)
+  const end = parseDateKey(endValue)
+  if (start === null || end === null) return null
+  return Math.round((end - start) / 86_400_000)
+}
+
+function parseDateKey(value: string) {
+  const dateKey = value.trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null
+  const parsed = new Date(`${dateKey}T00:00:00.000Z`)
+  const timestamp = parsed.getTime()
+  return !Number.isNaN(timestamp) && parsed.toISOString().slice(0, 10) === dateKey
+    ? timestamp
+    : null
 }
 
 function formatCardTitle(cardId: string) {

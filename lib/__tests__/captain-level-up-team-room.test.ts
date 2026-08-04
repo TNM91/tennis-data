@@ -73,4 +73,13 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(teamRoomSource).toContain('The captain will start this challenge when match-week preparation begins.')
     expect(teamRoomSource).toContain('This challenge was removed before it started.')
   })
+
+  it('offers one readiness-based challenge without competing with an existing week challenge', () => {
+    expect(captainSource).toContain('recommendCaptainLevelUpChallenge')
+    expect(captainSource).toContain('Recommended for this week')
+    expect(captainSource).toContain('showRecommendedLevelUpChallenge')
+    expect(captainSource).toContain('!hasActiveLevelUpChallengeHistory')
+    expect(captainSource).toContain('!scheduledLevelUpChallengeForWeek')
+    expect(captainSource).toContain('Review cards')
+  })
 })
