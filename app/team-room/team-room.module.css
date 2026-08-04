@@ -832,7 +832,8 @@
 }
 
 .lineupChangePending,
-.lineupChangeSent {
+.lineupChangeSent,
+.lineupChangeDeclined {
   display: grid;
   gap: 3px;
   border: 1px solid var(--shell-panel-border);
@@ -852,16 +853,64 @@
   background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg));
 }
 
+.lineupChangeDeclined {
+  border-color: color-mix(in srgb, #ff6b72 42%, var(--shell-panel-border));
+  background: color-mix(in srgb, #ff6b72 8%, var(--shell-chip-bg));
+}
+
 .lineupChangePending strong,
-.lineupChangeSent strong {
+.lineupChangeSent strong,
+.lineupChangeDeclined strong {
   color: var(--foreground-strong);
 }
 
 .lineupChangePending span,
 .lineupChangeSent span,
-.lineupChangeSent small {
+.lineupChangeSent small,
+.lineupChangeDeclined span,
+.lineupChangeDeclined small {
   color: var(--shell-copy-muted);
   overflow-wrap: anywhere;
+}
+
+.lineupChangeDecision {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.lineupChangeDecision > span {
+  grid-column: 1 / -1;
+  color: var(--foreground-strong);
+  font-weight: 900;
+}
+
+.lineupChangeDecision button {
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 10px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground-strong);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.lineupChangeDecision button[aria-pressed='true']:first-of-type {
+  border-color: color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg));
+}
+
+.lineupChangeDecision button[aria-pressed='true']:last-of-type {
+  border-color: color-mix(in srgb, #ff6b72 52%, var(--shell-panel-border));
+  background: color-mix(in srgb, #ff6b72 14%, var(--shell-chip-bg));
+}
+
+.lineupChangeDecision button:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .matchRecap,

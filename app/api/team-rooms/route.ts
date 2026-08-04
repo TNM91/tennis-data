@@ -9,6 +9,7 @@ import {
 import {
   buildLineupChangeNotice,
   buildLineupChanges,
+  canRespondToLineupChange,
   normalizeLineupRows,
   selectActiveTeamRoomCard,
   teamRoomCardState,
@@ -146,6 +147,10 @@ type StoredLineupChangeNotice = {
   pending: boolean
   notifiedAt: string
   notifiedCount: number
+  response: '' | 'accepted' | 'declined'
+  respondedAt: string
+  responderProfileId: string
+  responderName: string
 }
 
 export async function GET(request: Request) {
@@ -331,6 +336,10 @@ export async function POST(request: Request) {
         pending: true,
         notifiedAt: '',
         notifiedCount: 0,
+        response: '',
+        respondedAt: '',
+        responderProfileId: '',
+        responderName: '',
       } : null,
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
@@ -451,6 +460,99 @@ export async function POST(request: Request) {
       shareText: buildLineupChangeShareText(changeNotice),
       notifiedAt,
     })
+  }
+
+  if (action === 'respond_lineup_change') {
+    const response = cleanText(body.response) as 'accepted' | 'declined'
+    if (!['accepted', 'declined'].includes(response)) {
+      return Response.json({ ok: false, message: 'Choose Accept or Can’t play.' }, { status: 400 })
+    }
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, cleanText(body.messageId))
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const changeNotice = cleanStoredLineupChangeNotice(cardResult.metadata.lineupChangeNotice)
+    if (!changeNotice) {
+      return Response.json({ ok: false, message: 'This lineup change is no longer available.' }, { status: 409 })
+    }
+    if (changeNotice.pending) {
+      return Response.json({ ok: false, message: 'The captain has not sent this lineup change yet.' }, { status: 409 })
+    }
+
+    const profileById = await loadProfileMap(auth.service, [auth.userId])
+    const actor = profileById.get(auth.userId)
+    const actorName = actor?.linked_player_name?.trim() || actor?.message_display_name?.trim() || 'Team member'
+    if (!canRespondToLineupChange(changeNotice.replacementPlayerName, [
+      actor?.linked_player_name || '',
+      actor?.message_display_name || '',
+    ])) {
+      return Response.json({ ok: false, message: 'Only the replacement player can answer this lineup change.' }, { status: 403 })
+    }
+
+    const respondedAt = new Date().toISOString()
+    const nextNotice: StoredLineupChangeNotice = {
+      ...changeNotice,
+      response,
+      respondedAt,
+      responderProfileId: auth.userId,
+      responderName: actorName,
+    }
+    const availabilityResponse: MatchResponseRow['response'] = response === 'accepted' ? 'yes' : 'no'
+    const { error: responseError } = await auth.service
+      .from('team_room_message_responses')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: cardResult.messageId,
+        profile_id: auth.userId,
+        response: availabilityResponse,
+        updated_at: respondedAt,
+      }, { onConflict: 'message_id,profile_id' })
+    if (responseError) return Response.json({ ok: false, message: responseError.message }, { status: 500 })
+
+    const lineupVersion = Math.max(0, Number(cardResult.metadata.lineupVersion) || 0)
+    if (lineupVersion > 0) {
+      const { error: acknowledgmentError } = await auth.service
+        .from('team_room_lineup_acknowledgments')
+        .upsert({
+          conversation_id: conversation.id,
+          message_id: cardResult.messageId,
+          profile_id: auth.userId,
+          lineup_version: lineupVersion,
+          updated_at: respondedAt,
+        }, { onConflict: 'message_id,profile_id,lineup_version' })
+      if (acknowledgmentError) return Response.json({ ok: false, message: acknowledgmentError.message }, { status: 500 })
+    }
+    await mirrorAvailabilityResponse(auth.service, {
+      metadata: cardResult.metadata,
+      profile: actor,
+      actorName,
+      response: availabilityResponse,
+      scope: selected,
+    })
+
+    const { error: updateError } = await auth.service
+      .from('internal_messages')
+      .update({
+        metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice },
+        edited_at: respondedAt,
+      })
+      .eq('id', cardResult.messageId)
+      .eq('conversation_id', conversation.id)
+    if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: respondedAt })
+      .eq('id', conversation.id)
+
+    const notificationIds = await notifyManagersOfLineupChangeResponse(auth.service, {
+      conversationId: conversation.id,
+      messageId: cardResult.messageId,
+      actorUserId: auth.userId,
+      actorName,
+      response,
+      scope: selected,
+      metadata: cardResult.metadata,
+      notice: nextNotice,
+    })
+    return Response.json({ ok: true, response, respondedAt, notificationIds })
   }
 
   if (action === 'respond') {
@@ -1225,6 +1327,65 @@ async function notifyAffectedLineupPlayers(service: SupabaseClient, input: {
   }
 }
 
+async function notifyManagersOfLineupChangeResponse(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  actorUserId: string
+  actorName: string
+  response: 'accepted' | 'declined'
+  scope: TeamLinkRow
+  metadata: Record<string, unknown>
+  notice: StoredLineupChangeNotice
+}) {
+  const { data } = await service
+    .from('internal_conversation_participants')
+    .select('profile_id,participant_role,muted')
+    .eq('conversation_id', input.conversationId)
+  const recipients = ((data ?? []) as ParticipantRow[])
+    .filter((row) => row.profile_id !== input.actorUserId && row.participant_role === 'coordinator' && row.muted !== true)
+  if (!recipients.length) return []
+
+  const baseNotification = buildCaptainReplyNotification({
+    playerName: input.actorName,
+    status: input.response === 'accepted' ? 'available' : 'unavailable',
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+    matchDate: cleanText(input.metadata.matchDate).slice(0, 10),
+    opponentTeam: cleanText(input.metadata.opponent),
+    teamRoomMessageId: input.messageId,
+    availabilityRequestId: cleanText(input.metadata.availabilityRequestId),
+    courtLabel: input.notice.courtLabel,
+  })
+  const title = input.response === 'accepted'
+    ? `${input.actorName} accepted ${input.notice.courtLabel}`
+    : `${input.actorName} can’t play ${input.notice.courtLabel}`
+  const body = input.response === 'accepted'
+    ? `${input.notice.replacementPlayerName} confirmed the replacement.`
+    : 'Open the court and choose another player.'
+  const { data: notifications } = await service
+    .from('internal_notifications')
+    .insert(recipients.map((row) => ({
+      recipient_profile_id: row.profile_id,
+      actor_user_id: input.actorUserId,
+      notification_type: 'message',
+      title,
+      body,
+      href: baseNotification.href,
+      conversation_id: input.conversationId,
+    })))
+    .select('id')
+  await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+    title,
+    body,
+    href: baseNotification.href,
+    tag: `team-room-lineup-response-${input.messageId}`,
+  })
+  return ((notifications ?? []) as Array<{ id?: string | null }>)
+    .map((row) => cleanText(row.id))
+    .filter(Boolean)
+}
+
 async function notifyTeamRoomManagers(service: SupabaseClient, input: {
   conversationId: string
   messageId: string
@@ -1977,6 +2138,12 @@ function cleanStoredLineupChangeNotice(value: unknown): StoredLineupChangeNotice
     pending: row.pending === true,
     notifiedAt: cleanText(row.notifiedAt),
     notifiedCount: Math.max(0, Math.floor(Number(row.notifiedCount) || 0)),
+    response: cleanText(row.response) === 'accepted'
+      ? 'accepted'
+      : cleanText(row.response) === 'declined' ? 'declined' : '',
+    respondedAt: cleanText(row.respondedAt),
+    responderProfileId: cleanText(row.responderProfileId),
+    responderName: cleanText(row.responderName).slice(0, 120),
   }
 }
 

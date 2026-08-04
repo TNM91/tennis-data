@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLineupChangeNotice,
   buildLineupChanges,
+  canRespondToLineupChange,
   parseReminderTargets,
   selectActiveTeamRoomCard,
   teamRoomCardState,
@@ -45,6 +46,11 @@ describe('Team Room match-week flow', () => {
       [{ label: 'Doubles 1', players: ['Alex Ace', 'Morgan Net'] }],
       { courtLabel: 'Doubles 2', outgoingPlayerName: 'Jordan Lee', replacementPlayerName: 'Alex Ace' },
     )).toBeNull()
+  })
+
+  it('allows only the linked replacement identity to answer the court change', () => {
+    expect(canRespondToLineupChange('Alex Ace', ['Alex Ace', 'Alex A.'])).toBe(true)
+    expect(canRespondToLineupChange('Alex Ace', ['Jordan Lee', 'Casey Court'])).toBe(false)
   })
 
   it('pins the next match and automatically archives past match cards', () => {
