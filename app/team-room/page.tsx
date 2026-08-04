@@ -91,6 +91,17 @@ type TeamRoomMatchCard = {
   lineupChanges: string[]
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
+  availabilitySummary: {
+    yes: number
+    maybe: number
+    no: number
+    waiting: number
+    total: number
+    waitingNames: string[]
+    maybeNames: string[]
+    noNames: string[]
+    scenarioId: string
+  } | null
   reminder: {
     reminderAt: string
     status: 'scheduled' | 'sent' | 'cancelled'
@@ -355,7 +366,7 @@ function TeamRoomContent() {
 
     const fallbackRefresh = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
-    }, 60000)
+    }, 25000)
     const refreshOnReturn = () => {
       if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
     }
@@ -526,15 +537,26 @@ function TeamRoomContent() {
                 }
               : message.card,
             responseSummary: {
-              yes: message.responseSummary.yes + (response === 'yes' ? 1 : 0) - (previous === 'yes' ? 1 : 0),
-              maybe: message.responseSummary.maybe + (response === 'maybe' ? 1 : 0) - (previous === 'maybe' ? 1 : 0),
-              no: message.responseSummary.no + (response === 'no' ? 1 : 0) - (previous === 'no' ? 1 : 0),
-              total: message.responseSummary.total + (previous ? 0 : 1),
+              yes: message.card?.availabilitySummary
+                ? message.responseSummary.yes
+                : message.responseSummary.yes + (response === 'yes' ? 1 : 0) - (previous === 'yes' ? 1 : 0),
+              maybe: message.card?.availabilitySummary
+                ? message.responseSummary.maybe
+                : message.responseSummary.maybe + (response === 'maybe' ? 1 : 0) - (previous === 'maybe' ? 1 : 0),
+              no: message.card?.availabilitySummary
+                ? message.responseSummary.no
+                : message.responseSummary.no + (response === 'no' ? 1 : 0) - (previous === 'no' ? 1 : 0),
+              total: message.card?.availabilitySummary
+                ? message.responseSummary.total
+                : message.responseSummary.total + (previous ? 0 : 1),
             },
           }
         }),
       })
       setNotice(response === 'yes' ? 'You are marked available.' : response === 'no' ? 'You are marked unavailable.' : 'You are marked maybe.')
+      if (room.messages.some((message) => message.id === messageId && message.card?.availabilitySummary)) {
+        await loadRoom({ quiet: true })
+      }
     } catch (responseError) {
       setError(responseError instanceof Error ? responseError.message : 'Your reply could not be saved.')
     } finally {
@@ -919,7 +941,7 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {room.canManage && pinnedMessage?.card ? (
+        {room.canManage && pinnedMessage?.card && !pinnedMessage.card.availabilitySummary ? (
           <div className={styles.pinnedArea}>
             <CaptainActionQueue
               queue={room.actionQueue}
@@ -1343,13 +1365,24 @@ function MatchCard({
 }) {
   const card = message.card
   if (!card) return null
-  const waiting = Math.max(0, memberCount - message.responseSummary.total)
-  const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+  const waiting = card.availabilitySummary?.waiting ?? Math.max(0, memberCount - message.responseSummary.total)
+  const messagingBaseHref = buildCaptainScopedHref('/captain/messaging', {
     team: teamName,
     league: leagueName,
     flight,
     date: card.matchDate,
     opponent: card.opponent,
+  })
+  const messagingParams = new URLSearchParams({ source: 'team_room', focus: 'waiting' })
+  if (card.availabilityRequestId) messagingParams.set('availabilityRequest', card.availabilityRequestId)
+  const messagingHref = `${messagingBaseHref}${messagingBaseHref.includes('?') ? '&' : '?'}${messagingParams.toString()}#potential-lineup-confirm-title`
+  const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    team: teamName,
+    league: leagueName,
+    flight,
+    date: card.matchDate,
+    opponent: card.opponent,
+    scenarioId: card.availabilitySummary?.scenarioId || undefined,
   })
 
   return (
@@ -1386,11 +1419,11 @@ function MatchCard({
         </div>
       ) : null}
 
-      <div className={styles.replySummary}>
-        <span><strong>{message.responseSummary.yes}</strong> yes</span>
-        <span><strong>{message.responseSummary.maybe}</strong> maybe</span>
-        <span><strong>{message.responseSummary.no}</strong> no</span>
-        <span><strong>{waiting}</strong> waiting</span>
+      <div className={styles.replySummary} aria-live="polite" aria-label="Availability response summary">
+        <span><strong>{message.responseSummary.yes}</strong> In</span>
+        <span><strong>{message.responseSummary.no}</strong> Out</span>
+        <span><strong>{message.responseSummary.maybe}</strong> Maybe</span>
+        <span><strong>{waiting}</strong> Waiting</span>
       </div>
       <div className={styles.responseActions} aria-label="Your availability">
         {([
@@ -1427,8 +1460,21 @@ function MatchCard({
       ) : null}
       {canManage ? (
         <div className={styles.captainCardActions}>
-          <Link className={styles.buttonPrimary} href={messagingHref}>Text players not connected</Link>
-          <Link className={styles.buttonSecondary} href={captainHref}>Back to Captain</Link>
+          {card.cardType === 'projected_lineup' ? (
+            <>
+              {waiting ? (
+                <Link className={styles.buttonPrimary} href={messagingHref}>Nudge {waiting} waiting</Link>
+              ) : (
+                <span className={styles.captainActionComplete}>All replied</span>
+              )}
+              <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>
+            </>
+          ) : (
+            <>
+              <Link className={styles.buttonPrimary} href={messagingHref}>Text players not connected</Link>
+              <Link className={styles.buttonSecondary} href={captainHref}>Back to Captain</Link>
+            </>
+          )}
         </div>
       ) : null}
     </article>

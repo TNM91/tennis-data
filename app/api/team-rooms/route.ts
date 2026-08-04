@@ -13,6 +13,10 @@ import {
   teamRoomCardState,
   type TeamRoomReminderTarget,
 } from '@/lib/team-room-match-flow'
+import {
+  summarizeTeamRoomAvailability,
+  type TeamRoomAvailabilitySummary,
+} from '@/lib/team-room-availability'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 
 export const runtime = 'nodejs'
@@ -102,6 +106,7 @@ type TeamRoomMessageCardPayload = Record<string, unknown> & {
   lineupChanges: string[]
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
+  availabilitySummary: TeamRoomAvailabilitySummary | null
   reminder: {
     reminderAt: string
     status: string
@@ -722,12 +727,13 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   ]))
   const profileById = await loadProfileMap(service, senderIds)
   const messageIds = typedMessageRows.map((row) => row.id)
-  const [responseByMessageId, ackByMessageId, reminderByMessageId, reactionByMessageId, attachmentUrlByMessageId, management] = await Promise.all([
+  const [responseByMessageId, ackByMessageId, reminderByMessageId, reactionByMessageId, attachmentUrlByMessageId, availabilityByRequestId, management] = await Promise.all([
     loadMatchResponses(service, messageIds),
     loadLineupAcknowledgments(service, messageIds),
     loadReminderSchedules(service, messageIds),
     loadMessageReactions(service, messageIds),
     loadAttachmentUrls(service, typedMessageRows),
+    loadAvailabilityRequestSummaries(service, typedMessageRows),
     canManageTeamRoom(teamRoles(selected))
       ? loadTeamRoomManagement(service, userId, conversation.id, selected, members)
       : Promise.resolve({ rosterMembers: [], removedMembers: [], activeInviteCount: 0 }),
@@ -751,6 +757,9 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         : null,
       reactionByMessageId.get(row.id) || [],
       attachmentUrlByMessageId.get(row.id) || '',
+      isMatchCardMetadata(row.metadata)
+        ? availabilityByRequestId.get(cleanText(row.metadata.availabilityRequestId)) || null
+        : null,
     )
     return {
       ...baseMessage,
@@ -846,7 +855,19 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
   }
   const profileById = await loadProfileMap(service, members.map((member) => member.id))
   const message = latestCard
-    ? toMessage(latestCard, profileById, userId, responses, acknowledgments, reminders, 'active')
+    ? toMessage(
+        latestCard,
+        profileById,
+        userId,
+        responses,
+        acknowledgments,
+        reminders,
+        'active',
+        [],
+        '',
+        (await loadAvailabilityRequestSummaries(service, [latestCard]))
+          .get(cleanText(latestCard.metadata?.availabilityRequestId)) || null,
+      )
     : null
   const actionQueue = buildTeamRoomActionQueue(members, message)
   const pendingCount = canManageTeamRoom(teamRoles(selected)) ? actionQueue.waitingCount : 0
@@ -1180,6 +1201,7 @@ function toMessage(
   cardState: 'active' | 'upcoming' | 'archived' | null = null,
   reactions: ReactionRow[] = [],
   attachmentUrl = '',
+  availabilitySummary: TeamRoomAvailabilitySummary | null = null,
 ) {
   const profile = profileById.get(row.sender_user_id)
   const yesCount = responses.filter((item) => item.response === 'yes').length
@@ -1203,6 +1225,7 @@ function toMessage(
       total: currentAcknowledgments.length,
       profileIds: currentAcknowledgments.map((item) => item.profile_id),
     },
+    availabilitySummary,
     reminder: reminder ? {
       reminderAt: reminder.reminder_at,
       status: reminder.status,
@@ -1237,7 +1260,14 @@ function toMessage(
     attachment: attachment ? { ...attachment, url: attachmentUrl } : null,
     card,
     response: responses.find((item) => item.profile_id === currentUserId)?.response || null,
-    responseSummary: { yes: yesCount, maybe: maybeCount, no: noCount, total: responses.length },
+    responseSummary: availabilitySummary
+      ? {
+          yes: availabilitySummary.yes,
+          maybe: availabilitySummary.maybe,
+          no: availabilitySummary.no,
+          total: availabilitySummary.yes + availabilitySummary.maybe + availabilitySummary.no,
+        }
+      : { yes: yesCount, maybe: maybeCount, no: noCount, total: responses.length },
     responseDetails: responses.map((item) => ({
       profileId: item.profile_id,
       name: profileById.get(item.profile_id)?.message_display_name?.trim()
@@ -1262,6 +1292,54 @@ async function loadMatchResponses(service: SupabaseClient, messageIds: string[])
     responseByMessageId.set(row.message_id, current)
   }
   return responseByMessageId
+}
+
+async function loadAvailabilityRequestSummaries(service: SupabaseClient, messageRows: MessageRow[]) {
+  const requestIds = Array.from(new Set(messageRows.flatMap((row) => {
+    if (!isMatchCardMetadata(row.metadata)) return []
+    const requestId = cleanText(row.metadata.availabilityRequestId)
+    return requestId ? [requestId] : []
+  })))
+  const summaries = new Map<string, TeamRoomAvailabilitySummary>()
+  if (!requestIds.length) return summaries
+
+  const [requestsResult, invitesResult, responsesResult] = await Promise.all([
+    service
+      .from('captain_availability_requests')
+      .select('id,scenario_id,match_date')
+      .in('id', requestIds),
+    service
+      .from('captain_availability_request_invites')
+      .select('request_id,player_id,player_name')
+      .in('request_id', requestIds),
+    service
+      .from('captain_availability_request_responses')
+      .select('request_id,player_id,player_name,match_date,status,responded_at')
+      .in('request_id', requestIds),
+  ])
+  if (requestsResult.error || invitesResult.error || responsesResult.error) return summaries
+
+  for (const requestRow of requestsResult.data ?? []) {
+    const requestId = cleanText(requestRow.id)
+    if (!requestId) continue
+    summaries.set(requestId, summarizeTeamRoomAvailability({
+      matchDate: cleanText(requestRow.match_date),
+      scenarioId: cleanText(requestRow.scenario_id),
+      invites: (invitesResult.data ?? [])
+        .filter((invite) => cleanText(invite.request_id) === requestId)
+        .map((invite) => ({ playerId: invite.player_id, playerName: invite.player_name })),
+      responses: (responsesResult.data ?? [])
+        .filter((response) => cleanText(response.request_id) === requestId)
+        .map((response) => ({
+          playerId: response.player_id,
+          playerName: response.player_name,
+          matchDate: response.match_date,
+          status: response.status,
+          respondedAt: response.responded_at,
+        })),
+    }))
+  }
+  return summaries
 }
 
 async function applySeasonAvailabilityDefaults(service: SupabaseClient, input: {
@@ -1580,6 +1658,7 @@ function buildTeamRoomActionQueue(
   message: ReturnType<typeof toMessage> | null,
 ) {
   const responseById = new Map((message?.responseDetails || []).map((row) => [row.profileId, row.response] as const))
+  const externalSummary = message?.card?.availabilitySummary
   const waitingMembers = members.filter((member) => !responseById.has(member.id))
   const maybeMembers = members.filter((member) => responseById.get(member.id) === 'maybe')
   const lineup = normalizeLineupRows(message?.card?.lineup)
@@ -1600,14 +1679,16 @@ function buildTeamRoomActionQueue(
   return {
     messageId: message?.id || '',
     matchDate: cleanText(message?.card?.matchDate),
-    waitingCount: waitingMembers.length,
-    waitingNames: waitingMembers.map((member) => member.name),
-    maybeCount: maybeMembers.length,
-    maybeNames: maybeMembers.map((member) => member.name),
+    waitingCount: externalSummary?.waiting ?? waitingMembers.length,
+    waitingNames: externalSummary?.waitingNames ?? waitingMembers.map((member) => member.name),
+    maybeCount: externalSummary?.maybe ?? maybeMembers.length,
+    maybeNames: externalSummary?.maybeNames ?? maybeMembers.map((member) => member.name),
     unseenLineupCount: unseenLineupMembers.length,
     unseenLineupNames: unseenLineupMembers.map((member) => member.name),
     lineupChangeCount: Array.isArray(message?.card?.lineupChanges) ? message.card.lineupChanges.length : 0,
-    unresolvedCount: unresolvedIds.size,
+    unresolvedCount: externalSummary
+      ? externalSummary.waiting + externalSummary.maybe + unseenLineupMembers.length
+      : unresolvedIds.size,
     unresolvedProfileIds: Array.from(unresolvedIds),
     reminderAt: cleanText(message?.card?.reminder?.reminderAt),
     reminderStatus: cleanText(message?.card?.reminder?.status),

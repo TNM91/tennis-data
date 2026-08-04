@@ -4,6 +4,7 @@ import {
   getCaptainAvailabilityServiceClient,
   isUuid,
 } from '@/lib/captain-availability-request-server'
+import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 
 export const runtime = 'nodejs'
 
@@ -25,30 +26,35 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response
 
   const url = new URL(request.url)
+  const requestId = cleanAvailabilityText(url.searchParams.get('requestId'), 80)
   const scenarioId = cleanAvailabilityText(url.searchParams.get('scenarioId'), 80)
   const teamName = cleanAvailabilityText(url.searchParams.get('teamName'))
   const matchDate = cleanAvailabilityText(url.searchParams.get('matchDate'), 10)
-  if (!isUuid(scenarioId) && (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate))) {
+  if (!isUuid(requestId) && !isUuid(scenarioId) && (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate))) {
     return Response.json({ ok: true, request: null, invites: [], responses: [] })
   }
 
   const service = getCaptainAvailabilityServiceClient()
   let requestQuery = service
     .from('captain_availability_requests')
-    .select('id,request_token,scenario_id,team_name,league_name,flight,match_date,opponent_team,match_time,facility,slots_json,invited_players_json,updated_at')
-    .eq('created_by', auth.userId)
+    .select('id,request_token,created_by,scenario_id,team_name,league_name,flight,match_date,opponent_team,match_time,facility,slots_json,invited_players_json,updated_at')
     .gt('expires_at', new Date().toISOString())
     .order('updated_at', { ascending: false })
     .limit(1)
 
-  requestQuery = isUuid(scenarioId)
-    ? requestQuery.eq('scenario_id', scenarioId)
-    : requestQuery.eq('team_name', teamName).eq('match_date', matchDate)
+  requestQuery = isUuid(requestId)
+    ? requestQuery.eq('id', requestId)
+    : isUuid(scenarioId)
+      ? requestQuery.eq('created_by', auth.userId).eq('scenario_id', scenarioId)
+      : requestQuery.eq('created_by', auth.userId).eq('team_name', teamName).eq('match_date', matchDate)
 
   const { data: requestRows, error: requestError } = await requestQuery
   if (requestError) return Response.json({ ok: false, message: requestError.message }, { status: 500 })
   const row = requestRows?.[0]
   if (!row) return Response.json({ ok: true, request: null, invites: [], responses: [] })
+  if (row.created_by !== auth.userId && !await canManageSharedAvailabilityRequest(service, auth.userId, row)) {
+    return Response.json({ ok: false, message: 'This availability request is not linked to one of your teams.' }, { status: 403 })
+  }
 
   const [invitesResult, responsesResult] = await Promise.all([
     service
@@ -89,6 +95,28 @@ export async function GET(request: Request) {
       requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
     })),
     responses: responsesResult.data ?? [],
+  })
+}
+
+async function canManageSharedAvailabilityRequest(
+  service: ReturnType<typeof getCaptainAvailabilityServiceClient>,
+  userId: string,
+  request: { team_name: string; league_name: string; flight: string },
+) {
+  const { data } = await service
+    .from('team_profile_links')
+    .select('league_name,flight,team_role,team_roles')
+    .eq('profile_user_id', userId)
+    .eq('normalized_team_name', normalizeTeamRoomKey(request.team_name))
+    .eq('status', 'accepted')
+
+  return (data ?? []).some((link) => {
+    const roles = Array.isArray(link.team_roles) && link.team_roles.length
+      ? link.team_roles.map(String)
+      : [String(link.team_role || 'player')]
+    return normalizeTeamRoomKey(link.league_name) === normalizeTeamRoomKey(request.league_name)
+      && normalizeTeamRoomKey(link.flight) === normalizeTeamRoomKey(request.flight)
+      && canManageTeamRoom(roles)
   })
 }
 
