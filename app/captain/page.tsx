@@ -86,6 +86,7 @@ import {
   appendLevelUpChallengeHref,
   buildCaptainLevelUpChallenge,
   getCaptainLevelUpAggregateCompletionLabel,
+  recommendCaptainLevelUpChallenge,
   type CaptainLevelUpChallenge,
   type CaptainLevelUpChallengeProgress,
 } from '@/lib/captain-level-up-challenge'
@@ -1646,6 +1647,7 @@ function CaptainHubContent() {
   const [levelUpChallengeShareState, setLevelUpChallengeShareState] = useState<'idle' | 'sharing' | 'shared' | 'error'>('idle')
   const [levelUpChallengeMessage, setLevelUpChallengeMessage] = useState('')
   const [levelUpChallengeHistory, setLevelUpChallengeHistory] = useState<CaptainLevelUpChallengeHistoryItem[]>([])
+  const [levelUpChallengeHistoryResolvedScope, setLevelUpChallengeHistoryResolvedScope] = useState('')
   const [runningLevelUpChallengeId, setRunningLevelUpChallengeId] = useState('')
   const [managingScheduledChallengeId, setManagingScheduledChallengeId] = useState('')
   const [levelUpChallengeHistoryMessage, setLevelUpChallengeHistoryMessage] = useState('')
@@ -2275,6 +2277,7 @@ function CaptainHubContent() {
       levelUpChallengeHistoryScopeRef.current = ''
       setLevelUpChallengeHistory([])
       setLevelUpChallengeHistoryMessage('')
+      setLevelUpChallengeHistoryResolvedScope('')
       return
     }
     const historyScope = [selectedTeam, selectedLeague, selectedFlight].join('|')
@@ -2282,6 +2285,7 @@ function CaptainHubContent() {
       levelUpChallengeHistoryScopeRef.current = historyScope
       setLevelUpChallengeHistory([])
       setLevelUpChallengeHistoryMessage('')
+      setLevelUpChallengeHistoryResolvedScope('')
     }
     const historyHref = buildTeamRoomHref({
       teamName: selectedTeam,
@@ -2304,8 +2308,10 @@ function CaptainHubContent() {
         && Array.isArray(payload.history)
       ) {
         setLevelUpChallengeHistory(payload.history)
+        setLevelUpChallengeHistoryResolvedScope(historyScope)
       } else if (requestId === levelUpChallengeHistoryRequestRef.current && !response.ok) {
         setLevelUpChallengeHistory([])
+        setLevelUpChallengeHistoryResolvedScope('')
       }
     } catch {
       // Challenge history stays optional while Team Room reconnects.
@@ -2528,6 +2534,13 @@ function CaptainHubContent() {
     } finally {
       setManagingScheduledChallengeId('')
     }
+  }
+
+  function handleReviewRecommendedLevelUpChallenge(challenge: CaptainLevelUpChallenge) {
+    setLevelUpTeamChallenge(challenge)
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-level-up-challenge')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
   }
 
   useEffect(() => {
@@ -17283,6 +17296,27 @@ function CaptainHubContent() {
     item.status === 'scheduled' && item.scheduledForDate === matchWeekDate
   )) || null
   const hasScheduledLevelUpChallengeHistory = levelUpChallengeHistory.some((item) => item.status === 'scheduled')
+  const currentLevelUpChallengeHistoryScope = [selectedTeam, selectedLeague, selectedFlight].join('|')
+  const levelUpChallengeHistoryReady = levelUpChallengeHistoryResolvedScope === currentLevelUpChallengeHistoryScope
+  const recommendedLevelUpChallenge = recommendCaptainLevelUpChallenge({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    singlesLines: quickStats.singles,
+    doublesLines: quickStats.doubles,
+    pendingResponseCount: workspaceState.pendingResponseCount,
+    lineupReady: workspaceState.lineupReady,
+    matchDate: matchWeekDate,
+    todayDate: captainTodayDate,
+  })
+  const showRecommendedLevelUpChallenge = Boolean(
+    hasTeamScope
+    && matchWeekDate
+    && levelUpChallengeHistoryReady
+    && !hasActiveLevelUpChallengeHistory
+    && !scheduledLevelUpChallengeForWeek
+    && !levelUpTeamChallenge,
+  )
 
   return (
     <div style={dynamicPageWrap}>
@@ -17700,6 +17734,31 @@ function CaptainHubContent() {
               </div>
             </div>
           ) : null}
+          {showRecommendedLevelUpChallenge ? (
+            <div style={captainWeekChallengeRecommendationStyle} aria-label="Recommended match-week challenge">
+              <div style={captainWeekChallengeCueCopyStyle}>
+                <span style={sectionKicker}>Recommended for this week</span>
+                <strong>{recommendedLevelUpChallenge.challenge.title}</strong>
+                <small>{recommendedLevelUpChallenge.reason}</small>
+              </div>
+              <div style={dynamicGlanceActionRow}>
+                <PrimarySmallBtn
+                  disabled={Boolean(managingScheduledChallengeId)}
+                  onClick={() => void handleScheduleLevelUpChallenge(recommendedLevelUpChallenge.challenge.id)}
+                >
+                  {managingScheduledChallengeId === recommendedLevelUpChallenge.challenge.id
+                    ? 'Scheduling...'
+                    : 'Schedule for week'}
+                </PrimarySmallBtn>
+                <SecondarySmallBtn
+                  disabled={Boolean(managingScheduledChallengeId)}
+                  onClick={() => handleReviewRecommendedLevelUpChallenge(recommendedLevelUpChallenge.challenge)}
+                >
+                  Review cards
+                </SecondarySmallBtn>
+              </div>
+            </div>
+          ) : null}
           <div style={dynamicCaptainDecisionPathGrid}>
             {captainDecisionPath.map((item) => {
               const needsScope = item.requiresScope && !hasTeamScope
@@ -17834,7 +17893,7 @@ function CaptainHubContent() {
         ) : null}
 
         {levelUpTeamChallenge ? (
-          <section style={captainLevelUpChallengeStyle} aria-label="Level Up team challenge mode">
+          <section id="captain-level-up-challenge" style={captainLevelUpChallengeStyle} aria-label="Level Up team challenge mode">
             <div style={captainLevelUpChallengeHeaderStyle}>
               <div>
                 <div style={sectionKicker}>Level Up team challenge</div>
@@ -19243,6 +19302,12 @@ const captainWeekChallengeCueStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
   flexWrap: 'wrap',
+}
+
+const captainWeekChallengeRecommendationStyle: CSSProperties = {
+  ...captainWeekChallengeCueStyle,
+  border: '1px solid rgba(116,190,255,0.24)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
 }
 
 const captainWeekChallengeCueCopyStyle: CSSProperties = {

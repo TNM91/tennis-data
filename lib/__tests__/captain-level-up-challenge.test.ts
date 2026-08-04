@@ -8,6 +8,7 @@ import {
   getCaptainLevelUpCardDetails,
   getCaptainLevelUpCompletedPlayerIds,
   getCaptainLevelUpCompletedPlayerIdsForRun,
+  recommendCaptainLevelUpChallenge,
   selectActiveCaptainLevelUpChallenge,
 } from '../captain-level-up-challenge'
 
@@ -101,5 +102,39 @@ describe('Captain Level Up challenge handoff', () => {
     expect(selectActiveCaptainLevelUpChallenge([
       { id: 'closed', createdAt: '2026-08-03T12:00:00.000Z', status: 'closed' },
     ])).toBe('')
+  })
+
+  it('recommends one challenge from the actual match-week context', () => {
+    const base = {
+      singlesLines: 2,
+      doublesLines: 3,
+      pendingResponseCount: 0,
+      lineupReady: false,
+      todayDate: '2026-08-04',
+      matchDate: '2026-08-10',
+    }
+
+    expect(recommendCaptainLevelUpChallenge({
+      ...base,
+      leagueName: 'USTA Tri-Level 3.5 / 4.0 / 4.5',
+    }).challenge.id).toBe('doubles-readiness')
+    expect(recommendCaptainLevelUpChallenge({
+      ...base,
+      singlesLines: 0,
+      doublesLines: 9,
+    }).challenge.id).toBe('doubles-readiness')
+    expect(recommendCaptainLevelUpChallenge({
+      ...base,
+      matchDate: '2026-08-06',
+    }).challenge.id).toBe('match-day-routine')
+    expect(recommendCaptainLevelUpChallenge({
+      ...base,
+      pendingResponseCount: 4,
+    }).challenge.id).toBe('rhythm-builder')
+    expect(recommendCaptainLevelUpChallenge({
+      ...base,
+      lineupReady: true,
+    }).challenge.id).toBe('point-start-routine')
+    expect(recommendCaptainLevelUpChallenge(base).challenge.id).toBe('consistency-builder')
   })
 })
