@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLineupChangeNotice,
   buildLineupChanges,
+  buildTeamRoomCourtReadiness,
   canRespondToLineupChange,
   getLineupChangeReminderAt,
   parseReminderTargets,
@@ -52,6 +53,43 @@ describe('Team Room match-week flow', () => {
   it('allows only the linked replacement identity to answer the court change', () => {
     expect(canRespondToLineupChange('Alex Ace', ['Alex Ace', 'Alex A.'])).toBe(true)
     expect(canRespondToLineupChange('Alex Ace', ['Jordan Lee', 'Casey Court'])).toBe(false)
+  })
+
+  it('reduces every projected court to a clear readiness action', () => {
+    expect(buildTeamRoomCourtReadiness({
+      lineup: [
+        { label: '4.5 Doubles', players: ['Alex Ace', 'Jordan Lee'] },
+        { label: '4.0 Doubles', players: ['Casey Court', 'Taylor Topspin'] },
+        { label: '3.5 Doubles', players: ['Morgan Net', 'Riley Rally'] },
+        { label: 'Doubles 4', players: [] },
+      ],
+      replies: [
+        { status: 'yes', names: ['Alex Ace', 'Jordan Lee', 'Casey Court', 'Taylor Topspin', 'Morgan Net'] },
+        { status: 'maybe', names: ['Casey Court'] },
+        { status: 'no', names: [] },
+        { status: 'waiting', names: ['Riley Rally'] },
+      ],
+    }).map(({ label, status }) => ({ label, status }))).toEqual([
+      { label: '4.5 Doubles', status: 'confirmed' },
+      { label: '4.0 Doubles', status: 'needs_captain' },
+      { label: '3.5 Doubles', status: 'waiting' },
+      { label: 'Doubles 4', status: 'needs_captain' },
+    ])
+  })
+
+  it('makes an unsent or overdue replacement court a captain action', () => {
+    const lineup = [{ label: '4.5 Doubles', players: ['Alex Ace', 'Jordan Lee'] }]
+    const replies = [{ status: 'yes' as const, names: ['Alex Ace', 'Jordan Lee'] }]
+    expect(buildTeamRoomCourtReadiness({
+      lineup,
+      replies,
+      lineupChange: { courtLabel: '4.5 Doubles', pending: true, response: '', deadlineStatus: '' },
+    })[0]?.status).toBe('needs_captain')
+    expect(buildTeamRoomCourtReadiness({
+      lineup,
+      replies,
+      lineupChange: { courtLabel: '4.5 Doubles', pending: false, response: '', deadlineStatus: 'reminded' },
+    })[0]?.status).toBe('needs_captain')
   })
 
   it('pins the next match and automatically archives past match cards', () => {

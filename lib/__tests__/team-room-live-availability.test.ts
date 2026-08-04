@@ -124,4 +124,19 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('teamRoomMessageId: input.messageId')
     expect(roomApi).toContain('findCaptainReplyCourt(input.metadata.lineup')
   })
+
+  it('summarizes every court before showing detailed player replies', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomPage).toContain('buildTeamRoomCourtReadiness({')
+    expect(roomPage).toContain('Lineup readiness')
+    expect(roomPage).toContain('Needs captain')
+    expect(roomPage).toContain('Player reply details')
+    expect(roomPage).toContain('courtReadinessAnchor(message.id, index)')
+    expect(roomStyles).toContain('.courtReadinessGrid')
+    expect(roomStyles).toContain('.courtReadinessCaptain')
+    expect(roomStyles).toContain('.readinessReplyDetails')
+    expect(roomStyles).toContain('.lineupRow:target')
+  })
 })
