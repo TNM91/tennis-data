@@ -167,6 +167,12 @@
     color: #ffdf92;
   }
 
+  .attentionBadgeButton {
+    appearance: none;
+    font: inherit;
+    cursor: pointer;
+  }
+
   .teamSelect {
     width: 100%;
     min-width: 0;

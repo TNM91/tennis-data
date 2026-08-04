@@ -79,6 +79,7 @@ import {
 import { readCaptainImportHandoff, type CaptainImportHandoff } from '@/lib/captain-import-handoff'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
 import {
   buildCaptainAvailabilityProgress,
   type CaptainAvailabilityInvite,
@@ -15367,6 +15368,33 @@ function CaptainHubContent() {
 
   const captainCourtReadiness = teamRoomSummary.courtReadiness
   const captainUnresolvedCourts = captainCourtReadiness?.courts ?? []
+  const buildCaptainCourtReadinessHref = (courtLabel: string) => buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    date: teamRoomSummary.latestMatchDate || matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
+    messageId: captainCourtReadiness?.messageId || '',
+    court: courtLabel,
+  })
+  const captainPrimaryUnresolvedCourt = selectPrimaryTeamRoomCourtReadiness(captainUnresolvedCourts)
+  const captainPrimaryCourtHref = captainPrimaryUnresolvedCourt
+    ? buildCaptainCourtReadinessHref(captainPrimaryUnresolvedCourt.label)
+    : ''
+  const captainCourtPrimaryAction = captainPrimaryUnresolvedCourt ? {
+    id: 'court-readiness',
+    label: `${captainPrimaryUnresolvedCourt.label} lineup`,
+    state: captainPrimaryUnresolvedCourt.status === 'needs_captain' ? 'Needs captain' : 'Waiting',
+    detail: captainPrimaryUnresolvedCourt.status === 'needs_captain'
+      ? `Open ${captainPrimaryUnresolvedCourt.label} and resolve the lineup.`
+      : `${captainPrimaryUnresolvedCourt.label} is waiting on a player reply.`,
+    href: captainPrimaryCourtHref,
+    stage: 'team-room' as CaptainResumeStage,
+    cta: 'Open court',
+    tone: captainPrimaryUnresolvedCourt.status === 'needs_captain' ? 'warn' as const : 'info' as const,
+  } : null
   const captainCourtReadinessCard = captainCourtReadiness?.messageId && captainUnresolvedCourts.length ? (
     <section className={mobileCommandStyles.readiness} aria-label="Courts needing captain attention">
       <div className={mobileCommandStyles.readinessHeader}>
@@ -15378,17 +15406,7 @@ function CaptainHubContent() {
       </div>
       <div className={mobileCommandStyles.readinessGrid}>
         {captainUnresolvedCourts.map((court, index) => {
-          const courtHref = buildTeamRoomHref({
-            teamName: selectedTeam,
-            leagueName: selectedLeague,
-            flight: selectedFlight,
-            date: teamRoomSummary.latestMatchDate || matchWeekDate,
-            opponent: matchWeekOpponent,
-            time: nextMatch?.time || '',
-            facility: nextMatch?.facility || '',
-            messageId: captainCourtReadiness.messageId,
-            court: court.label,
-          })
+          const courtHref = buildCaptainCourtReadinessHref(court.label)
           const needsCaptain = court.status === 'needs_captain'
           return (
             <button
@@ -15460,7 +15478,10 @@ function CaptainHubContent() {
     },
   ] as const
 
-  const captainHomePrimaryAction = captainContinueAction || captainHomeShortcutPrimaryItem
+  const captainHomePrimaryAction = captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
+  const captainHomePrimaryStatus = captainCourtPrimaryAction
+    ? captainCourtPrimaryAction.state
+    : captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus
 
   const captainMobileAttention = captainPrimaryTeamImprovement
     ? {
@@ -15492,11 +15513,22 @@ function CaptainHubContent() {
               : 'Select a linked team to start.'}
           </span>
         </div>
-        <span className={captainMobileAttention || captainLatestReplyAlert ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
-          {captainLatestReplyAlert
-            ? `${captainReplyAlerts.length} new ${captainReplyAlerts.length === 1 ? 'reply' : 'replies'}`
-            : captainMobileAttention ? 'Needs action' : 'Ready'}
-        </span>
+        {captainPrimaryUnresolvedCourt ? (
+          <button
+            className={`${mobileCommandStyles.attentionBadge} ${mobileCommandStyles.attentionBadgeButton}`}
+            type="button"
+            aria-label={`Open ${captainPrimaryUnresolvedCourt.label}: ${captainCourtPrimaryAction?.state}`}
+            onClick={() => handleCaptainTeamRoomNav(captainPrimaryCourtHref)}
+          >
+            {captainUnresolvedCourts.length} {captainUnresolvedCourts.length === 1 ? 'court' : 'courts'} open
+          </button>
+        ) : (
+          <span className={captainMobileAttention || captainLatestReplyAlert ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
+            {captainLatestReplyAlert
+              ? `${captainReplyAlerts.length} new ${captainReplyAlerts.length === 1 ? 'reply' : 'replies'}`
+              : captainMobileAttention ? 'Needs action' : 'Ready'}
+          </span>
+        )}
       </div>
 
       <select
@@ -15557,6 +15589,10 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
+      {captainCourtReadinessCard}
+
+      {captainReplyAlertSurface}
+
       {captainMobileAttention ? (
         <div className={mobileCommandStyles.attentionRow}>
           <div className={mobileCommandStyles.noticeCopy}>
@@ -15573,11 +15609,7 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
-      {captainReplyAlertSurface}
-
       {captainHomeAvailabilityProgress}
-
-      {captainCourtReadinessCard}
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileCommandActions.map((item) => {
@@ -15647,7 +15679,7 @@ function CaptainHubContent() {
           <h2 style={captainHomeShortcutTitle}>What do you need to do?</h2>
         </div>
         <span style={captainHomePrimaryAction?.tone === 'warn' ? warnBadge : captainHomePrimaryAction?.tone === 'good' ? badgeGreen : badgeBlue}>
-          {captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus}
+          {captainHomePrimaryStatus}
         </span>
       </div>
       <div style={captainHomeShortcutSub}>

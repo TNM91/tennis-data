@@ -17,11 +17,11 @@ describe('Captain active-work continuity', () => {
     expect(migration).toContain('auth.uid() = user_id')
   })
 
-  it('turns the Captain primary action into an exact Continue action', () => {
+  it('puts an unresolved court ahead of the exact Continue action', () => {
     const captain = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 
     expect(captain).toContain("label: `Continue ${captainResume?.lastToolLabel || 'your work'}`")
-    expect(captain).toContain('const captainHomePrimaryAction = captainContinueAction || captainHomeShortcutPrimaryItem')
+    expect(captain).toContain('const captainHomePrimaryAction = captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem')
     expect(captain).toContain("captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue'")
     expect(captain).toContain("stage: 'team-room' as CaptainResumeStage")
   })
