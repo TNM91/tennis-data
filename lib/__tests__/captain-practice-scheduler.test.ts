@@ -15,8 +15,21 @@ describe('Captain practice scheduler', () => {
     expect(source.indexOf('aria-label="Practice scheduler setup"')).toBeLessThan(
       source.indexOf('Plan practice without a separate thread.'),
     )
-    expect(source).toContain("router.replace('/login?plan=captain&next=%2Fcaptain%2Fpractice')")
+    expect(source).toContain('router.replace(`/login?plan=captain&next=${encodeURIComponent(returnTo)}`)')
     expect(source).toContain('Unlock practice coordination with Captain')
+  })
+
+  it('loads Captain scope and a one-time Level Up challenge into the practice form', () => {
+    const source = readFileSync(join(process.cwd(), 'app/captain/practice/page.tsx'), 'utf8')
+
+    expect(source).toContain("searchParams.get('team')")
+    expect(source).toContain("searchParams.get('league')")
+    expect(source).toContain("searchParams.get('flight')")
+    expect(source).toContain('buildCaptainLevelUpChallenge')
+    expect(source).toContain('incomingLevelUpChallenge ? `${incomingLevelUpChallenge.title}: ${incomingLevelUpChallenge.focus}`')
+    expect(source).toContain("['levelUpChallenge', 'card']")
+    expect(source).toContain('Challenge loaded')
+    expect(source).toContain('Practice focus is filled in.')
   })
 
   it('uses the existing practice scheduling foundation instead of a separate workflow', () => {

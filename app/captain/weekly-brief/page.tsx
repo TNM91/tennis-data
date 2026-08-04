@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
@@ -21,6 +21,11 @@ import {
 import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  buildCaptainLevelUpChallenge,
+  type CaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
+import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
   formatWeekdayDate as formatDate,
   cleanText as safeText,
@@ -125,6 +130,8 @@ export default function CaptainWeeklyBriefPage() {
 
 function CaptainWeeklyBriefContent() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { role, entitlements, authResolved } = useAuth()
   const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialBriefContext()
@@ -146,14 +153,31 @@ function CaptainWeeklyBriefContent() {
   const [eventDate, setEventDate] = useState(initialContext.eventDate)
   const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
   const [matches, setMatches] = useState<MatchRow[]>([])
+  const incomingLevelUpChallenge = useMemo(
+    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
+  const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
 
   useEffect(() => {
     if (!authResolved || role !== 'public' || typeof window === 'undefined') {
       return
     }
-    const next = encodeURIComponent('/captain/weekly-brief')
+    const next = encodeURIComponent(`${pathname}${searchParams.size ? `?${searchParams.toString()}` : ''}`)
     window.location.href = `/login?plan=captain&next=${next}`
-  }, [authResolved, role])
+  }, [authResolved, pathname, role, searchParams])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !incomingLevelUpChallenge) return
+
+    const consumedHref = buildConsumedWorkflowHref(
+      pathname,
+      searchParams,
+      ['levelUpChallenge', 'card'],
+      window.location.hash,
+    )
+    if (consumedHref) router.replace(consumedHref, { scroll: false })
+  }, [authResolved, incomingLevelUpChallenge, pathname, role, router, searchParams])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -519,6 +543,26 @@ function CaptainWeeklyBriefContent() {
             </div>
 
           </section>
+
+          {levelUpChallenge ? (
+            <section style={surfaceCard} aria-label="Level Up challenge loaded into weekly brief">
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Challenge loaded</p>
+                  <h2 style={sectionTitle}>{levelUpChallenge.title}</h2>
+                </div>
+                <span style={pillStyle}>{levelUpChallenge.cardIds.length} cards</span>
+              </div>
+              <div style={{ ...mutedCallout, display: 'grid', gap: 6 }}>
+                <strong>{levelUpChallenge.focus}</strong>
+                <span>{levelUpChallenge.detail}</span>
+                <span>Team progress stays aggregate. Player proof and notes stay private.</span>
+              </div>
+              <div style={actionRow}>
+                <SecondaryBtn onClick={() => setLevelUpChallenge(null)}>Done</SecondaryBtn>
+              </div>
+            </section>
+          ) : null}
 
           {error ? <section style={errorCard}>{error}</section> : null}
 

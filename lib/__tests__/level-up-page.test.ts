@@ -24,6 +24,7 @@ const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-develop
 const developmentStylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
+const captainChallengeSource = readFileSync(join(process.cwd(), 'lib/captain-level-up-challenge.ts'), 'utf8')
 
 describe('Level Up page', () => {
   it('creates a direct phone-first Level Up destination from the shared drill engine', () => {
@@ -2563,7 +2564,7 @@ describe('Level Up page', () => {
     expect(coachSource).toContain('Only visible after sync')
     expect(captainSource).toContain('getCaptainLevelUpAggregateCompletionLabel')
     expect(captainSource).toContain('Aggregate progress')
-    expect(captainSource).toContain('8 of 12 players completed match-day routine')
+    expect(captainChallengeSource).toContain('8 of 12 players completed match-day routine')
     expect(captainSource).toContain('Team challenge mode shows completion count only')
     expect(developmentStylesSource).toContain('.levelUpLaneActiveCard')
     expect(developmentStylesSource).toContain('scroll-margin-top: 84px')
