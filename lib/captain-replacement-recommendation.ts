@@ -76,6 +76,17 @@ export type CaptainSuggestedSwapResult<TSlot extends CaptainSuggestedSwapSlot> =
       reason: CaptainSuggestedSwapFailure
     }
 
+export type CaptainSuggestedSwapProjectionChange = {
+  before: number
+  after: number
+  delta: number
+}
+
+export type CaptainSuggestedSwapImpact = {
+  court: CaptainSuggestedSwapProjectionChange | null
+  overall: CaptainSuggestedSwapProjectionChange | null
+}
+
 function normalizeName(value: string | null | undefined) {
   return (value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
@@ -281,5 +292,35 @@ export function applyCaptainSuggestedSwap<TSlot extends CaptainSuggestedSwapSlot
     outgoingPlayerName: targetSlot.players[outgoingIndex].playerName,
     replacementPlayerName: input.replacement.playerName,
     needsConfirmation: availabilityStatus === 'unknown',
+  }
+}
+
+export function buildCaptainSuggestedSwapImpact(input: {
+  beforeCourtProjection: number | null | undefined
+  afterCourtProjection: number | null | undefined
+  beforeOverallProjection: number | null | undefined
+  afterOverallProjection: number | null | undefined
+  beforeProjectedCourtCount: number
+  afterProjectedCourtCount: number
+}): CaptainSuggestedSwapImpact {
+  const buildChange = (
+    before: number | null | undefined,
+    after: number | null | undefined,
+  ): CaptainSuggestedSwapProjectionChange | null => {
+    if (
+      typeof before !== 'number'
+      || !Number.isFinite(before)
+      || typeof after !== 'number'
+      || !Number.isFinite(after)
+    ) return null
+    return { before, after, delta: after - before }
+  }
+
+  const court = buildChange(input.beforeCourtProjection, input.afterCourtProjection)
+  return {
+    court,
+    overall: court && input.beforeProjectedCourtCount > 0 && input.afterProjectedCourtCount > 0
+      ? buildChange(input.beforeOverallProjection, input.afterOverallProjection)
+      : null,
   }
 }

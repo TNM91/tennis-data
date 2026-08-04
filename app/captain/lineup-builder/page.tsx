@@ -53,7 +53,11 @@ import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
-import { applyCaptainSuggestedSwap } from '@/lib/captain-replacement-recommendation'
+import {
+  applyCaptainSuggestedSwap,
+  buildCaptainSuggestedSwapImpact,
+  type CaptainSuggestedSwapImpact,
+} from '@/lib/captain-replacement-recommendation'
 
 type PlayerRow = {
   id: string
@@ -399,6 +403,12 @@ function isSameScope(match: MatchTeamRow, values: { leagueName: string; flight: 
 function formatPercent(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '-'
   return `${Math.round(value * 100)}%`
+}
+
+function formatProjectionPointDelta(value: number) {
+  const points = Math.round(value * 100)
+  if (points === 0) return 'No projected change'
+  return `${points > 0 ? '+' : ''}${points} pts`
 }
 
 function availabilityRank(status: string | null | undefined) {
@@ -1716,12 +1726,6 @@ function LineupBuilderContent() {
     setMessage(
       `Draft swap applied: ${result.replacementPlayerName} for ${result.outgoingPlayerName} on ${replacementHandoff.courtLabel}. Review it, then save the potential lineup.`
     )
-    window.requestAnimationFrame(() => {
-      document.getElementById(`captain-lineup-slot-${result.slotId}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    })
   }
 
   function undoSuggestedSwap() {
@@ -2121,6 +2125,23 @@ function LineupBuilderContent() {
     () => compareLineupStrength(teamSlots, opponentSlots, builderPlayers),
     [builderPlayers, opponentSlots, teamSlots]
   )
+
+  const suggestedSwapImpact = useMemo<CaptainSuggestedSwapImpact | null>(() => {
+    if (!suggestedSwapDraft) return null
+    const targetCourtIndex = suggestedSwapDraft.previousSlots.findIndex((slot) => slot.id === suggestedSwapDraft.slotId)
+    const beforeAnalysis = compareLineupStrength(suggestedSwapDraft.previousSlots, opponentSlots, builderPlayers)
+    const countProjectedCourts = (lineupAnalysis: LineupStrengthAnalysis) => (
+      lineupAnalysis.lines.filter((line) => typeof line.projection === 'number').length
+    )
+    return buildCaptainSuggestedSwapImpact({
+      beforeCourtProjection: beforeAnalysis.lines[targetCourtIndex]?.projection,
+      afterCourtProjection: analysis.lines[targetCourtIndex]?.projection,
+      beforeOverallProjection: beforeAnalysis.projection,
+      afterOverallProjection: analysis.projection,
+      beforeProjectedCourtCount: countProjectedCourts(beforeAnalysis),
+      afterProjectedCourtCount: countProjectedCourts(analysis),
+    })
+  }, [analysis, builderPlayers, opponentSlots, suggestedSwapDraft])
 
   const favoredLines = useMemo(
     () => analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection >= 0.5).length,
@@ -2899,6 +2920,46 @@ function LineupBuilderContent() {
                   {replacementHandoff.outPlayer} is no longer confirmed. Apply this one change as an unsaved draft, then review and save it.
                 </span>
               )}
+              {suggestedSwapDraft ? suggestedSwapImpact?.court ? (
+                <div style={suggestedSwapImpactGridStyle} aria-label="Projected draft impact">
+                  <div style={suggestedSwapImpactCardStyle}>
+                    <span style={suggestedSwapImpactLabelStyle}>Court win chance</span>
+                    <strong>
+                      {formatPercent(suggestedSwapImpact.court.before)} to {formatPercent(suggestedSwapImpact.court.after)}
+                    </strong>
+                    <small style={
+                      suggestedSwapImpact.court.delta > 0
+                        ? suggestedSwapImpactPositiveStyle
+                        : suggestedSwapImpact.court.delta < 0
+                          ? suggestedSwapImpactNegativeStyle
+                          : suggestedSwapImpactNeutralStyle
+                    }>
+                      {formatProjectionPointDelta(suggestedSwapImpact.court.delta)}
+                    </small>
+                  </div>
+                  {suggestedSwapImpact.overall ? (
+                    <div style={suggestedSwapImpactCardStyle}>
+                      <span style={suggestedSwapImpactLabelStyle}>Match win chance</span>
+                      <strong>
+                        {formatPercent(suggestedSwapImpact.overall.before)} to {formatPercent(suggestedSwapImpact.overall.after)}
+                      </strong>
+                      <small style={
+                        suggestedSwapImpact.overall.delta > 0
+                          ? suggestedSwapImpactPositiveStyle
+                          : suggestedSwapImpact.overall.delta < 0
+                            ? suggestedSwapImpactNegativeStyle
+                            : suggestedSwapImpactNeutralStyle
+                      }>
+                        {formatProjectionPointDelta(suggestedSwapImpact.overall.delta)}
+                      </small>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <small style={suggestedSwapImpactUnavailableStyle}>
+                  Add the opponent court and player ratings to see the projected impact.
+                </small>
+              ) : null}
             </div>
             <div style={replacementHandoffActionsStyle}>
               <PrimaryBtn onClick={applySuggestedSwap} disabled={Boolean(suggestedSwapDraft) || loading || loadingScenarioId !== ''}>
@@ -4002,6 +4063,63 @@ const replacementHandoffActionsStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   minWidth: 0,
+}
+
+const suggestedSwapImpactGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  marginTop: 4,
+  minWidth: 0,
+}
+
+const suggestedSwapImpactCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: '3px 8px',
+  minWidth: 0,
+  border: '1px solid rgba(155, 225, 29, 0.2)',
+  borderRadius: 12,
+  background: 'rgba(5, 15, 30, 0.48)',
+  padding: '9px 10px',
+}
+
+const suggestedSwapImpactLabelStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const suggestedSwapImpactPositiveStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
+const suggestedSwapImpactNegativeStyle: CSSProperties = {
+  color: '#fca5a5',
+  fontSize: 11,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
+const suggestedSwapImpactNeutralStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
+const suggestedSwapImpactUnavailableStyle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({

@@ -5,6 +5,7 @@ import {
   applyCaptainSuggestedSwap,
   buildCaptainReplacementLineupHref,
   buildCaptainReplacementRecommendation,
+  buildCaptainSuggestedSwapImpact,
   type CaptainReplacementPlayer,
 } from '../captain-replacement-recommendation'
 
@@ -206,6 +207,35 @@ describe('Captain replacement recommendation', () => {
     expect(result).toEqual({ ok: false, reason: 'replacement-already-assigned' })
   })
 
+  it('summarizes the before-and-after court and match projection', () => {
+    const impact = buildCaptainSuggestedSwapImpact({
+      beforeCourtProjection: 0.42,
+      afterCourtProjection: 0.58,
+      beforeOverallProjection: 0.48,
+      afterOverallProjection: 0.55,
+      beforeProjectedCourtCount: 3,
+      afterProjectedCourtCount: 3,
+    })
+
+    expect(impact.court).toMatchObject({ before: 0.42, after: 0.58 })
+    expect(impact.court?.delta).toBeCloseTo(0.16)
+    expect(impact.overall).toMatchObject({ before: 0.48, after: 0.55 })
+    expect(impact.overall?.delta).toBeCloseTo(0.07)
+  })
+
+  it('withholds impact when the target court does not have a complete projection', () => {
+    const impact = buildCaptainSuggestedSwapImpact({
+      beforeCourtProjection: null,
+      afterCourtProjection: null,
+      beforeOverallProjection: 0.52,
+      afterOverallProjection: 0.52,
+      beforeProjectedCourtCount: 2,
+      afterProjectedCourtCount: 2,
+    })
+
+    expect(impact).toEqual({ court: null, overall: null })
+  })
+
   it('connects the Captain alert to the lineup-builder handoff', () => {
     const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
     const builderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
@@ -217,5 +247,8 @@ describe('Captain replacement recommendation', () => {
     expect(builderSource).toContain('Apply suggested swap')
     expect(builderSource).toContain('Unsaved — review the court')
     expect(builderSource).toContain('undoSuggestedSwap')
+    expect(builderSource).toContain('Court win chance')
+    expect(builderSource).toContain('Match win chance')
+    expect(builderSource).toContain('Add the opponent court and player ratings')
   })
 })
