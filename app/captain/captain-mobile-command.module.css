@@ -199,6 +199,7 @@
   }
 
   .importNotice {
+    grid-template-columns: minmax(0, 1fr) auto auto;
     border: 1px solid rgba(155, 225, 29, 0.22);
     background: rgba(155, 225, 29, 0.08);
   }
@@ -242,6 +243,18 @@
     font-size: 0.72rem;
     font-weight: 900;
     text-decoration: none;
+    cursor: pointer;
+  }
+
+  .noticeDismiss {
+    min-height: 38px;
+    border: 0;
+    background: transparent;
+    color: var(--shell-copy-muted);
+    padding: 6px 2px;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 850;
     cursor: pointer;
   }
 

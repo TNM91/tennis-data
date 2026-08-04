@@ -16,6 +16,15 @@ export type CaptainImportHandoff = {
   opponent: string
 }
 
+const CAPTAIN_IMPORT_COMPLETION_QUERY_KEYS = [
+  'captainImport',
+  'importBatch',
+  'importPlayers',
+  'importContacts',
+  'importMatches',
+  'importRoles',
+] as const
+
 export function isCaptainImportDraft(
   draft: unknown,
 ): draft is DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft {
@@ -121,6 +130,16 @@ export function readCaptainImportHandoff(searchParams: Pick<URLSearchParams, 'ge
     nextMatchDate: cleanText(searchParams.get('date')),
     opponent: cleanText(searchParams.get('opponent')),
   }
+}
+
+export function buildConsumedCaptainImportHref(
+  searchParams: Pick<URLSearchParams, 'toString'>,
+  hash = '',
+) {
+  const nextParams = new URLSearchParams(searchParams.toString())
+  for (const key of CAPTAIN_IMPORT_COMPLETION_QUERY_KEYS) nextParams.delete(key)
+  const safeHash = hash.startsWith('#') ? hash : ''
+  return `/captain${nextParams.size ? `?${nextParams.toString()}` : ''}${safeHash}`
 }
 
 function getNextScheduleMatch(draft: DataAssistScheduleParsedDraft) {
