@@ -33,4 +33,19 @@ describe('Team Room live availability card', () => {
     expect(messagingPage).toContain("params.get('focus') === 'waiting'")
     expect(messagingPage).toContain("getElementById('potential-lineup-confirm-title')")
   })
+
+  it('opens reply alerts on the exact card and highlights the affected court', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+
+    expect(roomPage).toContain("searchParams.get('message')")
+    expect(roomPage).toContain('match-card-${message.id}')
+    expect(roomPage).toContain('replied {focusedStatusLabel}')
+    expect(roomPage).toContain('styles.lineupRowFocused')
+    expect(roomStyles).toContain('.matchCardFocused')
+    expect(roomStyles).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(roomApi).toContain('teamRoomMessageId: input.messageId')
+    expect(roomApi).toContain('findCaptainReplyCourt(input.metadata.lineup')
+  })
 })

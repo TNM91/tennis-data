@@ -3,7 +3,8 @@ import {
   getCaptainAvailabilityServiceClient,
   isUuid,
 } from '@/lib/captain-availability-request-server'
-import { buildCaptainReplyNotification } from '@/lib/captain-reply-alert'
+import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/captain-reply-alert'
+import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 
 export const runtime = 'nodejs'
 
@@ -190,6 +191,11 @@ export async function POST(
 
   if (hasChangedResponse) {
     const primaryResponse = responses.find((response) => response.matchDate === row.match_date) ?? responses[0]
+    const teamRoomCard = await findTeamRoomAvailabilityCard(service, row.id)
+    const courtLabel = findCaptainReplyCourt(row.slots_json, {
+      playerId: player.playerId,
+      playerName: player.playerName,
+    })
     const notification = buildCaptainReplyNotification({
       playerName: player.playerName,
       status: primaryResponse.status,
@@ -198,16 +204,53 @@ export async function POST(
       flight: row.flight,
       matchDate: primaryResponse.matchDate,
       opponentTeam: row.opponent_team,
+      teamRoomMessageId: teamRoomCard?.id,
+      availabilityRequestId: row.id,
+      courtLabel,
     })
-    await service.from('internal_notifications').insert({
-      recipient_profile_id: row.created_by,
+    const recipientIds = new Set([row.created_by])
+    if (teamRoomCard?.conversation_id) {
+      const { data: participants } = await service
+        .from('internal_conversation_participants')
+        .select('profile_id,participant_role,muted')
+        .eq('conversation_id', teamRoomCard.conversation_id)
+        .eq('participant_role', 'coordinator')
+      for (const participant of participants ?? []) {
+        if (participant.muted !== true && participant.profile_id) recipientIds.add(String(participant.profile_id))
+      }
+    }
+    const recipients = Array.from(recipientIds)
+    await service.from('internal_notifications').insert(recipients.map((recipientId) => ({
+      recipient_profile_id: recipientId,
       actor_user_id: null,
       notification_type: 'system',
+      conversation_id: teamRoomCard?.conversation_id || null,
       ...notification,
+    })))
+    await sendTeamRoomPush(service, recipients, {
+      title: notification.title,
+      body: notification.body,
+      href: notification.href,
+      tag: `captain-availability-${row.id}`,
     })
   }
 
   return Response.json({ ok: true, saved: responses.length })
+}
+
+async function findTeamRoomAvailabilityCard(
+  service: ReturnType<typeof getCaptainAvailabilityServiceClient>,
+  availabilityRequestId: string,
+) {
+  const { data } = await service
+    .from('internal_messages')
+    .select('id,conversation_id')
+    .contains('metadata', { teamRoomCard: true, availabilityRequestId })
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data
 }
 
 async function loadRequest(service: ReturnType<typeof getCaptainAvailabilityServiceClient>, token: string) {

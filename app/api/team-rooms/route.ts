@@ -17,6 +17,7 @@ import {
   summarizeTeamRoomAvailability,
   type TeamRoomAvailabilitySummary,
 } from '@/lib/team-room-availability'
+import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/captain-reply-alert'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 
 export const runtime = 'nodejs'
@@ -405,11 +406,13 @@ export async function POST(request: Request) {
     })
     await notifyTeamRoomManagers(auth.service, {
       conversationId: conversation.id,
+      messageId,
       actorUserId: auth.userId,
       teamName: selected.team_name,
       scope: selected,
       actorName,
       response,
+      metadata: message.metadata as Record<string, unknown>,
     })
     return Response.json({ ok: true, response, lineupAcknowledged: lineupVersion > 0, updatedAt })
   }
@@ -1053,11 +1056,13 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
 
 async function notifyTeamRoomManagers(service: SupabaseClient, input: {
   conversationId: string
+  messageId: string
   actorUserId: string
   teamName: string
   scope: TeamLinkRow
   actorName: string
   response: MatchResponseRow['response']
+  metadata: Record<string, unknown>
 }) {
   const { data: participants } = await service
     .from('internal_conversation_participants')
@@ -1067,27 +1072,32 @@ async function notifyTeamRoomManagers(service: SupabaseClient, input: {
     .filter((row) => row.profile_id !== input.actorUserId && row.participant_role === 'coordinator' && row.muted !== true)
   if (!recipients.length) return
 
-  const label = input.response === 'yes' ? 'can play' : input.response === 'no' ? 'cannot play' : 'might be able to play'
-  const title = `${input.actorName} replied`
-  const notificationBody = `${input.actorName} ${label} for ${input.teamName}.`
-  const href = buildTeamRoomHref({
+  const matchDate = cleanText(input.metadata.matchDate).slice(0, 10)
+  const opponent = cleanText(input.metadata.opponent)
+  const courtLabel = findCaptainReplyCourt(input.metadata.lineup, { playerName: input.actorName })
+  const notification = buildCaptainReplyNotification({
+    playerName: input.actorName,
+    status: input.response,
     teamName: input.scope.team_name,
     leagueName: input.scope.league_name,
     flight: input.scope.flight,
+    matchDate,
+    opponentTeam: opponent,
+    teamRoomMessageId: input.messageId,
+    availabilityRequestId: cleanText(input.metadata.availabilityRequestId),
+    courtLabel,
   })
   await service.from('internal_notifications').insert(recipients.map((row) => ({
     recipient_profile_id: row.profile_id,
     actor_user_id: input.actorUserId,
     notification_type: 'message',
-    title,
-    body: notificationBody,
-    href,
+    ...notification,
     conversation_id: input.conversationId,
   })))
   await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
-    title,
-    body: notificationBody,
-    href,
+    title: notification.title,
+    body: notification.body,
+    href: notification.href,
     tag: `team-room-${input.conversationId}`,
   })
 }

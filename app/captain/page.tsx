@@ -6537,6 +6537,7 @@ function CaptainHubContent() {
     </div>
   ) : null
   const captainReplyAlertNeedsLineupReview = captainLatestReplyAlert?.status !== 'available'
+  const captainReplyAlertHref = captainLatestReplyAlert?.href || levelUpAvailabilityHref
   const captainReplyAlertImpact = captainLatestReplyAlert
     ? captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview
       ? `${captainLatestReplyAlert.playerName} is on your saved ${safeText(captainLatestReplyLineupRow.court_label, 'lineup')}. Check that court before confirming.`
@@ -6596,7 +6597,7 @@ function CaptainHubContent() {
           onClick={() => handleCaptainReplyAlertAction(
             captainReplacementRecommendation?.needsConfirmation
               ? levelUpAvailabilityHref
-              : captainReplyAlertNeedsLineupReview ? captainReplacementLineupHref : levelUpAvailabilityHref,
+              : captainReplyAlertNeedsLineupReview ? captainReplacementLineupHref : captainReplyAlertHref,
             captainReplacementRecommendation?.needsConfirmation
               ? 'availability'
               : captainReplyAlertNeedsLineupReview ? 'lineup' : 'availability',
@@ -6612,7 +6613,7 @@ function CaptainHubContent() {
           onClick={() => handleCaptainReplyAlertAction(
             captainReplacementRecommendation?.needsConfirmation
               ? captainReplacementLineupHref
-              : captainReplyAlertNeedsLineupReview ? levelUpAvailabilityHref : lineupBuilderHref,
+              : captainReplyAlertNeedsLineupReview ? captainReplyAlertHref : lineupBuilderHref,
             captainReplacementRecommendation?.needsConfirmation
               ? 'lineup'
               : captainReplyAlertNeedsLineupReview ? 'availability' : 'lineup',

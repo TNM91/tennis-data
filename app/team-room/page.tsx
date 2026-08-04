@@ -237,9 +237,16 @@ function TeamRoomContent() {
     return query ? `?${query}` : ''
   }, [searchParams])
 
+  const focusedMessageId = searchParams.get('message')?.trim() || ''
+  const focusedPlayerName = searchParams.get('player')?.trim() || ''
+  const focusedCourtLabel = searchParams.get('court')?.trim() || ''
+  const focusedReplyStatus = searchParams.get('status')?.trim() || ''
+
   const pinnedMessage = useMemo(
-    () => room?.messages.find((message) => message.id === room.activeCardId) || null,
-    [room?.activeCardId, room?.messages],
+    () => room?.messages.find((message) => message.id === focusedMessageId && message.card)
+      || room?.messages.find((message) => message.id === room.activeCardId)
+      || null,
+    [focusedMessageId, room?.activeCardId, room?.messages],
   )
   const captainHref = useMemo(() => buildCaptainScopedHref('/captain', {
     team: room?.teamName,
@@ -260,6 +267,18 @@ function TeamRoomContent() {
         : defaultReminderTime(pinnedMatchDate),
     ))
   }, [pinnedMatchDate, pinnedReminderAt, pinnedReminderStatus, pinnedMessage?.id])
+
+  useEffect(() => {
+    if (!focusedMessageId || pinnedMessage?.id !== focusedMessageId) return
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`match-card-${focusedMessageId}`)
+      if (!target) return
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
+      target.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focusedMessageId, pinnedMessage?.id])
 
   const loadRoom = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!accessToken) return
@@ -965,6 +984,10 @@ function TeamRoomContent() {
               leagueName={room.leagueName}
               flight={room.flight}
               captainHref={captainHref}
+              focused={pinnedMessage.id === focusedMessageId}
+              focusedPlayerName={focusedPlayerName}
+              focusedCourtLabel={focusedCourtLabel}
+              focusedReplyStatus={focusedReplyStatus}
               responding={respondingId === pinnedMessage.id}
               acknowledging={acknowledgingId === pinnedMessage.id}
               onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
@@ -1344,6 +1367,10 @@ function MatchCard({
   leagueName,
   flight,
   captainHref,
+  focused,
+  focusedPlayerName,
+  focusedCourtLabel,
+  focusedReplyStatus,
   responding,
   acknowledging,
   onRespond,
@@ -1357,6 +1384,10 @@ function MatchCard({
   leagueName: string
   flight: string
   captainHref: string
+  focused: boolean
+  focusedPlayerName: string
+  focusedCourtLabel: string
+  focusedReplyStatus: string
   responding: boolean
   acknowledging: boolean
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
@@ -1384,9 +1415,17 @@ function MatchCard({
     opponent: card.opponent,
     scenarioId: card.availabilitySummary?.scenarioId || undefined,
   })
+  const focusedStatusLabel = focusedReplyStatus === 'available' || focusedReplyStatus === 'yes'
+    ? 'In'
+    : focusedReplyStatus === 'unavailable' || focusedReplyStatus === 'no' ? 'Out' : 'Maybe'
 
   return (
-    <article className={styles.matchCard} aria-label={`${card.title} for ${formatMatchDate(card.matchDate)}`}>
+    <article
+      id={`match-card-${message.id}`}
+      className={`${styles.matchCard} ${focused ? styles.matchCardFocused : ''}`}
+      aria-label={`${card.title} for ${formatMatchDate(card.matchDate)}`}
+      tabIndex={focused ? -1 : undefined}
+    >
       <div className={styles.matchCardTop}>
         <div>
           <p className={styles.matchCardEyebrow}>{card.cardType === 'projected_lineup' ? 'Projected lineup' : 'Next match'}</p>
@@ -1401,14 +1440,27 @@ function MatchCard({
         {card.facility ? <span>{card.facility}</span> : null}
       </div>
 
+      {focused && focusedPlayerName ? (
+        <div className={styles.replyFocusNotice} role="status">
+          <strong>{focusedPlayerName} replied {focusedStatusLabel}</strong>
+          <span>{focusedCourtLabel ? `${focusedCourtLabel} is highlighted below.` : 'Review this response before updating the lineup.'}</span>
+        </div>
+      ) : null}
+
       {card.lineup.length ? (
         <div className={styles.lineupPreview} aria-label="Projected courts">
-          {card.lineup.map((row, index) => (
-            <div key={`${row.label}-${index}`} className={styles.lineupRow}>
-              <strong>{row.label || `Court ${index + 1}`}</strong>
-              <span>{row.players.join(' / ') || 'Open'}</span>
-            </div>
-          ))}
+          {card.lineup.map((row, index) => {
+            const rowIsFocused = focused && (
+              normalizeTeamRoomPlayerName(row.label) === normalizeTeamRoomPlayerName(focusedCourtLabel)
+              || row.players.some((player) => normalizeTeamRoomPlayerName(player) === normalizeTeamRoomPlayerName(focusedPlayerName))
+            )
+            return (
+              <div key={`${row.label}-${index}`} className={`${styles.lineupRow} ${rowIsFocused ? styles.lineupRowFocused : ''}`}>
+                <strong>{row.label || `Court ${index + 1}`}</strong>
+                <span>{row.players.join(' / ') || 'Open'}</span>
+              </div>
+            )
+          })}
         </div>
       ) : null}
 
@@ -1479,6 +1531,10 @@ function MatchCard({
       ) : null}
     </article>
   )
+}
+
+function normalizeTeamRoomPlayerName(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 function TeamRoomInstallCard({ room }: { room: TeamRoom }) {

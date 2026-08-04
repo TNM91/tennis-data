@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildCaptainReplyNotification,
+  findCaptainReplyCourt,
   parseCaptainReplyAlert,
   selectCaptainReplyAlerts,
 } from '../captain-reply-alert'
@@ -24,6 +25,32 @@ describe('captain reply alerts', () => {
     expect(notification.href).toContain('notice=captain-availability-reply')
     expect(notification.href).toContain('status=unavailable')
     expect(notification.href).toContain('#captain-reply-alert')
+  })
+
+  it('opens the exact Team Chat card and carries the projected court', () => {
+    const courtLabel = findCaptainReplyCourt([
+      { label: '4.5 Doubles', players: [{ playerId: 'player-1', playerName: 'Alex Ace' }, { playerName: 'Jordan Jam' }] },
+      { label: '4.0 Doubles', players: ['Casey Court', 'Taylor Tennis'] },
+    ], { playerId: 'player-1', playerName: 'Alex Ace' })
+    const notification = buildCaptainReplyNotification({
+      playerName: 'Alex Ace',
+      status: 'unavailable',
+      teamName: 'Net Results',
+      leagueName: 'USTA 4.0',
+      flight: 'A',
+      matchDate: '2026-08-12',
+      opponentTeam: 'Court Kings',
+      teamRoomMessageId: 'message-123',
+      availabilityRequestId: 'request-456',
+      courtLabel,
+    })
+
+    expect(courtLabel).toBe('4.5 Doubles')
+    expect(notification.body).toContain('4.5 Doubles')
+    expect(notification.href).toContain('/team-room?')
+    expect(notification.href).toContain('message=message-123')
+    expect(notification.href).toContain('court=4.5+Doubles')
+    expect(notification.href).toContain('#match-card-message-123')
   })
 
   it('parses current and legacy availability notifications', () => {
@@ -66,7 +93,10 @@ describe('captain reply alerts', () => {
     expect(captainSource).toContain('markInternalNotificationRead(notification.id, userId)')
     expect(captainSource).toContain('New availability reply')
     expect(captainSource).toContain('Adjust lineup')
+    expect(captainSource).toContain('captainReplyAlertHref')
     expect(messagesSource).toContain('router.push(notification.href)')
     expect(routeSource).toContain('buildCaptainReplyNotification({')
+    expect(routeSource).toContain('findTeamRoomAvailabilityCard')
+    expect(routeSource).toContain('sendTeamRoomPush(service, recipients')
   })
 })
