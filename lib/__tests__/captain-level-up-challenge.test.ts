@@ -7,6 +7,7 @@ import {
   getCaptainLevelUpAggregateCompletionLabel,
   getCaptainLevelUpCardDetails,
   getCaptainLevelUpCompletedPlayerIds,
+  getCaptainLevelUpCompletedPlayerIdsForRun,
   selectActiveCaptainLevelUpChallenge,
 } from '../captain-level-up-challenge'
 
@@ -52,6 +53,24 @@ describe('Captain Level Up challenge handoff', () => {
       { playerUserId: 'player-2', focusId: 'doubles-first-move', drillTitle: 'Partner First-Move Call' },
     ])
     expect(completed).toEqual(['player-1'])
+  })
+
+  it('keeps repeated challenge completion inside the selected run window', () => {
+    const challenge = buildCaptainLevelUpChallenge('doubles-readiness')!
+    const sessions = [
+      { playerUserId: 'player-1', focusId: 'partner-first-move-call', drillTitle: '', completedAt: '2026-08-01T12:00:00.000Z' },
+      { playerUserId: 'player-1', focusId: 'poach-timing-shadow', drillTitle: '', completedAt: '2026-08-01T12:05:00.000Z' },
+      { playerUserId: 'player-1', focusId: 'doubles-30-30-game', drillTitle: '', completedAt: '2026-08-01T12:10:00.000Z' },
+      { playerUserId: 'player-2', focusId: 'partner-first-move-call', drillTitle: '', completedAt: '2026-08-03T12:00:00.000Z' },
+      { playerUserId: 'player-2', focusId: 'poach-timing-shadow', drillTitle: '', completedAt: '2026-08-03T12:05:00.000Z' },
+      { playerUserId: 'player-2', focusId: 'doubles-30-30-game', drillTitle: '', completedAt: '2026-08-03T12:10:00.000Z' },
+    ]
+    expect(getCaptainLevelUpCompletedPlayerIdsForRun(
+      challenge,
+      sessions,
+      '2026-08-01T00:00:00.000Z',
+      '2026-08-02T00:00:00.000Z',
+    )).toEqual(['player-1'])
   })
 
   it('uses honest connected-team labels instead of placeholder roster counts', () => {

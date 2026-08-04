@@ -21,6 +21,10 @@ export type CaptainLevelUpSessionSignal = {
   drillTitle: string
 }
 
+export type CaptainLevelUpTimedSessionSignal = CaptainLevelUpSessionSignal & {
+  completedAt: string
+}
+
 export type CaptainLevelUpChallengeLaunch = {
   id: string
   createdAt: string
@@ -147,6 +151,23 @@ export function getCaptainLevelUpCompletedPlayerIds(
   return Array.from(completedByPlayer.entries())
     .filter(([, completed]) => requiredCardIds.size > 0 && completed.size === requiredCardIds.size)
     .map(([playerUserId]) => playerUserId)
+}
+
+export function getCaptainLevelUpCompletedPlayerIdsForRun(
+  challenge: CaptainLevelUpChallenge,
+  sessions: CaptainLevelUpTimedSessionSignal[],
+  launchedAt: string,
+  closedAt = '',
+) {
+  const launchedAtTime = new Date(launchedAt).getTime()
+  const closedAtTime = closedAt ? new Date(closedAt).getTime() : Number.POSITIVE_INFINITY
+  return getCaptainLevelUpCompletedPlayerIds(
+    challenge,
+    sessions.filter((session) => {
+      const completedAtTime = new Date(session.completedAt).getTime()
+      return completedAtTime >= launchedAtTime && completedAtTime <= closedAtTime
+    }),
+  )
 }
 
 export function selectActiveCaptainLevelUpChallenge(

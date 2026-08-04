@@ -273,6 +273,18 @@ type CaptainTeamRoomSummary = {
   }
 }
 
+type CaptainLevelUpChallengeHistoryItem = {
+  messageId: string
+  challengeId: string
+  title: string
+  focus: string
+  status: 'active' | 'closed'
+  launchedAt: string
+  closedAt: string
+  completedCount: number
+  connectedCount: number
+}
+
 type CaptainAvailabilityRequestSummary = {
   request: {
     teamName: string
@@ -1632,6 +1644,9 @@ function CaptainHubContent() {
   const [levelUpChallengeProgress, setLevelUpChallengeProgress] = useState<CaptainLevelUpChallengeProgress | null>(null)
   const [levelUpChallengeShareState, setLevelUpChallengeShareState] = useState<'idle' | 'sharing' | 'shared' | 'error'>('idle')
   const [levelUpChallengeMessage, setLevelUpChallengeMessage] = useState('')
+  const [levelUpChallengeHistory, setLevelUpChallengeHistory] = useState<CaptainLevelUpChallengeHistoryItem[]>([])
+  const [runningLevelUpChallengeId, setRunningLevelUpChallengeId] = useState('')
+  const [levelUpChallengeHistoryMessage, setLevelUpChallengeHistoryMessage] = useState('')
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -1708,6 +1723,8 @@ function CaptainHubContent() {
   const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
   const captainAvailabilityRequestScopeRef = useRef('')
   const teamRoomSummaryRequestRef = useRef(0)
+  const levelUpChallengeHistoryRequestRef = useRef(0)
+  const levelUpChallengeHistoryScopeRef = useRef('')
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
@@ -2248,6 +2265,68 @@ function CaptainHubContent() {
     void loadTeamRoomSummary()
   }, [loadTeamRoomSummary, refreshTick])
 
+  const loadLevelUpChallengeHistory = useCallback(async () => {
+    const requestId = levelUpChallengeHistoryRequestRef.current + 1
+    levelUpChallengeHistoryRequestRef.current = requestId
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !premiumEnabled || !selectedTeam) {
+      levelUpChallengeHistoryScopeRef.current = ''
+      setLevelUpChallengeHistory([])
+      setLevelUpChallengeHistoryMessage('')
+      return
+    }
+    const historyScope = [selectedTeam, selectedLeague, selectedFlight].join('|')
+    if (levelUpChallengeHistoryScopeRef.current !== historyScope) {
+      levelUpChallengeHistoryScopeRef.current = historyScope
+      setLevelUpChallengeHistory([])
+      setLevelUpChallengeHistoryMessage('')
+    }
+    const historyHref = buildTeamRoomHref({
+      teamName: selectedTeam,
+      leagueName: selectedLeague,
+      flight: selectedFlight,
+    }).replace('/team-room', '/api/team-rooms')
+    try {
+      const response = await fetch(`${historyHref}${historyHref.includes('?') ? '&' : '?'}levelUpHistory=1`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        history?: CaptainLevelUpChallengeHistoryItem[]
+      }
+      if (
+        requestId === levelUpChallengeHistoryRequestRef.current
+        && response.ok
+        && payload.ok
+        && Array.isArray(payload.history)
+      ) {
+        setLevelUpChallengeHistory(payload.history)
+      } else if (requestId === levelUpChallengeHistoryRequestRef.current && !response.ok) {
+        setLevelUpChallengeHistory([])
+      }
+    } catch {
+      // Challenge history stays optional while Team Room reconnects.
+    }
+  }, [premiumEnabled, selectedFlight, selectedLeague, selectedTeam, session?.access_token])
+
+  useEffect(() => {
+    void loadLevelUpChallengeHistory()
+  }, [loadLevelUpChallengeHistory, refreshTick])
+
+  useEffect(() => {
+    if (!selectedTeam) return
+    const refreshVisibleHistory = () => {
+      if (document.visibilityState === 'visible') void loadLevelUpChallengeHistory()
+    }
+    window.addEventListener('pageshow', refreshVisibleHistory)
+    document.addEventListener('visibilitychange', refreshVisibleHistory)
+    return () => {
+      window.removeEventListener('pageshow', refreshVisibleHistory)
+      document.removeEventListener('visibilitychange', refreshVisibleHistory)
+    }
+  }, [loadLevelUpChallengeHistory, selectedTeam])
+
   const loadLevelUpChallengeProgress = useCallback(async () => {
     const accessToken = session?.access_token || ''
     if (!accessToken || !premiumEnabled || !selectedTeam || !levelUpTeamChallenge) {
@@ -2322,9 +2401,50 @@ function CaptainHubContent() {
       if (payload.progress) setLevelUpChallengeProgress(payload.progress)
       setLevelUpChallengeShareState('shared')
       setLevelUpChallengeMessage('Shared. Teammates can open every card from Team Room.')
+      void loadLevelUpChallengeHistory()
     } catch (shareError) {
       setLevelUpChallengeShareState('error')
       setLevelUpChallengeMessage(shareError instanceof Error ? shareError.message : 'Could not share this challenge yet.')
+    }
+  }
+
+  async function handleRunLevelUpChallenge(challengeId: string) {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !selectedTeam || runningLevelUpChallengeId) return
+    const challenge = buildCaptainLevelUpChallenge(challengeId)
+    if (!challenge) return
+    setRunningLevelUpChallengeId(challengeId)
+    setLevelUpChallengeHistoryMessage('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'post_level_up_challenge',
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          challengeId,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        message?: string
+        progress?: CaptainLevelUpChallengeProgress
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Could not restart this challenge yet.')
+      setLevelUpTeamChallenge(challenge)
+      if (payload.progress) setLevelUpChallengeProgress(payload.progress)
+      setLevelUpChallengeShareState('shared')
+      setLevelUpChallengeHistoryMessage(`${challenge.title} is live in Team Room.`)
+      await loadLevelUpChallengeHistory()
+    } catch (runError) {
+      setLevelUpChallengeHistoryMessage(runError instanceof Error ? runError.message : 'Could not restart this challenge yet.')
+    } finally {
+      setRunningLevelUpChallengeId('')
     }
   }
 
@@ -2351,6 +2471,7 @@ function CaptainHubContent() {
 
   useEffect(() => () => {
     teamRoomSummaryRequestRef.current += 1
+    levelUpChallengeHistoryRequestRef.current += 1
   }, [])
 
   const filteredTeamOptions = useMemo(() => {
@@ -17075,6 +17196,8 @@ function CaptainHubContent() {
     )
   }
 
+  const hasActiveLevelUpChallengeHistory = levelUpChallengeHistory.some((item) => item.status === 'active')
+
   return (
     <div style={dynamicPageWrap}>
         {captainImportHandoff && !isMobile ? (
@@ -17497,6 +17620,66 @@ function CaptainHubContent() {
             })}
           </div>
         </section>
+
+        {levelUpChallengeHistory.length ? (
+          <details style={captainChallengeHistoryStyle} aria-label="Team challenge history">
+            <summary style={captainChallengeHistorySummaryStyle}>
+              <div style={captainChallengeHistorySummaryCopyStyle}>
+                <span style={sectionKicker}>Team challenges</span>
+                <strong style={captainChallengeHistoryTitleStyle}>
+                  {hasActiveLevelUpChallengeHistory
+                    ? 'Challenge in progress'
+                    : 'Recent challenge history'}
+                </strong>
+              </div>
+              <span style={hasActiveLevelUpChallengeHistory ? badgeGreen : badgeSlate}>
+                {hasActiveLevelUpChallengeHistory ? 'Active / View' : 'View history'}
+              </span>
+            </summary>
+            <div style={captainChallengeHistoryListStyle}>
+              {levelUpChallengeHistory.map((item) => (
+                <article key={item.messageId} style={captainChallengeHistoryItemStyle}>
+                  <div style={captainChallengeHistoryItemCopyStyle}>
+                    <div style={captainChallengeHistoryItemHeaderStyle}>
+                      <strong>{item.title}</strong>
+                      <span style={item.status === 'active' ? badgeGreen : badgeSlate}>
+                        {item.status === 'active' ? 'Active' : 'Ended'}
+                      </span>
+                    </div>
+                    {!isMobile ? <span style={sectionSub}>{item.focus}</span> : null}
+                    <small style={captainChallengeHistoryMetaStyle}>
+                      {item.completedCount} of {item.connectedCount} connected complete
+                      {item.launchedAt ? ` · Started ${formatDateShort(item.launchedAt)}` : ''}
+                    </small>
+                  </div>
+                  {item.status === 'active' ? (
+                    <SecondarySmallLink href={buildTeamRoomHref({
+                      teamName: selectedTeam,
+                      leagueName: selectedLeague,
+                      flight: selectedFlight,
+                      messageId: item.messageId,
+                    })}>
+                      Open Team Room
+                    </SecondarySmallLink>
+                  ) : !hasActiveLevelUpChallengeHistory ? (
+                    <SecondarySmallBtn
+                      disabled={Boolean(runningLevelUpChallengeId)}
+                      onClick={() => void handleRunLevelUpChallenge(item.challengeId)}
+                    >
+                      {runningLevelUpChallengeId === item.challengeId ? 'Starting...' : 'Run again'}
+                    </SecondarySmallBtn>
+                  ) : null}
+                </article>
+              ))}
+              <small style={captainChallengeHistoryPrivacyStyle}>
+                Team totals only. Player proof, scores, and notes stay private.
+              </small>
+              {levelUpChallengeHistoryMessage ? (
+                <div role="status" style={captainChallengeHistoryMetaStyle}>{levelUpChallengeHistoryMessage}</div>
+              ) : null}
+            </div>
+          </details>
+        ) : null}
 
         {levelUpTeamChallenge ? (
           <section style={captainLevelUpChallengeStyle} aria-label="Level Up team challenge mode">
@@ -18794,6 +18977,92 @@ const captainLevelUpChallengeCardStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.4,
   overflowWrap: 'anywhere',
+}
+
+const captainChallengeHistoryStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg-strong) 94%)',
+  overflow: 'hidden',
+}
+
+const captainChallengeHistorySummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: '13px 14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const captainChallengeHistorySummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const captainChallengeHistoryTitleStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const captainChallengeHistoryListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const captainChallengeHistoryItemStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  flexWrap: 'wrap',
+}
+
+const captainChallengeHistoryItemCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 260px',
+  minWidth: 0,
+}
+
+const captainChallengeHistoryItemHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  flexWrap: 'wrap',
+}
+
+const captainChallengeHistoryMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  lineHeight: 1.4,
+}
+
+const captainChallengeHistoryPrivacyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+  padding: '0 2px',
 }
 
 const captainDecisionPathShellStyle: CSSProperties = {
