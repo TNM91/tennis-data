@@ -90,6 +90,26 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.lineupChangeDeclined')
   })
 
+  it('schedules one free replacement reminder and flags an unanswered court', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const reminderRunner = readSource('app/api/team-rooms/reminders/route.ts')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain("if (action === 'schedule_lineup_change_deadline')")
+    expect(roomApi).toContain('needsLineupChangeResponse: true')
+    expect(roomApi).toContain("status: 'cancelled'")
+    expect(roomPage).toContain('Reply by')
+    expect(roomPage).toContain('TIQ will check that morning.')
+    expect(roomPage).toContain('Response overdue')
+    expect(roomPage).toContain('Review this court')
+    expect(reminderRunner).toContain('target.needsLineupChangeResponse && !lineupChangeAnswered')
+    expect(reminderRunner).toContain("deadlineStatus: 'reminded'")
+    expect(reminderRunner).toContain('Accept or choose Can’t play')
+    expect(roomStyles).toContain('.lineupChangeDeadline')
+    expect(roomStyles).toContain('.lineupChangeOverdue')
+  })
+
   it('opens reply alerts on the exact card and highlights the affected court', () => {
     const roomPage = readSource('app/team-room/page.tsx')
     const roomStyles = readSource('app/team-room/team-room.module.css')

@@ -33,6 +33,16 @@ export type TeamRoomReminderTarget = {
   needsResponse: boolean
   needsMaybeFollowup: boolean
   needsAckVersion: number
+  needsLineupChangeResponse: boolean
+}
+
+export function getLineupChangeReminderAt(deadlineDate: string) {
+  const dateKey = cleanText(deadlineDate).slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return ''
+  const reminderAt = new Date(`${dateKey}T13:55:00.000Z`)
+  return !Number.isNaN(reminderAt.getTime()) && reminderAt.toISOString().slice(0, 10) === dateKey
+    ? reminderAt.toISOString()
+    : ''
 }
 
 export function normalizeLineupRows(value: unknown): TeamRoomLineupRow[] {
@@ -135,6 +145,7 @@ export function parseReminderTargets(value: unknown): TeamRoomReminderTarget[] {
       needsResponse: row.needsResponse === true,
       needsMaybeFollowup: row.needsMaybeFollowup === true,
       needsAckVersion: Math.max(0, Math.floor(Number(row.needsAckVersion) || 0)),
+      needsLineupChangeResponse: row.needsLineupChangeResponse === true,
     }]
   })
 }
