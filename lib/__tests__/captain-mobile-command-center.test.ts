@@ -8,12 +8,22 @@ describe('Captain mobile command center', () => {
   const connectionBanner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
 
   it('puts the four recurring captain jobs on one compact mobile surface', () => {
+    const chatActionStart = page.indexOf("id: 'chat'")
+    const chatAction = page.slice(chatActionStart, page.indexOf("id: 'scorecard'", chatActionStart))
+
     expect(page).toContain('aria-label="Captain mobile command center"')
     expect(page).toContain('aria-label="Captain one tap actions"')
     expect(page).toContain("label: 'Who can play'")
     expect(page).toContain("label: 'Team chat'")
     expect(page).toContain('teamRoomSummary.unreadCount')
-    expect(page).toContain('teamRoomSummary.pendingCount')
+    expect(chatAction).toContain('`${teamRoomSummary.unreadCount} unread`')
+    expect(chatAction).toContain("'Open team chat'")
+    expect(chatAction).toContain('primary: teamRoomSummary.unreadCount > 0')
+    expect(chatAction).not.toContain('unresolvedCount')
+    expect(chatAction).not.toContain('pendingCount')
+    expect(chatAction).not.toContain('maybeCount')
+    expect(chatAction).not.toContain('unseenLineupCount')
+    expect(chatAction).not.toContain('responseCount')
     expect(page).toContain("summary=1")
     expect(page).toContain('Courts needing captain attention')
     expect(page).toContain('captainUnresolvedCourts.map')

@@ -15452,20 +15452,12 @@ function CaptainHubContent() {
       id: 'chat',
       label: 'Team chat',
       detail: teamRoomSummary.unreadCount > 0
-        ? `${teamRoomSummary.unreadCount} unread${teamRoomSummary.unresolvedCount > 0 ? ` · ${teamRoomSummary.unresolvedCount} open` : ''}`
-        : teamRoomSummary.unresolvedCount > 0
-          ? [
-              teamRoomSummary.pendingCount ? `${teamRoomSummary.pendingCount} waiting` : '',
-              teamRoomSummary.maybeCount ? `${teamRoomSummary.maybeCount} maybe` : '',
-              teamRoomSummary.unseenLineupCount ? `${teamRoomSummary.unseenLineupCount} lineup unseen` : '',
-            ].filter(Boolean).join(' · ')
-          : teamRoomSummary.responseCount > 0
-            ? `${teamRoomSummary.responseCount} replied`
-            : 'Message everyone',
+        ? `${teamRoomSummary.unreadCount} unread`
+        : 'Open team chat',
       href: teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: teamRoomSummary.unreadCount > 0 || teamRoomSummary.unresolvedCount > 0,
+      primary: teamRoomSummary.unreadCount > 0,
     },
     {
       id: 'scorecard',
