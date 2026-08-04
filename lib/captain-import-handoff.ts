@@ -136,9 +136,11 @@ export function readCaptainImportHandoff(searchParams: Pick<URLSearchParams, 'ge
 export function buildConsumedCaptainHandoffHref(
   searchParams: Pick<URLSearchParams, 'toString'>,
   hash = '',
+  additionalKeys: readonly string[] = [],
 ) {
   const nextParams = new URLSearchParams(searchParams.toString())
   for (const key of CAPTAIN_IMPORT_COMPLETION_QUERY_KEYS) nextParams.delete(key)
+  for (const key of additionalKeys) nextParams.delete(key)
   const safeHash = hash.startsWith('#') ? hash : ''
   return `/captain${nextParams.size ? `?${nextParams.toString()}` : ''}${safeHash}`
 }

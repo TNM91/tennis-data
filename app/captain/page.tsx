@@ -82,6 +82,12 @@ import {
   type CaptainImportHandoff,
 } from '@/lib/captain-import-handoff'
 import { readWorkflowResult } from '@/lib/workflow-return'
+import {
+  appendLevelUpChallengeHref,
+  buildCaptainLevelUpChallenge,
+  getCaptainLevelUpAggregateCompletionLabel,
+  type CaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
@@ -968,58 +974,6 @@ const CAPTAIN_DECISION_HANDOFF_PROOF_STEPS = [
   },
 ] as const
 
-type CaptainLevelUpChallenge = {
-  id: string
-  title: string
-  focus: string
-  detail: string
-  proof: string
-  cardIds: string[]
-}
-
-const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
-  {
-    id: 'rhythm-builder',
-    title: 'Rhythm Builder',
-    focus: 'Ready feet, wall rhythm, and pre-play readiness',
-    detail: 'Use this as a low-friction team habit for players who need a clean starting rhythm before practice or match warm-up.',
-    proof: 'Track aggregate completion only. Individual proof and notes stay private unless players choose to share.',
-    cardIds: ['split-step-rhythm', 'wall-rally-rhythm', 'dynamic-tennis-warm-up'],
-  },
-  {
-    id: 'consistency-builder',
-    title: 'Consistency Builder',
-    focus: 'Crosscourt tolerance, wide-ball neutralizing, and post-play recovery',
-    detail: 'Use this when the lineup week needs cleaner rally habits and fewer preventable misses.',
-    proof: 'Track aggregate completion only. Individual misses, notes, and proof scores stay private by default.',
-    cardIds: ['crosscourt-consistency', 'wide-ball-neutralizer', 'post-play-mobility-reset'],
-  },
-  {
-    id: 'point-start-routine',
-    title: 'Point-Start Routine',
-    focus: 'Serve target, return job, and 30-30 reset clarity',
-    detail: 'Use this when the team week depends on better first-two-shot decisions under pressure.',
-    proof: 'Aggregate completion only; players control whether any personal proof detail is shared.',
-    cardIds: ['serve-target-call', 'return-depth-lane', '30-30-pressure-game'],
-  },
-  {
-    id: 'match-day-routine',
-    title: 'Match-Day Routine',
-    focus: 'Warm-up, return intent, and post-match debrief',
-    detail: 'Run this as a team habit before the next lineup week. Completion can be tracked as an aggregate team signal.',
-    proof: 'Aggregate completion only. Private player proof and notes stay with each player.',
-    cardIds: ['five-minute-match-primer', 'return-30-30-game', 'post-match-five-minute-debrief'],
-  },
-  {
-    id: 'doubles-readiness',
-    title: 'Doubles Readiness',
-    focus: 'Partner first move, poach timing, and 30-30 doubles clarity',
-    detail: 'Use this when the team week depends on clearer doubles jobs and partner communication.',
-    proof: 'Track who completed the challenge; keep individual notes private unless players share them.',
-    cardIds: ['partner-first-move-call', 'poach-timing-shadow', 'doubles-30-30-game'],
-  },
-]
-
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your Player ID so Team Hub can find your profile team.',
   'Upload a Player Roster. Captain will connect the team and bring you back here.',
@@ -1657,11 +1611,18 @@ function CaptainHubContent() {
   const { userId, role, entitlements, authResolved, session } = useAuth()
   const incomingCaptainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
   const incomingCaptainSetupResult = useMemo(() => readWorkflowResult(searchParams), [searchParams])
+  const incomingLevelUpTeamChallenge = useMemo(
+    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
   const [captainImportHandoff, setCaptainImportHandoff] = useState<CaptainImportHandoff | null>(
     incomingCaptainImportHandoff,
   )
   const captainImportBatchRef = useRef(incomingCaptainImportHandoff?.batchId || '')
   const [captainSetupResult, setCaptainSetupResult] = useState(incomingCaptainSetupResult)
+  const [levelUpTeamChallenge, setLevelUpTeamChallenge] = useState<CaptainLevelUpChallenge | null>(
+    incomingLevelUpTeamChallenge,
+  )
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -1670,17 +1631,22 @@ function CaptainHubContent() {
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
 
   useEffect(() => {
-    if (!incomingCaptainImportHandoff && !incomingCaptainSetupResult) return
+    if (!incomingCaptainImportHandoff && !incomingCaptainSetupResult && !incomingLevelUpTeamChallenge) return
     if (incomingCaptainImportHandoff && captainImportBatchRef.current !== incomingCaptainImportHandoff.batchId) {
       captainImportBatchRef.current = incomingCaptainImportHandoff.batchId
       setCaptainImportHandoff(incomingCaptainImportHandoff)
     }
     if (incomingCaptainSetupResult) setCaptainSetupResult(incomingCaptainSetupResult)
+    if (incomingLevelUpTeamChallenge) setLevelUpTeamChallenge(incomingLevelUpTeamChallenge)
     router.replace(
-      buildConsumedCaptainHandoffHref(searchParams, window.location.hash),
+      buildConsumedCaptainHandoffHref(
+        searchParams,
+        window.location.hash,
+        incomingLevelUpTeamChallenge ? ['levelUpChallenge', 'card'] : [],
+      ),
       { scroll: false },
     )
-  }, [incomingCaptainImportHandoff, incomingCaptainSetupResult, router, searchParams])
+  }, [incomingCaptainImportHandoff, incomingCaptainSetupResult, incomingLevelUpTeamChallenge, router, searchParams])
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -2919,13 +2885,13 @@ function CaptainHubContent() {
     date: captainResume?.eventDate,
     opponent: captainResume?.opponentTeam,
   })
-  const levelUpTeamChallenge = useMemo(
-    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
-    [searchParams],
-  )
-  const levelUpPracticeHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(practiceHref, levelUpTeamChallenge.id) : practiceHref
-  const levelUpAvailabilityHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(availabilityHref, levelUpTeamChallenge.id) : availabilityHref
-  const levelUpWeeklyBriefHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(weeklyBriefHref, levelUpTeamChallenge.id) : weeklyBriefHref
+  const levelUpPracticeHref = levelUpTeamChallenge
+    ? appendLevelUpChallengeHref(practiceHref, levelUpTeamChallenge.id, levelUpTeamChallenge.cardIds[0])
+    : practiceHref
+  const levelUpAvailabilityHref = availabilityHref
+  const levelUpWeeklyBriefHref = levelUpTeamChallenge
+    ? appendLevelUpChallengeHref(weeklyBriefHref, levelUpTeamChallenge.id, levelUpTeamChallenge.cardIds[0])
+    : weeklyBriefHref
   const seasonDashboardHref = '/league-coordinator'
   const tiqTeamMatchesHref = '/league-coordinator/results'
   const captainNotesScope = useMemo(
@@ -17468,8 +17434,9 @@ function CaptainHubContent() {
             </div>
             <div style={dynamicGlanceActionRow}>
               <PrimaryLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</PrimaryLink>
-              <SecondarySmallLink href={captainWorkflowHref(levelUpAvailabilityHref)}>Check availability</SecondarySmallLink>
+              <SecondarySmallLink href={captainWorkflowHref(availabilityHref)}>Check availability</SecondarySmallLink>
               <SecondarySmallLink href={captainWorkflowHref(levelUpWeeklyBriefHref)}>Add to weekly brief</SecondarySmallLink>
+              <SecondarySmallBtn onClick={() => setLevelUpTeamChallenge(null)}>Dismiss</SecondarySmallBtn>
             </div>
           </section>
         ) : null}
@@ -18474,30 +18441,6 @@ function PrimaryBtn({
       {children}
     </button>
   )
-}
-
-function buildCaptainLevelUpChallenge(challengeId: string, requestedCardId: string): CaptainLevelUpChallenge | null {
-  const challenge = CAPTAIN_LEVEL_UP_CHALLENGES.find((item) => item.id === challengeId)
-  if (!challenge) return null
-
-  if (!requestedCardId || challenge.cardIds.includes(requestedCardId)) return challenge
-
-  return {
-    ...challenge,
-    cardIds: [requestedCardId, ...challenge.cardIds.filter((cardId) => cardId !== requestedCardId)],
-  }
-}
-
-function appendLevelUpChallengeHref(href: string, challengeId: string) {
-  const [path, hash = ''] = href.split('#')
-  const separator = path.includes('?') ? '&' : '?'
-  const nextPath = `${path}${separator}levelUpChallenge=${encodeURIComponent(challengeId)}`
-  return hash ? `${nextPath}#${hash}` : nextPath
-}
-
-function getCaptainLevelUpAggregateCompletionLabel(challenge: CaptainLevelUpChallenge) {
-  if (challenge.id === 'match-day-routine') return '8 of 12 players completed match-day routine'
-  return `0 of 12 players completed ${challenge.title.toLowerCase()}`
 }
 
 const pageWrap: CSSProperties = {

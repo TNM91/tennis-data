@@ -3,13 +3,18 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  buildCaptainLevelUpChallenge,
+  type CaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
+import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 
 export default function CaptainPracticePage() {
   return (
@@ -21,21 +26,44 @@ export default function CaptainPracticePage() {
 
 function CaptainPracticeContent() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
-  const [teamName, setTeamName] = useState('')
-  const [leagueName, setLeagueName] = useState('')
-  const [flight, setFlight] = useState('')
+  const incomingLevelUpChallenge = useMemo(
+    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
+  const [teamName, setTeamName] = useState(searchParams.get('team') || '')
+  const [leagueName, setLeagueName] = useState(searchParams.get('league') || '')
+  const [flight, setFlight] = useState(searchParams.get('flight') || '')
   const [practiceDate, setPracticeDate] = useState('')
   const [practiceTime, setPracticeTime] = useState('')
   const [facility, setFacility] = useState('')
-  const [practiceFocus, setPracticeFocus] = useState('')
+  const [practiceFocus, setPracticeFocus] = useState(
+    incomingLevelUpChallenge ? `${incomingLevelUpChallenge.title}: ${incomingLevelUpChallenge.focus}` : '',
+  )
+  const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?plan=captain&next=%2Fcaptain%2Fpractice')
-  }, [authResolved, role, router])
+    const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ''}`
+    router.replace(`/login?plan=captain&next=${encodeURIComponent(returnTo)}`)
+  }, [authResolved, pathname, role, router, searchParams])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public') return
+
+    if (!incomingLevelUpChallenge) return
+    const consumedHref = buildConsumedWorkflowHref(
+      pathname,
+      searchParams,
+      ['levelUpChallenge', 'card'],
+      window.location.hash,
+    )
+    if (consumedHref) router.replace(consumedHref, { scroll: false })
+  }, [authResolved, incomingLevelUpChallenge, pathname, role, router, searchParams])
 
   if (!authResolved || role === 'public') {
     return null
@@ -65,6 +93,16 @@ function CaptainPracticeContent() {
   return (
     <main style={pageStyle}>
       <section style={workspaceStyle} aria-label="Practice scheduler setup">
+        {levelUpChallenge ? (
+          <div style={challengeLoadedStyle} role="status">
+            <div style={challengeLoadedCopyStyle}>
+              <span style={sectionEyebrowStyle}>Challenge loaded</span>
+              <strong>{levelUpChallenge.title}</strong>
+              <span>Practice focus is filled in. Set the date, adjust it if needed, and schedule.</span>
+            </div>
+            <button type="button" onClick={() => setLevelUpChallenge(null)} style={challengeDoneButtonStyle}>Done</button>
+          </div>
+        ) : null}
         <div style={panelHeaderStyle}>
           <div>
             <div style={sectionEyebrowStyle}>Setup</div>
@@ -304,6 +342,37 @@ const workspaceStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(12,26,50,0.82) 0%, rgba(9,20,39,0.92) 100%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.18)',
+}
+
+const challengeLoadedStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 14,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(151, 255, 49, 0.28)',
+  background: 'rgba(151, 255, 49, 0.07)',
+  minWidth: 0,
+}
+
+const challengeLoadedCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--text-secondary)',
+  lineHeight: 1.45,
+}
+
+const challengeDoneButtonStyle: CSSProperties = {
+  flex: '0 0 auto',
+  border: '1px solid rgba(151, 255, 49, 0.3)',
+  borderRadius: 999,
+  background: 'rgba(6, 18, 35, 0.58)',
+  color: 'var(--text-primary)',
+  padding: '9px 14px',
+  fontWeight: 900,
+  cursor: 'pointer',
 }
 
 const panelHeaderStyle: CSSProperties = {

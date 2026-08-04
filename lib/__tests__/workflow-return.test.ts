@@ -31,4 +31,10 @@ describe('workflow return', () => {
       .toBe('/coach?studentLinkId=student-1&levelUpPack=doubles&card=poach#coach-lesson-frame')
     expect(buildConsumedWorkflowHref('/outside', params, ['firstAssignment'])).toBe('')
   })
+
+  it('consumes a Captain challenge after a destination loads without dropping team scope', () => {
+    const params = new URLSearchParams('team=TIQ&league=Tri-Level&flight=3.5%2F4.0%2F4.5&levelUpChallenge=doubles-readiness&card=poach')
+    expect(buildConsumedWorkflowHref('/captain/practice', params, ['levelUpChallenge', 'card'], '#practice'))
+      .toBe('/captain/practice?team=TIQ&league=Tri-Level&flight=3.5%2F4.0%2F4.5#practice')
+  })
 })
