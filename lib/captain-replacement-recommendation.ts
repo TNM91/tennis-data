@@ -45,6 +45,37 @@ export type CaptainReplacementRecommendation = {
   reason: string
 }
 
+export type CaptainSuggestedSwapSlot = {
+  id: string
+  label: string
+  players: Array<{
+    playerId: string
+    playerName: string
+  }>
+}
+
+export type CaptainSuggestedSwapFailure =
+  | 'court-not-found'
+  | 'outgoing-player-not-found'
+  | 'replacement-already-assigned'
+  | 'replacement-unavailable'
+  | 'replacement-ineligible'
+
+export type CaptainSuggestedSwapResult<TSlot extends CaptainSuggestedSwapSlot> =
+  | {
+      ok: true
+      slots: TSlot[]
+      slotId: string
+      playerIndex: number
+      outgoingPlayerName: string
+      replacementPlayerName: string
+      needsConfirmation: boolean
+    }
+  | {
+      ok: false
+      reason: CaptainSuggestedSwapFailure
+    }
+
 function normalizeName(value: string | null | undefined) {
   return (value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
@@ -184,12 +215,71 @@ export function buildCaptainReplacementRecommendation(input: {
 
 export function buildCaptainReplacementLineupHref(
   baseHref: string,
-  input: { outPlayer: string; replacementPlayer: string; courtLabel: string },
+  input: { outPlayer: string; replacementPlayer: string; replacementPlayerId?: string; courtLabel: string },
 ) {
   const url = new URL(baseHref, 'https://tenaceiq.local')
   url.searchParams.set('replace', input.outPlayer)
   url.searchParams.set('replacement', input.replacementPlayer)
+  if (input.replacementPlayerId) url.searchParams.set('replacementId', input.replacementPlayerId)
   url.searchParams.set('court', input.courtLabel)
   url.hash = 'captain-lineup-handoff'
   return `${url.pathname}${url.search}${url.hash}`
+}
+
+export function applyCaptainSuggestedSwap<TSlot extends CaptainSuggestedSwapSlot>(input: {
+  slots: TSlot[]
+  courtLabel: string
+  outgoingPlayerName: string
+  replacement: {
+    playerId: string
+    playerName: string
+    availabilityStatus?: string | null
+    eligibleForCourt: boolean
+  }
+}): CaptainSuggestedSwapResult<TSlot> {
+  const courtKey = normalizeName(input.courtLabel)
+  const matchingCourts = input.slots.filter((slot) => normalizeName(slot.label) === courtKey)
+  if (matchingCourts.length !== 1) return { ok: false, reason: 'court-not-found' }
+
+  const targetSlot = matchingCourts[0]
+  const outgoingKey = normalizeName(input.outgoingPlayerName)
+  const outgoingIndexes = targetSlot.players
+    .map((player, index) => normalizeName(player.playerName) === outgoingKey ? index : -1)
+    .filter((index) => index >= 0)
+  if (outgoingIndexes.length !== 1) return { ok: false, reason: 'outgoing-player-not-found' }
+
+  const replacementId = input.replacement.playerId.trim()
+  const replacementKey = normalizeName(input.replacement.playerName)
+  const alreadyAssigned = input.slots.some((slot) => slot.players.some((player) =>
+    (replacementId && player.playerId === replacementId)
+    || (replacementKey && normalizeName(player.playerName) === replacementKey),
+  ))
+  if (alreadyAssigned) return { ok: false, reason: 'replacement-already-assigned' }
+
+  const availabilityStatus = normalizeAvailability(input.replacement.availabilityStatus)
+  if (availabilityStatus === 'maybe' || availabilityStatus === 'unavailable') {
+    return { ok: false, reason: 'replacement-unavailable' }
+  }
+  if (!input.replacement.eligibleForCourt) return { ok: false, reason: 'replacement-ineligible' }
+
+  const outgoingIndex = outgoingIndexes[0]
+  const slots = input.slots.map((slot) => {
+    if (slot.id !== targetSlot.id) return slot
+    return {
+      ...slot,
+      players: slot.players.map((player, index) => index === outgoingIndex
+        ? { playerId: replacementId, playerName: input.replacement.playerName }
+        : player),
+    }
+  }) as TSlot[]
+
+  return {
+    ok: true,
+    slots,
+    slotId: targetSlot.id,
+    playerIndex: outgoingIndex,
+    outgoingPlayerName: targetSlot.players[outgoingIndex].playerName,
+    replacementPlayerName: input.replacement.playerName,
+    needsConfirmation: availabilityStatus === 'unknown',
+  }
 }

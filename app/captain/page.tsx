@@ -4134,10 +4134,11 @@ function CaptainHubContent() {
   }, [captainAvailabilityPeople, captainLatestReplyAlert, captainLatestReplyLineupRow, matchDayLineupRows, pairings, roster])
   const captainReplacementLineupHref = captainReplacementRecommendation && captainLatestReplyAlert
     ? buildCaptainReplacementLineupHref(lineupBuilderHref, {
-        outPlayer: captainLatestReplyAlert.playerName,
-        replacementPlayer: captainReplacementRecommendation.playerName,
-        courtLabel: captainReplacementRecommendation.courtLabel,
-      })
+      outPlayer: captainLatestReplyAlert.playerName,
+      replacementPlayer: captainReplacementRecommendation.playerName,
+      replacementPlayerId: captainReplacementRecommendation.playerId,
+      courtLabel: captainReplacementRecommendation.courtLabel,
+    })
     : lineupBuilderHref
 
   useEffect(() => {
