@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const CAPTAIN_RESUME_STORAGE_KEY = 'tenaceiq_captain_resume'
 
 export function getCaptainResumeStorageKey(userId?: string | null) {
@@ -180,6 +182,7 @@ export function writeCaptainResumeState(nextState: CaptainResumeState, userId?: 
       storageKey,
       JSON.stringify(saved),
     )
+    notifyPlatformResumeUpdated('captain')
     return saved
   } catch {
     // ignore storage failures

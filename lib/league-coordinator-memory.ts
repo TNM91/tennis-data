@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const LEAGUE_COORDINATOR_RESUME_STORAGE_KEY = 'tenaceiq_league_coordinator_resume_v1'
 
 export function getLeagueCoordinatorResumeStorageKey(userId?: string | null) {
@@ -232,6 +234,7 @@ export function writeLeagueCoordinatorResumeState(nextState: LeagueCoordinatorRe
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getLeagueCoordinatorResumeStorageKey(userId), JSON.stringify(saved))
+    notifyPlatformResumeUpdated('league')
     return saved
   } catch {
     return null

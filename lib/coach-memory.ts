@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const COACH_RESUME_STORAGE_KEY = 'tenaceiq_coach_resume'
 
 export function getCoachResumeStorageKey(userId?: string | null) {
@@ -178,6 +180,7 @@ export function writeCoachResumeState(nextState: CoachResumeState, userId?: stri
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getCoachResumeStorageKey(userId), JSON.stringify(saved))
+    notifyPlatformResumeUpdated('coach')
     return saved
   } catch {
     return null

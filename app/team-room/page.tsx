@@ -14,6 +14,7 @@ import {
   readCaptainResumeState,
   syncCaptainResumeState,
 } from '@/lib/captain-memory'
+import { notifyPlatformResumeUpdated } from '@/lib/platform-resume-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
@@ -213,6 +214,7 @@ function TeamRoomContent() {
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const realtimeRefreshRef = useRef<number | null>(null)
+  const draftPendingRef = useRef(false)
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
@@ -371,7 +373,9 @@ function TeamRoomContent() {
   useEffect(() => {
     if (!room?.id) return
     const draftKey = `tenaceiq-team-room-draft:${room.id}`
-    setMessageBody(window.localStorage.getItem(draftKey) || '')
+    const savedDraft = window.localStorage.getItem(draftKey) || ''
+    draftPendingRef.current = Boolean(savedDraft.trim())
+    setMessageBody(savedDraft)
     setDraftLoadedRoomId(room.id)
 
     const scrollKey = `tenaceiq-team-room-scroll:${room.id}`
@@ -392,6 +396,11 @@ function TeamRoomContent() {
     const draftKey = `tenaceiq-team-room-draft:${room.id}`
     if (messageBody) window.localStorage.setItem(draftKey, messageBody)
     else window.localStorage.removeItem(draftKey)
+    const draftPending = Boolean(messageBody.trim())
+    if (draftPending !== draftPendingRef.current) {
+      draftPendingRef.current = draftPending
+      notifyPlatformResumeUpdated('team-chat')
+    }
   }, [draftLoadedRoomId, messageBody, room?.id])
 
   useEffect(() => {

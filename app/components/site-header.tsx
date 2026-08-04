@@ -229,7 +229,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
   })
-  const savedResumeItems = usePlatformResume({
+  const { items: savedResumeItems, confirmation: resumeConfirmation } = usePlatformResume({
     accessToken: session?.access_token,
     userId,
     refreshKey: pathname,
@@ -650,6 +650,12 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         ) : null}
       </div>
     </header>
+    {authenticated && resumeConfirmation ? (
+      <div role="status" aria-live="polite" style={resumeCompletionToastStyle}>
+        <strong>{resumeConfirmation}</strong>
+        <span>{resumePrimary ? `Next: ${resumePrimary.actionLabel}.` : 'You’re caught up.'}</span>
+      </div>
+    ) : null}
     {useRailHeader ? <div aria-hidden="true" style={railHeaderSpacerStyle} /> : null}
     </>
   )
@@ -800,6 +806,27 @@ const resumeShortcutStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
   borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+}
+
+const resumeCompletionToastStyle: CSSProperties = {
+  position: 'fixed',
+  zIndex: 60,
+  top: 'calc(var(--header-height) + max(8px, env(safe-area-inset-top)))',
+  right: 'max(12px, env(safe-area-inset-right))',
+  width: 'fit-content',
+  maxWidth: 'min(310px, calc(100vw - 24px))',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '4px 8px',
+  padding: '10px 13px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-green) 6%)',
+  color: 'var(--foreground-strong)',
+  boxShadow: '0 14px 32px rgba(2, 10, 24, 0.24)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  pointerEvents: 'none',
 }
 
 const desktopMenuPanelStyle: CSSProperties = {

@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const EXPLORE_RESUME_STORAGE_KEY = 'tenaceiq_explore_resume_v1'
 
 export type ExploreResumeSurface =
@@ -113,6 +115,7 @@ export function writeExploreResumeState(nextState: ExploreResumeState, userId?: 
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getExploreResumeStorageKey(userId), JSON.stringify(saved))
+    notifyPlatformResumeUpdated('explore')
     return saved
   } catch {
     return null
