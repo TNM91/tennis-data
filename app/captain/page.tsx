@@ -278,7 +278,8 @@ type CaptainLevelUpChallengeHistoryItem = {
   challengeId: string
   title: string
   focus: string
-  status: 'active' | 'closed'
+  status: 'active' | 'scheduled' | 'cancelled' | 'closed'
+  scheduledForDate: string
   launchedAt: string
   closedAt: string
   completedCount: number
@@ -1646,6 +1647,7 @@ function CaptainHubContent() {
   const [levelUpChallengeMessage, setLevelUpChallengeMessage] = useState('')
   const [levelUpChallengeHistory, setLevelUpChallengeHistory] = useState<CaptainLevelUpChallengeHistoryItem[]>([])
   const [runningLevelUpChallengeId, setRunningLevelUpChallengeId] = useState('')
+  const [managingScheduledChallengeId, setManagingScheduledChallengeId] = useState('')
   const [levelUpChallengeHistoryMessage, setLevelUpChallengeHistoryMessage] = useState('')
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
@@ -2445,6 +2447,86 @@ function CaptainHubContent() {
       setLevelUpChallengeHistoryMessage(runError instanceof Error ? runError.message : 'Could not restart this challenge yet.')
     } finally {
       setRunningLevelUpChallengeId('')
+    }
+  }
+
+  async function handleScheduleLevelUpChallenge(challengeId: string) {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !selectedTeam || !matchWeekDate || managingScheduledChallengeId) return
+    const challenge = buildCaptainLevelUpChallenge(challengeId)
+    if (!challenge) return
+    setManagingScheduledChallengeId(challengeId)
+    setLevelUpChallengeHistoryMessage('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'schedule_level_up_challenge',
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          challengeId,
+          matchDate: matchWeekDate,
+        }),
+      })
+      const payload = await response.json() as { ok?: boolean; message?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Could not schedule this challenge yet.')
+      setLevelUpChallengeHistoryMessage(`${challenge.title} is scheduled for ${formatDateShort(matchWeekDate)}.`)
+      await loadLevelUpChallengeHistory()
+    } catch (scheduleError) {
+      setLevelUpChallengeHistoryMessage(scheduleError instanceof Error ? scheduleError.message : 'Could not schedule this challenge yet.')
+    } finally {
+      setManagingScheduledChallengeId('')
+    }
+  }
+
+  async function handleScheduledLevelUpChallenge(
+    item: CaptainLevelUpChallengeHistoryItem,
+    action: 'activate' | 'cancel',
+  ) {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !selectedTeam || managingScheduledChallengeId) return
+    setManagingScheduledChallengeId(item.messageId)
+    setLevelUpChallengeHistoryMessage('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: action === 'activate' ? 'activate_level_up_challenge' : 'cancel_level_up_challenge',
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          messageId: item.messageId,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        message?: string
+        progress?: CaptainLevelUpChallengeProgress
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || `Could not ${action} this challenge yet.`)
+      if (action === 'activate') {
+        const challenge = buildCaptainLevelUpChallenge(item.challengeId)
+        if (challenge) setLevelUpTeamChallenge(challenge)
+        if (payload.progress) setLevelUpChallengeProgress(payload.progress)
+        setLevelUpChallengeShareState('shared')
+        setLevelUpChallengeHistoryMessage(`${item.title} is live in Team Room.`)
+      } else {
+        setLevelUpChallengeHistoryMessage(`${item.title} was removed from this match week.`)
+      }
+      await loadLevelUpChallengeHistory()
+    } catch (manageError) {
+      setLevelUpChallengeHistoryMessage(manageError instanceof Error ? manageError.message : `Could not ${action} this challenge yet.`)
+    } finally {
+      setManagingScheduledChallengeId('')
     }
   }
 
@@ -17197,6 +17279,10 @@ function CaptainHubContent() {
   }
 
   const hasActiveLevelUpChallengeHistory = levelUpChallengeHistory.some((item) => item.status === 'active')
+  const scheduledLevelUpChallengeForWeek = levelUpChallengeHistory.find((item) => (
+    item.status === 'scheduled' && item.scheduledForDate === matchWeekDate
+  )) || null
+  const hasScheduledLevelUpChallengeHistory = levelUpChallengeHistory.some((item) => item.status === 'scheduled')
 
   return (
     <div style={dynamicPageWrap}>
@@ -17589,6 +17675,31 @@ function CaptainHubContent() {
               Start with availability, turn it into a lineup, check pairings, message the team, and clean up the scorecard trail.
             </p>
           ) : null}
+          {scheduledLevelUpChallengeForWeek ? (
+            <div style={captainWeekChallengeCueStyle} aria-label="Scheduled match-week challenge">
+              <div style={captainWeekChallengeCueCopyStyle}>
+                <span style={sectionKicker}>This week&apos;s challenge</span>
+                <strong>{scheduledLevelUpChallengeForWeek.title}</strong>
+                {!isMobile ? <small>{scheduledLevelUpChallengeForWeek.focus}</small> : null}
+              </div>
+              <div style={dynamicGlanceActionRow}>
+                <PrimarySmallBtn
+                  disabled={Boolean(managingScheduledChallengeId)}
+                  onClick={() => void handleScheduledLevelUpChallenge(scheduledLevelUpChallengeForWeek, 'activate')}
+                >
+                  {managingScheduledChallengeId === scheduledLevelUpChallengeForWeek.messageId ? 'Starting...' : 'Start challenge'}
+                </PrimarySmallBtn>
+                <SecondarySmallLink href={buildTeamRoomHref({
+                  teamName: selectedTeam,
+                  leagueName: selectedLeague,
+                  flight: selectedFlight,
+                  messageId: scheduledLevelUpChallengeForWeek.messageId,
+                })}>
+                  Open Team Room
+                </SecondarySmallLink>
+              </div>
+            </div>
+          ) : null}
           <div style={dynamicCaptainDecisionPathGrid}>
             {captainDecisionPath.map((item) => {
               const needsScope = item.requiresScope && !hasTeamScope
@@ -17629,11 +17740,17 @@ function CaptainHubContent() {
                 <strong style={captainChallengeHistoryTitleStyle}>
                   {hasActiveLevelUpChallengeHistory
                     ? 'Challenge in progress'
-                    : 'Recent challenge history'}
+                    : hasScheduledLevelUpChallengeHistory
+                      ? 'Challenge scheduled'
+                      : 'Recent challenge history'}
                 </strong>
               </div>
-              <span style={hasActiveLevelUpChallengeHistory ? badgeGreen : badgeSlate}>
-                {hasActiveLevelUpChallengeHistory ? 'Active / View' : 'View history'}
+              <span style={hasActiveLevelUpChallengeHistory || hasScheduledLevelUpChallengeHistory ? badgeGreen : badgeSlate}>
+                {hasActiveLevelUpChallengeHistory
+                  ? 'Active / View'
+                  : hasScheduledLevelUpChallengeHistory
+                    ? 'Scheduled / View'
+                    : 'View history'}
               </span>
             </summary>
             <div style={captainChallengeHistoryListStyle}>
@@ -17642,14 +17759,24 @@ function CaptainHubContent() {
                   <div style={captainChallengeHistoryItemCopyStyle}>
                     <div style={captainChallengeHistoryItemHeaderStyle}>
                       <strong>{item.title}</strong>
-                      <span style={item.status === 'active' ? badgeGreen : badgeSlate}>
-                        {item.status === 'active' ? 'Active' : 'Ended'}
+                      <span style={item.status === 'active' ? badgeGreen : item.status === 'scheduled' ? badgeBlue : badgeSlate}>
+                        {item.status === 'active'
+                          ? 'Active'
+                          : item.status === 'scheduled' ? 'Scheduled' : item.status === 'cancelled' ? 'Removed' : 'Ended'}
                       </span>
                     </div>
                     {!isMobile ? <span style={sectionSub}>{item.focus}</span> : null}
                     <small style={captainChallengeHistoryMetaStyle}>
+                      {item.status === 'scheduled' ? (
+                        <>Scheduled for {formatDateShort(item.scheduledForDate)}</>
+                      ) : item.status === 'cancelled' ? (
+                        <>Removed from {formatDateShort(item.scheduledForDate)}</>
+                      ) : (
+                        <>
                       {item.completedCount} of {item.connectedCount} connected complete
                       {item.launchedAt ? ` · Started ${formatDateShort(item.launchedAt)}` : ''}
+                        </>
+                      )}
                     </small>
                   </div>
                   {item.status === 'active' ? (
@@ -17661,13 +17788,38 @@ function CaptainHubContent() {
                     })}>
                       Open Team Room
                     </SecondarySmallLink>
+                  ) : item.status === 'scheduled' ? (
+                    <div style={captainChallengeHistoryActionsStyle}>
+                      <PrimarySmallBtn
+                        disabled={Boolean(managingScheduledChallengeId)}
+                        onClick={() => void handleScheduledLevelUpChallenge(item, 'activate')}
+                      >
+                        {managingScheduledChallengeId === item.messageId ? 'Working...' : 'Start now'}
+                      </PrimarySmallBtn>
+                      <SecondarySmallBtn
+                        disabled={Boolean(managingScheduledChallengeId)}
+                        onClick={() => void handleScheduledLevelUpChallenge(item, 'cancel')}
+                      >
+                        Cancel
+                      </SecondarySmallBtn>
+                    </div>
                   ) : !hasActiveLevelUpChallengeHistory ? (
-                    <SecondarySmallBtn
-                      disabled={Boolean(runningLevelUpChallengeId)}
-                      onClick={() => void handleRunLevelUpChallenge(item.challengeId)}
-                    >
-                      {runningLevelUpChallengeId === item.challengeId ? 'Starting...' : 'Run again'}
-                    </SecondarySmallBtn>
+                    <div style={captainChallengeHistoryActionsStyle}>
+                      {matchWeekDate && !scheduledLevelUpChallengeForWeek ? (
+                        <SecondarySmallBtn
+                          disabled={Boolean(managingScheduledChallengeId)}
+                          onClick={() => void handleScheduleLevelUpChallenge(item.challengeId)}
+                        >
+                          Schedule for week
+                        </SecondarySmallBtn>
+                      ) : null}
+                      <SecondarySmallBtn
+                        disabled={Boolean(runningLevelUpChallengeId)}
+                        onClick={() => void handleRunLevelUpChallenge(item.challengeId)}
+                      >
+                        {runningLevelUpChallengeId === item.challengeId ? 'Starting...' : 'Run again'}
+                      </SecondarySmallBtn>
+                    </div>
                   ) : null}
                 </article>
               ))}
@@ -17731,6 +17883,14 @@ function CaptainHubContent() {
               </PrimarySmallBtn>
               {levelUpChallengeProgress?.launched ? (
                 <SecondarySmallLink href={teamRoomHref}>Open Team Room</SecondarySmallLink>
+              ) : null}
+              {!levelUpChallengeProgress?.launched && matchWeekDate && !scheduledLevelUpChallengeForWeek ? (
+                <SecondarySmallBtn
+                  disabled={Boolean(managingScheduledChallengeId)}
+                  onClick={() => void handleScheduleLevelUpChallenge(levelUpTeamChallenge.id)}
+                >
+                  {managingScheduledChallengeId === levelUpTeamChallenge.id ? 'Scheduling...' : 'Schedule for week'}
+                </SecondarySmallBtn>
               ) : null}
               <SecondarySmallLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</SecondarySmallLink>
               <SecondarySmallLink href={captainWorkflowHref(availabilityHref)}>Check availability</SecondarySmallLink>
@@ -19063,6 +19223,34 @@ const captainChallengeHistoryPrivacyStyle: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.4,
   padding: '0 2px',
+}
+
+const captainChallengeHistoryActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 7,
+  flexWrap: 'wrap',
+}
+
+const captainWeekChallengeCueStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 15,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  flexWrap: 'wrap',
+}
+
+const captainWeekChallengeCueCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  lineHeight: 1.3,
 }
 
 const captainDecisionPathShellStyle: CSSProperties = {

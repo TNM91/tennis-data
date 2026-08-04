@@ -95,6 +95,7 @@ describe('Captain Level Up challenge handoff', () => {
     expect(selectActiveCaptainLevelUpChallenge([
       { id: 'older-open', createdAt: '2026-08-01T12:00:00.000Z' },
       { id: 'newer-closed', createdAt: '2026-08-03T12:00:00.000Z', status: 'closed' },
+      { id: 'future-scheduled', createdAt: '2026-08-04T12:00:00.000Z', status: 'scheduled' },
       { id: 'newest-open', createdAt: '2026-08-02T12:00:00.000Z', status: 'active' },
     ])).toBe('newest-open')
     expect(selectActiveCaptainLevelUpChallenge([

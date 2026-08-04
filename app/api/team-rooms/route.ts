@@ -147,6 +147,7 @@ type TeamRoomActionBody = {
   changeContext?: unknown
   deadlineDate?: unknown
   challengeId?: unknown
+  matchDate?: unknown
 }
 
 type TeamRoomLevelUpChallengePayload = {
@@ -158,7 +159,8 @@ type TeamRoomLevelUpChallengePayload = {
   completed: boolean
   completedCount: number
   connectedCount: number
-  status: 'active' | 'closed'
+  status: 'active' | 'scheduled' | 'cancelled' | 'closed'
+  scheduledForDate: string
 }
 
 type StoredLineupChangeNotice = {
@@ -377,6 +379,143 @@ export async function POST(request: Request) {
         connectedCount: syncedMembers.length,
         launchedAt,
         messageId: cleanText(message?.id),
+      },
+    })
+  }
+
+  if (action === 'schedule_level_up_challenge') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can schedule a team challenge.' }, { status: 403 })
+    }
+    const challenge = buildCaptainLevelUpChallenge(cleanText(body.challengeId))
+    if (!challenge) {
+      return Response.json({ ok: false, message: 'Choose a valid Level Up challenge.' }, { status: 400 })
+    }
+    const scheduledForDate = cleanChallengeMatchDate(body.matchDate)
+    if (!scheduledForDate) {
+      return Response.json({ ok: false, message: 'Choose the match week first.' }, { status: 400 })
+    }
+    const scheduledAt = new Date().toISOString()
+    const closeResult = await closeScheduledLevelUpChallengesForDate(
+      auth.service,
+      conversation.id,
+      scheduledForDate,
+      scheduledAt,
+    )
+    if (!closeResult.ok) return Response.json({ ok: false, message: closeResult.message }, { status: 500 })
+
+    const { data: message, error } = await auth.service
+      .from('internal_messages')
+      .insert({
+        conversation_id: conversation.id,
+        sender_user_id: auth.userId,
+        body: `${challenge.title} is scheduled for ${scheduledForDate}.`,
+        message_kind: 'announcement',
+        metadata: {
+          teamLevelUpChallenge: true,
+          challengeId: challenge.id,
+          cardIds: challenge.cardIds,
+          challengeStatus: 'scheduled',
+          scheduledForDate,
+          scheduledAt,
+        },
+      })
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
+      .single()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: scheduledAt })
+      .eq('id', conversation.id)
+    await notifyTeamRoom(auth.service, {
+      conversationId: conversation.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      body: `${challenge.title} is planned for the ${scheduledForDate} match week. The captain will start it when the team is ready.`,
+      announcement: true,
+    })
+    return Response.json({
+      ok: true,
+      message: toMessage(message as MessageRow, new Map(), auth.userId),
+      scheduledForDate,
+    })
+  }
+
+  if (action === 'activate_level_up_challenge' || action === 'cancel_level_up_challenge') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can manage a scheduled challenge.' }, { status: 403 })
+    }
+    const scheduledResult = await loadScheduledLevelUpChallenge(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+    )
+    if (!scheduledResult.ok) {
+      return Response.json({ ok: false, message: scheduledResult.message }, { status: scheduledResult.status })
+    }
+    const now = new Date().toISOString()
+    if (action === 'cancel_level_up_challenge') {
+      const { error } = await auth.service
+        .from('internal_messages')
+        .update({
+          body: `${scheduledResult.challenge.title} schedule cancelled.`,
+          metadata: { ...scheduledResult.metadata, challengeStatus: 'closed', closedAt: now },
+        })
+        .eq('id', scheduledResult.messageId)
+        .eq('conversation_id', conversation.id)
+      if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+      await notifyTeamRoom(auth.service, {
+        conversationId: conversation.id,
+        actorUserId: auth.userId,
+        teamName: selected.team_name,
+        scope: selected,
+        body: `${scheduledResult.challenge.title} is no longer planned for this match week.`,
+        announcement: true,
+      })
+      return Response.json({ ok: true, status: 'closed' })
+    }
+
+    const closeResult = await closeOpenLevelUpChallenges(auth.service, conversation.id, now)
+    if (!closeResult.ok) return Response.json({ ok: false, message: closeResult.message }, { status: 500 })
+    const activeMetadata = {
+      ...scheduledResult.metadata,
+      challengeStatus: 'active',
+      launchedAt: now,
+      activatedAt: now,
+    }
+    const { data: message, error } = await auth.service
+      .from('internal_messages')
+      .update({
+        body: `${scheduledResult.challenge.title}: ${scheduledResult.challenge.focus}`,
+        metadata: activeMetadata,
+      })
+      .eq('id', scheduledResult.messageId)
+      .eq('conversation_id', conversation.id)
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
+      .single()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: now })
+      .eq('id', conversation.id)
+    await notifyTeamRoom(auth.service, {
+      conversationId: conversation.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      body: `${scheduledResult.challenge.title} is ready. Open the team challenge and complete all ${scheduledResult.challenge.cardIds.length} cards.`,
+      announcement: true,
+    })
+    return Response.json({
+      ok: true,
+      message: toMessage(message as MessageRow, new Map(), auth.userId),
+      progress: {
+        launched: true,
+        completedCount: 0,
+        connectedCount: syncedMembers.length,
+        launchedAt: now,
+        messageId: scheduledResult.messageId,
       },
     })
   }
@@ -1180,7 +1319,10 @@ async function closeOpenLevelUpChallenges(
   if (error) return { ok: false as const, message: error.message }
 
   const openRows = ((data ?? []) as Array<{ id: string; metadata: Record<string, unknown> | null }>)
-    .filter((row) => isLevelUpChallengeMetadata(row.metadata) && cleanText(row.metadata.challengeStatus) !== 'closed')
+    .filter((row) => (
+      isLevelUpChallengeMetadata(row.metadata)
+      && !['closed', 'scheduled'].includes(cleanText(row.metadata.challengeStatus))
+    ))
   const results = await Promise.all(openRows.map((row) => service
     .from('internal_messages')
     .update({ metadata: { ...row.metadata, challengeStatus: 'closed', closedAt } })
@@ -1190,6 +1332,56 @@ async function closeOpenLevelUpChallenges(
   return updateError
     ? { ok: false as const, message: updateError.message }
     : { ok: true as const }
+}
+
+async function closeScheduledLevelUpChallengesForDate(
+  service: SupabaseClient,
+  conversationId: string,
+  scheduledForDate: string,
+  closedAt: string,
+) {
+  const { data, error } = await service
+    .from('internal_messages')
+    .select('id,metadata')
+    .eq('conversation_id', conversationId)
+    .contains('metadata', { teamLevelUpChallenge: true, challengeStatus: 'scheduled', scheduledForDate })
+    .is('deleted_at', null)
+  if (error) return { ok: false as const, message: error.message }
+  const results = await Promise.all(((data ?? []) as Array<{
+    id: string
+    metadata: Record<string, unknown> | null
+  }>).map((row) => service
+    .from('internal_messages')
+    .update({ metadata: { ...row.metadata, challengeStatus: 'closed', closedAt } })
+    .eq('id', row.id)
+    .eq('conversation_id', conversationId)))
+  const updateError = results.find((result) => result.error)?.error
+  return updateError
+    ? { ok: false as const, message: updateError.message }
+    : { ok: true as const }
+}
+
+async function loadScheduledLevelUpChallenge(
+  service: SupabaseClient,
+  conversationId: string,
+  messageId: string,
+) {
+  if (!messageId) return { ok: false as const, status: 400, message: 'Choose a scheduled challenge.' }
+  const { data, error } = await service
+    .from('internal_messages')
+    .select('id,metadata')
+    .eq('id', messageId)
+    .eq('conversation_id', conversationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error) return { ok: false as const, status: 500, message: error.message }
+  const metadata = data?.metadata as Record<string, unknown> | null
+  if (!data || !isLevelUpChallengeMetadata(metadata) || cleanText(metadata.challengeStatus) !== 'scheduled') {
+    return { ok: false as const, status: 404, message: 'This scheduled challenge is no longer available.' }
+  }
+  const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
+  if (!challenge) return { ok: false as const, status: 400, message: 'This team challenge is no longer available.' }
+  return { ok: true as const, messageId: data.id, metadata, challenge }
 }
 
 async function loadTeamLevelUpChallengeHistory(
@@ -1267,18 +1459,26 @@ async function loadTeamLevelUpChallengeHistory(
     ok: true as const,
     history: launches.map(({ row, challenge, launchedAt }) => {
       const closedAt = cleanText(row.metadata?.closedAt)
-      const automaticCompletedIds = getCaptainLevelUpCompletedPlayerIdsForRun(
-        challenge,
-        sessions.map((session) => ({
-          playerUserId: session.player_user_id,
-          focusId: session.focus_id,
-          drillTitle: session.drill_title,
-          completedAt: cleanText(session.completed_at),
-        })),
-        launchedAt,
-        closedAt,
-      )
-      const completedIds = new Set([
+      const storedStatus = cleanText(row.metadata?.challengeStatus)
+      const isScheduled = storedStatus === 'scheduled'
+      const scheduledForDate = cleanText(row.metadata?.scheduledForDate)
+      const isCancelledSchedule = storedStatus === 'closed'
+        && Boolean(scheduledForDate)
+        && !cleanText(row.metadata?.launchedAt)
+      const automaticCompletedIds = isScheduled || isCancelledSchedule
+        ? []
+        : getCaptainLevelUpCompletedPlayerIdsForRun(
+            challenge,
+            sessions.map((session) => ({
+              playerUserId: session.player_user_id,
+              focusId: session.focus_id,
+              drillTitle: session.drill_title,
+              completedAt: cleanText(session.completed_at),
+            })),
+            launchedAt,
+            closedAt,
+          )
+      const completedIds = new Set(isScheduled || isCancelledSchedule ? [] : [
         ...automaticCompletedIds,
         ...reactions
           .filter((reaction) => reaction.message_id === row.id && memberIdSet.has(reaction.profile_id))
@@ -1289,7 +1489,10 @@ async function loadTeamLevelUpChallengeHistory(
         challengeId: challenge.id,
         title: challenge.title,
         focus: challenge.focus,
-        status: row.id === activeMessageId ? 'active' : 'closed',
+        status: isScheduled
+          ? 'scheduled'
+          : isCancelledSchedule ? 'cancelled' : row.id === activeMessageId ? 'active' : 'closed',
+        scheduledForDate,
         launchedAt,
         closedAt,
         completedCount: completedIds.size,
@@ -1427,7 +1630,7 @@ async function loadActionableLevelUpChallenge(
     .maybeSingle()
   if (error) return { ok: false as const, status: 500, message: error.message }
   const metadata = data?.metadata as Record<string, unknown> | null
-  if (!data || !isLevelUpChallengeMetadata(metadata) || cleanText(metadata?.challengeStatus) === 'closed') {
+  if (!data || !isLevelUpChallengeMetadata(metadata) || ['closed', 'scheduled'].includes(cleanText(metadata?.challengeStatus))) {
     return { ok: false as const, status: 404, message: 'This team challenge is no longer active.' }
   }
   const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
@@ -2271,7 +2474,12 @@ function buildTeamRoomLevelUpChallengePayload(
     completed: aggregateCompletedIds.includes(currentUserId),
     completedCount: new Set(aggregateCompletedIds).size,
     connectedCount,
-    status: cleanText(metadata.challengeStatus) === 'closed' ? 'closed' : 'active',
+    status: cleanText(metadata.challengeStatus) === 'scheduled'
+      ? 'scheduled'
+      : cleanText(metadata.challengeStatus) === 'closed'
+        ? cleanText(metadata.scheduledForDate) && !cleanText(metadata.launchedAt) ? 'cancelled' : 'closed'
+        : 'active',
+    scheduledForDate: cleanText(metadata.scheduledForDate),
   }
 }
 
@@ -2889,4 +3097,13 @@ function getBearerToken(request: Request) {
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function cleanChallengeMatchDate(value: unknown) {
+  const matchDate = cleanText(value).slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return ''
+  const parsed = new Date(`${matchDate}T00:00:00.000Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === matchDate
+    ? matchDate
+    : ''
 }

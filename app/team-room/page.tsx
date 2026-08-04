@@ -83,7 +83,8 @@ type TeamRoomLevelUpChallenge = {
   completed: boolean
   completedCount: number
   connectedCount: number
-  status: 'active' | 'closed'
+  status: 'active' | 'scheduled' | 'cancelled' | 'closed'
+  scheduledForDate: string
 }
 
 type TeamRoomRosterMember = {
@@ -1432,28 +1433,43 @@ function LevelUpChallengeCard({
   const challenge = message.levelUpChallenge
   if (!challenge) return null
   const cards = getCaptainLevelUpCardDetails(challenge)
+  const isScheduled = challenge.status === 'scheduled'
+  const isCancelledSchedule = challenge.status === 'cancelled'
+  const isInactiveSchedule = isScheduled || isCancelledSchedule
 
   return (
     <article className={styles.levelUpChallengeCard}>
       <div className={styles.matchCardTop}>
         <div>
-          <p className={styles.matchCardEyebrow}>{pinned ? 'Active team challenge' : 'Team Level Up challenge'}</p>
+          <p className={styles.matchCardEyebrow}>
+            {isScheduled
+              ? 'Scheduled team challenge'
+              : isCancelledSchedule ? 'Removed team challenge' : pinned ? 'Active team challenge' : 'Team Level Up challenge'}
+          </p>
           <h2>{challenge.title}</h2>
         </div>
         <span className={styles.pinnedBadge}>
-          {challenge.connectedCount
-            ? `${challenge.completedCount} of ${challenge.connectedCount} complete`
-            : `${challenge.completedCount} marked complete`}
+          {isInactiveSchedule
+            ? isCancelledSchedule ? 'Removed' : formatMatchDate(challenge.scheduledForDate)
+            : challenge.connectedCount
+              ? `${challenge.completedCount} of ${challenge.connectedCount} complete`
+              : `${challenge.completedCount} marked complete`}
         </span>
       </div>
       <p>{challenge.focus}</p>
-      {pinned ? (
+      {isInactiveSchedule ? (
+        <small className={styles.helper}>
+          {isCancelledSchedule
+            ? 'This challenge was removed before it started.'
+            : 'The captain will start this challenge when match-week preparation begins.'}
+        </small>
+      ) : pinned ? (
         <details className={styles.levelUpChallengeDetails}>
           <summary>View {cards.length} challenge cards</summary>
           <LevelUpChallengeSteps cards={cards} />
         </details>
       ) : <LevelUpChallengeSteps cards={cards} />}
-      <div className={styles.levelUpChallengeActions}>
+      {!isInactiveSchedule ? <div className={styles.levelUpChallengeActions}>
         <Link className={styles.buttonPrimary} href={buildCaptainLevelUpCardHref(cards[0]?.id || challenge.cardIds[0])}>
           Start challenge
         </Link>
@@ -1485,8 +1501,10 @@ function LevelUpChallengeCard({
             </button>
           </>
         ) : null}
-      </div>
-      <small className={styles.helper}>Only the team completion count is shared. Your proof, scores, and notes stay private.</small>
+      </div> : null}
+      {!isInactiveSchedule ? (
+        <small className={styles.helper}>Only the team completion count is shared. Your proof, scores, and notes stay private.</small>
+      ) : null}
     </article>
   )
 }

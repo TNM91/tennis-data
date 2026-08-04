@@ -175,7 +175,7 @@ export function selectActiveCaptainLevelUpChallenge(
 ) {
   let selected: CaptainLevelUpChallengeLaunch | null = null
   for (const launch of launches) {
-    if (!launch.id || launch.status === 'closed') continue
+    if (!launch.id || launch.status === 'closed' || launch.status === 'scheduled') continue
     const launchTime = new Date(launch.createdAt).getTime()
     const selectedTime = selected ? new Date(selected.createdAt).getTime() : Number.NEGATIVE_INFINITY
     if (!selected || launchTime > selectedTime || (launchTime === selectedTime && launch.id > selected.id)) {
