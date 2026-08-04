@@ -29,6 +29,10 @@ describe('platform-wide pick up continuity', () => {
     expect(hook).toContain('readCaptainResumeState(userId)')
     expect(hook).toContain("fetch('/api/resume/overview'")
     expect(hook).toContain('mergePlatformResumeCandidates(localCandidates, cloudCandidates)')
+    expect(hook).toContain('PLATFORM_RESUME_UPDATED_EVENT')
+    expect(hook).toContain("window.addEventListener('storage'")
+    expect(hook).toContain("window.addEventListener('pageshow'")
+    expect(hook).toContain("document.addEventListener('visibilitychange'")
   })
 
   it('keeps one-tap Continue compact and puts alternatives in the account menu', () => {
@@ -46,6 +50,9 @@ describe('platform-wide pick up continuity', () => {
     expect(header).toContain('resumePrimary.actionLabel')
     expect(header).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(hook).toContain('tenaceiq-team-room-draft:')
+    expect(hook).toContain('getPlatformResumeCompletionMessage(previousUnfinished.actionLabel)')
+    expect(header).toContain('role="status" aria-live="polite"')
+    expect(header).toContain('Next: ${resumePrimary.actionLabel}.')
   })
 
   it('carries Captain lineup and reply state between devices', () => {

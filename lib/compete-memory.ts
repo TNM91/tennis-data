@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const COMPETE_RESUME_STORAGE_KEY = 'tenaceiq_compete_resume_v1'
 
 export type CompeteResumeSurface =
@@ -133,6 +135,7 @@ export function writeCompeteResumeState(nextState: CompeteResumeState, userId?: 
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getCompeteResumeStorageKey(userId), JSON.stringify(saved))
+    notifyPlatformResumeUpdated('compete')
     return saved
   } catch {
     return null

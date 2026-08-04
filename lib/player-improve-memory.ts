@@ -1,3 +1,5 @@
+import { notifyPlatformResumeUpdated } from './platform-resume-events'
+
 export const PLAYER_IMPROVE_RESUME_STORAGE_KEY = 'tenaceiq_player_improve_resume_v1'
 
 export function getPlayerImproveResumeStorageKey(userId?: string | null) {
@@ -209,6 +211,7 @@ export function writePlayerImproveResumeState(nextState: PlayerImproveResumeStat
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getPlayerImproveResumeStorageKey(userId), JSON.stringify(saved))
+    notifyPlatformResumeUpdated('improve')
     return saved
   } catch {
     return null
