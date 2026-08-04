@@ -132,7 +132,21 @@ type SuggestedSwapDraft = {
   slotId: string
   playerIndex: number
   replacementPlayerId: string
+  outgoingPlayerName: string
+  replacementPlayerName: string
+  courtLabel: string
   needsConfirmation: boolean
+}
+
+type SavedLineupChangeDelivery = {
+  messageId: string
+  href: string
+  courtLabel: string
+  outgoingPlayerName: string
+  replacementPlayerName: string
+  affectedNames: string[]
+  pending: boolean
+  notifiedCount: number
 }
 
 type ScenarioRow = {
@@ -1098,6 +1112,8 @@ function LineupBuilderContent() {
   const [error, setError] = useState('')
   const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
   const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
+  const [savedLineupChangeDelivery, setSavedLineupChangeDelivery] = useState<SavedLineupChangeDelivery | null>(null)
+  const [notifyingLineupChange, setNotifyingLineupChange] = useState(false)
 
   const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
   const [leagueName, setLeagueName] = useState(initialContext.league)
@@ -1191,6 +1207,7 @@ function LineupBuilderContent() {
     setLockedPlayerIds([])
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
 
     setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
   }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
@@ -1730,8 +1747,12 @@ function LineupBuilderContent() {
       slotId: result.slotId,
       playerIndex: result.playerIndex,
       replacementPlayerId: suggestedSwapPlayer.id,
+      outgoingPlayerName: result.outgoingPlayerName,
+      replacementPlayerName: result.replacementPlayerName,
+      courtLabel: replacementHandoff.courtLabel,
       needsConfirmation: result.needsConfirmation,
     })
+    setSavedLineupChangeDelivery(null)
     setTeamSlots(result.slots)
     setError('')
     setMessage(
@@ -1936,6 +1957,7 @@ function LineupBuilderContent() {
     setActiveLineupFormatKey('standard')
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2405,10 +2427,144 @@ function LineupBuilderContent() {
     return true
   }
 
+  async function syncSavedSuggestedSwapToTeamRoom(draft: SuggestedSwapDraft) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData.session?.access_token || ''
+    if (!accessToken || !teamName || !matchDate) return null
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'post_match_card',
+          teamName,
+          leagueName,
+          flight,
+          silent: true,
+          changeContext: {
+            courtLabel: draft.courtLabel,
+            outgoingPlayerName: draft.outgoingPlayerName,
+            replacementPlayerName: draft.replacementPlayerName,
+          },
+          card: {
+            cardType: 'projected_lineup',
+            title: 'Projected lineup — can you play?',
+            matchDate,
+            opponent: opponentTeam,
+            matchTime: selectedMatch?.match_time || '',
+            facility: selectedMatch?.facility || '',
+            lineup: teamSlots.map((slot) => ({
+              label: slot.label,
+              players: slot.players.map((player) => player.playerName).filter(Boolean),
+            })),
+          },
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        messageId?: string
+        href?: string
+        lineupChangeNotice?: {
+          courtLabel?: string
+          outgoingPlayerName?: string
+          replacementPlayerName?: string
+          affectedNames?: string[]
+        } | null
+      }
+      if (!response.ok || !payload.ok || !payload.messageId || !payload.lineupChangeNotice) return null
+      const hrefUrl = new URL(payload.href || buildTeamRoomHref({ teamName, leagueName, flight }), window.location.origin)
+      hrefUrl.searchParams.set('message', payload.messageId)
+      hrefUrl.searchParams.set('court', payload.lineupChangeNotice.courtLabel || draft.courtLabel)
+      hrefUrl.hash = `match-card-${encodeURIComponent(payload.messageId)}`
+      return {
+        messageId: payload.messageId,
+        href: `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`,
+        courtLabel: payload.lineupChangeNotice.courtLabel || draft.courtLabel,
+        outgoingPlayerName: payload.lineupChangeNotice.outgoingPlayerName || draft.outgoingPlayerName,
+        replacementPlayerName: payload.lineupChangeNotice.replacementPlayerName || draft.replacementPlayerName,
+        affectedNames: Array.isArray(payload.lineupChangeNotice.affectedNames)
+          ? payload.lineupChangeNotice.affectedNames.filter(Boolean)
+          : [draft.outgoingPlayerName, draft.replacementPlayerName],
+        pending: true,
+        notifiedCount: 0,
+      } satisfies SavedLineupChangeDelivery
+    } catch {
+      return null
+    }
+  }
+
+  async function notifySavedLineupChange() {
+    if (!savedLineupChangeDelivery?.pending || notifyingLineupChange) return
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData.session?.access_token || ''
+    if (!accessToken) {
+      setError('Sign in again before notifying players.')
+      return
+    }
+    setNotifyingLineupChange(true)
+    setError('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'notify_lineup_change',
+          teamName,
+          leagueName,
+          flight,
+          messageId: savedLineupChangeDelivery.messageId,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        message?: string
+        notifiedCount?: number
+        notificationIds?: string[]
+        directShareNames?: string[]
+        shareText?: string
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'The lineup update could not be sent.')
+      const notificationIds = Array.isArray(payload.notificationIds) ? payload.notificationIds.filter(Boolean) : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      const directShareNames = Array.isArray(payload.directShareNames) ? payload.directShareNames.filter(Boolean) : []
+      let copiedForDirectShare = false
+      if (directShareNames.length && payload.shareText && navigator.clipboard) {
+        copiedForDirectShare = await navigator.clipboard.writeText(payload.shareText).then(() => true).catch(() => false)
+      }
+      const notifiedCount = Math.max(0, Number(payload.notifiedCount) || 0)
+      setSavedLineupChangeDelivery((current) => current ? { ...current, pending: false, notifiedCount } : current)
+      setMessage(
+        `${notifiedCount ? `Notified ${notifiedCount} connected player${notifiedCount === 1 ? '' : 's'}.` : 'Lineup change marked ready to share.'}`
+        + (directShareNames.length
+          ? copiedForDirectShare
+            ? ` Update copied for ${directShareNames.join(', ')}.`
+            : ` Share the update directly with ${directShareNames.join(', ')}.`
+          : ''),
+      )
+    } catch (notifyError) {
+      setError(notifyError instanceof Error ? notifyError.message : 'The lineup update could not be sent.')
+    } finally {
+      setNotifyingLineupChange(false)
+    }
+  }
+
   async function saveScenario(asNew = false, quiet = false): Promise<ScenarioRow | null> {
     setSaving(true)
     setError('')
     if (!quiet) setMessage('')
+    const swapToSync = !quiet ? suggestedSwapDraft : null
 
     if (!isCaptainAccess) {
       setSaving(false)
@@ -2444,9 +2600,8 @@ function LineupBuilderContent() {
         .eq('id', targetScenarioId)
         .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
         .single()
-      setSaving(false)
-
       if (updateError) {
+        setSaving(false)
         setError(updateError.message)
         return null
       }
@@ -2454,8 +2609,15 @@ function LineupBuilderContent() {
       setCurrentScenarioId(targetScenarioId)
       await refreshSavedScenarios()
       await trackPredictionSnapshot('scenario-update', targetScenarioId, true)
+      const syncedChange = swapToSync ? await syncSavedSuggestedSwapToTeamRoom(swapToSync) : null
+      if (syncedChange) setSavedLineupChangeDelivery(syncedChange)
+      setSaving(false)
       setSuggestedSwapDraft(null)
-      if (!quiet) setMessage('Potential lineup updated.')
+      if (!quiet) setMessage(
+        syncedChange
+          ? 'Potential lineup updated. Team Chat is ready to notify the affected players.'
+          : swapToSync ? 'Potential lineup updated. Open Team Chat to share the court change.' : 'Potential lineup updated.'
+      )
       return updated as ScenarioRow
     }
 
@@ -2464,9 +2626,8 @@ function LineupBuilderContent() {
       .insert(payload)
       .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
       .single()
-    setSaving(false)
-
     if (insertError) {
+      setSaving(false)
       setError(insertError.message)
       return null
     }
@@ -2474,8 +2635,17 @@ function LineupBuilderContent() {
     if (data?.id) setCurrentScenarioId(data.id)
     await refreshSavedScenarios()
     await trackPredictionSnapshot(asNew ? 'scenario-save-new' : 'scenario-save', data?.id ?? null, true)
+    const syncedChange = swapToSync ? await syncSavedSuggestedSwapToTeamRoom(swapToSync) : null
+    if (syncedChange) setSavedLineupChangeDelivery(syncedChange)
+    setSaving(false)
     setSuggestedSwapDraft(null)
-    if (!quiet) setMessage(asNew ? 'Potential lineup saved as a new version.' : 'Potential lineup saved.')
+    if (!quiet) setMessage(
+      syncedChange
+        ? 'Potential lineup saved. Team Chat is ready to notify the affected players.'
+        : swapToSync
+          ? 'Potential lineup saved. Open Team Chat to share the court change.'
+          : asNew ? 'Potential lineup saved as a new version.' : 'Potential lineup saved.'
+    )
     return data as ScenarioRow
   }
 
@@ -2837,6 +3007,35 @@ function LineupBuilderContent() {
             </div>
           </div>
         )}
+        {savedLineupChangeDelivery ? (
+          <section id="saved-lineup-change" style={savedLineupChangeStyle} aria-label="Saved lineup change delivery">
+            <div style={savedLineupChangeCopyStyle}>
+              <p style={sectionKicker}>Team Chat updated</p>
+              <strong>
+                {savedLineupChangeDelivery.replacementPlayerName} replaces {savedLineupChangeDelivery.outgoingPlayerName}
+              </strong>
+              <span>
+                {savedLineupChangeDelivery.courtLabel}. {savedLineupChangeDelivery.pending
+                  ? 'Nothing was sent yet. Notify only the players affected by this court.'
+                  : savedLineupChangeDelivery.notifiedCount
+                    ? `Sent to ${savedLineupChangeDelivery.notifiedCount} connected player${savedLineupChangeDelivery.notifiedCount === 1 ? '' : 's'}.`
+                    : 'The direct-share update is ready.'}
+              </span>
+            </div>
+            <div style={savedLineupChangeActionsStyle}>
+              {savedLineupChangeDelivery.pending ? (
+                <PrimaryBtn onClick={() => void notifySavedLineupChange()} disabled={notifyingLineupChange}>
+                  {notifyingLineupChange
+                    ? 'Notifying...'
+                    : `Notify ${savedLineupChangeDelivery.affectedNames.length} affected`}
+                </PrimaryBtn>
+              ) : (
+                <span style={miniPillGreenStyle}>Update sent</span>
+              )}
+              <GhostLink href={savedLineupChangeDelivery.href}>Open Team Chat</GhostLink>
+            </div>
+          </section>
+        ) : null}
         {isPreviewMode ? (
           <UpgradePrompt
             planId="captain"
@@ -4078,6 +4277,22 @@ const replacementHandoffActionsStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   minWidth: 0,
+}
+
+const savedLineupChangeStyle: CSSProperties = {
+  ...replacementHandoffStyle,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  border: '1px solid rgba(116, 190, 255, 0.3)',
+  background: 'linear-gradient(135deg, rgba(116, 190, 255, 0.11), rgba(155, 225, 29, 0.07))',
+}
+
+const savedLineupChangeCopyStyle: CSSProperties = {
+  ...replacementHandoffCopyStyle,
+}
+
+const savedLineupChangeActionsStyle: CSSProperties = {
+  ...replacementHandoffActionsStyle,
+  justifyContent: 'flex-end',
 }
 
 const suggestedSwapImpactGridStyle: CSSProperties = {

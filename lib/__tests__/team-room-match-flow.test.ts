@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildLineupChangeNotice,
   buildLineupChanges,
   parseReminderTargets,
   selectActiveTeamRoomCard,
@@ -15,6 +16,35 @@ describe('Team Room match-week flow', () => {
       { label: '4.5 Doubles', players: ['Alex', 'Jordan'] },
       { label: '4.0 Doubles', players: ['Morgan', 'Taylor'] },
     ])).toEqual(['4.0 Doubles: Casey / Taylor -> Morgan / Taylor'])
+  })
+
+  it('identifies only the players affected by a saved replacement', () => {
+    expect(buildLineupChangeNotice([
+      { label: '4.5 Doubles', players: ['Jordan Lee', 'Morgan Net'] },
+      { label: '4.0 Doubles', players: ['Casey Court', 'Taylor Topspin'] },
+    ], [
+      { label: '4.5 Doubles', players: ['Alex Ace', 'Morgan Net'] },
+      { label: '4.0 Doubles', players: ['Casey Court', 'Taylor Topspin'] },
+    ], {
+      courtLabel: '4.5 Doubles',
+      outgoingPlayerName: 'Jordan Lee',
+      replacementPlayerName: 'Alex Ace',
+    })).toEqual({
+      courtLabel: '4.5 Doubles',
+      outgoingPlayerName: 'Jordan Lee',
+      replacementPlayerName: 'Alex Ace',
+      affectedNames: ['Jordan Lee', 'Alex Ace', 'Morgan Net'],
+      beforePlayers: ['Jordan Lee', 'Morgan Net'],
+      afterPlayers: ['Alex Ace', 'Morgan Net'],
+    })
+  })
+
+  it('rejects a replacement notice when the named court change does not match', () => {
+    expect(buildLineupChangeNotice(
+      [{ label: 'Doubles 1', players: ['Jordan Lee', 'Morgan Net'] }],
+      [{ label: 'Doubles 1', players: ['Alex Ace', 'Morgan Net'] }],
+      { courtLabel: 'Doubles 2', outgoingPlayerName: 'Jordan Lee', replacementPlayerName: 'Alex Ace' },
+    )).toBeNull()
   })
 
   it('pins the next match and automatically archives past match cards', () => {

@@ -90,6 +90,17 @@ type TeamRoomMatchCard = {
   state: 'active' | 'upcoming' | 'archived'
   lineupVersion: number
   lineupChanges: string[]
+  lineupChangeNotice: {
+    courtLabel: string
+    outgoingPlayerName: string
+    replacementPlayerName: string
+    affectedNames: string[]
+    beforePlayers: string[]
+    afterPlayers: string[]
+    pending: boolean
+    notifiedAt: string
+    notifiedCount: number
+  } | null
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
   availabilitySummary: {
@@ -198,6 +209,7 @@ function TeamRoomContent() {
   const [sharing, setSharing] = useState(false)
   const [respondingId, setRespondingId] = useState('')
   const [acknowledgingId, setAcknowledgingId] = useState('')
+  const [notifyingLineupChangeId, setNotifyingLineupChangeId] = useState('')
   const [reminding, setReminding] = useState(false)
   const [schedulingReminder, setSchedulingReminder] = useState(false)
   const [reminderAt, setReminderAt] = useState('')
@@ -600,6 +612,47 @@ function TeamRoomContent() {
     }
   }
 
+  async function notifyLineupChange(messageId: string) {
+    if (!room || notifyingLineupChangeId) return
+    setNotifyingLineupChangeId(messageId)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'notify_lineup_change', messageId })
+      const notificationIds = Array.isArray(payload.notificationIds)
+        ? payload.notificationIds.filter((id): id is string => typeof id === 'string')
+        : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      const directShareNames = Array.isArray(payload.directShareNames)
+        ? payload.directShareNames.filter((name): name is string => typeof name === 'string')
+        : []
+      const shareText = typeof payload.shareText === 'string' ? payload.shareText : ''
+      let copiedForDirectShare = false
+      if (directShareNames.length && shareText && navigator.clipboard) {
+        copiedForDirectShare = await navigator.clipboard.writeText(shareText).then(() => true).catch(() => false)
+      }
+      const notifiedCount = Math.max(0, Number(payload.notifiedCount) || 0)
+      setNotice(
+        `${notifiedCount ? `Notified ${notifiedCount} connected player${notifiedCount === 1 ? '' : 's'}.` : 'Lineup update marked ready to share.'}`
+        + (directShareNames.length
+          ? copiedForDirectShare
+            ? ` Update copied for ${directShareNames.join(', ')}.`
+            : ` Share the update directly with ${directShareNames.join(', ')}.`
+          : ''),
+      )
+      await loadRoom({ quiet: true })
+    } catch (notifyError) {
+      setError(notifyError instanceof Error ? notifyError.message : 'The lineup update could not be sent.')
+    } finally {
+      setNotifyingLineupChangeId('')
+    }
+  }
+
   async function remindWaiting(messageId: string) {
     if (!room || reminding) return
     setReminding(true)
@@ -992,8 +1045,10 @@ function TeamRoomContent() {
               focusedReplyStatus={focusedReplyStatus}
               responding={respondingId === pinnedMessage.id}
               acknowledging={acknowledgingId === pinnedMessage.id}
+              notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
               onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
               onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
+              onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
               onAskCaptain={() => {
                 setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
                 window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -1375,8 +1430,10 @@ function MatchCard({
   focusedReplyStatus,
   responding,
   acknowledging,
+  notifyingLineupChange,
   onRespond,
   onAcknowledge,
+  onNotifyLineupChange,
   onAskCaptain,
 }: {
   message: TeamRoomMessage
@@ -1392,8 +1449,10 @@ function MatchCard({
   focusedReplyStatus: string
   responding: boolean
   acknowledging: boolean
+  notifyingLineupChange: boolean
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
   onAcknowledge: () => void
+  onNotifyLineupChange: () => void
   onAskCaptain: () => void
 }) {
   const card = message.card
@@ -1434,6 +1493,7 @@ function MatchCard({
     status: primaryRisk.status,
     courtLabel: primaryRisk.courtLabel,
   }) : ''
+  const lineupChangeNotice = card.lineupChangeNotice
 
   return (
     <article
@@ -1489,6 +1549,20 @@ function MatchCard({
         </div>
       ) : null}
 
+      {lineupChangeNotice ? (
+        <div className={lineupChangeNotice.pending ? styles.lineupChangePending : styles.lineupChangeSent}>
+          <strong>{lineupChangeNotice.pending ? 'Ready to notify affected players' : 'Lineup update sent'}</strong>
+          <span>
+            {lineupChangeNotice.replacementPlayerName} replaces {lineupChangeNotice.outgoingPlayerName} on {lineupChangeNotice.courtLabel}.
+          </span>
+          {!lineupChangeNotice.pending ? (
+            <small>{lineupChangeNotice.notifiedCount
+              ? `${lineupChangeNotice.notifiedCount} connected player${lineupChangeNotice.notifiedCount === 1 ? '' : 's'} notified.`
+              : 'Direct-share update prepared.'}</small>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className={styles.responseActions} aria-label="Your availability">
         {([
           ['yes', 'Confirm'],
@@ -1526,14 +1600,20 @@ function MatchCard({
         <div className={styles.captainCardActions}>
           {card.cardType === 'projected_lineup' ? (
             <>
-              {primaryRisk ? (
+              {lineupChangeNotice?.pending ? (
+                <button className={styles.buttonPrimary} type="button" disabled={notifyingLineupChange} onClick={onNotifyLineupChange}>
+                  {notifyingLineupChange ? 'Notifying…' : `Notify ${lineupChangeNotice.affectedNames.length} affected`}
+                </button>
+              ) : primaryRisk ? (
                 <Link className={styles.buttonPrimary} href={captainReplyHref}>Find replacement</Link>
               ) : waiting ? (
                 <Link className={styles.buttonPrimary} href={messagingHref}>Nudge {waiting} waiting</Link>
               ) : (
                 <span className={styles.captainActionComplete}>All replied</span>
               )}
-              {primaryRisk && waiting ? (
+              {lineupChangeNotice?.pending ? (
+                <Link className={styles.buttonSecondary} href={lineupHref}>Review lineup</Link>
+              ) : primaryRisk && waiting ? (
                 <Link className={styles.buttonSecondary} href={messagingHref}>Nudge {waiting} waiting</Link>
               ) : (
                 <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>

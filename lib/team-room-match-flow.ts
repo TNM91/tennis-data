@@ -3,6 +3,18 @@ export type TeamRoomLineupRow = {
   players: string[]
 }
 
+export type TeamRoomLineupChangeContext = {
+  courtLabel: string
+  outgoingPlayerName: string
+  replacementPlayerName: string
+}
+
+export type TeamRoomLineupChangeNotice = TeamRoomLineupChangeContext & {
+  affectedNames: string[]
+  beforePlayers: string[]
+  afterPlayers: string[]
+}
+
 export type TeamRoomMatchCardState = 'active' | 'upcoming' | 'archived'
 
 export type TeamRoomCardCandidate = {
@@ -48,6 +60,40 @@ export function buildLineupChanges(previous: TeamRoomLineupRow[], next: TeamRoom
     const afterPlayers = after?.players.join(' / ') || 'Open'
     return [`${label}: ${beforePlayers} -> ${afterPlayers}`]
   })
+}
+
+export function buildLineupChangeNotice(
+  previous: TeamRoomLineupRow[],
+  next: TeamRoomLineupRow[],
+  context: TeamRoomLineupChangeContext,
+): TeamRoomLineupChangeNotice | null {
+  const courtKey = normalizeName(context.courtLabel)
+  const outgoingKey = normalizeName(context.outgoingPlayerName)
+  const replacementKey = normalizeName(context.replacementPlayerName)
+  if (!courtKey || !outgoingKey || !replacementKey || outgoingKey === replacementKey) return null
+
+  const before = previous.find((row) => normalizeName(row.label) === courtKey)
+  const after = next.find((row) => normalizeName(row.label) === courtKey)
+  if (!before || !after || samePlayers(before.players, after.players)) return null
+
+  const beforeKeys = new Set(before.players.map(normalizeName).filter(Boolean))
+  const afterKeys = new Set(after.players.map(normalizeName).filter(Boolean))
+  if (!beforeKeys.has(outgoingKey) || afterKeys.has(outgoingKey)) return null
+  if (beforeKeys.has(replacementKey) || !afterKeys.has(replacementKey)) return null
+
+  const affectedNames = uniqueNames([
+    context.outgoingPlayerName,
+    context.replacementPlayerName,
+    ...after.players.filter((player) => beforeKeys.has(normalizeName(player))),
+  ])
+  return {
+    courtLabel: after.label || context.courtLabel,
+    outgoingPlayerName: context.outgoingPlayerName.trim(),
+    replacementPlayerName: context.replacementPlayerName.trim(),
+    affectedNames,
+    beforePlayers: [...before.players],
+    afterPlayers: [...after.players],
+  }
 }
 
 export function selectActiveTeamRoomCard(cards: TeamRoomCardCandidate[], today = todayDateKey()) {
@@ -112,6 +158,16 @@ function samePlayers(left: string[], right: string[]) {
 
 function normalizeName(value: string) {
   return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function uniqueNames(values: string[]) {
+  const byKey = new Map<string, string>()
+  for (const value of values) {
+    const name = cleanText(value)
+    const key = normalizeName(name)
+    if (key && !byKey.has(key)) byKey.set(key, name)
+  }
+  return Array.from(byKey.values())
 }
 
 function cleanText(value: unknown) {

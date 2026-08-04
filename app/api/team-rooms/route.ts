@@ -7,6 +7,7 @@ import {
   normalizeTeamRoomKey,
 } from '@/lib/team-room'
 import {
+  buildLineupChangeNotice,
   buildLineupChanges,
   normalizeLineupRows,
   selectActiveTeamRoomCard,
@@ -131,6 +132,20 @@ type TeamRoomActionBody = {
   replyToMessageId?: unknown
   reaction?: unknown
   memberId?: unknown
+  silent?: unknown
+  changeContext?: unknown
+}
+
+type StoredLineupChangeNotice = {
+  courtLabel: string
+  outgoingPlayerName: string
+  replacementPlayerName: string
+  affectedNames: string[]
+  beforePlayers: string[]
+  afterPlayers: string[]
+  pending: boolean
+  notifiedAt: string
+  notifiedCount: number
 }
 
 export async function GET(request: Request) {
@@ -260,6 +275,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can post a match update.' }, { status: 403 })
     }
     const card = cleanMatchCard(body.card)
+    const silent = body.silent === true
     if (!card.matchDate) {
       return Response.json({ ok: false, message: 'Choose the match date first.' }, { status: 400 })
     }
@@ -283,7 +299,16 @@ export async function POST(request: Request) {
           matchTime: card.matchTime || previousCard.matchTime,
           facility: card.facility || previousCard.facility,
         }
-      : card
+      : card.cardType === 'projected_lineup' && previousCard?.cardType === 'projected_lineup'
+        ? {
+            ...card,
+            opponent: card.opponent || previousCard.opponent,
+            matchTime: card.matchTime || previousCard.matchTime,
+            facility: card.facility || previousCard.facility,
+            availabilityRequestId: card.availabilityRequestId || previousCard.availabilityRequestId,
+            availabilityRequestUrl: card.availabilityRequestUrl || previousCard.availabilityRequestUrl,
+          }
+        : card
     const lineupChanges = effectiveCard.cardType === 'projected_lineup'
       ? buildLineupChanges(previousCard?.lineup || [], effectiveCard.lineup)
       : []
@@ -291,12 +316,22 @@ export async function POST(request: Request) {
     const lineupVersion = effectiveCard.cardType === 'projected_lineup'
       ? Math.max(1, previousLineupVersion + (lineupChanges.length && previousLineupVersion ? 1 : 0))
       : 0
+    const changeContext = cleanLineupChangeContext(body.changeContext)
+    const lineupChangeNotice = silent && previousCard && changeContext
+      ? buildLineupChangeNotice(previousCard.lineup, effectiveCard.lineup, changeContext)
+      : null
     const metadata = {
       ...effectiveCard,
       teamRoomCard: true,
       lineupVersion,
       lineupChanges,
       lineupChangedAt: lineupChanges.length ? new Date().toISOString() : cleanText(existingRows?.[0]?.metadata?.lineupChangedAt),
+      lineupChangeNotice: lineupChangeNotice ? {
+        ...lineupChangeNotice,
+        pending: true,
+        notifiedAt: '',
+        notifiedCount: 0,
+      } : null,
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
       ? `Projected lineup for ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}. Please confirm whether you can play.`
@@ -332,24 +367,90 @@ export async function POST(request: Request) {
       .from('internal_conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversation.id)
-    await notifyTeamRoom(auth.service, {
-      conversationId: conversation.id,
-      actorUserId: auth.userId,
-      teamName: selected.team_name,
-      scope: selected,
-      body: cardBody,
-      announcement: true,
-    })
+    if (!silent) {
+      await notifyTeamRoom(auth.service, {
+        conversationId: conversation.id,
+        actorUserId: auth.userId,
+        teamName: selected.team_name,
+        scope: selected,
+        body: cardBody,
+        announcement: true,
+      })
+    }
 
-    return Response.json({ ok: true, messageId: writeResult.data.id, href: buildTeamRoomHref({
-      teamName: selected.team_name,
-      leagueName: selected.league_name,
-      flight: selected.flight,
-      date: card.matchDate,
-      opponent: effectiveCard.opponent,
-      time: effectiveCard.matchTime,
-      facility: effectiveCard.facility,
-    }) })
+    return Response.json({
+      ok: true,
+      messageId: writeResult.data.id,
+      silent,
+      lineupChangeNotice,
+      href: buildTeamRoomHref({
+        teamName: selected.team_name,
+        leagueName: selected.league_name,
+        flight: selected.flight,
+        date: card.matchDate,
+        opponent: effectiveCard.opponent,
+        time: effectiveCard.matchTime,
+        facility: effectiveCard.facility,
+      }),
+    })
+  }
+
+  if (action === 'notify_lineup_change') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can send a lineup change.' }, { status: 403 })
+    }
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, cleanText(body.messageId))
+    if (!cardResult.ok) return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    const changeNotice = cleanStoredLineupChangeNotice(cardResult.metadata.lineupChangeNotice)
+    if (!changeNotice) {
+      return Response.json({ ok: false, message: 'There is no saved lineup change waiting to be sent.' }, { status: 409 })
+    }
+    if (!changeNotice.pending) {
+      return Response.json({
+        ok: true,
+        alreadyNotified: true,
+        notifiedCount: changeNotice.notifiedCount,
+        directShareNames: [],
+        shareText: buildLineupChangeShareText(changeNotice),
+      })
+    }
+
+    const notificationResult = await notifyAffectedLineupPlayers(auth.service, {
+      conversationId: conversation.id,
+      messageId: cardResult.messageId,
+      actorUserId: auth.userId,
+      scope: selected,
+      notice: changeNotice,
+    })
+    const notifiedAt = new Date().toISOString()
+    const nextNotice = {
+      ...changeNotice,
+      pending: false,
+      notifiedAt,
+      notifiedCount: notificationResult.notifiedCount,
+    }
+    const { error: updateError } = await auth.service
+      .from('internal_messages')
+      .update({
+        metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice },
+        edited_at: notifiedAt,
+      })
+      .eq('id', cardResult.messageId)
+      .eq('conversation_id', conversation.id)
+    if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: notifiedAt })
+      .eq('id', conversation.id)
+
+    return Response.json({
+      ok: true,
+      notifiedCount: notificationResult.notifiedCount,
+      notificationIds: notificationResult.notificationIds,
+      directShareNames: notificationResult.directShareNames,
+      shareText: buildLineupChangeShareText(changeNotice),
+      notifiedAt,
+    })
   }
 
   if (action === 'respond') {
@@ -1052,6 +1153,76 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
     href,
     tag: `team-room-${input.conversationId}`,
   })
+}
+
+async function notifyAffectedLineupPlayers(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  actorUserId: string
+  scope: TeamLinkRow
+  notice: StoredLineupChangeNotice
+}) {
+  const { data } = await service
+    .from('internal_conversation_participants')
+    .select('profile_id,muted')
+    .eq('conversation_id', input.conversationId)
+  const participants = (data ?? []) as ParticipantRow[]
+  const profileById = await loadProfileMap(service, participants.map((row) => row.profile_id))
+  const affectedByKey = new Map(input.notice.affectedNames.map((name) => [normalizePersonKey(name), name] as const))
+  const handledKeys = new Set<string>()
+  const recipients = participants.flatMap((participant) => {
+    const profile = profileById.get(participant.profile_id)
+    const matchingKey = [profile?.linked_player_name, profile?.message_display_name]
+      .map(normalizePersonKey)
+      .find((key) => affectedByKey.has(key))
+    if (!matchingKey) return []
+    if (participant.profile_id === input.actorUserId) {
+      handledKeys.add(matchingKey)
+      return []
+    }
+    if (participant.muted === true) return []
+    handledKeys.add(matchingKey)
+    return [participant]
+  })
+
+  const hrefBase = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
+  const hrefUrl = new URL(hrefBase, 'https://tenaceiq.local')
+  hrefUrl.searchParams.set('message', input.messageId)
+  hrefUrl.searchParams.set('court', input.notice.courtLabel)
+  hrefUrl.hash = `match-card-${encodeURIComponent(input.messageId)}`
+  const href = `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`
+  const title = `${input.scope.team_name} lineup changed`
+  const notificationBody = `${input.notice.courtLabel}: ${input.notice.replacementPlayerName} is in for ${input.notice.outgoingPlayerName}.`
+  const { data: notifications } = recipients.length
+    ? await service.from('internal_notifications').insert(recipients.map((row) => ({
+        recipient_profile_id: row.profile_id,
+        actor_user_id: input.actorUserId,
+        notification_type: 'message',
+        title,
+        body: notificationBody,
+        href,
+        conversation_id: input.conversationId,
+      }))).select('id')
+    : { data: [] as Array<{ id?: string | null }> }
+
+  if (recipients.length) {
+    await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+      title,
+      body: notificationBody,
+      href,
+      tag: `team-room-lineup-${input.messageId}`,
+    })
+  }
+
+  return {
+    notifiedCount: recipients.length,
+    notificationIds: ((notifications ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean),
+    directShareNames: input.notice.affectedNames.filter((name) => !handledKeys.has(normalizePersonKey(name))),
+  }
 }
 
 async function notifyTeamRoomManagers(service: SupabaseClient, input: {
@@ -1772,6 +1943,45 @@ function cleanMatchCard(value: unknown) {
     availabilityRequestId: cleanText(card.availabilityRequestId),
     availabilityRequestUrl: cleanText(card.availabilityRequestUrl).slice(0, 500),
   }
+}
+
+function cleanLineupChangeContext(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const courtLabel = cleanText(row.courtLabel).slice(0, 80)
+  const outgoingPlayerName = cleanText(row.outgoingPlayerName).slice(0, 120)
+  const replacementPlayerName = cleanText(row.replacementPlayerName).slice(0, 120)
+  return courtLabel && outgoingPlayerName && replacementPlayerName
+    ? { courtLabel, outgoingPlayerName, replacementPlayerName }
+    : null
+}
+
+function cleanStoredLineupChangeNotice(value: unknown): StoredLineupChangeNotice | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const context = cleanLineupChangeContext(row)
+  if (!context) return null
+  const affectedNames = Array.isArray(row.affectedNames)
+    ? Array.from(new Set(row.affectedNames.map((name) => cleanText(name).slice(0, 120)).filter(Boolean))).slice(0, 6)
+    : []
+  if (!affectedNames.length) return null
+  return {
+    ...context,
+    affectedNames,
+    beforePlayers: Array.isArray(row.beforePlayers)
+      ? row.beforePlayers.map((name) => cleanText(name).slice(0, 120)).filter(Boolean).slice(0, 4)
+      : [],
+    afterPlayers: Array.isArray(row.afterPlayers)
+      ? row.afterPlayers.map((name) => cleanText(name).slice(0, 120)).filter(Boolean).slice(0, 4)
+      : [],
+    pending: row.pending === true,
+    notifiedAt: cleanText(row.notifiedAt),
+    notifiedCount: Math.max(0, Math.floor(Number(row.notifiedCount) || 0)),
+  }
+}
+
+function buildLineupChangeShareText(notice: StoredLineupChangeNotice) {
+  return `${notice.courtLabel} lineup update: ${notice.replacementPlayerName} is in for ${notice.outgoingPlayerName}. New court: ${notice.afterPlayers.join(' / ')}.`
 }
 
 async function getTeamRoomAuth(request: Request) {

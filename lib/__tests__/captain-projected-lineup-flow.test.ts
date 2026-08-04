@@ -20,6 +20,18 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("setConfirmationStage('opening-messages')")
   })
 
+  it('syncs a saved suggested replacement before offering targeted delivery', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(source).toContain('syncSavedSuggestedSwapToTeamRoom')
+    expect(source).toContain("action: 'post_match_card'")
+    expect(source).toContain('silent: true')
+    expect(source).toContain('Team Chat is ready to notify the affected players.')
+    expect(source).toContain('Notify ${savedLineupChangeDelivery.affectedNames.length} affected')
+    expect(source).toContain("action: 'notify_lineup_change'")
+    expect(source).toContain("fetch('/api/internal-notifications/email-fallback'")
+  })
+
   it('opens messaging as an availability request rather than a final lineup announcement', () => {
     const source = readSource('app/captain/messaging/page.tsx')
 
