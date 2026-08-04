@@ -4,11 +4,19 @@ import {
   getCaptainMobileActionLayout,
   getCaptainMobileMatchPhase,
   orderCaptainMobileNowItems,
+  shouldShowCaptainMobileTeamSelect,
 } from '../captain-mobile-actions'
 
 describe('Captain mobile action priority', () => {
   it('uses the captain local calendar day', () => {
     expect(getCaptainLocalDateKey(new Date(2026, 7, 4, 23, 30))).toBe('2026-08-04')
+  })
+
+  it('hides the team selector only when one linked team is ready', () => {
+    expect(shouldShowCaptainMobileTeamSelect(true, 1)).toBe(true)
+    expect(shouldShowCaptainMobileTeamSelect(false, 0)).toBe(true)
+    expect(shouldShowCaptainMobileTeamSelect(false, 1)).toBe(false)
+    expect(shouldShowCaptainMobileTeamSelect(false, 2)).toBe(true)
   })
 
   it('classifies setup, upcoming, match-day, and past work', () => {

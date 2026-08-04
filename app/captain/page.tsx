@@ -84,6 +84,7 @@ import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
   orderCaptainMobileNowItems,
+  shouldShowCaptainMobileTeamSelect,
   type CaptainMobileActionId,
   type CaptainMobileNowItemId,
 } from '@/lib/captain-mobile-actions'
@@ -2961,6 +2962,10 @@ function CaptainHubContent() {
   const captainUnlockHref = getPlanUnlockHref('captain', '/captain')
   const captainWorkflowHref = (href: string) => premiumEnabled ? href : captainUnlockHref
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const showCaptainMobileTeamSelect = shouldShowCaptainMobileTeamSelect(
+    loadingOptions,
+    filteredTeamOptions.length,
+  )
   const captainSetupProgress = useMemo(() => getCaptainSetupProgress({
     profile: captainProfileLink,
     teamScopes: captainTeamScopes,
@@ -15647,38 +15652,40 @@ function CaptainHubContent() {
         )}
       </div>
 
-      <select
-        className={mobileCommandStyles.teamSelect}
-        aria-label="Captain team"
-        value={selectedTeamOptionKey}
-        disabled={loadingOptions || !filteredTeamOptions.length}
-        onChange={(event) => {
-          const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === event.target.value)
-          if (!option) return
-          setDefaultTeamMessage('')
-          setSelectedTeam(option.team)
-          setSelectedLeague(option.league)
-          setSelectedFlight(option.flight)
-          void trackProductUsageEvent({
-            eventName: 'captain_team_scope_selected',
-            surface: 'captain',
-            planId: 'captain',
-            metadata: { team: option.team, league: option.league, flight: option.flight },
-          })
-        }}
-      >
-        {loadingOptions && !filteredTeamOptions.length ? (
-          <option value="">Loading teams...</option>
-        ) : !filteredTeamOptions.length ? (
-          <option value="">No linked teams</option>
-        ) : (
-          filteredTeamOptions.map((option) => (
-            <option key={`${option.team}__${option.league}__${option.flight}`} value={buildTeamOptionKey(option)}>
-              {option.team} · {option.league} · {option.flight}
-            </option>
-          ))
-        )}
-      </select>
+      {showCaptainMobileTeamSelect ? (
+        <select
+          className={mobileCommandStyles.teamSelect}
+          aria-label="Captain team"
+          value={selectedTeamOptionKey}
+          disabled={loadingOptions || !filteredTeamOptions.length}
+          onChange={(event) => {
+            const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === event.target.value)
+            if (!option) return
+            setDefaultTeamMessage('')
+            setSelectedTeam(option.team)
+            setSelectedLeague(option.league)
+            setSelectedFlight(option.flight)
+            void trackProductUsageEvent({
+              eventName: 'captain_team_scope_selected',
+              surface: 'captain',
+              planId: 'captain',
+              metadata: { team: option.team, league: option.league, flight: option.flight },
+            })
+          }}
+        >
+          {loadingOptions && !filteredTeamOptions.length ? (
+            <option value="">Loading teams...</option>
+          ) : !filteredTeamOptions.length ? (
+            <option value="">No linked teams</option>
+          ) : (
+            filteredTeamOptions.map((option) => (
+              <option key={`${option.team}__${option.league}__${option.flight}`} value={buildTeamOptionKey(option)}>
+                {option.team} · {option.league} · {option.flight}
+              </option>
+            ))
+          )}
+        </select>
+      ) : null}
 
       {captainImportHandoff ? (
         <div className={mobileCommandStyles.importNotice} role="status">
