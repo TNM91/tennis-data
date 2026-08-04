@@ -15,6 +15,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import { COACH_ASSIGNMENT_TEMPLATES, getCoachAssignmentTemplate } from '@/lib/coach-assignment-templates'
 import type { CoachStudentInvite } from '@/lib/coach-invites'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -387,6 +388,16 @@ function CoachContent() {
   const firstAssignmentRequestKey = firstAssignmentRequestActive && requestedStudentLinkId
     ? `${requestedStudentLinkId}:first-assignment`
     : ''
+  const consumeCoachHandoffParams = useCallback((keys: readonly string[], fallbackHash = '') => {
+    if (!keys.some((key) => searchParams.has(key))) return
+    const href = buildConsumedWorkflowHref(
+      '/coach',
+      searchParams,
+      keys,
+      window.location.hash || fallbackHash,
+    )
+    if (href) router.replace(href, { scroll: false })
+  }, [router, searchParams])
   const textContactNeedsPhone = (contactPreference === 'text' || contactPreference === 'both') && !studentPhoneDigits
   const studentPhoneLooksIncomplete = Boolean(studentPhone.trim()) && studentPhoneDigits.length < 7
   const addStudentMissingNameMessage = !studentName.trim() ? 'Add a player name before saving.' : ''
@@ -1750,6 +1761,7 @@ function CoachContent() {
 
     if (matchingRestoredDraft) {
       setWorkspaceMessage(`First assignment request draft restored for ${requestedStudent.playerName}. Review the edits, then create the assignment.`)
+      consumeCoachHandoffParams(['firstAssignment'], '#coach-lesson-frame')
       window.requestAnimationFrame(() => {
         document.getElementById('coach-lesson-frame')?.scrollIntoView({
           behavior: isMobile ? 'smooth' : 'auto',
@@ -1788,6 +1800,7 @@ function CoachContent() {
         ? `First assignment request loaded for ${requestedStudent.playerName}: ${starter.title}. Expected evidence: ${starter.evidence}`
         : `First assignment request loaded for ${requestedStudent.playerName}. Add one measurable task, proof target, and due date.`,
     )
+    consumeCoachHandoffParams(['firstAssignment'], '#coach-lesson-frame')
     window.requestAnimationFrame(() => {
       document.getElementById('coach-lesson-frame')?.scrollIntoView({
         behavior: isMobile ? 'smooth' : 'auto',
@@ -1802,6 +1815,7 @@ function CoachContent() {
     assignmentStudentId,
     assignmentTitle,
     coachRouteHandoffHandled,
+    consumeCoachHandoffParams,
     firstAssignmentRequestKey,
     isMobile,
     requestedStudentLinkId,
@@ -3067,6 +3081,7 @@ function CoachContent() {
     setAssignmentLevelUpCardId(primaryCard?.id ?? '')
     setLessonFocus(pack.focus)
     setWorkspaceMessage(`${pack.title} loaded into the coach assignment form.`)
+    consumeCoachHandoffParams(['levelUpPack', 'card'], '#coach-lesson-frame')
   }
 
   async function saveLevelUpHandoffPackDraft(pack: CoachLevelUpHandoffPack) {
@@ -3076,6 +3091,7 @@ function CoachContent() {
       return
     }
 
+    loadLevelUpHandoffPack(pack)
     await saveCoachAssignment('draft', pack)
   }
 
@@ -3236,6 +3252,13 @@ function CoachContent() {
               Save draft assignment
             </button>
             <a href="#coach-lesson-frame" style={smallGhostLinkStyle}>Jump to lesson frame</a>
+            <button
+              type="button"
+              onClick={() => consumeCoachHandoffParams(['levelUpPack', 'card'])}
+              style={smallGhostButtonStyle}
+            >
+              Dismiss
+            </button>
           </div>
         </section>
       ) : null}

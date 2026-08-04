@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainImportHandoff,
   buildCaptainImportReturnHref,
-  buildConsumedCaptainImportHref,
+  buildConsumedCaptainHandoffHref,
   isCaptainImportDraft,
   readCaptainImportHandoff,
 } from '../captain-import-handoff'
@@ -50,14 +50,16 @@ describe('Captain import handoff', () => {
     expect(url.hash).toBe('#captain-team-scope')
     expect(readCaptainImportHandoff(url.searchParams)).toEqual(handoff)
 
+    url.searchParams.set('setupResult', 'player-linked')
     const consumedHref = new URL(
-      buildConsumedCaptainImportHref(url.searchParams, url.hash),
+      buildConsumedCaptainHandoffHref(url.searchParams, url.hash),
       'https://tenaceiq.example',
     )
     expect(consumedHref.searchParams.get('captainImport')).toBeNull()
     expect(consumedHref.searchParams.get('importBatch')).toBeNull()
     expect(consumedHref.searchParams.get('importPlayers')).toBeNull()
     expect(consumedHref.searchParams.get('importContacts')).toBeNull()
+    expect(consumedHref.searchParams.get('setupResult')).toBeNull()
     expect(consumedHref.searchParams.get('team')).toBe('Meinert Tri-Level')
     expect(consumedHref.searchParams.get('league')).toBe('2026 Tri-Level')
     expect(consumedHref.searchParams.get('flight')).toBe('3.5 / 4.0 / 4.5')

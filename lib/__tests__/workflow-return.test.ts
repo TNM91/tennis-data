@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { addWorkflowResult, getSafeWorkflowReturnTo } from '../workflow-return'
+import {
+  addWorkflowResult,
+  buildConsumedWorkflowHref,
+  buildConsumedWorkflowResultHref,
+  getSafeWorkflowReturnTo,
+  readWorkflowResult,
+} from '../workflow-return'
 
 describe('workflow return', () => {
   it('keeps approved product paths and rejects external returns', () => {
@@ -10,7 +16,19 @@ describe('workflow return', () => {
   })
 
   it('adds completion proof without dropping scope or the destination anchor', () => {
-    expect(addWorkflowResult('/captain?team=TIQ#captain-team-scope', 'player-linked'))
-      .toBe('/captain?team=TIQ&setupResult=player-linked#captain-team-scope')
+    const href = addWorkflowResult('/captain?team=TIQ#captain-team-scope', 'player-linked')
+    expect(href).toBe('/captain?team=TIQ&setupResult=player-linked#captain-team-scope')
+
+    const url = new URL(href, 'https://tenaceiq.example')
+    expect(readWorkflowResult(url.searchParams)).toBe('player-linked')
+    expect(buildConsumedWorkflowResultHref(url.pathname, url.searchParams, url.hash))
+      .toBe('/captain?team=TIQ#captain-team-scope')
+  })
+
+  it('consumes one-time Coach handoffs without dropping the selected player', () => {
+    const params = new URLSearchParams('studentLinkId=student-1&firstAssignment=1&levelUpPack=doubles&card=poach')
+    expect(buildConsumedWorkflowHref('/coach', params, ['firstAssignment'], '#coach-lesson-frame'))
+      .toBe('/coach?studentLinkId=student-1&levelUpPack=doubles&card=poach#coach-lesson-frame')
+    expect(buildConsumedWorkflowHref('/outside', params, ['firstAssignment'])).toBe('')
   })
 })

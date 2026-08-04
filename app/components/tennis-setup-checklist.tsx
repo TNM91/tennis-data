@@ -12,6 +12,7 @@ type TennisSetupChecklistProps = {
   matchDataHref?: string
   context?: 'player' | 'captain'
   statusMessage?: string
+  onStatusDismiss?: () => void
 }
 
 export default function TennisSetupChecklist({
@@ -23,6 +24,7 @@ export default function TennisSetupChecklist({
   matchDataHref = '/data-assist?intent=upload-source&context=My%20Lab#upload',
   context = 'player',
   statusMessage,
+  onStatusDismiss,
 }: TennisSetupChecklistProps) {
   const steps = [
     {
@@ -58,13 +60,18 @@ export default function TennisSetupChecklist({
 
   return (
     <section aria-label="Tennis setup" style={panelStyle}>
-      {statusMessage ? <div role="status" style={statusStyle}>{statusMessage}</div> : null}
+      {statusMessage ? (
+        <div role="status" style={statusStyle}>
+          <span>{statusMessage}</span>
+          {onStatusDismiss ? <button type="button" onClick={onStatusDismiss} style={statusDismissStyle}>Done</button> : null}
+        </div>
+      ) : null}
       <div style={copyStyle}>
         <span style={eyebrowStyle}>Get started · Step {nextIndex + 1} of {steps.length}</span>
         <h2 style={titleStyle}>{next.title}</h2>
         <p style={bodyStyle}>{next.body}</p>
       </div>
-      <Link href={next.href} style={actionStyle}>{next.action}</Link>
+      <Link href={next.href} onClick={statusMessage ? onStatusDismiss : undefined} style={actionStyle}>{next.action}</Link>
       <ol aria-label="Setup progress" style={progressStyle}>
         {steps.map((step, index) => (
           <li key={step.label} style={progressItemStyle(step.complete, index === nextIndex)}>
@@ -100,4 +107,5 @@ const progressStyle: CSSProperties = { gridColumn: '1 / -1', display: 'flex', fl
 const progressItemStyle = (complete: boolean, current: boolean): CSSProperties => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, border: `1px solid ${current ? 'var(--brand-blue)' : 'var(--shell-panel-border)'}`, background: complete ? 'color-mix(in srgb, var(--brand-green) 14%, transparent)' : 'var(--shell-chip-bg)', color: complete ? 'var(--brand-green)' : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 850 })
 const helpStyle: CSSProperties = { gridColumn: '1 / -1', width: 'fit-content', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 800 }
 const srOnlyStyle: CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }
-const statusStyle: CSSProperties = { padding: '9px 12px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 850 }
+const statusStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 0, padding: '9px 12px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 850 }
+const statusDismissStyle: CSSProperties = { flex: '0 0 auto', border: 0, background: 'transparent', color: 'var(--shell-copy-muted)', padding: '5px 2px', font: 'inherit', fontSize: 12, cursor: 'pointer' }

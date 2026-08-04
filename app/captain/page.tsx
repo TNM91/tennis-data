@@ -77,10 +77,11 @@ import {
   type CaptainTeamImprovementId,
 } from '@/lib/captain-team-improvements'
 import {
-  buildConsumedCaptainImportHref,
+  buildConsumedCaptainHandoffHref,
   readCaptainImportHandoff,
   type CaptainImportHandoff,
 } from '@/lib/captain-import-handoff'
+import { readWorkflowResult } from '@/lib/workflow-return'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
@@ -1548,7 +1549,15 @@ function CaptainLockedSurface({
   )
 }
 
-function CaptainFirstUseSetup({ progress, setupResult }: { progress: CaptainSetupProgress; setupResult: string }) {
+function CaptainFirstUseSetup({
+  progress,
+  setupResult,
+  onStatusDismiss,
+}: {
+  progress: CaptainSetupProgress
+  setupResult: string
+  onStatusDismiss: () => void
+}) {
   return (
     <div style={{ ...pageWrap, display: 'grid', gap: 12 }}>
       <TennisSetupChecklist
@@ -1560,6 +1569,7 @@ function CaptainFirstUseSetup({ progress, setupResult }: { progress: CaptainSetu
         matchDataHref={captainScheduleHref}
         context="captain"
         statusMessage={setupResult === 'player-linked' ? 'Player connected. Add your team next.' : undefined}
+        onStatusDismiss={onStatusDismiss}
       />
     </div>
   )
@@ -1646,10 +1656,12 @@ function CaptainHubContent() {
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
   const incomingCaptainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
+  const incomingCaptainSetupResult = useMemo(() => readWorkflowResult(searchParams), [searchParams])
   const [captainImportHandoff, setCaptainImportHandoff] = useState<CaptainImportHandoff | null>(
     incomingCaptainImportHandoff,
   )
   const captainImportBatchRef = useRef(incomingCaptainImportHandoff?.batchId || '')
+  const [captainSetupResult, setCaptainSetupResult] = useState(incomingCaptainSetupResult)
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
@@ -1658,16 +1670,17 @@ function CaptainHubContent() {
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
 
   useEffect(() => {
-    if (!incomingCaptainImportHandoff) return
-    if (captainImportBatchRef.current !== incomingCaptainImportHandoff.batchId) {
+    if (!incomingCaptainImportHandoff && !incomingCaptainSetupResult) return
+    if (incomingCaptainImportHandoff && captainImportBatchRef.current !== incomingCaptainImportHandoff.batchId) {
       captainImportBatchRef.current = incomingCaptainImportHandoff.batchId
       setCaptainImportHandoff(incomingCaptainImportHandoff)
     }
+    if (incomingCaptainSetupResult) setCaptainSetupResult(incomingCaptainSetupResult)
     router.replace(
-      buildConsumedCaptainImportHref(searchParams, window.location.hash),
+      buildConsumedCaptainHandoffHref(searchParams, window.location.hash),
       { scroll: false },
     )
-  }, [incomingCaptainImportHandoff, router, searchParams])
+  }, [incomingCaptainImportHandoff, incomingCaptainSetupResult, router, searchParams])
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -2995,8 +3008,6 @@ function CaptainHubContent() {
     teamOptions: filteredTeamOptions,
     importHandoff: captainImportHandoff,
   }), [captainImportHandoff, captainProfileLink, captainTeamScopes, filteredTeamOptions])
-  const captainSetupResult = searchParams.get('setupResult') || ''
-
   useEffect(() => {
     setCaptainHomeChecklistDoneById(hasTeamScope ? readCaptainHomeChecklist(captainWeekStatusKey) : {})
     setCaptainFirstSeasonDryRunDoneById(hasTeamScope ? readCaptainFirstSeasonDryRun(captainWeekStatusKey) : {})
@@ -16995,7 +17006,11 @@ function CaptainHubContent() {
     && captainSetupProgress.nextStep !== 'ready'
   ) {
     return (
-      <CaptainFirstUseSetup progress={captainSetupProgress} setupResult={captainSetupResult} />
+      <CaptainFirstUseSetup
+        progress={captainSetupProgress}
+        setupResult={captainSetupResult}
+        onStatusDismiss={() => setCaptainSetupResult('')}
+      />
     )
   }
 
