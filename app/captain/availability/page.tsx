@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
@@ -26,6 +27,7 @@ import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
+import { buildCaptainAvailabilityRequestMessage } from '@/lib/captain-availability-share'
 
 type TeamOption = {
   team: string
@@ -99,6 +101,12 @@ type MatchPlayerRosterRow = {
   match_id: string
   side: 'A' | 'B'
   players: RosterPlayerRelation
+}
+
+type AvailabilityRequestResponseRow = {
+  player_id: string | null
+  player_name: string
+  status: 'available' | 'maybe' | 'unavailable'
 }
 
 function formatScheduleLabel(match: TeamRosterMatchRow | null) {
@@ -179,10 +187,16 @@ function CaptainAvailabilityContent() {
   )
   const [preferredMatchDate] = useState(initialContext.eventDate)
   const [preferredOpponent] = useState(initialContext.opponentTeam)
-  const [requestSent, setRequestSent] = useState(false)
+  const [availabilityRequestUrl, setAvailabilityRequestUrl] = useState('')
+  const [availabilityRequestState, setAvailabilityRequestState] = useState<'idle' | 'preparing' | 'ready' | 'error'>('idle')
+  const [availabilityRequestError, setAvailabilityRequestError] = useState('')
+  const [preparedRequestKey, setPreparedRequestKey] = useState('')
+  const [shareFeedback, setShareFeedback] = useState('')
+  const preparingRequestKeyRef = useRef('')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -268,23 +282,20 @@ function CaptainAvailabilityContent() {
       }
       const matchIds = typedMatches.map((match) => match.id)
 
-      if (!matchIds.length) {
-        setPlayers([])
-        return
-      }
-
       const [matchPlayersResult, rosterMembersResult] = await Promise.all([
-        supabase
-          .from('match_players')
-          .select(`
-            match_id,
-            side,
-            players (
-              id,
-              name
-            )
-          `)
-          .in('match_id', matchIds),
+        matchIds.length
+          ? supabase
+              .from('match_players')
+              .select(`
+                match_id,
+                side,
+                players (
+                  id,
+                  name
+                )
+              `)
+              .in('match_id', matchIds)
+          : Promise.resolve({ data: [] as MatchPlayerRosterRow[], error: null }),
         supabase
           .from('team_roster_members')
           .select('team_name, player_id, player_name, league_name, flight')
@@ -346,6 +357,152 @@ function CaptainAvailabilityContent() {
   const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
   const selectedOpponent = selectedMatch ? getOpponent(selectedMatch, selectedTeam) : preferredOpponent
   const selectedEventDate = selectedMatch?.match_date || preferredMatchDate
+  const availabilityRequestKey = useMemo(() => [
+    selectedTeam,
+    selectedLeague,
+    selectedFlight,
+    selectedEventDate,
+    selectedOpponent,
+    selectedMatch?.match_time || '',
+    selectedMatch?.facility || '',
+    players.map((player) => `${player.id}:${player.name}`).sort().join('|'),
+  ].join('__'), [
+    players,
+    selectedEventDate,
+    selectedFlight,
+    selectedLeague,
+    selectedMatch?.facility,
+    selectedMatch?.match_time,
+    selectedOpponent,
+    selectedTeam,
+  ])
+
+  const prepareAvailabilityRequest = useCallback(async (force = false) => {
+    if (!selectedTeam || !selectedEventDate || !players.length) return
+    if (!force && (preparedRequestKey === availabilityRequestKey || preparingRequestKeyRef.current === availabilityRequestKey)) return
+
+    preparingRequestKeyRef.current = availabilityRequestKey
+    setAvailabilityRequestState('preparing')
+    setAvailabilityRequestError('')
+    setShareFeedback('')
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) throw new Error('Sign in again to prepare this request.')
+
+      const response = await fetch('/api/captain/availability-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          matchDate: selectedEventDate.slice(0, 10),
+          opponentTeam: selectedOpponent,
+          matchTime: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          slots: [],
+          invitedPlayers: players.map((player) => ({
+            playerId: player.id,
+            playerName: player.name,
+          })),
+        }),
+      })
+      const result = await response.json() as { requestUrl?: string; message?: string }
+      if (!response.ok || !result.requestUrl) {
+        throw new Error(result.message || 'The availability request could not be prepared.')
+      }
+      if (preparingRequestKeyRef.current !== availabilityRequestKey) return
+
+      setAvailabilityRequestUrl(result.requestUrl)
+      setPreparedRequestKey(availabilityRequestKey)
+      setAvailabilityRequestState('ready')
+
+      const query = new URLSearchParams({
+        teamName: selectedTeam,
+        matchDate: selectedEventDate.slice(0, 10),
+      })
+      const statusResponse = await fetch(`/api/captain/availability-requests?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (statusResponse.ok && preparingRequestKeyRef.current === availabilityRequestKey) {
+        const statusResult = await statusResponse.json() as { responses?: AvailabilityRequestResponseRow[] }
+        const responses = statusResult.responses ?? []
+        setPlayers((current) => current.map((player) => {
+          const saved = responses.find((row) => (
+            (row.player_id && row.player_id === player.id) ||
+            row.player_name.trim().toLowerCase() === player.name.trim().toLowerCase()
+          ))
+          if (!saved) return player
+          return {
+            ...player,
+            status: saved.status === 'available' ? 'in' : saved.status === 'unavailable' ? 'out' : 'maybe',
+          }
+        }))
+      }
+    } catch (nextError) {
+      if (preparingRequestKeyRef.current !== availabilityRequestKey) return
+      setAvailabilityRequestState('error')
+      setAvailabilityRequestError(nextError instanceof Error ? nextError.message : 'The availability request could not be prepared.')
+    } finally {
+      if (preparingRequestKeyRef.current === availabilityRequestKey) preparingRequestKeyRef.current = ''
+    }
+  }, [
+    availabilityRequestKey,
+    players,
+    preparedRequestKey,
+    selectedEventDate,
+    selectedFlight,
+    selectedLeague,
+    selectedMatch?.facility,
+    selectedMatch?.match_time,
+    selectedOpponent,
+    selectedTeam,
+  ])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !access.canUseCaptainWorkflow || loadingRoster) return
+    if (!selectedTeam || !selectedEventDate || !players.length) return
+    void prepareAvailabilityRequest()
+  }, [
+    access.canUseCaptainWorkflow,
+    authResolved,
+    loadingRoster,
+    players.length,
+    prepareAvailabilityRequest,
+    role,
+    selectedEventDate,
+    selectedTeam,
+  ])
+
+  async function shareAvailabilityRequest() {
+    if (!availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey) return
+    const text = buildCaptainAvailabilityRequestMessage({
+      teamName: selectedTeam,
+      opponentTeam: selectedOpponent,
+      matchDate: selectedEventDate,
+      matchTime: selectedMatch?.match_time || '',
+      facility: selectedMatch?.facility || '',
+      requestUrl: availabilityRequestUrl,
+    })
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `${selectedTeam} availability`, text })
+        setShareFeedback('Availability request shared.')
+        return
+      }
+      await navigator.clipboard.writeText(text)
+      setShareFeedback('Request copied. Paste it into your team chat.')
+    } catch (nextError) {
+      if (nextError instanceof DOMException && nextError.name === 'AbortError') return
+      setAvailabilityRequestError('Sharing was blocked. Try again or open Team Messages.')
+    }
+  }
 
   useEffect(() => {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
@@ -386,12 +543,22 @@ function CaptainAvailabilityContent() {
     )
   }
 
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-
   const filteredTeamOptions = useMemo(() => {
-    return teamOptions.filter((option) => option.team && option.league && option.flight)
-  }, [teamOptions])
+    const next = teamOptions.filter((option) => option.team && option.league && option.flight)
+    if (selectedTeam && !next.some((option) => option.team === selectedTeam && option.league === selectedLeague && option.flight === selectedFlight)) {
+      next.unshift({ team: selectedTeam, league: selectedLeague, flight: selectedFlight, matches: 0 })
+    }
+    return next
+  }, [selectedFlight, selectedLeague, selectedTeam, teamOptions])
   const hasScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const canShareAvailability = Boolean(
+    selectedTeam &&
+    selectedEventDate &&
+    players.length &&
+    availabilityRequestState === 'ready' &&
+    availabilityRequestUrl &&
+    preparedRequestKey === availabilityRequestKey
+  )
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
     competitionLayer: hasScope ? competitionLayerParam : undefined,
     team: hasScope ? selectedTeam : undefined,
@@ -605,15 +772,12 @@ function CaptainAvailabilityContent() {
                 type="button"
                 style={{
                   ...primaryButton,
-                  ...(!hasScope ? disabledAction : {}),
+                  ...(!canShareAvailability ? disabledAction : {}),
                 }}
-                onClick={() => {
-                  if (!hasScope) return
-                  setRequestSent(true)
-                }}
-                disabled={!hasScope}
+                onClick={() => void shareAvailabilityRequest()}
+                disabled={!canShareAvailability}
               >
-                Prep request
+                {availabilityRequestState === 'preparing' ? 'Preparing request...' : 'Share availability'}
               </button>
 
               <button
@@ -658,8 +822,21 @@ function CaptainAvailabilityContent() {
               <span>{counts.out} out</span>
             </div>
 
-            {requestSent ? (
-              <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
+            {shareFeedback ? (
+              <div style={successBanner}>{shareFeedback}</div>
+            ) : availabilityRequestState === 'ready' && preparedRequestKey === availabilityRequestKey ? (
+              <div style={successBanner}>
+                Ready for {players.length} roster player{players.length === 1 ? '' : 's'}. Nothing is sent until you tap Share availability.
+              </div>
+            ) : availabilityRequestState === 'preparing' ? (
+              <div style={helperBanner}>Preparing the roster and match link...</div>
+            ) : availabilityRequestState === 'error' ? (
+              <div style={helperBanner}>
+                {availabilityRequestError}{' '}
+                <button type="button" style={inlineRetryButton} onClick={() => void prepareAvailabilityRequest(true)}>
+                  Try again
+                </button>
+              </div>
             ) : (
               <div style={helperBanner}>{responseSummary}</div>
             )}
@@ -1188,6 +1365,18 @@ const helperBanner: CSSProperties = {
   fontWeight: 700,
   fontSize: '14px',
   overflowWrap: 'anywhere',
+}
+
+const inlineRetryButton: CSSProperties = {
+  appearance: 'none',
+  padding: 0,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-blue-2)',
+  font: 'inherit',
+  fontWeight: 900,
+  textDecoration: 'underline',
+  cursor: 'pointer',
 }
 
 const contentWrap: CSSProperties = {
