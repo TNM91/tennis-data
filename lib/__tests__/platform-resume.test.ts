@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPlatformResumeCandidates,
+  getPlatformResumeDetail,
   mergePlatformResumeCandidates,
   sanitizePlatformResumeCandidates,
   type PlatformResumeCandidate,
@@ -71,6 +72,72 @@ describe('platform resume', () => {
     expect(candidates[0].href).toContain('/captain/availability?')
   })
 
+  it('puts an upcoming match action ahead of a higher-priority generic draft', () => {
+    const now = Date.parse('2026-08-03T12:00:00')
+    const candidates = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'lineup-builder',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-08-04',
+        weekStatus: 'draft-lineup',
+        lineupCount: 2,
+        lastVisitedAt: '2026-08-01T12:00:00.000Z',
+      },
+      improve: {
+        lastSurface: 'conversation',
+        conversationDraft: 'Coach, I tried it...',
+        lastVisitedAt: '2026-08-03T11:00:00.000Z',
+      },
+    }, now)
+
+    expect(candidates.map((item) => item.id)).toEqual(['captain', 'improve'])
+    expect(candidates[0]).toMatchObject({ actionLabel: 'Finish lineup', dueAt: '2026-08-04' })
+    expect(getPlatformResumeDetail(candidates[0], now)).toContain('Tomorrow')
+  })
+
+  it('keeps an old past-due draft available without letting it dominate current work', () => {
+    const now = Date.parse('2026-08-03T12:00:00')
+    const candidates = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'lineup-builder',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-07-20',
+        weekStatus: 'draft-lineup',
+        lineupCount: 2,
+        lastVisitedAt: '2026-07-20T12:00:00.000Z',
+      },
+      improve: {
+        lastSurface: 'conversation',
+        conversationDraft: 'Coach, I tried it...',
+        lastVisitedAt: '2026-08-03T11:00:00.000Z',
+      },
+    }, now)
+
+    expect(candidates.map((item) => item.id)).toEqual(['improve', 'captain'])
+    expect(getPlatformResumeDetail(candidates[1], now)).toContain('Past due')
+  })
+
+  it('uses Coach and League dates in the same urgency model', () => {
+    const now = Date.parse('2026-08-03T12:00:00')
+    const candidates = buildPlatformResumeCandidates({
+      coach: {
+        lastSurface: 'assignment',
+        playerName: 'Avery',
+        assignmentDraft: { title: 'Serve pattern', dueDate: '2026-08-06' },
+        lastVisitedAt: '2026-08-03T10:00:00.000Z',
+      },
+      league: {
+        lastSurface: 'tournament',
+        tournamentDraft: { name: 'Summer Cup', startsOn: '2026-08-10' },
+        lastVisitedAt: '2026-08-03T11:00:00.000Z',
+      },
+    }, now)
+
+    expect(candidates.find((item) => item.id === 'coach')?.dueAt).toBe('2026-08-06')
+    expect(candidates.find((item) => item.id === 'league')?.dueAt).toBe('2026-08-10')
+    expect(getPlatformResumeDetail(candidates.find((item) => item.id === 'coach')!, now)).toContain('In 3 days')
+  })
+
   it('recognizes unsent messages, assignments, training, and league drafts', () => {
     const candidates = buildPlatformResumeCandidates({
       captain: {
@@ -110,6 +177,29 @@ describe('platform resume', () => {
     expect(candidates.find((item) => item.id === 'coach')?.href).toContain('/coach#coach-lesson-frame')
   })
 
+  it('guides a Captain through availability, lineup, then communication', () => {
+    const captain = {
+      lastTool: 'team-room' as const,
+      team: 'SuperSmash Bros',
+      eventDate: '2026-08-04',
+      weekStatus: 'draft-lineup' as const,
+      lineupCount: 2,
+      lastVisitedAt: '2026-08-03T12:00:00.000Z',
+    }
+
+    const waitingOnPlayers = buildPlatformResumeCandidates({
+      captain: { ...captain, pendingResponseCount: 2 },
+      teamRoomDraftPending: true,
+    })
+    const readyToBuild = buildPlatformResumeCandidates({
+      captain,
+      teamRoomDraftPending: true,
+    })
+
+    expect(waitingOnPlayers[0].actionLabel).toBe('Check replies')
+    expect(readyToBuild[0].actionLabel).toBe('Finish lineup')
+  })
+
   it('uses the newest device or cloud state and lets an equal local draft add its action signal', () => {
     const local = [recentCandidate({
       id: 'coach', lane: 'Coach', label: 'Assignment', context: 'Avery', href: '/coach#assignment', visitedAt: '2026-08-03T13:00:00.000Z',
@@ -136,9 +226,9 @@ describe('platform resume', () => {
 
   it('rejects unsafe or malformed API candidates', () => {
     expect(sanitizePlatformResumeCandidates([
-      { id: 'captain', lane: 'Captain', label: 'Lineup', context: '', href: '/captain/lineup-builder', visitedAt: '2026-08-03T15:00:00.000Z', status: 'unfinished', actionLabel: 'Finish lineup', reason: '2 courts in draft', priority: 110 },
+      { id: 'captain', lane: 'Captain', label: 'Lineup', context: '', href: '/captain/lineup-builder', visitedAt: '2026-08-03T15:00:00.000Z', status: 'unfinished', actionLabel: 'Finish lineup', reason: '2 courts in draft', priority: 110, dueAt: '2026-08-04' },
       { id: 'coach', lane: 'Coach', label: 'Player', context: '', href: '//example.com', visitedAt: '2026-08-03T15:00:00.000Z', status: 'recent' },
       { id: 'unknown', lane: 'Other', label: 'Other', context: '', href: '/other', visitedAt: '2026-08-03T15:00:00.000Z', status: 'recent' },
-    ])).toHaveLength(1)
+    ])).toEqual([expect.objectContaining({ dueAt: '2026-08-04' })])
   })
 })

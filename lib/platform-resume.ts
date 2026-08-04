@@ -36,6 +36,7 @@ export type PlatformResumeCandidate = {
   actionLabel: string
   reason: string
   priority: number
+  dueAt?: string
 }
 
 export type PlatformResumeStates = {
@@ -60,6 +61,77 @@ function context(parts: Array<string | null | undefined>) {
   return parts.map((part) => clean(part)).filter(Boolean).slice(0, 2).join(' · ')
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function parsePlatformResumeDueDate(value: string | null | undefined) {
+  const normalized = clean(value).slice(0, 80)
+  if (!normalized) return null
+
+  const dateOnly = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateOnly) {
+    const year = Number(dateOnly[1])
+    const month = Number(dateOnly[2])
+    const day = Number(dateOnly[3])
+    const displayDate = new Date(year, month - 1, day)
+    if (
+      displayDate.getFullYear() !== year ||
+      displayDate.getMonth() !== month - 1 ||
+      displayDate.getDate() !== day
+    ) return null
+    return { normalized, displayDate, dayKey: Date.UTC(year, month - 1, day) }
+  }
+
+  const timestamp = Date.parse(normalized)
+  if (!Number.isFinite(timestamp)) return null
+  const displayDate = new Date(timestamp)
+  return {
+    normalized,
+    displayDate,
+    dayKey: Date.UTC(displayDate.getFullYear(), displayDate.getMonth(), displayDate.getDate()),
+  }
+}
+
+function getPlatformResumeDueDayDelta(candidate: PlatformResumeCandidate, now = Date.now()) {
+  const due = parsePlatformResumeDueDate(candidate.dueAt)
+  if (!due || !Number.isFinite(now)) return null
+  const current = new Date(now)
+  const currentDayKey = Date.UTC(current.getFullYear(), current.getMonth(), current.getDate())
+  return Math.round((due.dayKey - currentDayKey) / DAY_MS)
+}
+
+function getPlatformResumeDueUrgency(candidate: PlatformResumeCandidate, now = Date.now()) {
+  if (candidate.status !== 'unfinished') return 0
+  const days = getPlatformResumeDueDayDelta(candidate, now)
+  if (days === null) return 0
+  if (days < -7) return -80
+  if (days < 0) return 260 + days * 20
+  if (days === 0) return 500
+  if (days === 1) return 460
+  if (days <= 3) return 400
+  if (days <= 7) return 300
+  if (days <= 14) return 180
+  if (days <= 30) return 80
+  return 0
+}
+
+export function getPlatformResumeDueLabel(candidate: PlatformResumeCandidate, now = Date.now()) {
+  if (candidate.status !== 'unfinished') return ''
+  const due = parsePlatformResumeDueDate(candidate.dueAt)
+  const days = getPlatformResumeDueDayDelta(candidate, now)
+  if (!due || days === null) return ''
+  if (days < 0) return 'Past due'
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days <= 7) return `In ${days} days`
+  return `Due ${due.displayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+}
+
+export function getPlatformResumeDetail(candidate: PlatformResumeCandidate, now = Date.now()) {
+  return [candidate.reason || candidate.context, getPlatformResumeDueLabel(candidate, now)]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 function candidate(
   input: Omit<PlatformResumeCandidate, 'status' | 'actionLabel' | 'reason' | 'priority'>,
   action?: ResumeActionSignal | null,
@@ -67,9 +139,13 @@ function candidate(
   const href = action?.href || input.href
   if (!href || !input.visitedAt || !Number.isFinite(Date.parse(input.visitedAt))) return null
 
+  const dueAt = parsePlatformResumeDueDate(input.dueAt)?.normalized
+  const candidateInput = { ...input }
+  delete candidateInput.dueAt
+
   const normalized = href === '/team-room' || href.startsWith('/team-room?')
-    ? { ...input, href, lane: 'Team Chat', label: clean(input.context, 'Open team chat') }
-    : { ...input, href }
+    ? { ...candidateInput, href, lane: 'Team Chat', label: clean(input.context, 'Open team chat'), ...(dueAt ? { dueAt } : {}) }
+    : { ...candidateInput, href, ...(dueAt ? { dueAt } : {}) }
 
   return {
     ...normalized,
@@ -92,15 +168,6 @@ function captainActionSignal(captain: CaptainResumeState, teamRoomDraftPending: 
     scenarioId: captain.scenarioId,
   }
 
-  if (captain.lastTool === 'team-room' && teamRoomDraftPending) {
-    return {
-      status: 'unfinished',
-      actionLabel: 'Finish message',
-      reason: 'Unsent team message',
-      priority: 140,
-    }
-  }
-
   const pendingResponses = captain.pendingResponseCount || 0
   if (pendingResponses > 0) {
     return {
@@ -109,16 +176,6 @@ function captainActionSignal(captain: CaptainResumeState, teamRoomDraftPending: 
       reason: `${pendingResponses} player${pendingResponses === 1 ? '' : 's'} still need to answer`,
       priority: 130,
       href: buildCaptainScopedHref('/captain/availability', scope),
-    }
-  }
-
-  if (captain.weekStatus === 'ready-to-send') {
-    return {
-      status: 'unfinished',
-      actionLabel: 'Send lineup',
-      reason: 'The lineup is ready for the team',
-      priority: 120,
-      href: buildCaptainScopedHref('/captain/messaging', scope),
     }
   }
 
@@ -133,6 +190,25 @@ function captainActionSignal(captain: CaptainResumeState, teamRoomDraftPending: 
     }
   }
 
+  if (captain.weekStatus === 'ready-to-send') {
+    return {
+      status: 'unfinished',
+      actionLabel: 'Send lineup',
+      reason: 'The lineup is ready for the team',
+      priority: 120,
+      href: buildCaptainScopedHref('/captain/messaging', scope),
+    }
+  }
+
+  if (captain.lastTool === 'team-room' && teamRoomDraftPending) {
+    return {
+      status: 'unfinished',
+      actionLabel: 'Finish message',
+      reason: 'Unsent team message',
+      priority: 140,
+    }
+  }
+
   return null
 }
 
@@ -140,13 +216,15 @@ function hasDraft(value: object | null | undefined) {
   return Boolean(value && Object.keys(value).length)
 }
 
-function comparePlatformResumeCandidates(left: PlatformResumeCandidate, right: PlatformResumeCandidate) {
+function comparePlatformResumeCandidates(left: PlatformResumeCandidate, right: PlatformResumeCandidate, now = Date.now()) {
   if (left.status !== right.status) return left.status === 'unfinished' ? -1 : 1
-  if (left.priority !== right.priority) return right.priority - left.priority
+  const leftPriority = left.priority + getPlatformResumeDueUrgency(left, now)
+  const rightPriority = right.priority + getPlatformResumeDueUrgency(right, now)
+  if (leftPriority !== rightPriority) return rightPriority - leftPriority
   return Date.parse(right.visitedAt) - Date.parse(left.visitedAt)
 }
 
-export function buildPlatformResumeCandidates(states: PlatformResumeStates) {
+export function buildPlatformResumeCandidates(states: PlatformResumeStates, now = Date.now()) {
   const candidates: Array<PlatformResumeCandidate | null> = []
   const captain = states.captain
   const coach = states.coach
@@ -163,6 +241,7 @@ export function buildPlatformResumeCandidates(states: PlatformResumeStates) {
       context: context([captain.team, captain.opponentTeam ? `vs ${captain.opponentTeam}` : '']),
       href: getCaptainResumeHref(captain),
       visitedAt: clean(captain.lastVisitedAt),
+      dueAt: clean(captain.eventDate),
     }, captainActionSignal(captain, Boolean(states.teamRoomDraftPending))))
   }
 
@@ -174,6 +253,7 @@ export function buildPlatformResumeCandidates(states: PlatformResumeStates) {
       context: clean(coach.playerName),
       href: getCoachResumeHref(coach),
       visitedAt: clean(coach.lastVisitedAt),
+      dueAt: clean(coach.assignmentDraft?.dueDate || coach.assignmentDraft?.lessonDateTime),
     }, hasDraft(coach.assignmentDraft) ? {
       status: 'unfinished',
       actionLabel: 'Finish assignment',
@@ -257,17 +337,23 @@ export function buildPlatformResumeCandidates(states: PlatformResumeStates) {
       context: clean(league.tournamentName || league.leagueName),
       href: getLeagueCoordinatorResumeHref(league),
       visitedAt: clean(league.lastVisitedAt),
+      dueAt: clean(
+        league.teamResultDraft?.matchDate ||
+        league.individualResultDraft?.resultDate ||
+        league.tournamentDraft?.startsOn,
+      ),
     }, leagueAction))
   }
 
   return candidates
     .filter((item): item is PlatformResumeCandidate => Boolean(item))
-    .sort(comparePlatformResumeCandidates)
+    .sort((left, right) => comparePlatformResumeCandidates(left, right, now))
 }
 
 export function mergePlatformResumeCandidates(
   localCandidates: PlatformResumeCandidate[],
   cloudCandidates: PlatformResumeCandidate[],
+  now = Date.now(),
 ) {
   const latestById = new Map<PlatformResumeCandidate['id'], PlatformResumeCandidate>()
 
@@ -275,14 +361,14 @@ export function mergePlatformResumeCandidates(
     const current = latestById.get(item.id)
     const itemTime = Date.parse(item.visitedAt)
     const currentTime = Date.parse(current?.visitedAt || '')
-    if (!current || itemTime > currentTime || (itemTime === currentTime && comparePlatformResumeCandidates(item, current) < 0)) {
+    if (!current || itemTime > currentTime || (itemTime === currentTime && comparePlatformResumeCandidates(item, current, now) < 0)) {
       latestById.set(item.id, item)
     }
   }
 
   const seenHrefs = new Set<string>()
   return [...latestById.values()]
-    .sort(comparePlatformResumeCandidates)
+    .sort((left, right) => comparePlatformResumeCandidates(left, right, now))
     .filter((item) => {
       if (seenHrefs.has(item.href)) return false
       seenHrefs.add(item.href)
@@ -304,6 +390,7 @@ export function sanitizePlatformResumeCandidates(value: unknown): PlatformResume
     const priority = typeof input.priority === 'number' && Number.isFinite(input.priority)
       ? Math.max(0, Math.min(999, Math.round(input.priority)))
       : 0
+    const dueAt = parsePlatformResumeDueDate(typeof input.dueAt === 'string' ? input.dueAt : '')?.normalized
     if (!id || !ids.has(id) || !status || !href.startsWith('/') || href.startsWith('//') || !Number.isFinite(Date.parse(visitedAt))) return []
 
     return [{
@@ -317,6 +404,7 @@ export function sanitizePlatformResumeCandidates(value: unknown): PlatformResume
       actionLabel: typeof input.actionLabel === 'string' ? input.actionLabel.trim().slice(0, 80) : '',
       reason: typeof input.reason === 'string' ? input.reason.trim().slice(0, 240) : '',
       priority,
+      ...(dueAt ? { dueAt } : {}),
     }]
   })
 }
