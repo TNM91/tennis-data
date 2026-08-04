@@ -3,6 +3,7 @@ import {
   getCaptainAvailabilityServiceClient,
   isUuid,
 } from '@/lib/captain-availability-request-server'
+import { buildCaptainReplyNotification } from '@/lib/captain-reply-alert'
 
 export const runtime = 'nodejs'
 
@@ -189,23 +190,20 @@ export async function POST(
 
   if (hasChangedResponse) {
     const primaryResponse = responses.find((response) => response.matchDate === row.match_date) ?? responses[0]
-    const statusLabel = primaryResponse.status === 'available'
-      ? 'Yes'
-      : primaryResponse.status === 'maybe' ? 'Maybe' : 'No'
-    const query = new URLSearchParams({
-      team: row.team_name,
-      league: row.league_name,
+    const notification = buildCaptainReplyNotification({
+      playerName: player.playerName,
+      status: primaryResponse.status,
+      teamName: row.team_name,
+      leagueName: row.league_name,
       flight: row.flight,
-      date: row.match_date,
-      opponent: row.opponent_team,
+      matchDate: primaryResponse.matchDate,
+      opponentTeam: row.opponent_team,
     })
     await service.from('internal_notifications').insert({
       recipient_profile_id: row.created_by,
       actor_user_id: null,
       notification_type: 'system',
-      title: 'Availability updated',
-      body: `${player.playerName}: ${statusLabel} for ${primaryResponse.matchDate}.`,
-      href: `/captain/messaging?${query.toString()}`,
+      ...notification,
     })
   }
 

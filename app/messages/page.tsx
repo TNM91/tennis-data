@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
@@ -1079,6 +1079,7 @@ function MessagesLoadingShell() {
 }
 
 function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
+  const router = useRouter()
   const { userId, authResolved, session, role, entitlements } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const productAccess = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
@@ -2050,6 +2051,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       }
       if (notification.conversationId) {
         selectConversation(notification.conversationId)
+      } else if (notification.href) {
+        router.push(notification.href)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Alert could not be opened.')

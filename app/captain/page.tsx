@@ -84,6 +84,14 @@ import {
   type CaptainAvailabilityInvite,
   type CaptainAvailabilityResponse,
 } from '@/lib/captain-availability-progress'
+import {
+  listInternalNotifications,
+  markInternalNotificationRead,
+  type InternalNotification,
+} from '@/lib/internal-notifications'
+import {
+  selectCaptainReplyAlerts,
+} from '@/lib/captain-reply-alert'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
@@ -1635,6 +1643,7 @@ function CaptainHubContent() {
   })
   const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
   const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
+  const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
   const captainAvailabilityRequestScopeRef = useRef('')
 
   const [scenarioCount, setScenarioCount] = useState(0)
@@ -2629,6 +2638,37 @@ function CaptainHubContent() {
       window.removeEventListener('pageshow', refreshVisibleAvailability)
     }
   }, [loadCaptainAvailabilityRequestSummary, refreshTick])
+
+  const loadCaptainReplyNotifications = useCallback(async () => {
+    if (!userId) {
+      setCaptainReplyNotifications([])
+      return
+    }
+
+    try {
+      const notifications = await listInternalNotifications(userId, { unreadOnly: true, limit: 30 })
+      setCaptainReplyNotifications(notifications)
+    } catch {
+      // Captain Home keeps the current alert state if notifications cannot refresh yet.
+    }
+  }, [userId])
+
+  useEffect(() => {
+    void loadCaptainReplyNotifications()
+
+    function refreshVisibleReplyAlerts() {
+      if (document.visibilityState === 'visible') void loadCaptainReplyNotifications()
+    }
+
+    const refreshTimer = window.setInterval(refreshVisibleReplyAlerts, 30_000)
+    document.addEventListener('visibilitychange', refreshVisibleReplyAlerts)
+    window.addEventListener('pageshow', refreshVisibleReplyAlerts)
+    return () => {
+      window.clearInterval(refreshTimer)
+      document.removeEventListener('visibilitychange', refreshVisibleReplyAlerts)
+      window.removeEventListener('pageshow', refreshVisibleReplyAlerts)
+    }
+  }, [loadCaptainReplyNotifications, refreshTick])
   const captainResumeHref = getCaptainResumeHref(captainResume)
   const captainResumeMatchesScope = Boolean(
     captainResumeHref
@@ -4052,6 +4092,18 @@ function CaptainHubContent() {
   const captainAvailabilityHasReplies = captainLiveAvailabilityPeople
     ? captainAvailabilityAnsweredCount > 0
     : matchDayResponseRows.length > 0
+  const captainReplyAlerts = useMemo(() => selectCaptainReplyAlerts(captainReplyNotifications, {
+    teamName: selectedTeam,
+    matchDate: matchWeekDate,
+  }), [captainReplyNotifications, matchWeekDate, selectedTeam])
+  const captainLatestReplyAlert = captainReplyAlerts[0] ?? null
+  const captainLatestReplyLineupRow = useMemo(() => {
+    if (!captainLatestReplyAlert) return null
+    const playerKey = safeKey(captainLatestReplyAlert.playerName)
+    return matchDayLineupRows.find((row) =>
+      (row.players ?? []).some((playerName) => safeKey(playerName) === playerKey),
+    ) ?? null
+  }, [captainLatestReplyAlert, matchDayLineupRows])
 
   useEffect(() => {
     if (!captainAvailabilityRequestSummary?.request) return
@@ -6445,6 +6497,77 @@ function CaptainHubContent() {
           Review replies
         </SecondarySmallBtn>
         {captainAvailabilityRequestLoading ? <span style={captainHomeAvailabilityProgressRefresh}>Refreshing...</span> : null}
+      </div>
+    </div>
+  ) : null
+  const captainReplyAlertNeedsLineupReview = captainLatestReplyAlert?.status !== 'available'
+  const captainReplyAlertImpact = captainLatestReplyAlert
+    ? captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview
+      ? `${captainLatestReplyAlert.playerName} is on your saved ${safeText(captainLatestReplyLineupRow.court_label, 'lineup')}. Check that court before confirming.`
+      : captainLatestReplyAlert.status === 'unavailable'
+        ? `${captainLatestReplyAlert.playerName} cannot play. Check the projected lineup and backup coverage.`
+        : captainLatestReplyAlert.status === 'maybe'
+          ? `${captainLatestReplyAlert.playerName} is uncertain. Check coverage before confirming courts.`
+          : `${captainLatestReplyAlert.playerName} can play. Availability and lineup tools are updated.`
+    : ''
+
+  function acknowledgeCaptainReplyAlerts() {
+    if (!userId || !captainReplyAlerts.length) return
+    const readIds = new Set(captainReplyAlerts.map((alert) => alert.id))
+    setCaptainReplyNotifications((current) => current.filter((notification) => !readIds.has(notification.id)))
+    void Promise.allSettled(
+      captainReplyAlerts.map((notification) => markInternalNotificationRead(notification.id, userId)),
+    )
+  }
+
+  function handleCaptainReplyAlertAction(href: string, stage: CaptainResumeStage) {
+    acknowledgeCaptainReplyAlerts()
+    handleCaptainAction(href, stage)
+  }
+
+  const captainReplyAlertSurface = captainLatestReplyAlert ? (
+    <div
+      id="captain-reply-alert"
+      role="status"
+      aria-live="polite"
+      style={{
+        ...captainHomeReplyAlertShell,
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeReplyAlertShell.gridTemplateColumns,
+      }}
+    >
+      <div style={captainHomeAvailabilityProgressCopy}>
+        <span style={commandCenterLabel}>New availability reply</span>
+        <strong style={captainHomeAvailabilityProgressTitle}>
+          {captainLatestReplyAlert.playerName}: {captainLatestReplyAlert.statusLabel}
+        </strong>
+        <span style={captainHomeAvailabilityProgressDetailStyle}>
+          {captainReplyAlertImpact}{captainReplyAlerts.length > 1 ? ` ${captainReplyAlerts.length - 1} other new ${captainReplyAlerts.length === 2 ? 'reply' : 'replies'}.` : ''}
+        </span>
+      </div>
+      <div style={captainHomeAvailabilityProgressActions}>
+        <PrimarySmallBtn
+          fullWidth={isMobile}
+          disabled={!hasTeamScope || !premiumEnabled}
+          onClick={() => handleCaptainReplyAlertAction(
+            captainReplyAlertNeedsLineupReview ? lineupBuilderHref : levelUpAvailabilityHref,
+            captainReplyAlertNeedsLineupReview ? 'lineup' : 'availability',
+          )}
+        >
+          {captainReplyAlertNeedsLineupReview ? 'Adjust lineup' : 'Review availability'}
+        </PrimarySmallBtn>
+        <SecondarySmallBtn
+          fullWidth={isMobile}
+          disabled={!hasTeamScope || !premiumEnabled}
+          onClick={() => handleCaptainReplyAlertAction(
+            captainReplyAlertNeedsLineupReview ? levelUpAvailabilityHref : lineupBuilderHref,
+            captainReplyAlertNeedsLineupReview ? 'availability' : 'lineup',
+          )}
+        >
+          {captainReplyAlertNeedsLineupReview ? 'View reply' : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
+        </SecondarySmallBtn>
+        <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
+          Dismiss
+        </button>
       </div>
     </div>
   ) : null
@@ -15174,8 +15297,10 @@ function CaptainHubContent() {
               : 'Select a linked team to start.'}
           </span>
         </div>
-        <span className={captainMobileAttention ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
-          {captainMobileAttention ? 'Needs action' : 'Ready'}
+        <span className={captainMobileAttention || captainLatestReplyAlert ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
+          {captainLatestReplyAlert
+            ? `${captainReplyAlerts.length} new ${captainReplyAlerts.length === 1 ? 'reply' : 'replies'}`
+            : captainMobileAttention ? 'Needs action' : 'Ready'}
         </span>
       </div>
 
@@ -15253,6 +15378,8 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
+      {captainReplyAlertSurface}
+
       {captainHomeAvailabilityProgress}
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
@@ -15329,6 +15456,8 @@ function CaptainHubContent() {
       <div style={captainHomeShortcutSub}>
         Open the team job you need. Captain keeps the selected team and week with you.
       </div>
+
+      {captainReplyAlertSurface}
 
       {captainHomeAvailabilityProgress}
 
@@ -24308,6 +24437,27 @@ const captainHomeAvailabilityProgressShell: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(49,154,230,0.08))',
   overflowWrap: 'anywhere',
+}
+
+const captainHomeReplyAlertShell: CSSProperties = {
+  ...captainHomeAvailabilityProgressShell,
+  border: '1px solid rgba(251,191,36,0.34)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.13), rgba(49,154,230,0.08))',
+  boxShadow: '0 12px 28px rgba(2,8,23,0.2)',
+}
+
+const captainReplyAlertDismiss: CSSProperties = {
+  minHeight: 38,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--shell-copy-muted)',
+  padding: '6px 4px',
+  font: 'inherit',
+  fontSize: 11,
+  fontWeight: 850,
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
+  cursor: 'pointer',
 }
 
 const captainHomeAvailabilityProgressCopy: CSSProperties = {
