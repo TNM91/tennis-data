@@ -6,6 +6,7 @@ import {
   canRespondToLineupChange,
   getLineupChangeReminderAt,
   parseReminderTargets,
+  selectPrimaryTeamRoomCourtReadiness,
   selectActiveTeamRoomCard,
   teamRoomCardState,
 } from '../team-room-match-flow'
@@ -90,6 +91,17 @@ describe('Team Room match-week flow', () => {
       replies,
       lineupChange: { courtLabel: '4.5 Doubles', pending: false, response: '', deadlineStatus: 'reminded' },
     })[0]?.status).toBe('needs_captain')
+  })
+
+  it('puts a captain decision ahead of a waiting court', () => {
+    expect(selectPrimaryTeamRoomCourtReadiness([
+      { label: '4.5 Doubles', status: 'waiting' as const },
+      { label: '4.0 Doubles', status: 'needs_captain' as const },
+      { label: '3.5 Doubles', status: 'confirmed' as const },
+    ])?.label).toBe('4.0 Doubles')
+    expect(selectPrimaryTeamRoomCourtReadiness([
+      { label: '4.5 Doubles', status: 'confirmed' as const },
+    ])).toBeNull()
   })
 
   it('pins the next match and automatically archives past match cards', () => {

@@ -21,6 +21,12 @@ export type TeamRoomCourtReadiness = TeamRoomLineupRow & {
   status: TeamRoomCourtReadinessStatus
 }
 
+export function selectPrimaryTeamRoomCourtReadiness<T extends { status: TeamRoomCourtReadinessStatus }>(courts: T[]) {
+  return courts.find((court) => court.status === 'needs_captain')
+    ?? courts.find((court) => court.status === 'waiting')
+    ?? null
+}
+
 export function buildTeamRoomCourtReadiness(input: {
   lineup: TeamRoomLineupRow[]
   replies: Array<{ status: 'yes' | 'maybe' | 'no' | 'waiting'; names: string[] }>
