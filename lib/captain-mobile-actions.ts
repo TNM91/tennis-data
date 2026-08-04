@@ -34,6 +34,10 @@ export function getCaptainLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`
 }
 
+export function shouldShowCaptainMobileTeamSelect(loading: boolean, teamOptionCount: number) {
+  return loading || teamOptionCount !== 1
+}
+
 export function getCaptainMobileMatchPhase(matchDate?: string | null, todayDate?: string | null): CaptainMobileMatchPhase {
   const matchDateKey = matchDate?.slice(0, 10) || ''
   const todayDateKey = todayDate?.slice(0, 10) || ''

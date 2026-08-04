@@ -12,6 +12,10 @@ describe('Captain mobile command center', () => {
     const chatAction = page.slice(chatActionStart, page.indexOf("id: 'scorecard'", chatActionStart))
 
     expect(page).toContain('aria-label="Captain mobile command center"')
+    expect(page).toContain('shouldShowCaptainMobileTeamSelect(')
+    expect(page).toContain('{showCaptainMobileTeamSelect ? (')
+    expect(page).toContain('aria-label="Captain team"')
+    expect(page).toContain('href="/team-connections">Manage teams')
     expect(page).toContain('aria-label="Captain now"')
     expect(page).toContain('orderCaptainMobileNowItems(')
     expect(page).toContain("some((item) => item.id !== 'availability-complete')")
