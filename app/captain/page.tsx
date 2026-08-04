@@ -81,6 +81,11 @@ import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captai
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
 import {
+  getCaptainLocalDateKey,
+  getCaptainMobileActionLayout,
+  type CaptainMobileActionId,
+} from '@/lib/captain-mobile-actions'
+import {
   buildCaptainAvailabilityProgress,
   type CaptainAvailabilityInvite,
   type CaptainAvailabilityResponse,
@@ -290,6 +295,16 @@ type CaptainCommandStep = {
   tone: 'good' | 'warn' | 'info'
   cta: string
   premium?: boolean
+}
+
+type CaptainMobileCommandAction = {
+  id: CaptainMobileActionId
+  label: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  icon: TiqFeatureIconName
+  primary: boolean
 }
 
 type CaptainSaveSignal = {
@@ -1646,6 +1661,7 @@ function CaptainHubContent() {
     opponent: string
     home: boolean
   } | null>(null)
+  const [captainTodayDate, setCaptainTodayDate] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
   const [teamRoomSummary, setTeamRoomSummary] = useState<CaptainTeamRoomSummary>({
     unreadCount: 0,
@@ -1721,6 +1737,21 @@ function CaptainHubContent() {
   const [captainPlayerBriefVersion, setCaptainPlayerBriefVersion] = useState(0)
   const [captainAfterPointResetVersion, setCaptainAfterPointResetVersion] = useState(0)
   const [captainMatchRecapInboxVersion, setCaptainMatchRecapInboxVersion] = useState(0)
+
+  useEffect(() => {
+    function refreshCaptainTodayDate() {
+      if (document.visibilityState === 'hidden') return
+      setCaptainTodayDate(getCaptainLocalDateKey())
+    }
+
+    refreshCaptainTodayDate()
+    document.addEventListener('visibilitychange', refreshCaptainTodayDate)
+    window.addEventListener('pageshow', refreshCaptainTodayDate)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshCaptainTodayDate)
+      window.removeEventListener('pageshow', refreshCaptainTodayDate)
+    }
+  }, [])
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -15425,7 +15456,7 @@ function CaptainHubContent() {
     </section>
   ) : null
 
-  const captainMobileCommandActions = [
+  const captainMobileCommandActions: CaptainMobileCommandAction[] = [
     {
       id: 'availability',
       label: captainAvailabilityPendingCount > 0 ? 'Remind unanswered' : 'Who can play',
@@ -15468,7 +15499,35 @@ function CaptainHubContent() {
       icon: 'reports' as TiqFeatureIconName,
       primary: false,
     },
-  ] as const
+  ]
+  const captainMobileActionLayout = getCaptainMobileActionLayout({
+    matchDate: matchWeekDate,
+    todayDate: captainTodayDate,
+    pendingAvailabilityCount: captainAvailabilityPendingCount,
+    hasAvailabilityReplies: captainAvailabilityHasReplies,
+    lineupReady: workspaceState.lineupReady,
+  })
+  const captainMobileActionById = new Map(captainMobileCommandActions.map((item) => [item.id, item]))
+  const captainMobileVisibleActions = captainMobileActionLayout.visible.flatMap((id) => {
+    const item = captainMobileActionById.get(id)
+    return item ? [item] : []
+  })
+  const captainMobileMoreMatchActions = captainMobileActionLayout.overflow.flatMap((id) => {
+    const item = captainMobileActionById.get(id)
+    return item ? [item] : []
+  })
+
+  function handleCaptainMobileCommandAction(item: CaptainMobileCommandAction) {
+    if (item.id === 'chat') {
+      handleCaptainTeamRoomNav(item.href)
+      return
+    }
+    if (item.id === 'availability' && captainAvailabilityPendingCount > 0 && captainHomeUnansweredSmsHandoff.href) {
+      window.location.href = captainHomeUnansweredSmsHandoff.href
+      return
+    }
+    handleCaptainAction(item.href, item.stage)
+  }
 
   const captainHomePrimaryAction = captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
   const captainHomePrimaryStatus = captainCourtPrimaryAction
@@ -15604,7 +15663,7 @@ function CaptainHubContent() {
       {captainHomeAvailabilityProgress}
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
-        {captainMobileCommandActions.map((item) => {
+        {captainMobileVisibleActions.map((item) => {
           const disabled = !hasTeamScope || (!premiumEnabled && item.id !== 'chat')
           return (
             <button
@@ -15612,17 +15671,7 @@ function CaptainHubContent() {
               className={`${mobileCommandStyles.action} ${item.primary ? mobileCommandStyles.actionPrimary : ''}`}
               type="button"
               disabled={disabled}
-              onClick={() => {
-                if (item.id === 'chat') {
-                  handleCaptainTeamRoomNav(item.href)
-                  return
-                }
-                if (item.id === 'availability' && captainAvailabilityPendingCount > 0 && captainHomeUnansweredSmsHandoff.href) {
-                  window.location.href = captainHomeUnansweredSmsHandoff.href
-                  return
-                }
-                handleCaptainAction(item.href, item.stage)
-              }}
+              onClick={() => handleCaptainMobileCommandAction(item)}
             >
               <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
               <span className={mobileCommandStyles.actionCopy}>
@@ -15640,6 +15689,17 @@ function CaptainHubContent() {
           <span>Pairings, setup, and extras</span>
         </summary>
         <div className={mobileCommandStyles.moreBody}>
+          {captainMobileMoreMatchActions.map((item) => (
+            <button
+              key={`more-${item.id}`}
+              className={mobileCommandStyles.moreButton}
+              type="button"
+              disabled={!hasTeamScope || (!premiumEnabled && item.id !== 'chat')}
+              onClick={() => handleCaptainMobileCommandAction(item)}
+            >
+              {item.label}
+            </button>
+          ))}
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(lineupProjectionHref, 'projection')}>Check pairings</button>
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(scenarioHref, 'scenario')}>Compare lineups</button>
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(teamBriefHref, 'brief')}>Team brief</button>

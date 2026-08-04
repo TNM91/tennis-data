@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest'
+import {
+  getCaptainLocalDateKey,
+  getCaptainMobileActionLayout,
+  getCaptainMobileMatchPhase,
+} from '../captain-mobile-actions'
+
+describe('Captain mobile action priority', () => {
+  it('uses the captain local calendar day', () => {
+    expect(getCaptainLocalDateKey(new Date(2026, 7, 4, 23, 30))).toBe('2026-08-04')
+  })
+
+  it('classifies setup, upcoming, match-day, and past work', () => {
+    expect(getCaptainMobileMatchPhase('', '2026-08-04')).toBe('setup')
+    expect(getCaptainMobileMatchPhase('2026-08-05', '2026-08-04')).toBe('upcoming')
+    expect(getCaptainMobileMatchPhase('2026-08-04', '2026-08-04')).toBe('match_day')
+    expect(getCaptainMobileMatchPhase('2026-08-03', '2026-08-04')).toBe('past')
+  })
+
+  it('keeps availability first while replies are missing', () => {
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-08-09',
+      todayDate: '2026-08-04',
+      pendingAvailabilityCount: 4,
+      hasAvailabilityReplies: true,
+      lineupReady: false,
+    })).toMatchObject({
+      visible: ['availability', 'lineup', 'chat'],
+      overflow: ['scorecard'],
+    })
+  })
+
+  it('moves availability under More once everyone has replied', () => {
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-08-09',
+      todayDate: '2026-08-04',
+      pendingAvailabilityCount: 0,
+      hasAvailabilityReplies: true,
+      lineupReady: false,
+    })).toMatchObject({
+      visible: ['lineup', 'chat'],
+      overflow: ['availability', 'scorecard'],
+    })
+  })
+
+  it('brings scorecard forward on match day and after the match', () => {
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-08-04',
+      todayDate: '2026-08-04',
+      pendingAvailabilityCount: 0,
+      hasAvailabilityReplies: true,
+      lineupReady: true,
+    })).toMatchObject({
+      visible: ['lineup', 'chat', 'scorecard'],
+      overflow: ['availability'],
+    })
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-08-03',
+      todayDate: '2026-08-04',
+      pendingAvailabilityCount: 0,
+      hasAvailabilityReplies: true,
+      lineupReady: true,
+    })).toMatchObject({
+      visible: ['scorecard', 'chat'],
+      overflow: ['availability', 'lineup'],
+    })
+  })
+})

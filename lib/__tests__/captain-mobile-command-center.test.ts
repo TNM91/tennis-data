@@ -7,12 +7,16 @@ describe('Captain mobile command center', () => {
   const styles = readFileSync(join(process.cwd(), 'app/captain/captain-mobile-command.module.css'), 'utf8')
   const connectionBanner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
 
-  it('puts the four recurring captain jobs on one compact mobile surface', () => {
+  it('puts the timely captain jobs on one compact mobile surface', () => {
     const chatActionStart = page.indexOf("id: 'chat'")
     const chatAction = page.slice(chatActionStart, page.indexOf("id: 'scorecard'", chatActionStart))
 
     expect(page).toContain('aria-label="Captain mobile command center"')
     expect(page).toContain('aria-label="Captain one tap actions"')
+    expect(page).toContain('getCaptainMobileActionLayout({')
+    expect(page).toContain('captainMobileVisibleActions.map')
+    expect(page).toContain('captainMobileMoreMatchActions.map')
+    expect(page).toContain('onClick={() => handleCaptainMobileCommandAction(item)}')
     expect(page).toContain("label: 'Who can play'")
     expect(page).toContain("label: 'Team chat'")
     expect(page).toContain('teamRoomSummary.unreadCount')
@@ -48,6 +52,7 @@ describe('Captain mobile command center', () => {
     expect(page).not.toContain('More captain tools')
     expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));')
     expect(styles).toContain('min-height: 66px;')
+    expect(styles).toContain('.action:last-child:nth-child(odd)')
     expect(styles).toContain('.readinessGrid')
     expect(styles).toContain('minmax(min(100%, 118px), 1fr)')
     expect(styles).toContain('.attentionBadgeButton')
