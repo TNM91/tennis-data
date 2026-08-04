@@ -92,6 +92,10 @@ import {
 import {
   selectCaptainReplyAlerts,
 } from '@/lib/captain-reply-alert'
+import {
+  buildCaptainReplacementLineupHref,
+  buildCaptainReplacementRecommendation,
+} from '@/lib/captain-replacement-recommendation'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
@@ -2684,6 +2688,7 @@ function CaptainHubContent() {
     flight: selectedFlight,
     date: matchWeekDate,
     opponent: matchWeekOpponent,
+    scenarioId: captainResumeMatchesScope ? captainResume?.scenarioId : undefined,
   })
 
   const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', {
@@ -4104,6 +4109,36 @@ function CaptainHubContent() {
       (row.players ?? []).some((playerName) => safeKey(playerName) === playerKey),
     ) ?? null
   }, [captainLatestReplyAlert, matchDayLineupRows])
+  const captainReplacementRecommendation = useMemo(() => {
+    if (!captainLatestReplyAlert || !captainLatestReplyLineupRow || captainLatestReplyAlert.status === 'available') return null
+
+    return buildCaptainReplacementRecommendation({
+      unavailablePlayerName: captainLatestReplyAlert.playerName,
+      lineupRow: {
+        courtLabel: safeText(captainLatestReplyLineupRow.court_label, 'Saved court'),
+        slotType: safeText(captainLatestReplyLineupRow.slot_type, 'doubles'),
+        players: (captainLatestReplyLineupRow.players ?? []).map((name) => safeText(name)).filter(Boolean),
+      },
+      lineupRows: matchDayLineupRows.map((row, index) => ({
+        courtLabel: safeText(row.court_label, `Court ${index + 1}`),
+        slotType: safeText(row.slot_type, 'doubles'),
+        players: (row.players ?? []).map((name) => safeText(name)).filter(Boolean),
+      })),
+      roster,
+      availability: (captainAvailabilityPeople ?? []).map((person) => ({
+        name: person.name,
+        status: person.status,
+      })),
+      pairings,
+    })
+  }, [captainAvailabilityPeople, captainLatestReplyAlert, captainLatestReplyLineupRow, matchDayLineupRows, pairings, roster])
+  const captainReplacementLineupHref = captainReplacementRecommendation && captainLatestReplyAlert
+    ? buildCaptainReplacementLineupHref(lineupBuilderHref, {
+        outPlayer: captainLatestReplyAlert.playerName,
+        replacementPlayer: captainReplacementRecommendation.playerName,
+        courtLabel: captainReplacementRecommendation.courtLabel,
+      })
+    : lineupBuilderHref
 
   useEffect(() => {
     if (!captainAvailabilityRequestSummary?.request) return
@@ -6543,27 +6578,48 @@ function CaptainHubContent() {
         <span style={captainHomeAvailabilityProgressDetailStyle}>
           {captainReplyAlertImpact}{captainReplyAlerts.length > 1 ? ` ${captainReplyAlerts.length - 1} other new ${captainReplyAlerts.length === 2 ? 'reply' : 'replies'}.` : ''}
         </span>
+        {captainReplacementRecommendation ? (
+          <div style={captainReplyReplacementSuggestion} aria-label="Captain replacement suggestion">
+            <span style={captainReplyReplacementLabel}>
+              {captainReplacementRecommendation.needsConfirmation ? 'Best player to ask' : 'Best replacement'}
+            </span>
+            <strong>{captainReplacementRecommendation.playerName} for {captainReplacementRecommendation.courtLabel}</strong>
+            <span>{captainReplacementRecommendation.reason}. Suggestion only; no court changed.</span>
+          </div>
+        ) : null}
       </div>
       <div style={captainHomeAvailabilityProgressActions}>
         <PrimarySmallBtn
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplyAlertNeedsLineupReview ? lineupBuilderHref : levelUpAvailabilityHref,
-            captainReplyAlertNeedsLineupReview ? 'lineup' : 'availability',
+            captainReplacementRecommendation?.needsConfirmation
+              ? levelUpAvailabilityHref
+              : captainReplyAlertNeedsLineupReview ? captainReplacementLineupHref : levelUpAvailabilityHref,
+            captainReplacementRecommendation?.needsConfirmation
+              ? 'availability'
+              : captainReplyAlertNeedsLineupReview ? 'lineup' : 'availability',
           )}
         >
-          {captainReplyAlertNeedsLineupReview ? 'Adjust lineup' : 'Review availability'}
+          {captainReplacementRecommendation?.needsConfirmation
+            ? 'Check availability'
+            : captainReplacementRecommendation ? 'Open suggested swap' : captainReplyAlertNeedsLineupReview ? 'Adjust lineup' : 'Review availability'}
         </PrimarySmallBtn>
         <SecondarySmallBtn
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplyAlertNeedsLineupReview ? levelUpAvailabilityHref : lineupBuilderHref,
-            captainReplyAlertNeedsLineupReview ? 'availability' : 'lineup',
+            captainReplacementRecommendation?.needsConfirmation
+              ? captainReplacementLineupHref
+              : captainReplyAlertNeedsLineupReview ? levelUpAvailabilityHref : lineupBuilderHref,
+            captainReplacementRecommendation?.needsConfirmation
+              ? 'lineup'
+              : captainReplyAlertNeedsLineupReview ? 'availability' : 'lineup',
           )}
         >
-          {captainReplyAlertNeedsLineupReview ? 'View reply' : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
+          {captainReplacementRecommendation?.needsConfirmation
+            ? 'Open lineup'
+            : captainReplyAlertNeedsLineupReview ? 'View reply' : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
         </SecondarySmallBtn>
         <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
           Dismiss
@@ -24458,6 +24514,28 @@ const captainReplyAlertDismiss: CSSProperties = {
   textDecoration: 'underline',
   textUnderlineOffset: 3,
   cursor: 'pointer',
+}
+
+const captainReplyReplacementSuggestion: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  marginTop: 4,
+  padding: '9px 10px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 780,
+}
+
+const captainReplyReplacementLabel: CSSProperties = {
+  color: 'var(--brand-green-3)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 }
 
 const captainHomeAvailabilityProgressCopy: CSSProperties = {
