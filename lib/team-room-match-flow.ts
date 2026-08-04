@@ -15,6 +15,49 @@ export type TeamRoomLineupChangeNotice = TeamRoomLineupChangeContext & {
   afterPlayers: string[]
 }
 
+export type TeamRoomCourtReadinessStatus = 'confirmed' | 'waiting' | 'needs_captain'
+
+export type TeamRoomCourtReadiness = TeamRoomLineupRow & {
+  status: TeamRoomCourtReadinessStatus
+}
+
+export function buildTeamRoomCourtReadiness(input: {
+  lineup: TeamRoomLineupRow[]
+  replies: Array<{ status: 'yes' | 'maybe' | 'no' | 'waiting'; names: string[] }>
+  lineupChange?: {
+    courtLabel: string
+    pending: boolean
+    response: '' | 'accepted' | 'declined'
+    deadlineStatus: '' | 'scheduled' | 'reminded' | 'answered'
+  } | null
+}): TeamRoomCourtReadiness[] {
+  const namesByStatus = new Map(input.replies.map((reply) => [
+    reply.status,
+    new Set(reply.names.map(normalizeName).filter(Boolean)),
+  ] as const))
+  const changeCourtKey = normalizeName(input.lineupChange?.courtLabel || '')
+
+  return input.lineup.map((row) => {
+    const playerKeys = row.players.map(normalizeName).filter(Boolean)
+    const isChangedCourt = Boolean(changeCourtKey && normalizeName(row.label) === changeCourtKey)
+    const changeNeedsCaptain = isChangedCourt && Boolean(
+      input.lineupChange?.pending
+      || input.lineupChange?.response === 'declined'
+      || input.lineupChange?.deadlineStatus === 'reminded',
+    )
+    const changeWaiting = isChangedCourt && !input.lineupChange?.pending && !input.lineupChange?.response
+    const hasOpenSpot = playerKeys.length === 0
+    const hasOutOrMaybe = playerKeys.some((name) => (
+      namesByStatus.get('no')?.has(name) || namesByStatus.get('maybe')?.has(name)
+    ))
+    const allConfirmed = playerKeys.length > 0 && playerKeys.every((name) => namesByStatus.get('yes')?.has(name))
+    const status: TeamRoomCourtReadinessStatus = changeNeedsCaptain || hasOpenSpot || hasOutOrMaybe
+      ? 'needs_captain'
+      : changeWaiting || !allConfirmed ? 'waiting' : 'confirmed'
+    return { ...row, status }
+  })
+}
+
 export function canRespondToLineupChange(replacementPlayerName: string, identityNames: string[]) {
   const replacementKey = normalizeName(replacementPlayerName)
   return Boolean(replacementKey && identityNames.some((name) => normalizeName(name) === replacementKey))

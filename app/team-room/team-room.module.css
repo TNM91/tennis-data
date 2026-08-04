@@ -283,10 +283,17 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+  scroll-margin-top: 120px;
   border: 1px solid var(--shell-panel-border);
   border-radius: 12px;
   background: var(--shell-chip-bg);
   padding: 9px 10px;
+}
+
+.lineupRow:target {
+  border-color: color-mix(in srgb, #f6c65b 70%, var(--shell-panel-border));
+  background: color-mix(in srgb, #f6c65b 12%, var(--shell-chip-bg));
+  box-shadow: inset 3px 0 0 #f6c65b;
 }
 
 .lineupRowFocused {
@@ -350,6 +357,97 @@
 
 .replySummary strong {
   color: var(--foreground-strong);
+}
+
+.courtReadiness {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--shell-chip-bg) 88%, transparent);
+  padding: 10px;
+}
+
+.courtReadinessTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.courtReadinessTop strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+}
+
+.courtReadinessTop span {
+  color: var(--shell-copy-muted);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.courtReadinessGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 88px), 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.courtReadinessItem {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 10px;
+  background: var(--shell-chip-bg);
+  padding: 8px;
+  color: var(--foreground-strong);
+  text-decoration: none;
+}
+
+.courtReadinessItem strong {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.courtReadinessItem span {
+  color: var(--shell-copy-muted);
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.courtReadinessConfirmed {
+  border-color: color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg));
+}
+
+.courtReadinessWaiting {
+  border-color: color-mix(in srgb, var(--brand-blue-2) 48%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg));
+}
+
+.courtReadinessCaptain {
+  border-color: color-mix(in srgb, #f6c65b 54%, var(--shell-panel-border));
+  background: color-mix(in srgb, #f6c65b 10%, var(--shell-chip-bg));
+}
+
+.readinessReplyDetails {
+  color: var(--shell-copy-muted);
+  font-size: 0.74rem;
+}
+
+.readinessReplyDetails > summary {
+  width: fit-content;
+  color: var(--brand-blue-2);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.readinessReplyDetails[open] > summary {
+  margin-bottom: 8px;
 }
 
 .replyDigest {

@@ -16,7 +16,11 @@ import {
 } from '@/lib/captain-memory'
 import { notifyPlatformResumeUpdated } from '@/lib/platform-resume-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
-import { canRespondToLineupChange } from '@/lib/team-room-match-flow'
+import {
+  buildTeamRoomCourtReadiness,
+  canRespondToLineupChange,
+  type TeamRoomCourtReadiness,
+} from '@/lib/team-room-match-flow'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
@@ -1586,6 +1590,11 @@ function MatchCard({
     courtLabel: primaryRisk.courtLabel,
   }) : ''
   const lineupChangeNotice = card.lineupChangeNotice
+  const courtReadiness = buildTeamRoomCourtReadiness({
+    lineup: card.lineup,
+    replies: replyGroups.map((group) => ({ status: group.status, names: group.names })),
+    lineupChange: lineupChangeNotice,
+  })
   const canAnswerLineupChange = Boolean(
     lineupChangeNotice
     && !lineupChangeNotice.pending
@@ -1651,7 +1660,15 @@ function MatchCard({
         </div>
       ) : null}
 
-      <MatchReplyDigest groups={replyGroups} primaryRisk={primaryRisk} />
+      {courtReadiness.length ? (
+        <>
+          <CourtReadinessStrip messageId={message.id} courts={courtReadiness} />
+          <details className={styles.readinessReplyDetails}>
+            <summary>Player reply details</summary>
+            <MatchReplyDigest groups={replyGroups} primaryRisk={primaryRisk} />
+          </details>
+        </>
+      ) : <MatchReplyDigest groups={replyGroups} primaryRisk={primaryRisk} />}
 
       {card.lineup.length ? (
         <div className={styles.lineupPreview} aria-label="Projected courts">
@@ -1661,7 +1678,12 @@ function MatchCard({
               || row.players.some((player) => normalizeTeamRoomPlayerName(player) === normalizeTeamRoomPlayerName(focusedPlayerName))
             )
             return (
-              <div key={`${row.label}-${index}`} className={`${styles.lineupRow} ${rowIsFocused ? styles.lineupRowFocused : ''}`}>
+              <div
+                id={courtReadinessAnchor(message.id, index)}
+                key={`${row.label}-${index}`}
+                className={`${styles.lineupRow} ${rowIsFocused ? styles.lineupRowFocused : ''}`}
+                tabIndex={-1}
+              >
                 <strong>{row.label || `Court ${index + 1}`}</strong>
                 <span>{row.players.join(' / ') || 'Open'}</span>
               </div>
@@ -1839,6 +1861,44 @@ type PrimaryLineupRisk = {
   status: 'unavailable' | 'maybe'
   statusLabel: 'Out' | 'Maybe'
   courtLabel: string
+}
+
+function CourtReadinessStrip({
+  messageId,
+  courts,
+}: {
+  messageId: string
+  courts: TeamRoomCourtReadiness[]
+}) {
+  const confirmedCount = courts.filter((court) => court.status === 'confirmed').length
+  return (
+    <section className={styles.courtReadiness} aria-label="Lineup readiness">
+      <div className={styles.courtReadinessTop}>
+        <strong>Lineup readiness</strong>
+        <span>{confirmedCount}/{courts.length} confirmed</span>
+      </div>
+      <nav className={styles.courtReadinessGrid} aria-label="Open a projected court">
+        {courts.map((court, index) => (
+          <a
+            key={`${court.label}-${index}`}
+            className={`${styles.courtReadinessItem} ${court.status === 'confirmed'
+              ? styles.courtReadinessConfirmed
+              : court.status === 'needs_captain' ? styles.courtReadinessCaptain : styles.courtReadinessWaiting}`}
+            href={`#${courtReadinessAnchor(messageId, index)}`}
+          >
+            <strong>{court.label || `Court ${index + 1}`}</strong>
+            <span>{court.status === 'confirmed'
+              ? 'Confirmed'
+              : court.status === 'needs_captain' ? 'Needs captain' : 'Waiting'}</span>
+          </a>
+        ))}
+      </nav>
+    </section>
+  )
+}
+
+function courtReadinessAnchor(messageId: string, index: number) {
+  return `match-card-${messageId}-court-${index + 1}`
 }
 
 function MatchReplyDigest({
