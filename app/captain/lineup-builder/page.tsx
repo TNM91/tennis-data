@@ -53,6 +53,7 @@ import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import { applyCaptainSuggestedSwap } from '@/lib/captain-replacement-recommendation'
 
 type PlayerRow = {
   id: string
@@ -121,6 +122,14 @@ type SlotPlayer = {
 }
 
 type LineupSlot = CaptainLineupSlot
+
+type SuggestedSwapDraft = {
+  previousSlots: LineupSlot[]
+  slotId: string
+  playerIndex: number
+  replacementPlayerId: string
+  needsConfirmation: boolean
+}
 
 type ScenarioRow = {
   id: string
@@ -1008,6 +1017,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
       matchFormat: 'auto' as const,
       replacePlayer: '',
       replacementPlayer: '',
+      replacementPlayerId: '',
       replacementCourt: '',
     }
   }
@@ -1029,6 +1039,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     matchFormat: params.get('matchFormat') || 'auto',
     replacePlayer: params.get('replace') || '',
     replacementPlayer: params.get('replacement') || '',
+    replacementPlayerId: params.get('replacementId') || '',
     replacementCourt: params.get('court') || '',
   }
 }
@@ -1065,6 +1076,7 @@ function LineupBuilderContent() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
+  const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
 
   const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
   const [leagueName, setLeagueName] = useState(initialContext.league)
@@ -1085,13 +1097,22 @@ function LineupBuilderContent() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(false)
   const [hideUnavailable, setHideUnavailable] = useState(true)
-  const replacementHandoff = initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
-    ? {
-        outPlayer: initialContext.replacePlayer,
-        replacementPlayer: initialContext.replacementPlayer,
-        courtLabel: initialContext.replacementCourt,
-      }
-    : null
+  const replacementHandoff = useMemo(
+    () => initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
+      ? {
+          outPlayer: initialContext.replacePlayer,
+          replacementPlayer: initialContext.replacementPlayer,
+          replacementPlayerId: initialContext.replacementPlayerId,
+          courtLabel: initialContext.replacementCourt,
+        }
+      : null,
+    [
+      initialContext.replacePlayer,
+      initialContext.replacementCourt,
+      initialContext.replacementPlayer,
+      initialContext.replacementPlayerId,
+    ]
+  )
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
     buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
   )
@@ -1148,6 +1169,7 @@ function LineupBuilderContent() {
     setLockedSlotIds([])
     setLockedPlayerIds([])
     setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
 
     setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
   }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
@@ -1633,6 +1655,105 @@ function LineupBuilderContent() {
   const lockedSlotIdSet = useMemo(() => new Set(lockedSlotIds), [lockedSlotIds])
   const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
 
+  const suggestedSwapPlayer = useMemo(() => {
+    if (!replacementHandoff) return null
+    const replacementName = normalizeTeamName(replacementHandoff.replacementPlayer)
+    return myPlayerPool.find((player) =>
+      (replacementHandoff.replacementPlayerId && player.id === replacementHandoff.replacementPlayerId)
+      || normalizeTeamName(player.name) === replacementName
+    ) ?? null
+  }, [myPlayerPool, replacementHandoff])
+
+  const suggestedSwapCourt = useMemo(() => {
+    if (!replacementHandoff) return null
+    const courtName = normalizeTeamName(replacementHandoff.courtLabel)
+    const matchingCourts = teamSlots.filter((slot) => normalizeTeamName(slot.label) === courtName)
+    return matchingCourts.length === 1 ? matchingCourts[0] : null
+  }, [replacementHandoff, teamSlots])
+
+  function applySuggestedSwap() {
+    if (!replacementHandoff) return
+    if (!suggestedSwapPlayer) {
+      setMessage('')
+      setError(`${replacementHandoff.replacementPlayer} is not in this team's roster. Refresh the Player Roster before applying the swap.`)
+      return
+    }
+
+    const result = applyCaptainSuggestedSwap({
+      slots: teamSlots,
+      courtLabel: replacementHandoff.courtLabel,
+      outgoingPlayerName: replacementHandoff.outPlayer,
+      replacement: {
+        playerId: suggestedSwapPlayer.id,
+        playerName: suggestedSwapPlayer.name,
+        availabilityStatus: suggestedSwapPlayer.availabilityStatus,
+        eligibleForCourt: suggestedSwapCourt ? isPlayerEligibleForSlot(suggestedSwapPlayer, suggestedSwapCourt) : false,
+      },
+    })
+
+    if (!result.ok) {
+      const failureMessages = {
+        'court-not-found': `The ${replacementHandoff.courtLabel} court is not in the loaded lineup. Load the saved lineup and try again.`,
+        'outgoing-player-not-found': `${replacementHandoff.outPlayer} is no longer assigned to ${replacementHandoff.courtLabel}.`,
+        'replacement-already-assigned': `${suggestedSwapPlayer.name} is already assigned to another court.`,
+        'replacement-unavailable': `${suggestedSwapPlayer.name} is marked Maybe or Out and cannot replace a confirmed player yet.`,
+        'replacement-ineligible': `${suggestedSwapPlayer.name} is not eligible for ${replacementHandoff.courtLabel}.`,
+      } satisfies Record<typeof result.reason, string>
+      setMessage('')
+      setError(failureMessages[result.reason])
+      return
+    }
+
+    setSuggestedSwapDraft({
+      previousSlots: cloneSlots(teamSlots),
+      slotId: result.slotId,
+      playerIndex: result.playerIndex,
+      replacementPlayerId: suggestedSwapPlayer.id,
+      needsConfirmation: result.needsConfirmation,
+    })
+    setTeamSlots(result.slots)
+    setError('')
+    setMessage(
+      `Draft swap applied: ${result.replacementPlayerName} for ${result.outgoingPlayerName} on ${replacementHandoff.courtLabel}. Review it, then save the potential lineup.`
+    )
+    window.requestAnimationFrame(() => {
+      document.getElementById(`captain-lineup-slot-${result.slotId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+  }
+
+  function undoSuggestedSwap() {
+    if (!suggestedSwapDraft) return
+    const previousSlot = suggestedSwapDraft.previousSlots.find((slot) => slot.id === suggestedSwapDraft.slotId)
+    const previousPlayer = previousSlot?.players[suggestedSwapDraft.playerIndex]
+    if (!previousPlayer) return
+    const currentPlayer = teamSlots
+      .find((slot) => slot.id === suggestedSwapDraft.slotId)
+      ?.players[suggestedSwapDraft.playerIndex]
+    if (currentPlayer?.playerId !== suggestedSwapDraft.replacementPlayerId) {
+      setSuggestedSwapDraft(null)
+      setError('')
+      setMessage('That court changed after the suggestion was applied, so there is nothing left to undo.')
+      return
+    }
+    setTeamSlots((current) => current.map((slot) => {
+      if (slot.id !== suggestedSwapDraft.slotId) return slot
+      return {
+        ...slot,
+        players: slot.players.map((player, index) => (
+          index === suggestedSwapDraft.playerIndex && player.playerId === suggestedSwapDraft.replacementPlayerId
+            ? { ...previousPlayer }
+            : player
+        )),
+      }
+    }))
+    setSuggestedSwapDraft(null)
+    setError('')
+    setMessage('Suggested swap undone. Your saved lineup was never changed.')
+  }
+
   const compareHref = useMemo(() => {
     const baseHref = buildCaptainScopedHref('/captain/scenario-builder', {
       competitionLayer,
@@ -1799,6 +1920,7 @@ function LineupBuilderContent() {
     setOpponentSlots(cloneSlots(DEFAULT_OPPONENT_SLOTS))
     setActiveLineupFormatKey('standard')
     setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2296,6 +2418,7 @@ function LineupBuilderContent() {
       setCurrentScenarioId(targetScenarioId)
       await refreshSavedScenarios()
       await trackPredictionSnapshot('scenario-update', targetScenarioId, true)
+      setSuggestedSwapDraft(null)
       if (!quiet) setMessage('Potential lineup updated.')
       return updated as ScenarioRow
     }
@@ -2315,6 +2438,7 @@ function LineupBuilderContent() {
     if (data?.id) setCurrentScenarioId(data.id)
     await refreshSavedScenarios()
     await trackPredictionSnapshot(asNew ? 'scenario-save-new' : 'scenario-save', data?.id ?? null, true)
+    setSuggestedSwapDraft(null)
     if (!quiet) setMessage(asNew ? 'Potential lineup saved as a new version.' : 'Potential lineup saved.')
     return data as ScenarioRow
   }
@@ -2399,6 +2523,7 @@ function LineupBuilderContent() {
     setOpponentSlots(fitCaptainLineupSlotsToFormat(loadedOpponentSlots, scenarioLeague, scenarioFlight, 'opponent', effectiveMatchFormatId))
     setActiveLineupFormatKey(getCaptainLineupFormatKey(scenarioLeague, scenarioFlight, effectiveMatchFormatId))
     setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
     clearLocks()
 
     setLoadingScenarioId('')
@@ -2760,12 +2885,30 @@ function LineupBuilderContent() {
           >
             <div style={replacementHandoffCopyStyle}>
               <p style={sectionKicker}>Suggested availability change</p>
-              <strong>{replacementHandoff.replacementPlayer} for {replacementHandoff.courtLabel}</strong>
-              <span>
-                {replacementHandoff.outPlayer} is no longer confirmed. Review the suggested replacement against the full lineup. No court was changed automatically.
-              </span>
+              <strong>
+                {suggestedSwapDraft ? 'Draft applied: ' : ''}
+                {replacementHandoff.replacementPlayer} for {replacementHandoff.courtLabel}
+              </strong>
+              {suggestedSwapDraft ? (
+                <span aria-live="polite">
+                  Unsaved — review the court, then save the potential lineup.
+                  {suggestedSwapDraft.needsConfirmation ? ` ${replacementHandoff.replacementPlayer}'s availability still needs confirmation.` : ''}
+                </span>
+              ) : (
+                <span>
+                  {replacementHandoff.outPlayer} is no longer confirmed. Apply this one change as an unsaved draft, then review and save it.
+                </span>
+              )}
             </div>
-            <Link href="#captain-lineup-courts" style={primaryButton}>Review this court</Link>
+            <div style={replacementHandoffActionsStyle}>
+              <PrimaryBtn onClick={applySuggestedSwap} disabled={Boolean(suggestedSwapDraft) || loading || loadingScenarioId !== ''}>
+                {suggestedSwapDraft ? 'Draft applied' : 'Apply suggested swap'}
+              </PrimaryBtn>
+              <GhostLink href={suggestedSwapCourt ? `#captain-lineup-slot-${suggestedSwapCourt.id}` : '#captain-lineup-courts'}>
+                Review court
+              </GhostLink>
+              {suggestedSwapDraft ? <GhostBtn onClick={undoSuggestedSwap}>Undo</GhostBtn> : null}
+            </div>
           </section>
         ) : null}
 
@@ -3755,7 +3898,7 @@ function SlotEditor({
   )
 
   return (
-    <div style={slotCardStyle}>
+    <div id={`captain-lineup-slot-${slot.id}`} style={slotCardStyle}>
       <div style={slotHeaderStyle}>
         <div style={slotHeaderLeftStyle}>
           {fixedFormat ? (
@@ -3851,6 +3994,14 @@ const replacementHandoffCopyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.45,
+}
+
+const replacementHandoffActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({
