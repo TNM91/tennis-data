@@ -51,6 +51,15 @@ import {
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
 } from '@/lib/captain-roster-contacts'
+import { buildCaptainLevelUpChallenge } from '@/lib/captain-level-up-challenge'
+import {
+  appendCaptainWeekChallengeToMessage,
+  buildCaptainWeekChallengeHistoryHref,
+  buildCaptainWeekChallengeTeamRoomHref,
+  selectCaptainWeekChallenge,
+  type CaptainWeekChallenge,
+  type CaptainWeekChallengeHistoryItem,
+} from '@/lib/captain-week-challenge'
 
 type ContactRow = {
   id: string
@@ -662,11 +671,14 @@ function CaptainMessagingContent() {
   const [messageKind, setMessageKind] = useState<MessageKind>('availability')
   const [messageTitle, setMessageTitle] = useState('Availability Check')
   const [messageBody, setMessageBody] = useState('')
+  const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
   const { isTablet, isMobile } = useViewportBreakpoints()
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
   const showAdvancedMessagingPanels = false
@@ -1021,6 +1033,54 @@ function CaptainMessagingContent() {
   const scopedLineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', matchWeekScope)
 
   useEffect(() => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    if (!authResolved || role === 'public' || !session?.access_token || !teamName || !leagueName || !scopedFlight) {
+      return
+    }
+
+    let active = true
+    const scope = { teamName, leagueName, flight: scopedFlight }
+
+    async function loadConnectedWeekChallenge() {
+      try {
+        const response = await fetch(buildCaptainWeekChallengeHistoryHref(scope), {
+          headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+          cache: 'no-store',
+        })
+        const result = await response.json() as { history?: CaptainWeekChallengeHistoryItem[] }
+        if (!response.ok || !active) return
+        const selected = selectCaptainWeekChallenge(result.history ?? [], matchWeekScope.date)
+        const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
+        setConnectedWeekChallenge(selected && challenge ? {
+          challenge,
+          history: selected,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
+        } : null)
+      } catch {
+        if (active) setConnectedWeekChallenge(null)
+      }
+    }
+
+    void loadConnectedWeekChallenge()
+    return () => {
+      active = false
+    }
+  }, [authResolved, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, role, session?.access_token])
+
+  useEffect(() => {
+    if (!connectedWeekChallenge) return
+    setMessageBody((current) => current.trim()
+      ? appendCaptainWeekChallengeToMessage(current, connectedWeekChallenge.challenge)
+      : current)
+  }, [connectedWeekChallenge])
+
+  function withWeekChallenge(message: string) {
+    return appendCaptainWeekChallengeToMessage(message, connectedWeekChallenge?.challenge ?? null)
+  }
+
+  useEffect(() => {
     const saved = readCaptainWeekStatus(weekStatusScope)
     setWeekStatus(saved?.status || 'draft-lineup')
   }, [weekStatusKey, weekStatusScope])
@@ -1190,16 +1250,16 @@ function CaptainMessagingContent() {
     setMessageTitle(nextTitleMap[messageKind])
     setMessageBody((current) => {
       if (selectedTemplateId) return current
-      return eventDefaultMessage(messageKind, {
+      return appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
         dateText: formatDate(selectedMatch.match_date),
         location: eventLocation,
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
-      })
+      }), connectedWeekChallenge?.challenge ?? null)
     })
-  }, [availabilityHandoff, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
+  }, [availabilityHandoff, connectedWeekChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -2197,7 +2257,7 @@ function buildWinningLineupMessage() {
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
 
-  return `Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`
+  return withWeekChallenge(`Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`)
 }
 
 function applyWinningLineupToComposer() {
@@ -2292,16 +2352,16 @@ function importScenarioToLineup() {
     setRecipientMode('non-responders')
     setMessageKind('follow-up')
     setMessageTitle('Follow-Up Reminder')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}quick follow-up for ${formatDate(selectedMatch?.match_date)}. I still need your response so I can finalize the lineup. Please reply ASAP with your status.`
-    )
+    ))
   }
 
   function loadAvailabilityCheckMessage() {
     setRecipientMode('all-opted-in')
     setMessageKind('availability')
     setMessageTitle('Availability Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('availability', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -2310,14 +2370,14 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: '',
       })
-    )
+    ))
   }
 
   function loadMatchReminderMessage() {
     setRecipientMode(lineupRows.length ? 'lineup-only' : 'available-only')
     setMessageKind('reminder')
     setMessageTitle('Match Reminder')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('reminder', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -2326,16 +2386,16 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
       })
-    )
+    ))
   }
 
   function loadPostMatchNote() {
     setRecipientMode('all-opted-in')
     setMessageKind('follow-up')
     setMessageTitle('Post-Match Note')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`
-    )
+    ))
   }
 
 
@@ -2346,9 +2406,9 @@ function importScenarioToLineup() {
     setRecipientMode('captains')
     setMessageKind('follow-up')
     setMessageTitle('Sub Needed')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in - we need a substitution update for ${formatDate(selectedMatch?.match_date)}. Please confirm replacement options as soon as you can so I can finalize the lineup.`
-    )
+    ))
   }
 
   function loadRunningLateMessage() {
@@ -2358,9 +2418,9 @@ function importScenarioToLineup() {
     setRecipientMode('captains')
     setMessageKind('follow-up')
     setMessageTitle('Arrival Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in on arrival timing for ${formatDate(selectedMatch?.match_date)}. Please send the latest ETA so captain planning stays clean.`
-    )
+    ))
   }
 
   function loadTentativeMessage() {
@@ -2371,9 +2431,9 @@ function importScenarioToLineup() {
     setSelectedRecipientIds(tentativeContacts.map((contact) => contact.id))
     setMessageKind('follow-up')
     setMessageTitle('Tentative Status Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in - I still need a final yes or no for ${formatDate(selectedMatch?.match_date)} so I can lock the lineup. Please reply when you can.`
-    )
+    ))
   }
 
   function applyFollowUpEngine() {
@@ -2421,7 +2481,7 @@ function importScenarioToLineup() {
     }
 
     setMessageTitle('Availability Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('availability', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -2430,7 +2490,7 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: '',
       })
-    )
+    ))
   }
 
   async function copyBody() {
@@ -2482,6 +2542,21 @@ function importScenarioToLineup() {
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
          <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
+         {connectedWeekChallenge ? (
+          <section style={weekChallengeStripStyle} aria-label="This week's team challenge in messaging">
+            <div style={weekChallengeCopyStyle}>
+              <span style={sectionKicker}>
+                {connectedWeekChallenge.history.status === 'scheduled' ? "This week's team challenge" : 'Challenge in progress'}
+              </span>
+              <strong style={weekChallengeTitleStyle}>{connectedWeekChallenge.challenge.title}</strong>
+              <span style={weekChallengeFocusStyle}>{connectedWeekChallenge.challenge.focus}</span>
+            </div>
+            <div style={messageControlButtonRowStyle}>
+              <span style={miniPillGreen}>Included in message</span>
+              <PrimaryLink href={connectedWeekChallenge.teamRoomHref}>Open Team Room</PrimaryLink>
+            </div>
+          </section>
+         ) : null}
          {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
           <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
@@ -4110,7 +4185,7 @@ function importScenarioToLineup() {
                             const template = scopedTemplates.find((item) => item.id === value)
                             if (template) {
                               setMessageTitle(template.template_name)
-                              setMessageBody(template.message_body)
+                              setMessageBody(withWeekChallenge(template.message_body))
                             }
                           }}
                           style={inputStyle}
@@ -4391,6 +4466,38 @@ const pageContentStyle: CSSProperties = {
   minWidth: 0,
   overflowX: 'clip',
   boxSizing: 'border-box',
+}
+
+const weekChallengeStripStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  alignItems: 'center',
+  gap: 16,
+  padding: '16px 18px',
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(45,132,255,0.08))',
+  minWidth: 0,
+}
+
+const weekChallengeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const weekChallengeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const weekChallengeFocusStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const messageControlShell: CSSProperties = {

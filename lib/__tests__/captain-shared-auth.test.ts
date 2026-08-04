@@ -29,7 +29,7 @@ describe('Captain shared auth access', () => {
   it('keeps weekly and team brief access on the shared auth provider', () => {
     for (const source of [weeklyBriefSource, teamBriefSource]) {
       expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
-      expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+      expect(source).toContain('const { role, entitlements, authResolved } =')
       expect(source).toContain('<SiteShell active="/captain">')
       expect(source).toContain('if (!authResolved || role === \'public\') return')
       expect(source).toContain('if (!authResolved)')
@@ -86,7 +86,7 @@ describe('Captain shared auth access', () => {
   it('keeps captain messaging on shared auth before loading team communication data', () => {
     expect(messagingSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(messagingSource).toContain('<SiteShell active="/captain">')
-    expect(messagingSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(messagingSource).toContain('const { role, entitlements, authResolved } =')
     expect(messagingSource).toContain("if (!authResolved || role === 'public') return")
     expect(messagingSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
     expect(messagingSource).not.toContain('const [authLoading, setAuthLoading]')

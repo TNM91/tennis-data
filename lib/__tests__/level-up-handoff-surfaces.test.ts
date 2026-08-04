@@ -7,6 +7,7 @@ const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 
 const captainChallengeSource = readFileSync(join(process.cwd(), 'lib/captain-level-up-challenge.ts'), 'utf8')
 const captainPracticeSource = readFileSync(join(process.cwd(), 'app/captain/practice/page.tsx'), 'utf8')
 const captainWeeklyBriefSource = readFileSync(join(process.cwd(), 'app/captain/weekly-brief/page.tsx'), 'utf8')
+const captainMessagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
 const playerLevelUpSessionsApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
 const coachAssignmentsApiSource = readFileSync(join(process.cwd(), 'app/api/coach/assignments/route.ts'), 'utf8')
 
@@ -71,5 +72,16 @@ describe('Level Up handoff surfaces', () => {
     expect(captainPracticeSource).toContain('Practice focus is filled in.')
     expect(captainWeeklyBriefSource).toContain("['levelUpChallenge', 'card']")
     expect(captainWeeklyBriefSource).toContain('Level Up challenge loaded into weekly brief')
+  })
+
+  it('carries the selected match-week challenge into the brief and team message', () => {
+    expect(captainWeeklyBriefSource).toContain('buildCaptainWeekChallengeHistoryHref')
+    expect(captainWeeklyBriefSource).toContain("This week's team challenge")
+    expect(captainWeeklyBriefSource).toContain('Open Team Room')
+    expect(captainWeeklyBriefSource).toContain('buildCaptainLevelUpCardHref')
+    expect(captainMessagingSource).toContain('buildCaptainWeekChallengeHistoryHref')
+    expect(captainMessagingSource).toContain('appendCaptainWeekChallengeToMessage')
+    expect(captainMessagingSource).toContain('Included in message')
+    expect(captainMessagingSource).toContain('Open Team Room')
   })
 })
