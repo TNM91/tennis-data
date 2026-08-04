@@ -22,6 +22,7 @@ import {
   readPlatformResumeSuppressions,
   removePlatformResumeSuppression,
   suppressPlatformResumeCandidate,
+  syncPlatformResumeSuppressionsWithCloud,
   type PlatformResumeSuppression,
 } from '@/lib/platform-resume-preferences'
 import { readPlayerImproveResumeState } from '@/lib/player-improve-memory'
@@ -41,6 +42,7 @@ export function usePlatformResume({
   const [notice, setNotice] = useState<{ message: string; undoFingerprint?: string }>({ message: '' })
   const previousLocalCandidatesRef = useRef<PlatformResumeCandidate[] | null>(null)
   const previousUserIdRef = useRef<string | null | undefined>(undefined)
+  const suppressionSyncRef = useRef<Promise<PlatformResumeSuppression[] | null> | null>(null)
 
   useEffect(() => {
     let timeout: number | null = null
@@ -148,6 +150,41 @@ export function usePlatformResume({
     }
   }, [accessToken, userId])
 
+  const syncCloudSuppressions = useCallback(() => {
+    if (!accessToken || !userId) return Promise.resolve(null)
+    if (suppressionSyncRef.current) return suppressionSyncRef.current
+
+    const request = syncPlatformResumeSuppressionsWithCloud(accessToken, userId)
+      .finally(() => {
+        if (suppressionSyncRef.current === request) suppressionSyncRef.current = null
+      })
+    suppressionSyncRef.current = request
+    return request
+  }, [accessToken, userId])
+
+  useEffect(() => {
+    let active = true
+    const refreshCloudSuppressions = () => {
+      void syncCloudSuppressions().then((nextSuppressions) => {
+        if (active && nextSuppressions) setSuppressions(nextSuppressions)
+      })
+    }
+    const refreshCloudSuppressionsOnVisible = () => {
+      if (document.visibilityState === 'visible') refreshCloudSuppressions()
+    }
+
+    refreshCloudSuppressions()
+    window.addEventListener('pageshow', refreshCloudSuppressions)
+    window.addEventListener('online', refreshCloudSuppressions)
+    document.addEventListener('visibilitychange', refreshCloudSuppressionsOnVisible)
+    return () => {
+      active = false
+      window.removeEventListener('pageshow', refreshCloudSuppressions)
+      window.removeEventListener('online', refreshCloudSuppressions)
+      document.removeEventListener('visibilitychange', refreshCloudSuppressionsOnVisible)
+    }
+  }, [syncCloudSuppressions])
+
   useEffect(() => {
     if (!notice.message) return
     const timeout = window.setTimeout(() => setNotice({ message: '' }), 3500)
@@ -180,7 +217,10 @@ export function usePlatformResume({
       message: mode === 'later' ? 'Moved to Later.' : 'Shortcut hidden.',
       undoFingerprint: fingerprint,
     })
-  }, [userId])
+    void syncCloudSuppressions().then((synced) => {
+      if (synced) setSuppressions(synced)
+    })
+  }, [syncCloudSuppressions, userId])
 
   const undoLastSuppression = useCallback(() => {
     if (!userId || !notice.undoFingerprint) return
@@ -191,7 +231,10 @@ export function usePlatformResume({
         ? 'Could not restore shortcut.'
         : 'Shortcut restored.',
     })
-  }, [notice.undoFingerprint, userId])
+    void syncCloudSuppressions().then((synced) => {
+      if (synced) setSuppressions(synced)
+    })
+  }, [notice.undoFingerprint, syncCloudSuppressions, userId])
 
   const items = useMemo(
     () => filterPlatformResumeCandidates(
