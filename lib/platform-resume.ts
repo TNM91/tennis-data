@@ -243,6 +243,30 @@ export function buildPlatformResumeCandidates(states: PlatformResumeStates, now 
       visitedAt: clean(captain.lastVisitedAt),
       dueAt: clean(captain.eventDate),
     }, captainActionSignal(captain, Boolean(states.teamRoomDraftPending))))
+  } else if (captain?.team && captain.eventDate) {
+    const scope = {
+      competitionLayer: captain.competitionLayer,
+      team: captain.team,
+      league: captain.league,
+      flight: captain.flight,
+      date: captain.eventDate,
+      opponent: captain.opponentTeam,
+      matchId: captain.matchId,
+    }
+    candidates.push(candidate({
+      id: 'captain',
+      lane: 'Captain',
+      label: 'Next match',
+      context: context([captain.team, captain.opponentTeam ? `vs ${captain.opponentTeam}` : '']),
+      href: buildCaptainScopedHref('/captain/availability', scope),
+      visitedAt: clean(captain.lastVisitedAt),
+      dueAt: clean(captain.eventDate),
+    }, {
+      status: 'unfinished',
+      actionLabel: 'Check availability',
+      reason: 'Start with player availability',
+      priority: 90,
+    }))
   }
 
   if (coach) {

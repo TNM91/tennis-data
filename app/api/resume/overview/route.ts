@@ -6,6 +6,11 @@ import { sanitizeExploreResumeState } from '@/lib/explore-memory'
 import { sanitizeLeagueCoordinatorResumeState } from '@/lib/league-coordinator-memory'
 import { buildPlatformResumeCandidates, type PlatformResumeStates } from '@/lib/platform-resume'
 import { sanitizePlayerImproveResumeState } from '@/lib/player-improve-memory'
+import {
+  applyAutomaticCaptainNextMatch,
+  captainResumeHasCurrentMatch,
+  loadCaptainResumeNextMatch,
+} from '@/lib/platform-resume-next-match'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -53,6 +58,12 @@ export async function GET(request: Request) {
     if (result.id === 'compete') states.compete = withUpdatedAt(sanitizeCompeteResumeState(resumeState), result.row)
     if (result.id === 'explore') states.explore = withUpdatedAt(sanitizeExploreResumeState(resumeState), result.row)
     if (result.id === 'league') states.league = withUpdatedAt(sanitizeLeagueCoordinatorResumeState(resumeState), result.row)
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  if (!captainResumeHasCurrentMatch(states.captain, today)) {
+    const nextMatch = await loadCaptainResumeNextMatch(auth.service, auth.userId, today)
+    states.captain = applyAutomaticCaptainNextMatch(states.captain, nextMatch, today)
   }
 
   return Response.json({

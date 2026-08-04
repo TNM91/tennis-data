@@ -200,6 +200,30 @@ describe('platform resume', () => {
     expect(readyToBuild[0].actionLabel).toBe('Finish lineup')
   })
 
+  it('starts a linked upcoming match with availability from Captain home', () => {
+    const now = Date.parse('2026-08-03T12:00:00')
+    const candidates = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'hub',
+        team: 'SuperSmash Bros',
+        league: 'Tri-Level',
+        flight: '3.5/4.0/4.5',
+        eventDate: '2026-08-04',
+        opponentTeam: 'Topspin Club',
+        lastVisitedAt: '2026-08-03T10:00:00.000Z',
+      },
+    }, now)
+
+    expect(candidates[0]).toMatchObject({
+      id: 'captain',
+      actionLabel: 'Check availability',
+      reason: 'Start with player availability',
+      dueAt: '2026-08-04',
+    })
+    expect(candidates[0].href).toContain('/captain/availability?')
+    expect(getPlatformResumeDetail(candidates[0], now)).toContain('Tomorrow')
+  })
+
   it('uses the newest device or cloud state and lets an equal local draft add its action signal', () => {
     const local = [recentCandidate({
       id: 'coach', lane: 'Coach', label: 'Assignment', context: 'Avery', href: '/coach#assignment', visitedAt: '2026-08-03T13:00:00.000Z',
