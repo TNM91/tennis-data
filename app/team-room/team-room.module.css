@@ -201,6 +201,15 @@
   box-shadow: 0 12px 30px rgba(1, 8, 20, 0.22);
 }
 
+.matchCardFocused {
+  border-color: color-mix(in srgb, var(--brand-green) 78%, var(--shell-panel-border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--brand-green) 20%, transparent),
+    0 16px 38px rgba(1, 8, 20, 0.3);
+  animation: replyFocusPulse 2.4s ease-out 1;
+  outline: none;
+}
+
 .matchCardTop,
 .matchIdentity,
 .replySummary,
@@ -278,6 +287,44 @@
   border-radius: 12px;
   background: var(--shell-chip-bg);
   padding: 9px 10px;
+}
+
+.lineupRowFocused {
+  border-color: color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg));
+  box-shadow: inset 3px 0 0 var(--brand-green);
+}
+
+.replyFocusNotice {
+  display: grid;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 46%, var(--shell-panel-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg));
+  padding: 10px 12px;
+}
+
+.replyFocusNotice strong {
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+}
+
+.replyFocusNotice span {
+  color: var(--shell-copy-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+@keyframes replyFocusPulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-green) 42%, transparent); }
+  45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-green) 10%, transparent); }
+  100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-green) 20%, transparent), 0 16px 38px rgba(1, 8, 20, 0.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matchCardFocused {
+    animation: none;
+  }
 }
 
 .lineupRow strong {
