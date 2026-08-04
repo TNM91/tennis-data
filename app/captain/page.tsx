@@ -90,6 +90,9 @@ import {
   type InternalNotification,
 } from '@/lib/internal-notifications'
 import {
+  buildCaptainReplyNotification,
+  CAPTAIN_AVAILABILITY_REPLY_NOTICE,
+  parseCaptainReplyAlert,
   selectCaptainReplyAlerts,
 } from '@/lib/captain-reply-alert'
 import {
@@ -4101,14 +4104,46 @@ function CaptainHubContent() {
     teamName: selectedTeam,
     matchDate: matchWeekDate,
   }), [captainReplyNotifications, matchWeekDate, selectedTeam])
-  const captainLatestReplyAlert = captainReplyAlerts[0] ?? null
+  const captainReplyFocusAlert = useMemo(() => {
+    if (searchParams.get('notice') !== CAPTAIN_AVAILABILITY_REPLY_NOTICE) return null
+    const playerName = searchParams.get('player') || ''
+    const status = searchParams.get('status') || ''
+    const teamName = searchParams.get('team') || selectedTeam
+    const matchDate = safeText(searchParams.get('date') || matchWeekDate).slice(0, 10)
+    if (!playerName || !status || !teamName || !matchDate) return null
+    const notification = buildCaptainReplyNotification({
+      playerName,
+      status,
+      teamName,
+      leagueName: searchParams.get('league') || selectedLeague,
+      flight: searchParams.get('flight') || selectedFlight,
+      matchDate,
+      opponentTeam: searchParams.get('opponent') || nextMatch?.opponent || '',
+      teamRoomMessageId: searchParams.get('message') || '',
+      availabilityRequestId: searchParams.get('availabilityRequest') || '',
+      courtLabel: searchParams.get('court') || '',
+    })
+    return parseCaptainReplyAlert({
+      id: 'team-room-reply-focus',
+      title: notification.title,
+      body: notification.body,
+      href: notification.href,
+      createdAt: '',
+    })
+  }, [matchWeekDate, nextMatch?.opponent, searchParams, selectedFlight, selectedLeague, selectedTeam])
+  const captainLatestReplyAlert = captainReplyFocusAlert ?? captainReplyAlerts[0] ?? null
   const captainLatestReplyLineupRow = useMemo(() => {
     if (!captainLatestReplyAlert) return null
+    const focusedCourtKey = safeKey(searchParams.get('court') || '')
+    const focusedCourt = focusedCourtKey
+      ? matchDayLineupRows.find((row) => safeKey(row.court_label) === focusedCourtKey)
+      : null
+    if (focusedCourt) return focusedCourt
     const playerKey = safeKey(captainLatestReplyAlert.playerName)
     return matchDayLineupRows.find((row) =>
       (row.players ?? []).some((playerName) => safeKey(playerName) === playerKey),
     ) ?? null
-  }, [captainLatestReplyAlert, matchDayLineupRows])
+  }, [captainLatestReplyAlert, matchDayLineupRows, searchParams])
   const captainReplacementRecommendation = useMemo(() => {
     if (!captainLatestReplyAlert || !captainLatestReplyLineupRow || captainLatestReplyAlert.status === 'available') return null
 
@@ -4140,6 +4175,18 @@ function CaptainHubContent() {
       courtLabel: captainReplacementRecommendation.courtLabel,
     })
     : lineupBuilderHref
+
+  useEffect(() => {
+    if (!captainReplyFocusAlert) return
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById('captain-reply-alert')
+      if (!target) return
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+      target.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [captainReplyFocusAlert, captainReplacementRecommendation])
 
   useEffect(() => {
     if (!captainAvailabilityRequestSummary?.request) return
@@ -6549,12 +6596,20 @@ function CaptainHubContent() {
     : ''
 
   function acknowledgeCaptainReplyAlerts() {
-    if (!userId || !captainReplyAlerts.length) return
-    const readIds = new Set(captainReplyAlerts.map((alert) => alert.id))
-    setCaptainReplyNotifications((current) => current.filter((notification) => !readIds.has(notification.id)))
-    void Promise.allSettled(
-      captainReplyAlerts.map((notification) => markInternalNotificationRead(notification.id, userId)),
-    )
+    if (userId && captainReplyAlerts.length) {
+      const readIds = new Set(captainReplyAlerts.map((alert) => alert.id))
+      setCaptainReplyNotifications((current) => current.filter((notification) => !readIds.has(notification.id)))
+      void Promise.allSettled(
+        captainReplyAlerts.map((notification) => markInternalNotificationRead(notification.id, userId)),
+      )
+    }
+    if (captainReplyFocusAlert) {
+      const nextParams = new URLSearchParams(searchParams.toString())
+      for (const key of ['notice', 'player', 'status', 'court', 'message', 'availabilityRequest', 'source']) {
+        nextParams.delete(key)
+      }
+      router.replace(`/captain${nextParams.size ? `?${nextParams.toString()}` : ''}`, { scroll: false })
+    }
   }
 
   function handleCaptainReplyAlertAction(href: string, stage: CaptainResumeStage) {
@@ -6567,6 +6622,7 @@ function CaptainHubContent() {
       id="captain-reply-alert"
       role="status"
       aria-live="polite"
+      tabIndex={captainReplyFocusAlert ? -1 : undefined}
       style={{
         ...captainHomeReplyAlertShell,
         gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeReplyAlertShell.gridTemplateColumns,

@@ -17,6 +17,7 @@ export type TeamRoomAvailabilitySummary = {
   no: number
   waiting: number
   total: number
+  yesNames: string[]
   waitingNames: string[]
   maybeNames: string[]
   noNames: string[]
@@ -49,13 +50,17 @@ export function summarizeTeamRoomAvailability(input: {
   let yes = 0
   let maybe = 0
   let no = 0
+  const yesNames: string[] = []
   const waitingNames: string[] = []
   const maybeNames: string[] = []
   const noNames: string[] = []
 
   for (const invite of invites) {
     const status = normalizeStatus(latestResponseByInvite.get(invite.key)?.status)
-    if (status === 'yes') yes += 1
+    if (status === 'yes') {
+      yes += 1
+      yesNames.push(invite.playerName)
+    }
     else if (status === 'maybe') {
       maybe += 1
       maybeNames.push(invite.playerName)
@@ -73,6 +78,7 @@ export function summarizeTeamRoomAvailability(input: {
     no,
     waiting: waitingNames.length,
     total: invites.length,
+    yesNames,
     waitingNames,
     maybeNames,
     noNames,

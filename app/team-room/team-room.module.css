@@ -352,6 +352,112 @@
   color: var(--foreground-strong);
 }
 
+.replyDigest {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--shell-chip-bg) 88%, transparent);
+  padding: 11px 12px;
+}
+
+.replyDigestTop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.replyDigestTop > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.replyDigestTop span,
+.replyDigestTop small {
+  color: var(--shell-copy-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.replyDigestTop strong {
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.replyDigestTop small {
+  flex: 0 0 auto;
+}
+
+.replySummary > span {
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg-strong);
+  padding: 5px 8px;
+}
+
+.replySummary .replySummaryAttention {
+  border-color: color-mix(in srgb, #f6c65b 42%, var(--shell-panel-border));
+  background: color-mix(in srgb, #f6c65b 9%, var(--shell-chip-bg));
+}
+
+.replyPriority {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid #f6c65b;
+  padding-left: 9px;
+}
+
+.replyPriority strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+}
+
+.replyPriority span {
+  color: var(--shell-copy-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.replyDetails {
+  color: var(--shell-copy-muted);
+  font-size: 0.74rem;
+}
+
+.replyDetails summary {
+  width: fit-content;
+  color: var(--brand-blue-2);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.replyDetails > div {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.replyDetails p {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.replyDetails strong {
+  color: var(--foreground-strong);
+}
+
+.replyDetails span {
+  overflow-wrap: anywhere;
+}
+
 .responseActions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
