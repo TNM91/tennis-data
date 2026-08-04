@@ -13,6 +13,7 @@ import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'
+import type { PlatformResumeCandidate } from '@/lib/platform-resume'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -92,6 +93,40 @@ function ResumeItemLabel({
       }}>{lane}</span>
       <span style={resumeItemLabelStyle}>{label}</span>
       {context ? <span style={resumeItemContextStyle}>{context}</span> : null}
+    </span>
+  )
+}
+
+function ResumeItemControls({
+  item,
+  onLater,
+  onHide,
+}: {
+  item: PlatformResumeCandidate
+  onLater: (item: PlatformResumeCandidate) => void
+  onHide: (item: PlatformResumeCandidate) => void
+}) {
+  const itemLabel = item.status === 'unfinished' ? item.actionLabel : item.label
+  return (
+    <span style={resumeItemControlsStyle}>
+      <button
+        type="button"
+        aria-label={`Move ${itemLabel} to Later`}
+        title="Hide for 24 hours"
+        onClick={() => onLater(item)}
+        style={resumeItemControlButtonStyle}
+      >
+        Later
+      </button>
+      <button
+        type="button"
+        aria-label={`Hide ${itemLabel}`}
+        title="Hide until this work changes"
+        onClick={() => onHide(item)}
+        style={resumeItemControlButtonStyle}
+      >
+        Hide
+      </button>
     </span>
   )
 }
@@ -229,7 +264,14 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
   })
-  const { items: savedResumeItems, confirmation: resumeConfirmation } = usePlatformResume({
+  const {
+    items: savedResumeItems,
+    confirmation: resumeConfirmation,
+    canUndo: canUndoResumeAction,
+    snoozeItem: snoozeResumeItem,
+    hideItem: hideResumeItem,
+    undoLastSuppression: undoResumeAction,
+  } = usePlatformResume({
     accessToken: session?.access_token,
     userId,
     refreshKey: pathname,
@@ -471,15 +513,18 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                       {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
                     </div>
                     {resumeItems.slice(0, 3).map((item) => (
-                      <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeLinkStyle}>
-                        <ResumeItemLabel
-                          lane={item.lane}
-                          label={item.status === 'unfinished' ? item.actionLabel : item.label}
-                          context={item.reason || item.context}
-                          unfinished={item.status === 'unfinished'}
-                        />
-                        <span aria-hidden="true" style={{ opacity: 0.56 }}>{'\u2192'}</span>
-                      </Link>
+                      <div key={item.id} style={desktopResumeCardStyle}>
+                        <Link href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeCardLinkStyle}>
+                          <ResumeItemLabel
+                            lane={item.lane}
+                            label={item.status === 'unfinished' ? item.actionLabel : item.label}
+                            context={item.reason || item.context}
+                            unfinished={item.status === 'unfinished'}
+                          />
+                          <span aria-hidden="true" style={{ opacity: 0.56 }}>{'\u2192'}</span>
+                        </Link>
+                        <ResumeItemControls item={item} onLater={snoozeResumeItem} onHide={hideResumeItem} />
+                      </div>
                     ))}
                   </div>
                 ) : null}
@@ -572,13 +617,16 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                         {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
                       </div>
                       {resumeItems.slice(0, 2).map((item) => (
-                        <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                          <MobileItemLabel
-                            label={`${item.lane}: ${item.status === 'unfinished' ? item.actionLabel : item.label}`}
-                            description={item.reason || item.context || undefined}
-                          />
-                          <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
-                        </Link>
+                        <div key={item.id} style={mobileResumeCardStyle}>
+                          <Link href={item.href} onClick={() => setMenuOpen(false)} style={mobileResumeCardLinkStyle}>
+                            <MobileItemLabel
+                              label={`${item.lane}: ${item.status === 'unfinished' ? item.actionLabel : item.label}`}
+                              description={item.reason || item.context || undefined}
+                            />
+                            <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
+                          </Link>
+                          <ResumeItemControls item={item} onLater={snoozeResumeItem} onHide={hideResumeItem} />
+                        </div>
                       ))}
                     </div>
                   ) : null}
@@ -651,9 +699,16 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
       </div>
     </header>
     {authenticated && resumeConfirmation ? (
-      <div role="status" aria-live="polite" style={resumeCompletionToastStyle}>
-        <strong>{resumeConfirmation}</strong>
-        <span>{resumePrimary ? `Next: ${resumePrimary.actionLabel}.` : 'You’re caught up.'}</span>
+      <div
+        style={{ ...resumeCompletionToastStyle, pointerEvents: canUndoResumeAction ? 'auto' : 'none' }}
+      >
+        <span role="status" aria-live="polite" style={resumeNoticeCopyStyle}>
+          <strong>{resumeConfirmation}</strong>
+          <span>{resumePrimary ? `Next: ${resumePrimary.actionLabel}.` : 'You’re caught up.'}</span>
+        </span>
+        {canUndoResumeAction ? (
+          <button type="button" onClick={undoResumeAction} style={resumeUndoButtonStyle}>Undo</button>
+        ) : null}
       </div>
     ) : null}
     {useRailHeader ? <div aria-hidden="true" style={railHeaderSpacerStyle} /> : null}
@@ -829,6 +884,25 @@ const resumeCompletionToastStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 
+const resumeUndoButtonStyle: CSSProperties = {
+  appearance: 'none',
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-green)',
+  padding: 0,
+  font: 'inherit',
+  fontWeight: 900,
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  textUnderlineOffset: 2,
+}
+
+const resumeNoticeCopyStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '4px 8px',
+}
+
 const desktopMenuPanelStyle: CSSProperties = {
   position: 'absolute',
   zIndex: 3,
@@ -937,6 +1011,39 @@ const desktopResumeLinkStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
 }
 
+const desktopResumeCardStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 10,
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  overflow: 'hidden',
+}
+
+const desktopResumeCardLinkStyle: CSSProperties = {
+  ...desktopResumeLinkStyle,
+  border: 0,
+  borderRadius: 0,
+  background: 'transparent',
+}
+
+const resumeItemControlsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  padding: '0 8px 8px',
+}
+
+const resumeItemControlButtonStyle: CSSProperties = {
+  appearance: 'none',
+  minHeight: 40,
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 9,
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent 12%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  cursor: 'pointer',
+}
+
 const resumeItemCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 2,
@@ -1040,6 +1147,20 @@ const mobileWorkspaceItemStyle = {
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
 } as const
+
+const mobileResumeCardStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  borderRadius: 15,
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  overflow: 'hidden',
+}
+
+const mobileResumeCardLinkStyle: CSSProperties = {
+  ...mobileWorkspaceItemStyle,
+  border: 0,
+  borderRadius: 0,
+  background: 'transparent',
+}
 
 const mobileResumeSectionStyle: CSSProperties = {
   display: 'grid',

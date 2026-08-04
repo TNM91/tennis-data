@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readCaptainResumeState } from '@/lib/captain-memory'
 import { readCoachResumeState } from '@/lib/coach-memory'
 import { readCompeteResumeState } from '@/lib/compete-memory'
@@ -16,6 +16,14 @@ import {
   sanitizePlatformResumeCandidates,
   type PlatformResumeCandidate,
 } from '@/lib/platform-resume'
+import {
+  filterPlatformResumeCandidates,
+  getPlatformResumeFingerprint,
+  readPlatformResumeSuppressions,
+  removePlatformResumeSuppression,
+  suppressPlatformResumeCandidate,
+  type PlatformResumeSuppression,
+} from '@/lib/platform-resume-preferences'
 import { readPlayerImproveResumeState } from '@/lib/player-improve-memory'
 
 export function usePlatformResume({
@@ -29,7 +37,8 @@ export function usePlatformResume({
 }) {
   const [localCandidates, setLocalCandidates] = useState<PlatformResumeCandidate[]>([])
   const [cloudCandidates, setCloudCandidates] = useState<PlatformResumeCandidate[]>([])
-  const [confirmation, setConfirmation] = useState('')
+  const [suppressions, setSuppressions] = useState<PlatformResumeSuppression[]>([])
+  const [notice, setNotice] = useState<{ message: string; undoFingerprint?: string }>({ message: '' })
   const previousLocalCandidatesRef = useRef<PlatformResumeCandidate[] | null>(null)
   const previousUserIdRef = useRef<string | null | undefined>(undefined)
 
@@ -45,6 +54,7 @@ export function usePlatformResume({
       if (!userId) {
         previousLocalCandidatesRef.current = null
         setLocalCandidates([])
+        setSuppressions([])
         return
       }
 
@@ -72,10 +82,11 @@ export function usePlatformResume({
         : true
 
       if (previousUnfinished && !unfinishedStillOpen) {
-        setConfirmation(getPlatformResumeCompletionMessage(previousUnfinished.actionLabel))
+        setNotice({ message: getPlatformResumeCompletionMessage(previousUnfinished.actionLabel) })
       }
       previousLocalCandidatesRef.current = nextCandidates
       setLocalCandidates(nextCandidates)
+      setSuppressions(readPlatformResumeSuppressions(userId))
     }
 
     const scheduleLocalRefresh = () => {
@@ -138,15 +149,64 @@ export function usePlatformResume({
   }, [accessToken, userId])
 
   useEffect(() => {
-    if (!confirmation) return
-    const timeout = window.setTimeout(() => setConfirmation(''), 3500)
+    if (!notice.message) return
+    const timeout = window.setTimeout(() => setNotice({ message: '' }), 3500)
     return () => window.clearTimeout(timeout)
-  }, [confirmation])
+  }, [notice.message])
+
+  useEffect(() => {
+    const nextExpiry = suppressions.reduce((earliest, entry) => {
+      if (entry.mode !== 'later') return earliest
+      const timestamp = Date.parse(entry.until || '')
+      return Number.isFinite(timestamp) && timestamp < earliest ? timestamp : earliest
+    }, Number.POSITIVE_INFINITY)
+    if (!Number.isFinite(nextExpiry)) return
+    const timeout = window.setTimeout(() => {
+      setSuppressions(readPlatformResumeSuppressions(userId))
+    }, Math.max(0, nextExpiry - Date.now()) + 50)
+    return () => window.clearTimeout(timeout)
+  }, [suppressions, userId])
+
+  const suppressItem = useCallback((candidate: PlatformResumeCandidate, mode: PlatformResumeSuppression['mode']) => {
+    if (!userId) return
+    const fingerprint = getPlatformResumeFingerprint(candidate)
+    const nextSuppressions = suppressPlatformResumeCandidate(candidate, mode, userId)
+    setSuppressions(nextSuppressions)
+    if (!nextSuppressions.some((entry) => entry.fingerprint === fingerprint)) {
+      setNotice({ message: 'Could not update shortcut.' })
+      return
+    }
+    setNotice({
+      message: mode === 'later' ? 'Moved to Later.' : 'Shortcut hidden.',
+      undoFingerprint: fingerprint,
+    })
+  }, [userId])
+
+  const undoLastSuppression = useCallback(() => {
+    if (!userId || !notice.undoFingerprint) return
+    const nextSuppressions = removePlatformResumeSuppression(notice.undoFingerprint, userId)
+    setSuppressions(nextSuppressions)
+    setNotice({
+      message: nextSuppressions.some((entry) => entry.fingerprint === notice.undoFingerprint)
+        ? 'Could not restore shortcut.'
+        : 'Shortcut restored.',
+    })
+  }, [notice.undoFingerprint, userId])
 
   const items = useMemo(
-    () => mergePlatformResumeCandidates(localCandidates, cloudCandidates),
-    [cloudCandidates, localCandidates],
+    () => filterPlatformResumeCandidates(
+      mergePlatformResumeCandidates(localCandidates, cloudCandidates),
+      suppressions,
+    ),
+    [cloudCandidates, localCandidates, suppressions],
   )
 
-  return useMemo(() => ({ items, confirmation }), [confirmation, items])
+  return useMemo(() => ({
+    items,
+    confirmation: notice.message,
+    canUndo: Boolean(notice.undoFingerprint),
+    snoozeItem: (candidate: PlatformResumeCandidate) => suppressItem(candidate, 'later'),
+    hideItem: (candidate: PlatformResumeCandidate) => suppressItem(candidate, 'hidden'),
+    undoLastSuppression,
+  }), [items, notice.message, notice.undoFingerprint, suppressItem, undoLastSuppression])
 }
