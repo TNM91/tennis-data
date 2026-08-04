@@ -229,6 +229,15 @@ type AppliedLineupNotice = {
   totalCourts: number
 }
 
+type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
+
+function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
+  if (stage === 'saving-lineup') return 'Saving lineup...'
+  if (stage === 'preparing-replies') return 'Preparing replies...'
+  if (stage === 'opening-messages') return 'Opening messages...'
+  return 'Save & ask players'
+}
+
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'team')
 const DEFAULT_OPPONENT_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'opponent')
 
@@ -1077,7 +1086,9 @@ function LineupBuilderContent() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [preparingConfirmation, setPreparingConfirmation] = useState(false)
+  const [confirmationStage, setConfirmationStage] = useState<AvailabilityConfirmationStage>('idle')
+  const preparingConfirmation = confirmationStage !== 'idle'
+  const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
@@ -1929,9 +1940,9 @@ function LineupBuilderContent() {
     setMessage('Builder reset.')
     setError('')
   }
-  async function confirmPotentialLineupAvailability() {
+  async function saveAndConfirmPotentialLineupAvailability() {
     if (!teamName || !matchDate) {
-      setError('Choose the team and match before confirming availability.')
+      setError('Choose the team and match before asking players.')
       setMessage('')
       return
     }
@@ -1952,15 +1963,18 @@ function LineupBuilderContent() {
       return
     }
 
-    setPreparingConfirmation(true)
+    setConfirmationStage('saving-lineup')
     setError('')
     setMessage('Saving this potential lineup...')
 
     const savedScenario = await saveScenario(false, true)
     if (!savedScenario) {
-      setPreparingConfirmation(false)
+      setConfirmationStage('idle')
       return
     }
+
+    setConfirmationStage('preparing-replies')
+    setMessage('Preparing player replies...')
 
     let availabilityRequestUrl = ''
     let availabilityRequestId = ''
@@ -2056,7 +2070,8 @@ function LineupBuilderContent() {
       window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
     }
 
-    setPreparingConfirmation(false)
+    setConfirmationStage('opening-messages')
+    setMessage('Opening messages...')
     if (teamRoomCardPosted) {
       router.push(buildTeamRoomHref({
         teamName,
@@ -2806,8 +2821,8 @@ function LineupBuilderContent() {
               {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
             </PrimaryBtn>
             <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
-            <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-              {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
+            <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+              {saveAndAskLabel}
             </PrimaryBtn>
             <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
@@ -3032,8 +3047,8 @@ function LineupBuilderContent() {
           <div style={decisionBoardActionRowStyle}>
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
-            <GhostBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-              {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
+            <GhostBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+              {saveAndAskLabel}
             </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
@@ -3049,12 +3064,12 @@ function LineupBuilderContent() {
               </div>
               <div style={appliedLineupNoticeFooterStyle}>
                 <div style={appliedLineupNextCopyStyle}>
-                  <strong>Next: confirm availability</strong>
-                  <span>Post this lineup to Team Chat. Text links stay ready for players who are not connected.</span>
+                  <strong>Next: ask your players</strong>
+                  <span>Saves this lineup, then opens messages with the players and match details ready.</span>
                 </div>
                 <div style={appliedLineupActionStyle}>
-                  <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                    {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
+                  <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                    {saveAndAskLabel}
                   </PrimaryBtn>
                   <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
                 </div>
@@ -3840,8 +3855,8 @@ function LineupBuilderContent() {
                 <GhostBtn onClick={() => void trackPredictionSnapshot('command-deck-track')} disabled={trackingSnapshot}>
                   {trackingSnapshot ? 'Tracking...' : 'Track snapshot'}
                 </GhostBtn>
-                <PrimaryBtn onClick={() => void confirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                  {preparingConfirmation ? 'Opening team chat...' : 'Confirm availability'}
+                <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                  {saveAndAskLabel}
                 </PrimaryBtn>
                 <GhostLink href={compareHref}>Compare versions</GhostLink>
               </div>

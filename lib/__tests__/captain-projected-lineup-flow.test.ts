@@ -10,17 +10,22 @@ describe('Captain projected lineup confirmation flow', () => {
   it('saves the exact potential lineup before opening availability messaging', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
-    expect(source).toContain('async function confirmPotentialLineupAvailability()')
+    expect(source).toContain('async function saveAndConfirmPotentialLineupAvailability()')
     expect(source).toContain('const savedScenario = await saveScenario(false, true)')
     expect(source).toContain('Potential lineup - ${formatDate(matchDate || null)}')
     expect(source).toContain("window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY")
-    expect(source).toContain("'Confirm availability'")
+    expect(source).toContain("return 'Save & ask players'")
+    expect(source).toContain("setConfirmationStage('saving-lineup')")
+    expect(source).toContain("setConfirmationStage('preparing-replies')")
+    expect(source).toContain("setConfirmationStage('opening-messages')")
   })
 
   it('opens messaging as an availability request rather than a final lineup announcement', () => {
     const source = readSource('app/captain/messaging/page.tsx')
 
     expect(source).toContain("setMessageTitle('Potential lineup availability')")
+    expect(source).toContain("setRecipientMode('custom')")
+    expect(source).toContain('setSelectedRecipientIds(matchingContactIds)')
     expect(source).toContain('buildPotentialLineupAvailabilityMessage({')
     expect(source).toContain("`Text ${playerName.split(' ')[0]}`")
     expect(source).toContain('Text next: {nextPotentialTextTarget.playerName.split')
