@@ -27,6 +27,7 @@ import {
   syncCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
+import { readCaptainWeekStatus } from '@/lib/captain-week-status'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -1197,6 +1198,14 @@ function LineupBuilderContent() {
 
     const scenarioId = currentScenarioId || prefillScenarioId || undefined
     const matchId = selectedMatchId || initialContext.matchId || undefined
+    const lineupCount = teamSlots.filter((slot) => slot.players.some((player) => player.playerId)).length
+    const weekStatus = readCaptainWeekStatus({
+      team: teamName,
+      league: leagueName,
+      flight,
+      eventDate: matchDate,
+      opponentTeam,
+    })?.status
     const lastHref = buildCaptainScopedHref('/captain/lineup-builder', {
       competitionLayer: competitionLayer || undefined,
       team: teamName,
@@ -1218,9 +1227,11 @@ function LineupBuilderContent() {
       opponentTeam: opponentTeam || undefined,
       matchId,
       scenarioId,
+      weekStatus,
+      lineupCount,
       lastHref,
     }, userId, session?.access_token)
-  }, [competitionLayer, currentScenarioId, flight, initialContext.matchId, leagueName, matchDate, opponentTeam, prefillScenarioId, scopedResumeResolved, selectedMatchId, session?.access_token, teamName, userId])
+  }, [competitionLayer, currentScenarioId, flight, initialContext.matchId, leagueName, matchDate, opponentTeam, prefillScenarioId, scopedResumeResolved, selectedMatchId, session?.access_token, teamName, teamSlots, userId])
 
   const sharedCaptainNotes = useMemo(
     () =>

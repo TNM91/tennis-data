@@ -2316,6 +2316,9 @@ function CaptainHubContent() {
         team: selectedTeam,
         league: selectedLeague,
         flight: selectedFlight,
+        weekStatus,
+        lineupCount: workspaceState.lineupCount,
+        pendingResponseCount: workspaceState.pendingResponseCount,
       }
       const saved = writeCaptainResumeState(nextState, userId)
       if (saved) setCaptainResumeState(saved)
@@ -2323,7 +2326,7 @@ function CaptainHubContent() {
     }, 250)
 
     return () => window.clearTimeout(timeout)
-  }, [captainResumeResolved, selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam, session?.access_token, teamSelectionInitialized, userId])
+  }, [captainResumeResolved, selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam, session?.access_token, teamSelectionInitialized, userId, weekStatus, workspaceState.lineupCount, workspaceState.pendingResponseCount])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -9938,6 +9941,9 @@ function CaptainHubContent() {
       flight: selectedFlight,
       eventDate: matchWeekDate || undefined,
       opponentTeam: matchWeekOpponent || undefined,
+      weekStatus,
+      lineupCount: workspaceState.lineupCount,
+      pendingResponseCount: workspaceState.pendingResponseCount,
       lastHref: href,
       lastTool:
         stage === 'lineup'
