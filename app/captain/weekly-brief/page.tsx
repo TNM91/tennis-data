@@ -22,9 +22,18 @@ import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
+  buildCaptainLevelUpCardHref,
   buildCaptainLevelUpChallenge,
+  getCaptainLevelUpCardDetails,
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
+import {
+  buildCaptainWeekChallengeHistoryHref,
+  buildCaptainWeekChallengeTeamRoomHref,
+  selectCaptainWeekChallenge,
+  type CaptainWeekChallenge,
+  type CaptainWeekChallengeHistoryItem,
+} from '@/lib/captain-week-challenge'
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
   formatWeekdayDate as formatDate,
@@ -132,7 +141,9 @@ function CaptainWeeklyBriefContent() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialBriefContext()
 
@@ -158,6 +169,7 @@ function CaptainWeeklyBriefContent() {
     [searchParams],
   )
   const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
+  const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
 
   useEffect(() => {
     if (!authResolved || role !== 'public' || typeof window === 'undefined') {
@@ -264,6 +276,50 @@ function CaptainWeeklyBriefContent() {
       null,
     [eventDate, matches]
   )
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !session?.access_token || !team || !league || !flight) {
+      return
+    }
+
+    let active = true
+    const scope = { teamName: team, leagueName: league, flight }
+    const selectedDate = eventDate || currentMatch?.match_date || ''
+
+    async function loadConnectedWeekChallenge() {
+      try {
+        const response = await fetch(buildCaptainWeekChallengeHistoryHref(scope), {
+          headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+          cache: 'no-store',
+        })
+        const result = await response.json() as {
+          history?: CaptainWeekChallengeHistoryItem[]
+        }
+        if (!response.ok || !active) return
+        const selected = selectCaptainWeekChallenge(result.history ?? [], selectedDate)
+        const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
+        setConnectedWeekChallenge(selected && challenge ? {
+          challenge,
+          history: selected,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
+        } : null)
+      } catch {
+        if (active) setConnectedWeekChallenge(null)
+      }
+    }
+
+    void loadConnectedWeekChallenge()
+    return () => {
+      active = false
+    }
+  }, [authResolved, currentMatch?.match_date, eventDate, flight, league, role, session?.access_token, team])
+
+  const displayedLevelUpChallenge = levelUpChallenge ?? connectedWeekChallenge?.challenge ?? null
+  const displayedChallengeHistory = levelUpChallenge ? null : connectedWeekChallenge?.history ?? null
+  const displayedTeamRoomHref = connectedWeekChallenge
+    && connectedWeekChallenge.challenge.id === displayedLevelUpChallenge?.id
+    ? connectedWeekChallenge.teamRoomHref
+    : ''
 
   const resolvedOpponent =
     opponentTeam ||
@@ -544,22 +600,34 @@ function CaptainWeeklyBriefContent() {
 
           </section>
 
-          {levelUpChallenge ? (
+          {displayedLevelUpChallenge ? (
             <section style={surfaceCard} aria-label="Level Up challenge loaded into weekly brief">
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Challenge loaded</p>
-                  <h2 style={sectionTitle}>{levelUpChallenge.title}</h2>
+                  <p style={sectionKicker}>
+                    {displayedChallengeHistory?.status === 'scheduled' ? "This week's team challenge" : displayedChallengeHistory ? 'Challenge in progress' : 'Challenge loaded'}
+                  </p>
+                  <h2 style={sectionTitle}>{displayedLevelUpChallenge.title}</h2>
                 </div>
-                <span style={pillStyle}>{levelUpChallenge.cardIds.length} cards</span>
+                <span style={pillStyle}>
+                  {displayedChallengeHistory?.status === 'active'
+                    ? `${displayedChallengeHistory.completedCount}/${displayedChallengeHistory.connectedCount} complete`
+                    : `${displayedLevelUpChallenge.cardIds.length} cards`}
+                </span>
               </div>
               <div style={{ ...mutedCallout, display: 'grid', gap: 6 }}>
-                <strong>{levelUpChallenge.focus}</strong>
-                <span>{levelUpChallenge.detail}</span>
+                <strong>{displayedLevelUpChallenge.focus}</strong>
+                <span>{displayedLevelUpChallenge.detail}</span>
                 <span>Team progress stays aggregate. Player proof and notes stay private.</span>
               </div>
               <div style={actionRow}>
-                <SecondaryBtn onClick={() => setLevelUpChallenge(null)}>Done</SecondaryBtn>
+                {displayedTeamRoomHref ? (
+                  <PrimaryLink href={displayedTeamRoomHref}>Open Team Room</PrimaryLink>
+                ) : null}
+                {getCaptainLevelUpCardDetails(displayedLevelUpChallenge).map((card) => (
+                  <SecondaryLink key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>{card.title}</SecondaryLink>
+                ))}
+                {levelUpChallenge ? <SecondaryBtn onClick={() => setLevelUpChallenge(null)}>Done</SecondaryBtn> : null}
               </div>
             </section>
           ) : null}
