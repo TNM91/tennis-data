@@ -55,6 +55,9 @@ describe('captain resume memory', () => {
       lastTool: 'lineup-builder',
       scenarioId: 'scenario-1',
       matchId: 'match-1',
+      weekStatus: 'ready-to-send',
+      lineupCount: 3.4,
+      pendingResponseCount: 2,
       lastHref: '/captain/lineup-builder?scenario=scenario-1',
       ignored: 'value',
     })).toEqual({
@@ -62,6 +65,9 @@ describe('captain resume memory', () => {
       lastTool: 'lineup-builder',
       scenarioId: 'scenario-1',
       matchId: 'match-1',
+      weekStatus: 'ready-to-send',
+      lineupCount: 3,
+      pendingResponseCount: 2,
       lastHref: '/captain/lineup-builder?scenario=scenario-1',
     })
 

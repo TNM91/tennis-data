@@ -6,6 +6,8 @@ const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
 const route = read('app/api/resume/overview/route.ts')
 const hook = read('app/components/use-platform-resume.ts')
 const header = read('app/components/site-header.tsx')
+const captain = read('app/captain/page.tsx')
+const lineupBuilder = read('app/captain/lineup-builder/page.tsx')
 
 describe('platform-wide pick up continuity', () => {
   it('authenticates once and loads all lane memories in parallel', () => {
@@ -37,5 +39,20 @@ describe('platform-wide pick up continuity', () => {
     expect(header).toContain("if (item.id === 'captain') return access.canUseCaptainWorkflow")
     expect(header).toContain("if (item.id === 'coach') return access.canUseCoachWorkflow")
     expect(header).toContain("if (item.id === 'league') return access.canUseLeagueTools")
+  })
+
+  it('promotes real unfinished work without adding another portal surface', () => {
+    expect(header).toContain("resumePrimary.status === 'unfinished'")
+    expect(header).toContain('resumePrimary.actionLabel')
+    expect(header).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
+    expect(hook).toContain('tenaceiq-team-room-draft:')
+  })
+
+  it('carries Captain lineup and reply state between devices', () => {
+    expect(captain).toContain('pendingResponseCount: workspaceState.pendingResponseCount')
+    expect(captain).toContain('lineupCount: workspaceState.lineupCount')
+    expect(captain).toContain('weekStatus,')
+    expect(lineupBuilder).toContain('const lineupCount = teamSlots.filter')
+    expect(lineupBuilder).toContain('weekStatus,')
   })
 })

@@ -33,6 +33,9 @@ export type CaptainResumeState = {
   matchId?: string
   scenarioId?: string
   teamRoomId?: string
+  weekStatus?: 'draft-lineup' | 'ready-to-send' | 'finalized'
+  lineupCount?: number
+  pendingResponseCount?: number
   lastHref?: string
 }
 
@@ -56,6 +59,12 @@ function cleanResumeText(value: unknown, maxLength = 180) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
 }
 
+function cleanResumeCount(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.min(999, Math.round(value)))
+    : undefined
+}
+
 export function isSafeCaptainResumeHref(value: unknown): value is string {
   const href = cleanResumeText(value, 1200)
   if (!href || !href.startsWith('/') || href.startsWith('//')) return false
@@ -72,6 +81,11 @@ export function sanitizeCaptainResumeState(value: unknown): CaptainResumeState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const input = value as Record<string, unknown>
   const lastTool = cleanResumeText(input.lastTool) as CaptainToolKey
+  const weekStatus = input.weekStatus === 'draft-lineup' || input.weekStatus === 'ready-to-send' || input.weekStatus === 'finalized'
+    ? input.weekStatus
+    : undefined
+  const lineupCount = cleanResumeCount(input.lineupCount)
+  const pendingResponseCount = cleanResumeCount(input.pendingResponseCount)
   const lastHref = isSafeCaptainResumeHref(input.lastHref) ? cleanResumeText(input.lastHref, 1200) : ''
 
   return {
@@ -87,6 +101,9 @@ export function sanitizeCaptainResumeState(value: unknown): CaptainResumeState {
     ...(cleanResumeText(input.matchId, 120) ? { matchId: cleanResumeText(input.matchId, 120) } : {}),
     ...(cleanResumeText(input.scenarioId, 120) ? { scenarioId: cleanResumeText(input.scenarioId, 120) } : {}),
     ...(cleanResumeText(input.teamRoomId, 120) ? { teamRoomId: cleanResumeText(input.teamRoomId, 120) } : {}),
+    ...(weekStatus ? { weekStatus } : {}),
+    ...(lineupCount === undefined ? {} : { lineupCount }),
+    ...(pendingResponseCount === undefined ? {} : { pendingResponseCount }),
     ...(lastHref ? { lastHref } : {}),
   }
 }

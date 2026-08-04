@@ -28,14 +28,24 @@ export function usePlatformResume({
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setLocalCandidates(userId ? buildPlatformResumeCandidates({
-        captain: readCaptainResumeState(userId),
+      if (!userId) {
+        setLocalCandidates([])
+        return
+      }
+
+      const captain = readCaptainResumeState(userId)
+      const teamRoomDraftPending = Boolean(
+        captain?.teamRoomId && window.localStorage.getItem(`tenaceiq-team-room-draft:${captain.teamRoomId}`)?.trim(),
+      )
+      setLocalCandidates(buildPlatformResumeCandidates({
+        captain,
         coach: readCoachResumeState(userId),
         improve: readPlayerImproveResumeState(userId),
         compete: readCompeteResumeState(userId),
         explore: readExploreResumeState(userId),
         league: readLeagueCoordinatorResumeState(userId),
-      }) : [])
+        teamRoomDraftPending,
+      }))
     }, 0)
 
     return () => window.clearTimeout(timeout)

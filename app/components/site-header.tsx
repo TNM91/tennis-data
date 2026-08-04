@@ -73,10 +73,23 @@ function MobileItemLabel({ label, description }: { label: string; description?: 
   )
 }
 
-function ResumeItemLabel({ lane, label, context }: { lane: string; label: string; context?: string }) {
+function ResumeItemLabel({
+  lane,
+  label,
+  context,
+  unfinished = false,
+}: {
+  lane: string
+  label: string
+  context?: string
+  unfinished?: boolean
+}) {
   return (
     <span style={resumeItemCopyStyle}>
-      <span style={resumeItemLaneStyle}>{lane}</span>
+      <span style={{
+        ...resumeItemLaneStyle,
+        color: unfinished ? 'color-mix(in srgb, var(--brand-green) 72%, #ffd27a 28%)' : resumeItemLaneStyle.color,
+      }}>{lane}</span>
       <span style={resumeItemLabelStyle}>{label}</span>
       {context ? <span style={resumeItemContextStyle}>{context}</span> : null}
     </span>
@@ -334,7 +347,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
             {authenticated && resumePrimary ? (
               <Link
                 href={resumePrimary.href}
-                aria-label={`Continue ${resumePrimary.lane}: ${resumePrimary.label}`}
+                aria-label={`${resumePrimary.actionLabel}: ${resumePrimary.reason || resumePrimary.label}`}
                 onClick={() => {
                   setMenuOpen(false)
                   setSearchOpen(false)
@@ -345,7 +358,9 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                   padding: useCompactHeader ? '0 11px' : '0 13px',
                 }}
               >
-                {useCompactHeader ? 'Continue' : `Continue ${resumePrimary.lane}`}
+                {resumePrimary.status === 'unfinished'
+                  ? resumePrimary.actionLabel
+                  : useCompactHeader ? 'Continue' : `Continue ${resumePrimary.lane}`}
               </Link>
             ) : null}
 
@@ -452,10 +467,17 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               <>
                 {resumeItems.length ? (
                   <div aria-label="Recent work" style={desktopResumeSectionStyle}>
-                    <div style={mobileSectionLabelStyle}>Pick up where you left off</div>
+                    <div style={mobileSectionLabelStyle}>
+                      {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
+                    </div>
                     {resumeItems.slice(0, 3).map((item) => (
                       <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeLinkStyle}>
-                        <ResumeItemLabel lane={item.lane} label={item.label} context={item.context} />
+                        <ResumeItemLabel
+                          lane={item.lane}
+                          label={item.status === 'unfinished' ? item.actionLabel : item.label}
+                          context={item.reason || item.context}
+                          unfinished={item.status === 'unfinished'}
+                        />
                         <span aria-hidden="true" style={{ opacity: 0.56 }}>{'\u2192'}</span>
                       </Link>
                     ))}
@@ -546,10 +568,15 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 <>
                   {resumeItems.length ? (
                     <div aria-label="Recent work" style={mobileResumeSectionStyle}>
-                      <div style={mobileSectionLabelStyle}>Pick up where you left off</div>
+                      <div style={mobileSectionLabelStyle}>
+                        {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
+                      </div>
                       {resumeItems.slice(0, 2).map((item) => (
                         <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                          <MobileItemLabel label={`${item.lane}: ${item.label}`} description={item.context || undefined} />
+                          <MobileItemLabel
+                            label={`${item.lane}: ${item.status === 'unfinished' ? item.actionLabel : item.label}`}
+                            description={item.reason || item.context || undefined}
+                          />
                           <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                         </Link>
                       ))}
@@ -767,6 +794,9 @@ const resumeShortcutStyle: CSSProperties = {
   ...workspaceShortcutStyle,
   flex: '0 0 auto',
   whiteSpace: 'nowrap',
+  maxWidth: 148,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
   borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
