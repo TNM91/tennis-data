@@ -55,6 +55,24 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.replyPriority')
   })
 
+  it('keeps a saved replacement silent until the captain notifies affected players', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain("if (action === 'notify_lineup_change')")
+    expect(roomApi).toContain('const silent = body.silent === true')
+    expect(roomApi).toContain('if (!silent) {')
+    expect(roomApi).toContain('buildLineupChangeNotice(previousCard.lineup, effectiveCard.lineup, changeContext)')
+    expect(roomApi).toContain('notifyAffectedLineupPlayers')
+    expect(roomApi).toContain('directShareNames')
+    expect(roomPage).toContain('Ready to notify affected players')
+    expect(roomPage).toContain('Notify ${lineupChangeNotice.affectedNames.length} affected')
+    expect(roomPage).toContain("action: 'notify_lineup_change'")
+    expect(roomStyles).toContain('.lineupChangePending')
+    expect(roomStyles).toContain('.lineupChangeSent')
+  })
+
   it('opens reply alerts on the exact card and highlights the affected court', () => {
     const roomPage = readSource('app/team-room/page.tsx')
     const roomStyles = readSource('app/team-room/team-room.module.css')

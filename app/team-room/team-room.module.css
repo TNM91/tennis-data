@@ -831,6 +831,39 @@
   overflow-wrap: anywhere;
 }
 
+.lineupChangePending,
+.lineupChangeSent {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 12px;
+  padding: 9px 10px;
+  font-size: 0.76rem;
+  line-height: 1.38;
+}
+
+.lineupChangePending {
+  border-color: color-mix(in srgb, #f6c65b 42%, var(--shell-panel-border));
+  background: color-mix(in srgb, #f6c65b 8%, var(--shell-chip-bg));
+}
+
+.lineupChangeSent {
+  border-color: color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg));
+}
+
+.lineupChangePending strong,
+.lineupChangeSent strong {
+  color: var(--foreground-strong);
+}
+
+.lineupChangePending span,
+.lineupChangeSent span,
+.lineupChangeSent small {
+  color: var(--shell-copy-muted);
+  overflow-wrap: anywhere;
+}
+
 .matchRecap,
 .upcomingMatch {
   border: 1px solid var(--shell-panel-border);
