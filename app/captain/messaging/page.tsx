@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -551,6 +551,8 @@ function readInitialMessagingContext() {
     flight: '',
     eventDate: '',
     opponentTeam: '',
+    availabilityRequestId: '',
+    focusWaiting: false,
     flowSource: '',
     scenario: null as ScenarioRow | null,
     handoff: null as CaptainLineupHandoff | null,
@@ -574,6 +576,8 @@ function readInitialMessagingContext() {
       flight: params.get('flight') || resumeState?.flight || '',
       eventDate: params.get('date') || resumeState?.eventDate || '',
       opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+      availabilityRequestId: params.get('availabilityRequest') || '',
+      focusWaiting: params.get('focus') === 'waiting',
       flowSource: params.get('source') || rawFlowSource,
       scenario: handoff?.scenario ?? (rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null),
       handoff,
@@ -625,6 +629,9 @@ function CaptainMessagingContent() {
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
   const [preferredEventDate] = useState(initialContext.eventDate)
   const [preferredOpponent] = useState(initialContext.opponentTeam)
+  const [requestedAvailabilityRequestId] = useState(initialContext.availabilityRequestId)
+  const [focusWaiting] = useState(initialContext.focusWaiting)
+  const nudgeQueuePreparedRef = useRef(false)
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
@@ -1052,14 +1059,15 @@ function CaptainMessagingContent() {
   const availabilityMatchDate = selectedScenario?.match_date || availabilityHandoff?.match.date || selectedMatch?.match_date || preferredEventDate
 
   const loadLiveAvailabilityRequest = useCallback(async (showLoading = false) => {
-    if (!availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) return
+    if (!requestedAvailabilityRequestId && !availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) return
     if (showLoading) setLiveResponsesLoading(true)
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (!accessToken) return
       const params = new URLSearchParams()
-      if (availabilityScenarioId) params.set('scenarioId', availabilityScenarioId)
+      if (requestedAvailabilityRequestId) params.set('requestId', requestedAvailabilityRequestId)
+      else if (availabilityScenarioId) params.set('scenarioId', availabilityScenarioId)
       if (availabilityTeamName) params.set('teamName', availabilityTeamName)
       if (availabilityMatchDate) params.set('matchDate', availabilityMatchDate)
       const response = await fetch(`/api/captain/availability-requests?${params.toString()}`, {
@@ -1077,7 +1085,7 @@ function CaptainMessagingContent() {
     } finally {
       if (showLoading) setLiveResponsesLoading(false)
     }
-  }, [availabilityMatchDate, availabilityScenarioId, availabilityTeamName])
+  }, [availabilityMatchDate, availabilityScenarioId, availabilityTeamName, requestedAvailabilityRequestId])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -1305,6 +1313,23 @@ function CaptainMessagingContent() {
     ) ?? null,
     [openedPotentialPlayerKeySet, potentialLineupQueue]
   )
+
+  useEffect(() => {
+    if (!focusWaiting || !liveAvailabilityRequest?.request || nudgeQueuePreparedRef.current) return
+    nudgeQueuePreparedRef.current = true
+    const waitingPlayerKeys = new Set(
+      potentialLineupQueue
+        .filter((player) => player.status === 'waiting')
+        .map((player) => player.playerKey)
+    )
+    const openedWithoutWaiting = readLocal<string>(potentialTextQueueStorageKey)
+      .filter((playerKey) => !waitingPlayerKeys.has(playerKey))
+    setOpenedPotentialPlayerKeys(openedWithoutWaiting)
+    writeLocal(potentialTextQueueStorageKey, openedWithoutWaiting)
+    window.requestAnimationFrame(() => {
+      document.getElementById('potential-lineup-confirm-title')?.scrollIntoView({ block: 'start' })
+    })
+  }, [focusWaiting, liveAvailabilityRequest?.request, potentialLineupQueue, potentialTextQueueStorageKey])
 
   useEffect(() => {
     setOpenedPotentialPlayerKeys(readLocal<string>(potentialTextQueueStorageKey))
