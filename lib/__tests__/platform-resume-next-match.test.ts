@@ -42,6 +42,7 @@ function nextMatch(
     date,
     time: '18:00:00',
     opponent: 'Topspin Club',
+    facility: 'Northside Tennis Center',
   }
 }
 
@@ -140,6 +141,8 @@ describe('automatic Captain next match', () => {
     expect(source).toContain(".from('matches')")
     expect(source).toContain(".in('league_name', leagueNames)")
     expect(source).toContain(".from('tiq_league_schedule_items')")
+    expect(source).toContain('scheduled_date,scheduled_time,facility')
+    expect(source).toContain('loadCaptainResumeNextMatchForScope')
     expect(source).toContain(".in('status', ['confirmed', 'coordinator_set'])")
     expect(source).toContain('loadCaptainResumeNextMatchFromCloud')
     expect(source).toContain('} catch {')

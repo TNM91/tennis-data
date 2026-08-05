@@ -17,8 +17,10 @@ import {
   selectActiveTeamRoomCard,
   selectLatestPastTeamRoomCard,
   teamRoomCardState,
+  todayDateKey,
   type TeamRoomReminderTarget,
 } from '@/lib/team-room-match-flow'
+import { loadCaptainResumeNextMatchForScope } from '@/lib/platform-resume-next-match'
 import {
   summarizeTeamRoomAvailability,
   type TeamRoomAvailabilitySummary,
@@ -2232,6 +2234,13 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   )
   const planningCardId = matchProgress.planningCardId
   const activeCardId = matchProgress.activeCardId
+  const nextScheduledMatch = planningCardId
+    ? null
+    : await loadCaptainResumeNextMatchForScope(service, {
+        team: selected.team_name,
+        league: selected.league_name,
+        flight: selected.flight,
+      }, todayDateKey())
   const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(typedMessageRows.flatMap((row) => {
     if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
     return [{
@@ -2339,6 +2348,14 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       removedMembers: management.removedMembers,
       activeInviteCount: management.activeInviteCount,
       activeCardId,
+      nextScheduledMatch: nextScheduledMatch ? {
+        id: nextScheduledMatch.matchId,
+        source: nextScheduledMatch.source,
+        matchDate: nextScheduledMatch.date,
+        matchTime: nextScheduledMatch.time,
+        opponent: nextScheduledMatch.opponent,
+        facility: nextScheduledMatch.facility,
+      } : null,
       finalResultCardId: matchProgress.finalResultCardId,
       activeLevelUpChallengeId,
       finalResult,

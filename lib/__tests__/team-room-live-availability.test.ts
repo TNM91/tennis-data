@@ -273,4 +273,22 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('`final-result-${focusedMessageId}`')
     expect(roomPage).toContain('defaultOpen={resultJustUpdated || focusedFinalResult}')
   })
+
+  it('prefills the selected team next match before asking availability', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+    const nextMatch = readSource('lib/platform-resume-next-match.ts')
+
+    expect(nextMatch).toContain('loadCaptainResumeNextMatchForScope')
+    expect(nextMatch).toContain('match_source,facility')
+    expect(nextMatch).toContain('scheduled_time,facility')
+    expect(roomApi).toContain('planningCardId\n    ? null\n    : await loadCaptainResumeNextMatchForScope')
+    expect(roomApi).toContain('nextScheduledMatch: nextScheduledMatch ? {')
+    expect(roomPage).toContain("Match details came from your schedule.")
+    expect(roomPage).toContain("hasActiveAvailability ? 'Review availability' : 'Ask availability'")
+    expect(roomPage).toContain('const source = room.nextScheduledMatch || activeMatchMessage?.card')
+    expect(roomPage).toContain("<summary>{room.nextScheduledMatch ? 'Edit match details' : 'Add match details'}</summary>")
+    expect(roomStyles).toContain('.matchSummary')
+  })
 })
