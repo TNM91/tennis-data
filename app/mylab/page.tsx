@@ -7,6 +7,7 @@ import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
+import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import { useAuth } from '@/app/components/auth-provider'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -3336,6 +3337,8 @@ function MyLabPageInner() {
               Team links could not load here. <Link href="/team-connections" style={smallInlineLinkStyle}>Review team links</Link>
             </div>
           ) : null}
+
+          <ActiveTeamChallengeCard />
 
           {!isProfileConfirmed ? (
             <TennisSetupChecklist

@@ -25,6 +25,7 @@ import {
 import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/captain-reply-alert'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
+  buildCaptainLevelUpCardHref,
   buildCaptainLevelUpChallenge,
   getCaptainLevelUpCompletedCardIdsByPlayer,
   getCaptainLevelUpCompletedPlayerIdsForRun,
@@ -162,6 +163,23 @@ type TeamRoomLevelUpChallengePayload = {
   connectedCount: number
   status: 'active' | 'scheduled' | 'cancelled' | 'closed'
   scheduledForDate: string
+}
+
+type TeamRoomActiveChallengeSummary = {
+  messageId: string
+  id: string
+  title: string
+  focus: string
+  teamName: string
+  leagueName: string
+  flight: string
+  cardIds: string[]
+  completedCardIds: string[]
+  completed: boolean
+  completedCount: number
+  connectedCount: number
+  resumeHref: string
+  teamRoomHref: string
 }
 
 type StoredLineupChangeNotice = {
@@ -1905,6 +1923,60 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     lineupChange: cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice),
   })
 
+  const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(messageRows.flatMap((row) => {
+    if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
+    return [{
+      id: row.id,
+      createdAt: cleanText(row.metadata.launchedAt) || cleanText(row.created_at),
+      status: cleanText(row.metadata.challengeStatus),
+    }]
+  }))
+  const activeLevelUpRow = messageRows.find((row) => row.id === activeLevelUpChallengeId)
+  const activeLevelUpChallenge = activeLevelUpRow
+    ? buildCaptainLevelUpChallenge(cleanText(activeLevelUpRow.metadata?.challengeId))
+    : null
+  let activeChallenge: TeamRoomActiveChallengeSummary | null = null
+  if (activeLevelUpRow && activeLevelUpChallenge) {
+    const completionResult = await loadTeamLevelUpChallengeCompletion(
+      service,
+      activeLevelUpChallenge,
+      members.map((member) => member.id),
+      activeLevelUpRow.id,
+      cleanText(activeLevelUpRow.metadata?.launchedAt) || cleanText(activeLevelUpRow.created_at),
+    )
+    if (!completionResult.ok) return completionResult
+
+    const completed = completionResult.completedIds.has(userId)
+    const completedCardIds = completed
+      ? activeLevelUpChallenge.cardIds
+      : completionResult.completedCardIdsByPlayer.get(userId) || []
+    const nextCardId = activeLevelUpChallenge.cardIds.find((cardId) => !completedCardIds.includes(cardId))
+      || activeLevelUpChallenge.cardIds[0]
+      || ''
+    const teamRoomHref = buildTeamRoomHref({
+      teamName: selected.team_name,
+      leagueName: selected.league_name,
+      flight: selected.flight,
+      messageId: activeLevelUpRow.id,
+    })
+    activeChallenge = {
+      messageId: activeLevelUpRow.id,
+      id: activeLevelUpChallenge.id,
+      title: activeLevelUpChallenge.title,
+      focus: activeLevelUpChallenge.focus,
+      teamName: selected.team_name,
+      leagueName: selected.league_name,
+      flight: selected.flight,
+      cardIds: activeLevelUpChallenge.cardIds,
+      completedCardIds,
+      completed,
+      completedCount: completionResult.completedIds.size,
+      connectedCount: members.length,
+      resumeHref: nextCardId ? buildCaptainLevelUpCardHref(nextCardId) : teamRoomHref,
+      teamRoomHref,
+    }
+  }
+
   return {
     ok: true as const,
     summary: {
@@ -1930,6 +2002,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
           status: court.status,
         }]),
       },
+      activeChallenge,
     },
   }
 }

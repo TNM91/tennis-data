@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest'
 const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 const teamRoomSource = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
 const teamRoomApiSource = readFileSync(join(process.cwd(), 'app/api/team-rooms/route.ts'), 'utf8')
+const homeSource = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8')
+const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const activeChallengeSource = readFileSync(join(process.cwd(), 'app/components/active-team-challenge-card.tsx'), 'utf8')
+const activeChallengeStyles = readFileSync(join(process.cwd(), 'app/components/active-team-challenge-card.module.css'), 'utf8')
 
 describe('Captain Level Up Team Room challenge', () => {
   it('shares the selected challenge and loads real aggregate progress', () => {
@@ -86,5 +90,25 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(captainSource).toContain('!hasActiveLevelUpChallengeHistory')
     expect(captainSource).toContain('!scheduledLevelUpChallengeForWeek')
     expect(captainSource).toContain('Review cards')
+  })
+
+  it('puts the active team challenge on home and My Lab with a one-tap private resume', () => {
+    expect(homeSource).toContain('<ActiveTeamChallengeCard />')
+    expect(myLabSource).toContain('<ActiveTeamChallengeCard />')
+    expect(activeChallengeSource).toContain("fetch('/api/team-rooms?summary=1'")
+    expect(activeChallengeSource).toContain("challenge.completed ? 'Open Team Hub' : 'Resume challenge'")
+    expect(activeChallengeSource).toContain('challenge.resumeHref')
+    expect(activeChallengeSource).toContain('role="progressbar"')
+    expect(activeChallengeStyles).toContain('@media (max-width: 560px)')
+  })
+
+  it('returns only current-player challenge progress in the lightweight Team Room summary', () => {
+    expect(teamRoomApiSource).toContain('activeChallenge: TeamRoomActiveChallengeSummary | null')
+    expect(teamRoomApiSource).toContain('completionResult.completedCardIdsByPlayer.get(userId)')
+    expect(teamRoomApiSource).toContain('buildCaptainLevelUpCardHref(nextCardId)')
+    expect(teamRoomApiSource).toContain('activeChallenge,')
+    expect(activeChallengeSource).not.toContain('proof')
+    expect(activeChallengeSource).not.toContain('score')
+    expect(activeChallengeSource).not.toContain('notes')
   })
 })
