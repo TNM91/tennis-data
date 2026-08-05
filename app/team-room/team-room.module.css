@@ -1278,6 +1278,42 @@
   line-height: 1.35;
 }
 
+.matchSummary {
+  display: grid;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-green) 7%, var(--shell-page-bg));
+  padding: 11px 12px;
+}
+
+.matchSummary strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+}
+
+.matchSummary span {
+  color: var(--shell-copy-muted);
+  font-size: 0.76rem;
+}
+
+.matchDetails {
+  display: grid;
+  gap: 9px;
+}
+
+.matchDetails summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--shell-copy-muted);
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.matchDetails[open] summary {
+  margin-bottom: 9px;
+}
+
 .matchFields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

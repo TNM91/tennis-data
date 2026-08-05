@@ -24,6 +24,7 @@ export type CaptainResumeNextMatch = {
   date: string
   time: string
   opponent: string
+  facility: string
 }
 
 type ProfileTeamRow = {
@@ -41,6 +42,7 @@ type MatchRow = {
   league_name?: string | null
   flight?: string | null
   match_source?: string | null
+  facility?: string | null
 }
 
 type TiqLeagueRow = {
@@ -58,6 +60,7 @@ type TiqScheduleRow = {
   participant_b_name?: string | null
   scheduled_date?: string | null
   scheduled_time?: string | null
+  facility?: string | null
 }
 
 function cleanText(value: string | null | undefined, maxLength = 300) {
@@ -173,6 +176,24 @@ export async function loadCaptainResumeNextMatch(
   }
 }
 
+export async function loadCaptainResumeNextMatchForScope(
+  service: SupabaseClient,
+  scopeInput: { team: string; league?: string | null; flight?: string | null },
+  today: string,
+) {
+  const scope = normalizeScope({ ...scopeInput, isDefault: true, updatedAt: '' })
+  if (!scope) return null
+  try {
+    const [ustaMatches, tiqMatches] = await Promise.all([
+      loadUstaMatches(service, [scope], today),
+      loadTiqMatches(service, [scope], today),
+    ])
+    return chooseCaptainResumeNextMatch([scope], [...ustaMatches, ...tiqMatches])
+  } catch {
+    return null
+  }
+}
+
 async function loadCaptainResumeNextMatchFromCloud(
   service: SupabaseClient,
   userId: string,
@@ -236,7 +257,7 @@ async function loadUstaMatches(
   if (leagueNames.length) {
     const { data } = await service
       .from('matches')
-      .select('id,match_date,match_time,home_team,away_team,league_name,flight,match_source')
+      .select('id,match_date,match_time,home_team,away_team,league_name,flight,match_source,facility')
       .in('league_name', leagueNames)
       .gte('match_date', today)
       .is('line_number', null)
@@ -250,7 +271,7 @@ async function loadUstaMatches(
     const safeTeam = scope.team.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
     const { data } = await service
       .from('matches')
-      .select('id,match_date,match_time,home_team,away_team,league_name,flight,match_source')
+      .select('id,match_date,match_time,home_team,away_team,league_name,flight,match_source,facility')
       .or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
       .gte('match_date', today)
       .is('line_number', null)
@@ -280,6 +301,7 @@ async function loadUstaMatches(
       date: cleanText(row.match_date, 10),
       time: cleanText(row.match_time, 20),
       opponent: cleanText(isHome ? row.away_team : row.home_team) || 'Opponent TBD',
+      facility: cleanText(row.facility),
     } satisfies CaptainResumeNextMatch
     const current = earliestByScope.get(match.scopeKey)
     if (!current || compareNextMatches(match, current) < 0) earliestByScope.set(match.scopeKey, match)
@@ -314,7 +336,7 @@ async function loadTiqMatches(
 
   const { data: scheduleData, error: scheduleError } = await service
     .from('tiq_league_schedule_items')
-    .select('id,league_id,participant_a_name,participant_b_name,scheduled_date,scheduled_time')
+    .select('id,league_id,participant_a_name,participant_b_name,scheduled_date,scheduled_time,facility')
     .in('league_id', leagueIds)
     .in('status', ['confirmed', 'coordinator_set'])
     .gte('scheduled_date', today)
@@ -344,6 +366,7 @@ async function loadTiqMatches(
       date: cleanText(row.scheduled_date, 10),
       time: cleanText(row.scheduled_time, 20),
       opponent: cleanText(isSideA ? row.participant_b_name : row.participant_a_name) || 'Opponent TBD',
+      facility: cleanText(row.facility),
     }]
   })
 }

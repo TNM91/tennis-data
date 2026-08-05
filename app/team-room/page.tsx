@@ -222,6 +222,15 @@ type TeamRoomFinalLineupReview = {
   reminderSentAt: string
 }
 
+type TeamRoomScheduledMatch = {
+  id: string
+  source: 'usta' | 'tiq'
+  matchDate: string
+  matchTime: string
+  opponent: string
+  facility: string
+}
+
 type TeamRoom = {
   id: string
   subject: string
@@ -238,6 +247,7 @@ type TeamRoom = {
   messages: TeamRoomMessage[]
   href: string
   activeCardId: string
+  nextScheduledMatch: TeamRoomScheduledMatch | null
   finalResultCardId: string
   activeLevelUpChallengeId: string
   finalResult: TeamRoomFinalResult | null
@@ -268,7 +278,6 @@ function subscribeToStandalone(onStoreChange: () => void) {
 }
 
 const QUICK_MESSAGES = [
-  { label: 'Availability', body: 'Who is available for our next match? Please update your availability.' },
   { label: 'Match reminder', body: 'Match reminder: please confirm you saw the match details and arrival time.' },
   { label: 'Lineup update', body: 'Projected lineup update: please review your court and let me know if anything changed.' },
   { label: 'Carpool', body: 'Does anyone need a ride or have room in a car for the next match?' },
@@ -336,6 +345,7 @@ function TeamRoomContent() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const realtimeRefreshRef = useRef<number | null>(null)
   const draftPendingRef = useRef(false)
+  const matchDraftSeedRef = useRef('')
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
@@ -362,6 +372,8 @@ function TeamRoomContent() {
     () => room?.messages.find((message) => message.id === room.activeCardId && message.card) || null,
     [room?.activeCardId, room?.messages],
   )
+  const hasActiveAvailability = activeMatchMessage?.card?.cardType === 'availability'
+    && activeMatchMessage.card.state !== 'archived'
   const finalResultMessage = useMemo(
     () => room?.messages.find((message) => message.id === room.finalResultCardId && message.card) || null,
     [room?.finalResultCardId, room?.messages],
@@ -405,6 +417,21 @@ function TeamRoomContent() {
     focusedFinalResult
     && activeMatchMessage?.id === room?.finalResultCardId,
   )
+
+  useEffect(() => {
+    if (!room?.id) return
+    const source = room.nextScheduledMatch || activeMatchMessage?.card
+    if (!source?.matchDate) return
+    const seedKey = [room.id, source.matchDate, source.opponent, source.matchTime, source.facility].join(':')
+    if (matchDraftSeedRef.current === seedKey) return
+    matchDraftSeedRef.current = seedKey
+    setMatchDraft({
+      matchDate: searchParams.get('date')?.trim() || source.matchDate,
+      opponent: searchParams.get('opponent')?.trim() || source.opponent,
+      matchTime: searchParams.get('time')?.trim() || source.matchTime,
+      facility: searchParams.get('facility')?.trim() || source.facility,
+    })
+  }, [activeMatchMessage?.card, room?.id, room?.nextScheduledMatch, searchParams])
 
   useEffect(() => {
     const updateLocalDate = () => setLocalDateKey(localDateInputKey(new Date()))
@@ -703,6 +730,16 @@ function TeamRoomContent() {
     } finally {
       setSending(false)
     }
+  }
+
+  function openAvailability() {
+    if (hasActiveAvailability && activeMatchMessage) {
+      const target = document.getElementById(`match-card-${activeMatchMessage.id}`)
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      target?.focus({ preventScroll: true })
+      return
+    }
+    setShowMatchComposer((current) => !current)
   }
 
   async function respondToMatch(messageId: string, response: 'yes' | 'maybe' | 'no') {
@@ -1298,8 +1335,8 @@ function TeamRoomContent() {
             </div>
             <div className={styles.roomActions}>
               {room.canManage ? (
-                <button className={styles.buttonPrimary} type="button" onClick={() => setShowMatchComposer((current) => !current)}>
-                  Ask availability
+                <button className={styles.buttonPrimary} type="button" onClick={openAvailability}>
+                  {hasActiveAvailability ? 'Review availability' : 'Ask availability'}
                 </button>
               ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
@@ -1339,19 +1376,28 @@ function TeamRoomContent() {
           <div className={styles.pinnedArea}>
             <div className={styles.matchComposer}>
               <div className={styles.matchComposerHeader}>
-                <strong>Next match</strong>
-                <span>Post one question. Replies stay with this match.</span>
+                <strong>{room.nextScheduledMatch ? 'Ready to ask' : 'Next match'}</strong>
+                <span>{room.nextScheduledMatch ? 'Match details came from your schedule.' : 'Post one question. Replies stay with this match.'}</span>
               </div>
-              <div className={styles.matchFields}>
-                <label>Date<input type="date" value={matchDraft.matchDate} onChange={(event) => setMatchDraft((current) => ({ ...current, matchDate: event.target.value }))} /></label>
-                <label>Opponent<input value={matchDraft.opponent} onChange={(event) => setMatchDraft((current) => ({ ...current, opponent: event.target.value }))} placeholder="Opponent" /></label>
-                <label>Time<input value={matchDraft.matchTime} onChange={(event) => setMatchDraft((current) => ({ ...current, matchTime: event.target.value }))} placeholder="Match time" /></label>
-                <label>Location<input value={matchDraft.facility} onChange={(event) => setMatchDraft((current) => ({ ...current, facility: event.target.value }))} placeholder="Courts or facility" /></label>
-              </div>
+              {room.nextScheduledMatch ? (
+                <div className={styles.matchSummary}>
+                  <strong>{formatMatchDate(matchDraft.matchDate)}{matchDraft.opponent ? ` vs ${matchDraft.opponent}` : ''}</strong>
+                  <span>{[matchDraft.matchTime, matchDraft.facility].filter(Boolean).join(' · ') || 'Time and courts not set'}</span>
+                </div>
+              ) : null}
+              <details className={styles.matchDetails} open={!room.nextScheduledMatch}>
+                <summary>{room.nextScheduledMatch ? 'Edit match details' : 'Add match details'}</summary>
+                <div className={styles.matchFields}>
+                  <label>Date<input type="date" value={matchDraft.matchDate} onChange={(event) => setMatchDraft((current) => ({ ...current, matchDate: event.target.value }))} /></label>
+                  <label>Opponent<input value={matchDraft.opponent} onChange={(event) => setMatchDraft((current) => ({ ...current, opponent: event.target.value }))} placeholder="Opponent" /></label>
+                  <label>Time<input value={matchDraft.matchTime} onChange={(event) => setMatchDraft((current) => ({ ...current, matchTime: event.target.value }))} placeholder="Match time" /></label>
+                  <label>Location<input value={matchDraft.facility} onChange={(event) => setMatchDraft((current) => ({ ...current, facility: event.target.value }))} placeholder="Courts or facility" /></label>
+                </div>
+              </details>
               <div className={styles.composerActions}>
                 <button className={styles.buttonQuiet} type="button" onClick={() => setShowMatchComposer(false)}>Cancel</button>
                 <button className={styles.buttonPrimary} type="button" disabled={sending || !matchDraft.matchDate} onClick={() => void postAvailabilityCard()}>
-                  {sending ? 'Posting…' : 'Ask team'}
+                  {sending ? 'Posting…' : 'Ask availability'}
                 </button>
               </div>
             </div>
@@ -1597,8 +1643,8 @@ function TeamRoomContent() {
         <div className={styles.composer}>
           <div className={styles.quickActions} aria-label="Quick team messages">
             {room.canManage ? (
-              <button className={styles.quickButtonPrimary} type="button" onClick={() => setShowMatchComposer((current) => !current)}>
-                Ask availability
+              <button className={styles.quickButtonPrimary} type="button" onClick={openAvailability}>
+                {hasActiveAvailability ? 'Review availability' : 'Ask availability'}
               </button>
             ) : null}
             {QUICK_MESSAGES.map((quick) => (
