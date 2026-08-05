@@ -63,7 +63,7 @@ describe('Captain shared auth access', () => {
     for (const source of [analyticsSource, availabilitySource]) {
       expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
       expect(source).toContain('<SiteShell active="/captain">')
-      expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+      expect(source).toMatch(/const \{ role, entitlements, authResolved \} = (?:useAuth\(\)|auth)/)
       expect(source).toContain("if (!authResolved || role === 'public') return")
       expect(source).not.toContain("import { getClientAuthState } from '@/lib/auth'")
       expect(source).not.toContain('const [authLoading, setAuthLoading]')

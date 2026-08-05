@@ -107,6 +107,11 @@ import {
   type CaptainAvailabilityResponse,
 } from '@/lib/captain-availability-progress'
 import {
+  buildCaptainAvailabilityResponseSignature,
+  CAPTAIN_AVAILABILITY_REFRESH_MS,
+  CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+} from '@/lib/captain-availability-live'
+import {
   listInternalNotifications,
   markInternalNotificationRead,
   type InternalNotification,
@@ -289,6 +294,7 @@ type CaptainLevelUpChallengeHistoryItem = {
 
 type CaptainAvailabilityRequestSummary = {
   request: {
+    id: string
     teamName: string
     matchDate: string
     opponentTeam: string
@@ -1724,8 +1730,12 @@ function CaptainHubContent() {
   })
   const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
   const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
+  const [captainAvailabilityLiveNotice, setCaptainAvailabilityLiveNotice] = useState('')
   const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
   const captainAvailabilityRequestScopeRef = useRef('')
+  const captainAvailabilityRequestInFlightRef = useRef('')
+  const captainAvailabilityResponseBaselineRef = useRef(false)
+  const captainAvailabilityResponseSignatureRef = useRef('')
   const teamRoomSummaryRequestRef = useRef(0)
   const levelUpChallengeHistoryRequestRef = useRef(0)
   const levelUpChallengeHistoryScopeRef = useRef('')
@@ -2989,13 +2999,20 @@ function CaptainHubContent() {
   const loadCaptainAvailabilityRequestSummary = useCallback(async () => {
     const accessToken = session?.access_token || ''
     const requestScope = `${selectedTeam}__${matchWeekDate?.slice(0, 10) || ''}`
+    if (captainAvailabilityRequestScopeRef.current !== requestScope) {
+      captainAvailabilityResponseBaselineRef.current = false
+      captainAvailabilityResponseSignatureRef.current = ''
+      setCaptainAvailabilityLiveNotice('')
+    }
     captainAvailabilityRequestScopeRef.current = requestScope
     if (!accessToken || !selectedTeam || !matchWeekDate) {
       setCaptainAvailabilityRequestSummary(null)
       setCaptainAvailabilityRequestLoading(false)
       return
     }
+    if (captainAvailabilityRequestInFlightRef.current === requestScope) return
 
+    captainAvailabilityRequestInFlightRef.current = requestScope
     setCaptainAvailabilityRequestLoading(true)
     setCaptainAvailabilityRequestSummary((current) => (
       current?.request?.teamName === selectedTeam && current.request.matchDate.slice(0, 10) === matchWeekDate.slice(0, 10)
@@ -3017,10 +3034,22 @@ function CaptainHubContent() {
         setCaptainAvailabilityRequestSummary(null)
         return
       }
+      const nextResponseSignature = buildCaptainAvailabilityResponseSignature(result.responses)
+      if (
+        captainAvailabilityResponseBaselineRef.current
+        && nextResponseSignature !== captainAvailabilityResponseSignatureRef.current
+      ) {
+        setCaptainAvailabilityLiveNotice('Updated just now')
+      }
+      captainAvailabilityResponseBaselineRef.current = true
+      captainAvailabilityResponseSignatureRef.current = nextResponseSignature
       setCaptainAvailabilityRequestSummary(result)
     } catch {
       // Captain Home keeps its saved device view if the live request cannot be refreshed.
     } finally {
+      if (captainAvailabilityRequestInFlightRef.current === requestScope) {
+        captainAvailabilityRequestInFlightRef.current = ''
+      }
       if (captainAvailabilityRequestScopeRef.current === requestScope) setCaptainAvailabilityRequestLoading(false)
     }
   }, [matchWeekDate, selectedTeam, session?.access_token])
@@ -3032,13 +3061,26 @@ function CaptainHubContent() {
       if (document.visibilityState === 'visible') void loadCaptainAvailabilityRequestSummary()
     }
 
+    const refreshTimer = window.setInterval(refreshVisibleAvailability, CAPTAIN_AVAILABILITY_REFRESH_MS)
     document.addEventListener('visibilitychange', refreshVisibleAvailability)
     window.addEventListener('pageshow', refreshVisibleAvailability)
+    window.addEventListener('focus', refreshVisibleAvailability)
     return () => {
+      window.clearInterval(refreshTimer)
       document.removeEventListener('visibilitychange', refreshVisibleAvailability)
       window.removeEventListener('pageshow', refreshVisibleAvailability)
+      window.removeEventListener('focus', refreshVisibleAvailability)
     }
   }, [loadCaptainAvailabilityRequestSummary, refreshTick])
+
+  useEffect(() => {
+    if (!captainAvailabilityLiveNotice) return
+    const noticeTimer = window.setTimeout(
+      () => setCaptainAvailabilityLiveNotice(''),
+      CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+    )
+    return () => window.clearTimeout(noticeTimer)
+  }, [captainAvailabilityLiveNotice])
 
   const loadCaptainReplyNotifications = useCallback(async () => {
     if (!userId) {
@@ -6973,7 +7015,11 @@ function CaptainHubContent() {
         >
           Review replies
         </SecondarySmallBtn>
-        {captainAvailabilityRequestLoading ? <span style={captainHomeAvailabilityProgressRefresh}>Refreshing...</span> : null}
+        <span style={captainHomeAvailabilityProgressRefresh} role="status" aria-live="polite">
+          {captainAvailabilityRequestLoading
+            ? 'Checking replies...'
+            : captainAvailabilityLiveNotice || 'Live replies'}
+        </span>
       </div>
     </div>
   ) : null
