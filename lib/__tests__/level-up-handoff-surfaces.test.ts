@@ -84,4 +84,14 @@ describe('Level Up handoff surfaces', () => {
     expect(captainMessagingSource).toContain('Included in message')
     expect(captainMessagingSource).toContain('Open Team Room')
   })
+
+  it('turns a completed match-week challenge into a recap and one next challenge', () => {
+    expect(captainWeeklyBriefSource).toContain('selectCaptainCompletedWeekChallenge')
+    expect(captainWeeklyBriefSource).toContain('recommendCaptainWeekChallengeFollowUp')
+    expect(captainWeeklyBriefSource).toContain('Challenge recap')
+    expect(captainWeeklyBriefSource).toContain('Plan next challenge')
+    expect(captainMessagingSource).toContain('appendCaptainWeekChallengeRecapToMessage')
+    expect(captainMessagingSource).toContain('Ready for recap')
+    expect(captainMessagingSource).toContain('completedWeekChallengeFollowUp')
+  })
 })

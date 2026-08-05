@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
+  appendLevelUpChallengeHref,
   buildCaptainLevelUpCardHref,
   buildCaptainLevelUpChallenge,
   getCaptainLevelUpCardDetails,
@@ -30,6 +31,8 @@ import {
 import {
   buildCaptainWeekChallengeHistoryHref,
   buildCaptainWeekChallengeTeamRoomHref,
+  recommendCaptainWeekChallengeFollowUp,
+  selectCaptainCompletedWeekChallenge,
   selectCaptainWeekChallenge,
   type CaptainWeekChallenge,
   type CaptainWeekChallengeHistoryItem,
@@ -170,6 +173,7 @@ function CaptainWeeklyBriefContent() {
   )
   const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
   const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
+  const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
 
   useEffect(() => {
     if (!authResolved || role !== 'public' || typeof window === 'undefined') {
@@ -296,15 +300,26 @@ function CaptainWeeklyBriefContent() {
           history?: CaptainWeekChallengeHistoryItem[]
         }
         if (!response.ok || !active) return
-        const selected = selectCaptainWeekChallenge(result.history ?? [], selectedDate)
+        const history = result.history ?? []
+        const selected = selectCaptainWeekChallenge(history, selectedDate)
         const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
         setConnectedWeekChallenge(selected && challenge ? {
           challenge,
           history: selected,
           teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
         } : null)
+        const completed = selectCaptainCompletedWeekChallenge(history, selectedDate)
+        const completedChallenge = completed ? buildCaptainLevelUpChallenge(completed.challengeId) : null
+        setCompletedWeekChallenge(completed && completedChallenge ? {
+          challenge: completedChallenge,
+          history: completed,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, completed.messageId),
+        } : null)
       } catch {
-        if (active) setConnectedWeekChallenge(null)
+        if (active) {
+          setConnectedWeekChallenge(null)
+          setCompletedWeekChallenge(null)
+        }
       }
     }
 
@@ -314,11 +329,18 @@ function CaptainWeeklyBriefContent() {
     }
   }, [authResolved, currentMatch?.match_date, eventDate, flight, league, role, session?.access_token, team])
 
-  const displayedLevelUpChallenge = levelUpChallenge ?? connectedWeekChallenge?.challenge ?? null
-  const displayedChallengeHistory = levelUpChallenge ? null : connectedWeekChallenge?.history ?? null
-  const displayedTeamRoomHref = connectedWeekChallenge
-    && connectedWeekChallenge.challenge.id === displayedLevelUpChallenge?.id
-    ? connectedWeekChallenge.teamRoomHref
+  const storedWeekChallenge = completedWeekChallenge ?? connectedWeekChallenge
+  const completedWeekChallengeFollowUp = useMemo(
+    () => completedWeekChallenge
+      ? recommendCaptainWeekChallengeFollowUp(completedWeekChallenge.history)
+      : null,
+    [completedWeekChallenge],
+  )
+  const displayedLevelUpChallenge = levelUpChallenge ?? storedWeekChallenge?.challenge ?? null
+  const displayedChallengeHistory = levelUpChallenge ? null : storedWeekChallenge?.history ?? null
+  const displayedTeamRoomHref = storedWeekChallenge
+    && storedWeekChallenge.challenge.id === displayedLevelUpChallenge?.id
+    ? storedWeekChallenge.teamRoomHref
     : ''
 
   const resolvedOpponent =
@@ -487,6 +509,19 @@ function CaptainWeeklyBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const nextTeamChallengeHref = completedWeekChallengeFollowUp
+    ? appendLevelUpChallengeHref(
+        `${buildCaptainScopedHref('/captain', {
+          competitionLayer,
+          team,
+          league,
+          flight,
+          date: eventDate,
+          opponent: resolvedOpponent,
+        })}#captain-level-up-challenge`,
+        completedWeekChallengeFollowUp.challenge.id,
+      )
+    : ''
   const nextAction = !lineupRows.length
     ? { label: 'Build lineup', href: lineupBuilderHref }
     : openRiskCount > 0
@@ -605,13 +640,17 @@ function CaptainWeeklyBriefContent() {
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>
-                    {displayedChallengeHistory?.status === 'scheduled' ? "This week's team challenge" : displayedChallengeHistory ? 'Challenge in progress' : 'Challenge loaded'}
+                    {displayedChallengeHistory?.status === 'closed'
+                      ? 'Challenge recap'
+                      : displayedChallengeHistory?.status === 'scheduled' ? "This week's team challenge" : displayedChallengeHistory ? 'Challenge in progress' : 'Challenge loaded'}
                   </p>
                   <h2 style={sectionTitle}>{displayedLevelUpChallenge.title}</h2>
                 </div>
                 <span style={pillStyle}>
                   {displayedChallengeHistory?.status === 'active'
                     ? `${displayedChallengeHistory.completedCount}/${displayedChallengeHistory.connectedCount} complete`
+                    : displayedChallengeHistory?.status === 'closed'
+                      ? `${displayedChallengeHistory.completedCount}/${displayedChallengeHistory.connectedCount} complete`
                     : `${displayedLevelUpChallenge.cardIds.length} cards`}
                 </span>
               </div>
@@ -619,10 +658,21 @@ function CaptainWeeklyBriefContent() {
                 <strong>{displayedLevelUpChallenge.focus}</strong>
                 <span>{displayedLevelUpChallenge.detail}</span>
                 <span>Team progress stays aggregate. Player proof and notes stay private.</span>
+                {displayedChallengeHistory?.status === 'closed' && completedWeekChallengeFollowUp ? (
+                  <>
+                    <strong>Next: {completedWeekChallengeFollowUp.challenge.title}</strong>
+                    <span>{completedWeekChallengeFollowUp.reason}</span>
+                  </>
+                ) : null}
               </div>
               <div style={actionRow}>
+                {displayedChallengeHistory?.status === 'closed' && nextTeamChallengeHref ? (
+                  <PrimaryLink href={nextTeamChallengeHref}>Plan next challenge</PrimaryLink>
+                ) : null}
                 {displayedTeamRoomHref ? (
-                  <PrimaryLink href={displayedTeamRoomHref}>Open Team Room</PrimaryLink>
+                  displayedChallengeHistory?.status === 'closed'
+                    ? <SecondaryLink href={displayedTeamRoomHref}>Open Team Room</SecondaryLink>
+                    : <PrimaryLink href={displayedTeamRoomHref}>Open Team Room</PrimaryLink>
                 ) : null}
                 {getCaptainLevelUpCardDetails(displayedLevelUpChallenge).map((card) => (
                   <SecondaryLink key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>{card.title}</SecondaryLink>
