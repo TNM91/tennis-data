@@ -183,4 +183,19 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('Published update sent')
     expect(roomPage).toContain('The revised lineup is published.')
   })
+
+  it('pins the current final lineup and labels older lineup history', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain('lineupAnnouncement: !row.deleted_at ? readTeamRoomLineupAnnouncement(row.metadata) : null')
+    expect(roomApi).toContain('Published lineup updates stay in team history.')
+    expect(roomPage).toContain('<PublishedLineupPin card={activeMatchMessage.card} receipt={currentFinalLineup} />')
+    expect(roomPage).toContain("lineupStatus === 'pending' ? 'Awaiting confirmation'")
+    expect(roomPage).toContain("lineupStatus === 'superseded' ? 'Superseded' : 'Past lineup'")
+    expect(roomPage).toContain('message.isMine && !message.lineupAnnouncement')
+    expect(roomStyles).toContain('.publishedLineupPin')
+    expect(roomStyles).toContain(".lineupStatusBadge[data-status='superseded']")
+  })
 })

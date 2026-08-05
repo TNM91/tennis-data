@@ -21,6 +21,11 @@ import {
   canRespondToLineupChange,
   type TeamRoomCourtReadiness,
 } from '@/lib/team-room-match-flow'
+import {
+  getTeamRoomLineupAnnouncementStatus,
+  type TeamRoomFinalLineupReceipt,
+  type TeamRoomLineupAnnouncement,
+} from '@/lib/team-room-final-lineup'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import { supabase } from '@/lib/supabase'
@@ -69,6 +74,7 @@ type TeamRoomMessage = {
   } | null
   card: TeamRoomMatchCard | null
   levelUpChallenge: TeamRoomLevelUpChallenge | null
+  lineupAnnouncement: TeamRoomLineupAnnouncement | null
   response: 'yes' | 'maybe' | 'no' | null
   responseSummary: { yes: number; maybe: number; no: number; total: number }
   responseDetails: Array<{ profileId: string; name: string; response: 'yes' | 'maybe' | 'no'; updatedAt: string }>
@@ -135,6 +141,7 @@ type TeamRoomMatchCard = {
     publishedByUserId: string
     publishedByName: string
   } | null
+  finalLineup: TeamRoomFinalLineupReceipt | null
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
   availabilitySummary: {
@@ -303,6 +310,10 @@ function TeamRoomContent() {
       || null,
     [focusedMessageId, room?.activeCardId, room?.messages],
   )
+  const activeMatchMessage = useMemo(
+    () => room?.messages.find((message) => message.id === room.activeCardId && message.card) || null,
+    [room?.activeCardId, room?.messages],
+  )
   const pinnedLevelUpChallenge = useMemo(
     () => room?.messages.find((message) => (
       message.id === focusedMessageId
@@ -312,6 +323,11 @@ function TeamRoomContent() {
       || null,
     [focusedMessageId, room?.activeLevelUpChallengeId, room?.messages],
   )
+  const currentFinalLineup = activeMatchMessage?.card?.finalLineup || null
+  const pendingFinalLineupAnnouncementId = activeMatchMessage?.card?.lineupChangeNotice?.publishedLineupChange
+    && !activeMatchMessage.card.lineupChangeNotice.response
+    ? activeMatchMessage.card.lineupChangeNotice.publishedAnnouncementMessageId
+    : ''
   const captainHref = useMemo(() => buildCaptainScopedHref('/captain', {
     team: room?.teamName,
     league: room?.leagueName,
@@ -1187,6 +1203,12 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
+        {activeMatchMessage?.card && currentFinalLineup ? (
+          <div className={styles.pinnedArea}>
+            <PublishedLineupPin card={activeMatchMessage.card} receipt={currentFinalLineup} />
+          </div>
+        ) : null}
+
         {room.canManage
         && pinnedMessage?.card
         && !pinnedMessage.card.availabilitySummary
@@ -1287,10 +1309,20 @@ function TeamRoomContent() {
             if (isSystem) return <div key={message.id} className={styles.systemBubble}>{message.body}</div>
             if (message.card?.state === 'archived') return <MatchRecap key={message.id} message={message} />
             if (message.card?.state === 'upcoming') return <UpcomingMatchCard key={message.id} message={message} />
+            const lineupStatus = message.lineupAnnouncement
+              ? getTeamRoomLineupAnnouncementStatus({
+                  announcementMessageId: message.id,
+                  sourceMessageId: message.lineupAnnouncement.sourceMessageId,
+                  currentReceipt: currentFinalLineup,
+                  activeSourceMessageId: activeMatchMessage?.id || '',
+                  pendingAnnouncementMessageId: pendingFinalLineupAnnouncementId,
+                })
+              : null
             const rowClass = [
               styles.messageRow,
               message.isMine ? styles.messageMine : '',
               message.kind === 'announcement' ? styles.messageAnnouncement : '',
+              lineupStatus === 'superseded' || lineupStatus === 'past' ? styles.lineupAnnouncementOld : '',
             ].filter(Boolean).join(' ')
             return (
               <article key={message.id} className={rowClass}>
@@ -1299,6 +1331,13 @@ function TeamRoomContent() {
                   <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
                   {message.editedAt && !message.deletedAt ? <span>Edited</span> : null}
                   {message.kind === 'announcement' ? <span className={styles.announcementBadge}>Announcement</span> : null}
+                  {lineupStatus ? (
+                    <span className={styles.lineupStatusBadge} data-status={lineupStatus}>
+                      {lineupStatus === 'current'
+                        ? 'Current lineup'
+                        : lineupStatus === 'pending' ? 'Awaiting confirmation' : lineupStatus === 'superseded' ? 'Superseded' : 'Past lineup'}
+                    </span>
+                  ) : null}
                 </div>
                 {message.replyTo ? (
                   <div className={styles.replyPreview}>
@@ -1345,8 +1384,8 @@ function TeamRoomContent() {
                         {reactionLabel(reaction.reaction)}{reaction.count ? ` ${reaction.count}` : ''}
                       </button>
                     ))}
-                    {message.isMine ? <button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body) }}>Edit</button> : null}
-                    {message.isMine || room.canManage ? <button type="button" onClick={() => void deleteMessage(message.id)}>Remove</button> : null}
+                    {message.isMine && !message.lineupAnnouncement ? <button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body) }}>Edit</button> : null}
+                    {(message.isMine || room.canManage) && !message.lineupAnnouncement ? <button type="button" onClick={() => void deleteMessage(message.id)}>Remove</button> : null}
                   </div>
                 ) : null}
               </article>
@@ -1438,6 +1477,40 @@ function TeamRoomContent() {
         </button>
       ) : null}
     </main>
+  )
+}
+
+function PublishedLineupPin({
+  card,
+  receipt,
+}: {
+  card: TeamRoomMatchCard
+  receipt: TeamRoomFinalLineupReceipt
+}) {
+  const matchLabel = [
+    card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
+    card.opponent ? `vs ${card.opponent}` : '',
+  ].filter(Boolean).join(' ')
+  return (
+    <details className={styles.publishedLineupPin}>
+      <summary>
+        <div>
+          <span>Final lineup</span>
+          <strong>{matchLabel}</strong>
+          <small>{card.lineup.length} court{card.lineup.length === 1 ? '' : 's'} · Tap to view</small>
+        </div>
+        <em>Current</em>
+      </summary>
+      <div className={styles.publishedLineupRows}>
+        {card.lineup.map((court, index) => (
+          <div key={`${court.label}-${index}`}>
+            <span>{court.label || `Court ${index + 1}`}</span>
+            <strong>{court.players.join(' / ') || 'Open'}</strong>
+          </div>
+        ))}
+      </div>
+      <p>Published by {receipt.sentByName || 'Team captain'} · {formatMessageTime(receipt.sentAt)}</p>
+    </details>
   )
 }
 
