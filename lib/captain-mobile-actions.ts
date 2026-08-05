@@ -4,6 +4,7 @@ export type CaptainMobileMatchPhase = 'setup' | 'upcoming' | 'match_day' | 'past
 
 export type CaptainMobileNowItemId =
   | 'reply-focus'
+  | 'lineup-locked'
   | 'court-readiness'
   | 'reply'
   | 'lineup-confirmed'
@@ -13,12 +14,13 @@ export type CaptainMobileNowItemId =
 
 const CAPTAIN_MOBILE_NOW_PRIORITY: Record<CaptainMobileNowItemId, number> = {
   'reply-focus': 0,
-  'lineup-confirmed': 1,
-  'court-readiness': 2,
-  reply: 3,
-  'availability-open': 4,
-  'team-improvement': 5,
-  'availability-complete': 6,
+  'lineup-locked': 1,
+  'lineup-confirmed': 2,
+  'court-readiness': 3,
+  reply: 4,
+  'availability-open': 5,
+  'team-improvement': 6,
+  'availability-complete': 7,
 }
 
 type CaptainMobileActionLayoutInput = {
