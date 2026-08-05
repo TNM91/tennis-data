@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   applyDataAssistPlayerMappingsToRow,
   buildDataAssistScorecardImportRow,
+  buildScorecardImportFingerprint,
   collectDataAssistImportPlayerNames,
   type DataAssistImportPlayerMapping,
   type DataAssistImportPreview,
@@ -12,6 +13,7 @@ import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summar
 import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
+import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
 
 export type DataAssistScorecardImportAction = 'preview' | 'commit'
 
@@ -51,12 +53,28 @@ export type DataAssistTeamSummaryImportActionResult = {
 }
 
 type ExistingMatchRow = {
+  id?: string | null
   external_match_id?: string | null
   status?: string | null
   match_date?: string | null
   home_team?: string | null
   away_team?: string | null
   line_number?: number | null
+}
+
+type ExistingLineRow = {
+  id: string
+  line_number: string | null
+  match_type: 'singles' | 'doubles' | null
+  winner_side: 'A' | 'B' | null
+  score: string | null
+}
+
+type ExistingMatchPlayerRow = {
+  match_id: string
+  player_id: string
+  side: 'A' | 'B'
+  seat: number | null
 }
 
 export async function runDataAssistScheduleImportAction(input: {
@@ -329,7 +347,7 @@ export async function runDataAssistScorecardImportAction(input: {
     }
   }
 
-  if (importPreview.duplicateMatch?.status === 'completed') {
+  if (importPreview.duplicateMatch?.status === 'completed' && !importPreview.duplicateMatch.hasChanges) {
     if (input.action === 'commit') {
       const importedAt = new Date().toISOString()
       const message = `Already imported: match ${importPreview.row.externalMatchId} is already in TenAceIQ.`
@@ -366,6 +384,7 @@ export async function runDataAssistScorecardImportAction(input: {
       if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importPreview }
       if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importPreview }
       await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+      await announceScorecardResult(input)
     }
 
     return {
@@ -454,6 +473,7 @@ export async function runDataAssistScorecardImportAction(input: {
     }
 
     await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+    await announceScorecardResult(input)
   }
 
   return {
@@ -464,6 +484,22 @@ export async function runDataAssistScorecardImportAction(input: {
     message: input.action === 'commit'
       ? buildImportedReviewNote(scorecardImportResult)
       : buildPreviewMessage(importPreview),
+  }
+}
+
+async function announceScorecardResult(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistScorecardParsedDraft
+  reviewedBy: string
+}) {
+  try {
+    await announceTeamRoomScorecardResult({
+      service: input.supabase,
+      userId: input.reviewedBy,
+      draft: input.parsedDraft,
+    })
+  } catch {
+    // The scorecard stays imported even if Team Room is temporarily unavailable.
   }
 }
 
@@ -478,33 +514,72 @@ async function buildDataAssistImportPreview(input: {
     sourceBatchId: input.batchId,
   })
   const playerMappings = await buildPlayerMappings(input.supabase, collectDataAssistImportPlayerNames(importPreview.row))
-  const duplicateMatch = await findExistingCompletedMatch(input.supabase, importPreview.row.externalMatchId)
-
   importPreview.playerMappings = playerMappings
-  if (duplicateMatch) importPreview.duplicateMatch = duplicateMatch
   importPreview.row = applyDataAssistPlayerMappingsToRow(importPreview.row, playerMappings)
+  const duplicateMatch = await findExistingCompletedMatch(input.supabase, importPreview.row)
+  if (duplicateMatch) importPreview.duplicateMatch = duplicateMatch
 
   return importPreview
 }
 
-async function findExistingCompletedMatch(supabase: SupabaseClient, externalMatchId: string) {
-  const cleanExternalMatchId = cleanText(externalMatchId)
+async function findExistingCompletedMatch(supabase: SupabaseClient, incomingRow: DataAssistImportPreview['row']) {
+  const cleanExternalMatchId = cleanText(incomingRow.externalMatchId)
   if (!cleanExternalMatchId) return null
 
   const { data } = await supabase
     .from('matches')
-    .select('external_match_id, status, match_date, home_team, away_team, line_number')
+    .select('id, external_match_id, status, match_date, home_team, away_team, line_number')
     .eq('external_match_id', cleanExternalMatchId)
     .maybeSingle()
 
   const row = data as ExistingMatchRow | null
   if (!row || cleanText(row.status) !== 'completed') return null
+  const { data: lineData } = await supabase
+    .from('matches')
+    .select('id,line_number,match_type,winner_side,score')
+    .like('external_match_id', `${cleanExternalMatchId}::line:%`)
+    .eq('status', 'completed')
+  const lines = (lineData ?? []) as ExistingLineRow[]
+  const lineIds = lines.map((line) => line.id)
+  const { data: matchPlayerData } = lineIds.length
+    ? await supabase
+        .from('match_players')
+        .select('match_id,player_id,side,seat')
+        .in('match_id', lineIds)
+    : { data: [] }
+  const matchPlayers = (matchPlayerData ?? []) as ExistingMatchPlayerRow[]
+  const playerIds = Array.from(new Set(matchPlayers.map((player) => player.player_id)))
+  const { data: playerData } = playerIds.length
+    ? await supabase.from('players').select('id,name').in('id', playerIds)
+    : { data: [] }
+  const playerNameById = new Map(((playerData ?? []) as Array<{ id: string; name: string | null }>)
+    .map((player) => [player.id, cleanText(player.name)]))
+  const persistedRow: DataAssistImportPreview['row'] = {
+    externalMatchId: cleanExternalMatchId,
+    matchDate: cleanText(row.match_date),
+    homeTeam: cleanText(row.home_team),
+    awayTeam: cleanText(row.away_team),
+    lines: lines.map((line) => {
+      const players = matchPlayers
+        .filter((player) => player.match_id === line.id)
+        .sort((left, right) => (left.seat ?? 99) - (right.seat ?? 99))
+      return {
+        lineNumber: Number(line.line_number) || 0,
+        matchType: line.match_type === 'doubles' ? 'doubles' : 'singles',
+        sideAPlayers: players.filter((player) => player.side === 'A').map((player) => playerNameById.get(player.player_id) || ''),
+        sideBPlayers: players.filter((player) => player.side === 'B').map((player) => playerNameById.get(player.player_id) || ''),
+        winnerSide: line.winner_side,
+        score: line.score,
+      }
+    }),
+  }
   return {
     externalMatchId: cleanText(row.external_match_id),
     status: cleanText(row.status),
     matchDate: cleanText(row.match_date),
     homeTeam: cleanText(row.home_team),
     awayTeam: cleanText(row.away_team),
+    hasChanges: buildScorecardImportFingerprint(persistedRow) !== buildScorecardImportFingerprint(incomingRow),
   }
 }
 
@@ -624,7 +699,8 @@ function buildPreviewMessage(importPreview: DataAssistImportPreview) {
 function buildImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'scorecard' }>) {
   const createdPlayers = importResult.result.createdPlayersCount
   const linkedPlayers = importResult.result.linkedPlayersCount
-  return `Scorecard imported. ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}. Schedule and roster uploads can be added later, but this result is ready now.`
+  const resultLabel = importResult.result.updatedCount > 0 ? 'Scorecard corrected.' : 'Scorecard imported.'
+  return `${resultLabel} ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}. Schedule and roster uploads can be added later, but this result is ready now.`
 }
 
 function getContributorBadges(verifiedImportCount: number, accuracyScore: number) {

@@ -20,7 +20,27 @@ export type DataAssistImportPreview = {
     matchDate: string
     homeTeam: string
     awayTeam: string
+    hasChanges: boolean
   }
+}
+
+export function buildScorecardImportFingerprint(row: ScorecardImportRow) {
+  return JSON.stringify({
+    externalMatchId: clean(row.externalMatchId),
+    matchDate: clean(row.matchDate),
+    homeTeam: normalizeName(row.homeTeam),
+    awayTeam: normalizeName(row.awayTeam),
+    lines: row.lines
+      .map((line) => ({
+        lineNumber: line.lineNumber,
+        matchType: line.matchType,
+        sideAPlayers: line.sideAPlayers.map(normalizeName),
+        sideBPlayers: line.sideBPlayers.map(normalizeName),
+        winnerSide: line.winnerSide,
+        score: normalizeName(line.score || line.rawScoreText || ''),
+      }))
+      .sort((left, right) => left.lineNumber - right.lineNumber),
+  })
 }
 
 export function buildDataAssistScorecardImportRow(
@@ -148,6 +168,10 @@ function uniqueStrings(values: string[]) {
     result.push(cleaned)
   }
   return result
+}
+
+function clean(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function normalizeName(value: string) {

@@ -181,6 +181,7 @@ type TeamRoomFinalResult = {
   opponentScore: string
   score: string
   outcome: 'win' | 'loss' | 'final'
+  unresolvedPlayerCount: number
   lines: Array<{
     id: string
     label: string
@@ -188,6 +189,8 @@ type TeamRoomFinalResult = {
     opponentPlayers: string[]
     score: string
     winner: 'team' | 'opponent' | 'final'
+    teamMissingPlayerCount: number
+    opponentMissingPlayerCount: number
   }>
 }
 
@@ -235,6 +238,7 @@ type TeamRoom = {
   messages: TeamRoomMessage[]
   href: string
   activeCardId: string
+  finalResultCardId: string
   activeLevelUpChallengeId: string
   finalResult: TeamRoomFinalResult | null
   finalLineupReview: TeamRoomFinalLineupReview | null
@@ -358,6 +362,10 @@ function TeamRoomContent() {
     () => room?.messages.find((message) => message.id === room.activeCardId && message.card) || null,
     [room?.activeCardId, room?.messages],
   )
+  const finalResultMessage = useMemo(
+    () => room?.messages.find((message) => message.id === room.finalResultCardId && message.card) || null,
+    [room?.finalResultCardId, room?.messages],
+  )
   const pinnedLevelUpChallenge = useMemo(
     () => room?.messages.find((message) => (
       message.id === focusedMessageId
@@ -386,6 +394,8 @@ function TeamRoomContent() {
   }), [matchDraft.matchDate, matchDraft.opponent, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.opponent, room?.flight, room?.leagueName, room?.teamName])
   const scorecardReturnHref = room?.href || captainHref
   const scorecardHref = `/data-assist?intent=upload-source&context=Team%20Room&type=scorecard&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
+  const playerLinksHref = `/data-assist?intent=upload-source&context=Team%20Room&type=team_summary&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
+  const resultJustUpdated = searchParams.get('result') === 'updated'
 
   useEffect(() => {
     const updateLocalDate = () => setLocalDateKey(localDateInputKey(new Date()))
@@ -535,10 +545,14 @@ function TeamRoomContent() {
       if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
     }
     document.addEventListener('visibilitychange', refreshOnReturn)
+    window.addEventListener('pageshow', refreshOnReturn)
+    window.addEventListener('focus', refreshOnReturn)
     return () => {
       if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current)
       window.clearInterval(fallbackRefresh)
       document.removeEventListener('visibilitychange', refreshOnReturn)
+      window.removeEventListener('pageshow', refreshOnReturn)
+      window.removeEventListener('focus', refreshOnReturn)
       setRealtimeConnected(false)
       setOnlineProfileIds([])
       void supabase.removeChannel(channel)
@@ -1329,16 +1343,39 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {activeMatchMessage?.card && (currentFinalLineup || room.finalResult) ? (
+        {finalResultMessage?.card && room.finalResult && finalResultMessage.id !== activeMatchMessage?.id ? (
+          <div className={styles.pinnedArea}>
+            <PublishedLineupPin
+              card={finalResultMessage.card}
+              receipt={finalResultMessage.card.finalLineup}
+              review={null}
+              result={room.finalResult}
+              canManage={room.canManage}
+              phase="post_match"
+              scorecardHref={scorecardHref}
+              playerLinksHref={playerLinksHref}
+              markingSeen={false}
+              reminding={false}
+              completingMatchDay={false}
+              defaultOpen={resultJustUpdated}
+              onSeen={() => undefined}
+              onRemind={() => undefined}
+              onCompleteMatch={() => undefined}
+            />
+          </div>
+        ) : null}
+
+        {activeMatchMessage?.card && (currentFinalLineup || (room.finalResult && room.finalResultCardId === activeMatchMessage.id)) ? (
           <div className={styles.pinnedArea}>
             <PublishedLineupPin
               card={activeMatchMessage.card}
               receipt={currentFinalLineup}
               review={room.finalLineupReview}
-              result={room.finalResult}
+              result={room.finalResultCardId === activeMatchMessage.id ? room.finalResult : null}
               canManage={room.canManage}
               phase={currentFinalLineupPhase}
               scorecardHref={scorecardHref}
+              playerLinksHref={playerLinksHref}
               markingSeen={markingFinalLineupSeen}
               reminding={remindingFinalLineup}
               completingMatchDay={completingMatchDay}
@@ -1628,9 +1665,11 @@ function PublishedLineupPin({
   canManage,
   phase,
   scorecardHref,
+  playerLinksHref,
   markingSeen,
   reminding,
   completingMatchDay,
+  defaultOpen,
   onSeen,
   onRemind,
   onCompleteMatch,
@@ -1642,9 +1681,11 @@ function PublishedLineupPin({
   canManage: boolean
   phase: TeamRoomMatchDayPhase
   scorecardHref: string
+  playerLinksHref: string
   markingSeen: boolean
   reminding: boolean
   completingMatchDay: boolean
+  defaultOpen?: boolean
   onSeen: () => void
   onRemind: () => void
   onCompleteMatch: () => void
@@ -1663,7 +1704,7 @@ function PublishedLineupPin({
   const resultSummary = scoreLabel === 'Final' ? outcomeLabel : `${outcomeLabel} ${scoreLabel}`
   const resultLines = result?.lines ?? []
   return (
-    <details className={styles.publishedLineupPin} open={phase !== 'upcoming'}>
+    <details className={styles.publishedLineupPin} open={defaultOpen ?? phase !== 'upcoming'}>
       <summary>
         <div>
           <span>{result ? 'Final result' : isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Final lineup'}</span>
@@ -1697,6 +1738,12 @@ function PublishedLineupPin({
               <span>{result.opponentName || card.opponent || 'Opponent'}</span>
             </div>
           </div>
+          {result.unresolvedPlayerCount ? (
+            <div className={styles.matchResultDataGap}>
+              <span>{result.unresolvedPlayerCount} player name{result.unresolvedPlayerCount === 1 ? '' : 's'} need linking.</span>
+              <Link href={playerLinksHref}>Fix names</Link>
+            </div>
+          ) : null}
           {resultLines.length ? (
             <details className={styles.matchResultLines}>
               <summary>
@@ -1712,8 +1759,8 @@ function PublishedLineupPin({
                         {line.winner === 'team' ? 'Won' : line.winner === 'opponent' ? 'Lost' : 'Final'}
                       </span>
                     </div>
-                    <p>{line.teamPlayers.join(' / ') || result.teamName}</p>
-                    <small>vs {line.opponentPlayers.join(' / ') || result.opponentName || 'Opponent'}</small>
+                    <p>{formatResultPlayers(line.teamPlayers, line.teamMissingPlayerCount)}</p>
+                    <small>vs {formatResultPlayers(line.opponentPlayers, line.opponentMissingPlayerCount)}</small>
                     <em>{line.score || 'Final'}</em>
                   </article>
                 ))}
@@ -1797,6 +1844,14 @@ function PublishedLineupPin({
       ) : null}
     </details>
   )
+}
+
+function formatResultPlayers(names: string[], missingCount: number) {
+  const labels = names.map((name) => name.trim()).filter(Boolean)
+  if (missingCount > 0) {
+    labels.push(`${missingCount} name${missingCount === 1 ? '' : 's'} need linking`)
+  }
+  return labels.join(' / ') || 'Player name needs linking'
 }
 
 function LevelUpChallengeCard({

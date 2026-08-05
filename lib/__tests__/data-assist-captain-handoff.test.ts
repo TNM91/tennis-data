@@ -29,5 +29,8 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain("if (path === '/team-room' || path.startsWith('/team-room?')) return path")
     expect(source).toContain('actions={buildScorecardPostImportActions(parsedDraft, returnTo)}')
     expect(source).toContain("returnTo.startsWith('/team-room') ? 'Return to Team Chat' : 'Continue Captain'")
+    expect(source).toContain("url.searchParams.set('result', 'updated')")
+    expect(source).toContain('finishScorecardImport')
+    expect(source).toContain('Correction found')
   })
 })

@@ -160,9 +160,13 @@ export function buildLineupChangeNotice(
   }
 }
 
-export function selectActiveTeamRoomCard(cards: TeamRoomCardCandidate[], today = todayDateKey()) {
+export function selectActiveTeamRoomCard(
+  cards: TeamRoomCardCandidate[],
+  today = todayDateKey(),
+  completedCardIds: ReadonlySet<string> = new Set(),
+) {
   const future = cards
-    .filter((card) => card.matchDate && card.matchDate >= today)
+    .filter((card) => card.matchDate && card.matchDate >= today && !completedCardIds.has(card.id))
     .sort((left, right) => {
       const dateCompare = left.matchDate.localeCompare(right.matchDate)
       if (dateCompare) return dateCompare
@@ -185,8 +189,10 @@ export function teamRoomCardState(
   card: TeamRoomCardCandidate,
   activeCardId: string,
   today = todayDateKey(),
+  completedCardIds: ReadonlySet<string> = new Set(),
 ): TeamRoomMatchCardState {
   if (card.id === activeCardId) return 'active'
+  if (completedCardIds.has(card.id)) return 'archived'
   return card.matchDate && card.matchDate < today ? 'archived' : 'upcoming'
 }
 

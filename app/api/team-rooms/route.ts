@@ -2224,8 +2224,14 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
   })
-  const planningCardId = selectActiveTeamRoomCard(cardCandidates)
-  const activeCardId = planningCardId || selectLatestPastTeamRoomCard(cardCandidates)
+  const matchProgress = await resolveTeamRoomMatchProgress(
+    service,
+    selected,
+    typedMessageRows,
+    cardCandidates,
+  )
+  const planningCardId = matchProgress.planningCardId
+  const activeCardId = matchProgress.activeCardId
   const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(typedMessageRows.flatMap((row) => {
     if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
     return [{
@@ -2264,7 +2270,12 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       ackByMessageId.get(row.id) || [],
       reminderByMessageId.get(row.id) || null,
       isMatchCardMetadata(row.metadata)
-        ? teamRoomCardState({ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }, activeCardId)
+        ? teamRoomCardState(
+            { id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) },
+            activeCardId,
+            undefined,
+            matchProgress.completedCardIds,
+          )
         : null,
       reactionByMessageId.get(row.id) || [],
       attachmentUrlByMessageId.get(row.id) || '',
@@ -2289,9 +2300,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     }
   })
   const activeCardRow = rowById.get(activeCardId)
-  const finalResult = activeCardRow && isMatchCardMetadata(activeCardRow.metadata)
-    ? await loadTeamRoomFinalResult(service, selected, activeCardRow.metadata)
-    : null
+  const finalResult = matchProgress.finalResult
   const currentFinalLineup = readTeamRoomFinalLineupReceipt(activeCardRow?.metadata?.finalLineup)
   const currentFinalLineupAnnouncement = currentFinalLineup
     ? rowById.get(currentFinalLineup.announcementMessageId)
@@ -2330,6 +2339,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       removedMembers: management.removedMembers,
       activeInviteCount: management.activeInviteCount,
       activeCardId,
+      finalResultCardId: matchProgress.finalResultCardId,
       activeLevelUpChallengeId,
       finalResult,
       finalLineupReview: currentFinalLineup && finalLineupReview ? {
@@ -2350,6 +2360,60 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         flight: selected.flight,
       }),
     },
+  }
+}
+
+async function resolveTeamRoomMatchProgress(
+  service: SupabaseClient,
+  scope: TeamLinkRow,
+  rows: MessageRow[],
+  cards: Array<{ id: string; createdAt: string; matchDate: string }>,
+) {
+  const rowById = new Map(rows.map((row) => [row.id, row]))
+  const completedCardIds = new Set<string>()
+  let finalResult: Awaited<ReturnType<typeof loadTeamRoomFinalResult>> = null
+  let finalResultCardId = ''
+  let planningCardId = selectActiveTeamRoomCard(cards)
+  const maxChecks = Math.min(cards.length, 6)
+
+  for (let check = 0; planningCardId && check < maxChecks; check += 1) {
+    const row = rowById.get(planningCardId)
+    if (!row || !isMatchCardMetadata(row.metadata)) break
+    const result = await loadTeamRoomFinalResult(service, scope, row.metadata)
+    if (!result) break
+    completedCardIds.add(planningCardId)
+    finalResult = result
+    finalResultCardId = planningCardId
+    planningCardId = selectActiveTeamRoomCard(cards, undefined, completedCardIds)
+  }
+
+  if (planningCardId) {
+    return {
+      planningCardId,
+      activeCardId: planningCardId,
+      completedCardIds,
+      finalResult,
+      finalResultCardId,
+    }
+  }
+
+  const fallbackCardId = finalResultCardId || selectLatestPastTeamRoomCard(cards)
+  if (!finalResult && fallbackCardId) {
+    const row = rowById.get(fallbackCardId)
+    if (row && isMatchCardMetadata(row.metadata)) {
+      finalResult = await loadTeamRoomFinalResult(service, scope, row.metadata)
+      if (finalResult) {
+        finalResultCardId = fallbackCardId
+        completedCardIds.add(fallbackCardId)
+      }
+    }
+  }
+  return {
+    planningCardId: '',
+    activeCardId: fallbackCardId,
+    completedCardIds,
+    finalResult,
+    finalResultCardId,
   }
 }
 
@@ -2413,15 +2477,19 @@ async function loadTeamRoomFinalResult(
     players = (playerData ?? []) as TeamRoomPlayerName[]
   }
 
+  const lines = buildTeamRoomFinalResultLines({
+    matches: lineMatches,
+    matchPlayers,
+    players,
+    teamSide,
+    lineupLabels: normalizeLineupRows(metadata.lineup).map((line) => line.label),
+  })
   return {
     ...result,
-    lines: buildTeamRoomFinalResultLines({
-      matches: lineMatches,
-      matchPlayers,
-      players,
-      teamSide,
-      lineupLabels: normalizeLineupRows(metadata.lineup).map((line) => line.label),
-    }),
+    lines,
+    unresolvedPlayerCount: lines.reduce((total, line) => (
+      total + line.teamMissingPlayerCount + line.opponentMissingPlayerCount
+    ), 0),
   }
 }
 
@@ -2598,10 +2666,12 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     row.sender_user_id !== userId
     && (!lastReadAt || new Date(row.created_at || 0).getTime() > new Date(lastReadAt).getTime())
   )).length
-  const activeCardId = selectActiveTeamRoomCard(messageRows.flatMap((row) => {
+  const cardCandidates = messageRows.flatMap((row) => {
     if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
-  }))
+  })
+  const matchProgress = await resolveTeamRoomMatchProgress(service, selected, messageRows, cardCandidates)
+  const activeCardId = matchProgress.planningCardId
   const latestCard = messageRows.find((row) => row.id === activeCardId)
   let responses: MatchResponseRow[] = []
   let acknowledgments: LineupAcknowledgmentRow[] = []

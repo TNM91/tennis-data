@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyDataAssistPlayerMappingsToRow,
   buildDataAssistScorecardImportRow,
+  buildScorecardImportFingerprint,
   collectDataAssistImportPlayerNames,
 } from '../data-assist-import'
 import type { DataAssistScorecardParsedDraft } from '../data-assist-ocr'
@@ -92,5 +93,19 @@ describe('Data Assist import transformer', () => {
 
     expect(row.lines[0].sideAPlayers[0]).toBe('William Hamilton')
     expect(row.lines[0].sideAPlayers[1]).toBe('Eric Abramson')
+  })
+
+  it('detects a corrected scorecard without treating formatting as a change', () => {
+    const original = buildDataAssistScorecardImportRow(parsedDraft()).row
+    expect(buildScorecardImportFingerprint({ ...original, homeTeam: '  SCHNELLAVERIA  ' }))
+      .toBe(buildScorecardImportFingerprint(original))
+
+    const corrected = {
+      ...original,
+      lines: original.lines.map((line, index) => index === 0
+        ? { ...line, winnerSide: 'B' as const, score: '2-6 1-6' }
+        : line),
+    }
+    expect(buildScorecardImportFingerprint(corrected)).not.toBe(buildScorecardImportFingerprint(original))
   })
 })

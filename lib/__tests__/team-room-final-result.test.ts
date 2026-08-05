@@ -44,6 +44,7 @@ describe('Team Room final result', () => {
       score: '1-2',
       outcome: 'win',
       lines: [],
+      unresolvedPlayerCount: 0,
     })
   })
 
@@ -75,6 +76,8 @@ describe('Team Room final result', () => {
         opponentPlayers: ['Casey Court', 'Drew Deuce'],
         score: '4-6, 6-3, 10-7',
         winner: 'team',
+        teamMissingPlayerCount: 0,
+        opponentMissingPlayerCount: 0,
       },
       {
         id: 'line-2',
@@ -83,6 +86,8 @@ describe('Team Room final result', () => {
         opponentPlayers: [],
         score: '6-3, 6-4',
         winner: 'opponent',
+        teamMissingPlayerCount: 2,
+        opponentMissingPlayerCount: 2,
       },
     ])
   })
