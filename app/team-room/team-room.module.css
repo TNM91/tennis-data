@@ -331,6 +331,160 @@
   padding: 7px 12px 1px;
 }
 
+.arrivalBoard {
+  display: grid;
+  gap: 9px;
+  margin: 10px 12px 5px;
+  border-top: 1px solid var(--shell-panel-border);
+  padding-top: 10px;
+}
+
+.arrivalBoardHeader {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arrivalBoardHeader > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.arrivalBoardHeader strong {
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+}
+
+.arrivalBoardHeader span {
+  color: var(--shell-copy-muted);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.arrivalBoardHeader em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg));
+  color: var(--foreground-strong);
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.arrivalCheckIn {
+  display: grid;
+  gap: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg));
+  padding: 9px;
+}
+
+.arrivalCheckIn > span {
+  color: var(--brand-green-3);
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.arrivalCheckIn > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.arrivalCheckIn button {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 10px;
+  background: var(--shell-chip-bg-strong);
+  color: var(--foreground);
+  padding: 7px 5px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.arrivalCheckIn button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--brand-green) 62%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg-strong));
+  color: var(--foreground-strong);
+}
+
+.arrivalCheckIn button[data-status='running_late'][aria-pressed='true'] {
+  border-color: rgba(251, 113, 133, 0.62);
+  background: rgba(127, 29, 29, 0.35);
+}
+
+.arrivalCourtGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.arrivalCourt {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--shell-chip-bg) 84%, transparent);
+  padding: 9px;
+}
+
+.arrivalCourt > strong {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.arrivalCourt > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.arrivalCourt > div > span {
+  color: var(--foreground-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.arrivalCourt > div > em {
+  border-radius: 999px;
+  background: var(--shell-chip-bg-strong);
+  color: var(--shell-copy-muted);
+  padding: 4px 6px;
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.arrivalCourt > div > em[data-status='here'] {
+  background: color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg-strong));
+  color: var(--foreground-strong);
+}
+
+.arrivalCourt > div > em[data-status='on_my_way'] {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+
+.arrivalCourt > div > em[data-status='running_late'] {
+  background: rgba(127, 29, 29, 0.42);
+  color: #fecdd3;
+}
+
 .matchResultBody {
   padding-bottom: 0.01rem;
 }
@@ -2230,6 +2384,10 @@
   }
 
   .matchDayLogistics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .arrivalCourtGrid {
     grid-template-columns: minmax(0, 1fr);
   }
 

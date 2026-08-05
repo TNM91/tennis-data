@@ -34,6 +34,13 @@ import {
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain-lineup-confirmation'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
+import {
+  buildTeamRoomArrivalCourts,
+  findTeamRoomAssignedCourt,
+  teamRoomArrivalStatusLabel,
+  type TeamRoomArrivalCheckIn,
+  type TeamRoomArrivalStatus,
+} from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
 
@@ -150,6 +157,7 @@ type TeamRoomMatchCard = {
     publishedByName: string
   } | null
   finalLineup: TeamRoomFinalLineupReceipt | null
+  arrivalCheckIns: TeamRoomArrivalCheckIn[]
   matchCompletedAt: string
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
@@ -314,6 +322,7 @@ function TeamRoomContent() {
   const [markingFinalLineupSeen, setMarkingFinalLineupSeen] = useState(false)
   const [remindingFinalLineup, setRemindingFinalLineup] = useState(false)
   const [completingMatchDay, setCompletingMatchDay] = useState(false)
+  const [savingArrivalStatus, setSavingArrivalStatus] = useState<TeamRoomArrivalStatus | ''>('')
   const [localDateKey, setLocalDateKey] = useState('')
   const [remindingChallengeId, setRemindingChallengeId] = useState('')
   const [closingChallengeId, setClosingChallengeId] = useState('')
@@ -975,6 +984,21 @@ function TeamRoomContent() {
     }
   }
 
+  async function saveArrivalStatus(messageId: string, status: TeamRoomArrivalStatus) {
+    if (!room || savingArrivalStatus) return
+    setSavingArrivalStatus(status)
+    setError('')
+    try {
+      await postAction({ action: 'set_arrival_status', messageId, arrivalStatus: status })
+      setNotice(`${teamRoomArrivalStatusLabel(status)} saved for your court.`)
+      await loadRoom({ quiet: true })
+    } catch (arrivalError) {
+      setError(arrivalError instanceof Error ? arrivalError.message : 'Your arrival status could not be saved.')
+    } finally {
+      setSavingArrivalStatus('')
+    }
+  }
+
   async function remindFinalLineupUnseen(messageId: string) {
     if (!room || remindingFinalLineup) return
     setRemindingFinalLineup(true)
@@ -1453,17 +1477,23 @@ function TeamRoomContent() {
               markingSeen={false}
               reminding={false}
               completingMatchDay={false}
+              currentUserId=""
+              currentUserNames={[]}
+              savingArrivalStatus=""
               defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
               onRemind={() => undefined}
               onCompleteMatch={() => undefined}
+              onArrivalStatus={() => undefined}
             />
           </div>
         ) : null}
 
         {activeMatchMessage?.card && (currentFinalLineup || (room.finalResult && room.finalResultCardId === activeMatchMessage.id)) ? (
           <div
-            id={room.finalResultCardId === activeMatchMessage.id ? `final-result-${activeMatchMessage.id}` : undefined}
+            id={room.finalResultCardId === activeMatchMessage.id
+              ? `final-result-${activeMatchMessage.id}`
+              : `match-plan-${activeMatchMessage.id}`}
             className={`${styles.pinnedArea} ${activeFinalResultFocused ? styles.pinnedAreaFocused : ''}`}
             tabIndex={activeFinalResultFocused ? -1 : undefined}
           >
@@ -1480,9 +1510,15 @@ function TeamRoomContent() {
               markingSeen={markingFinalLineupSeen}
               reminding={remindingFinalLineup}
               completingMatchDay={completingMatchDay}
+              currentUserId={userId || ''}
+              currentUserNames={room.members
+                .filter((member) => member.id === userId)
+                .flatMap((member) => [member.playerName, member.name])}
+              savingArrivalStatus={savingArrivalStatus}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
               onCompleteMatch={() => currentFinalLineup && void completeMatchDay(currentFinalLineup.announcementMessageId)}
+              onArrivalStatus={(status) => void saveArrivalStatus(activeMatchMessage.id, status)}
             />
           </div>
         ) : null}
@@ -1773,10 +1809,14 @@ function PublishedLineupPin({
   markingSeen,
   reminding,
   completingMatchDay,
+  currentUserId,
+  currentUserNames,
+  savingArrivalStatus,
   defaultOpen,
   onSeen,
   onRemind,
   onCompleteMatch,
+  onArrivalStatus,
 }: {
   card: TeamRoomMatchCard
   receipt: TeamRoomFinalLineupReceipt | null
@@ -1790,10 +1830,14 @@ function PublishedLineupPin({
   markingSeen: boolean
   reminding: boolean
   completingMatchDay: boolean
+  currentUserId: string
+  currentUserNames: string[]
+  savingArrivalStatus: TeamRoomArrivalStatus | ''
   defaultOpen?: boolean
   onSeen: () => void
   onRemind: () => void
   onCompleteMatch: () => void
+  onArrivalStatus: (status: TeamRoomArrivalStatus) => void
 }) {
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
@@ -1808,6 +1852,14 @@ function PublishedLineupPin({
   const outcomeLabel = result?.outcome === 'win' ? 'Won' : result?.outcome === 'loss' ? 'Lost' : 'Final'
   const resultSummary = scoreLabel === 'Final' ? outcomeLabel : `${outcomeLabel} ${scoreLabel}`
   const resultLines = result?.lines ?? []
+  const assignedCourt = findTeamRoomAssignedCourt(card.lineup, currentUserNames)
+  const currentArrival = card.arrivalCheckIns.find((item) => item.profileId === currentUserId) || null
+  const arrivalCourts = buildTeamRoomArrivalCourts(card.lineup, card.arrivalCheckIns)
+  const arrivalPlayers = arrivalCourts.flatMap((court) => court.players)
+  const hereCount = arrivalPlayers.filter((player) => player.status === 'here').length
+  const onWayCount = arrivalPlayers.filter((player) => player.status === 'on_my_way').length
+  const lateCount = arrivalPlayers.filter((player) => player.status === 'running_late').length
+  const waitingCount = arrivalPlayers.filter((player) => player.status === null).length
   return (
     <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result || receipt)}>
       <summary>
@@ -1903,7 +1955,53 @@ function PublishedLineupPin({
           ) : null}
         </div>
       ) : null}
-      {!result ? (
+      {!result && isMatchDay ? (
+        <section className={styles.arrivalBoard} aria-label="Team arrival status">
+          <div className={styles.arrivalBoardHeader}>
+            <div>
+              <strong>{lateCount ? `${lateCount} running late` : hereCount === arrivalPlayers.length ? 'Team is here' : 'Team arrival'}</strong>
+              <span>{hereCount} here · {onWayCount} on my way · {waitingCount} waiting</span>
+            </div>
+            {lateCount ? <em>Check</em> : <em>{hereCount}/{arrivalPlayers.length}</em>}
+          </div>
+          {assignedCourt ? (
+            <div className={styles.arrivalCheckIn}>
+              <span>Your status · {assignedCourt.courtLabel}</span>
+              <div role="group" aria-label="Set your arrival status">
+                {([
+                  ['on_my_way', 'On my way'],
+                  ['here', 'Here'],
+                  ['running_late', 'Running late'],
+                ] as const).map(([status, label]) => (
+                  <button
+                    key={status}
+                    type="button"
+                    data-status={status}
+                    aria-pressed={currentArrival?.status === status}
+                    disabled={Boolean(savingArrivalStatus)}
+                    onClick={() => onArrivalStatus(status)}
+                  >
+                    {savingArrivalStatus === status ? 'Saving…' : label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className={styles.arrivalCourtGrid}>
+            {arrivalCourts.map((court) => (
+              <article key={court.label} className={styles.arrivalCourt}>
+                <strong>{court.label}</strong>
+                {court.players.map((player) => (
+                  <div key={player.name}>
+                    <span>{player.name}</span>
+                    <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
+                  </div>
+                ))}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : !result ? (
         <div className={styles.publishedLineupRows}>
           {card.lineup.map((court, index) => (
             <div key={`${court.label}-${index}`}>

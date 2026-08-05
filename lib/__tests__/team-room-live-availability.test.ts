@@ -251,6 +251,28 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.matchDayActions')
   })
 
+  it('lets assigned players check in while elevating late arrivals to captains', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain("if (action === 'set_arrival_status')")
+    expect(roomApi).toContain('findTeamRoomAssignedCourt(normalizeLineupRows(cardResult.metadata.lineup)')
+    expect(roomApi).toContain("if (body.arrivalStatus === 'running_late')")
+    expect(roomApi).toContain('notifyManagersOfArrivalStatus(auth.service')
+    expect(roomApi).toContain(".filter('metadata', 'eq', JSON.stringify(cardResult.metadata))")
+    expect(roomApi).toContain('arrivalCheckIns: readTeamRoomArrivalCheckIns(row.metadata.arrivalCheckIns)')
+    expect(roomPage).toContain("action: 'set_arrival_status'")
+    expect(roomPage).toContain("['on_my_way', 'On my way']")
+    expect(roomPage).toContain("['here', 'Here']")
+    expect(roomPage).toContain("['running_late', 'Running late']")
+    expect(roomPage).toContain(': `match-plan-${activeMatchMessage.id}`}')
+    expect(roomPage).toContain('aria-label="Team arrival status"')
+    expect(roomStyles).toContain('.arrivalCheckIn')
+    expect(roomStyles).toContain('.arrivalCourtGrid')
+    expect(roomStyles).toContain("[data-status='running_late']")
+  })
+
   it('replaces scorecard entry with the linked final result', () => {
     const roomApi = readSource('app/api/team-rooms/route.ts')
     const roomPage = readSource('app/team-room/page.tsx')

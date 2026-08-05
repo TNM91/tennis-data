@@ -58,6 +58,13 @@ import {
   type TeamRoomLinePlayer,
   type TeamRoomPlayerName,
 } from '@/lib/team-room-final-result'
+import {
+  findTeamRoomAssignedCourt,
+  isTeamRoomArrivalStatus,
+  readTeamRoomArrivalCheckIns,
+  teamRoomArrivalStatusLabel,
+  upsertTeamRoomArrivalCheckIn,
+} from '@/lib/team-room-arrival'
 
 export const runtime = 'nodejs'
 
@@ -176,6 +183,7 @@ type TeamRoomActionBody = {
   challengeId?: unknown
   matchDate?: unknown
   lineupId?: unknown
+  arrivalStatus?: unknown
 }
 
 type TeamRoomLevelUpChallengePayload = {
@@ -349,6 +357,100 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'set_arrival_status') {
+    if (!isTeamRoomArrivalStatus(body.arrivalStatus)) {
+      return Response.json({ ok: false, message: 'Choose On my way, Here, or Running late.' }, { status: 400 })
+    }
+    const requestedMessageId = cleanText(body.messageId)
+    let cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')
+    if (!cardResult.ok) {
+      return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    }
+    if (!requestedMessageId || requestedMessageId !== cardResult.messageId) {
+      return Response.json({ ok: false, message: 'Open the current match plan before checking in.' }, { status: 409 })
+    }
+    const member = syncedMembers.find((item) => item.id === auth.userId)
+    if (!member) {
+      return Response.json({ ok: false, message: 'You are no longer connected to this team.' }, { status: 403 })
+    }
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const receipt = readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
+      if (!receipt || receipt.sourceMessageId !== cardResult.messageId) {
+        return Response.json({ ok: false, message: 'The captain has not sent this lineup yet.' }, { status: 409 })
+      }
+      if (cleanText(cardResult.metadata.matchCompletedAt)) {
+        return Response.json({ ok: false, message: 'This match is complete.' }, { status: 409 })
+      }
+      const assignment = findTeamRoomAssignedCourt(normalizeLineupRows(cardResult.metadata.lineup), [
+        member.playerName,
+        member.name,
+      ])
+      if (!assignment) {
+        return Response.json({ ok: false, message: 'Your name is not assigned to this lineup.' }, { status: 403 })
+      }
+      const existing = readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns)
+      const prior = existing.find((item) => item.profileId === auth.userId)
+      if (
+        prior?.status === body.arrivalStatus
+        && prior.playerName === assignment.playerName
+        && prior.courtLabel === assignment.courtLabel
+      ) {
+        return Response.json({ ok: true, alreadySaved: true, checkIn: prior })
+      }
+
+      const updatedAt = new Date().toISOString()
+      const checkIn = {
+        profileId: auth.userId,
+        playerName: assignment.playerName,
+        courtLabel: assignment.courtLabel,
+        status: body.arrivalStatus,
+        updatedAt,
+      }
+      const claimedMetadata = {
+        ...cardResult.metadata,
+        arrivalCheckIns: upsertTeamRoomArrivalCheckIn(existing, checkIn),
+      }
+      const updateResult = await auth.service
+        .from('internal_messages')
+        .update({ metadata: claimedMetadata, edited_at: updatedAt })
+        .eq('id', cardResult.messageId)
+        .eq('conversation_id', conversation.id)
+        .filter('metadata', 'eq', JSON.stringify(cardResult.metadata))
+        .select('id')
+        .maybeSingle()
+      if (updateResult.error) {
+        return Response.json({ ok: false, message: updateResult.error.message }, { status: 500 })
+      }
+      if (updateResult.data) {
+        await auth.service.from('internal_conversations').update({ updated_at: updatedAt }).eq('id', conversation.id)
+        if (body.arrivalStatus === 'running_late') {
+          await notifyManagersOfArrivalStatus(auth.service, {
+            conversationId: conversation.id,
+            messageId: cardResult.messageId,
+            actorUserId: auth.userId,
+            actorName: assignment.playerName,
+            courtLabel: assignment.courtLabel,
+            scope: selected,
+            managerIds: syncedMembers
+              .filter((item) => item.id !== auth.userId && !item.muted && canManageTeamRoom(item.roles))
+              .map((item) => item.id),
+          })
+        }
+        return Response.json({ ok: true, alreadySaved: false, checkIn })
+      }
+
+      cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')
+      if (!cardResult.ok) {
+        return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+      }
+      if (cardResult.messageId !== requestedMessageId) {
+        return Response.json({ ok: false, message: 'The active match changed. Open its match plan before checking in.' }, { status: 409 })
+      }
+    }
+    return Response.json({ ok: false, message: 'Arrival statuses changed. Try once more.' }, { status: 409 })
+  }
+
   if (action === 'complete_match_day') {
     if (!canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can close the match.' }, { status: 403 })
@@ -907,6 +1009,13 @@ export async function POST(request: Request) {
     const previousLineupChange = cleanStoredLineupChangeNotice(existingRows?.[0]?.metadata?.lineupChangeNotice)
     const previousPublishedLineupId = previousFinalLineup?.lineupId || previousLineupChange?.previousFinalLineupId || ''
     const changesPublishedLineup = Boolean(previousPublishedLineupId && lineupChangeNotice && lineupChanges.length)
+    const preservesPublishedLineup = Boolean(existingId && previousCard && buildCaptainLockedLineupId({
+      messageId: existingId,
+      lineup: previousCard.lineup,
+    }) === buildCaptainLockedLineupId({
+      messageId: existingId,
+      lineup: effectiveCard.lineup,
+    }))
     const metadata = {
       ...effectiveCard,
       teamRoomCard: true,
@@ -932,15 +1041,12 @@ export async function POST(request: Request) {
         publishedByUserId: '',
         publishedByName: '',
       } : null,
-      finalLineup: existingId && previousCard && buildCaptainLockedLineupId({
-        messageId: existingId,
-        lineup: previousCard.lineup,
-      }) === buildCaptainLockedLineupId({
-        messageId: existingId,
-        lineup: effectiveCard.lineup,
-      })
+      finalLineup: preservesPublishedLineup
         ? readTeamRoomFinalLineupReceipt(existingRows?.[0]?.metadata?.finalLineup)
         : null,
+      arrivalCheckIns: preservesPublishedLineup
+        ? readTeamRoomArrivalCheckIns(existingRows?.[0]?.metadata?.arrivalCheckIns)
+        : [],
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
       ? `Projected lineup for ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}. Please confirm whether you can play.`
@@ -3035,6 +3141,46 @@ async function notifyAffectedLineupPlayers(service: SupabaseClient, input: {
   }
 }
 
+async function notifyManagersOfArrivalStatus(service: SupabaseClient, input: {
+  conversationId: string
+  messageId: string
+  actorUserId: string
+  actorName: string
+  courtLabel: string
+  scope: TeamLinkRow
+  managerIds: string[]
+}) {
+  const recipientIds = [...new Set(input.managerIds)].filter(Boolean)
+  if (!recipientIds.length) return
+  const hrefBase = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+  })
+  const hrefUrl = new URL(hrefBase, 'https://tenaceiq.local')
+  hrefUrl.searchParams.set('message', input.messageId)
+  hrefUrl.searchParams.set('court', input.courtLabel)
+  hrefUrl.hash = `match-plan-${encodeURIComponent(input.messageId)}`
+  const href = `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`
+  const title = `${input.scope.team_name} arrival update`
+  const body = `${input.actorName} is ${teamRoomArrivalStatusLabel('running_late').toLowerCase()} for ${input.courtLabel}.`
+  await service.from('internal_notifications').insert(recipientIds.map((recipientId) => ({
+    recipient_profile_id: recipientId,
+    actor_user_id: input.actorUserId,
+    notification_type: 'message',
+    title,
+    body,
+    href,
+    conversation_id: input.conversationId,
+  })))
+  await sendTeamRoomPush(service, recipientIds, {
+    title,
+    body,
+    href,
+    tag: `team-room-arrival-${input.messageId}`,
+  })
+}
+
 async function findLineupChangeReplacementParticipant(
   service: SupabaseClient,
   conversationId: string,
@@ -3300,6 +3446,7 @@ function toMessage(
     },
     availabilitySummary,
     finalLineup: readTeamRoomFinalLineupReceipt(row.metadata.finalLineup),
+    arrivalCheckIns: readTeamRoomArrivalCheckIns(row.metadata.arrivalCheckIns),
     matchCompletedAt: cleanText(row.metadata.matchCompletedAt),
     reminder: reminder ? {
       reminderAt: reminder.reminder_at,
