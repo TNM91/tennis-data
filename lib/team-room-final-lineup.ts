@@ -16,6 +16,16 @@ export type TeamRoomLineupAnnouncement = {
 
 export type TeamRoomLineupAnnouncementStatus = 'current' | 'pending' | 'superseded' | 'past'
 
+export type TeamRoomFinalLineupReview = {
+  requiredCount: number
+  seenCount: number
+  seenProfileIds: string[]
+  unseenProfileIds: string[]
+  unseenNames: string[]
+  currentUserRequired: boolean
+  currentUserSeen: boolean
+}
+
 export function buildTeamRoomFinalLineupReceipt(input: TeamRoomFinalLineupReceipt) {
   return {
     lineupId: cleanText(input.lineupId),
@@ -80,6 +90,32 @@ export function getTeamRoomLineupAnnouncementStatus(input: {
   return 'past'
 }
 
+export function buildTeamRoomFinalLineupReview(input: {
+  members: Array<{ id: string; name: string; playerName?: string }>
+  lineup: Array<{ players: string[] }>
+  seenProfileIds: string[]
+  publisherUserId: string
+  currentUserId: string
+}): TeamRoomFinalLineupReview {
+  const lineupNames = new Set(input.lineup.flatMap((court) => court.players.map(normalizePersonKey)).filter(Boolean))
+  const requiredMembers = Array.from(new Map(input.members.map((member) => [member.id, member])).values())
+    .filter((member) => [member.name, member.playerName].map(normalizePersonKey).some((name) => lineupNames.has(name)))
+  const seenIds = new Set(input.seenProfileIds.map(cleanText).filter(Boolean))
+  if (input.publisherUserId) seenIds.add(cleanText(input.publisherUserId))
+  const seenMembers = requiredMembers.filter((member) => seenIds.has(member.id))
+  const unseenMembers = requiredMembers.filter((member) => !seenIds.has(member.id))
+  const requiredIds = new Set(requiredMembers.map((member) => member.id))
+  return {
+    requiredCount: requiredMembers.length,
+    seenCount: seenMembers.length,
+    seenProfileIds: seenMembers.map((member) => member.id),
+    unseenProfileIds: unseenMembers.map((member) => member.id),
+    unseenNames: unseenMembers.map((member) => member.name),
+    currentUserRequired: requiredIds.has(input.currentUserId),
+    currentUserSeen: requiredIds.has(input.currentUserId) && seenIds.has(input.currentUserId),
+  }
+}
+
 export function buildPublishedLineupChangeAnnouncement(input: {
   courtLabel: string
   outgoingPlayerName: string
@@ -105,4 +141,8 @@ export function buildPublishedLineupChangeAnnouncement(input: {
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizePersonKey(value: unknown) {
+  return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }

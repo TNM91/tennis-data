@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPublishedLineupChangeAnnouncement,
+  buildTeamRoomFinalLineupReview,
   buildTeamRoomFinalLineupReceipt,
   getTeamRoomLineupAnnouncementStatus,
   isTeamRoomFinalLineupSent,
@@ -77,6 +78,32 @@ describe('Team Room final lineup receipt', () => {
       currentReceipt: receipt,
       activeSourceMessageId: 'match-1',
     })).toBe('past')
+  })
+
+  it('tracks only connected lineup players and treats the publisher as seen', () => {
+    expect(buildTeamRoomFinalLineupReview({
+      members: [
+        { id: 'captain-1', name: 'Captain Casey', playerName: 'Casey Court' },
+        { id: 'player-2', name: 'Alex A.', playerName: 'Alex Ace' },
+        { id: 'player-3', name: 'Blair Ball' },
+        { id: 'bench-1', name: 'Bench Player' },
+      ],
+      lineup: [
+        { players: ['Casey Court', 'Alex Ace'] },
+        { players: ['Blair Ball', 'Not Connected'] },
+      ],
+      seenProfileIds: ['player-2'],
+      publisherUserId: 'captain-1',
+      currentUserId: 'player-3',
+    })).toEqual({
+      requiredCount: 3,
+      seenCount: 2,
+      seenProfileIds: ['captain-1', 'player-2'],
+      unseenProfileIds: ['player-3'],
+      unseenNames: ['Blair Ball'],
+      currentUserRequired: true,
+      currentUserSeen: false,
+    })
   })
 
   it('builds one concise published-lineup change for the affected court', () => {

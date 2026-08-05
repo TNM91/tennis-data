@@ -181,6 +181,17 @@ type TeamRoomActionQueue = {
   lastReminderAt: string
 }
 
+type TeamRoomFinalLineupReview = {
+  announcementMessageId: string
+  sourceMessageId: string
+  requiredCount: number
+  seenCount: number
+  unseenNames: string[]
+  currentUserRequired: boolean
+  currentUserSeen: boolean
+  reminderSentAt: string
+}
+
 type TeamRoom = {
   id: string
   subject: string
@@ -198,6 +209,7 @@ type TeamRoom = {
   href: string
   activeCardId: string
   activeLevelUpChallengeId: string
+  finalLineupReview: TeamRoomFinalLineupReview | null
   actionQueue: TeamRoomActionQueue
 }
 
@@ -256,6 +268,8 @@ function TeamRoomContent() {
   const [schedulingLineupChangeDeadlineId, setSchedulingLineupChangeDeadlineId] = useState('')
   const [lineupChangeDeadlineDate, setLineupChangeDeadlineDate] = useState('')
   const [reminding, setReminding] = useState(false)
+  const [markingFinalLineupSeen, setMarkingFinalLineupSeen] = useState(false)
+  const [remindingFinalLineup, setRemindingFinalLineup] = useState(false)
   const [remindingChallengeId, setRemindingChallengeId] = useState('')
   const [closingChallengeId, setClosingChallengeId] = useState('')
   const [completingChallengeId, setCompletingChallengeId] = useState('')
@@ -806,6 +820,59 @@ function TeamRoomContent() {
     }
   }
 
+  async function markFinalLineupSeen(messageId: string) {
+    if (!room || markingFinalLineupSeen) return
+    setMarkingFinalLineupSeen(true)
+    setError('')
+    try {
+      await postAction({ action: 'ack_final_lineup', messageId })
+      setNotice('Final lineup marked seen.')
+      await loadRoom({ quiet: true })
+    } catch (seenError) {
+      setError(seenError instanceof Error ? seenError.message : 'Your review could not be saved.')
+    } finally {
+      setMarkingFinalLineupSeen(false)
+    }
+  }
+
+  async function remindFinalLineupUnseen(messageId: string) {
+    if (!room || remindingFinalLineup) return
+    setRemindingFinalLineup(true)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'remind_final_lineup_unseen', messageId })
+      const notificationIds = Array.isArray(payload.notificationIds)
+        ? payload.notificationIds.filter((id): id is string => typeof id === 'string')
+        : []
+      if (notificationIds.length) {
+        await fetch('/api/internal-notifications/email-fallback', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ notificationIds }),
+        }).catch(() => null)
+      }
+      const targetCount = Number(payload.targetCount) || 0
+      const mutedCount = Number(payload.mutedCount) || 0
+      setNotice(targetCount
+        ? mutedCount
+          ? `Reminder sent to ${targetCount}. ${mutedCount} unseen player${mutedCount === 1 ? ' has' : 's have'} alerts muted; follow up directly.`
+          : `Reminder sent to ${targetCount} lineup player${targetCount === 1 ? '' : 's'}.`
+        : mutedCount
+          ? 'The unseen players have Team Chat alerts muted. Follow up directly.'
+          : payload.alreadySent === true
+            ? 'The final lineup reminder was already sent.'
+            : 'Everyone has seen the final lineup.')
+      await loadRoom({ quiet: true })
+    } catch (reminderError) {
+      setError(reminderError instanceof Error ? reminderError.message : 'The lineup reminder could not be sent.')
+    } finally {
+      setRemindingFinalLineup(false)
+    }
+  }
+
   async function remindLevelUpChallenge(messageId: string) {
     if (!room || remindingChallengeId) return
     setRemindingChallengeId(messageId)
@@ -1205,7 +1272,16 @@ function TeamRoomContent() {
 
         {activeMatchMessage?.card && currentFinalLineup ? (
           <div className={styles.pinnedArea}>
-            <PublishedLineupPin card={activeMatchMessage.card} receipt={currentFinalLineup} />
+            <PublishedLineupPin
+              card={activeMatchMessage.card}
+              receipt={currentFinalLineup}
+              review={room.finalLineupReview}
+              canManage={room.canManage}
+              markingSeen={markingFinalLineupSeen}
+              reminding={remindingFinalLineup}
+              onSeen={() => void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
+              onRemind={() => void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
+            />
           </div>
         ) : null}
 
@@ -1483,9 +1559,21 @@ function TeamRoomContent() {
 function PublishedLineupPin({
   card,
   receipt,
+  review,
+  canManage,
+  markingSeen,
+  reminding,
+  onSeen,
+  onRemind,
 }: {
   card: TeamRoomMatchCard
   receipt: TeamRoomFinalLineupReceipt
+  review: TeamRoomFinalLineupReview | null
+  canManage: boolean
+  markingSeen: boolean
+  reminding: boolean
+  onSeen: () => void
+  onRemind: () => void
 }) {
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
@@ -1497,7 +1585,11 @@ function PublishedLineupPin({
         <div>
           <span>Final lineup</span>
           <strong>{matchLabel}</strong>
-          <small>{card.lineup.length} court{card.lineup.length === 1 ? '' : 's'} · Tap to view</small>
+          <small>
+            {card.lineup.length} court{card.lineup.length === 1 ? '' : 's'}
+            {review?.requiredCount ? ` · ${review.seenCount}/${review.requiredCount} seen` : ''}
+            {' · Tap to view'}
+          </small>
         </div>
         <em>Current</em>
       </summary>
@@ -1508,6 +1600,40 @@ function PublishedLineupPin({
             <strong>{court.players.join(' / ') || 'Open'}</strong>
           </div>
         ))}
+      </div>
+      <div className={styles.publishedLineupReview}>
+        <div>
+          <strong>
+            {review?.requiredCount && review.seenCount >= review.requiredCount
+              ? 'Everyone has seen it.'
+              : review?.requiredCount
+                ? `${review.seenCount} of ${review.requiredCount} seen`
+                : 'Final lineup is ready'}
+          </strong>
+          {canManage && review?.unseenNames.length ? (
+            <span>Waiting on {review.unseenNames.join(', ')}</span>
+          ) : null}
+        </div>
+        <div className={styles.publishedLineupActions}>
+          {review?.currentUserRequired ? (
+            review.currentUserSeen ? (
+              <span className={styles.publishedLineupSeen}>Seen</span>
+            ) : (
+              <button className={styles.buttonPrimary} type="button" disabled={markingSeen} onClick={onSeen}>
+                {markingSeen ? 'Saving…' : 'Mark seen'}
+              </button>
+            )
+          ) : null}
+          {canManage && Boolean(review?.unseenNames.length) ? (
+            review?.reminderSentAt ? (
+              <span className={styles.publishedLineupSeen}>Reminder sent</span>
+            ) : (
+              <button className={styles.buttonSecondary} type="button" disabled={reminding} onClick={onRemind}>
+                {reminding ? 'Sending…' : `Remind ${review?.unseenNames.length || ''}`}
+              </button>
+            )
+          ) : null}
+        </div>
       </div>
       <p>Published by {receipt.sentByName || 'Team captain'} · {formatMessageTime(receipt.sentAt)}</p>
     </details>
