@@ -1,9 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import { subscribeToLevelUpProgressSynced } from '@/lib/level-up/level-up-progress-events'
 import styles from '@/app/components/active-team-challenge-card.module.css'
+
+const CHALLENGE_REFRESH_DEBOUNCE_MS = 3000
 
 type ActiveTeamChallenge = {
   messageId: string
@@ -38,6 +41,17 @@ type LoadedChallengeSummary = {
 export default function ActiveTeamChallengeCard() {
   const { authResolved, session, userId } = useAuth()
   const [loaded, setLoaded] = useState<{ userId: string; summary: LoadedChallengeSummary } | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
+  const lastRequestedAtRef = useRef(0)
+  const refreshProgress = useCallback(() => {
+    setRefreshTick((current) => current + 1)
+  }, [])
+  const refreshProgressIfStale = useCallback(() => {
+    const now = Date.now()
+    if (now - lastRequestedAtRef.current < CHALLENGE_REFRESH_DEBOUNCE_MS) return
+    lastRequestedAtRef.current = now
+    refreshProgress()
+  }, [refreshProgress])
 
   useEffect(() => {
     if (!authResolved) return
@@ -45,6 +59,7 @@ export default function ActiveTeamChallengeCard() {
     const currentUserId = userId || ''
     if (!accessToken || !currentUserId) return
 
+    lastRequestedAtRef.current = Date.now()
     const controller = new AbortController()
     void fetch('/api/team-rooms?activeChallenge=1', {
       cache: 'no-store',
@@ -72,7 +87,26 @@ export default function ActiveTeamChallengeCard() {
       })
 
     return () => controller.abort()
-  }, [authResolved, session?.access_token, userId])
+  }, [authResolved, refreshTick, session?.access_token, userId])
+
+  useEffect(
+    () => subscribeToLevelUpProgressSynced(refreshProgress),
+    [refreshProgress],
+  )
+
+  useEffect(() => {
+    const refreshVisibleProgress = () => {
+      if (document.visibilityState === 'visible') refreshProgressIfStale()
+    }
+    window.addEventListener('pageshow', refreshProgressIfStale)
+    window.addEventListener('focus', refreshVisibleProgress)
+    document.addEventListener('visibilitychange', refreshVisibleProgress)
+    return () => {
+      window.removeEventListener('pageshow', refreshProgressIfStale)
+      window.removeEventListener('focus', refreshVisibleProgress)
+      document.removeEventListener('visibilitychange', refreshVisibleProgress)
+    }
+  }, [refreshProgressIfStale])
 
   const summary = userId && loaded?.userId === userId ? loaded.summary : null
   const challenge = summary?.activeChallenge || null

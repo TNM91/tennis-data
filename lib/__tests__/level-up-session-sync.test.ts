@@ -8,6 +8,7 @@ const coachApiSource = readFileSync(join(process.cwd(), 'app/api/coach/level-up-
 const coachPageSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
+const progressEventsSource = readFileSync(join(process.cwd(), 'lib/level-up/level-up-progress-events.ts'), 'utf8')
 const authSource = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), 'utf8')
 
 describe('Level Up session sync', () => {
@@ -70,6 +71,9 @@ describe('Level Up session sync', () => {
     expect(portalSource).toContain('coachResult.assignmentSync?.updated')
     expect(portalSource).toContain('Synced. Coach assignment progress updated for review')
     expect(portalSource).toContain('Synced to your Level Up history.')
+    expect(portalSource).toContain('notifyLevelUpProgressSynced()')
+    expect(progressEventsSource).toContain("window.addEventListener('storage', handleStorage)")
+    expect(progressEventsSource).toContain('LEVEL_UP_PROGRESS_SYNCED_STORAGE_KEY')
     expect(portalSource).toContain('remoteSessionToCompletion')
     expect(portalSource).toContain('mergeCompletions')
   })

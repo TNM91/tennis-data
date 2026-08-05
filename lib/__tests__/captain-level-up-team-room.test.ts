@@ -124,4 +124,13 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(activeChallengeStyles).toContain('.moreChallengesSummary')
     expect(activeChallengeStyles).toContain('grid-template-columns: repeat(auto-fit')
   })
+
+  it('refreshes challenge progress after Level Up sync and iPhone page restoration', () => {
+    expect(activeChallengeSource).toContain('subscribeToLevelUpProgressSynced(refreshProgress)')
+    expect(activeChallengeSource).toContain("window.addEventListener('pageshow', refreshProgressIfStale)")
+    expect(activeChallengeSource).toContain("window.addEventListener('focus', refreshVisibleProgress)")
+    expect(activeChallengeSource).toContain("document.addEventListener('visibilitychange', refreshVisibleProgress)")
+    expect(activeChallengeSource).toContain('CHALLENGE_REFRESH_DEBOUNCE_MS')
+    expect(activeChallengeSource).toContain('lastRequestedAtRef.current = Date.now()')
+  })
 })
