@@ -15,6 +15,7 @@ import {
   normalizeLineupRows,
   parseReminderTargets,
   selectActiveTeamRoomCard,
+  selectLatestPastTeamRoomCard,
   teamRoomCardState,
   type TeamRoomReminderTarget,
 } from '@/lib/team-room-match-flow'
@@ -45,6 +46,11 @@ import {
   sortCaptainLevelUpChallengeResumes,
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
+import {
+  buildTeamRoomFinalResult,
+  selectTeamRoomCompletedMatch,
+  type TeamRoomCompletedMatch,
+} from '@/lib/team-room-final-result'
 
 export const runtime = 'nodejs'
 
@@ -2209,10 +2215,12 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       ? loadTeamRoomManagement(service, userId, conversation.id, selected, members)
       : Promise.resolve({ rosterMembers: [], removedMembers: [], activeInviteCount: 0 }),
   ])
-  const activeCardId = selectActiveTeamRoomCard(typedMessageRows.flatMap((row) => {
+  const cardCandidates = typedMessageRows.flatMap((row) => {
     if (row.deleted_at || !isMatchCardMetadata(row.metadata)) return []
     return [{ id: row.id, createdAt: row.created_at || '', matchDate: cleanText(row.metadata.matchDate) }]
-  }))
+  })
+  const planningCardId = selectActiveTeamRoomCard(cardCandidates)
+  const activeCardId = planningCardId || selectLatestPastTeamRoomCard(cardCandidates)
   const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(typedMessageRows.flatMap((row) => {
     if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
     return [{
@@ -2276,6 +2284,9 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     }
   })
   const activeCardRow = rowById.get(activeCardId)
+  const finalResult = activeCardRow && isMatchCardMetadata(activeCardRow.metadata)
+    ? await loadTeamRoomFinalResult(service, selected, activeCardRow.metadata)
+    : null
   const currentFinalLineup = readTeamRoomFinalLineupReceipt(activeCardRow?.metadata?.finalLineup)
   const currentFinalLineupAnnouncement = currentFinalLineup
     ? rowById.get(currentFinalLineup.announcementMessageId)
@@ -2315,6 +2326,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       activeInviteCount: management.activeInviteCount,
       activeCardId,
       activeLevelUpChallengeId,
+      finalResult,
       finalLineupReview: currentFinalLineup && finalLineupReview ? {
         announcementMessageId: currentFinalLineup.announcementMessageId,
         sourceMessageId: currentFinalLineup.sourceMessageId,
@@ -2325,7 +2337,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         currentUserSeen: finalLineupReview.currentUserSeen,
         reminderSentAt: cleanText(currentFinalLineupAnnouncement?.metadata?.finalLineupReviewReminderSentAt),
       } : null,
-      actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === activeCardId) || null),
+      actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === planningCardId) || null),
       messages,
       href: buildTeamRoomHref({
         teamName: selected.team_name,
@@ -2334,6 +2346,33 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       }),
     },
   }
+}
+
+async function loadTeamRoomFinalResult(
+  service: SupabaseClient,
+  scope: TeamLinkRow,
+  metadata: Record<string, unknown>,
+) {
+  const matchDate = cleanText(metadata.matchDate).slice(0, 10)
+  if (!matchDate) return null
+  const { data, error } = await service
+    .from('matches')
+    .select('id,external_match_id,home_team,away_team,match_date,league_name,flight,winner_side,score,status,line_number')
+    .eq('match_date', matchDate)
+    .eq('status', 'completed')
+    .is('line_number', null)
+    .limit(100)
+  if (error) return null
+  const match = selectTeamRoomCompletedMatch((data ?? []) as TeamRoomCompletedMatch[], {
+    matchId: cleanText(metadata.matchId),
+    teamName: scope.team_name,
+    leagueName: scope.league_name,
+    flight: scope.flight,
+    matchDate,
+    opponent: cleanText(metadata.opponent),
+    externalMatchId: cleanText(metadata.externalMatchId),
+  })
+  return match ? buildTeamRoomFinalResult(match, scope.team_name) : null
 }
 
 type LevelUpChallengeMessageRow = Pick<MessageRow, 'id' | 'metadata' | 'created_at' | 'deleted_at'>
@@ -3840,6 +3879,8 @@ function cleanMatchCard(value: unknown) {
     opponent: cleanText(card.opponent).slice(0, 160),
     matchTime: cleanText(card.matchTime).slice(0, 80),
     facility: cleanText(card.facility).slice(0, 240),
+    matchId: cleanText(card.matchId).slice(0, 120),
+    externalMatchId: cleanText(card.externalMatchId).slice(0, 120),
     lineup,
     availabilityRequestId: cleanText(card.availabilityRequestId),
     availabilityRequestUrl: cleanText(card.availabilityRequestUrl).slice(0, 500),

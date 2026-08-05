@@ -2055,6 +2055,7 @@ function LineupBuilderContent() {
                 opponent: opponentTeam,
                 matchTime: selectedMatch?.match_time || '',
                 facility: selectedMatch?.facility || '',
+                matchId: selectedMatch?.id || '',
                 availabilityRequestId,
                 availabilityRequestUrl,
                 lineup: teamSlots.map((slot) => ({
@@ -2456,6 +2457,7 @@ function LineupBuilderContent() {
             opponent: opponentTeam,
             matchTime: selectedMatch?.match_time || '',
             facility: selectedMatch?.facility || '',
+            matchId: selectedMatch?.id || '',
             lineup: teamSlots.map((slot) => ({
               label: slot.label,
               players: slot.players.map((player) => player.playerName).filter(Boolean),

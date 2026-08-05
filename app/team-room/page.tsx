@@ -116,6 +116,8 @@ type TeamRoomMatchCard = {
   opponent: string
   matchTime: string
   facility: string
+  matchId: string
+  externalMatchId: string
   lineup: Array<{ label: string; players: string[] }>
   availabilityRequestId: string
   availabilityRequestUrl: string
@@ -170,6 +172,17 @@ type TeamRoomMatchCard = {
   } | null
 }
 
+type TeamRoomFinalResult = {
+  matchId: string
+  externalMatchId: string
+  teamName: string
+  opponentName: string
+  teamScore: string
+  opponentScore: string
+  score: string
+  outcome: 'win' | 'loss' | 'final'
+}
+
 type TeamRoomActionQueue = {
   messageId: string
   matchDate: string
@@ -215,6 +228,7 @@ type TeamRoom = {
   href: string
   activeCardId: string
   activeLevelUpChallengeId: string
+  finalResult: TeamRoomFinalResult | null
   finalLineupReview: TeamRoomFinalLineupReview | null
   actionQueue: TeamRoomActionQueue
 }
@@ -1307,21 +1321,22 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {activeMatchMessage?.card && currentFinalLineup ? (
+        {activeMatchMessage?.card && (currentFinalLineup || room.finalResult) ? (
           <div className={styles.pinnedArea}>
             <PublishedLineupPin
               card={activeMatchMessage.card}
               receipt={currentFinalLineup}
               review={room.finalLineupReview}
+              result={room.finalResult}
               canManage={room.canManage}
               phase={currentFinalLineupPhase}
               scorecardHref={scorecardHref}
               markingSeen={markingFinalLineupSeen}
               reminding={remindingFinalLineup}
               completingMatchDay={completingMatchDay}
-              onSeen={() => void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
-              onRemind={() => void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
-              onCompleteMatch={() => void completeMatchDay(currentFinalLineup.announcementMessageId)}
+              onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
+              onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
+              onCompleteMatch={() => currentFinalLineup && void completeMatchDay(currentFinalLineup.announcementMessageId)}
             />
           </div>
         ) : null}
@@ -1601,6 +1616,7 @@ function PublishedLineupPin({
   card,
   receipt,
   review,
+  result,
   canManage,
   phase,
   scorecardHref,
@@ -1612,8 +1628,9 @@ function PublishedLineupPin({
   onCompleteMatch,
 }: {
   card: TeamRoomMatchCard
-  receipt: TeamRoomFinalLineupReceipt
+  receipt: TeamRoomFinalLineupReceipt | null
   review: TeamRoomFinalLineupReview | null
+  result: TeamRoomFinalResult | null
   canManage: boolean
   phase: TeamRoomMatchDayPhase
   scorecardHref: string
@@ -1631,14 +1648,21 @@ function PublishedLineupPin({
   const mapsHref = buildTeamRoomMapsHref(card.facility)
   const isMatchDay = phase === 'match_day'
   const isPostMatch = phase === 'post_match'
+  const scoreLabel = result?.teamScore && result.opponentScore
+    ? `${result.teamScore}–${result.opponentScore}`
+    : result?.score || 'Final'
+  const outcomeLabel = result?.outcome === 'win' ? 'Won' : result?.outcome === 'loss' ? 'Lost' : 'Final'
+  const resultSummary = scoreLabel === 'Final' ? outcomeLabel : `${outcomeLabel} ${scoreLabel}`
   return (
     <details className={styles.publishedLineupPin} open={phase !== 'upcoming'}>
       <summary>
         <div>
-          <span>{isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Final lineup'}</span>
+          <span>{result ? 'Final result' : isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Final lineup'}</span>
           <strong>{matchLabel}</strong>
           <small>
-            {isPostMatch
+            {result
+              ? `${resultSummary} · Scorecard linked`
+              : isPostMatch
               ? canManage ? 'Add the scorecard to close the loop' : 'Result is next'
               : isMatchDay
                 ? `Arrive ${card.matchTime || 'time TBD'} · ${mapsHref ? 'Maps ready' : 'Location TBD'}`
@@ -1649,9 +1673,21 @@ function PublishedLineupPin({
                   </>}
           </small>
         </div>
-        <em>{isPostMatch ? 'Scores' : isMatchDay ? 'Today' : 'Current'}</em>
+        <em>{result ? outcomeLabel : isPostMatch ? 'Scores' : isMatchDay ? 'Today' : 'Current'}</em>
       </summary>
-      {phase !== 'upcoming' ? (
+      {result ? (
+        <div className={styles.matchResultScore}>
+          <div>
+            <strong>{result.teamScore || '—'}</strong>
+            <span>{result.teamName}</span>
+          </div>
+          <em>Final</em>
+          <div>
+            <strong>{result.opponentScore || '—'}</strong>
+            <span>{result.opponentName || card.opponent || 'Opponent'}</span>
+          </div>
+        </div>
+      ) : phase !== 'upcoming' ? (
         <div className={styles.matchDayLogistics}>
           <div>
             <span>Arrive</span>
@@ -1663,7 +1699,7 @@ function PublishedLineupPin({
           </div>
         </div>
       ) : null}
-      {phase !== 'upcoming' ? (
+      {!result && phase !== 'upcoming' ? (
         <div className={styles.matchDayActions}>
           {isPostMatch && canManage ? (
             <Link className={styles.buttonPrimary} href={scorecardHref}>Add scorecard</Link>
@@ -1678,15 +1714,17 @@ function PublishedLineupPin({
           ) : null}
         </div>
       ) : null}
-      <div className={styles.publishedLineupRows}>
-        {card.lineup.map((court, index) => (
-          <div key={`${court.label}-${index}`}>
-            <span>{court.label || `Court ${index + 1}`}</span>
-            <strong>{court.players.join(' / ') || 'Open'}</strong>
-          </div>
-        ))}
-      </div>
-      {phase === 'upcoming' ? <div className={styles.publishedLineupReview}>
+      {!result ? (
+        <div className={styles.publishedLineupRows}>
+          {card.lineup.map((court, index) => (
+            <div key={`${court.label}-${index}`}>
+              <span>{court.label || `Court ${index + 1}`}</span>
+              <strong>{court.players.join(' / ') || 'Open'}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {phase === 'upcoming' && receipt ? <div className={styles.publishedLineupReview}>
         <div>
           <strong>
             {review?.requiredCount && review.seenCount >= review.requiredCount
@@ -1720,7 +1758,7 @@ function PublishedLineupPin({
           ) : null}
         </div>
       </div> : null}
-      {phase === 'upcoming' ? (
+      {phase === 'upcoming' && receipt ? (
         <p>Published by {receipt.sentByName || 'Team captain'} · {formatMessageTime(receipt.sentAt)}</p>
       ) : null}
     </details>
