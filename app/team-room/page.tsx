@@ -406,6 +406,19 @@ function TeamRoomContent() {
     date: pinnedMessage?.card?.matchDate || matchDraft.matchDate,
     opponent: pinnedMessage?.card?.opponent || matchDraft.opponent,
   }), [matchDraft.matchDate, matchDraft.opponent, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.opponent, room?.flight, room?.leagueName, room?.teamName])
+  const finalLineupEditHref = useMemo(() => {
+    const card = activeMatchMessage?.card
+    const baseHref = buildCaptainScopedHref('/captain/lineup-builder', {
+      team: room?.teamName,
+      league: room?.leagueName,
+      flight: room?.flight,
+      date: card?.matchDate,
+      opponent: card?.opponent,
+      scenarioId: card?.availabilitySummary?.scenarioId || undefined,
+    })
+    const params = new URLSearchParams({ source: 'team_room', availability: 'replies' })
+    return `${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}#captain-lineup-courts`
+  }, [activeMatchMessage?.card, room?.flight, room?.leagueName, room?.teamName])
   const scorecardReturnHref = room?.href || captainHref
   const scorecardHref = `/data-assist?intent=upload-source&context=Team%20Room&type=scorecard&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const playerLinksHref = `/data-assist?intent=upload-source&context=Team%20Room&type=team_summary&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
@@ -1436,6 +1449,7 @@ function TeamRoomContent() {
               phase="post_match"
               scorecardHref={scorecardHref}
               playerLinksHref={playerLinksHref}
+              lineupHref={finalLineupEditHref}
               markingSeen={false}
               reminding={false}
               completingMatchDay={false}
@@ -1462,6 +1476,7 @@ function TeamRoomContent() {
               phase={currentFinalLineupPhase}
               scorecardHref={scorecardHref}
               playerLinksHref={playerLinksHref}
+              lineupHref={finalLineupEditHref}
               markingSeen={markingFinalLineupSeen}
               reminding={remindingFinalLineup}
               completingMatchDay={completingMatchDay}
@@ -1474,6 +1489,7 @@ function TeamRoomContent() {
 
         {room.canManage
         && pinnedMessage?.card
+        && !pinnedMessage.card.finalLineup
         && !pinnedMessage.card.availabilitySummary
         && !(pinnedMessage.card.lineupChangeNotice
           && !pinnedMessage.card.lineupChangeNotice.pending
@@ -1507,7 +1523,7 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {pinnedMessage?.card ? (
+        {pinnedMessage?.card && !pinnedMessage.card.finalLineup ? (
           <div className={styles.pinnedArea}>
             <MatchCard
               message={pinnedMessage}
@@ -1753,6 +1769,7 @@ function PublishedLineupPin({
   phase,
   scorecardHref,
   playerLinksHref,
+  lineupHref,
   markingSeen,
   reminding,
   completingMatchDay,
@@ -1769,6 +1786,7 @@ function PublishedLineupPin({
   phase: TeamRoomMatchDayPhase
   scorecardHref: string
   playerLinksHref: string
+  lineupHref: string
   markingSeen: boolean
   reminding: boolean
   completingMatchDay: boolean
@@ -1791,10 +1809,10 @@ function PublishedLineupPin({
   const resultSummary = scoreLabel === 'Final' ? outcomeLabel : `${outcomeLabel} ${scoreLabel}`
   const resultLines = result?.lines ?? []
   return (
-    <details className={styles.publishedLineupPin} open={defaultOpen ?? phase !== 'upcoming'}>
+    <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result || receipt)}>
       <summary>
         <div>
-          <span>{result ? 'Final result' : isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Final lineup'}</span>
+          <span>{result ? 'Final result' : isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Match plan'}</span>
           <strong>{matchLabel}</strong>
           <small>
             {result
@@ -1806,11 +1824,11 @@ function PublishedLineupPin({
                 : <>
                     {card.lineup.length} court{card.lineup.length === 1 ? '' : 's'}
                     {review?.requiredCount ? ` · ${review.seenCount}/${review.requiredCount} seen` : ''}
-                    {' · Tap to view'}
+                    {' · Sent to team'}
                   </>}
           </small>
         </div>
-        <em>{result ? outcomeLabel : isPostMatch ? 'Scores' : isMatchDay ? 'Today' : 'Current'}</em>
+        <em>{result ? outcomeLabel : isPostMatch ? 'Scores' : isMatchDay ? 'Today' : 'Sent'}</em>
       </summary>
       {result ? (
         <div className={styles.matchResultBody}>
@@ -1855,7 +1873,7 @@ function PublishedLineupPin({
             </details>
           ) : null}
         </div>
-      ) : phase !== 'upcoming' ? (
+      ) : (
         <div className={styles.matchDayLogistics}>
           <div>
             <span>Arrive</span>
@@ -1866,14 +1884,17 @@ function PublishedLineupPin({
             <strong>{card.facility || 'Location TBD'}</strong>
           </div>
         </div>
-      ) : null}
-      {!result && phase !== 'upcoming' ? (
+      )}
+      {!result ? (
         <div className={styles.matchDayActions}>
           {isPostMatch && canManage ? (
             <Link className={styles.buttonPrimary} href={scorecardHref}>Add scorecard</Link>
           ) : null}
           {mapsHref ? (
             <a className={styles.buttonSecondary} href={mapsHref} target="_blank" rel="noreferrer">Open maps</a>
+          ) : null}
+          {canManage && !isPostMatch ? (
+            <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>
           ) : null}
           {isMatchDay && canManage ? (
             <button className={styles.buttonSecondary} type="button" disabled={completingMatchDay} onClick={onCompleteMatch}>
