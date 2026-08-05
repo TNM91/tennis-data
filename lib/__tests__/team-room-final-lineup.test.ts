@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildPublishedLineupChangeAnnouncement,
   buildTeamRoomFinalLineupReceipt,
   isTeamRoomFinalLineupSent,
   readTeamRoomFinalLineupReceipt,
@@ -31,5 +32,21 @@ describe('Team Room final lineup receipt', () => {
   it('rejects incomplete receipts and other lineup versions', () => {
     expect(readTeamRoomFinalLineupReceipt({ lineupId: receipt.lineupId })).toBeNull()
     expect(isTeamRoomFinalLineupSent(receipt, 'lineup-locked:message-1:new')).toBe(false)
+  })
+
+  it('builds one concise published-lineup change for the affected court', () => {
+    expect(buildPublishedLineupChangeAnnouncement({
+      courtLabel: '4.0 Doubles',
+      outgoingPlayerName: 'Alex Ace',
+      replacementPlayerName: 'Blair Ball',
+      afterPlayers: ['Blair Ball', 'Casey Court'],
+      matchDate: '2026-08-12',
+      opponent: 'Net Results',
+    })).toBe([
+      'Final lineup changed — 2026-08-12 vs Net Results',
+      '4.0 Doubles: Blair Ball / Casey Court',
+      'Blair Ball replaces Alex Ace.',
+      'Blair Ball, please confirm this court.',
+    ].join('\n'))
   })
 })

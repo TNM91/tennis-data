@@ -128,6 +128,12 @@ type TeamRoomMatchCard = {
     deadlineAt: string
     deadlineStatus: '' | 'scheduled' | 'reminded' | 'answered'
     reminderSentAt: string
+    publishedLineupChange: boolean
+    previousFinalLineupId: string
+    publishedAnnouncementMessageId: string
+    publishedAt: string
+    publishedByUserId: string
+    publishedByName: string
   } | null
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
@@ -688,8 +694,11 @@ function TeamRoomContent() {
         copiedForDirectShare = await navigator.clipboard.writeText(shareText).then(() => true).catch(() => false)
       }
       const notifiedCount = Math.max(0, Number(payload.notifiedCount) || 0)
+      const publishedLineupChange = payload.publishedLineupChange === true
       setNotice(
-        `${notifiedCount ? `Notified ${notifiedCount} connected player${notifiedCount === 1 ? '' : 's'}.` : 'Lineup update marked ready to share.'}`
+        `${publishedLineupChange
+          ? 'Final lineup change posted in Team Chat.'
+          : notifiedCount ? `Notified ${notifiedCount} connected player${notifiedCount === 1 ? '' : 's'}.` : 'Lineup update marked ready to share.'}`
         + (directShareNames.length
           ? copiedForDirectShare
             ? ` Update copied for ${directShareNames.join(', ')}.`
@@ -721,7 +730,9 @@ function TeamRoomContent() {
         }).catch(() => null)
       }
       setNotice(response === 'accepted'
-        ? 'You’re confirmed for this court. The captain has been updated.'
+        ? payload.finalLineupPublished === true
+          ? 'You’re confirmed. The revised final lineup is now published.'
+          : 'You’re confirmed for this court. The captain has been updated.'
         : 'The captain knows you can’t play and can choose another player.')
       await loadRoom({ quiet: true })
     } catch (responseError) {
@@ -1975,18 +1986,20 @@ function MatchCard({
             ? styles.lineupChangeDeclined
             : lineupChangeOverdue ? styles.lineupChangeOverdue : styles.lineupChangeSent}>
           <strong>{lineupChangeNotice.pending
-            ? 'Ready to notify affected players'
+            ? lineupChangeNotice.publishedLineupChange ? 'Final lineup change ready' : 'Ready to notify affected players'
             : lineupChangeNotice.response === 'accepted'
-              ? 'Replacement confirmed'
+              ? lineupChangeNotice.publishedLineupChange ? 'Published lineup confirmed' : 'Replacement confirmed'
               : lineupChangeNotice.response === 'declined'
                 ? 'Replacement can’t play'
-                : lineupChangeOverdue ? 'Response overdue' : 'Waiting for replacement'}</strong>
+                : lineupChangeOverdue
+                  ? 'Response overdue'
+                  : lineupChangeNotice.publishedLineupChange ? 'Published update sent' : 'Waiting for replacement'}</strong>
           <span>
             {lineupChangeNotice.replacementPlayerName} replaces {lineupChangeNotice.outgoingPlayerName} on {lineupChangeNotice.courtLabel}.
           </span>
           {!lineupChangeNotice.pending ? (
             <small>{lineupChangeNotice.response === 'accepted'
-              ? `${lineupChangeNotice.responderName || lineupChangeNotice.replacementPlayerName} accepted this court.`
+              ? `${lineupChangeNotice.responderName || lineupChangeNotice.replacementPlayerName} accepted this court.${lineupChangeNotice.publishedLineupChange ? ' The revised lineup is published.' : ''}`
               : lineupChangeNotice.response === 'declined'
                 ? 'Choose another player for this court.'
                 : lineupChangeOverdue
@@ -2085,7 +2098,11 @@ function MatchCard({
             <>
               {lineupChangeNotice?.pending ? (
                 <button className={styles.buttonPrimary} type="button" disabled={notifyingLineupChange} onClick={onNotifyLineupChange}>
-                  {notifyingLineupChange ? 'Notifying…' : `Notify ${lineupChangeNotice.affectedNames.length} affected`}
+                  {notifyingLineupChange
+                    ? 'Sending…'
+                    : lineupChangeNotice.publishedLineupChange
+                      ? 'Send lineup change'
+                      : `Notify ${lineupChangeNotice.affectedNames.length} affected`}
                 </button>
               ) : lineupChangeNotice?.response === 'declined' ? (
                 <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Find another player</Link>
