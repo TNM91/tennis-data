@@ -85,7 +85,7 @@ describe('Captain mobile action priority', () => {
       { id: 'court-readiness' as const, label: 'Court' },
     ])
 
-    expect(items.map((item) => item.label)).toEqual(['Court', 'Reply', 'Confirmed', 'Availability', 'Improve', 'Complete'])
+    expect(items.map((item) => item.label)).toEqual(['Confirmed', 'Court', 'Reply', 'Availability', 'Improve', 'Complete'])
   })
 
   it('puts a directly linked reply ahead of every other notice', () => {

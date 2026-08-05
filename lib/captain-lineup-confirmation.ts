@@ -13,6 +13,14 @@ export type CaptainConfirmedLineupChange = {
   afterPlayers: string[]
 }
 
+export type CaptainLineupConfirmationNextStep = {
+  kind: 'court' | 'task' | 'complete'
+  eyebrow: string
+  title: string
+  detail: string
+  cta: string
+}
+
 export function buildCaptainLineupConfirmationId(change: CaptainConfirmedLineupChange) {
   return [
     change.messageId.trim(),
@@ -56,6 +64,43 @@ export function rememberCaptainLineupConfirmation(
       entry.userId === input.userId && entry.confirmationId === input.confirmationId
     )),
   ].slice(0, limit)
+}
+
+export function buildCaptainLineupConfirmationNextStep(input: {
+  nextCourt?: { label: string; status: 'waiting' | 'needs_captain' } | null
+  nextTask?: { label: string; detail: string; cta: string } | null
+  confirmedCount: number
+  totalCount: number
+}): CaptainLineupConfirmationNextStep {
+  if (input.nextCourt) {
+    return {
+      kind: 'court',
+      eyebrow: 'Next court',
+      title: input.nextCourt.label,
+      detail: input.nextCourt.status === 'needs_captain'
+        ? `${input.nextCourt.label} needs your decision.`
+        : `${input.nextCourt.label} is waiting on a player reply.`,
+      cta: 'Open next court',
+    }
+  }
+
+  if (input.nextTask) {
+    return {
+      kind: 'task',
+      eyebrow: input.totalCount > 0 && input.confirmedCount >= input.totalCount ? 'Courts ready' : 'Next match task',
+      title: input.nextTask.label,
+      detail: input.nextTask.detail,
+      cta: input.nextTask.cta,
+    }
+  }
+
+  return {
+    kind: 'complete',
+    eyebrow: 'Lineup ready',
+    title: input.totalCount > 0 ? `All ${input.totalCount} courts confirmed` : 'Court is set',
+    detail: 'Open Team Chat if the team needs an update.',
+    cta: 'Open Team Chat',
+  }
 }
 
 function normalizeKey(value: string) {

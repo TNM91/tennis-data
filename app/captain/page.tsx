@@ -131,6 +131,7 @@ import {
 } from '@/lib/captain-replacement-recommendation'
 import {
   buildCaptainLineupConfirmationId,
+  buildCaptainLineupConfirmationNextStep,
   buildCaptainLineupConfirmationShareBody,
   hasSeenCaptainLineupConfirmation,
   rememberCaptainLineupConfirmation,
@@ -7377,53 +7378,6 @@ function CaptainHubContent() {
         {!captainReplyAlertIsPersistent ? (
           <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
             Dismiss
-          </button>
-        ) : null}
-      </div>
-    </div>
-  ) : null
-  const captainLineupConfirmationSurface = captainShowLineupConfirmation && captainConfirmedLineupChange ? (
-    <div
-      role="status"
-      aria-live="polite"
-      style={{
-        ...captainHomeLineupConfirmationShell,
-        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeLineupConfirmationShell.gridTemplateColumns,
-      }}
-    >
-      <div style={captainHomeAvailabilityProgressCopy}>
-        <span style={commandCenterLabel}>Court confirmed</span>
-        <strong style={captainHomeAvailabilityProgressTitle}>
-          {captainConfirmedLineupChange.replacementPlayerName} confirmed {captainConfirmedLineupChange.courtLabel}
-        </strong>
-        <span style={captainHomeAvailabilityProgressDetailStyle}>
-          {captainConfirmedLineupChange.afterPlayers.length
-            ? `${captainConfirmedLineupChange.afterPlayers.join(' / ')} is set.`
-            : 'The replacement is confirmed and the court is set.'}
-        </span>
-        {captainLineupConfirmationShareError ? (
-          <span style={captainLineupConfirmationError} role="alert">{captainLineupConfirmationShareError}</span>
-        ) : null}
-      </div>
-      <div style={captainHomeAvailabilityProgressActions}>
-        <PrimarySmallBtn
-          fullWidth={isMobile}
-          disabled={captainLineupConfirmationShareState !== 'idle'}
-          onClick={() => void shareCaptainLineupConfirmation()}
-        >
-          {captainLineupConfirmationShareState === 'sharing'
-            ? 'Sharing...'
-            : captainLineupConfirmationShareState === 'shared' ? 'Shared with team' : 'Share with team'}
-        </PrimarySmallBtn>
-        <SecondarySmallBtn
-          fullWidth={isMobile}
-          onClick={() => handleCaptainAction(captainLineupChangeCourtHref, 'team-room')}
-        >
-          Open Team Chat
-        </SecondarySmallBtn>
-        {captainLineupConfirmationShareState !== 'shared' ? (
-          <button type="button" style={captainReplyAlertDismiss} onClick={dismissCaptainLineupConfirmation}>
-            Done
           </button>
         ) : null}
       </div>
@@ -16209,6 +16163,87 @@ function CaptainHubContent() {
     ? captainCourtPrimaryAction.state
     : captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus
 
+  const captainLineupConfirmationNextTaskItem = captainPrimaryUnresolvedCourt
+    ? null
+    : captainHomeShortcutItems.find((item) => item.tone !== 'good') ?? null
+  const captainLineupConfirmationNextTask = captainLineupConfirmationNextTaskItem
+    ? {
+        label: captainLineupConfirmationNextTaskItem.label,
+        detail: captainLineupConfirmationNextTaskItem.detail,
+        cta: captainLineupConfirmationNextTaskItem.cta,
+      }
+    : null
+  const captainLineupConfirmationNextStep = buildCaptainLineupConfirmationNextStep({
+    nextCourt: captainPrimaryUnresolvedCourt,
+    nextTask: captainLineupConfirmationNextTask,
+    confirmedCount: captainCourtReadiness?.confirmedCount || 0,
+    totalCount: captainCourtReadiness?.totalCount || 0,
+  })
+
+  function handleCaptainLineupConfirmationNext() {
+    dismissCaptainLineupConfirmation()
+    if (captainPrimaryUnresolvedCourt) {
+      handleCaptainTeamRoomNav(captainPrimaryCourtHref)
+      return
+    }
+    if (captainLineupConfirmationNextTaskItem) {
+      handleCaptainAction(captainLineupConfirmationNextTaskItem.href, captainLineupConfirmationNextTaskItem.stage)
+      return
+    }
+    handleCaptainTeamRoomNav(teamRoomHref)
+  }
+
+  const captainLineupConfirmationSurface = captainShowLineupConfirmation && captainConfirmedLineupChange ? (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        ...captainHomeLineupConfirmationShell,
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeLineupConfirmationShell.gridTemplateColumns,
+      }}
+    >
+      <div style={captainHomeAvailabilityProgressCopy}>
+        <span style={commandCenterLabel}>Court confirmed</span>
+        <strong style={captainHomeAvailabilityProgressTitle}>
+          {captainConfirmedLineupChange.replacementPlayerName} confirmed {captainConfirmedLineupChange.courtLabel}
+        </strong>
+        <span style={captainHomeAvailabilityProgressDetailStyle}>
+          {captainConfirmedLineupChange.afterPlayers.length
+            ? `${captainConfirmedLineupChange.afterPlayers.join(' / ')} is set.`
+            : 'The replacement is confirmed and the court is set.'}
+        </span>
+        <span style={captainLineupConfirmationNextStepStyle}>
+          <small style={commandCenterLabel}>{captainLineupConfirmationNextStep.eyebrow}</small>
+          <strong style={captainHomeAvailabilityProgressTitle}>{captainLineupConfirmationNextStep.title}</strong>
+          <span style={captainHomeAvailabilityProgressDetailStyle}>{captainLineupConfirmationNextStep.detail}</span>
+        </span>
+        {captainLineupConfirmationShareError ? (
+          <span style={captainLineupConfirmationError} role="alert">{captainLineupConfirmationShareError}</span>
+        ) : null}
+      </div>
+      <div style={captainHomeAvailabilityProgressActions}>
+        <PrimarySmallBtn fullWidth={isMobile} onClick={handleCaptainLineupConfirmationNext}>
+          {captainLineupConfirmationNextStep.cta}
+        </PrimarySmallBtn>
+        <SecondarySmallBtn
+          fullWidth={isMobile}
+          disabled={captainLineupConfirmationShareState !== 'idle'}
+          onClick={() => void shareCaptainLineupConfirmation()}
+        >
+          {captainLineupConfirmationShareState === 'sharing'
+            ? 'Sharing...'
+            : captainLineupConfirmationShareState === 'shared' ? 'Shared with team' : 'Share confirmed court'}
+        </SecondarySmallBtn>
+        {captainLineupConfirmationShareState !== 'shared' ? (
+          <button type="button" style={captainReplyAlertDismiss} onClick={dismissCaptainLineupConfirmation}>
+            Done
+          </button>
+        ) : null}
+      </div>
+    </div>
+  ) : null
+  const captainVisibleCourtReadinessCard = captainShowLineupConfirmation ? null : captainCourtReadinessCard
+
   const captainMobileAttention = captainPrimaryTeamImprovement
     ? {
         title: captainPrimaryTeamImprovement.title,
@@ -16243,7 +16278,7 @@ function CaptainHubContent() {
     </div>
   ) : null
   const captainMobileNowCandidates: Array<CaptainMobileNowItem | null> = [
-    captainCourtReadinessCard ? { id: 'court-readiness', content: captainCourtReadinessCard } : null,
+    captainVisibleCourtReadinessCard ? { id: 'court-readiness', content: captainVisibleCourtReadinessCard } : null,
     captainReplyAlertSurface
       ? { id: captainReplyFocusAlert ? 'reply-focus' : 'reply', content: captainReplyAlertSurface }
       : null,
@@ -16470,7 +16505,7 @@ function CaptainHubContent() {
 
       {captainHomeAvailabilityProgress}
 
-      {captainCourtReadinessCard}
+      {captainVisibleCourtReadinessCard}
 
       <div style={dynamicCaptainHomeShortcutHero}>
         <div>
@@ -25781,6 +25816,14 @@ const captainLineupConfirmationError: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 800,
+}
+
+const captainLineupConfirmationNextStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  marginTop: 6,
+  borderLeft: '3px solid rgba(155,225,29,0.64)',
+  padding: '7px 0 7px 10px',
 }
 
 const captainReplyAlertDismiss: CSSProperties = {

@@ -13,9 +13,9 @@ export type CaptainMobileNowItemId =
 
 const CAPTAIN_MOBILE_NOW_PRIORITY: Record<CaptainMobileNowItemId, number> = {
   'reply-focus': 0,
-  'court-readiness': 1,
-  reply: 2,
-  'lineup-confirmed': 3,
+  'lineup-confirmed': 1,
+  'court-readiness': 2,
+  reply: 3,
   'availability-open': 4,
   'team-improvement': 5,
   'availability-complete': 6,
