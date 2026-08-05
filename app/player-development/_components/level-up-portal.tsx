@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 import { useSearchParams } from 'next/navigation'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
+import { notifyLevelUpProgressSynced } from '@/lib/level-up/level-up-progress-events'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
 import type { LevelUpAssignment, LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
 import { getCoachAssignmentSummary, type CoachAssignment, type CoachStudentLink } from '@/lib/coach-storage'
@@ -9325,6 +9326,7 @@ async function syncPortalCompletion({
     sharedWithCoach: true,
   })
   if (coachResult.ok) {
+    notifyLevelUpProgressSynced()
     setSyncState({
       status: 'synced',
       message: coachResult.assignmentSync?.updated
@@ -9344,6 +9346,7 @@ async function syncPortalCompletion({
     sharedWithCoach: false,
   })
   if (playerPlusResult.ok) {
+    notifyLevelUpProgressSynced()
     setSyncState({ status: 'synced', message: 'Synced to your Level Up history.' })
     return
   }
