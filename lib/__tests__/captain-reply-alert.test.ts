@@ -92,7 +92,7 @@ describe('captain reply alerts', () => {
     expect(captainSource).toContain('listInternalNotifications(userId, { unreadOnly: true')
     expect(captainSource).toContain('markInternalNotificationRead(notification.id, userId)')
     expect(captainSource).toContain('New availability reply')
-    expect(captainSource).toContain('Adjust lineup')
+    expect(captainSource).toContain('Review affected lineup')
     expect(captainSource).toContain('captainReplyAlertHref')
     expect(messagesSource).toContain('router.push(notification.href)')
     expect(routeSource).toContain('buildCaptainReplyNotification({')
