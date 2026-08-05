@@ -325,12 +325,16 @@
   padding: 7px 12px 1px;
 }
 
+.matchResultBody {
+  padding-bottom: 0.01rem;
+}
+
 .matchResultScore {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
-  margin: 0.8rem 1rem 1rem;
+  margin: 0.8rem 1rem 0.65rem;
   padding: 0.9rem;
   border: 1px solid rgba(153, 230, 54, 0.24);
   border-radius: 1rem;
@@ -364,6 +368,123 @@
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.matchResultLines {
+  overflow: hidden;
+  margin: 0 1rem 1rem;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--shell-chip-bg) 82%, transparent);
+}
+
+.publishedLineupPin .matchResultLines > summary {
+  display: flex;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 8px 11px;
+  border-bottom: 0;
+}
+
+.publishedLineupPin .matchResultLines > summary span {
+  color: var(--foreground-strong);
+  font-size: 0.76rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.publishedLineupPin .matchResultLines > summary em {
+  min-width: 1.65rem;
+  padding: 4px 7px;
+  text-align: center;
+}
+
+.publishedLineupPin .matchResultLines[open] > summary {
+  border-bottom: 1px solid var(--shell-panel-border);
+}
+
+.matchResultLineList {
+  display: grid;
+}
+
+.matchResultLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  padding: 10px 11px;
+}
+
+.matchResultLine + .matchResultLine {
+  border-top: 1px solid var(--shell-panel-border);
+}
+
+.matchResultLineHeading {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.matchResultLineHeading strong {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.matchResultLineHeading span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: var(--shell-chip-bg-strong);
+  color: var(--shell-copy-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.matchResultLineHeading span[data-outcome='team'] {
+  background: color-mix(in srgb, var(--brand-green) 15%, var(--shell-chip-bg));
+  color: var(--brand-green-3);
+}
+
+.matchResultLineHeading span[data-outcome='opponent'] {
+  background: color-mix(in srgb, #ef4444 13%, var(--shell-chip-bg));
+  color: #fca5a5;
+}
+
+.matchResultLine p,
+.matchResultLine small {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.matchResultLine p {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.matchResultLine small {
+  color: var(--shell-copy-muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.matchResultLine > em {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  align-self: center;
+  max-width: 7.5rem;
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .matchDayActions > * {

@@ -181,6 +181,14 @@ type TeamRoomFinalResult = {
   opponentScore: string
   score: string
   outcome: 'win' | 'loss' | 'final'
+  lines: Array<{
+    id: string
+    label: string
+    teamPlayers: string[]
+    opponentPlayers: string[]
+    score: string
+    winner: 'team' | 'opponent' | 'final'
+  }>
 }
 
 type TeamRoomActionQueue = {
@@ -1653,6 +1661,7 @@ function PublishedLineupPin({
     : result?.score || 'Final'
   const outcomeLabel = result?.outcome === 'win' ? 'Won' : result?.outcome === 'loss' ? 'Lost' : 'Final'
   const resultSummary = scoreLabel === 'Final' ? outcomeLabel : `${outcomeLabel} ${scoreLabel}`
+  const resultLines = result?.lines ?? []
   return (
     <details className={styles.publishedLineupPin} open={phase !== 'upcoming'}>
       <summary>
@@ -1676,16 +1685,41 @@ function PublishedLineupPin({
         <em>{result ? outcomeLabel : isPostMatch ? 'Scores' : isMatchDay ? 'Today' : 'Current'}</em>
       </summary>
       {result ? (
-        <div className={styles.matchResultScore}>
-          <div>
-            <strong>{result.teamScore || '—'}</strong>
-            <span>{result.teamName}</span>
+        <div className={styles.matchResultBody}>
+          <div className={styles.matchResultScore}>
+            <div>
+              <strong>{result.teamScore || '—'}</strong>
+              <span>{result.teamName}</span>
+            </div>
+            <em>Final</em>
+            <div>
+              <strong>{result.opponentScore || '—'}</strong>
+              <span>{result.opponentName || card.opponent || 'Opponent'}</span>
+            </div>
           </div>
-          <em>Final</em>
-          <div>
-            <strong>{result.opponentScore || '—'}</strong>
-            <span>{result.opponentName || card.opponent || 'Opponent'}</span>
-          </div>
+          {resultLines.length ? (
+            <details className={styles.matchResultLines}>
+              <summary>
+                <span>Court results</span>
+                <em>{resultLines.length}</em>
+              </summary>
+              <div className={styles.matchResultLineList}>
+                {resultLines.map((line) => (
+                  <article className={styles.matchResultLine} key={line.id}>
+                    <div className={styles.matchResultLineHeading}>
+                      <strong>{line.label}</strong>
+                      <span data-outcome={line.winner}>
+                        {line.winner === 'team' ? 'Won' : line.winner === 'opponent' ? 'Lost' : 'Final'}
+                      </span>
+                    </div>
+                    <p>{line.teamPlayers.join(' / ') || result.teamName}</p>
+                    <small>vs {line.opponentPlayers.join(' / ') || result.opponentName || 'Opponent'}</small>
+                    <em>{line.score || 'Final'}</em>
+                  </article>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
       ) : phase !== 'upcoming' ? (
         <div className={styles.matchDayLogistics}>
