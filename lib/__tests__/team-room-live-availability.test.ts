@@ -162,6 +162,7 @@ describe('Team Room live availability card', () => {
 
   it('stores one shared final-lineup send for every captain', () => {
     const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
 
     expect(roomApi).toContain("if (action === 'send_final_lineup')")
     expect(roomApi).toContain('readiness.finalLineup?.lineupId === serverLineupId')
@@ -171,6 +172,9 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('alreadySent: true')
     expect(roomApi).toContain('finalLineup: finalLineup ? {')
     expect(roomApi).toContain('readTeamRoomFinalLineupReceipt(latestCard?.metadata?.finalLineup)')
+    expect(roomPage).toContain("action: 'send_final_lineup'")
+    expect(roomPage).toContain("{sendingFinalLineup ? 'Sending…' : 'Send lineup to team'}")
+    expect(roomPage).toContain("<span className={styles.captainActionComplete}>Lineup sent</span>")
   })
 
   it('publishes one affected-court update when a final lineup changes', () => {
