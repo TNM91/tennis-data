@@ -11,6 +11,7 @@ import {
   getCaptainLevelUpCompletedPlayerIdsForRun,
   recommendCaptainLevelUpChallenge,
   selectActiveCaptainLevelUpChallenge,
+  selectCaptainLevelUpChallengeResume,
 } from '../captain-level-up-challenge'
 
 describe('Captain Level Up challenge handoff', () => {
@@ -119,6 +120,31 @@ describe('Captain Level Up challenge handoff', () => {
     expect(selectActiveCaptainLevelUpChallenge([
       { id: 'closed', createdAt: '2026-08-03T12:00:00.000Z', status: 'closed' },
     ])).toBe('')
+  })
+
+  it('resumes unfinished team work before newer completed challenges', () => {
+    const newestCompleted = {
+      messageId: 'newest-complete',
+      completed: true,
+      launchedAt: '2026-08-04T12:00:00.000Z',
+    }
+    const newestUnfinished = {
+      messageId: 'newest-unfinished',
+      completed: false,
+      launchedAt: '2026-08-03T12:00:00.000Z',
+    }
+    const olderUnfinished = {
+      messageId: 'older-unfinished',
+      completed: false,
+      launchedAt: '2026-08-02T12:00:00.000Z',
+    }
+    expect(selectCaptainLevelUpChallengeResume([
+      newestCompleted,
+      olderUnfinished,
+      newestUnfinished,
+    ])).toBe(newestUnfinished)
+    expect(selectCaptainLevelUpChallengeResume([olderUnfinished, newestCompleted])).toBe(olderUnfinished)
+    expect(selectCaptainLevelUpChallengeResume([])).toBeNull()
   })
 
   it('recommends one challenge from the actual match-week context', () => {

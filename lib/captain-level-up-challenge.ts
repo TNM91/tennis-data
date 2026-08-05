@@ -31,6 +31,12 @@ export type CaptainLevelUpChallengeLaunch = {
   status?: string
 }
 
+export type CaptainLevelUpChallengeResume = {
+  messageId: string
+  completed: boolean
+  launchedAt: string
+}
+
 export type CaptainLevelUpRecommendationInput = {
   teamName?: string
   leagueName?: string
@@ -255,6 +261,17 @@ export function selectActiveCaptainLevelUpChallenge(
     }
   }
   return selected?.id || ''
+}
+
+export function selectCaptainLevelUpChallengeResume<T extends CaptainLevelUpChallengeResume>(
+  challenges: T[],
+) {
+  return challenges.slice().sort((left, right) => {
+    if (left.completed !== right.completed) return left.completed ? 1 : -1
+    const launchedDifference = new Date(right.launchedAt).getTime() - new Date(left.launchedAt).getTime()
+    if (launchedDifference) return launchedDifference
+    return right.messageId.localeCompare(left.messageId)
+  })[0] ?? null
 }
 
 export function getCaptainLevelUpAggregateCompletionLabel(progress: CaptainLevelUpChallengeProgress | null) {

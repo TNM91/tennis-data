@@ -30,6 +30,7 @@ import {
   getCaptainLevelUpCompletedCardIdsByPlayer,
   getCaptainLevelUpCompletedPlayerIdsForRun,
   selectActiveCaptainLevelUpChallenge,
+  selectCaptainLevelUpChallengeResume,
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
 
@@ -178,6 +179,7 @@ type TeamRoomActiveChallengeSummary = {
   completed: boolean
   completedCount: number
   connectedCount: number
+  launchedAt: string
   resumeHref: string
   teamRoomHref: string
 }
@@ -215,6 +217,21 @@ export async function GET(request: Request) {
       teams: [],
       message: 'Link a team to your profile before opening its Team Room.',
     })
+  }
+
+  if (url.searchParams.get('activeChallenge') === '1') {
+    const activeChallengeResult = await loadBestActiveTeamChallenge(
+      auth.service,
+      auth.userId,
+      linksResult.links,
+    )
+    if (!activeChallengeResult.ok) {
+      return Response.json(
+        { ok: false, message: activeChallengeResult.message },
+        { status: activeChallengeResult.status },
+      )
+    }
+    return Response.json({ ok: true, summary: { activeChallenge: activeChallengeResult.activeChallenge } })
   }
 
   const selected = selectTeamLink(linksResult.links, {
@@ -1830,6 +1847,145 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   }
 }
 
+type LevelUpChallengeMessageRow = Pick<MessageRow, 'id' | 'metadata' | 'created_at' | 'deleted_at'>
+
+async function loadBestActiveTeamChallenge(
+  service: SupabaseClient,
+  userId: string,
+  links: TeamLinkRow[],
+) {
+  const uniqueLinks = Array.from(new Map(links.map((link) => [
+    buildTeamRoomScopeId({
+      teamName: link.team_name,
+      leagueName: link.league_name,
+      flight: link.flight,
+    }),
+    link,
+  ])).values())
+  const results = await Promise.all(uniqueLinks.map((link) => (
+    loadExistingActiveTeamChallenge(service, userId, link)
+  )))
+  const failed = results.find((result) => !result.ok && result.status !== 403)
+  if (failed && !failed.ok) return failed
+  const challenges = results.flatMap((result) => (
+    result.ok && result.activeChallenge ? [result.activeChallenge] : []
+  ))
+  return {
+    ok: true as const,
+    activeChallenge: selectCaptainLevelUpChallengeResume(challenges),
+  }
+}
+
+async function loadExistingActiveTeamChallenge(
+  service: SupabaseClient,
+  userId: string,
+  selected: TeamLinkRow,
+) {
+  const scopeId = buildTeamRoomScopeId({
+    teamName: selected.team_name,
+    leagueName: selected.league_name,
+    flight: selected.flight,
+  })
+  const { data: conversation, error: conversationError } = await service
+    .from('internal_conversations')
+    .select('id')
+    .eq('related_entity_type', 'team_room')
+    .eq('related_entity_id', scopeId)
+    .maybeSingle()
+  if (conversationError) return { ok: false as const, status: 500, message: conversationError.message }
+  if (!conversation?.id) return { ok: true as const, activeChallenge: null }
+
+  const members = await syncTeamRoomParticipants(service, conversation.id, selected)
+  if (!members.some((member) => member.id === userId)) {
+    return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
+  }
+  const { data: challengeRows, error: challengeError } = await service
+    .from('internal_messages')
+    .select('id,metadata,created_at,deleted_at')
+    .eq('conversation_id', conversation.id)
+    .contains('metadata', { teamLevelUpChallenge: true })
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (challengeError) return { ok: false as const, status: 500, message: challengeError.message }
+
+  return buildActiveTeamChallengeSummary(
+    service,
+    userId,
+    selected,
+    members,
+    (challengeRows ?? []) as LevelUpChallengeMessageRow[],
+  )
+}
+
+async function buildActiveTeamChallengeSummary(
+  service: SupabaseClient,
+  userId: string,
+  selected: TeamLinkRow,
+  members: Array<{ id: string }>,
+  messageRows: LevelUpChallengeMessageRow[],
+) {
+  const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(messageRows.flatMap((row) => {
+    if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
+    return [{
+      id: row.id,
+      createdAt: cleanText(row.metadata.launchedAt) || cleanText(row.created_at),
+      status: cleanText(row.metadata.challengeStatus),
+    }]
+  }))
+  const activeLevelUpRow = messageRows.find((row) => row.id === activeLevelUpChallengeId)
+  const activeLevelUpChallenge = activeLevelUpRow
+    ? buildCaptainLevelUpChallenge(cleanText(activeLevelUpRow.metadata?.challengeId))
+    : null
+  if (!activeLevelUpRow || !activeLevelUpChallenge) {
+    return { ok: true as const, activeChallenge: null }
+  }
+
+  const launchedAt = cleanText(activeLevelUpRow.metadata?.launchedAt) || cleanText(activeLevelUpRow.created_at)
+  const completionResult = await loadTeamLevelUpChallengeCompletion(
+    service,
+    activeLevelUpChallenge,
+    members.map((member) => member.id),
+    activeLevelUpRow.id,
+    launchedAt,
+  )
+  if (!completionResult.ok) return completionResult
+
+  const completed = completionResult.completedIds.has(userId)
+  const completedCardIds = completed
+    ? activeLevelUpChallenge.cardIds
+    : completionResult.completedCardIdsByPlayer.get(userId) || []
+  const nextCardId = activeLevelUpChallenge.cardIds.find((cardId) => !completedCardIds.includes(cardId))
+    || activeLevelUpChallenge.cardIds[0]
+    || ''
+  const teamRoomHref = buildTeamRoomHref({
+    teamName: selected.team_name,
+    leagueName: selected.league_name,
+    flight: selected.flight,
+    messageId: activeLevelUpRow.id,
+  })
+  return {
+    ok: true as const,
+    activeChallenge: {
+      messageId: activeLevelUpRow.id,
+      id: activeLevelUpChallenge.id,
+      title: activeLevelUpChallenge.title,
+      focus: activeLevelUpChallenge.focus,
+      teamName: selected.team_name,
+      leagueName: selected.league_name,
+      flight: selected.flight,
+      cardIds: activeLevelUpChallenge.cardIds,
+      completedCardIds,
+      completed,
+      completedCount: completionResult.completedIds.size,
+      connectedCount: members.length,
+      launchedAt,
+      resumeHref: nextCardId ? buildCaptainLevelUpCardHref(nextCardId) : teamRoomHref,
+      teamRoomHref,
+    } satisfies TeamRoomActiveChallengeSummary,
+  }
+}
+
 async function loadTeamRoomSummary(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
   const ensured = await ensureTeamRoom(service, selected)
   if (!ensured.ok) return ensured
@@ -1923,59 +2079,14 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     lineupChange: cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice),
   })
 
-  const activeLevelUpChallengeId = selectActiveCaptainLevelUpChallenge(messageRows.flatMap((row) => {
-    if (row.deleted_at || !isLevelUpChallengeMetadata(row.metadata)) return []
-    return [{
-      id: row.id,
-      createdAt: cleanText(row.metadata.launchedAt) || cleanText(row.created_at),
-      status: cleanText(row.metadata.challengeStatus),
-    }]
-  }))
-  const activeLevelUpRow = messageRows.find((row) => row.id === activeLevelUpChallengeId)
-  const activeLevelUpChallenge = activeLevelUpRow
-    ? buildCaptainLevelUpChallenge(cleanText(activeLevelUpRow.metadata?.challengeId))
-    : null
-  let activeChallenge: TeamRoomActiveChallengeSummary | null = null
-  if (activeLevelUpRow && activeLevelUpChallenge) {
-    const completionResult = await loadTeamLevelUpChallengeCompletion(
-      service,
-      activeLevelUpChallenge,
-      members.map((member) => member.id),
-      activeLevelUpRow.id,
-      cleanText(activeLevelUpRow.metadata?.launchedAt) || cleanText(activeLevelUpRow.created_at),
-    )
-    if (!completionResult.ok) return completionResult
-
-    const completed = completionResult.completedIds.has(userId)
-    const completedCardIds = completed
-      ? activeLevelUpChallenge.cardIds
-      : completionResult.completedCardIdsByPlayer.get(userId) || []
-    const nextCardId = activeLevelUpChallenge.cardIds.find((cardId) => !completedCardIds.includes(cardId))
-      || activeLevelUpChallenge.cardIds[0]
-      || ''
-    const teamRoomHref = buildTeamRoomHref({
-      teamName: selected.team_name,
-      leagueName: selected.league_name,
-      flight: selected.flight,
-      messageId: activeLevelUpRow.id,
-    })
-    activeChallenge = {
-      messageId: activeLevelUpRow.id,
-      id: activeLevelUpChallenge.id,
-      title: activeLevelUpChallenge.title,
-      focus: activeLevelUpChallenge.focus,
-      teamName: selected.team_name,
-      leagueName: selected.league_name,
-      flight: selected.flight,
-      cardIds: activeLevelUpChallenge.cardIds,
-      completedCardIds,
-      completed,
-      completedCount: completionResult.completedIds.size,
-      connectedCount: members.length,
-      resumeHref: nextCardId ? buildCaptainLevelUpCardHref(nextCardId) : teamRoomHref,
-      teamRoomHref,
-    }
-  }
+  const activeChallengeResult = await buildActiveTeamChallengeSummary(
+    service,
+    userId,
+    selected,
+    members,
+    messageRows,
+  )
+  if (!activeChallengeResult.ok) return activeChallengeResult
 
   return {
     ok: true as const,
@@ -2002,7 +2113,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
           status: court.status,
         }]),
       },
-      activeChallenge,
+      activeChallenge: activeChallengeResult.activeChallenge,
     },
   }
 }
