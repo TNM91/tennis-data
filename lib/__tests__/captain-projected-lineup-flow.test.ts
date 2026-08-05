@@ -18,6 +18,21 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("setConfirmationStage('saving-lineup')")
     expect(source).toContain("setConfirmationStage('preparing-replies')")
     expect(source).toContain("setConfirmationStage('opening-messages')")
+    expect(source).toContain("hrefUrl.searchParams.set('message', teamRoomMessageId)")
+    expect(source).toContain('hrefUrl.hash = `match-card-${encodeURIComponent(teamRoomMessageId)}`')
+    expect(source).toContain('router.push(teamRoomCardHref)')
+  })
+
+  it('returns to the exact Team Room card before the captain sends the lineup', () => {
+    const builder = readSource('app/captain/lineup-builder/page.tsx')
+    const room = readSource('app/team-room/page.tsx')
+
+    expect(builder).toContain("setMessage('Opening Team Room...')")
+    expect(room).toContain("action: 'send_final_lineup'")
+    expect(room).toContain("'Send lineup to team'")
+    expect(room).toContain('isCaptainLineupLocked({')
+    expect(room).toContain('buildCaptainLockedLineupId({ messageId: message.id, lineup: card.lineup })')
+    expect(room).toContain("'Lineup sent to the team.'")
   })
 
   it('syncs a saved suggested replacement before offering targeted delivery', () => {

@@ -32,6 +32,7 @@ import {
   type TeamRoomMatchDayPhase,
 } from '@/lib/team-room-match-day'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
+import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain-lineup-confirmation'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
@@ -307,6 +308,7 @@ function TeamRoomContent() {
   const [notifyingLineupChangeId, setNotifyingLineupChangeId] = useState('')
   const [respondingLineupChangeId, setRespondingLineupChangeId] = useState('')
   const [schedulingLineupChangeDeadlineId, setSchedulingLineupChangeDeadlineId] = useState('')
+  const [sendingFinalLineupId, setSendingFinalLineupId] = useState('')
   const [lineupChangeDeadlineDate, setLineupChangeDeadlineDate] = useState('')
   const [reminding, setReminding] = useState(false)
   const [markingFinalLineupSeen, setMarkingFinalLineupSeen] = useState(false)
@@ -930,6 +932,21 @@ function TeamRoomContent() {
     }
   }
 
+  async function sendFinalLineup(messageId: string, lineupId: string) {
+    if (!room || sendingFinalLineupId) return
+    setSendingFinalLineupId(messageId)
+    setError('')
+    try {
+      const payload = await postAction({ action: 'send_final_lineup', messageId, lineupId })
+      setNotice(payload.alreadySent === true ? 'This lineup is already with the team.' : 'Lineup sent to the team.')
+      await loadRoom({ quiet: true })
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'The lineup could not be sent.')
+    } finally {
+      setSendingFinalLineupId('')
+    }
+  }
+
   async function markFinalLineupSeen(messageId: string) {
     if (!room || markingFinalLineupSeen) return
     setMarkingFinalLineupSeen(true)
@@ -1506,6 +1523,7 @@ function TeamRoomContent() {
               responding={respondingId === pinnedMessage.id}
               acknowledging={acknowledgingId === pinnedMessage.id}
               notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
+              sendingFinalLineup={sendingFinalLineupId === pinnedMessage.id}
               respondingLineupChange={respondingLineupChangeId === pinnedMessage.id}
               schedulingLineupChangeDeadline={schedulingLineupChangeDeadlineId === pinnedMessage.id}
               lineupChangeDeadlineDate={lineupChangeDeadlineDate}
@@ -1515,6 +1533,7 @@ function TeamRoomContent() {
               onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
               onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
               onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
+              onSendFinalLineup={(lineupId) => void sendFinalLineup(pinnedMessage.id, lineupId)}
               onRespondLineupChange={(response) => void respondToLineupChange(pinnedMessage.id, response)}
               onLineupChangeDeadlineDate={setLineupChangeDeadlineDate}
               onScheduleLineupChangeDeadline={() => void scheduleLineupChangeDeadline(pinnedMessage.id)}
@@ -2273,6 +2292,7 @@ function MatchCard({
   responding,
   acknowledging,
   notifyingLineupChange,
+  sendingFinalLineup,
   respondingLineupChange,
   schedulingLineupChangeDeadline,
   lineupChangeDeadlineDate,
@@ -2280,6 +2300,7 @@ function MatchCard({
   onRespond,
   onAcknowledge,
   onNotifyLineupChange,
+  onSendFinalLineup,
   onRespondLineupChange,
   onLineupChangeDeadlineDate,
   onScheduleLineupChangeDeadline,
@@ -2298,6 +2319,7 @@ function MatchCard({
   responding: boolean
   acknowledging: boolean
   notifyingLineupChange: boolean
+  sendingFinalLineup: boolean
   respondingLineupChange: boolean
   schedulingLineupChangeDeadline: boolean
   lineupChangeDeadlineDate: string
@@ -2305,6 +2327,7 @@ function MatchCard({
   onRespond: (response: 'yes' | 'maybe' | 'no') => void
   onAcknowledge: () => void
   onNotifyLineupChange: () => void
+  onSendFinalLineup: (lineupId: string) => void
   onRespondLineupChange: (response: 'accepted' | 'declined') => void
   onLineupChangeDeadlineDate: (value: string) => void
   onScheduleLineupChangeDeadline: () => void
@@ -2355,6 +2378,12 @@ function MatchCard({
     lineup: card.lineup,
     replies: replyGroups.map((group) => ({ status: group.status, names: group.names })),
     lineupChange: lineupChangeNotice,
+  })
+  const lineupId = buildCaptainLockedLineupId({ messageId: message.id, lineup: card.lineup })
+  const lineupLocked = card.cardType === 'projected_lineup' && isCaptainLineupLocked({
+    confirmedCount: courtReadiness.filter((court) => court.status === 'confirmed').length,
+    totalCount: courtReadiness.length,
+    lineup: card.lineup,
   })
   const canAnswerLineupChange = Boolean(
     lineupChangeNotice
@@ -2589,6 +2618,12 @@ function MatchCard({
                 <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Find another player</Link>
               ) : lineupChangeOverdue ? (
                 <Link className={styles.buttonPrimary} href={waitingReplacementHref}>Review this court</Link>
+              ) : card.finalLineup ? (
+                <span className={styles.captainActionComplete}>Lineup sent</span>
+              ) : lineupLocked ? (
+                <button className={styles.buttonPrimary} type="button" disabled={sendingFinalLineup} onClick={() => onSendFinalLineup(lineupId)}>
+                  {sendingFinalLineup ? 'Sending…' : 'Send lineup to team'}
+                </button>
               ) : primaryRisk ? (
                 <Link className={styles.buttonPrimary} href={captainReplyHref}>Find replacement</Link>
               ) : waiting ? (

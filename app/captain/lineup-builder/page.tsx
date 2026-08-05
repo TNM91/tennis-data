@@ -2020,6 +2020,7 @@ function LineupBuilderContent() {
     let availabilityRequestId = ''
     let playerRequestUrls: CaptainLineupHandoff['playerRequestUrls'] = []
     let teamRoomCardPosted = false
+    let teamRoomCardHref = ''
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData.session?.access_token
     if (accessToken) {
@@ -2083,7 +2084,22 @@ function LineupBuilderContent() {
               },
             }),
           })
-          teamRoomCardPosted = teamRoomResponse.ok
+          const teamRoomResult = await teamRoomResponse.json() as {
+            ok?: boolean
+            messageId?: string
+            href?: string
+          }
+          const teamRoomMessageId = teamRoomResult.messageId || ''
+          teamRoomCardPosted = teamRoomResponse.ok && teamRoomResult.ok === true && Boolean(teamRoomMessageId)
+          if (teamRoomCardPosted) {
+            const hrefUrl = new URL(
+              teamRoomResult.href || buildTeamRoomHref({ teamName, leagueName, flight }),
+              window.location.origin,
+            )
+            hrefUrl.searchParams.set('message', teamRoomMessageId)
+            hrefUrl.hash = `match-card-${encodeURIComponent(teamRoomMessageId)}`
+            teamRoomCardHref = `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`
+          }
         }
       } catch {
         // Messaging still works if the shareable response link cannot be created.
@@ -2112,17 +2128,9 @@ function LineupBuilderContent() {
     }
 
     setConfirmationStage('opening-messages')
-    setMessage('Opening messages...')
+    setMessage('Opening Team Room...')
     if (teamRoomCardPosted) {
-      router.push(buildTeamRoomHref({
-        teamName,
-        leagueName,
-        flight,
-        date: matchDate,
-        opponent: opponentTeam,
-        time: selectedMatch?.match_time || '',
-        facility: selectedMatch?.facility || '',
-      }))
+      router.push(teamRoomCardHref)
       return
     }
     const messagingHref = buildCaptainScopedHref('/captain/messaging', {
