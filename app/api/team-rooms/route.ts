@@ -31,6 +31,7 @@ import {
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
   buildPublishedLineupChangeAnnouncement,
+  buildTeamRoomFinalLineupReview,
   buildTeamRoomFinalLineupReceipt,
   readTeamRoomLineupAnnouncement,
   readTeamRoomFinalLineupReceipt,
@@ -1456,6 +1457,137 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, notificationIds, targetCount: targets.length })
   }
 
+  if (action === 'ack_final_lineup') {
+    const lineupResult = await loadCurrentFinalLineupAction(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+    )
+    if (!lineupResult.ok) {
+      return Response.json({ ok: false, message: lineupResult.message }, { status: lineupResult.status })
+    }
+    const review = buildTeamRoomFinalLineupReview({
+      members: syncedMembers,
+      lineup: normalizeLineupRows(lineupResult.card.metadata.lineup),
+      seenProfileIds: [],
+      publisherUserId: lineupResult.receipt.sentByUserId,
+      currentUserId: auth.userId,
+    })
+    if (!review.currentUserRequired) {
+      return Response.json({ ok: false, message: 'Only players in this final lineup need to mark it seen.' }, { status: 403 })
+    }
+    const { error } = await auth.service
+      .from('team_room_message_reactions')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: lineupResult.announcement.id,
+        profile_id: auth.userId,
+        reaction: 'ack',
+      }, { onConflict: 'message_id,profile_id,reaction' })
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true, seen: true })
+  }
+
+  if (action === 'remind_final_lineup_unseen') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can remind lineup players.' }, { status: 403 })
+    }
+    const lineupResult = await loadCurrentFinalLineupAction(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+    )
+    if (!lineupResult.ok) {
+      return Response.json({ ok: false, message: lineupResult.message }, { status: lineupResult.status })
+    }
+    const priorReminderAt = cleanText(lineupResult.announcement.metadata.finalLineupReviewReminderSentAt)
+    if (priorReminderAt) {
+      return Response.json({ ok: true, alreadySent: true, notificationIds: [], targetCount: 0, reminderSentAt: priorReminderAt })
+    }
+    const { data: reactionRows, error: reactionError } = await auth.service
+      .from('team_room_message_reactions')
+      .select('profile_id')
+      .eq('message_id', lineupResult.announcement.id)
+      .eq('reaction', 'ack')
+    if (reactionError) return Response.json({ ok: false, message: reactionError.message }, { status: 500 })
+    const review = buildTeamRoomFinalLineupReview({
+      members: syncedMembers,
+      lineup: normalizeLineupRows(lineupResult.card.metadata.lineup),
+      seenProfileIds: ((reactionRows ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id),
+      publisherUserId: lineupResult.receipt.sentByUserId,
+      currentUserId: auth.userId,
+    })
+    if (!review.unseenProfileIds.length) {
+      return Response.json({ ok: true, notificationIds: [], targetCount: 0 })
+    }
+    const { data: participantRows, error: participantError } = await auth.service
+      .from('internal_conversation_participants')
+      .select('profile_id,muted')
+      .eq('conversation_id', conversation.id)
+      .in('profile_id', review.unseenProfileIds)
+    if (participantError) return Response.json({ ok: false, message: participantError.message }, { status: 500 })
+    const recipientIds = ((participantRows ?? []) as ParticipantRow[])
+      .filter((row) => row.muted !== true)
+      .map((row) => row.profile_id)
+    const mutedCount = review.unseenProfileIds.length - recipientIds.length
+    if (!recipientIds.length) {
+      return Response.json({ ok: true, notificationIds: [], targetCount: 0, mutedCount: review.unseenProfileIds.length })
+    }
+
+    const reminderSentAt = new Date().toISOString()
+    const claimedMetadata = {
+      ...lineupResult.announcement.metadata,
+      finalLineupReviewReminderSentAt: reminderSentAt,
+      finalLineupReviewReminderCount: recipientIds.length,
+      finalLineupReviewReminderByUserId: auth.userId,
+    }
+    const claimResult = await auth.service
+      .from('internal_messages')
+      .update({ metadata: claimedMetadata, edited_at: reminderSentAt })
+      .eq('id', lineupResult.announcement.id)
+      .eq('conversation_id', conversation.id)
+      .filter('metadata', 'eq', JSON.stringify(lineupResult.announcement.metadata))
+      .select('id')
+      .maybeSingle()
+    if (claimResult.error) return Response.json({ ok: false, message: claimResult.error.message }, { status: 500 })
+    if (!claimResult.data) {
+      const currentResult = await loadCurrentFinalLineupAction(auth.service, conversation.id, lineupResult.announcement.id)
+      const currentReminderAt = currentResult.ok
+        ? cleanText(currentResult.announcement.metadata.finalLineupReviewReminderSentAt)
+        : ''
+      if (currentReminderAt) {
+        return Response.json({ ok: true, alreadySent: true, notificationIds: [], targetCount: 0, reminderSentAt: currentReminderAt })
+      }
+      return Response.json({ ok: false, message: 'The final lineup changed. Refresh before sending this reminder.' }, { status: 409 })
+    }
+    const reminderResult = await sendFinalLineupReviewReminder(auth.service, {
+      conversationId: conversation.id,
+      sourceMessageId: lineupResult.receipt.sourceMessageId,
+      actorUserId: auth.userId,
+      recipientIds,
+      teamName: selected.team_name,
+      scope: selected,
+      matchDate: cleanText(lineupResult.card.metadata.matchDate),
+      opponent: cleanText(lineupResult.card.metadata.opponent),
+    })
+    if (!reminderResult.ok) {
+      await auth.service
+        .from('internal_messages')
+        .update({ metadata: lineupResult.announcement.metadata, edited_at: new Date().toISOString() })
+        .eq('id', lineupResult.announcement.id)
+        .eq('conversation_id', conversation.id)
+        .filter('metadata', 'eq', JSON.stringify(claimedMetadata))
+      return Response.json({ ok: false, message: reminderResult.message }, { status: 500 })
+    }
+    return Response.json({
+      ok: true,
+      notificationIds: reminderResult.notificationIds,
+      targetCount: recipientIds.length,
+      mutedCount,
+      reminderSentAt,
+    })
+  }
+
   if (action === 'create_invite') {
     if (!canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can invite new team members.' }, { status: 403 })
@@ -1504,7 +1636,7 @@ export async function POST(request: Request) {
     }
     const { data: message } = await auth.service
       .from('internal_messages')
-      .select('id')
+      .select('id,metadata')
       .eq('id', messageId)
       .eq('conversation_id', conversation.id)
       .is('deleted_at', null)
@@ -1518,8 +1650,11 @@ export async function POST(request: Request) {
       .eq('profile_id', auth.userId)
       .eq('reaction', reaction)
       .maybeSingle()
+    const lineupAnnouncement = readTeamRoomLineupAnnouncement(message.metadata)
     const reactionResult = existing
-      ? await auth.service
+      ? reaction === 'ack' && lineupAnnouncement
+        ? { error: null }
+        : await auth.service
           .from('team_room_message_reactions')
           .delete()
           .eq('message_id', messageId)
@@ -1529,7 +1664,7 @@ export async function POST(request: Request) {
           .from('team_room_message_reactions')
           .insert({ conversation_id: conversation.id, message_id: messageId, profile_id: auth.userId, reaction })
     if (reactionResult.error) return Response.json({ ok: false, message: reactionResult.error.message }, { status: 500 })
-    return Response.json({ ok: true, active: !existing })
+    return Response.json({ ok: true, active: Boolean(!existing || (reaction === 'ack' && lineupAnnouncement)) })
   }
 
   if (action === 'edit_message') {
@@ -2098,6 +2233,22 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       } : null,
     }
   })
+  const activeCardRow = rowById.get(activeCardId)
+  const currentFinalLineup = readTeamRoomFinalLineupReceipt(activeCardRow?.metadata?.finalLineup)
+  const currentFinalLineupAnnouncement = currentFinalLineup
+    ? rowById.get(currentFinalLineup.announcementMessageId)
+    : null
+  const finalLineupReview = currentFinalLineup
+    ? buildTeamRoomFinalLineupReview({
+        members,
+        lineup: normalizeLineupRows(activeCardRow?.metadata?.lineup),
+        seenProfileIds: (reactionByMessageId.get(currentFinalLineup.announcementMessageId) || [])
+          .filter((reaction) => reaction.reaction === 'ack')
+          .map((reaction) => reaction.profile_id),
+        publisherUserId: currentFinalLineup.sentByUserId,
+        currentUserId: userId,
+      })
+    : null
   await service
     .from('internal_conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
@@ -2122,6 +2273,16 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       activeInviteCount: management.activeInviteCount,
       activeCardId,
       activeLevelUpChallengeId,
+      finalLineupReview: currentFinalLineup && finalLineupReview ? {
+        announcementMessageId: currentFinalLineup.announcementMessageId,
+        sourceMessageId: currentFinalLineup.sourceMessageId,
+        requiredCount: finalLineupReview.requiredCount,
+        seenCount: finalLineupReview.seenCount,
+        unseenNames: canManageTeamRoom(teamRoles(selected)) ? finalLineupReview.unseenNames : [],
+        currentUserRequired: finalLineupReview.currentUserRequired,
+        currentUserSeen: finalLineupReview.currentUserSeen,
+        reminderSentAt: cleanText(currentFinalLineupAnnouncement?.metadata?.finalLineupReviewReminderSentAt),
+      } : null,
       actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === activeCardId) || null),
       messages,
       href: buildTeamRoomHref({
@@ -3309,6 +3470,50 @@ async function loadActionableMatchCard(service: SupabaseClient, conversationId: 
   return { ok: true as const, messageId: row.id, metadata: row.metadata }
 }
 
+async function loadCurrentFinalLineupAction(
+  service: SupabaseClient,
+  conversationId: string,
+  announcementMessageId: string,
+) {
+  if (!announcementMessageId) {
+    return { ok: false as const, status: 400, message: 'Choose the final lineup first.' }
+  }
+  const { data, error } = await service
+    .from('internal_messages')
+    .select('id,metadata')
+    .eq('id', announcementMessageId)
+    .eq('conversation_id', conversationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error) return { ok: false as const, status: 500, message: error.message }
+  const metadata = data?.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
+    ? data.metadata as Record<string, unknown>
+    : {}
+  const announcement = readTeamRoomLineupAnnouncement(metadata)
+  if (!data || !announcement) {
+    return { ok: false as const, status: 404, message: 'This final lineup is no longer available.' }
+  }
+  const card = await loadActionableMatchCard(service, conversationId, '')
+  if (!card.ok) return card
+  const receipt = readTeamRoomFinalLineupReceipt(card.metadata.finalLineup)
+  if (!receipt) {
+    return { ok: false as const, status: 409, message: 'This is not the current final lineup.' }
+  }
+  if (
+    card.messageId !== announcement.sourceMessageId
+    || receipt.announcementMessageId !== data.id
+    || receipt.sourceMessageId !== card.messageId
+  ) {
+    return { ok: false as const, status: 409, message: 'This is not the current final lineup.' }
+  }
+  return {
+    ok: true as const,
+    announcement: { id: data.id, metadata },
+    card,
+    receipt,
+  }
+}
+
 async function buildReminderTargets(
   service: SupabaseClient,
   conversationId: string,
@@ -3401,6 +3606,49 @@ async function sendTeamRoomReminders(service: SupabaseClient, input: {
     .update({ updated_at: new Date().toISOString() })
     .eq('id', input.conversationId)
   return ((data ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean)
+}
+
+async function sendFinalLineupReviewReminder(service: SupabaseClient, input: {
+  conversationId: string
+  sourceMessageId: string
+  actorUserId: string
+  recipientIds: string[]
+  teamName: string
+  scope: TeamLinkRow
+  matchDate: string
+  opponent: string
+}) {
+  const recipientIds = Array.from(new Set(input.recipientIds.map(cleanText).filter(Boolean)))
+  if (!recipientIds.length) return { ok: true as const, notificationIds: [] as string[] }
+  const href = buildTeamRoomHref({
+    teamName: input.scope.team_name,
+    leagueName: input.scope.league_name,
+    flight: input.scope.flight,
+    messageId: input.sourceMessageId,
+  })
+  const matchContext = [input.matchDate, input.opponent ? `vs ${input.opponent}` : ''].filter(Boolean).join(' ')
+  const title = `${input.teamName} final lineup`
+  const body = `Review the final lineup${matchContext ? ` for ${matchContext}` : ''} and tap Seen.`
+  const { data, error } = await service.from('internal_notifications').insert(recipientIds.map((profileId) => ({
+    recipient_profile_id: profileId,
+    actor_user_id: input.actorUserId,
+    notification_type: 'message',
+    title,
+    body,
+    href,
+    conversation_id: input.conversationId,
+  }))).select('id')
+  if (error) return { ok: false as const, message: error.message }
+  await sendTeamRoomPush(service, recipientIds, {
+    title,
+    body,
+    href,
+    tag: `team-room-final-lineup-${input.sourceMessageId}`,
+  })
+  return {
+    ok: true as const,
+    notificationIds: ((data ?? []) as Array<{ id?: string | null }>).map((row) => cleanText(row.id)).filter(Boolean),
+  }
 }
 
 async function sendTeamLevelUpChallengeReminders(service: SupabaseClient, input: {
