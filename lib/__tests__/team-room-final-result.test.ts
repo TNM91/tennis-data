@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildTeamRoomFinalResult,
+  buildTeamRoomFinalResultLines,
   selectTeamRoomCompletedMatch,
   type TeamRoomCompletedMatch,
 } from '../team-room-final-result'
@@ -42,7 +43,48 @@ describe('Team Room final result', () => {
       opponentScore: '1',
       score: '1-2',
       outcome: 'win',
+      lines: [],
     })
+  })
+
+  it('builds court results with team-oriented players, winners, and lineup labels', () => {
+    expect(buildTeamRoomFinalResultLines({
+      teamSide: 'B',
+      lineupLabels: ['4.5 Doubles', '4.0 Doubles'],
+      matches: [
+        { id: 'line-2', external_match_id: '1011650664::line:2', line_number: '2', match_type: 'doubles', winner_side: 'A', score: '6-3, 6-4', status: 'completed' },
+        { id: 'line-1', external_match_id: '1011650664::line:1', line_number: '1', match_type: 'doubles', winner_side: 'B', score: '4-6, 6-3, 10-7', status: 'completed' },
+      ],
+      matchPlayers: [
+        { match_id: 'line-1', player_id: 'opponent-1', side: 'A', seat: 1 },
+        { match_id: 'line-1', player_id: 'team-2', side: 'B', seat: 2 },
+        { match_id: 'line-1', player_id: 'team-1', side: 'B', seat: 1 },
+        { match_id: 'line-1', player_id: 'opponent-2', side: 'A', seat: 2 },
+      ],
+      players: [
+        { id: 'team-1', name: 'Alex Ace' },
+        { id: 'team-2', name: 'Blair Baseline' },
+        { id: 'opponent-1', name: 'Casey Court' },
+        { id: 'opponent-2', name: 'Drew Deuce' },
+      ],
+    })).toEqual([
+      {
+        id: 'line-1',
+        label: '4.5 Doubles',
+        teamPlayers: ['Alex Ace', 'Blair Baseline'],
+        opponentPlayers: ['Casey Court', 'Drew Deuce'],
+        score: '4-6, 6-3, 10-7',
+        winner: 'team',
+      },
+      {
+        id: 'line-2',
+        label: '4.0 Doubles',
+        teamPlayers: [],
+        opponentPlayers: [],
+        score: '6-3, 6-4',
+        winner: 'opponent',
+      },
+    ])
   })
 
   it('rejects an ambiguous same-day result instead of guessing', () => {

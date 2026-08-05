@@ -48,8 +48,13 @@ import {
 } from '@/lib/captain-level-up-challenge'
 import {
   buildTeamRoomFinalResult,
+  buildTeamRoomFinalResultLines,
+  getTeamRoomMatchSide,
   selectTeamRoomCompletedMatch,
+  type TeamRoomCompletedLineMatch,
   type TeamRoomCompletedMatch,
+  type TeamRoomLinePlayer,
+  type TeamRoomPlayerName,
 } from '@/lib/team-room-final-result'
 
 export const runtime = 'nodejs'
@@ -2363,7 +2368,8 @@ async function loadTeamRoomFinalResult(
     .is('line_number', null)
     .limit(100)
   if (error) return null
-  const match = selectTeamRoomCompletedMatch((data ?? []) as TeamRoomCompletedMatch[], {
+  const completedMatches = (data ?? []) as TeamRoomCompletedMatch[]
+  const match = selectTeamRoomCompletedMatch(completedMatches, {
     matchId: cleanText(metadata.matchId),
     teamName: scope.team_name,
     leagueName: scope.league_name,
@@ -2372,7 +2378,51 @@ async function loadTeamRoomFinalResult(
     opponent: cleanText(metadata.opponent),
     externalMatchId: cleanText(metadata.externalMatchId),
   })
-  return match ? buildTeamRoomFinalResult(match, scope.team_name) : null
+  const result = match ? buildTeamRoomFinalResult(match, scope.team_name) : null
+  const teamSide = match ? getTeamRoomMatchSide(match, scope.team_name) : null
+  const parentExternalMatchId = cleanText(match?.external_match_id)
+  if (!result || !teamSide || !parentExternalMatchId) return result
+
+  const { data: lineMatchData, error: lineMatchError } = await service
+    .from('matches')
+    .select('id,external_match_id,line_number,match_type,winner_side,score,status')
+    .eq('match_date', matchDate)
+    .eq('status', 'completed')
+    .not('line_number', 'is', null)
+    .like('external_match_id', `${parentExternalMatchId}::line:%`)
+    .limit(25)
+  if (lineMatchError) return result
+  const lineMatches = (lineMatchData ?? []) as TeamRoomCompletedLineMatch[]
+  const lineMatchIds = lineMatches.map((line) => line.id)
+  if (!lineMatchIds.length) return result
+
+  const { data: matchPlayerData, error: matchPlayerError } = await service
+    .from('match_players')
+    .select('match_id,player_id,side,seat')
+    .in('match_id', lineMatchIds)
+  if (matchPlayerError) return result
+  const matchPlayers = (matchPlayerData ?? []) as TeamRoomLinePlayer[]
+  const playerIds = Array.from(new Set(matchPlayers.map((player) => player.player_id).filter(Boolean)))
+  let players: TeamRoomPlayerName[] = []
+  if (playerIds.length) {
+    const { data: playerData, error: playerError } = await service
+      .from('players')
+      .select('id,name')
+      .in('id', playerIds)
+    if (playerError) return result
+    players = (playerData ?? []) as TeamRoomPlayerName[]
+  }
+
+  return {
+    ...result,
+    lines: buildTeamRoomFinalResultLines({
+      matches: lineMatches,
+      matchPlayers,
+      players,
+      teamSide,
+      lineupLabels: normalizeLineupRows(metadata.lineup).map((line) => line.label),
+    }),
+  }
 }
 
 type LevelUpChallengeMessageRow = Pick<MessageRow, 'id' | 'metadata' | 'created_at' | 'deleted_at'>

@@ -21,6 +21,38 @@ export type TeamRoomFinalResult = {
   opponentScore: string
   score: string
   outcome: 'win' | 'loss' | 'final'
+  lines: TeamRoomFinalResultLine[]
+}
+
+export type TeamRoomCompletedLineMatch = {
+  id: string
+  external_match_id: string | null
+  line_number: string | null
+  match_type: string | null
+  winner_side: 'A' | 'B' | null
+  score: string | null
+  status: string | null
+}
+
+export type TeamRoomLinePlayer = {
+  match_id: string
+  player_id: string
+  side: 'A' | 'B' | null
+  seat: number | null
+}
+
+export type TeamRoomPlayerName = {
+  id: string
+  name: string | null
+}
+
+export type TeamRoomFinalResultLine = {
+  id: string
+  label: string
+  teamPlayers: string[]
+  opponentPlayers: string[]
+  score: string
+  winner: 'team' | 'opponent' | 'final'
 }
 
 type TeamRoomResultScope = {
@@ -70,10 +102,9 @@ export function buildTeamRoomFinalResult(
   match: TeamRoomCompletedMatch,
   teamName: string,
 ): TeamRoomFinalResult | null {
-  const teamKey = normalizeKey(teamName)
   const homeTeam = clean(match.home_team)
   const awayTeam = clean(match.away_team)
-  const teamSide = normalizeKey(homeTeam) === teamKey ? 'A' : normalizeKey(awayTeam) === teamKey ? 'B' : ''
+  const teamSide = getTeamRoomMatchSide(match, teamName)
   if (!teamSide) return null
 
   const [homeScore = '', awayScore = ''] = parseTeamScore(match.score)
@@ -95,7 +126,77 @@ export function buildTeamRoomFinalResult(
     opponentScore,
     score: clean(match.score),
     outcome,
+    lines: [],
   }
+}
+
+export function getTeamRoomMatchSide(
+  match: Pick<TeamRoomCompletedMatch, 'home_team' | 'away_team'>,
+  teamName: string,
+) {
+  const teamKey = normalizeKey(teamName)
+  return normalizeKey(match.home_team) === teamKey
+    ? 'A' as const
+    : normalizeKey(match.away_team) === teamKey
+      ? 'B' as const
+      : null
+}
+
+export function buildTeamRoomFinalResultLines({
+  matches,
+  matchPlayers,
+  players,
+  teamSide,
+  lineupLabels = [],
+}: {
+  matches: TeamRoomCompletedLineMatch[]
+  matchPlayers: TeamRoomLinePlayer[]
+  players: TeamRoomPlayerName[]
+  teamSide: 'A' | 'B'
+  lineupLabels?: string[]
+}): TeamRoomFinalResultLine[] {
+  const playerNameById = new Map(players.map((player) => [player.id, clean(player.name)]))
+  const playersByMatchId = new Map<string, TeamRoomLinePlayer[]>()
+  matchPlayers.forEach((player) => {
+    const current = playersByMatchId.get(player.match_id) || []
+    current.push(player)
+    playersByMatchId.set(player.match_id, current)
+  })
+  const opponentSide = teamSide === 'A' ? 'B' : 'A'
+
+  return matches
+    .filter((match) => match.status === 'completed' && clean(match.line_number))
+    .sort((left, right) => (lineNumber(left.line_number) ?? Number.MAX_SAFE_INTEGER) - (lineNumber(right.line_number) ?? Number.MAX_SAFE_INTEGER))
+    .map((match) => {
+      const linePlayers = (playersByMatchId.get(match.id) || [])
+        .slice()
+        .sort((left, right) => (left.seat ?? 99) - (right.seat ?? 99))
+      const namesForSide = (side: 'A' | 'B') => linePlayers
+        .filter((player) => player.side === side)
+        .map((player) => playerNameById.get(player.player_id) || '')
+        .filter(Boolean)
+      const number = lineNumber(match.line_number)
+      const matchType = clean(match.match_type).toLowerCase()
+      const fallbackLabel = `${number ? `${number} ` : ''}${matchType === 'doubles' ? 'Doubles' : matchType === 'singles' ? 'Singles' : 'Court'}`
+
+      return {
+        id: match.id,
+        label: clean(lineupLabels[(number ?? 0) - 1]) || fallbackLabel,
+        teamPlayers: namesForSide(teamSide),
+        opponentPlayers: namesForSide(opponentSide),
+        score: clean(match.score),
+        winner: match.winner_side === teamSide
+          ? 'team' as const
+          : match.winner_side === opponentSide
+            ? 'opponent' as const
+            : 'final' as const,
+      }
+    })
+}
+
+function lineNumber(value: unknown) {
+  const number = Number(clean(value))
+  return Number.isFinite(number) && number > 0 ? number : null
 }
 
 function parseTeamScore(value: unknown) {
