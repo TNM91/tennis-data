@@ -230,6 +230,44 @@
   line-height: 1.45;
 }
 
+.levelUpPersonalProgress {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg));
+  padding: 10px 11px;
+}
+
+.levelUpPersonalProgress > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+}
+
+.levelUpPersonalProgress span {
+  color: var(--shell-copy-muted);
+  font-weight: 850;
+}
+
+.levelUpProgressTrack {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-panel-border) 74%, transparent);
+}
+
+.levelUpProgressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-green), var(--brand-blue));
+  transition: width 180ms ease;
+}
+
 .levelUpChallengeSteps {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));

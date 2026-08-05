@@ -26,7 +26,7 @@ import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/capt
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
   buildCaptainLevelUpChallenge,
-  getCaptainLevelUpCompletedPlayerIds,
+  getCaptainLevelUpCompletedCardIdsByPlayer,
   getCaptainLevelUpCompletedPlayerIdsForRun,
   selectActiveCaptainLevelUpChallenge,
   type CaptainLevelUpChallenge,
@@ -156,6 +156,7 @@ type TeamRoomLevelUpChallengePayload = {
   focus: string
   detail: string
   cardIds: string[]
+  completedCardIds: string[]
   completed: boolean
   completedCount: number
   connectedCount: number
@@ -562,6 +563,31 @@ export async function POST(request: Request) {
       targetCount: targets.length,
       incompleteCount: incompleteMembers.length,
     })
+  }
+
+  if (action === 'complete_level_up_challenge') {
+    const challengeResult = await loadActionableLevelUpChallenge(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+      syncedMembers,
+    )
+    if (!challengeResult.ok) {
+      return Response.json({ ok: false, message: challengeResult.message }, { status: challengeResult.status })
+    }
+    if (challengeResult.completedIds.has(auth.userId)) {
+      return Response.json({ ok: true, completed: true })
+    }
+    const { error } = await auth.service
+      .from('team_room_message_reactions')
+      .upsert({
+        conversation_id: conversation.id,
+        message_id: challengeResult.message.id,
+        profile_id: auth.userId,
+        reaction: 'ack',
+      }, { onConflict: 'message_id,profile_id,reaction', ignoreDuplicates: true })
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true, completed: true })
   }
 
   if (action === 'close_level_up_challenge') {
@@ -1594,7 +1620,7 @@ async function loadTeamLevelUpChallengeCompletion(
   if (sessionResult.error) return { ok: false as const, status: 500, message: sessionResult.error.message }
   if (reactionResult.error) return { ok: false as const, status: 500, message: reactionResult.error.message }
 
-  const automaticCompletedIds = getCaptainLevelUpCompletedPlayerIds(
+  const completedCardIdsByPlayer = getCaptainLevelUpCompletedCardIdsByPlayer(
     challenge,
     ((sessionResult.data ?? []) as Array<{ player_user_id: string; focus_id: string; drill_title: string }>).map((row) => ({
       playerUserId: row.player_user_id,
@@ -1602,9 +1628,13 @@ async function loadTeamLevelUpChallengeCompletion(
       drillTitle: row.drill_title,
     })),
   )
+  const automaticCompletedIds = Array.from(completedCardIdsByPlayer.entries())
+    .filter(([, cardIds]) => challenge.cardIds.length > 0 && cardIds.length === challenge.cardIds.length)
+    .map(([playerUserId]) => playerUserId)
   const memberIdSet = new Set(memberIds)
   return {
     ok: true as const,
+    completedCardIdsByPlayer,
     completedIds: new Set([
       ...automaticCompletedIds,
       ...((reactionResult.data ?? []) as ReactionRow[])
@@ -1706,7 +1736,11 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         cleanText(activeLevelUpRow.metadata?.launchedAt) || cleanText(activeLevelUpRow.created_at),
         reactionByMessageId.get(activeLevelUpRow.id) || [],
       )
-    : { ok: true as const, completedIds: new Set<string>() }
+    : {
+        ok: true as const,
+        completedIds: new Set<string>(),
+        completedCardIdsByPlayer: new Map<string, string[]>(),
+      }
   if (!activeLevelUpCompletion.ok) return activeLevelUpCompletion
   const rowById = new Map(typedMessageRows.map((row) => [row.id, row]))
   const messages = typedMessageRows.map((row) => {
@@ -1727,6 +1761,9 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         ? availabilityByRequestId.get(cleanText(row.metadata.availabilityRequestId)) || null
         : null,
       row.id === activeLevelUpChallengeId ? Array.from(activeLevelUpCompletion.completedIds) : [],
+      row.id === activeLevelUpChallengeId
+        ? activeLevelUpCompletion.completedCardIdsByPlayer.get(userId) || []
+        : [],
       members.length,
     )
     return {
@@ -2364,6 +2401,7 @@ function toMessage(
   attachmentUrl = '',
   availabilitySummary: TeamRoomAvailabilitySummary | null = null,
   levelUpCompletedProfileIds: string[] = [],
+  levelUpCompletedCardIds: string[] = [],
   connectedCount = 0,
 ) {
   const profile = profileById.get(row.sender_user_id)
@@ -2412,6 +2450,7 @@ function toMessage(
         currentUserId,
         reactions,
         levelUpCompletedProfileIds,
+        levelUpCompletedCardIds,
         connectedCount,
       )
     : null
@@ -2457,6 +2496,7 @@ function buildTeamRoomLevelUpChallengePayload(
   currentUserId: string,
   reactions: ReactionRow[],
   completedProfileIds: string[] = [],
+  completedCardIds: string[] = [],
   connectedCount = 0,
 ): TeamRoomLevelUpChallengePayload | null {
   const challenge = buildCaptainLevelUpChallenge(cleanText(metadata.challengeId))
@@ -2465,13 +2505,18 @@ function buildTeamRoomLevelUpChallengePayload(
     .filter((reaction) => reaction.reaction === 'ack')
     .map((reaction) => reaction.profile_id)
   const aggregateCompletedIds = completedProfileIds.length ? completedProfileIds : acknowledgedProfileIds
+  const completed = aggregateCompletedIds.includes(currentUserId)
+  const currentUserCompletedCardIds = completed
+    ? challenge.cardIds
+    : challenge.cardIds.filter((cardId) => completedCardIds.includes(cardId))
   return {
     id: challenge.id,
     title: challenge.title,
     focus: challenge.focus,
     detail: challenge.detail,
     cardIds: challenge.cardIds,
-    completed: aggregateCompletedIds.includes(currentUserId),
+    completedCardIds: currentUserCompletedCardIds,
+    completed,
     completedCount: new Set(aggregateCompletedIds).size,
     connectedCount,
     status: cleanText(metadata.challengeStatus) === 'scheduled'

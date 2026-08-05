@@ -6,6 +6,7 @@ import {
   CAPTAIN_LEVEL_UP_CHALLENGES,
   getCaptainLevelUpAggregateCompletionLabel,
   getCaptainLevelUpCardDetails,
+  getCaptainLevelUpCompletedCardIdsByPlayer,
   getCaptainLevelUpCompletedPlayerIds,
   getCaptainLevelUpCompletedPlayerIdsForRun,
   recommendCaptainLevelUpChallenge,
@@ -54,6 +55,22 @@ describe('Captain Level Up challenge handoff', () => {
       { playerUserId: 'player-2', focusId: 'doubles-first-move', drillTitle: 'Partner First-Move Call' },
     ])
     expect(completed).toEqual(['player-1'])
+  })
+
+  it('keeps each player\'s challenge-card progress in challenge order', () => {
+    const challenge = buildCaptainLevelUpChallenge('doubles-readiness')!
+    const completedByPlayer = getCaptainLevelUpCompletedCardIdsByPlayer(challenge, [
+      { playerUserId: 'player-1', focusId: 'doubles-30-30-game', drillTitle: '' },
+      { playerUserId: 'player-1', focusId: 'partner-first-move-call', drillTitle: '' },
+      { playerUserId: 'player-1', focusId: 'unrelated-card', drillTitle: '' },
+      { playerUserId: 'player-2', focusId: '', drillTitle: 'Poach Timing Shadow' },
+    ])
+
+    expect(completedByPlayer.get('player-1')).toEqual([
+      'partner-first-move-call',
+      'doubles-30-30-game',
+    ])
+    expect(completedByPlayer.get('player-2')).toEqual(['poach-timing-shadow'])
   })
 
   it('keeps repeated challenge completion inside the selected run window', () => {
