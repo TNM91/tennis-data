@@ -149,5 +149,7 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain("status: court.status")
     expect(roomApi).toContain('lineup: activeLineup')
     expect(roomApi).toContain('lineupChange: activeLineupChange ? {')
+    expect(roomApi).toContain('afterPlayers: activeLineupChange.afterPlayers')
+    expect(roomApi).toContain('respondedAt: activeLineupChange.respondedAt')
   })
 })

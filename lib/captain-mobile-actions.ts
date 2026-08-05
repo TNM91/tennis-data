@@ -6,6 +6,7 @@ export type CaptainMobileNowItemId =
   | 'reply-focus'
   | 'court-readiness'
   | 'reply'
+  | 'lineup-confirmed'
   | 'availability-open'
   | 'team-improvement'
   | 'availability-complete'
@@ -14,9 +15,10 @@ const CAPTAIN_MOBILE_NOW_PRIORITY: Record<CaptainMobileNowItemId, number> = {
   'reply-focus': 0,
   'court-readiness': 1,
   reply: 2,
-  'availability-open': 3,
-  'team-improvement': 4,
-  'availability-complete': 5,
+  'lineup-confirmed': 3,
+  'availability-open': 4,
+  'team-improvement': 5,
+  'availability-complete': 6,
 }
 
 type CaptainMobileActionLayoutInput = {

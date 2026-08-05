@@ -2123,8 +2123,11 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
           courtLabel: activeLineupChange.courtLabel,
           outgoingPlayerName: activeLineupChange.outgoingPlayerName,
           replacementPlayerName: activeLineupChange.replacementPlayerName,
+          affectedNames: activeLineupChange.affectedNames,
+          afterPlayers: activeLineupChange.afterPlayers,
           pending: activeLineupChange.pending,
           response: activeLineupChange.response,
+          respondedAt: activeLineupChange.respondedAt,
         } : null,
         courts: courtReadiness.flatMap((court, index) => court.status === 'confirmed' ? [] : [{
           label: court.label || `Court ${index + 1}`,
