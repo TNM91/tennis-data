@@ -152,4 +152,17 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('afterPlayers: activeLineupChange.afterPlayers')
     expect(roomApi).toContain('respondedAt: activeLineupChange.respondedAt')
   })
+
+  it('stores one shared final-lineup send for every captain', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+
+    expect(roomApi).toContain("if (action === 'send_final_lineup')")
+    expect(roomApi).toContain('readiness.finalLineup?.lineupId === serverLineupId')
+    expect(roomApi).toContain('buildCaptainLockedLineupAnnouncement({')
+    expect(roomApi).toContain(".filter('metadata', 'eq', JSON.stringify(cardResult.metadata))")
+    expect(roomApi).toContain('finalLineupAnnouncement: true')
+    expect(roomApi).toContain('alreadySent: true')
+    expect(roomApi).toContain('finalLineup: finalLineup ? {')
+    expect(roomApi).toContain('readTeamRoomFinalLineupReceipt(latestCard?.metadata?.finalLineup)')
+  })
 })

@@ -141,6 +141,7 @@ import {
   type CaptainConfirmedLineupChange,
   type CaptainLineupConfirmationSeenEntry,
 } from '@/lib/captain-lineup-confirmation'
+import type { TeamRoomFinalLineupReceipt } from '@/lib/team-room-final-lineup'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
@@ -291,6 +292,7 @@ type CaptainTeamRoomSummary = {
       label: string
       players: string[]
     }>
+    finalLineup?: TeamRoomFinalLineupReceipt | null
     lineupChange?: {
       courtLabel: string
       outgoingPlayerName: string
@@ -7196,6 +7198,13 @@ function CaptainHubContent() {
         lineup: captainTeamRoomLineup,
       })
     : ''
+  const captainLockedLineupReceipt = teamRoomSummary.courtReadiness?.finalLineup?.lineupId === captainLockedLineupId
+    ? teamRoomSummary.courtReadiness.finalLineup
+    : null
+  const captainLockedLineupWasSent = Boolean(captainLockedLineupReceipt)
+  const captainLockedLineupDisplayId = captainLockedLineupReceipt?.announcementMessageId
+    ? `final-lineup-sent:${captainLockedLineupReceipt.announcementMessageId}`
+    : captainLockedLineupId
   const captainLineupConfirmationSeenResolved = captainLineupConfirmationSeen.userId === (userId || '')
   const captainLineupConfirmationWasSeen = captainLineupConfirmationSeenResolved && hasSeenCaptainLineupConfirmation(
     captainLineupConfirmationSeen.entries,
@@ -7212,13 +7221,13 @@ function CaptainHubContent() {
   const captainLockedLineupWasSeen = captainLineupConfirmationSeenResolved && hasSeenCaptainLineupConfirmation(
     captainLineupConfirmationSeen.entries,
     userId || '',
-    captainLockedLineupId,
+    captainLockedLineupDisplayId,
   )
   const captainShowLockedLineup = Boolean(
     captainLineupIsLocked
-    && captainLockedLineupId
+    && captainLockedLineupDisplayId
     && captainLineupConfirmationSeenResolved
-    && (!captainLockedLineupWasSeen || captainSharedLineupConfirmationId === captainLockedLineupId),
+    && (!captainLockedLineupWasSeen || captainSharedLineupConfirmationId === captainLockedLineupDisplayId),
   )
   const captainLineupConfirmationShareBody = captainConfirmedLineupChange
     ? buildCaptainLineupConfirmationShareBody({
@@ -7237,7 +7246,7 @@ function CaptainHubContent() {
       })
     : ''
   const captainActiveLineupSuccessId = captainShowLockedLineup
-    ? captainLockedLineupId
+    ? captainLockedLineupDisplayId
     : captainLineupConfirmationId
   const captainActiveLineupShareBody = captainShowLockedLineup
     ? captainLockedLineupShareBody
@@ -7323,18 +7332,37 @@ function CaptainHubContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'send',
+          action: captainShowLockedLineup ? 'send_final_lineup' : 'send',
           teamName: selectedTeam,
           leagueName: selectedLeague,
           flight: selectedFlight,
           announcement: true,
           body: captainActiveLineupShareBody,
+          messageId: captainShowLockedLineup ? teamRoomSummary.courtReadiness?.messageId || '' : undefined,
+          lineupId: captainShowLockedLineup ? captainLockedLineupId : undefined,
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string }
+      const payload = await response.json() as {
+        ok?: boolean
+        message?: string
+        alreadySent?: boolean
+        finalLineup?: TeamRoomFinalLineupReceipt
+      }
       if (!response.ok || !payload.ok) throw new Error(payload.message || 'The lineup update could not be shared.')
-      rememberCaptainLineupConfirmationSeen(captainActiveLineupSuccessId)
-      setCaptainSharedLineupConfirmationId(captainActiveLineupSuccessId)
+      const sharedId = captainShowLockedLineup && payload.finalLineup?.announcementMessageId
+        ? `final-lineup-sent:${payload.finalLineup.announcementMessageId}`
+        : captainActiveLineupSuccessId
+      if (captainShowLockedLineup && !payload.finalLineup) {
+        throw new Error('The final lineup status could not be confirmed. Refresh and try again.')
+      }
+      if (payload.finalLineup) {
+        setTeamRoomSummary((current) => current.courtReadiness ? {
+          ...current,
+          courtReadiness: { ...current.courtReadiness, finalLineup: payload.finalLineup },
+        } : current)
+      }
+      rememberCaptainLineupConfirmationSeen(sharedId)
+      setCaptainSharedLineupConfirmationId(sharedId)
       setCaptainLineupConfirmationShareState('shared')
     } catch (shareError) {
       setCaptainLineupConfirmationShareState('idle')
@@ -16254,7 +16282,9 @@ function CaptainHubContent() {
         </strong>
         <span style={captainHomeAvailabilityProgressDetailStyle}>
           {captainShowLockedLineup
-            ? `${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel} is ready for the final team message.`
+            ? captainLockedLineupWasSent
+              ? `Final lineup sent to Team Chat by ${captainLockedLineupReceipt?.sentByName || 'a team captain'}.`
+              : `${weekAtGlance.eventDateLabel} vs ${weekAtGlance.opponentLabel} is ready for the final team message.`
             : captainConfirmedLineupChange?.afterPlayers.length
               ? `${captainConfirmedLineupChange.afterPlayers.join(' / ')} is set.`
               : 'The replacement is confirmed and the court is set.'}
@@ -16270,7 +16300,9 @@ function CaptainHubContent() {
             <small style={commandCenterLabel}>Final team send</small>
             <strong style={captainHomeAvailabilityProgressTitle}>{captainTeamRoomLineup.length} court assignments</strong>
             <span style={captainHomeAvailabilityProgressDetailStyle}>
-              The message includes the full lineup, match time, and location.
+              {captainLockedLineupWasSent
+                ? 'Captains and co-captains now share this sent status.'
+                : 'The message includes the full lineup, match time, and location.'}
             </span>
           </span>
         )}
@@ -16283,12 +16315,14 @@ function CaptainHubContent() {
           <>
             <PrimarySmallBtn
               fullWidth={isMobile}
-              disabled={captainLineupConfirmationShareState !== 'idle'}
+              disabled={captainLockedLineupWasSent || captainLineupConfirmationShareState !== 'idle'}
               onClick={() => void shareCaptainLineupUpdate()}
             >
               {captainLineupConfirmationShareState === 'sharing'
                 ? 'Sending...'
-                : captainLineupConfirmationShareState === 'shared' ? 'Lineup sent' : 'Send final lineup'}
+                : captainLockedLineupWasSent || captainLineupConfirmationShareState === 'shared'
+                  ? 'Lineup sent'
+                  : 'Send final lineup'}
             </PrimarySmallBtn>
             <SecondarySmallBtn
               fullWidth={isMobile}

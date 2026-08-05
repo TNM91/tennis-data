@@ -23,7 +23,16 @@ import {
   type TeamRoomAvailabilitySummary,
 } from '@/lib/team-room-availability'
 import { buildCaptainReplyNotification, findCaptainReplyCourt } from '@/lib/captain-reply-alert'
+import {
+  buildCaptainLockedLineupAnnouncement,
+  buildCaptainLockedLineupId,
+  isCaptainLineupLocked,
+} from '@/lib/captain-lineup-confirmation'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
+import {
+  buildTeamRoomFinalLineupReceipt,
+  readTeamRoomFinalLineupReceipt,
+} from '@/lib/team-room-final-lineup'
 import {
   buildCaptainLevelUpCardHref,
   buildCaptainLevelUpChallenge,
@@ -150,6 +159,7 @@ type TeamRoomActionBody = {
   deadlineDate?: unknown
   challengeId?: unknown
   matchDate?: unknown
+  lineupId?: unknown
 }
 
 type TeamRoomLevelUpChallengePayload = {
@@ -317,6 +327,133 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'send_final_lineup') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can send the final lineup.' }, { status: 403 })
+    }
+    const requestedMessageId = cleanText(body.messageId)
+    const requestedLineupId = cleanText(body.lineupId)
+    if (!requestedMessageId || !requestedLineupId) {
+      return Response.json({ ok: false, message: 'Refresh the lineup before sending it.' }, { status: 400 })
+    }
+
+    const summaryResult = await loadTeamRoomSummary(auth.service, auth.userId, selected)
+    if (!summaryResult.ok) {
+      return Response.json({ ok: false, message: summaryResult.message }, { status: summaryResult.status })
+    }
+    const readiness = summaryResult.summary.courtReadiness
+    const lineup = readiness.lineup
+    const serverLineupId = buildCaptainLockedLineupId({ messageId: readiness.messageId, lineup })
+    if (
+      readiness.messageId !== requestedMessageId
+      || serverLineupId !== requestedLineupId
+      || !isCaptainLineupLocked({
+        confirmedCount: readiness.confirmedCount,
+        totalCount: readiness.totalCount,
+        lineup,
+      })
+    ) {
+      return Response.json({ ok: false, message: 'The lineup changed. Refresh before sending the final update.' }, { status: 409 })
+    }
+    if (readiness.finalLineup?.lineupId === serverLineupId) {
+      return Response.json({ ok: true, alreadySent: true, finalLineup: readiness.finalLineup })
+    }
+
+    const cardResult = await loadActionableMatchCard(auth.service, conversation.id, requestedMessageId)
+    if (!cardResult.ok) {
+      return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    }
+    const existingReceipt = readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
+    if (existingReceipt?.lineupId === serverLineupId) {
+      return Response.json({ ok: true, alreadySent: true, finalLineup: existingReceipt })
+    }
+    const messageBody = buildCaptainLockedLineupAnnouncement({
+      lineup,
+      matchDate: cleanText(cardResult.metadata.matchDate),
+      opponent: cleanText(cardResult.metadata.opponent),
+      arrivalTime: cleanText(cardResult.metadata.matchTime),
+      facility: cleanText(cardResult.metadata.facility),
+    }).slice(0, 2400)
+
+    const sentAt = new Date().toISOString()
+    const announcementMessageId = crypto.randomUUID()
+    const senderName = syncedMembers.find((member) => member.id === auth.userId)?.name || 'Team captain'
+    const finalLineup = buildTeamRoomFinalLineupReceipt({
+      lineupId: serverLineupId,
+      sourceMessageId: requestedMessageId,
+      announcementMessageId,
+      sentAt,
+      sentByUserId: auth.userId,
+      sentByName: senderName,
+    })
+    const claimedMetadata = { ...cardResult.metadata, finalLineup }
+    const claimResult = await auth.service
+      .from('internal_messages')
+      .update({ metadata: claimedMetadata })
+      .eq('id', requestedMessageId)
+      .eq('conversation_id', conversation.id)
+      .filter('metadata', 'eq', JSON.stringify(cardResult.metadata))
+      .select('id')
+      .maybeSingle()
+    if (claimResult.error) return Response.json({ ok: false, message: claimResult.error.message }, { status: 500 })
+    if (!claimResult.data) {
+      const currentCard = await loadActionableMatchCard(auth.service, conversation.id, requestedMessageId)
+      const currentReceipt = currentCard.ok
+        ? readTeamRoomFinalLineupReceipt(currentCard.metadata.finalLineup)
+        : null
+      if (currentReceipt?.lineupId === serverLineupId) {
+        return Response.json({ ok: true, alreadySent: true, finalLineup: currentReceipt })
+      }
+      return Response.json({ ok: false, message: 'The lineup changed. Refresh before sending the final update.' }, { status: 409 })
+    }
+
+    const { data: message, error } = await auth.service
+      .from('internal_messages')
+      .insert({
+        id: announcementMessageId,
+        conversation_id: conversation.id,
+        sender_user_id: auth.userId,
+        body: messageBody,
+        message_kind: 'announcement',
+        metadata: {
+          finalLineupAnnouncement: true,
+          lineupId: serverLineupId,
+          sourceMessageId: requestedMessageId,
+        },
+      })
+      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
+      .single()
+    if (error) {
+      await auth.service
+        .from('internal_messages')
+        .update({ metadata: cardResult.metadata })
+        .eq('id', requestedMessageId)
+        .eq('conversation_id', conversation.id)
+        .filter('metadata', 'eq', JSON.stringify(claimedMetadata))
+      return Response.json({ ok: false, message: error.message }, { status: 500 })
+    }
+
+    await auth.service
+      .from('internal_conversations')
+      .update({ updated_at: sentAt })
+      .eq('id', conversation.id)
+    await notifyTeamRoom(auth.service, {
+      conversationId: conversation.id,
+      actorUserId: auth.userId,
+      teamName: selected.team_name,
+      scope: selected,
+      body: messageBody,
+      announcement: true,
+    })
+
+    return Response.json({
+      ok: true,
+      alreadySent: false,
+      finalLineup,
+      message: toMessage(message as MessageRow, new Map(), auth.userId),
+    })
+  }
+
   if (action === 'send') {
     const messageBody = cleanText(body.body).slice(0, 2400)
     if (!messageBody) return Response.json({ ok: false, message: 'Write a message first.' }, { status: 400 })
@@ -721,6 +858,15 @@ export async function POST(request: Request) {
         deadlineStatus: '',
         reminderSentAt: '',
       } : null,
+      finalLineup: existingId && previousCard && buildCaptainLockedLineupId({
+        messageId: existingId,
+        lineup: previousCard.lineup,
+      }) === buildCaptainLockedLineupId({
+        messageId: existingId,
+        lineup: effectiveCard.lineup,
+      })
+        ? readTeamRoomFinalLineupReceipt(existingRows?.[0]?.metadata?.finalLineup)
+        : null,
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
       ? `Projected lineup for ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}. Please confirm whether you can play.`
@@ -2077,6 +2223,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     .map(cleanText)
     .filter(Boolean)
   const activeLineup = normalizeLineupRows(message?.card?.lineup)
+  const finalLineup = readTeamRoomFinalLineupReceipt(latestCard?.metadata?.finalLineup)
   const activeLineupChange = cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice)
   const courtReadiness = buildTeamRoomCourtReadiness({
     lineup: activeLineup,
@@ -2119,6 +2266,13 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
         confirmedCount: courtReadiness.filter((court) => court.status === 'confirmed').length,
         totalCount: courtReadiness.length,
         lineup: activeLineup,
+        finalLineup: finalLineup ? {
+          ...finalLineup,
+          sentByName: finalLineup.sentByName
+            || profileById.get(finalLineup.sentByUserId)?.message_display_name?.trim()
+            || profileById.get(finalLineup.sentByUserId)?.linked_player_name?.trim()
+            || 'Team captain',
+        } : null,
         lineupChange: activeLineupChange ? {
           courtLabel: activeLineupChange.courtLabel,
           outgoingPlayerName: activeLineupChange.outgoingPlayerName,
