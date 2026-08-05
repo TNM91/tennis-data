@@ -81,11 +81,12 @@ describe('Captain mobile action priority', () => {
       { id: 'team-improvement' as const, label: 'Improve' },
       { id: 'availability-open' as const, label: 'Availability' },
       { id: 'lineup-confirmed' as const, label: 'Confirmed' },
+      { id: 'lineup-locked' as const, label: 'Locked' },
       { id: 'reply' as const, label: 'Reply' },
       { id: 'court-readiness' as const, label: 'Court' },
     ])
 
-    expect(items.map((item) => item.label)).toEqual(['Confirmed', 'Court', 'Reply', 'Availability', 'Improve', 'Complete'])
+    expect(items.map((item) => item.label)).toEqual(['Locked', 'Confirmed', 'Court', 'Reply', 'Availability', 'Improve', 'Complete'])
   })
 
   it('puts a directly linked reply ahead of every other notice', () => {

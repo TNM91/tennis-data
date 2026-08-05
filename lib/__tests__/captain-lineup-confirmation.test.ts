@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCaptainLockedLineupAnnouncement,
+  buildCaptainLockedLineupId,
   buildCaptainLineupConfirmationId,
   buildCaptainLineupConfirmationNextStep,
   buildCaptainLineupConfirmationShareBody,
   hasSeenCaptainLineupConfirmation,
+  isCaptainLineupLocked,
   rememberCaptainLineupConfirmation,
 } from '../captain-lineup-confirmation'
 
@@ -15,6 +18,12 @@ const change = {
   replacementPlayerName: 'Blair Ball',
   afterPlayers: ['Blair Ball', 'Casey Court'],
 }
+
+const lockedLineup = [
+  { label: '3.5 Doubles', players: ['Alex Ace', 'Blair Ball'] },
+  { label: '4.0 Doubles', players: ['Casey Court', 'Drew Deuce'] },
+  { label: '4.5 Doubles', players: ['Emery Edge', 'Frankie Forehand'] },
+]
 
 describe('Captain lineup confirmation closeout', () => {
   it('uses the accepted response as a stable one-time success id', () => {
@@ -31,6 +40,39 @@ describe('Captain lineup confirmation closeout', () => {
     })).toBe(
       'Doubles 1 confirmed for 2026-08-12 vs Net Results: Blair Ball is in for Alex Ace. Court: Blair Ball / Casey Court.',
     )
+  })
+
+  it('recognizes and fingerprints a fully confirmed lineup', () => {
+    expect(isCaptainLineupLocked({ confirmedCount: 3, totalCount: 3, lineup: lockedLineup })).toBe(true)
+    expect(isCaptainLineupLocked({ confirmedCount: 2, totalCount: 3, lineup: lockedLineup })).toBe(false)
+    expect(buildCaptainLockedLineupId({ messageId: 'message-1', lineup: lockedLineup }))
+      .toMatch(/^lineup-locked:message-1:[a-z0-9]+$/)
+  })
+
+  it('builds one final team announcement with every court and match detail', () => {
+    expect(buildCaptainLockedLineupAnnouncement({
+      lineup: lockedLineup,
+      matchDate: '2026-08-12',
+      opponent: 'Net Results',
+      arrivalTime: '6:00 PM',
+      facility: 'Riverside Tennis Center',
+    })).toBe([
+      'Lineup locked — 2026-08-12 vs Net Results',
+      '3.5 Doubles: Alex Ace / Blair Ball',
+      '4.0 Doubles: Casey Court / Drew Deuce',
+      '4.5 Doubles: Emery Edge / Frankie Forehand',
+      'Arrive by 6:00 PM at Riverside Tennis Center.',
+    ].join('\n'))
+  })
+
+  it('clearly marks missing match logistics', () => {
+    expect(buildCaptainLockedLineupAnnouncement({
+      lineup: lockedLineup,
+      matchDate: '2026-08-12',
+      opponent: 'Net Results',
+      arrivalTime: 'Add arrival',
+      facility: 'Add location',
+    })).toContain('Match time and location: TBD.')
   })
 
   it('remembers the success once per signed-in captain and response', () => {
@@ -64,33 +106,33 @@ describe('Captain lineup confirmation closeout', () => {
     })
   })
 
-  it('moves to the next match task when every court is confirmed', () => {
+  it('moves to the next match task when courts are not fully confirmed', () => {
     expect(buildCaptainLineupConfirmationNextStep({
       nextCourt: null,
       nextTask: { label: 'Message team', detail: 'Send the final plan.', cta: 'Open messages' },
-      confirmedCount: 3,
+      confirmedCount: 2,
       totalCount: 3,
     })).toEqual({
       kind: 'task',
-      eyebrow: 'Courts ready',
+      eyebrow: 'Next match task',
       title: 'Message team',
       detail: 'Send the final plan.',
       cta: 'Open messages',
     })
   })
 
-  it('closes into Team Chat when no unresolved court or match task remains', () => {
+  it('creates the lineup-locked send when every court is confirmed', () => {
     expect(buildCaptainLineupConfirmationNextStep({
       nextCourt: null,
       nextTask: null,
       confirmedCount: 3,
       totalCount: 3,
     })).toEqual({
-      kind: 'complete',
-      eyebrow: 'Lineup ready',
+      kind: 'locked',
+      eyebrow: 'Lineup locked',
       title: 'All 3 courts confirmed',
-      detail: 'Open Team Chat if the team needs an update.',
-      cta: 'Open Team Chat',
+      detail: 'Send the full lineup and match details to the team.',
+      cta: 'Send final lineup',
     })
   })
 })
