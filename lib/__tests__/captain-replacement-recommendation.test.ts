@@ -242,7 +242,7 @@ describe('Captain replacement recommendation', () => {
 
     expect(captainSource).toContain('buildCaptainReplacementRecommendation({')
     expect(captainSource).toContain('Best replacement')
-    expect(captainSource).toContain('Open suggested swap')
+    expect(captainSource).toContain('Review affected lineup')
     expect(builderSource).toContain('Suggested availability change')
     expect(builderSource).toContain('Apply suggested swap')
     expect(builderSource).toContain('Unsaved — review the court')

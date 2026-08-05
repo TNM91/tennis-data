@@ -110,6 +110,7 @@ import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
   CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+  findLatestCaptainAvailabilityRiskChange,
 } from '@/lib/captain-availability-live'
 import {
   listInternalNotifications,
@@ -121,6 +122,7 @@ import {
   CAPTAIN_AVAILABILITY_REPLY_NOTICE,
   parseCaptainReplyAlert,
   selectCaptainReplyAlerts,
+  type CaptainReplyAlert,
 } from '@/lib/captain-reply-alert'
 import {
   buildCaptainReplacementLineupHref,
@@ -296,6 +298,8 @@ type CaptainAvailabilityRequestSummary = {
   request: {
     id: string
     teamName: string
+    leagueName: string
+    flight: string
     matchDate: string
     opponentTeam: string
     matchTime: string
@@ -1731,11 +1735,13 @@ function CaptainHubContent() {
   const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
   const [captainAvailabilityRequestLoading, setCaptainAvailabilityRequestLoading] = useState(false)
   const [captainAvailabilityLiveNotice, setCaptainAvailabilityLiveNotice] = useState('')
+  const [captainLiveReplyAlert, setCaptainLiveReplyAlert] = useState<CaptainReplyAlert | null>(null)
   const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
   const captainAvailabilityRequestScopeRef = useRef('')
   const captainAvailabilityRequestInFlightRef = useRef('')
   const captainAvailabilityResponseBaselineRef = useRef(false)
   const captainAvailabilityResponseSignatureRef = useRef('')
+  const captainAvailabilityPreviousResponsesRef = useRef<CaptainAvailabilityResponse[]>([])
   const teamRoomSummaryRequestRef = useRef(0)
   const levelUpChallengeHistoryRequestRef = useRef(0)
   const levelUpChallengeHistoryScopeRef = useRef('')
@@ -3002,7 +3008,9 @@ function CaptainHubContent() {
     if (captainAvailabilityRequestScopeRef.current !== requestScope) {
       captainAvailabilityResponseBaselineRef.current = false
       captainAvailabilityResponseSignatureRef.current = ''
+      captainAvailabilityPreviousResponsesRef.current = []
       setCaptainAvailabilityLiveNotice('')
+      setCaptainLiveReplyAlert(null)
     }
     captainAvailabilityRequestScopeRef.current = requestScope
     if (!accessToken || !selectedTeam || !matchWeekDate) {
@@ -3040,9 +3048,35 @@ function CaptainHubContent() {
         && nextResponseSignature !== captainAvailabilityResponseSignatureRef.current
       ) {
         setCaptainAvailabilityLiveNotice('Updated just now')
+        const riskChange = findLatestCaptainAvailabilityRiskChange(
+          captainAvailabilityPreviousResponsesRef.current,
+          result.responses,
+        )
+        if (riskChange?.player_name && riskChange.status) {
+          const notification = buildCaptainReplyNotification({
+            playerName: riskChange.player_name,
+            status: riskChange.status,
+            teamName: result.request.teamName,
+            leagueName: result.request.leagueName,
+            flight: result.request.flight,
+            matchDate: result.request.matchDate,
+            opponentTeam: result.request.opponentTeam,
+            availabilityRequestId: result.request.id,
+          })
+          setCaptainLiveReplyAlert(parseCaptainReplyAlert({
+            id: `live-${riskChange.responded_at || Date.now()}`,
+            title: notification.title,
+            body: notification.body,
+            href: notification.href,
+            createdAt: riskChange.responded_at || new Date().toISOString(),
+          }))
+        } else {
+          setCaptainLiveReplyAlert(null)
+        }
       }
       captainAvailabilityResponseBaselineRef.current = true
       captainAvailabilityResponseSignatureRef.current = nextResponseSignature
+      captainAvailabilityPreviousResponsesRef.current = result.responses
       setCaptainAvailabilityRequestSummary(result)
     } catch {
       // Captain Home keeps its saved device view if the live request cannot be refreshed.
@@ -4567,7 +4601,7 @@ function CaptainHubContent() {
       createdAt: '',
     })
   }, [matchWeekDate, nextMatch?.opponent, searchParams, selectedFlight, selectedLeague, selectedTeam])
-  const captainLatestReplyAlert = captainReplyFocusAlert ?? captainReplyAlerts[0] ?? null
+  const captainLatestReplyAlert = captainReplyFocusAlert ?? captainLiveReplyAlert ?? captainReplyAlerts[0] ?? null
   const captainLatestReplyLineupRow = useMemo(() => {
     if (!captainLatestReplyAlert) return null
     const focusedCourtKey = safeKey(searchParams.get('court') || '')
@@ -7024,6 +7058,7 @@ function CaptainHubContent() {
     </div>
   ) : null
   const captainReplyAlertNeedsLineupReview = captainLatestReplyAlert?.status !== 'available'
+  const captainReplyAffectsSavedLineup = Boolean(captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview)
   const captainReplyAlertHref = captainLatestReplyAlert?.href || levelUpAvailabilityHref
   const captainReplyAlertImpact = captainLatestReplyAlert
     ? captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview
@@ -7036,6 +7071,7 @@ function CaptainHubContent() {
     : ''
 
   function acknowledgeCaptainReplyAlerts() {
+    setCaptainLiveReplyAlert(null)
     if (userId && captainReplyAlerts.length) {
       const readIds = new Set(captainReplyAlerts.map((alert) => alert.id))
       setCaptainReplyNotifications((current) => current.filter((notification) => !readIds.has(notification.id)))
@@ -7091,33 +7127,23 @@ function CaptainHubContent() {
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplacementRecommendation?.needsConfirmation
-              ? levelUpAvailabilityHref
-              : captainReplyAlertNeedsLineupReview ? captainReplacementLineupHref : captainReplyAlertHref,
-            captainReplacementRecommendation?.needsConfirmation
-              ? 'availability'
-              : captainReplyAlertNeedsLineupReview ? 'lineup' : 'availability',
+            captainReplyAffectsSavedLineup ? captainReplacementLineupHref : captainReplyAlertHref,
+            captainReplyAffectsSavedLineup ? 'lineup' : 'availability',
           )}
         >
-          {captainReplacementRecommendation?.needsConfirmation
-            ? 'Check availability'
-            : captainReplacementRecommendation ? 'Open suggested swap' : captainReplyAlertNeedsLineupReview ? 'Adjust lineup' : 'Review availability'}
+          {captainReplyAffectsSavedLineup ? 'Review affected lineup' : 'Review availability'}
         </PrimarySmallBtn>
         <SecondarySmallBtn
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplacementRecommendation?.needsConfirmation
-              ? captainReplacementLineupHref
-              : captainReplyAlertNeedsLineupReview ? captainReplyAlertHref : lineupBuilderHref,
-            captainReplacementRecommendation?.needsConfirmation
-              ? 'lineup'
-              : captainReplyAlertNeedsLineupReview ? 'availability' : 'lineup',
+            captainReplyAffectsSavedLineup ? levelUpAvailabilityHref : lineupBuilderHref,
+            captainReplyAffectsSavedLineup ? 'availability' : 'lineup',
           )}
         >
-          {captainReplacementRecommendation?.needsConfirmation
-            ? 'Open lineup'
-            : captainReplyAlertNeedsLineupReview ? 'View reply' : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
+          {captainReplyAffectsSavedLineup
+            ? captainReplacementRecommendation?.needsConfirmation ? 'Check replacement availability' : 'View availability'
+            : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
         </SecondarySmallBtn>
         <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
           Dismiss

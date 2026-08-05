@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
+  findLatestCaptainAvailabilityRiskChange,
 } from '../captain-availability-live'
 
 const captainHomeSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
@@ -26,6 +27,23 @@ describe('Captain availability live refresh', () => {
     )
   })
 
+  it('selects the newest changed Out or Maybe reply for lineup review', () => {
+    const previous = [
+      { player_name: 'Alex Ace', match_date: '2026-08-12', status: 'available', responded_at: '2026-08-04T19:00:00.000Z' },
+      { player_name: 'Blair Ball', match_date: '2026-08-12', status: 'available', responded_at: '2026-08-04T19:05:00.000Z' },
+    ]
+    const risk = findLatestCaptainAvailabilityRiskChange(previous, [
+      { ...previous[0], status: 'unavailable', responded_at: '2026-08-04T20:00:00.000Z' },
+      { ...previous[1], status: 'maybe', responded_at: '2026-08-04T20:05:00.000Z' },
+    ])
+    expect(risk?.player_name).toBe('Blair Ball')
+    expect(risk?.status).toBe('maybe')
+    expect(findLatestCaptainAvailabilityRiskChange(previous, [
+      { ...previous[0], responded_at: '2026-08-04T20:00:00.000Z' },
+      previous[1],
+    ])).toBeNull()
+  })
+
   it('keeps polling light and limited to visible captain pages', () => {
     expect(CAPTAIN_AVAILABILITY_REFRESH_MS).toBe(15_000)
     for (const source of [captainHomeSource, availabilitySource]) {
@@ -44,5 +62,13 @@ describe('Captain availability live refresh', () => {
     expect(availabilitySource).toContain('availabilityRefreshInFlightRef.current === availabilityRequestId')
     expect(availabilitySource).toContain("cache: 'no-store'")
     expect(captainHomeSource).toContain('captainAvailabilityRequestInFlightRef.current === requestScope')
+  })
+
+  it('raises a changed risk reply above polled notifications with one lineup action', () => {
+    expect(captainHomeSource).toContain('findLatestCaptainAvailabilityRiskChange(')
+    expect(captainHomeSource).toContain('captainReplyFocusAlert ?? captainLiveReplyAlert ?? captainReplyAlerts[0]')
+    expect(captainHomeSource).toContain("'Review affected lineup'")
+    expect(captainHomeSource).toContain('captainReplyAffectsSavedLineup ? captainReplacementLineupHref')
+    expect(captainHomeSource).toContain('setCaptainLiveReplyAlert(null)')
   })
 })
