@@ -29,7 +29,7 @@ describe('Captain Tri-Level best-lineup flow', () => {
   })
 
   it('keeps waiting players available for projected lineup building by default', () => {
-    expect(source).toContain('const [availabilityOnly, setAvailabilityOnly] = useState(false)')
+    expect(source).toContain('const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)')
     expect(source).toContain('Add more eligible players or turn off Availability only.')
   })
 })
