@@ -95,6 +95,6 @@ describe('Captain availability live refresh', () => {
     expect(captainHomeSource).toContain("'Send lineup change'")
     expect(captainHomeSource).toContain("'Check confirmation'")
     expect(captainHomeSource).toContain('!captainReplyAlertIsPersistent')
-    expect(captainHomeSource).toContain("teamRoomSummary.courtReadiness?.lineupChange?.response === 'accepted'")
+    expect(captainHomeSource).toContain("const captainOpenLineupChange = captainLineupChange?.response === 'accepted'")
   })
 })

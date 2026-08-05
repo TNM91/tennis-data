@@ -129,6 +129,14 @@ import {
   buildCaptainReplacementLineupHref,
   buildCaptainReplacementRecommendation,
 } from '@/lib/captain-replacement-recommendation'
+import {
+  buildCaptainLineupConfirmationId,
+  buildCaptainLineupConfirmationShareBody,
+  hasSeenCaptainLineupConfirmation,
+  rememberCaptainLineupConfirmation,
+  type CaptainConfirmedLineupChange,
+  type CaptainLineupConfirmationSeenEntry,
+} from '@/lib/captain-lineup-confirmation'
 import mobileCommandStyles from './captain-mobile-command.module.css'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
@@ -283,8 +291,11 @@ type CaptainTeamRoomSummary = {
       courtLabel: string
       outgoingPlayerName: string
       replacementPlayerName: string
+      affectedNames: string[]
+      afterPlayers: string[]
       pending: boolean
       response: '' | 'accepted' | 'declined'
+      respondedAt: string
     } | null
     courts: Array<{
       label: string
@@ -1033,6 +1044,7 @@ const CAPTAIN_AFTER_POINT_RESET_STORAGE_KEY = 'tenaceiq_captain_after_point_rese
 const CAPTAIN_MATCH_RECAP_INBOX_STORAGE_KEY = 'tenaceiq_captain_match_recap_inbox'
 const CAPTAIN_HOME_CHECKLIST_STORAGE_KEY = 'tenaceiq_captain_home_checklist'
 const CAPTAIN_FIRST_SEASON_DRY_RUN_STORAGE_KEY = 'tenaceiq_captain_first_season_dry_run'
+const CAPTAIN_LINEUP_CONFIRMATION_SEEN_STORAGE_KEY = 'tenaceiq_captain_lineup_confirmation_seen'
 const CAPTAIN_REPLY_OPEN_STATUSES = new Set(['', 'viewed', 'no-response', 'running-late', 'need-sub'])
 
 function readCaptainHomeChecklist(scopeKey: string) {
@@ -1749,6 +1761,13 @@ function CaptainHubContent() {
   const [captainAvailabilityLiveNotice, setCaptainAvailabilityLiveNotice] = useState('')
   const [captainLiveReplyAlert, setCaptainLiveReplyAlert] = useState<CaptainReplyAlert | null>(null)
   const [captainReplyNotifications, setCaptainReplyNotifications] = useState<InternalNotification[]>([])
+  const [captainLineupConfirmationSeen, setCaptainLineupConfirmationSeen] = useState<{
+    userId: string
+    entries: CaptainLineupConfirmationSeenEntry[]
+  }>({ userId: '', entries: [] })
+  const [captainLineupConfirmationShareState, setCaptainLineupConfirmationShareState] = useState<'idle' | 'sharing' | 'shared'>('idle')
+  const [captainLineupConfirmationShareError, setCaptainLineupConfirmationShareError] = useState('')
+  const [captainSharedLineupConfirmationId, setCaptainSharedLineupConfirmationId] = useState('')
   const captainAvailabilityRequestScopeRef = useRef('')
   const captainAvailabilityRequestInFlightRef = useRef('')
   const captainAvailabilityResponseBaselineRef = useRef(false)
@@ -1757,6 +1776,22 @@ function CaptainHubContent() {
   const teamRoomSummaryRequestRef = useRef(0)
   const levelUpChallengeHistoryRequestRef = useRef(0)
   const levelUpChallengeHistoryScopeRef = useRef('')
+
+  useEffect(() => {
+    setCaptainLineupConfirmationSeen({
+      userId: userId || '',
+      entries: readLocalArray<CaptainLineupConfirmationSeenEntry>(CAPTAIN_LINEUP_CONFIRMATION_SEEN_STORAGE_KEY),
+    })
+  }, [userId])
+
+  useEffect(() => {
+    if (!captainSharedLineupConfirmationId) return
+    const timer = window.setTimeout(() => {
+      setCaptainSharedLineupConfirmationId('')
+      setCaptainLineupConfirmationShareState('idle')
+    }, 2_400)
+    return () => window.clearTimeout(timer)
+  }, [captainSharedLineupConfirmationId])
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
@@ -7117,10 +7152,11 @@ function CaptainHubContent() {
   ) : null
   const captainReplyAlertNeedsLineupReview = captainLatestReplyAlert?.status !== 'available'
   const captainReplyAffectsSavedLineup = Boolean(captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview)
-  const captainOpenLineupChange = teamRoomSummary.courtReadiness?.lineupChange?.response === 'accepted'
+  const captainLineupChange = teamRoomSummary.courtReadiness?.lineupChange ?? null
+  const captainOpenLineupChange = captainLineupChange?.response === 'accepted'
     ? null
-    : teamRoomSummary.courtReadiness?.lineupChange ?? null
-  const captainLineupChangeCourtHref = captainOpenLineupChange ? buildTeamRoomHref({
+    : captainLineupChange
+  const captainLineupChangeCourtHref = captainLineupChange ? buildTeamRoomHref({
     teamName: selectedTeam,
     leagueName: selectedLeague,
     flight: selectedFlight,
@@ -7129,8 +7165,40 @@ function CaptainHubContent() {
     time: nextMatch?.time || '',
     facility: nextMatch?.facility || '',
     messageId: teamRoomSummary.courtReadiness?.messageId || '',
-    court: captainOpenLineupChange.courtLabel,
+    court: captainLineupChange.courtLabel,
   }) : ''
+  const captainConfirmedLineupChange: CaptainConfirmedLineupChange | null = captainLineupChange?.response === 'accepted'
+    ? {
+        messageId: teamRoomSummary.courtReadiness?.messageId || '',
+        respondedAt: captainLineupChange.respondedAt,
+        courtLabel: captainLineupChange.courtLabel,
+        outgoingPlayerName: captainLineupChange.outgoingPlayerName,
+        replacementPlayerName: captainLineupChange.replacementPlayerName,
+        afterPlayers: captainLineupChange.afterPlayers,
+      }
+    : null
+  const captainLineupConfirmationId = captainConfirmedLineupChange
+    ? buildCaptainLineupConfirmationId(captainConfirmedLineupChange)
+    : ''
+  const captainLineupConfirmationSeenResolved = captainLineupConfirmationSeen.userId === (userId || '')
+  const captainLineupConfirmationWasSeen = captainLineupConfirmationSeenResolved && hasSeenCaptainLineupConfirmation(
+    captainLineupConfirmationSeen.entries,
+    userId || '',
+    captainLineupConfirmationId,
+  )
+  const captainShowLineupConfirmation = Boolean(
+    captainConfirmedLineupChange
+    && captainLineupConfirmationId
+    && captainLineupConfirmationSeenResolved
+    && (!captainLineupConfirmationWasSeen || captainSharedLineupConfirmationId === captainLineupConfirmationId),
+  )
+  const captainLineupConfirmationShareBody = captainConfirmedLineupChange
+    ? buildCaptainLineupConfirmationShareBody({
+        change: captainConfirmedLineupChange,
+        matchDate: teamRoomSummary.latestMatchDate || matchWeekDate,
+        opponent: matchWeekOpponent,
+      })
+    : ''
   const captainReplyAlertIsPersistent = Boolean(captainOpenLineupChange || (
     captainPersistentLineupRiskAlert
     && captainLatestReplyAlert?.id === captainPersistentLineupRiskAlert.id
@@ -7174,6 +7242,70 @@ function CaptainHubContent() {
   function handleCaptainReplyAlertAction(href: string, stage: CaptainResumeStage) {
     if (!captainReplyAlertIsPersistent) acknowledgeCaptainReplyAlerts()
     handleCaptainAction(href, stage)
+  }
+
+  function rememberCaptainLineupConfirmationSeen(confirmationId: string) {
+    if (!userId || !confirmationId) return
+    const nextEntries = rememberCaptainLineupConfirmation(
+      readLocalArray<CaptainLineupConfirmationSeenEntry>(CAPTAIN_LINEUP_CONFIRMATION_SEEN_STORAGE_KEY),
+      { userId, confirmationId, seenAt: new Date().toISOString() },
+    )
+    try {
+      window.localStorage.setItem(CAPTAIN_LINEUP_CONFIRMATION_SEEN_STORAGE_KEY, JSON.stringify(nextEntries))
+    } catch {
+      // The success remains dismissible for this view when browser storage is unavailable.
+    }
+    setCaptainLineupConfirmationSeen({ userId, entries: nextEntries })
+  }
+
+  async function shareCaptainLineupConfirmation() {
+    if (
+      !captainConfirmedLineupChange
+      || !captainLineupConfirmationId
+      || !captainLineupConfirmationShareBody
+      || captainLineupConfirmationShareState === 'sharing'
+    ) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) {
+      setCaptainLineupConfirmationShareError('Sign in again to share this court update.')
+      return
+    }
+    setCaptainLineupConfirmationShareState('sharing')
+    setCaptainLineupConfirmationShareError('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'send',
+          teamName: selectedTeam,
+          leagueName: selectedLeague,
+          flight: selectedFlight,
+          announcement: true,
+          body: captainLineupConfirmationShareBody,
+        }),
+      })
+      const payload = await response.json() as { ok?: boolean; message?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'The court update could not be shared.')
+      rememberCaptainLineupConfirmationSeen(captainLineupConfirmationId)
+      setCaptainSharedLineupConfirmationId(captainLineupConfirmationId)
+      setCaptainLineupConfirmationShareState('shared')
+    } catch (shareError) {
+      setCaptainLineupConfirmationShareState('idle')
+      setCaptainLineupConfirmationShareError(
+        shareError instanceof Error ? shareError.message : 'The court update could not be shared.',
+      )
+    }
+  }
+
+  function dismissCaptainLineupConfirmation() {
+    rememberCaptainLineupConfirmationSeen(captainLineupConfirmationId)
+    setCaptainSharedLineupConfirmationId('')
+    setCaptainLineupConfirmationShareState('idle')
+    setCaptainLineupConfirmationShareError('')
   }
 
   const captainReplyAlertSurface = captainLatestReplyAlert || captainOpenLineupChange ? (
@@ -7245,6 +7377,53 @@ function CaptainHubContent() {
         {!captainReplyAlertIsPersistent ? (
           <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
             Dismiss
+          </button>
+        ) : null}
+      </div>
+    </div>
+  ) : null
+  const captainLineupConfirmationSurface = captainShowLineupConfirmation && captainConfirmedLineupChange ? (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        ...captainHomeLineupConfirmationShell,
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : captainHomeLineupConfirmationShell.gridTemplateColumns,
+      }}
+    >
+      <div style={captainHomeAvailabilityProgressCopy}>
+        <span style={commandCenterLabel}>Court confirmed</span>
+        <strong style={captainHomeAvailabilityProgressTitle}>
+          {captainConfirmedLineupChange.replacementPlayerName} confirmed {captainConfirmedLineupChange.courtLabel}
+        </strong>
+        <span style={captainHomeAvailabilityProgressDetailStyle}>
+          {captainConfirmedLineupChange.afterPlayers.length
+            ? `${captainConfirmedLineupChange.afterPlayers.join(' / ')} is set.`
+            : 'The replacement is confirmed and the court is set.'}
+        </span>
+        {captainLineupConfirmationShareError ? (
+          <span style={captainLineupConfirmationError} role="alert">{captainLineupConfirmationShareError}</span>
+        ) : null}
+      </div>
+      <div style={captainHomeAvailabilityProgressActions}>
+        <PrimarySmallBtn
+          fullWidth={isMobile}
+          disabled={captainLineupConfirmationShareState !== 'idle'}
+          onClick={() => void shareCaptainLineupConfirmation()}
+        >
+          {captainLineupConfirmationShareState === 'sharing'
+            ? 'Sharing...'
+            : captainLineupConfirmationShareState === 'shared' ? 'Shared with team' : 'Share with team'}
+        </PrimarySmallBtn>
+        <SecondarySmallBtn
+          fullWidth={isMobile}
+          onClick={() => handleCaptainAction(captainLineupChangeCourtHref, 'team-room')}
+        >
+          Open Team Chat
+        </SecondarySmallBtn>
+        {captainLineupConfirmationShareState !== 'shared' ? (
+          <button type="button" style={captainReplyAlertDismiss} onClick={dismissCaptainLineupConfirmation}>
+            Done
           </button>
         ) : null}
       </div>
@@ -16068,6 +16247,9 @@ function CaptainHubContent() {
     captainReplyAlertSurface
       ? { id: captainReplyFocusAlert ? 'reply-focus' : 'reply', content: captainReplyAlertSurface }
       : null,
+    captainLineupConfirmationSurface
+      ? { id: 'lineup-confirmed', content: captainLineupConfirmationSurface }
+      : null,
     captainHomeAvailabilityProgress && captainAvailabilityPendingCount > 0
       ? { id: 'availability-open', content: captainHomeAvailabilityProgress }
       : null,
@@ -16283,6 +16465,8 @@ function CaptainHubContent() {
       </div>
 
       {captainReplyAlertSurface}
+
+      {captainLineupConfirmationSurface}
 
       {captainHomeAvailabilityProgress}
 
@@ -25583,6 +25767,20 @@ const captainHomeReplyAlertShell: CSSProperties = {
   border: '1px solid rgba(251,191,36,0.34)',
   background: 'linear-gradient(135deg, rgba(251,191,36,0.13), rgba(49,154,230,0.08))',
   boxShadow: '0 12px 28px rgba(2,8,23,0.2)',
+}
+
+const captainHomeLineupConfirmationShell: CSSProperties = {
+  ...captainHomeAvailabilityProgressShell,
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.16), rgba(49,154,230,0.07))',
+  boxShadow: '0 12px 28px rgba(2,8,23,0.18)',
+}
+
+const captainLineupConfirmationError: CSSProperties = {
+  color: '#fecaca',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 800,
 }
 
 const captainReplyAlertDismiss: CSSProperties = {
