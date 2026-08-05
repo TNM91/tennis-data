@@ -437,7 +437,7 @@ function formatProjectionPointDelta(value: number) {
 function availabilityRank(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()
   if (normalized === 'available' || normalized === 'yes' || normalized === 'in') return 0
-  if (normalized === 'maybe') return 1
+  if (normalized === 'maybe' || normalized === 'limited') return 1
   if (normalized === 'unknown' || normalized === '') return 2
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
   return 2
@@ -460,7 +460,7 @@ function statusTone(status: string | null | undefined): CSSProperties {
       border: '1px solid rgba(72, 187, 120, 0.32)',
     }
   }
-  if (normalized === 'maybe') {
+  if (normalized === 'maybe' || normalized === 'limited') {
     return {
       background: 'rgba(245, 158, 11, 0.16)',
       color: '#fde68a',
@@ -1052,6 +1052,8 @@ function readInitialLineupBuilderContext(userId?: string | null) {
       replacementPlayer: '',
       replacementPlayerId: '',
       replacementCourt: '',
+      source: '',
+      availabilityOnly: false,
     }
   }
 
@@ -1074,6 +1076,8 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     replacementPlayer: params.get('replacement') || '',
     replacementPlayerId: params.get('replacementId') || '',
     replacementCourt: params.get('court') || '',
+    source: params.get('source') || '',
+    availabilityOnly: params.get('source') === 'team_room' && params.get('availability') === 'replies',
   }
 }
 
@@ -1132,7 +1136,7 @@ function LineupBuilderContent() {
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
 
-  const [availabilityOnly, setAvailabilityOnly] = useState(false)
+  const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(true)
   const replacementHandoff = useMemo(
     () => initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
@@ -1574,6 +1578,20 @@ function LineupBuilderContent() {
     }
     return map
   }, [availabilityForSelection])
+
+  const teamRoomReplyCounts = useMemo(() => {
+    if (initialContext.source !== 'team_room') return null
+    let yes = 0
+    let maybe = 0
+    let no = 0
+    for (const row of availabilityForSelection) {
+      const status = (row.status || '').trim().toLowerCase()
+      if (status === 'available' || status === 'yes' || status === 'in') yes += 1
+      else if (status === 'maybe' || status === 'limited') maybe += 1
+      else if (status === 'unavailable' || status === 'no' || status === 'out') no += 1
+    }
+    return { yes, maybe, no, total: yes + maybe + no }
+  }, [availabilityForSelection, initialContext.source])
 
   const availablePlayerPool = useMemo<PoolPlayer[]>(() => {
     return players
@@ -3567,6 +3585,14 @@ function LineupBuilderContent() {
                   </div>
                 ) : null}
               </div>
+
+              {teamRoomReplyCounts && !loading ? (
+                <div role="status" aria-live="polite" style={teamRoomReplyCounts.total ? bannerGreenStyle : bannerBlueStyle}>
+                  {teamRoomReplyCounts.total
+                    ? `Team replies applied: ${teamRoomReplyCounts.yes} In${teamRoomReplyCounts.maybe ? ` · ${teamRoomReplyCounts.maybe} Maybe` : ''}. Out players are hidden.`
+                    : 'No linked replies yet. Showing the full roster.'}
+                </div>
+              ) : null}
 
               {isFixedLineupFormat ? (
                 <div style={triLevelFormatStyle}>

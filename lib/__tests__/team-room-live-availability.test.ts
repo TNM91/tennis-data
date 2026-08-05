@@ -22,9 +22,13 @@ describe('Team Room live availability card', () => {
   it('keeps both captain follow-up actions on the live card', () => {
     const roomPage = readSource('app/team-room/page.tsx')
     const messagingPage = readSource('app/captain/messaging/page.tsx')
+    const lineupPage = readSource('app/captain/lineup-builder/page.tsx')
 
     expect(roomPage).toContain('Nudge {waiting} waiting')
     expect(roomPage).toContain('Update lineup')
+    expect(roomPage).toContain("{message.responseSummary.total ? 'Build from replies' : 'Build lineup'}")
+    expect(roomPage).toContain("new URLSearchParams({ source: 'team_room', availability: 'replies' })")
+    expect(roomPage).toContain('#captain-lineup-courts')
     expect(roomPage).toContain('availabilityRequest')
     expect(roomPage).toContain("focus: 'waiting'")
     expect(roomPage).toContain('aria-label="Availability response summary"')
@@ -36,6 +40,9 @@ describe('Team Room live availability card', () => {
     expect(messagingPage).toContain("params.set('requestId', requestedAvailabilityRequestId)")
     expect(messagingPage).toContain("params.get('focus') === 'waiting'")
     expect(messagingPage).toContain("getElementById('potential-lineup-confirm-title')")
+    expect(lineupPage).toContain("params.get('source') === 'team_room' && params.get('availability') === 'replies'")
+    expect(lineupPage).toContain('Team replies applied: ${teamRoomReplyCounts.yes} In')
+    expect(lineupPage).toContain("status === 'maybe' || status === 'limited'")
   })
 
   it('opens the exact reply as an actionable Captain replacement review', () => {

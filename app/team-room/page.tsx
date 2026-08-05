@@ -1499,7 +1499,6 @@ function TeamRoomContent() {
               teamName={room.teamName}
               leagueName={room.leagueName}
               flight={room.flight}
-              captainHref={captainHref}
               focused={pinnedMessage.id === focusedMessageId}
               focusedPlayerName={focusedPlayerName}
               focusedCourtLabel={focusedCourtLabel}
@@ -2267,7 +2266,6 @@ function MatchCard({
   teamName,
   leagueName,
   flight,
-  captainHref,
   focused,
   focusedPlayerName,
   focusedCourtLabel,
@@ -2293,7 +2291,6 @@ function MatchCard({
   teamName: string
   leagueName: string
   flight: string
-  captainHref: string
   focused: boolean
   focusedPlayerName: string
   focusedCourtLabel: string
@@ -2326,7 +2323,7 @@ function MatchCard({
   const messagingParams = new URLSearchParams({ source: 'team_room', focus: 'waiting' })
   if (card.availabilityRequestId) messagingParams.set('availabilityRequest', card.availabilityRequestId)
   const messagingHref = `${messagingBaseHref}${messagingBaseHref.includes('?') ? '&' : '?'}${messagingParams.toString()}#potential-lineup-confirm-title`
-  const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+  const lineupBaseHref = buildCaptainScopedHref('/captain/lineup-builder', {
     team: teamName,
     league: leagueName,
     flight,
@@ -2334,6 +2331,8 @@ function MatchCard({
     opponent: card.opponent,
     scenarioId: card.availabilitySummary?.scenarioId || undefined,
   })
+  const lineupParams = new URLSearchParams({ source: 'team_room', availability: 'replies' })
+  const lineupHref = `${lineupBaseHref}${lineupBaseHref.includes('?') ? '&' : '?'}${lineupParams.toString()}#captain-lineup-courts`
   const focusedStatusLabel = focusedReplyStatus === 'available' || focusedReplyStatus === 'yes'
     ? 'In'
     : focusedReplyStatus === 'unavailable' || focusedReplyStatus === 'no' ? 'Out' : 'Maybe'
@@ -2607,8 +2606,10 @@ function MatchCard({
             </>
           ) : (
             <>
-              <Link className={styles.buttonPrimary} href={messagingHref}>Text players not connected</Link>
-              <Link className={styles.buttonSecondary} href={captainHref}>Back to Captain</Link>
+              <Link className={styles.buttonPrimary} href={lineupHref}>
+                {message.responseSummary.total ? 'Build from replies' : 'Build lineup'}
+              </Link>
+              <Link className={styles.buttonSecondary} href={messagingHref}>Text players not connected</Link>
             </>
           )}
         </div>
