@@ -105,7 +105,7 @@ describe('Captain Level Up Team Room challenge', () => {
   it('returns only current-player challenge progress in the lightweight Team Room summary', () => {
     expect(teamRoomApiSource).toContain("url.searchParams.get('activeChallenge') === '1'")
     expect(teamRoomApiSource).toContain('loadBestActiveTeamChallenge')
-    expect(teamRoomApiSource).toContain('selectCaptainLevelUpChallengeResume(challenges)')
+    expect(teamRoomApiSource).toContain('sortCaptainLevelUpChallengeResumes(challenges)')
     expect(teamRoomApiSource).toContain(".contains('metadata', { teamLevelUpChallenge: true })")
     expect(teamRoomApiSource).toContain('completionResult.completedCardIdsByPlayer.get(userId)')
     expect(teamRoomApiSource).toContain('buildCaptainLevelUpCardHref(nextCardId)')
@@ -113,5 +113,15 @@ describe('Captain Level Up Team Room challenge', () => {
     expect(activeChallengeSource).not.toContain('proof')
     expect(activeChallengeSource).not.toContain('score')
     expect(activeChallengeSource).not.toContain('notes')
+  })
+
+  it('keeps additional team challenges collapsed until the player chooses another team', () => {
+    expect(teamRoomApiSource).toContain('activeChallenges: activeChallengeResult.activeChallenges')
+    expect(activeChallengeSource).toContain('otherChallenges.length')
+    expect(activeChallengeSource).toContain('more team challenge')
+    expect(activeChallengeSource).toContain('<details className={styles.moreChallenges}>')
+    expect(activeChallengeSource).toContain("item.completed ? 'Review' : 'Resume'")
+    expect(activeChallengeStyles).toContain('.moreChallengesSummary')
+    expect(activeChallengeStyles).toContain('grid-template-columns: repeat(auto-fit')
   })
 })

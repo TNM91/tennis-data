@@ -12,6 +12,7 @@ import {
   recommendCaptainLevelUpChallenge,
   selectActiveCaptainLevelUpChallenge,
   selectCaptainLevelUpChallengeResume,
+  sortCaptainLevelUpChallengeResumes,
 } from '../captain-level-up-challenge'
 
 describe('Captain Level Up challenge handoff', () => {
@@ -145,6 +146,11 @@ describe('Captain Level Up challenge handoff', () => {
     ])).toBe(newestUnfinished)
     expect(selectCaptainLevelUpChallengeResume([olderUnfinished, newestCompleted])).toBe(olderUnfinished)
     expect(selectCaptainLevelUpChallengeResume([])).toBeNull()
+    expect(sortCaptainLevelUpChallengeResumes([
+      newestCompleted,
+      olderUnfinished,
+      newestUnfinished,
+    ])).toEqual([newestUnfinished, olderUnfinished, newestCompleted])
   })
 
   it('recommends one challenge from the actual match-week context', () => {
