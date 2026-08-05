@@ -24,4 +24,10 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain('isCaptainImportDraft(submission.parsedPayload)')
     expect(source).toContain('finishCaptainImport')
   })
+
+  it('returns a Team Room scorecard import to the same team conversation', () => {
+    expect(source).toContain("if (path === '/team-room' || path.startsWith('/team-room?')) return path")
+    expect(source).toContain('actions={buildScorecardPostImportActions(parsedDraft, returnTo)}')
+    expect(source).toContain("returnTo.startsWith('/team-room') ? 'Return to Team Chat' : 'Continue Captain'")
+  })
 })

@@ -336,6 +336,48 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'complete_match_day') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can close the match.' }, { status: 403 })
+    }
+    const lineupResult = await loadCurrentFinalLineupAction(
+      auth.service,
+      conversation.id,
+      cleanText(body.messageId),
+    )
+    if (!lineupResult.ok) {
+      return Response.json({ ok: false, message: lineupResult.message }, { status: lineupResult.status })
+    }
+    const existingCompletedAt = cleanText(lineupResult.card.metadata.matchCompletedAt)
+    if (existingCompletedAt) {
+      return Response.json({ ok: true, alreadyCompleted: true, matchCompletedAt: existingCompletedAt })
+    }
+    const matchCompletedAt = new Date().toISOString()
+    const claimedMetadata = {
+      ...lineupResult.card.metadata,
+      matchCompletedAt,
+      matchCompletedByUserId: auth.userId,
+    }
+    const { data, error } = await auth.service
+      .from('internal_messages')
+      .update({ metadata: claimedMetadata })
+      .eq('id', lineupResult.card.messageId)
+      .eq('conversation_id', conversation.id)
+      .filter('metadata', 'eq', JSON.stringify(lineupResult.card.metadata))
+      .select('id')
+      .maybeSingle()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (!data) {
+      const currentResult = await loadCurrentFinalLineupAction(auth.service, conversation.id, lineupResult.announcement.id)
+      const currentCompletedAt = currentResult.ok ? cleanText(currentResult.card.metadata.matchCompletedAt) : ''
+      if (currentCompletedAt) {
+        return Response.json({ ok: true, alreadyCompleted: true, matchCompletedAt: currentCompletedAt })
+      }
+      return Response.json({ ok: false, message: 'The match changed. Refresh before closing it.' }, { status: 409 })
+    }
+    return Response.json({ ok: true, alreadyCompleted: false, matchCompletedAt })
+  }
+
   if (action === 'send_final_lineup') {
     if (!canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can send the final lineup.' }, { status: 403 })
@@ -3082,6 +3124,7 @@ function toMessage(
     },
     availabilitySummary,
     finalLineup: readTeamRoomFinalLineupReceipt(row.metadata.finalLineup),
+    matchCompletedAt: cleanText(row.metadata.matchCompletedAt),
     reminder: reminder ? {
       reminderAt: reminder.reminder_at,
       status: reminder.status,

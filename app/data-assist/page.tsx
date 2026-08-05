@@ -208,6 +208,7 @@ function getSafeDataAssistReturnTo(value: string | null): string {
   const path = (value || '').trim()
   if (!path || path.length > 500 || path.startsWith('//')) return ''
   if (path === '/captain' || path.startsWith('/captain/')) return path
+  if (path === '/team-room' || path.startsWith('/team-room?')) return path
   return ''
 }
 
@@ -1160,6 +1161,7 @@ function DataAssistWorkspace() {
                   duplicate: true,
                 }}
                 parsedDraft={latestScan.parsedDraft}
+                returnTo={returnTo}
               />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) ? (
               <ScheduleReviewPanel parsedDraft={latestScan.parsedDraft} />
@@ -1199,6 +1201,7 @@ function DataAssistWorkspace() {
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
         isMobile={isMobile}
+        returnTo={returnTo}
       />
       ) : null}
       {showUploadStep ? (
@@ -1958,6 +1961,7 @@ function MySubmissionsPanel({
   onDeleteSubmission,
   onDeleteAllDrafts,
   isMobile,
+  returnTo,
 }: {
   authResolved: boolean
   userId: string | null
@@ -1976,6 +1980,7 @@ function MySubmissionsPanel({
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
   isMobile: boolean
+  returnTo: string
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
@@ -2075,6 +2080,7 @@ function MySubmissionsPanel({
                   importResult={importResultsBySubmission[submission.id]}
                   onRunImport={onRunImport}
                   onDelete={onDeleteSubmission}
+                  returnTo={returnTo}
                 />
               ))}
             </div>
@@ -2214,6 +2220,7 @@ function SubmissionCard({
   importResult,
   onRunImport,
   onDelete,
+  returnTo,
 }: {
   submission: DataAssistSubmission
   busy: boolean
@@ -2223,6 +2230,7 @@ function SubmissionCard({
   importResult?: DataAssistImportActionResult
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDelete: (submission: DataAssistSubmission) => void
+  returnTo: string
 }) {
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
@@ -2307,7 +2315,7 @@ function SubmissionCard({
               parsedDraft={parsedSchedule}
             />
           ) : isImported ? (
-            <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} />
+            <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} returnTo={returnTo} />
           ) : null}
           {parsedDraft && canPreviewImport ? (
             <ImportPreviewPanel
@@ -2418,9 +2426,11 @@ function ImportPreviewPanel({
 function ImportedSummaryPanel({
   summary,
   parsedDraft,
+  returnTo = '',
 }: {
   summary: SubmissionImportSummary
   parsedDraft: DataAssistScorecardParsedDraft | null
+  returnTo?: string
 }) {
   const lineCount = summary.lineCount || parsedDraft?.lineCount || parsedDraft?.lines.length || 0
   const teamScore = parsedDraft ? getParsedTeamScore(parsedDraft) : null
@@ -2456,7 +2466,7 @@ function ImportedSummaryPanel({
           : 'Schedule and roster uploads can enrich this later, but this result is ready now.')}</span>
       </div>
       <PostImportActions
-        actions={buildScorecardPostImportActions(parsedDraft)}
+        actions={buildScorecardPostImportActions(parsedDraft, returnTo)}
       />
     </div>
   )
@@ -2624,8 +2634,14 @@ function PostImportActions({ actions }: { actions: Array<{ label: string; href: 
   )
 }
 
-function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null) {
+function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null, returnTo = '') {
   const actions: Array<{ label: string; href: string }> = []
+  if (returnTo) {
+    actions.push({
+      label: returnTo.startsWith('/team-room') ? 'Return to Team Chat' : 'Continue Captain',
+      href: returnTo,
+    })
+  }
   const homeHref = parsedDraft?.homeTeam ? buildTeamHref(parsedDraft.homeTeam, {}) : ''
   const awayHref = parsedDraft?.awayTeam ? buildTeamHref(parsedDraft.awayTeam, {}) : ''
   if (homeHref) actions.push({ label: 'Home team', href: homeHref })
