@@ -287,6 +287,51 @@
   padding: 4px 13px 11px;
 }
 
+.matchDayLogistics {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.32fr) minmax(0, 1fr);
+  gap: 7px;
+  padding: 11px 12px 4px;
+}
+
+.matchDayLogistics > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg));
+  padding: 9px 10px;
+}
+
+.matchDayLogistics span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.matchDayLogistics strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.matchDayActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 7px 12px 1px;
+}
+
+.matchDayActions > * {
+  flex: 1 1 128px;
+  min-height: 38px;
+  padding: 7px 11px;
+  font-size: 0.76rem;
+}
+
 .publishedLineupReview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1944,6 +1989,10 @@
 
   .publishedLineupActions {
     justify-content: flex-start;
+  }
+
+  .matchDayLogistics {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .composerActions {

@@ -216,4 +216,20 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('Everyone has seen it.')
     expect(roomStyles).toContain('.publishedLineupReview')
   })
+
+  it('hands a final lineup from match-day logistics to scorecard entry', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+
+    expect(roomApi).toContain("if (action === 'complete_match_day')")
+    expect(roomApi).toContain('matchCompletedAt')
+    expect(roomApi).toContain("message: 'Only a captain or co-captain can close the match.'")
+    expect(roomPage).toContain("'Match complete'")
+    expect(roomPage).toContain('Add scorecard')
+    expect(roomPage).toContain('Open maps')
+    expect(roomPage).toContain("isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Final lineup'")
+    expect(roomStyles).toContain('.matchDayLogistics')
+    expect(roomStyles).toContain('.matchDayActions')
+  })
 })
