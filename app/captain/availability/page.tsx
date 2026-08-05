@@ -28,6 +28,11 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildCaptainAvailabilityRequestMessage } from '@/lib/captain-availability-share'
+import {
+  buildCaptainAvailabilityResponseSignature,
+  CAPTAIN_AVAILABILITY_REFRESH_MS,
+  CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+} from '@/lib/captain-availability-live'
 
 type TeamOption = {
   team: string
@@ -107,6 +112,7 @@ type AvailabilityRequestResponseRow = {
   player_id: string | null
   player_name: string
   status: 'available' | 'maybe' | 'unavailable'
+  responded_at?: string
 }
 
 function formatScheduleLabel(match: TeamRosterMatchRow | null) {
@@ -187,16 +193,71 @@ function CaptainAvailabilityContent() {
   )
   const [preferredMatchDate] = useState(initialContext.eventDate)
   const [preferredOpponent] = useState(initialContext.opponentTeam)
+  const [availabilityRequestId, setAvailabilityRequestId] = useState('')
   const [availabilityRequestUrl, setAvailabilityRequestUrl] = useState('')
   const [availabilityRequestState, setAvailabilityRequestState] = useState<'idle' | 'preparing' | 'ready' | 'error'>('idle')
   const [availabilityRequestError, setAvailabilityRequestError] = useState('')
   const [preparedRequestKey, setPreparedRequestKey] = useState('')
   const [shareFeedback, setShareFeedback] = useState('')
+  const [availabilityLiveNotice, setAvailabilityLiveNotice] = useState('')
   const preparingRequestKeyRef = useRef('')
+  const availabilityRefreshInFlightRef = useRef('')
+  const availabilityResponseRequestIdRef = useRef('')
+  const availabilityResponseBaselineRef = useRef(false)
+  const availabilityResponseSignatureRef = useRef('')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
+  const applyAvailabilityResponses = useCallback((responses: AvailabilityRequestResponseRow[]) => {
+    const nextResponseSignature = buildCaptainAvailabilityResponseSignature(responses)
+    if (
+      availabilityResponseBaselineRef.current
+      && nextResponseSignature !== availabilityResponseSignatureRef.current
+    ) {
+      setAvailabilityLiveNotice('Updated just now')
+    }
+    availabilityResponseBaselineRef.current = true
+    availabilityResponseSignatureRef.current = nextResponseSignature
+
+    setPlayers((current) => current.map((player) => {
+      const saved = responses.find((row) => (
+        (row.player_id && row.player_id === player.id)
+        || row.player_name.trim().toLowerCase() === player.name.trim().toLowerCase()
+      ))
+      if (!saved) return player
+      return {
+        ...player,
+        status: saved.status === 'available' ? 'in' : saved.status === 'unavailable' ? 'out' : 'maybe',
+      }
+    }))
+  }, [])
+
+  const refreshAvailabilityResponses = useCallback(async () => {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || !availabilityRequestId || availabilityRefreshInFlightRef.current === availabilityRequestId) return
+
+    availabilityRefreshInFlightRef.current = availabilityRequestId
+    try {
+      const query = new URLSearchParams({ requestId: availabilityRequestId })
+      const response = await fetch(`/api/captain/availability-requests?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      if (!response.ok || availabilityResponseRequestIdRef.current !== availabilityRequestId) return
+      const result = await response.json() as { responses?: AvailabilityRequestResponseRow[] }
+      applyAvailabilityResponses(result.responses ?? [])
+    } catch {
+      // Keep the latest confirmed response state while the connection recovers.
+    } finally {
+      if (availabilityRefreshInFlightRef.current === availabilityRequestId) {
+        availabilityRefreshInFlightRef.current = ''
+      }
+    }
+  }, [applyAvailabilityResponses, availabilityRequestId, session?.access_token])
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -381,6 +442,13 @@ function CaptainAvailabilityContent() {
     if (!selectedTeam || !selectedEventDate || !players.length) return
     if (!force && (preparedRequestKey === availabilityRequestKey || preparingRequestKeyRef.current === availabilityRequestKey)) return
 
+    if (preparedRequestKey !== availabilityRequestKey) {
+      setAvailabilityRequestId('')
+      availabilityResponseRequestIdRef.current = ''
+      availabilityResponseBaselineRef.current = false
+      availabilityResponseSignatureRef.current = ''
+      setAvailabilityLiveNotice('')
+    }
     preparingRequestKeyRef.current = availabilityRequestKey
     setAvailabilityRequestState('preparing')
     setAvailabilityRequestError('')
@@ -412,38 +480,22 @@ function CaptainAvailabilityContent() {
           })),
         }),
       })
-      const result = await response.json() as { requestUrl?: string; message?: string }
-      if (!response.ok || !result.requestUrl) {
+      const result = await response.json() as { requestId?: string; requestUrl?: string; message?: string }
+      if (!response.ok || !result.requestId || !result.requestUrl) {
         throw new Error(result.message || 'The availability request could not be prepared.')
       }
       if (preparingRequestKeyRef.current !== availabilityRequestKey) return
 
+      if (availabilityResponseRequestIdRef.current !== result.requestId) {
+        availabilityResponseRequestIdRef.current = result.requestId
+        availabilityResponseBaselineRef.current = false
+        availabilityResponseSignatureRef.current = ''
+        setAvailabilityLiveNotice('')
+      }
+      setAvailabilityRequestId(result.requestId)
       setAvailabilityRequestUrl(result.requestUrl)
       setPreparedRequestKey(availabilityRequestKey)
       setAvailabilityRequestState('ready')
-
-      const query = new URLSearchParams({
-        teamName: selectedTeam,
-        matchDate: selectedEventDate.slice(0, 10),
-      })
-      const statusResponse = await fetch(`/api/captain/availability-requests?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      if (statusResponse.ok && preparingRequestKeyRef.current === availabilityRequestKey) {
-        const statusResult = await statusResponse.json() as { responses?: AvailabilityRequestResponseRow[] }
-        const responses = statusResult.responses ?? []
-        setPlayers((current) => current.map((player) => {
-          const saved = responses.find((row) => (
-            (row.player_id && row.player_id === player.id) ||
-            row.player_name.trim().toLowerCase() === player.name.trim().toLowerCase()
-          ))
-          if (!saved) return player
-          return {
-            ...player,
-            status: saved.status === 'available' ? 'in' : saved.status === 'unavailable' ? 'out' : 'maybe',
-          }
-        }))
-      }
     } catch (nextError) {
       if (preparingRequestKeyRef.current !== availabilityRequestKey) return
       setAvailabilityRequestState('error')
@@ -478,6 +530,35 @@ function CaptainAvailabilityContent() {
     selectedEventDate,
     selectedTeam,
   ])
+
+  useEffect(() => {
+    if (!availabilityRequestId) return
+    void refreshAvailabilityResponses()
+
+    function refreshVisibleAvailability() {
+      if (document.visibilityState === 'visible') void refreshAvailabilityResponses()
+    }
+
+    const refreshTimer = window.setInterval(refreshVisibleAvailability, CAPTAIN_AVAILABILITY_REFRESH_MS)
+    document.addEventListener('visibilitychange', refreshVisibleAvailability)
+    window.addEventListener('pageshow', refreshVisibleAvailability)
+    window.addEventListener('focus', refreshVisibleAvailability)
+    return () => {
+      window.clearInterval(refreshTimer)
+      document.removeEventListener('visibilitychange', refreshVisibleAvailability)
+      window.removeEventListener('pageshow', refreshVisibleAvailability)
+      window.removeEventListener('focus', refreshVisibleAvailability)
+    }
+  }, [availabilityRequestId, refreshAvailabilityResponses])
+
+  useEffect(() => {
+    if (!availabilityLiveNotice) return
+    const noticeTimer = window.setTimeout(
+      () => setAvailabilityLiveNotice(''),
+      CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+    )
+    return () => window.clearTimeout(noticeTimer)
+  }, [availabilityLiveNotice])
 
   async function shareAvailabilityRequest() {
     if (!availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey) return
@@ -821,6 +902,13 @@ function CaptainAvailabilityContent() {
               <span>{lineupPoolLabel}</span>
               <span>{counts.out} out</span>
             </div>
+
+            {availabilityRequestState === 'ready' ? (
+              <div style={availabilityLiveStatus} role="status" aria-live="polite">
+                <span aria-hidden="true" style={availabilityLiveDot} />
+                {availabilityLiveNotice || 'Live replies'}
+              </div>
+            ) : null}
 
             {shareFeedback ? (
               <div style={successBanner}>{shareFeedback}</div>
@@ -1341,6 +1429,25 @@ const responseFill: CSSProperties = {
   borderRadius: 999,
   background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green))',
   minWidth: 2,
+}
+
+const availabilityLiveStatus: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  marginTop: 10,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const availabilityLiveDot: CSSProperties = {
+  width: 8,
+  height: 8,
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  boxShadow: '0 0 0 4px rgba(155, 225, 29, 0.1)',
 }
 
 const successBanner: CSSProperties = {
