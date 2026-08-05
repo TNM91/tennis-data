@@ -30,7 +30,7 @@ import {
   getCaptainLevelUpCompletedCardIdsByPlayer,
   getCaptainLevelUpCompletedPlayerIdsForRun,
   selectActiveCaptainLevelUpChallenge,
-  selectCaptainLevelUpChallengeResume,
+  sortCaptainLevelUpChallengeResumes,
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
 
@@ -231,7 +231,13 @@ export async function GET(request: Request) {
         { status: activeChallengeResult.status },
       )
     }
-    return Response.json({ ok: true, summary: { activeChallenge: activeChallengeResult.activeChallenge } })
+    return Response.json({
+      ok: true,
+      summary: {
+        activeChallenge: activeChallengeResult.activeChallenge,
+        activeChallenges: activeChallengeResult.activeChallenges,
+      },
+    })
   }
 
   const selected = selectTeamLink(linksResult.links, {
@@ -1870,9 +1876,11 @@ async function loadBestActiveTeamChallenge(
   const challenges = results.flatMap((result) => (
     result.ok && result.activeChallenge ? [result.activeChallenge] : []
   ))
+  const activeChallenges = sortCaptainLevelUpChallengeResumes(challenges)
   return {
     ok: true as const,
-    activeChallenge: selectCaptainLevelUpChallengeResume(challenges),
+    activeChallenge: activeChallenges[0] ?? null,
+    activeChallenges,
   }
 }
 

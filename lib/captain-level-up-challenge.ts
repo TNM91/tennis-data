@@ -266,12 +266,18 @@ export function selectActiveCaptainLevelUpChallenge(
 export function selectCaptainLevelUpChallengeResume<T extends CaptainLevelUpChallengeResume>(
   challenges: T[],
 ) {
+  return sortCaptainLevelUpChallengeResumes(challenges)[0] ?? null
+}
+
+export function sortCaptainLevelUpChallengeResumes<T extends CaptainLevelUpChallengeResume>(
+  challenges: T[],
+) {
   return challenges.slice().sort((left, right) => {
     if (left.completed !== right.completed) return left.completed ? 1 : -1
     const launchedDifference = new Date(right.launchedAt).getTime() - new Date(left.launchedAt).getTime()
     if (launchedDifference) return launchedDifference
     return right.messageId.localeCompare(left.messageId)
-  })[0] ?? null
+  })
 }
 
 export function getCaptainLevelUpAggregateCompletionLabel(progress: CaptainLevelUpChallengeProgress | null) {

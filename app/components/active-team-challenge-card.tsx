@@ -26,12 +26,18 @@ type TeamRoomSummaryResponse = {
   ok?: boolean
   summary?: {
     activeChallenge?: ActiveTeamChallenge | null
+    activeChallenges?: ActiveTeamChallenge[]
   }
+}
+
+type LoadedChallengeSummary = {
+  activeChallenge: ActiveTeamChallenge | null
+  activeChallenges: ActiveTeamChallenge[]
 }
 
 export default function ActiveTeamChallengeCard() {
   const { authResolved, session, userId } = useAuth()
-  const [loaded, setLoaded] = useState<{ userId: string; challenge: ActiveTeamChallenge | null } | null>(null)
+  const [loaded, setLoaded] = useState<{ userId: string; summary: LoadedChallengeSummary } | null>(null)
 
   useEffect(() => {
     if (!authResolved) return
@@ -46,21 +52,33 @@ export default function ActiveTeamChallengeCard() {
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) return null
+        if (!response.ok) return { activeChallenge: null, activeChallenges: [] }
         const payload = await response.json() as TeamRoomSummaryResponse
-        return payload.ok ? payload.summary?.activeChallenge || null : null
+        const activeChallenge = payload.ok ? payload.summary?.activeChallenge || null : null
+        return {
+          activeChallenge,
+          activeChallenges: payload.ok
+            ? payload.summary?.activeChallenges || (activeChallenge ? [activeChallenge] : [])
+            : [],
+        }
       })
-      .then((activeChallenge) => setLoaded({ userId: currentUserId, challenge: activeChallenge }))
+      .then((summary) => setLoaded({ userId: currentUserId, summary }))
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
-        setLoaded({ userId: currentUserId, challenge: null })
+        setLoaded({
+          userId: currentUserId,
+          summary: { activeChallenge: null, activeChallenges: [] },
+        })
       })
 
     return () => controller.abort()
   }, [authResolved, session?.access_token, userId])
 
-  const challenge = userId && loaded?.userId === userId ? loaded.challenge : null
+  const summary = userId && loaded?.userId === userId ? loaded.summary : null
+  const challenge = summary?.activeChallenge || null
   if (!challenge) return null
+
+  const otherChallenges = summary?.activeChallenges.filter((item) => item.messageId !== challenge.messageId) || []
 
   const totalCards = Math.max(1, challenge.cardIds.length)
   const completedCards = Math.min(challenge.completedCardIds.length, totalCards)
@@ -106,6 +124,37 @@ export default function ActiveTeamChallengeCard() {
           <Link className={styles.secondaryAction} href={challenge.teamRoomHref}>Open Team Hub</Link>
         ) : null}
       </div>
+
+      {otherChallenges.length ? (
+        <details className={styles.moreChallenges}>
+          <summary className={styles.moreChallengesSummary}>
+            <span>
+              {otherChallenges.length} more team challenge{otherChallenges.length === 1 ? '' : 's'}
+            </span>
+            <span>Choose team</span>
+          </summary>
+          <div className={styles.moreChallengesList}>
+            {otherChallenges.map((item) => {
+              const itemCompletedCards = Math.min(item.completedCardIds.length, item.cardIds.length)
+              const itemHref = item.completed ? item.teamRoomHref : item.resumeHref
+              return (
+                <Link
+                  key={item.messageId}
+                  className={styles.moreChallengeLink}
+                  href={itemHref}
+                  aria-label={`${item.completed ? 'Review' : 'Resume'} ${item.title} for ${item.teamName}`}
+                >
+                  <span className={styles.moreChallengeCopy}>
+                    <strong>{item.teamName}</strong>
+                    <span>{item.title} - {itemCompletedCards} of {item.cardIds.length}</span>
+                  </span>
+                  <span className={styles.moreChallengeAction}>{item.completed ? 'Review' : 'Resume'}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </details>
+      ) : null}
     </section>
   )
 }
