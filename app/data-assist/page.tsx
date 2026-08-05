@@ -212,6 +212,15 @@ function getSafeDataAssistReturnTo(value: string | null): string {
   return ''
 }
 
+function buildScorecardImportReturnHref(returnTo: string, externalMatchId: string) {
+  const safeReturnTo = getSafeDataAssistReturnTo(returnTo)
+  if (!safeReturnTo) return ''
+  const url = new URL(safeReturnTo, 'https://tenaceiq.local')
+  url.searchParams.set('result', 'updated')
+  if (externalMatchId.trim()) url.searchParams.set('resultMatch', externalMatchId.trim())
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
 function buildDataAssistIssueHref(context = '', query = '') {
   const details = [
     context ? `Source context: ${context}` : '',
@@ -309,6 +318,13 @@ function DataAssistWorkspace() {
       })
     }
     router.replace(buildCaptainImportReturnHref(returnTo, handoff))
+    return true
+  }
+
+  function finishScorecardImport(parsedDraft: DataAssistScorecardParsedDraft) {
+    const href = buildScorecardImportReturnHref(returnTo, parsedDraft.externalMatchId)
+    if (!href) return false
+    router.replace(href)
     return true
   }
 
@@ -566,6 +582,7 @@ function DataAssistWorkspace() {
               detail: ocrResult.autoImport.message || 'Imported',
               ...matchMeta,
             })
+            if (files.length === 1 && isScorecardParsedDraft(ocrResult.parsedDraft) && finishScorecardImport(ocrResult.parsedDraft)) return
           } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
             duplicateCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
@@ -736,13 +753,17 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      if (decision === 'confirmed' && result.autoImport?.ok && isCaptainImportDraft(latestScan.parsedDraft)) {
+      if (decision === 'confirmed' && result.autoImport?.ok) {
         setLatestScan({ ...latestScan, autoImport: result.autoImport })
-        const didReturn = await finishCaptainImport({
-          batchId: latestScan.batchId,
-          parsedDraft: latestScan.parsedDraft,
-          result: result.autoImport,
-        })
+        const didReturn = isScorecardParsedDraft(latestScan.parsedDraft)
+          ? finishScorecardImport(latestScan.parsedDraft)
+          : isCaptainImportDraft(latestScan.parsedDraft)
+            ? await finishCaptainImport({
+                batchId: latestScan.batchId,
+                parsedDraft: latestScan.parsedDraft,
+                result: result.autoImport,
+              })
+            : false
         if (didReturn) return
       } else {
         setLatestScan(null)
@@ -773,12 +794,16 @@ function DataAssistWorkspace() {
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. Contribution credit updated.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      if (decision === 'confirmed' && result.autoImport?.ok && isCaptainImportDraft(submission.parsedPayload)) {
-        const didReturn = await finishCaptainImport({
-          batchId: submission.id,
-          parsedDraft: submission.parsedPayload,
-          result: result.autoImport,
-        })
+      if (decision === 'confirmed' && result.autoImport?.ok) {
+        const didReturn = isScorecardParsedDraft(submission.parsedPayload)
+          ? finishScorecardImport(submission.parsedPayload)
+          : isCaptainImportDraft(submission.parsedPayload)
+            ? await finishCaptainImport({
+                batchId: submission.id,
+                parsedDraft: submission.parsedPayload,
+                result: result.autoImport,
+              })
+            : false
         if (didReturn) return
       }
       await refreshSubmissions()
@@ -806,12 +831,16 @@ function DataAssistWorkspace() {
         [submission.id]: result,
       }))
       setMessage(result.message)
-      if (action === 'commit' && result.ok && isCaptainImportDraft(submission.parsedPayload)) {
-        const didReturn = await finishCaptainImport({
-          batchId: submission.id,
-          parsedDraft: submission.parsedPayload,
-          result,
-        })
+      if (action === 'commit' && result.ok) {
+        const didReturn = isScorecardParsedDraft(submission.parsedPayload)
+          ? finishScorecardImport(submission.parsedPayload)
+          : isCaptainImportDraft(submission.parsedPayload)
+            ? await finishCaptainImport({
+                batchId: submission.id,
+                parsedDraft: submission.parsedPayload,
+                result,
+              })
+            : false
         if (didReturn) return
       }
       if (action === 'commit') await refreshSubmissions()
@@ -2365,7 +2394,8 @@ function ImportPreviewPanel({
   const unresolvedWinnerCount = preview?.unresolvedWinnerCount ?? 0
   const newPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'unknown').length ?? 0
   const likelyPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'likely').length ?? 0
-  const isDuplicate = Boolean(preview?.duplicateMatch)
+  const isCorrection = Boolean(preview?.duplicateMatch?.hasChanges)
+  const isDuplicate = Boolean(preview?.duplicateMatch && !preview.duplicateMatch.hasChanges)
   const commitBlocked = unresolvedWinnerCount > 0 || !canCommit
 
   return (
@@ -2383,13 +2413,19 @@ function ImportPreviewPanel({
         <>
           <div style={scorecardHeaderGridStyle}>
             <ReviewFact label="Lines" value={String(preview.row.lines.length)} />
-            <ReviewFact label="Status" value={isDuplicate ? 'Already imported' : unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
+            <ReviewFact label="Status" value={isDuplicate ? 'Already imported' : isCorrection ? 'Ready to update' : unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
             <ReviewFact label="Players" value={newPlayers ? `${newPlayers} new` : likelyPlayers ? `${likelyPlayers} likely` : 'Matched'} />
           </div>
           {isDuplicate ? (
             <div style={readyImportNoteStyle}>
               <strong>Duplicate found</strong>
               <span>This TennisLink match is already in TenAceIQ. Import will not create a second result.</span>
+            </div>
+          ) : null}
+          {isCorrection ? (
+            <div style={readyImportNoteStyle}>
+              <strong>Correction found</strong>
+              <span>Commit updates the saved result and Team Chat without creating another match.</span>
             </div>
           ) : null}
           <div style={parsedLineListStyle}>
@@ -2637,9 +2673,10 @@ function PostImportActions({ actions }: { actions: Array<{ label: string; href: 
 function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null, returnTo = '') {
   const actions: Array<{ label: string; href: string }> = []
   if (returnTo) {
+    const scorecardReturnHref = buildScorecardImportReturnHref(returnTo, parsedDraft?.externalMatchId || '')
     actions.push({
       label: returnTo.startsWith('/team-room') ? 'Return to Team Chat' : 'Continue Captain',
-      href: returnTo,
+      href: scorecardReturnHref || returnTo,
     })
   }
   const homeHref = parsedDraft?.homeTeam ? buildTeamHref(parsedDraft.homeTeam, {}) : ''

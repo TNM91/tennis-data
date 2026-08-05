@@ -127,6 +127,19 @@ describe('Team Room match-week flow', () => {
     expect(selectLatestPastTeamRoomCard(cards, '2026-08-09')).toBe('latest')
   })
 
+  it('moves to the next match after a same-day result is complete', () => {
+    const cards = [
+      { id: 'complete-today', matchDate: '2026-08-08', createdAt: '2026-08-01T12:00:00Z' },
+      { id: 'next-week', matchDate: '2026-08-15', createdAt: '2026-08-02T12:00:00Z' },
+    ]
+    const completed = new Set(['complete-today'])
+    const activeId = selectActiveTeamRoomCard(cards, '2026-08-08', completed)
+
+    expect(activeId).toBe('next-week')
+    expect(teamRoomCardState(cards[0], activeId, '2026-08-08', completed)).toBe('archived')
+    expect(teamRoomCardState(cards[1], activeId, '2026-08-08', completed)).toBe('active')
+  })
+
   it('deduplicates and validates reminder targets', () => {
     expect(parseReminderTargets([
       { profileId: 'player-1', needsResponse: true, needsMaybeFollowup: false, needsAckVersion: 2, needsLineupChangeResponse: false },

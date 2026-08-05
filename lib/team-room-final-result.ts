@@ -22,6 +22,7 @@ export type TeamRoomFinalResult = {
   score: string
   outcome: 'win' | 'loss' | 'final'
   lines: TeamRoomFinalResultLine[]
+  unresolvedPlayerCount: number
 }
 
 export type TeamRoomCompletedLineMatch = {
@@ -53,6 +54,8 @@ export type TeamRoomFinalResultLine = {
   opponentPlayers: string[]
   score: string
   winner: 'team' | 'opponent' | 'final'
+  teamMissingPlayerCount: number
+  opponentMissingPlayerCount: number
 }
 
 type TeamRoomResultScope = {
@@ -127,6 +130,7 @@ export function buildTeamRoomFinalResult(
     score: clean(match.score),
     outcome,
     lines: [],
+    unresolvedPlayerCount: 0,
   }
 }
 
@@ -175,6 +179,11 @@ export function buildTeamRoomFinalResultLines({
         .filter((player) => player.side === side)
         .map((player) => playerNameById.get(player.player_id) || '')
         .filter(Boolean)
+      const expectedPlayersPerSide = clean(match.match_type).toLowerCase() === 'doubles' ? 2 : 1
+      const missingForSide = (side: 'A' | 'B') => Math.max(
+        0,
+        expectedPlayersPerSide - namesForSide(side).length,
+      )
       const number = lineNumber(match.line_number)
       const matchType = clean(match.match_type).toLowerCase()
       const fallbackLabel = `${number ? `${number} ` : ''}${matchType === 'doubles' ? 'Doubles' : matchType === 'singles' ? 'Singles' : 'Court'}`
@@ -190,6 +199,8 @@ export function buildTeamRoomFinalResultLines({
           : match.winner_side === opponentSide
             ? 'opponent' as const
             : 'final' as const,
+        teamMissingPlayerCount: missingForSide(teamSide),
+        opponentMissingPlayerCount: missingForSide(opponentSide),
       }
     })
 }
