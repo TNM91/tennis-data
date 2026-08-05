@@ -325,6 +325,47 @@
   padding: 7px 12px 1px;
 }
 
+.matchResultScore {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.8rem 1rem 1rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(153, 230, 54, 0.24);
+  border-radius: 1rem;
+  background: rgba(15, 35, 32, 0.72);
+}
+
+.matchResultScore > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.matchResultScore strong {
+  color: #f8fafc;
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  line-height: 1;
+}
+
+.matchResultScore span {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.matchResultScore > em {
+  color: #a3e635;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .matchDayActions > * {
   flex: 1 1 128px;
   min-height: 38px;

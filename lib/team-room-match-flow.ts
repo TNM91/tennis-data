@@ -171,6 +171,16 @@ export function selectActiveTeamRoomCard(cards: TeamRoomCardCandidate[], today =
   return future[0]?.id || ''
 }
 
+export function selectLatestPastTeamRoomCard(cards: TeamRoomCardCandidate[], today = todayDateKey()) {
+  return cards
+    .filter((card) => card.matchDate && card.matchDate < today)
+    .sort((left, right) => {
+      const dateCompare = right.matchDate.localeCompare(left.matchDate)
+      if (dateCompare) return dateCompare
+      return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()
+    })[0]?.id || ''
+}
+
 export function teamRoomCardState(
   card: TeamRoomCardCandidate,
   activeCardId: string,

@@ -232,4 +232,21 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.matchDayLogistics')
     expect(roomStyles).toContain('.matchDayActions')
   })
+
+  it('replaces scorecard entry with the linked final result', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+    const lineupBuilder = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(roomApi).toContain('loadTeamRoomFinalResult')
+    expect(roomApi).toContain(".from('matches')")
+    expect(roomApi).toContain('selectTeamRoomCompletedMatch')
+    expect(roomApi).toContain('matchId: cleanText(metadata.matchId)')
+    expect(lineupBuilder).toContain("matchId: selectedMatch?.id || ''")
+    expect(roomPage).toContain('(currentFinalLineup || room.finalResult)')
+    expect(roomPage).toContain("result ? 'Final result'")
+    expect(roomPage).toContain('Scorecard linked')
+    expect(roomStyles).toContain('.matchResultScore')
+  })
 })

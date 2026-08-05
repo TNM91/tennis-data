@@ -8,6 +8,7 @@ import {
   parseReminderTargets,
   selectPrimaryTeamRoomCourtReadiness,
   selectActiveTeamRoomCard,
+  selectLatestPastTeamRoomCard,
   teamRoomCardState,
 } from '../team-room-match-flow'
 
@@ -115,6 +116,15 @@ describe('Team Room match-week flow', () => {
     expect(teamRoomCardState(cards[0], activeId, '2026-08-02')).toBe('archived')
     expect(teamRoomCardState(cards[1], activeId, '2026-08-02')).toBe('upcoming')
     expect(teamRoomCardState(cards[2], activeId, '2026-08-02')).toBe('active')
+  })
+
+  it('keeps the latest match available for scorecard closeout when no future match exists', () => {
+    const cards = [
+      { id: 'older', matchDate: '2026-08-01', createdAt: '2026-07-20T12:00:00Z' },
+      { id: 'latest', matchDate: '2026-08-08', createdAt: '2026-08-02T12:00:00Z' },
+    ]
+    expect(selectActiveTeamRoomCard(cards, '2026-08-09')).toBe('')
+    expect(selectLatestPastTeamRoomCard(cards, '2026-08-09')).toBe('latest')
   })
 
   it('deduplicates and validates reminder targets', () => {
