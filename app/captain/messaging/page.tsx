@@ -51,11 +51,17 @@ import {
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
 } from '@/lib/captain-roster-contacts'
-import { buildCaptainLevelUpChallenge } from '@/lib/captain-level-up-challenge'
 import {
+  appendLevelUpChallengeHref,
+  buildCaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
+import {
+  appendCaptainWeekChallengeRecapToMessage,
   appendCaptainWeekChallengeToMessage,
   buildCaptainWeekChallengeHistoryHref,
   buildCaptainWeekChallengeTeamRoomHref,
+  recommendCaptainWeekChallengeFollowUp,
+  selectCaptainCompletedWeekChallenge,
   selectCaptainWeekChallenge,
   type CaptainWeekChallenge,
   type CaptainWeekChallengeHistoryItem,
@@ -672,6 +678,7 @@ function CaptainMessagingContent() {
   const [messageTitle, setMessageTitle] = useState('Availability Check')
   const [messageBody, setMessageBody] = useState('')
   const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
+  const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
@@ -1051,15 +1058,26 @@ function CaptainMessagingContent() {
         })
         const result = await response.json() as { history?: CaptainWeekChallengeHistoryItem[] }
         if (!response.ok || !active) return
-        const selected = selectCaptainWeekChallenge(result.history ?? [], matchWeekScope.date)
+        const history = result.history ?? []
+        const selected = selectCaptainWeekChallenge(history, matchWeekScope.date)
         const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
         setConnectedWeekChallenge(selected && challenge ? {
           challenge,
           history: selected,
           teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
         } : null)
+        const completed = selectCaptainCompletedWeekChallenge(history, matchWeekScope.date)
+        const completedChallenge = completed ? buildCaptainLevelUpChallenge(completed.challengeId) : null
+        setCompletedWeekChallenge(completed && completedChallenge ? {
+          challenge: completedChallenge,
+          history: completed,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, completed.messageId),
+        } : null)
       } catch {
-        if (active) setConnectedWeekChallenge(null)
+        if (active) {
+          setConnectedWeekChallenge(null)
+          setCompletedWeekChallenge(null)
+        }
       }
     }
 
@@ -1069,15 +1087,30 @@ function CaptainMessagingContent() {
     }
   }, [authResolved, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, role, session?.access_token])
 
+  const completedWeekChallengeFollowUp = useMemo(
+    () => completedWeekChallenge
+      ? recommendCaptainWeekChallengeFollowUp(completedWeekChallenge.history)
+      : null,
+    [completedWeekChallenge],
+  )
+  const currentMessagingChallenge = completedWeekChallenge ? null : connectedWeekChallenge
+  const displayedMessagingChallenge = completedWeekChallenge ?? connectedWeekChallenge
+  const nextTeamChallengeHref = completedWeekChallengeFollowUp
+    ? appendLevelUpChallengeHref(
+        `${buildCaptainScopedHref('/captain', matchWeekScope)}#captain-level-up-challenge`,
+        completedWeekChallengeFollowUp.challenge.id,
+      )
+    : ''
+
   useEffect(() => {
-    if (!connectedWeekChallenge) return
+    if (!currentMessagingChallenge) return
     setMessageBody((current) => current.trim()
-      ? appendCaptainWeekChallengeToMessage(current, connectedWeekChallenge.challenge)
+      ? appendCaptainWeekChallengeToMessage(current, currentMessagingChallenge.challenge)
       : current)
-  }, [connectedWeekChallenge])
+  }, [currentMessagingChallenge])
 
   function withWeekChallenge(message: string) {
-    return appendCaptainWeekChallengeToMessage(message, connectedWeekChallenge?.challenge ?? null)
+    return appendCaptainWeekChallengeToMessage(message, currentMessagingChallenge?.challenge ?? null)
   }
 
   useEffect(() => {
@@ -1257,9 +1290,9 @@ function CaptainMessagingContent() {
         location: eventLocation,
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
-      }), connectedWeekChallenge?.challenge ?? null)
+      }), currentMessagingChallenge?.challenge ?? null)
     })
-  }, [availabilityHandoff, connectedWeekChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
+  }, [availabilityHandoff, currentMessagingChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -2393,8 +2426,10 @@ function importScenarioToLineup() {
     setRecipientMode('all-opted-in')
     setMessageKind('follow-up')
     setMessageTitle('Post-Match Note')
-    setMessageBody(withWeekChallenge(
-      `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`
+    setMessageBody(appendCaptainWeekChallengeRecapToMessage(
+      `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`,
+      completedWeekChallenge,
+      completedWeekChallengeFollowUp,
     ))
   }
 
@@ -2542,18 +2577,34 @@ function importScenarioToLineup() {
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
          <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
-         {connectedWeekChallenge ? (
-          <section style={weekChallengeStripStyle} aria-label="This week's team challenge in messaging">
+         {displayedMessagingChallenge ? (
+          <section
+            style={weekChallengeStripStyle}
+            aria-label={
+              completedWeekChallenge
+                ? "Completed team challenge recap in messaging"
+                : "This week's team challenge in messaging"
+            }
+          >
             <div style={weekChallengeCopyStyle}>
               <span style={sectionKicker}>
-                {connectedWeekChallenge.history.status === 'scheduled' ? "This week's team challenge" : 'Challenge in progress'}
+                {completedWeekChallenge
+                  ? 'Challenge recap'
+                  : displayedMessagingChallenge.history.status === 'scheduled' ? "This week's team challenge" : 'Challenge in progress'}
               </span>
-              <strong style={weekChallengeTitleStyle}>{connectedWeekChallenge.challenge.title}</strong>
-              <span style={weekChallengeFocusStyle}>{connectedWeekChallenge.challenge.focus}</span>
+              <strong style={weekChallengeTitleStyle}>{displayedMessagingChallenge.challenge.title}</strong>
+              <span style={weekChallengeFocusStyle}>
+                {completedWeekChallenge
+                  ? `${completedWeekChallenge.history.completedCount} of ${completedWeekChallenge.history.connectedCount} connected complete${completedWeekChallengeFollowUp ? ` - Next: ${completedWeekChallengeFollowUp.challenge.title}` : ''}`
+                  : displayedMessagingChallenge.challenge.focus}
+              </span>
             </div>
             <div style={messageControlButtonRowStyle}>
-              <span style={miniPillGreen}>Included in message</span>
-              <PrimaryLink href={connectedWeekChallenge.teamRoomHref}>Open Team Room</PrimaryLink>
+              <span style={miniPillGreen}>{completedWeekChallenge ? 'Ready for recap' : 'Included in message'}</span>
+              <PrimaryLink href={displayedMessagingChallenge.teamRoomHref}>Open Team Room</PrimaryLink>
+              {completedWeekChallenge && nextTeamChallengeHref ? (
+                <GhostLink href={nextTeamChallengeHref}>Plan next challenge</GhostLink>
+              ) : null}
             </div>
           </section>
          ) : null}
@@ -2815,7 +2866,11 @@ function importScenarioToLineup() {
             <button type="button" style={messagePlaybookCardStyle} onClick={loadPostMatchNote}>
               <span style={messagePlaybookLabelStyle}>Close</span>
               <strong style={messagePlaybookTitleStyle}>Post-match note</strong>
-              <span style={messagePlaybookTextStyle}>Thank the team and collect score notes</span>
+              <span style={messagePlaybookTextStyle}>
+                {completedWeekChallenge
+                  ? `${completedWeekChallenge.challenge.title}: ${completedWeekChallenge.history.completedCount}/${completedWeekChallenge.history.connectedCount} complete`
+                  : 'Thank the team and collect score notes'}
+              </span>
             </button>
           </div>
         </section>
