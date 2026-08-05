@@ -35,6 +35,7 @@ type ConversationRow = {
 }
 
 type MatchCardRow = {
+  id: string
   conversation_id: string
   metadata: Record<string, unknown> | null
 }
@@ -100,18 +101,19 @@ export async function announceTeamRoomScorecardResult(input: {
   const conversationIds = conversations.map((conversation) => conversation.id)
   const { data: cardData } = await input.service
     .from('internal_messages')
-    .select('conversation_id,metadata')
+    .select('id,conversation_id,metadata')
     .in('conversation_id', conversationIds)
     .contains('metadata', { teamRoomCard: true })
     .limit(300)
-  const matchingConversationIds = new Set(((cardData ?? []) as MatchCardRow[]).flatMap((row) => {
+  const matchingCardIdByConversationId = new Map<string, string>()
+  for (const row of (cardData ?? []) as MatchCardRow[]) {
     const metadata = row.metadata
-    if (!metadata) return []
+    if (!metadata) continue
     const exactExternalId = clean(metadata.externalMatchId) === externalMatchId
     const exactMatchId = clean(metadata.matchId) === clean(match.id)
-    return exactExternalId || exactMatchId ? [row.conversation_id] : []
-  }))
-  const targets = conversations.filter((conversation) => matchingConversationIds.has(conversation.id))
+    if (exactExternalId || exactMatchId) matchingCardIdByConversationId.set(row.conversation_id, row.id)
+  }
+  const targets = conversations.filter((conversation) => matchingCardIdByConversationId.has(conversation.id))
   if (!targets.length) return { inserted: 0, updated: 0 }
 
   const fingerprint = buildTeamRoomScorecardFingerprint(input.draft)
@@ -132,6 +134,7 @@ export async function announceTeamRoomScorecardResult(input: {
     const body = buildTeamRoomResultAnnouncement(result)
     const metadata = {
       teamRoomResultAnnouncement: true,
+      teamRoomResultCardId: matchingCardIdByConversationId.get(target.id) || '',
       externalMatchId,
       matchId: match.id,
       matchDate: clean(match.match_date),
@@ -172,6 +175,7 @@ export async function announceTeamRoomScorecardResult(input: {
       link,
       body,
       messageId: insertedMessage.id,
+      resultCardId: matchingCardIdByConversationId.get(target.id) || '',
     })
   }
   return { inserted, updated }
@@ -183,6 +187,7 @@ async function notifyResult(service: SupabaseClient, input: {
   link: TeamLinkRow
   body: string
   messageId: string
+  resultCardId: string
 }) {
   const { data } = await service
     .from('internal_conversation_participants')
@@ -196,7 +201,7 @@ async function notifyResult(service: SupabaseClient, input: {
     teamName: input.link.team_name,
     leagueName: input.link.league_name,
     flight: input.link.flight,
-    messageId: input.messageId,
+    messageId: input.resultCardId || input.messageId,
   })
   const title = `${input.link.team_name} final result`
   await service.from('internal_notifications').insert(recipients.map((recipient) => ({

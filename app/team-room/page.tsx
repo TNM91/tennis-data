@@ -396,6 +396,15 @@ function TeamRoomContent() {
   const scorecardHref = `/data-assist?intent=upload-source&context=Team%20Room&type=scorecard&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const playerLinksHref = `/data-assist?intent=upload-source&context=Team%20Room&type=team_summary&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const resultJustUpdated = searchParams.get('result') === 'updated'
+  const focusedFinalResult = Boolean(
+    focusedMessageId
+    && room?.finalResult
+    && focusedMessageId === room.finalResultCardId,
+  )
+  const activeFinalResultFocused = Boolean(
+    focusedFinalResult
+    && activeMatchMessage?.id === room?.finalResultCardId,
+  )
 
   useEffect(() => {
     const updateLocalDate = () => setLocalDateKey(localDateInputKey(new Date()))
@@ -424,16 +433,22 @@ function TeamRoomContent() {
   }, [pinnedLineupChangeDeadlineAt, pinnedMatchDate, pinnedMessage?.id])
 
   useEffect(() => {
-    if (!focusedMessageId || pinnedMessage?.id !== focusedMessageId) return
+    if (!focusedMessageId) return
+    const targetId = focusedFinalResult
+      ? `final-result-${focusedMessageId}`
+      : pinnedMessage?.id === focusedMessageId
+        ? `match-card-${focusedMessageId}`
+        : ''
+    if (!targetId) return
     const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(`match-card-${focusedMessageId}`)
+      const target = document.getElementById(targetId)
       if (!target) return
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
       target.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [focusedMessageId, pinnedMessage?.id])
+  }, [focusedFinalResult, focusedMessageId, pinnedMessage?.id])
 
   const loadRoom = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!accessToken) return
@@ -1344,7 +1359,11 @@ function TeamRoomContent() {
         ) : null}
 
         {finalResultMessage?.card && room.finalResult && finalResultMessage.id !== activeMatchMessage?.id ? (
-          <div className={styles.pinnedArea}>
+          <div
+            id={`final-result-${finalResultMessage.id}`}
+            className={`${styles.pinnedArea} ${focusedFinalResult ? styles.pinnedAreaFocused : ''}`}
+            tabIndex={focusedFinalResult ? -1 : undefined}
+          >
             <PublishedLineupPin
               card={finalResultMessage.card}
               receipt={finalResultMessage.card.finalLineup}
@@ -1357,7 +1376,7 @@ function TeamRoomContent() {
               markingSeen={false}
               reminding={false}
               completingMatchDay={false}
-              defaultOpen={resultJustUpdated}
+              defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
               onRemind={() => undefined}
               onCompleteMatch={() => undefined}
@@ -1366,7 +1385,11 @@ function TeamRoomContent() {
         ) : null}
 
         {activeMatchMessage?.card && (currentFinalLineup || (room.finalResult && room.finalResultCardId === activeMatchMessage.id)) ? (
-          <div className={styles.pinnedArea}>
+          <div
+            id={room.finalResultCardId === activeMatchMessage.id ? `final-result-${activeMatchMessage.id}` : undefined}
+            className={`${styles.pinnedArea} ${activeFinalResultFocused ? styles.pinnedAreaFocused : ''}`}
+            tabIndex={activeFinalResultFocused ? -1 : undefined}
+          >
             <PublishedLineupPin
               card={activeMatchMessage.card}
               receipt={currentFinalLineup}

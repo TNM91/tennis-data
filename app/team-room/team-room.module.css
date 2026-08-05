@@ -189,6 +189,12 @@
   background: var(--shell-page-bg);
 }
 
+.pinnedAreaFocused {
+  border-radius: 18px;
+  outline: 2px solid color-mix(in srgb, var(--brand-green) 72%, transparent);
+  outline-offset: -2px;
+}
+
 .publishedLineupPin {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border));

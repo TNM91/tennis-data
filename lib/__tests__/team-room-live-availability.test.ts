@@ -260,11 +260,17 @@ describe('Team Room live availability card', () => {
   it('posts one final-result update and edits that update for corrections', () => {
     const announcementServer = readSource('lib/team-room-result-announcement-server.ts')
     const importRunner = readSource('lib/data-assist-import-runner.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
 
     expect(importRunner).toContain('announceTeamRoomScorecardResult({')
     expect(announcementServer).toContain('teamRoomResultAnnouncement: true')
+    expect(announcementServer).toContain(".select('id,conversation_id,metadata')")
+    expect(announcementServer).toContain('messageId: input.resultCardId || input.messageId')
     expect(announcementServer).toContain(".contains('metadata', { teamRoomResultAnnouncement: true, externalMatchId })")
     expect(announcementServer).toContain(".update({ body, metadata, edited_at: new Date().toISOString() })")
     expect(announcementServer).toContain('sendTeamRoomPush(service')
+    expect(roomPage).toContain('focusedMessageId === room.finalResultCardId')
+    expect(roomPage).toContain('`final-result-${focusedMessageId}`')
+    expect(roomPage).toContain('defaultOpen={resultJustUpdated || focusedFinalResult}')
   })
 })
