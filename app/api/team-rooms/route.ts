@@ -32,6 +32,7 @@ import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
   buildPublishedLineupChangeAnnouncement,
   buildTeamRoomFinalLineupReceipt,
+  readTeamRoomLineupAnnouncement,
   readTeamRoomFinalLineupReceipt,
 } from '@/lib/team-room-final-lineup'
 import {
@@ -1537,11 +1538,14 @@ export async function POST(request: Request) {
     if (!messageId || !nextBody) return Response.json({ ok: false, message: 'Write the updated message first.' }, { status: 400 })
     const { data: message } = await auth.service
       .from('internal_messages')
-      .select('id,sender_user_id,deleted_at')
+      .select('id,sender_user_id,metadata,deleted_at')
       .eq('id', messageId)
       .eq('conversation_id', conversation.id)
       .maybeSingle()
     if (!message || message.deleted_at) return Response.json({ ok: false, message: 'This message is no longer available.' }, { status: 404 })
+    if (readTeamRoomLineupAnnouncement(message.metadata)) {
+      return Response.json({ ok: false, message: 'Published lineup updates stay in team history.' }, { status: 409 })
+    }
     if (message.sender_user_id !== auth.userId) {
       return Response.json({ ok: false, message: 'You can edit only your own message.' }, { status: 403 })
     }
@@ -1562,6 +1566,9 @@ export async function POST(request: Request) {
       .eq('conversation_id', conversation.id)
       .maybeSingle()
     if (!message || message.deleted_at) return Response.json({ ok: false, message: 'This message is already removed.' }, { status: 404 })
+    if (readTeamRoomLineupAnnouncement(message.metadata)) {
+      return Response.json({ ok: false, message: 'Published lineup updates stay in team history.' }, { status: 409 })
+    }
     if (message.sender_user_id !== auth.userId && !canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only the sender or a captain can remove this message.' }, { status: 403 })
     }
@@ -2913,6 +2920,7 @@ function toMessage(
       profileIds: currentAcknowledgments.map((item) => item.profile_id),
     },
     availabilitySummary,
+    finalLineup: readTeamRoomFinalLineupReceipt(row.metadata.finalLineup),
     reminder: reminder ? {
       reminderAt: reminder.reminder_at,
       status: reminder.status,
@@ -2957,6 +2965,7 @@ function toMessage(
     attachment: attachment ? { ...attachment, url: attachmentUrl } : null,
     card,
     levelUpChallenge,
+    lineupAnnouncement: !row.deleted_at ? readTeamRoomLineupAnnouncement(row.metadata) : null,
     response: responses.find((item) => item.profile_id === currentUserId)?.response || null,
     responseSummary: availabilitySummary
       ? {

@@ -7,6 +7,15 @@ export type TeamRoomFinalLineupReceipt = {
   sentByName: string
 }
 
+export type TeamRoomLineupAnnouncement = {
+  kind: 'final' | 'change'
+  sourceMessageId: string
+  lineupId: string
+  previousFinalLineupId: string
+}
+
+export type TeamRoomLineupAnnouncementStatus = 'current' | 'pending' | 'superseded' | 'past'
+
 export function buildTeamRoomFinalLineupReceipt(input: TeamRoomFinalLineupReceipt) {
   return {
     lineupId: cleanText(input.lineupId),
@@ -40,6 +49,35 @@ export function readTeamRoomFinalLineupReceipt(value: unknown): TeamRoomFinalLin
 
 export function isTeamRoomFinalLineupSent(value: unknown, lineupId: string) {
   return readTeamRoomFinalLineupReceipt(value)?.lineupId === cleanText(lineupId)
+}
+
+export function readTeamRoomLineupAnnouncement(value: unknown): TeamRoomLineupAnnouncement | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const kind = row.finalLineupAnnouncement === true
+    ? 'final'
+    : row.finalLineupChangeAnnouncement === true ? 'change' : null
+  const sourceMessageId = cleanText(row.sourceMessageId)
+  if (!kind || !sourceMessageId) return null
+  return {
+    kind,
+    sourceMessageId,
+    lineupId: cleanText(row.lineupId),
+    previousFinalLineupId: cleanText(row.previousFinalLineupId),
+  }
+}
+
+export function getTeamRoomLineupAnnouncementStatus(input: {
+  announcementMessageId: string
+  sourceMessageId: string
+  currentReceipt: TeamRoomFinalLineupReceipt | null
+  activeSourceMessageId: string
+  pendingAnnouncementMessageId?: string
+}): TeamRoomLineupAnnouncementStatus {
+  if (cleanText(input.announcementMessageId) === input.currentReceipt?.announcementMessageId) return 'current'
+  if (cleanText(input.announcementMessageId) === cleanText(input.pendingAnnouncementMessageId)) return 'pending'
+  if (cleanText(input.sourceMessageId) === cleanText(input.activeSourceMessageId)) return 'superseded'
+  return 'past'
 }
 
 export function buildPublishedLineupChangeAnnouncement(input: {

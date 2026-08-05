@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildPublishedLineupChangeAnnouncement,
   buildTeamRoomFinalLineupReceipt,
+  getTeamRoomLineupAnnouncementStatus,
   isTeamRoomFinalLineupSent,
+  readTeamRoomLineupAnnouncement,
   readTeamRoomFinalLineupReceipt,
 } from '../team-room-final-lineup'
 
@@ -32,6 +34,49 @@ describe('Team Room final lineup receipt', () => {
   it('rejects incomplete receipts and other lineup versions', () => {
     expect(readTeamRoomFinalLineupReceipt({ lineupId: receipt.lineupId })).toBeNull()
     expect(isTeamRoomFinalLineupSent(receipt, 'lineup-locked:message-1:new')).toBe(false)
+  })
+
+  it('identifies current, superseded, and past lineup announcements', () => {
+    expect(readTeamRoomLineupAnnouncement({
+      finalLineupAnnouncement: true,
+      sourceMessageId: 'match-1',
+      lineupId: receipt.lineupId,
+    })).toEqual({
+      kind: 'final',
+      sourceMessageId: 'match-1',
+      lineupId: receipt.lineupId,
+      previousFinalLineupId: '',
+    })
+    expect(readTeamRoomLineupAnnouncement({
+      finalLineupChangeAnnouncement: true,
+      sourceMessageId: 'match-1',
+      previousFinalLineupId: receipt.lineupId,
+    })?.kind).toBe('change')
+    expect(getTeamRoomLineupAnnouncementStatus({
+      announcementMessageId: receipt.announcementMessageId,
+      sourceMessageId: 'match-1',
+      currentReceipt: receipt,
+      activeSourceMessageId: 'match-1',
+    })).toBe('current')
+    expect(getTeamRoomLineupAnnouncementStatus({
+      announcementMessageId: 'announcement-pending',
+      sourceMessageId: 'match-1',
+      currentReceipt: null,
+      activeSourceMessageId: 'match-1',
+      pendingAnnouncementMessageId: 'announcement-pending',
+    })).toBe('pending')
+    expect(getTeamRoomLineupAnnouncementStatus({
+      announcementMessageId: 'announcement-old',
+      sourceMessageId: 'match-1',
+      currentReceipt: receipt,
+      activeSourceMessageId: 'match-1',
+    })).toBe('superseded')
+    expect(getTeamRoomLineupAnnouncementStatus({
+      announcementMessageId: 'announcement-past',
+      sourceMessageId: 'match-old',
+      currentReceipt: receipt,
+      activeSourceMessageId: 'match-1',
+    })).toBe('past')
   })
 
   it('builds one concise published-lineup change for the affected court', () => {
