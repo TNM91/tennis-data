@@ -40,7 +40,7 @@ export default function ActiveTeamChallengeCard() {
     if (!accessToken || !currentUserId) return
 
     const controller = new AbortController()
-    void fetch('/api/team-rooms?summary=1', {
+    void fetch('/api/team-rooms?activeChallenge=1', {
       cache: 'no-store',
       headers: { Authorization: `Bearer ${accessToken}` },
       signal: controller.signal,

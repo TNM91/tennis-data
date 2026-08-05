@@ -95,7 +95,7 @@ describe('Captain Level Up Team Room challenge', () => {
   it('puts the active team challenge on home and My Lab with a one-tap private resume', () => {
     expect(homeSource).toContain('<ActiveTeamChallengeCard />')
     expect(myLabSource).toContain('<ActiveTeamChallengeCard />')
-    expect(activeChallengeSource).toContain("fetch('/api/team-rooms?summary=1'")
+    expect(activeChallengeSource).toContain("fetch('/api/team-rooms?activeChallenge=1'")
     expect(activeChallengeSource).toContain("challenge.completed ? 'Open Team Hub' : 'Resume challenge'")
     expect(activeChallengeSource).toContain('challenge.resumeHref')
     expect(activeChallengeSource).toContain('role="progressbar"')
@@ -103,7 +103,10 @@ describe('Captain Level Up Team Room challenge', () => {
   })
 
   it('returns only current-player challenge progress in the lightweight Team Room summary', () => {
-    expect(teamRoomApiSource).toContain('activeChallenge: TeamRoomActiveChallengeSummary | null')
+    expect(teamRoomApiSource).toContain("url.searchParams.get('activeChallenge') === '1'")
+    expect(teamRoomApiSource).toContain('loadBestActiveTeamChallenge')
+    expect(teamRoomApiSource).toContain('selectCaptainLevelUpChallengeResume(challenges)')
+    expect(teamRoomApiSource).toContain(".contains('metadata', { teamLevelUpChallenge: true })")
     expect(teamRoomApiSource).toContain('completionResult.completedCardIdsByPlayer.get(userId)')
     expect(teamRoomApiSource).toContain('buildCaptainLevelUpCardHref(nextCardId)')
     expect(teamRoomApiSource).toContain('activeChallenge,')
