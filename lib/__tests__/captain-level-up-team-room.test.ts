@@ -27,7 +27,12 @@ describe('Captain Level Up Team Room challenge', () => {
   it('renders every challenge card as a player action with a private completion receipt', () => {
     expect(teamRoomSource).toContain('function LevelUpChallengeCard')
     expect(teamRoomSource).toContain('buildCaptainLevelUpCardHref(card.id)')
-    expect(teamRoomSource).toContain('Mark all complete')
+    expect(teamRoomSource).toContain('Your progress')
+    expect(teamRoomSource).toContain('Continue challenge')
+    expect(teamRoomSource).toContain('Mark challenge complete')
+    expect(teamRoomSource).toContain("action: 'complete_level_up_challenge'")
+    expect(teamRoomApiSource).toContain("action === 'complete_level_up_challenge'")
+    expect(teamRoomApiSource).toContain('completedCardIdsByPlayer.get(userId)')
     expect(teamRoomSource).toContain('Your proof, scores, and notes stay private.')
   })
 

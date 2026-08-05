@@ -192,6 +192,16 @@ export function getCaptainLevelUpCompletedPlayerIds(
   challenge: CaptainLevelUpChallenge,
   sessions: CaptainLevelUpSessionSignal[],
 ) {
+  const completedByPlayer = getCaptainLevelUpCompletedCardIdsByPlayer(challenge, sessions)
+  return Array.from(completedByPlayer.entries())
+    .filter(([, completed]) => challenge.cardIds.length > 0 && completed.length === challenge.cardIds.length)
+    .map(([playerUserId]) => playerUserId)
+}
+
+export function getCaptainLevelUpCompletedCardIdsByPlayer(
+  challenge: CaptainLevelUpChallenge,
+  sessions: CaptainLevelUpSessionSignal[],
+) {
   const cards = getCaptainLevelUpCardDetails(challenge)
   const cardIdByTitle = new Map(cards.map((card) => [normalizeCardSignal(card.title), card.id] as const))
   const requiredCardIds = new Set(cards.map((card) => card.id))
@@ -209,9 +219,10 @@ export function getCaptainLevelUpCompletedPlayerIds(
     completedByPlayer.set(playerUserId, completed)
   }
 
-  return Array.from(completedByPlayer.entries())
-    .filter(([, completed]) => requiredCardIds.size > 0 && completed.size === requiredCardIds.size)
-    .map(([playerUserId]) => playerUserId)
+  return new Map(Array.from(completedByPlayer.entries()).map(([playerUserId, completed]) => [
+    playerUserId,
+    challenge.cardIds.filter((cardId) => completed.has(cardId)),
+  ]))
 }
 
 export function getCaptainLevelUpCompletedPlayerIdsForRun(
