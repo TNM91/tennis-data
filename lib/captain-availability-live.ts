@@ -10,6 +10,11 @@ export type CaptainAvailabilityLiveResponse = {
   responded_at?: string | null
 }
 
+export type CaptainAvailabilityLineupRow = {
+  courtLabel: string
+  players: string[]
+}
+
 export function buildCaptainAvailabilityResponseSignature(
   responses: CaptainAvailabilityLiveResponse[],
 ) {
@@ -56,4 +61,34 @@ export function findLatestCaptainAvailabilityRiskChange(
     .sort((left, right) => (
       new Date(right.responded_at || 0).getTime() - new Date(left.responded_at || 0).getTime()
     ))[0] ?? null
+}
+
+export function findLatestCaptainAvailabilityLineupRisk(
+  responses: CaptainAvailabilityLiveResponse[],
+  lineup: CaptainAvailabilityLineupRow[],
+) {
+  const courtByPlayer = new Map<string, string>()
+  for (const court of lineup) {
+    for (const player of court.players) {
+      const playerKey = player.trim().toLowerCase().replace(PLAYER_NAME_SEPARATOR_PATTERN, ' ').trim()
+      if (playerKey && !courtByPlayer.has(playerKey)) courtByPlayer.set(playerKey, court.courtLabel)
+    }
+  }
+
+  const response = responses
+    .filter((candidate) => {
+      if (!isLineupRisk(candidate.status)) return false
+      const playerKey = candidate.player_name?.trim().toLowerCase().replace(PLAYER_NAME_SEPARATOR_PATTERN, ' ').trim() || ''
+      return Boolean(playerKey && courtByPlayer.has(playerKey))
+    })
+    .sort((left, right) => (
+      new Date(right.responded_at || 0).getTime() - new Date(left.responded_at || 0).getTime()
+    ))[0] ?? null
+
+  if (!response) return null
+  const playerKey = response.player_name?.trim().toLowerCase().replace(PLAYER_NAME_SEPARATOR_PATTERN, ' ').trim() || ''
+  return {
+    response,
+    courtLabel: courtByPlayer.get(playerKey) || '',
+  }
 }

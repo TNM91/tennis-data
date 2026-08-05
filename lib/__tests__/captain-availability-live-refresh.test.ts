@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
+  findLatestCaptainAvailabilityLineupRisk,
   findLatestCaptainAvailabilityRiskChange,
 } from '../captain-availability-live'
 
@@ -44,6 +45,22 @@ describe('Captain availability live refresh', () => {
     ])).toBeNull()
   })
 
+  it('keeps a current lineup risk active until that player leaves the court', () => {
+    const responses = [
+      { player_name: 'Alex Ace', match_date: '2026-08-12', status: 'out', responded_at: '2026-08-04T20:00:00.000Z' },
+      { player_name: 'Blair Ball', match_date: '2026-08-12', status: 'maybe', responded_at: '2026-08-04T20:05:00.000Z' },
+    ]
+    expect(findLatestCaptainAvailabilityLineupRisk(responses, [
+      { courtLabel: 'Doubles 1', players: ['Alex Ace', 'Casey Court'] },
+    ])).toMatchObject({
+      courtLabel: 'Doubles 1',
+      response: { player_name: 'Alex Ace', status: 'out' },
+    })
+    expect(findLatestCaptainAvailabilityLineupRisk(responses, [
+      { courtLabel: 'Doubles 1', players: ['Jordan Jump', 'Casey Court'] },
+    ])).toBeNull()
+  })
+
   it('keeps polling light and limited to visible captain pages', () => {
     expect(CAPTAIN_AVAILABILITY_REFRESH_MS).toBe(15_000)
     for (const source of [captainHomeSource, availabilitySource]) {
@@ -66,9 +83,18 @@ describe('Captain availability live refresh', () => {
 
   it('raises a changed risk reply above polled notifications with one lineup action', () => {
     expect(captainHomeSource).toContain('findLatestCaptainAvailabilityRiskChange(')
-    expect(captainHomeSource).toContain('captainReplyFocusAlert ?? captainLiveReplyAlert ?? captainReplyAlerts[0]')
+    expect(captainHomeSource).toContain('findLatestCaptainAvailabilityLineupRisk(')
+    expect(captainHomeSource).toContain('?? captainPersistentLineupRiskAlert')
     expect(captainHomeSource).toContain("'Review affected lineup'")
     expect(captainHomeSource).toContain('captainReplyAffectsSavedLineup ? captainReplacementLineupHref')
     expect(captainHomeSource).toContain('setCaptainLiveReplyAlert(null)')
+  })
+
+  it('keeps the affected court visible through replacement confirmation', () => {
+    expect(captainHomeSource).toContain("'Unresolved lineup change'")
+    expect(captainHomeSource).toContain("'Send lineup change'")
+    expect(captainHomeSource).toContain("'Check confirmation'")
+    expect(captainHomeSource).toContain('!captainReplyAlertIsPersistent')
+    expect(captainHomeSource).toContain("teamRoomSummary.courtReadiness?.lineupChange?.response === 'accepted'")
   })
 })

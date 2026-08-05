@@ -110,6 +110,7 @@ import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
   CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
+  findLatestCaptainAvailabilityLineupRisk,
   findLatestCaptainAvailabilityRiskChange,
 } from '@/lib/captain-availability-live'
 import {
@@ -274,6 +275,17 @@ type CaptainTeamRoomSummary = {
     messageId: string
     confirmedCount: number
     totalCount: number
+    lineup?: Array<{
+      label: string
+      players: string[]
+    }>
+    lineupChange?: {
+      courtLabel: string
+      outgoingPlayerName: string
+      replacementPlayerName: string
+      pending: boolean
+      response: '' | 'accepted' | 'declined'
+    } | null
     courts: Array<{
       label: string
       status: 'waiting' | 'needs_captain'
@@ -4537,6 +4549,18 @@ function CaptainHubContent() {
       .sort((a, b) => safeText(a.court_label).localeCompare(safeText(b.court_label)))
   }, [workspaceState.currentEventKey])
 
+  const captainActiveLineupRows = useMemo<CaptainLineupAssignment[]>(() => {
+    const teamRoomLineup = teamRoomSummary.courtReadiness?.lineup ?? []
+    if (!teamRoomLineup.length) return matchDayLineupRows
+    return teamRoomLineup.map((court, index) => ({
+      id: `team-room-court-${index + 1}`,
+      event_key: workspaceState.currentEventKey,
+      court_label: court.label,
+      slot_type: safeKey(court.label).includes('single') ? 'singles' : 'doubles',
+      players: court.players,
+    }))
+  }, [matchDayLineupRows, teamRoomSummary.courtReadiness?.lineup, workspaceState.currentEventKey])
+
   const matchDayEventDetail = useMemo(() => {
     if (!workspaceState.currentEventKey) return null
 
@@ -4601,19 +4625,53 @@ function CaptainHubContent() {
       createdAt: '',
     })
   }, [matchWeekDate, nextMatch?.opponent, searchParams, selectedFlight, selectedLeague, selectedTeam])
-  const captainLatestReplyAlert = captainReplyFocusAlert ?? captainLiveReplyAlert ?? captainReplyAlerts[0] ?? null
+  const captainPersistentLineupRiskAlert = useMemo(() => {
+    const request = captainAvailabilityRequestSummary?.request
+    if (!request) return null
+    const risk = findLatestCaptainAvailabilityLineupRisk(
+      captainAvailabilityRequestSummary.responses,
+      captainActiveLineupRows.map((row) => ({
+        courtLabel: safeText(row.court_label, 'Saved court'),
+        players: (row.players ?? []).map((name) => safeText(name)).filter(Boolean),
+      })),
+    )
+    if (!risk?.response.player_name || !risk.response.status) return null
+    const notification = buildCaptainReplyNotification({
+      playerName: risk.response.player_name,
+      status: risk.response.status,
+      teamName: request.teamName,
+      leagueName: request.leagueName,
+      flight: request.flight,
+      matchDate: request.matchDate,
+      opponentTeam: request.opponentTeam,
+      availabilityRequestId: request.id,
+      courtLabel: risk.courtLabel,
+    })
+    return parseCaptainReplyAlert({
+      id: `lineup-risk-${risk.response.player_id || safeKey(risk.response.player_name)}-${request.matchDate}`,
+      title: notification.title,
+      body: notification.body,
+      href: notification.href,
+      createdAt: risk.response.responded_at || '',
+    })
+  }, [captainActiveLineupRows, captainAvailabilityRequestSummary])
+  const captainLatestReplyAlert = captainReplyFocusAlert
+    ?? captainPersistentLineupRiskAlert
+    ?? captainLiveReplyAlert
+    ?? captainReplyAlerts[0]
+    ?? null
   const captainLatestReplyLineupRow = useMemo(() => {
     if (!captainLatestReplyAlert) return null
     const focusedCourtKey = safeKey(searchParams.get('court') || '')
     const focusedCourt = focusedCourtKey
-      ? matchDayLineupRows.find((row) => safeKey(row.court_label) === focusedCourtKey)
+      ? captainActiveLineupRows.find((row) => safeKey(row.court_label) === focusedCourtKey)
       : null
     if (focusedCourt) return focusedCourt
     const playerKey = safeKey(captainLatestReplyAlert.playerName)
-    return matchDayLineupRows.find((row) =>
+    return captainActiveLineupRows.find((row) =>
       (row.players ?? []).some((playerName) => safeKey(playerName) === playerKey),
     ) ?? null
-  }, [captainLatestReplyAlert, matchDayLineupRows, searchParams])
+  }, [captainActiveLineupRows, captainLatestReplyAlert, searchParams])
   const captainReplacementRecommendation = useMemo(() => {
     if (!captainLatestReplyAlert || !captainLatestReplyLineupRow || captainLatestReplyAlert.status === 'available') return null
 
@@ -4624,7 +4682,7 @@ function CaptainHubContent() {
         slotType: safeText(captainLatestReplyLineupRow.slot_type, 'doubles'),
         players: (captainLatestReplyLineupRow.players ?? []).map((name) => safeText(name)).filter(Boolean),
       },
-      lineupRows: matchDayLineupRows.map((row, index) => ({
+      lineupRows: captainActiveLineupRows.map((row, index) => ({
         courtLabel: safeText(row.court_label, `Court ${index + 1}`),
         slotType: safeText(row.slot_type, 'doubles'),
         players: (row.players ?? []).map((name) => safeText(name)).filter(Boolean),
@@ -4636,7 +4694,7 @@ function CaptainHubContent() {
       })),
       pairings,
     })
-  }, [captainAvailabilityPeople, captainLatestReplyAlert, captainLatestReplyLineupRow, matchDayLineupRows, pairings, roster])
+  }, [captainActiveLineupRows, captainAvailabilityPeople, captainLatestReplyAlert, captainLatestReplyLineupRow, pairings, roster])
   const captainReplacementLineupHref = captainReplacementRecommendation && captainLatestReplyAlert
     ? buildCaptainReplacementLineupHref(lineupBuilderHref, {
       outPlayer: captainLatestReplyAlert.playerName,
@@ -7059,10 +7117,35 @@ function CaptainHubContent() {
   ) : null
   const captainReplyAlertNeedsLineupReview = captainLatestReplyAlert?.status !== 'available'
   const captainReplyAffectsSavedLineup = Boolean(captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview)
+  const captainOpenLineupChange = teamRoomSummary.courtReadiness?.lineupChange?.response === 'accepted'
+    ? null
+    : teamRoomSummary.courtReadiness?.lineupChange ?? null
+  const captainLineupChangeCourtHref = captainOpenLineupChange ? buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    date: teamRoomSummary.latestMatchDate || matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
+    messageId: teamRoomSummary.courtReadiness?.messageId || '',
+    court: captainOpenLineupChange.courtLabel,
+  }) : ''
+  const captainReplyAlertIsPersistent = Boolean(captainOpenLineupChange || (
+    captainPersistentLineupRiskAlert
+    && captainLatestReplyAlert?.id === captainPersistentLineupRiskAlert.id
+    && captainReplyAffectsSavedLineup
+  ))
   const captainReplyAlertHref = captainLatestReplyAlert?.href || levelUpAvailabilityHref
-  const captainReplyAlertImpact = captainLatestReplyAlert
+  const captainReplyAlertImpact = captainOpenLineupChange
+    ? captainOpenLineupChange.pending
+      ? `The replacement is saved. Send the change to ${captainOpenLineupChange.replacementPlayerName} and the affected court.`
+      : captainOpenLineupChange.response === 'declined'
+        ? `${captainOpenLineupChange.replacementPlayerName} cannot play. Choose another replacement for ${captainOpenLineupChange.courtLabel}.`
+        : `Waiting for ${captainOpenLineupChange.replacementPlayerName} to confirm ${captainOpenLineupChange.courtLabel}. This stays here until they answer.`
+    : captainLatestReplyAlert
     ? captainLatestReplyLineupRow && captainReplyAlertNeedsLineupReview
-      ? `${captainLatestReplyAlert.playerName} is on your saved ${safeText(captainLatestReplyLineupRow.court_label, 'lineup')}. Check that court before confirming.`
+      ? `${captainLatestReplyAlert.playerName} is on your saved ${safeText(captainLatestReplyLineupRow.court_label, 'lineup')}. This stays here until the court is fixed and the replacement confirms.`
       : captainLatestReplyAlert.status === 'unavailable'
         ? `${captainLatestReplyAlert.playerName} cannot play. Check the projected lineup and backup coverage.`
         : captainLatestReplyAlert.status === 'maybe'
@@ -7089,11 +7172,11 @@ function CaptainHubContent() {
   }
 
   function handleCaptainReplyAlertAction(href: string, stage: CaptainResumeStage) {
-    acknowledgeCaptainReplyAlerts()
+    if (!captainReplyAlertIsPersistent) acknowledgeCaptainReplyAlerts()
     handleCaptainAction(href, stage)
   }
 
-  const captainReplyAlertSurface = captainLatestReplyAlert ? (
+  const captainReplyAlertSurface = captainLatestReplyAlert || captainOpenLineupChange ? (
     <div
       id="captain-reply-alert"
       role="status"
@@ -7105,14 +7188,20 @@ function CaptainHubContent() {
       }}
     >
       <div style={captainHomeAvailabilityProgressCopy}>
-        <span style={commandCenterLabel}>New availability reply</span>
+        <span style={commandCenterLabel}>{captainReplyAlertIsPersistent ? 'Unresolved lineup change' : 'New availability reply'}</span>
         <strong style={captainHomeAvailabilityProgressTitle}>
-          {captainLatestReplyAlert.playerName}: {captainLatestReplyAlert.statusLabel}
+          {captainOpenLineupChange
+            ? captainOpenLineupChange.pending
+              ? `${captainOpenLineupChange.replacementPlayerName} for ${captainOpenLineupChange.courtLabel}`
+              : captainOpenLineupChange.response === 'declined'
+                ? `${captainOpenLineupChange.courtLabel} needs another player`
+                : `${captainOpenLineupChange.replacementPlayerName} needs to confirm`
+            : `${captainLatestReplyAlert?.playerName}: ${captainLatestReplyAlert?.statusLabel}`}
         </strong>
         <span style={captainHomeAvailabilityProgressDetailStyle}>
-          {captainReplyAlertImpact}{captainReplyAlerts.length > 1 ? ` ${captainReplyAlerts.length - 1} other new ${captainReplyAlerts.length === 2 ? 'reply' : 'replies'}.` : ''}
+          {captainReplyAlertImpact}{!captainReplyAlertIsPersistent && captainReplyAlerts.length > 1 ? ` ${captainReplyAlerts.length - 1} other new ${captainReplyAlerts.length === 2 ? 'reply' : 'replies'}.` : ''}
         </span>
-        {captainReplacementRecommendation ? (
+        {!captainOpenLineupChange && captainReplacementRecommendation ? (
           <div style={captainReplyReplacementSuggestion} aria-label="Captain replacement suggestion">
             <span style={captainReplyReplacementLabel}>
               {captainReplacementRecommendation.needsConfirmation ? 'Best player to ask' : 'Best replacement'}
@@ -7127,27 +7216,37 @@ function CaptainHubContent() {
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplyAffectsSavedLineup ? captainReplacementLineupHref : captainReplyAlertHref,
-            captainReplyAffectsSavedLineup ? 'lineup' : 'availability',
+            captainOpenLineupChange
+              ? captainLineupChangeCourtHref
+              : captainReplyAffectsSavedLineup ? captainReplacementLineupHref : captainReplyAlertHref,
+            captainOpenLineupChange ? 'team-room' : captainReplyAffectsSavedLineup ? 'lineup' : 'availability',
           )}
         >
-          {captainReplyAffectsSavedLineup ? 'Review affected lineup' : 'Review availability'}
+          {captainOpenLineupChange
+            ? captainOpenLineupChange.pending
+              ? 'Send lineup change'
+              : captainOpenLineupChange.response === 'declined' ? 'Find another player' : 'Check confirmation'
+            : captainReplyAffectsSavedLineup ? 'Review affected lineup' : 'Review availability'}
         </PrimarySmallBtn>
         <SecondarySmallBtn
           fullWidth={isMobile}
           disabled={!hasTeamScope || !premiumEnabled}
           onClick={() => handleCaptainReplyAlertAction(
-            captainReplyAffectsSavedLineup ? levelUpAvailabilityHref : lineupBuilderHref,
-            captainReplyAffectsSavedLineup ? 'availability' : 'lineup',
+            captainOpenLineupChange || captainReplyAffectsSavedLineup ? levelUpAvailabilityHref : lineupBuilderHref,
+            captainOpenLineupChange || captainReplyAffectsSavedLineup ? 'availability' : 'lineup',
           )}
         >
-          {captainReplyAffectsSavedLineup
+          {captainOpenLineupChange
+            ? 'View availability'
+            : captainReplyAffectsSavedLineup
             ? captainReplacementRecommendation?.needsConfirmation ? 'Check replacement availability' : 'View availability'
             : workspaceState.lineupReady ? 'Review lineup' : 'Build lineup'}
         </SecondarySmallBtn>
-        <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
-          Dismiss
-        </button>
+        {!captainReplyAlertIsPersistent ? (
+          <button type="button" style={captainReplyAlertDismiss} onClick={acknowledgeCaptainReplyAlerts}>
+            Dismiss
+          </button>
+        ) : null}
       </div>
     </div>
   ) : null
@@ -15821,7 +15920,9 @@ function CaptainHubContent() {
     cta: 'Open court',
     tone: captainPrimaryUnresolvedCourt.status === 'needs_captain' ? 'warn' as const : 'info' as const,
   } : null
-  const captainCourtReadinessCard = captainCourtReadiness?.messageId && captainUnresolvedCourts.length ? (
+  const captainCourtReadinessCard = captainCourtReadiness?.messageId
+    && captainUnresolvedCourts.length
+    && !captainReplyAlertIsPersistent ? (
     <section className={mobileCommandStyles.readiness} aria-label="Courts needing captain attention">
       <div className={mobileCommandStyles.readinessHeader}>
         <div>

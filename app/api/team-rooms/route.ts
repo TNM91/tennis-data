@@ -2076,15 +2076,17 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     .flatMap((member) => [member.name, member.playerName || ''])
     .map(cleanText)
     .filter(Boolean)
+  const activeLineup = normalizeLineupRows(message?.card?.lineup)
+  const activeLineupChange = cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice)
   const courtReadiness = buildTeamRoomCourtReadiness({
-    lineup: normalizeLineupRows(message?.card?.lineup),
+    lineup: activeLineup,
     replies: [
       { status: 'yes', names: availabilitySummary?.yesNames ?? responseNames('yes') },
       { status: 'no', names: availabilitySummary?.noNames ?? responseNames('no') },
       { status: 'maybe', names: availabilitySummary?.maybeNames ?? responseNames('maybe') },
       { status: 'waiting', names: availabilitySummary?.waitingNames ?? waitingNames },
     ],
-    lineupChange: cleanStoredLineupChangeNotice(latestCard?.metadata?.lineupChangeNotice),
+    lineupChange: activeLineupChange,
   })
 
   const activeChallengeResult = await buildActiveTeamChallengeSummary(
@@ -2116,6 +2118,14 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
         messageId: message?.id || '',
         confirmedCount: courtReadiness.filter((court) => court.status === 'confirmed').length,
         totalCount: courtReadiness.length,
+        lineup: activeLineup,
+        lineupChange: activeLineupChange ? {
+          courtLabel: activeLineupChange.courtLabel,
+          outgoingPlayerName: activeLineupChange.outgoingPlayerName,
+          replacementPlayerName: activeLineupChange.replacementPlayerName,
+          pending: activeLineupChange.pending,
+          response: activeLineupChange.response,
+        } : null,
         courts: courtReadiness.flatMap((court, index) => court.status === 'confirmed' ? [] : [{
           label: court.label || `Court ${index + 1}`,
           status: court.status,
