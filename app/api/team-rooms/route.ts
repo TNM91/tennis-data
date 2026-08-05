@@ -30,6 +30,7 @@ import {
 } from '@/lib/captain-lineup-confirmation'
 import { sendTeamRoomPush } from '@/lib/team-room-push-server'
 import {
+  buildPublishedLineupChangeAnnouncement,
   buildTeamRoomFinalLineupReceipt,
   readTeamRoomFinalLineupReceipt,
 } from '@/lib/team-room-final-lineup'
@@ -211,6 +212,12 @@ type StoredLineupChangeNotice = {
   deadlineAt: string
   deadlineStatus: '' | 'scheduled' | 'reminded' | 'answered'
   reminderSentAt: string
+  publishedLineupChange: boolean
+  previousFinalLineupId: string
+  publishedAnnouncementMessageId: string
+  publishedAt: string
+  publishedByUserId: string
+  publishedByName: string
 }
 
 export async function GET(request: Request) {
@@ -839,6 +846,10 @@ export async function POST(request: Request) {
     const lineupChangeNotice = silent && previousCard && changeContext
       ? buildLineupChangeNotice(previousCard.lineup, effectiveCard.lineup, changeContext)
       : null
+    const previousFinalLineup = readTeamRoomFinalLineupReceipt(existingRows?.[0]?.metadata?.finalLineup)
+    const previousLineupChange = cleanStoredLineupChangeNotice(existingRows?.[0]?.metadata?.lineupChangeNotice)
+    const previousPublishedLineupId = previousFinalLineup?.lineupId || previousLineupChange?.previousFinalLineupId || ''
+    const changesPublishedLineup = Boolean(previousPublishedLineupId && lineupChangeNotice && lineupChanges.length)
     const metadata = {
       ...effectiveCard,
       teamRoomCard: true,
@@ -857,6 +868,12 @@ export async function POST(request: Request) {
         deadlineAt: '',
         deadlineStatus: '',
         reminderSentAt: '',
+        publishedLineupChange: changesPublishedLineup,
+        previousFinalLineupId: changesPublishedLineup ? previousPublishedLineupId : '',
+        publishedAnnouncementMessageId: '',
+        publishedAt: '',
+        publishedByUserId: '',
+        publishedByName: '',
       } : null,
       finalLineup: existingId && previousCard && buildCaptainLockedLineupId({
         messageId: existingId,
@@ -947,7 +964,84 @@ export async function POST(request: Request) {
         notifiedCount: changeNotice.notifiedCount,
         directShareNames: [],
         shareText: buildLineupChangeShareText(changeNotice),
+        publishedLineupChange: changeNotice.publishedLineupChange,
       })
+    }
+
+    const notifiedAt = new Date().toISOString()
+    const publishedAnnouncementMessageId = changeNotice.publishedLineupChange ? crypto.randomUUID() : ''
+    const publishedByName = syncedMembers.find((member) => member.id === auth.userId)?.name || 'Team captain'
+    const nextNotice: StoredLineupChangeNotice = {
+      ...changeNotice,
+      pending: false,
+      notifiedAt,
+      notifiedCount: 0,
+      publishedAnnouncementMessageId,
+      publishedAt: changeNotice.publishedLineupChange ? notifiedAt : '',
+      publishedByUserId: changeNotice.publishedLineupChange ? auth.userId : '',
+      publishedByName: changeNotice.publishedLineupChange ? publishedByName : '',
+    }
+    const claimedMetadata = { ...cardResult.metadata, lineupChangeNotice: nextNotice }
+    const claimResult = await auth.service
+      .from('internal_messages')
+      .update({
+        metadata: claimedMetadata,
+        edited_at: notifiedAt,
+      })
+      .eq('id', cardResult.messageId)
+      .eq('conversation_id', conversation.id)
+      .filter('metadata', 'eq', JSON.stringify(cardResult.metadata))
+      .select('id')
+      .maybeSingle()
+    if (claimResult.error) return Response.json({ ok: false, message: claimResult.error.message }, { status: 500 })
+    if (!claimResult.data) {
+      const currentCard = await loadActionableMatchCard(auth.service, conversation.id, cardResult.messageId)
+      const currentNotice = currentCard.ok
+        ? cleanStoredLineupChangeNotice(currentCard.metadata.lineupChangeNotice)
+        : null
+      if (currentNotice && !currentNotice.pending) {
+        return Response.json({
+          ok: true,
+          alreadyNotified: true,
+          notifiedCount: currentNotice.notifiedCount,
+          directShareNames: [],
+          shareText: buildLineupChangeShareText(currentNotice),
+          publishedLineupChange: currentNotice.publishedLineupChange,
+        })
+      }
+      return Response.json({ ok: false, message: 'The lineup changed. Refresh before sending this update.' }, { status: 409 })
+    }
+
+    if (changeNotice.publishedLineupChange) {
+      const announcementBody = buildPublishedLineupChangeAnnouncement({
+        ...changeNotice,
+        matchDate: cleanText(cardResult.metadata.matchDate),
+        opponent: cleanText(cardResult.metadata.opponent),
+      })
+      const announcementResult = await auth.service
+        .from('internal_messages')
+        .insert({
+          id: publishedAnnouncementMessageId,
+          conversation_id: conversation.id,
+          sender_user_id: auth.userId,
+          body: announcementBody,
+          message_kind: 'announcement',
+          metadata: {
+            finalLineupChangeAnnouncement: true,
+            sourceMessageId: cardResult.messageId,
+            previousFinalLineupId: changeNotice.previousFinalLineupId,
+            courtLabel: changeNotice.courtLabel,
+          },
+        })
+      if (announcementResult.error) {
+        await auth.service
+          .from('internal_messages')
+          .update({ metadata: cardResult.metadata, edited_at: new Date().toISOString() })
+          .eq('id', cardResult.messageId)
+          .eq('conversation_id', conversation.id)
+          .filter('metadata', 'eq', JSON.stringify(claimedMetadata))
+        return Response.json({ ok: false, message: announcementResult.error.message }, { status: 500 })
+      }
     }
 
     const notificationResult = await notifyAffectedLineupPlayers(auth.service, {
@@ -955,24 +1049,25 @@ export async function POST(request: Request) {
       messageId: cardResult.messageId,
       actorUserId: auth.userId,
       scope: selected,
-      notice: changeNotice,
+      notice: nextNotice,
     })
-    const notifiedAt = new Date().toISOString()
-    const nextNotice = {
-      ...changeNotice,
-      pending: false,
-      notifiedAt,
-      notifiedCount: notificationResult.notifiedCount,
+    const currentCard = await loadActionableMatchCard(auth.service, conversation.id, cardResult.messageId)
+    if (currentCard.ok) {
+      const currentNotice = cleanStoredLineupChangeNotice(currentCard.metadata.lineupChangeNotice)
+      if (currentNotice) {
+        await auth.service
+          .from('internal_messages')
+          .update({
+            metadata: {
+              ...currentCard.metadata,
+              lineupChangeNotice: { ...currentNotice, notifiedCount: notificationResult.notifiedCount },
+            },
+          })
+          .eq('id', cardResult.messageId)
+          .eq('conversation_id', conversation.id)
+          .filter('metadata', 'eq', JSON.stringify(currentCard.metadata))
+      }
     }
-    const { error: updateError } = await auth.service
-      .from('internal_messages')
-      .update({
-        metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice },
-        edited_at: notifiedAt,
-      })
-      .eq('id', cardResult.messageId)
-      .eq('conversation_id', conversation.id)
-    if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
     await auth.service
       .from('internal_conversations')
       .update({ updated_at: notifiedAt })
@@ -985,6 +1080,7 @@ export async function POST(request: Request) {
       directShareNames: notificationResult.directShareNames,
       shareText: buildLineupChangeShareText(changeNotice),
       notifiedAt,
+      publishedLineupChange: changeNotice.publishedLineupChange,
     })
   }
 
@@ -1055,10 +1151,35 @@ export async function POST(request: Request) {
       scope: selected,
     })
 
+    const republishedFinalLineup = response === 'accepted'
+      && changeNotice.publishedLineupChange
+      && changeNotice.publishedAnnouncementMessageId
+      && changeNotice.publishedAt
+      && changeNotice.publishedByUserId
+      ? buildTeamRoomFinalLineupReceipt({
+          lineupId: buildCaptainLockedLineupId({
+            messageId: cardResult.messageId,
+            lineup: normalizeLineupRows(cardResult.metadata.lineup),
+          }),
+          sourceMessageId: cardResult.messageId,
+          announcementMessageId: changeNotice.publishedAnnouncementMessageId,
+          sentAt: changeNotice.publishedAt,
+          sentByUserId: changeNotice.publishedByUserId,
+          sentByName: changeNotice.publishedByName,
+        })
+      : null
+    const nextFinalLineup = changeNotice.publishedLineupChange
+      ? republishedFinalLineup
+      : readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
+
     const { error: updateError } = await auth.service
       .from('internal_messages')
       .update({
-        metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice },
+        metadata: {
+          ...cardResult.metadata,
+          lineupChangeNotice: nextNotice,
+          finalLineup: nextFinalLineup,
+        },
         edited_at: respondedAt,
       })
       .eq('id', cardResult.messageId)
@@ -1091,7 +1212,13 @@ export async function POST(request: Request) {
       metadata: cardResult.metadata,
       notice: nextNotice,
     })
-    return Response.json({ ok: true, response, respondedAt, notificationIds })
+    return Response.json({
+      ok: true,
+      response,
+      respondedAt,
+      notificationIds,
+      finalLineupPublished: Boolean(republishedFinalLineup),
+    })
   }
 
   if (action === 'schedule_lineup_change_deadline') {
@@ -3464,6 +3591,12 @@ function cleanStoredLineupChangeNotice(value: unknown): StoredLineupChangeNotice
         ? 'reminded'
         : cleanText(row.deadlineStatus) === 'answered' ? 'answered' : '',
     reminderSentAt: cleanText(row.reminderSentAt),
+    publishedLineupChange: row.publishedLineupChange === true,
+    previousFinalLineupId: cleanText(row.previousFinalLineupId),
+    publishedAnnouncementMessageId: cleanText(row.publishedAnnouncementMessageId),
+    publishedAt: cleanText(row.publishedAt),
+    publishedByUserId: cleanText(row.publishedByUserId),
+    publishedByName: cleanText(row.publishedByName).slice(0, 120),
   }
 }
 

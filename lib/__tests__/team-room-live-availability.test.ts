@@ -165,4 +165,22 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('finalLineup: finalLineup ? {')
     expect(roomApi).toContain('readTeamRoomFinalLineupReceipt(latestCard?.metadata?.finalLineup)')
   })
+
+  it('publishes one affected-court update when a final lineup changes', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+
+    expect(roomApi).toContain("previousFinalLineup?.lineupId || previousLineupChange?.previousFinalLineupId || ''")
+    expect(roomApi).toContain('const changesPublishedLineup = Boolean(previousPublishedLineupId && lineupChangeNotice && lineupChanges.length)')
+    expect(roomApi).toContain('buildPublishedLineupChangeAnnouncement({')
+    expect(roomApi).toContain('finalLineupChangeAnnouncement: true')
+    expect(roomApi).toContain(".filter('metadata', 'eq', JSON.stringify(cardResult.metadata))")
+    expect(roomApi).toContain('const nextFinalLineup = changeNotice.publishedLineupChange')
+    expect(roomApi).toContain('finalLineup: nextFinalLineup')
+    expect(roomApi).toContain('finalLineupPublished: Boolean(republishedFinalLineup)')
+    expect(roomPage).toContain('Final lineup change ready')
+    expect(roomPage).toContain('Send lineup change')
+    expect(roomPage).toContain('Published update sent')
+    expect(roomPage).toContain('The revised lineup is published.')
+  })
 })
