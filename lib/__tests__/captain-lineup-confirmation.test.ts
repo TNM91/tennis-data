@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCaptainLineupConfirmationId,
+  buildCaptainLineupConfirmationNextStep,
   buildCaptainLineupConfirmationShareBody,
   hasSeenCaptainLineupConfirmation,
   rememberCaptainLineupConfirmation,
@@ -46,5 +47,50 @@ describe('Captain lineup confirmation closeout', () => {
     expect(updated).toHaveLength(1)
     expect(hasSeenCaptainLineupConfirmation(updated, 'captain-1', 'confirmation-1')).toBe(true)
     expect(hasSeenCaptainLineupConfirmation(updated, 'captain-2', 'confirmation-1')).toBe(false)
+  })
+
+  it('hands the captain directly to the next court that needs a decision', () => {
+    expect(buildCaptainLineupConfirmationNextStep({
+      nextCourt: { label: '4.0 Doubles', status: 'needs_captain' },
+      nextTask: { label: 'Message team', detail: 'Send the plan.', cta: 'Open messages' },
+      confirmedCount: 1,
+      totalCount: 3,
+    })).toEqual({
+      kind: 'court',
+      eyebrow: 'Next court',
+      title: '4.0 Doubles',
+      detail: '4.0 Doubles needs your decision.',
+      cta: 'Open next court',
+    })
+  })
+
+  it('moves to the next match task when every court is confirmed', () => {
+    expect(buildCaptainLineupConfirmationNextStep({
+      nextCourt: null,
+      nextTask: { label: 'Message team', detail: 'Send the final plan.', cta: 'Open messages' },
+      confirmedCount: 3,
+      totalCount: 3,
+    })).toEqual({
+      kind: 'task',
+      eyebrow: 'Courts ready',
+      title: 'Message team',
+      detail: 'Send the final plan.',
+      cta: 'Open messages',
+    })
+  })
+
+  it('closes into Team Chat when no unresolved court or match task remains', () => {
+    expect(buildCaptainLineupConfirmationNextStep({
+      nextCourt: null,
+      nextTask: null,
+      confirmedCount: 3,
+      totalCount: 3,
+    })).toEqual({
+      kind: 'complete',
+      eyebrow: 'Lineup ready',
+      title: 'All 3 courts confirmed',
+      detail: 'Open Team Chat if the team needs an update.',
+      cta: 'Open Team Chat',
+    })
   })
 })
