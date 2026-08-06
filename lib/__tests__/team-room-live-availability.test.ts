@@ -294,6 +294,21 @@ describe('Team Room live availability card', () => {
     expect(lineupBuilder).toContain('focused={backupFocusSlot?.id === slot.id}')
   })
 
+  it('returns a saved match-day backup to the affected Team Room court', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+    const lineupBuilder = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(lineupBuilder).toContain('const sourceSlots = backupSelectionDraft?.previousSlots ?? teamSlots')
+    expect(lineupBuilder).toContain('outgoingPlayerName: backupHandoff.playerName')
+    expect(lineupBuilder).toContain('Backup selected: ${result.replacementPlayerName}')
+    expect(lineupBuilder).toContain('Save backup & return')
+    expect(lineupBuilder).toContain('if (syncedChange && backupHandoff)')
+    expect(lineupBuilder).toContain('router.push(syncedChange.href)')
+    expect(lineupBuilder).toContain('The backup was saved, but Team Room could not be updated.')
+    expect(roomPage).toContain('Final lineup change ready')
+    expect(roomPage).toContain('Send lineup change')
+  })
+
   it('replaces scorecard entry with the linked final result', () => {
     const roomApi = readSource('app/api/team-rooms/route.ts')
     const roomPage = readSource('app/team-room/page.tsx')
