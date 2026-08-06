@@ -3,8 +3,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import SiteHeader from '@/app/components/site-header'
+import SiteFooter from '@/app/components/site-footer'
+import PortalToolBar from '@/app/components/portal-tool-bar'
+import TeamConnectionInvite from '@/app/components/team-connection-invite'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   buildCaptainScopedHref,
@@ -1502,33 +1506,37 @@ function TeamRoomContent() {
   if (!accessToken) {
     const next = `/team-room${requestedQuery}`
     return (
-      <main className={styles.page}>
-        <section className={styles.stateCard}>
-          <p className={styles.eyebrow}>Team Room</p>
-          <h1>Sign in to open your team conversation.</h1>
-          <p className={styles.helper}>Your linked team, unread messages, availability updates, and captain announcements will be waiting here.</p>
-          <div className={styles.roomActions}>
-            <Link className={styles.buttonPrimary} href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
-            <Link className={styles.buttonSecondary} href="/join">Create account</Link>
-          </div>
-        </section>
-      </main>
+      <TeamRoomPortalState>
+        <main className={styles.page}>
+          <section className={styles.stateCard}>
+            <p className={styles.eyebrow}>Team Room</p>
+            <h1>Sign in to open your team conversation.</h1>
+            <p className={styles.helper}>Your linked team, unread messages, availability updates, and captain announcements will be waiting here.</p>
+            <div className={styles.roomActions}>
+              <Link className={styles.buttonPrimary} href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
+              <Link className={styles.buttonSecondary} href="/join">Create account</Link>
+            </div>
+          </section>
+        </main>
+      </TeamRoomPortalState>
     )
   }
 
   if (!room) {
     return (
-      <main className={styles.page}>
-        <section className={styles.stateCard}>
-          <p className={styles.eyebrow}>Team Room</p>
-          <h1>Connect a team first.</h1>
-          <p className={styles.helper}>{error || 'Accept or create a team link, then everyone connected to that team can meet here.'}</p>
-          <div className={styles.roomActions}>
-            <Link className={styles.buttonPrimary} href="/team-connections">Connect team</Link>
-            <Link className={styles.buttonSecondary} href="/captain">Open Captain</Link>
-          </div>
-        </section>
-      </main>
+      <TeamRoomPortalState>
+        <main className={styles.page}>
+          <section className={styles.stateCard}>
+            <p className={styles.eyebrow}>Team Room</p>
+            <h1>Connect a team first.</h1>
+            <p className={styles.helper}>{error || 'Accept or create a team link, then everyone connected to that team can meet here.'}</p>
+            <div className={styles.roomActions}>
+              <Link className={styles.buttonPrimary} href="/team-connections">Connect team</Link>
+              <Link className={styles.buttonSecondary} href="/captain">Open Captain</Link>
+            </div>
+          </section>
+        </main>
+      </TeamRoomPortalState>
     )
   }
 
@@ -3211,6 +3219,23 @@ function CourtReadinessStrip({
         ))}
       </nav>
     </section>
+  )
+}
+
+function TeamRoomPortalState({ children }: { children: ReactNode }) {
+  const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
+  return (
+    <>
+      <SiteHeader
+        active="/messages"
+        railLayout={false}
+        onCompactMenuOpenChange={setCompactSiteMenuOpen}
+      />
+      <PortalToolBar suppressed={compactSiteMenuOpen} />
+      <TeamConnectionInvite />
+      {children}
+      <SiteFooter railLayout={false} railWidth={0} />
+    </>
   )
 }
 
