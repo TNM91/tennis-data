@@ -11,6 +11,7 @@ const requiredWebhookEvents = [
 ]
 
 const requiredEnvNames = [
+  'NEXT_PUBLIC_PAID_CHECKOUT_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_PLAYER_PRICE_ID',
@@ -75,6 +76,7 @@ const cutoverPacket = {
     'Use separate live-mode Stripe keys and live Price IDs; sandbox/test objects cannot power live checkout.',
     'Prefer a restricted live key with only the permissions this app needs when practical.',
     'Keep Stripe in test mode until the owner explicitly approves opening real paid upgrades.',
+    'Keep NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false until the live catalog, webhook, and production values are ready for one coordinated redeploy.',
   ],
   sourceOfTruth: {
     stripeGoLiveChecklistUrl,
@@ -116,6 +118,7 @@ const cutoverPacket = {
       step: 'Replace Vercel Production Stripe env values',
       checks: [
         'Set only Vercel Production values for the live cutover.',
+        'Set NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=true only as the final intentional switch before the production redeploy.',
         'Do not print or commit values.',
         'Confirm all required env names are present after the swap.',
       ],
@@ -141,9 +144,9 @@ const cutoverPacket = {
     },
   ],
   rollbackIfNeeded: [
-    'Restore the previous test-mode Vercel Production Stripe env values from the secure owner source.',
+    'Set NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false before changing any other production billing value.',
     'Redeploy Production.',
-    'Run node scripts/stripe-checkout-mode-smoke.mjs --expect=test --plan=coach.',
+    'Confirm paid plan actions return to early access and /api/checkout/session returns checkout_paused.',
     'Run npm run qa:prod-logs.',
   ],
 }

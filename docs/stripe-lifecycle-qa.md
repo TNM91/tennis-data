@@ -5,6 +5,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 ## Safety checks
 
 - Confirm the Stripe Dashboard is in test mode before creating or mutating test subscriptions.
+- Keep `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false` in Production until the live catalog, webhook, and credentials are ready for one coordinated cutover.
 - Confirm the local or deployed app points at test credentials before sending test events. Do not create, cancel, or force-fail live customer subscriptions for QA.
 - Keep the canonical production webhook endpoint as `https://www.tenaceiq.com/api/stripe/webhook`.
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
@@ -28,6 +29,7 @@ Run `npm run qa:stripe-live-cutover` to print the secret-free cutover packet for
    - Run `npm run qa:stripe-live-catalog` to review the expected TenAceIQ paid catalog.
    - When a live-mode Stripe key and live price IDs are available in the shell, run `npm run qa:stripe-live-catalog -- --stripe` to verify the live Price objects without printing secret values.
 2. Replace Production Vercel Stripe env vars with live-mode values:
+   - `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=true` (set only for the intentional live-payment redeploy)
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `STRIPE_PLAYER_PRICE_ID`
@@ -40,6 +42,8 @@ Run `npm run qa:stripe-live-cutover` to print the secret-free cutover packet for
 5. Run `npm run qa:stripe-live-mode` to start one no-card checkout smoke from a Free QA account and confirm the returned Checkout Session ID starts with `cs_live_`, not `cs_test_`.
 6. Run one controlled live payment for the lowest-risk paid plan, then confirm the profile access, billing event audit row, and customer portal handoff.
 7. Refund or cancel the controlled live payment only through Stripe Dashboard, then confirm the corresponding webhook updates TenAceIQ access.
+
+If rollback is needed, set `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false` first and redeploy. Do not expose test checkout on the public site.
 
 ## Test-mode lifecycle pass
 

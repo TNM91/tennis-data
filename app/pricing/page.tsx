@@ -8,6 +8,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
@@ -260,6 +261,9 @@ function PricingContent() {
             ? 'Start free. Add a role when it helps.'
             : 'Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.'}
         </p>
+        {!PAID_CHECKOUT_ENABLED ? (
+          <div role="status" style={checkoutPauseStyle}>{PAID_CHECKOUT_PAUSED_MESSAGE}</div>
+        ) : null}
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
           <Link href="#choose" style={secondaryButtonStyle}>See plans</Link>
@@ -499,6 +503,7 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   }
 
   if (planId === 'free') return 'Start free'
+  if (!PAID_CHECKOUT_ENABLED) return 'Join early access'
   if (planId === 'player_plus') return 'Unlock Player'
   if (planId === 'coach') return 'Unlock Coach'
   if (planId === 'captain') return 'Unlock Captain'
@@ -509,6 +514,7 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
 function getCompactPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) return 'Open'
   if (planId === 'free') return 'Start'
+  if (!PAID_CHECKOUT_ENABLED) return 'Early access'
   return 'Unlock'
 }
 
@@ -578,6 +584,18 @@ const heroActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   alignItems: 'center',
+}
+
+const checkoutPauseStyle: CSSProperties = {
+  width: 'min(680px, 100%)',
+  padding: '10px 12px',
+  border: '1px solid rgba(163, 230, 53, 0.28)',
+  borderRadius: 14,
+  background: 'rgba(20, 83, 45, 0.24)',
+  color: '#d9f99d',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
 }
 
 const primaryButtonStyle: CSSProperties = {

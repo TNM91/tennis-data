@@ -7,6 +7,11 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import {
+  PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
+  PAID_CHECKOUT_ENABLED,
+  PAID_CHECKOUT_PAUSED_MESSAGE,
+} from '@/lib/paid-checkout'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { getMembershipTier } from '@/lib/product-story'
@@ -244,6 +249,7 @@ function UpgradeContent({
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [checkoutSuccessMessage, setCheckoutSuccessMessage] = useState('')
+  const [earlyAccessSaved, setEarlyAccessSaved] = useState(false)
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
   const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
@@ -330,6 +336,11 @@ function UpgradeContent({
   const startCheckout = useCallback(async () => {
     if (!submittedRequest?.id || checkoutSubmitting) return
 
+    if (!PAID_CHECKOUT_ENABLED) {
+      setEarlyAccessSaved(true)
+      return
+    }
+
     setCheckoutSubmitting(true)
     setCheckoutError('')
     setCheckoutSuccessMessage('')
@@ -406,6 +417,11 @@ function UpgradeContent({
 
       setSubmittedRequest(requestBody.request)
       setRequestStorageMode('supabase')
+      if (!PAID_CHECKOUT_ENABLED) {
+        setEarlyAccessSaved(true)
+        setCheckoutSubmitting(false)
+        return
+      }
       await startCheckoutForRequest(requestBody.request.id, session.access_token)
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
@@ -440,7 +456,7 @@ function UpgradeContent({
   })
 
   useEffect(() => {
-    if (autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
+    if (!PAID_CHECKOUT_ENABLED || autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
 
     setAutoCheckoutStarted(true)
     void startSignedInCheckout()
@@ -651,7 +667,7 @@ function UpgradeContent({
             <div style={actionRowStyle}>
               {showAccessRequest ? (
                 <Link href={`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`} style={primaryButtonStyle}>
-                  {isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
+                  {!PAID_CHECKOUT_ENABLED ? 'Join early access' : isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
                 </Link>
               ) : (
                 <Link href={nextHref} style={primaryButtonStyle}>
@@ -742,11 +758,15 @@ function UpgradeContent({
             }}
           >
             <div style={activationCopyStyle}>
-              <div style={labelStyle}>{isPublic ? 'Quick request' : 'Activation step'}</div>
-              <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
+              <div style={labelStyle}>{!PAID_CHECKOUT_ENABLED ? 'Early access' : isPublic ? 'Quick request' : 'Activation step'}</div>
+              <h2 style={activationTitleStyle}>
+                {!PAID_CHECKOUT_ENABLED ? 'Paid plans are opening soon.' : <>Ready to activate {getPlanDestinationLabel(planId)}?</>}
+              </h2>
               <p style={noteTextStyle}>
-                {isPublic
-                  ? 'Send the plan request first. Account creation starts Free access; the selected tennis path opens after access is active.'
+                {!PAID_CHECKOUT_ENABLED
+                  ? earlyAccessSaved ? PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE : PAID_CHECKOUT_PAUSED_MESSAGE
+                  : isPublic
+                    ? 'Send the plan request first. Account creation starts Free access; the selected tennis path opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -762,9 +782,11 @@ function UpgradeContent({
             </div>
             {!isPublic ? (
               <div style={successCardStyle}>
-                <div style={labelStyle}>Secure checkout</div>
+                <div style={labelStyle}>{PAID_CHECKOUT_ENABLED ? 'Secure checkout' : 'Early access'}</div>
                 <h3 style={successTitleStyle}>
-                  {checkoutSuccessMessage
+                  {!PAID_CHECKOUT_ENABLED
+                    ? earlyAccessSaved ? 'You are on the list.' : `Save your ${getPlanDestinationLabel(planId)} interest.`
+                    : checkoutSuccessMessage
                     ? successHandoff.title
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
@@ -775,7 +797,9 @@ function UpgradeContent({
                         : `Starting ${getPlanDestinationLabel(planId)} checkout.`}
                 </h3>
                 <p style={noteTextStyle}>
-                  {checkoutSuccessMessage
+                  {!PAID_CHECKOUT_ENABLED
+                    ? earlyAccessSaved ? PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE : 'One tap saves the plan you want. No payment information is collected.'
+                    : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
@@ -796,7 +820,26 @@ function UpgradeContent({
                   </div>
                 ) : null}
                 <div style={formActionRowStyle}>
-                  {checkoutSuccessMessage ? (
+                  {!PAID_CHECKOUT_ENABLED ? (
+                    earlyAccessSaved ? (
+                      <>
+                        <Link href="/" style={primaryButtonStyle}>Keep using Free</Link>
+                        <Link href="/pricing" style={secondaryButtonStyle}>Compare plans</Link>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void (submittedRequest?.id ? startCheckout() : startSignedInCheckout())}
+                          disabled={checkoutSubmitting}
+                          style={submitButtonStyle}
+                        >
+                          {checkoutSubmitting ? 'Saving interest...' : 'Join early access'}
+                        </button>
+                        <Link href="/pricing" style={secondaryButtonStyle}>Compare plans</Link>
+                      </>
+                    )
+                  ) : checkoutSuccessMessage ? (
                     <>
                       <Link href={nextHref} style={primaryButtonStyle}>
                         {successHandoff.primaryAction}
