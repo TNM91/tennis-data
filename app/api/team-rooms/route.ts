@@ -63,9 +63,12 @@ import {
   findTeamRoomAssignedCourt,
   isTeamRoomArrivalStatus,
   keepTeamRoomArrivalCheckInsForLineup,
+  keepTeamRoomArrivalOutreachForLineup,
   readTeamRoomArrivalCheckIns,
+  readTeamRoomArrivalOutreach,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
+  upsertTeamRoomArrivalOutreach,
 } from '@/lib/team-room-arrival'
 
 export const runtime = 'nodejs'
@@ -360,6 +363,73 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'record_arrival_outreach') {
+    if (!canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can text a teammate.' }, { status: 403 })
+    }
+    const requestedMessageId = cleanText(body.messageId)
+    let cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')
+    if (!cardResult.ok) {
+      return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+    }
+    if (!requestedMessageId || requestedMessageId !== cardResult.messageId) {
+      return Response.json({ ok: false, message: 'Open the current match plan before texting a player.' }, { status: 409 })
+    }
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const receipt = readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
+      if (!receipt || receipt.sourceMessageId !== cardResult.messageId) {
+        return Response.json({ ok: false, message: 'The captain has not sent this lineup yet.' }, { status: 409 })
+      }
+      if (cleanText(cardResult.metadata.matchCompletedAt)) {
+        return Response.json({ ok: false, message: 'This match is complete.' }, { status: 409 })
+      }
+      const assignment = findTeamRoomAssignedCourt(
+        normalizeLineupRows(cardResult.metadata.lineup),
+        [cleanText(body.playerName)],
+      )
+      if (!assignment) {
+        return Response.json({ ok: false, message: 'That player is not assigned to this lineup.' }, { status: 400 })
+      }
+
+      const contactedAt = new Date().toISOString()
+      const outreach = {
+        playerName: assignment.playerName,
+        courtLabel: assignment.courtLabel,
+        contactedAt,
+        contactedByUserId: auth.userId,
+      }
+      const claimedMetadata = {
+        ...cardResult.metadata,
+        arrivalOutreach: upsertTeamRoomArrivalOutreach(cardResult.metadata.arrivalOutreach, outreach),
+      }
+      const updateResult = await auth.service
+        .from('internal_messages')
+        .update({ metadata: claimedMetadata, edited_at: contactedAt })
+        .eq('id', cardResult.messageId)
+        .eq('conversation_id', conversation.id)
+        .filter('metadata', 'eq', JSON.stringify(cardResult.metadata))
+        .select('id')
+        .maybeSingle()
+      if (updateResult.error) {
+        return Response.json({ ok: false, message: updateResult.error.message }, { status: 500 })
+      }
+      if (updateResult.data) {
+        await auth.service.from('internal_conversations').update({ updated_at: contactedAt }).eq('id', conversation.id)
+        return Response.json({ ok: true, outreach })
+      }
+
+      cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')
+      if (!cardResult.ok) {
+        return Response.json({ ok: false, message: cardResult.message }, { status: cardResult.status })
+      }
+      if (cardResult.messageId !== requestedMessageId) {
+        return Response.json({ ok: false, message: 'The active match changed. Open its match plan before texting.' }, { status: 409 })
+      }
+    }
+    return Response.json({ ok: false, message: 'Arrival outreach changed. Try once more.' }, { status: 409 })
+  }
+
   if (
     action === 'set_arrival_status'
     || action === 'set_player_arrival_status'
@@ -1094,6 +1164,12 @@ export async function POST(request: Request) {
             existingRows?.[0]?.metadata?.arrivalCheckIns,
           )
         : [],
+      arrivalOutreach: existingId
+        ? keepTeamRoomArrivalOutreachForLineup(
+            effectiveCard.lineup,
+            existingRows?.[0]?.metadata?.arrivalOutreach,
+          )
+        : [],
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
       ? `Projected lineup for ${effectiveCard.matchDate}${effectiveCard.opponent ? ` vs ${effectiveCard.opponent}` : ''}. Please confirm whether you can play.`
@@ -1395,6 +1471,12 @@ export async function POST(request: Request) {
                 cardResult.metadata.arrivalCheckIns,
               )
             : readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns),
+          arrivalOutreach: response === 'accepted'
+            ? keepTeamRoomArrivalOutreachForLineup(
+                normalizeLineupRows(cardResult.metadata.lineup),
+                cardResult.metadata.arrivalOutreach,
+              )
+            : readTeamRoomArrivalOutreach(cardResult.metadata.arrivalOutreach),
         },
         edited_at: respondedAt,
       })
@@ -3500,6 +3582,7 @@ function toMessage(
     availabilitySummary,
     finalLineup: readTeamRoomFinalLineupReceipt(row.metadata.finalLineup),
     arrivalCheckIns: readTeamRoomArrivalCheckIns(row.metadata.arrivalCheckIns),
+    arrivalOutreach: readTeamRoomArrivalOutreach(row.metadata.arrivalOutreach),
     matchCompletedAt: cleanText(row.metadata.matchCompletedAt),
     reminder: reminder ? {
       reminderAt: reminder.reminder_at,

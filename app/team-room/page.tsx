@@ -42,10 +42,12 @@ import {
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
   findTeamRoomArrivalContact,
+  findTeamRoomArrivalOutreach,
   readTeamRoomArrivalTextReturn,
   TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY,
   teamRoomArrivalStatusLabel,
   type TeamRoomArrivalCheckIn,
+  type TeamRoomArrivalOutreach,
   type TeamRoomArrivalStatus,
   type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
@@ -166,6 +168,7 @@ type TeamRoomMatchCard = {
   } | null
   finalLineup: TeamRoomFinalLineupReceipt | null
   arrivalCheckIns: TeamRoomArrivalCheckIn[]
+  arrivalOutreach: TeamRoomArrivalOutreach[]
   matchCompletedAt: string
   acknowledged: boolean
   acknowledgmentSummary: { total: number; profileIds: string[] }
@@ -1099,6 +1102,24 @@ function TeamRoomContent() {
     if (!href) {
       setError(`${playerName}'s roster phone number is not ready to text.`)
       return
+    }
+    if (accessToken && room) {
+      void fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamName: room.teamName,
+          leagueName: room.leagueName,
+          flight: room.flight,
+          action: 'record_arrival_outreach',
+          messageId,
+          playerName,
+        }),
+        keepalive: true,
+      }).catch(() => null)
     }
     try {
       window.sessionStorage.setItem(TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY, JSON.stringify({
@@ -2250,6 +2271,7 @@ function PublishedLineupPin({
                     const playerKey = `${court.label}:${player.name}`
                     const isEditing = editingArrivalPlayer === playerKey
                     const rosterContact = findTeamRoomArrivalContact(player.name, rosterMembers)
+                    const arrivalOutreach = findTeamRoomArrivalOutreach(player.name, card.arrivalOutreach)
                     const canTextDirectly = canManage
                       && player.status === null
                       && Boolean(rosterContact?.phone)
@@ -2267,6 +2289,8 @@ function PublishedLineupPin({
                             <small>
                               {player.setByCaptain ? 'Captain marked' : 'Player updated'} &middot; {formatArrivalUpdateAge(player.updatedAt)}
                             </small>
+                          ) : arrivalOutreach ? (
+                            <small>Text opened &middot; {formatArrivalUpdateAge(arrivalOutreach.contactedAt)}</small>
                           ) : null}
                         </span>
                         {canManage ? (
@@ -2281,7 +2305,7 @@ function PublishedLineupPin({
                                   onTextArrivalPlayer(player.name, rosterContact.phone, court.label)
                                 }}
                               >
-                                Text
+                                {arrivalOutreach ? 'Text again' : 'Text'}
                               </button>
                             ) : null}
                             <button
