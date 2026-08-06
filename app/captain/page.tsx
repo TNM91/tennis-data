@@ -93,6 +93,7 @@ import {
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
+import { buildTeamRoomLateArrivalBuilderHref } from '@/lib/team-room-arrival'
 import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
@@ -284,6 +285,12 @@ type CaptainTeamRoomSummary = {
   latestMatchDate: string
   reminderAt: string
   reminderStatus: string
+  arrivalLate?: {
+    playerName: string
+    courtLabel: string
+    detail: string
+    messageId: string
+  } | null
   arrivalFollowUp?: {
     count: number
     names: string[]
@@ -1768,6 +1775,7 @@ function CaptainHubContent() {
     latestMatchDate: '',
     reminderAt: '',
     reminderStatus: '',
+    arrivalLate: null,
     arrivalFollowUp: null,
     courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] },
   })
@@ -2321,7 +2329,7 @@ function CaptainHubContent() {
     teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
     const roomHref = buildTeamRoomHref({
@@ -16104,6 +16112,47 @@ function CaptainHubContent() {
   ] as const
 
   const captainCourtReadiness = teamRoomSummary.courtReadiness
+  const captainLateArrival = teamRoomSummary.arrivalLate ?? null
+  const captainLateArrivalCourtHref = captainLateArrival ? buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    date: teamRoomSummary.latestMatchDate || matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
+    messageId: captainLateArrival.messageId,
+    court: captainLateArrival.courtLabel,
+  }) : ''
+  const captainLateArrivalMessageHref = captainLateArrival ? buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    date: teamRoomSummary.latestMatchDate || matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
+    messageId: captainLateArrival.messageId,
+    court: captainLateArrival.courtLabel,
+    player: captainLateArrival.playerName,
+    arrivalAction: 'message',
+  }) : ''
+  const captainLateArrivalBackupHref = captainLateArrival
+    ? buildTeamRoomLateArrivalBuilderHref(lineupBuilderHref, {
+        courtLabel: captainLateArrival.courtLabel,
+        playerName: captainLateArrival.playerName,
+      })
+    : ''
+  const captainLateArrivalAction = captainLateArrival ? {
+    id: 'late-arrival',
+    label: `${captainLateArrival.playerName} is running late`,
+    state: 'Running late',
+    detail: captainLateArrival.detail,
+    href: captainLateArrivalMessageHref,
+    stage: 'team-room' as CaptainResumeStage,
+    cta: 'Message player',
+    tone: 'warn' as const,
+  } : null
   const captainArrivalFollowUp = teamRoomSummary.arrivalFollowUp ?? null
   const captainArrivalFollowUpHref = captainArrivalFollowUp ? buildTeamRoomHref({
     teamName: selectedTeam,
@@ -16211,16 +16260,18 @@ function CaptainHubContent() {
     },
     {
       id: 'chat',
-      label: captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
-      detail: captainArrivalFollowUp
+      label: captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
+      detail: captainLateArrival
+        ? `${captainLateArrival.playerName} · ${captainLateArrival.courtLabel}`
+        : captainArrivalFollowUp
         ? `${captainArrivalFollowUp.count} still waiting`
         : teamRoomSummary.unreadCount > 0
         ? `${teamRoomSummary.unreadCount} unread`
         : 'Open team chat',
-      href: captainArrivalFollowUpHref || teamRoomHref,
+      href: captainLateArrivalMessageHref || captainArrivalFollowUpHref || teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: Boolean(captainArrivalFollowUp) || teamRoomSummary.unreadCount > 0,
+      primary: Boolean(captainLateArrival || captainArrivalFollowUp) || teamRoomSummary.unreadCount > 0,
     },
     {
       id: 'scorecard',
@@ -16261,9 +16312,11 @@ function CaptainHubContent() {
     handleCaptainAction(item.href, item.stage)
   }
 
-  const captainHomePrimaryAction = captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
-  const captainHomePrimaryStatus = captainArrivalFollowUpAction
-    ? captainArrivalFollowUpAction.state
+  const captainHomePrimaryAction = captainLateArrivalAction || captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
+  const captainHomePrimaryStatus = captainLateArrivalAction
+    ? captainLateArrivalAction.state
+    : captainArrivalFollowUpAction
+      ? captainArrivalFollowUpAction.state
     : captainCourtPrimaryAction
       ? captainCourtPrimaryAction.state
     : captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus
@@ -16393,7 +16446,7 @@ function CaptainHubContent() {
       </div>
     </div>
   ) : null
-  const captainVisibleCourtReadinessCard = captainShowLineupSuccess ? null : captainCourtReadinessCard
+  const captainVisibleCourtReadinessCard = captainShowLineupSuccess || captainLateArrival ? null : captainCourtReadinessCard
 
   const captainMobileAttention = captainPrimaryTeamImprovement
     ? {
@@ -16666,9 +16719,23 @@ function CaptainHubContent() {
             {captainHomePrimaryAction?.detail || 'Open the highest-value captain tool for this match week.'}
           </p>
         </div>
-        <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomePrimaryAction} onClick={() => captainHomePrimaryAction ? handleCaptainAction(captainHomePrimaryAction.href, captainHomePrimaryAction.stage) : undefined}>
-          {captainHomePrimaryAction?.cta || 'Open shortcut'}
-        </PrimarySmallBtn>
+        {captainLateArrival ? (
+          <div style={captainHomeLateArrivalActions}>
+            <PrimarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainTeamRoomNav(captainLateArrivalMessageHref)}>
+              Message
+            </PrimarySmallBtn>
+            <SecondarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainTeamRoomNav(captainLateArrivalCourtHref)}>
+              Open court
+            </SecondarySmallBtn>
+            <SecondarySmallBtn fullWidth disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainAction(captainLateArrivalBackupHref, 'lineup')}>
+              Backup
+            </SecondarySmallBtn>
+          </div>
+        ) : (
+          <PrimarySmallBtn fullWidth={isMobile} disabled={!hasTeamScope || !premiumEnabled || !captainHomePrimaryAction} onClick={() => captainHomePrimaryAction ? handleCaptainAction(captainHomePrimaryAction.href, captainHomePrimaryAction.stage) : undefined}>
+            {captainHomePrimaryAction?.cta || 'Open shortcut'}
+          </PrimarySmallBtn>
+        )}
       </div>
 
       <div style={dynamicCaptainHomeShortcutGrid} aria-label="Captain core actions">
@@ -26060,6 +26127,14 @@ const captainHomeShortcutHero: CSSProperties = {
   border: '1px solid rgba(125,211,252,0.15)',
   background: 'rgba(5,11,22,0.32)',
   overflowWrap: 'anywhere',
+}
+
+const captainHomeLateArrivalActions: CSSProperties = {
+  display: 'grid',
+  gridColumn: '1 / -1',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
 }
 
 const captainHomeShortcutFocus: CSSProperties = {

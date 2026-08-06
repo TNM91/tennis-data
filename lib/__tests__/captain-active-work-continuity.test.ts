@@ -21,7 +21,10 @@ describe('Captain active-work continuity', () => {
     const captain = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 
     expect(captain).toContain("label: `Continue ${captainResume?.lastToolLabel || 'your work'}`")
-    expect(captain).toContain('const captainHomePrimaryAction = captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem')
+    expect(captain).toContain('const captainHomePrimaryAction = captainLateArrivalAction || captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem')
+    expect(captain).toContain("id: 'late-arrival'")
+    expect(captain).toContain("arrivalAction: 'message'")
+    expect(captain).toContain('buildTeamRoomLateArrivalBuilderHref(lineupBuilderHref')
     expect(captain).toContain("id: 'arrival-follow-up'")
     expect(captain).toContain('messageId: captainArrivalFollowUp.messageId')
     expect(captain).toContain('court: captainArrivalFollowUp.courtLabel')

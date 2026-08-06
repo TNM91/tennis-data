@@ -371,6 +371,7 @@ function TeamRoomContent() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const realtimeRefreshRef = useRef<number | null>(null)
   const draftPendingRef = useRef(false)
+  const arrivalMessagePreparedRef = useRef('')
   const matchDraftSeedRef = useRef('')
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
@@ -387,6 +388,7 @@ function TeamRoomContent() {
   const focusedPlayerName = searchParams.get('player')?.trim() || ''
   const focusedCourtLabel = searchParams.get('court')?.trim() || ''
   const focusedReplyStatus = searchParams.get('status')?.trim() || ''
+  const focusedArrivalAction = searchParams.get('arrival')?.trim() || ''
 
   const pinnedMessage = useMemo(
     () => room?.messages.find((message) => message.id === focusedMessageId && message.card)
@@ -672,6 +674,25 @@ function TeamRoomContent() {
       notifyPlatformResumeUpdated('team-chat')
     }
   }, [draftLoadedRoomId, messageBody, room?.id])
+
+  useEffect(() => {
+    if (
+      focusedArrivalAction !== 'message'
+      || !room?.id
+      || !activeMatchMessage?.id
+      || !focusedPlayerName
+      || !focusedCourtLabel
+    ) return
+    const handoffKey = [room.id, activeMatchMessage.id, focusedCourtLabel, focusedPlayerName].join(':')
+    if (arrivalMessagePreparedRef.current === handoffKey) return
+    arrivalMessagePreparedRef.current = handoffKey
+    setMessageBody(`${focusedPlayerName} — are you still able to make ${focusedCourtLabel}? Please share your ETA.`)
+    setNotice(`Message ready for ${focusedPlayerName}.`)
+    window.requestAnimationFrame(() => {
+      composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      composerRef.current?.focus()
+    })
+  }, [activeMatchMessage?.id, focusedArrivalAction, focusedCourtLabel, focusedPlayerName, room?.id])
 
   useEffect(() => {
     const restoreArrivalText = () => {

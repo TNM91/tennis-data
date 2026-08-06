@@ -161,6 +161,8 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('const arrivalPriority = buildTeamRoomArrivalPriority(')
     expect(roomApi).toContain("arrivalPriority.kind === 'follow_up'")
     expect(roomApi).toContain('arrivalFollowUp,')
+    expect(roomApi).toContain('arrivalLate,')
+    expect(roomApi).toContain("arrivalPriority.kind === 'late'")
     expect(roomApi).toContain("cleanText(latestCard?.metadata?.matchDate) === todayDateKey()")
   })
 
@@ -313,6 +315,8 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain("arrivalPriority.kind === 'follow_up'")
     expect(roomPage).toContain('Needs follow-up')
     expect(roomPage).toContain('Open player')
+    expect(roomPage).toContain("focusedArrivalAction !== 'message'")
+    expect(roomPage).toContain('Message ready for ${focusedPlayerName}.')
     expect(roomApi).toContain("if (action === 'record_arrival_outreach')")
     expect(roomApi).toContain('arrivalOutreach: readTeamRoomArrivalOutreach(row.metadata.arrivalOutreach)')
     expect(roomPage).toContain("window.addEventListener('pageshow', restoreArrivalText)")
