@@ -59,6 +59,7 @@ import {
   type TeamRoomPlayerName,
 } from '@/lib/team-room-final-result'
 import {
+  clearTeamRoomArrivalCheckInsForPlayer,
   findTeamRoomAssignedCourt,
   isTeamRoomArrivalStatus,
   keepTeamRoomArrivalCheckInsForLineup,
@@ -359,15 +360,21 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
-  if (action === 'set_arrival_status' || action === 'set_player_arrival_status') {
-    const captainManaged = action === 'set_player_arrival_status'
-    if (!isTeamRoomArrivalStatus(body.arrivalStatus)) {
+  if (
+    action === 'set_arrival_status'
+    || action === 'set_player_arrival_status'
+    || action === 'clear_player_arrival_status'
+  ) {
+    const clearingPlayerStatus = action === 'clear_player_arrival_status'
+    const captainManaged = action === 'set_player_arrival_status' || clearingPlayerStatus
+    const arrivalStatus = isTeamRoomArrivalStatus(body.arrivalStatus) ? body.arrivalStatus : null
+    if (!clearingPlayerStatus && !arrivalStatus) {
       return Response.json({ ok: false, message: 'Choose On my way, Here, or Running late.' }, { status: 400 })
     }
     if (captainManaged && !canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can update a teammate\'s arrival.' }, { status: 403 })
     }
-    if (captainManaged && body.arrivalStatus === 'running_late') {
+    if (captainManaged && arrivalStatus === 'running_late') {
       return Response.json({ ok: false, message: 'Players set their own running-late status.' }, { status: 400 })
     }
     const requestedMessageId = cleanText(body.messageId)
@@ -415,9 +422,16 @@ export async function POST(request: Request) {
       const checkInProfileId = connectedPlayer?.id
         || `captain:${normalizePersonKey(assignment.playerName).slice(0, 110)}`
       const existing = readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns)
+      const clearedCheckIns = clearingPlayerStatus
+        ? clearTeamRoomArrivalCheckInsForPlayer(existing, assignment.playerName)
+        : existing
+      if (clearingPlayerStatus && clearedCheckIns.length === existing.length) {
+        return Response.json({ ok: true, alreadySaved: true, cleared: true })
+      }
       const prior = existing.find((item) => item.profileId === checkInProfileId)
       if (
-        prior?.status === body.arrivalStatus
+        !clearingPlayerStatus
+        && prior?.status === arrivalStatus
         && prior.playerName === assignment.playerName
         && prior.courtLabel === assignment.courtLabel
       ) {
@@ -425,17 +439,19 @@ export async function POST(request: Request) {
       }
 
       const updatedAt = new Date().toISOString()
-      const checkIn = {
+      const checkIn = !clearingPlayerStatus && arrivalStatus ? {
         profileId: checkInProfileId,
         playerName: assignment.playerName,
         courtLabel: assignment.courtLabel,
-        status: body.arrivalStatus,
+        status: arrivalStatus,
         updatedAt,
         setByCaptain: captainManaged,
-      }
+      } : null
       const claimedMetadata = {
         ...cardResult.metadata,
-        arrivalCheckIns: upsertTeamRoomArrivalCheckIn(existing, checkIn),
+        arrivalCheckIns: checkIn
+          ? upsertTeamRoomArrivalCheckIn(existing, checkIn)
+          : clearedCheckIns,
       }
       const updateResult = await auth.service
         .from('internal_messages')
@@ -450,7 +466,7 @@ export async function POST(request: Request) {
       }
       if (updateResult.data) {
         await auth.service.from('internal_conversations').update({ updated_at: updatedAt }).eq('id', conversation.id)
-        if (!captainManaged && body.arrivalStatus === 'running_late') {
+        if (!captainManaged && arrivalStatus === 'running_late') {
           await notifyManagersOfArrivalStatus(auth.service, {
             conversationId: conversation.id,
             messageId: cardResult.messageId,
@@ -463,7 +479,9 @@ export async function POST(request: Request) {
               .map((item) => item.id),
           })
         }
-        return Response.json({ ok: true, alreadySaved: false, checkIn })
+        return Response.json(checkIn
+          ? { ok: true, alreadySaved: false, checkIn }
+          : { ok: true, alreadySaved: false, cleared: true })
       }
 
       cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')

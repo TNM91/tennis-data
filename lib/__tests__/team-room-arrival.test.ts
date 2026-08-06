@@ -4,6 +4,7 @@ import {
   buildTeamRoomArrivalPriority,
   buildTeamRoomLateArrivalBuilderHref,
   buildTeamRoomLineupCourtHref,
+  clearTeamRoomArrivalCheckInsForPlayer,
   findTeamRoomAssignedCourt,
   findTeamRoomLateArrival,
   keepTeamRoomArrivalCheckInsForLineup,
@@ -62,6 +63,35 @@ describe('Team Room arrival check-ins', () => {
       status: 'here',
       setByCaptain: true,
     })
+  })
+
+  it('clears every saved identity for a player when a captain resets them to waiting', () => {
+    const checkIns = [
+      {
+        profileId: 'captain:jordan lee',
+        playerName: 'Jordan Lee',
+        courtLabel: '3.5 Doubles',
+        status: 'here' as const,
+        updatedAt: '2026-08-05T22:12:00.000Z',
+        setByCaptain: true,
+      },
+      {
+        profileId: 'player-2',
+        playerName: 'Lee, Jordan',
+        courtLabel: '3.5 Doubles',
+        status: 'on_my_way' as const,
+        updatedAt: '2026-08-05T22:13:00.000Z',
+      },
+      {
+        profileId: 'player-1',
+        playerName: 'Alex Morgan',
+        courtLabel: '3.5 Doubles',
+        status: 'here' as const,
+        updatedAt: '2026-08-05T22:10:00.000Z',
+      },
+    ]
+
+    expect(clearTeamRoomArrivalCheckInsForPlayer(checkIns, 'Jordan Lee')).toEqual([checkIns[2]])
   })
 
   it('puts late courts first and gives every player a plain status', () => {

@@ -206,6 +206,8 @@ type TeamRoomFinalResult = {
   }>
 }
 
+type TeamRoomManagedArrivalStatus = Extract<TeamRoomArrivalStatus, 'on_my_way' | 'here'> | 'waiting'
+
 type TeamRoomActionQueue = {
   messageId: string
   matchDate: string
@@ -1015,15 +1017,19 @@ function TeamRoomContent() {
   async function saveManagedArrivalStatus(
     messageId: string,
     playerName: string,
-    status: Extract<TeamRoomArrivalStatus, 'on_my_way' | 'here'>,
+    status: TeamRoomManagedArrivalStatus,
   ) {
     if (!room || savingManagedArrival) return
     const savingKey = `${playerName}:${status}`
     setSavingManagedArrival(savingKey)
     setError('')
     try {
-      await postAction({ action: 'set_player_arrival_status', messageId, playerName, arrivalStatus: status })
-      setNotice(`${playerName} marked ${teamRoomArrivalStatusLabel(status).toLowerCase()}.`)
+      await postAction(status === 'waiting'
+        ? { action: 'clear_player_arrival_status', messageId, playerName }
+        : { action: 'set_player_arrival_status', messageId, playerName, arrivalStatus: status })
+      setNotice(status === 'waiting'
+        ? `${playerName} reset to waiting.`
+        : `${playerName} marked ${teamRoomArrivalStatusLabel(status).toLowerCase()}.`)
       await loadRoom({ quiet: true })
     } catch (arrivalError) {
       setError(arrivalError instanceof Error ? arrivalError.message : `${playerName}'s arrival could not be saved.`)
@@ -1928,7 +1934,7 @@ function PublishedLineupPin({
   onMessageLatePlayer: (playerName: string, courtLabel: string) => void
   onMessageWaitingPlayers: (playerNames: string[]) => void
   onShareWaitingPlayers: (playerNames: string[]) => void
-  onManageArrivalStatus: (playerName: string, status: Extract<TeamRoomArrivalStatus, 'on_my_way' | 'here'>) => void
+  onManageArrivalStatus: (playerName: string, status: TeamRoomManagedArrivalStatus) => void
 }) {
   const [editingArrivalPlayer, setEditingArrivalPlayer] = useState('')
   const matchLabel = [
@@ -2131,7 +2137,14 @@ function PublishedLineupPin({
                     const isEditing = editingArrivalPlayer === playerKey
                     return (
                       <div className={styles.arrivalPlayerRow} key={player.name}>
-                        <span>{player.name}</span>
+                        <span className={styles.arrivalPlayerIdentity}>
+                          <strong>{player.name}</strong>
+                          {player.updatedAt ? (
+                            <small>
+                              {player.setByCaptain ? 'Captain marked' : 'Player updated'} &middot; {formatArrivalUpdateAge(player.updatedAt)}
+                            </small>
+                          ) : null}
+                        </span>
                         {canManage ? (
                           <button
                             className={styles.arrivalStatusControl}
@@ -2148,11 +2161,11 @@ function PublishedLineupPin({
                         )}
                         {canManage && isEditing ? (
                           <div className={styles.arrivalManagerActions} role="group" aria-label={`Update ${player.name}'s arrival`}>
-                            {([['here', 'Here'], ['on_my_way', 'On the way']] as const).map(([status, label]) => (
+                            {([['here', 'Here'], ['on_my_way', 'On the way'], ['waiting', 'Waiting']] as const).map(([status, label]) => (
                               <button
                                 key={status}
                                 type="button"
-                                aria-pressed={player.status === status}
+                                aria-pressed={status === 'waiting' ? player.status === null : player.status === status}
                                 disabled={Boolean(savingManagedArrival)}
                                 onClick={() => {
                                   onManageArrivalStatus(player.name, status)
@@ -3215,6 +3228,17 @@ function formatMessageTime(value: string) {
   return sameDay
     ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function formatArrivalUpdateAge(value: string) {
+  const updatedAt = new Date(value).getTime()
+  if (!Number.isFinite(updatedAt)) return 'recently'
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - updatedAt) / 60_000))
+  if (elapsedMinutes < 1) return 'now'
+  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`
+  const elapsedHours = Math.floor(elapsedMinutes / 60)
+  if (elapsedHours < 24) return `${elapsedHours}h ago`
+  return new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
 function formatMatchDate(value: string) {
