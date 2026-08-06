@@ -36,10 +36,10 @@ import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import {
   buildTeamRoomArrivalCourts,
+  buildTeamRoomArrivalPriority,
   buildTeamRoomLateArrivalBuilderHref,
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
-  findTeamRoomLateArrival,
   teamRoomArrivalStatusLabel,
   type TeamRoomArrivalCheckIn,
   type TeamRoomArrivalStatus,
@@ -1500,6 +1500,7 @@ function TeamRoomContent() {
               onCompleteMatch={() => undefined}
               onArrivalStatus={() => undefined}
               onMessageLatePlayer={() => undefined}
+              onMessageWaitingPlayers={() => undefined}
             />
           </div>
         ) : null}
@@ -1538,6 +1539,15 @@ function TeamRoomContent() {
               onArrivalStatus={(status) => void saveArrivalStatus(activeMatchMessage.id, status)}
               onMessageLatePlayer={(playerName, courtLabel) => {
                 setMessageBody(`${playerName} — are you still able to make ${courtLabel}? Please share your ETA.`)
+                window.requestAnimationFrame(() => {
+                  composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  composerRef.current?.focus()
+                })
+              }}
+              onMessageWaitingPlayers={(playerNames) => {
+                const visibleNames = playerNames.slice(0, 3).join(', ')
+                const remaining = Math.max(0, playerNames.length - 3)
+                setMessageBody(`${visibleNames}${remaining ? ` +${remaining} more` : ''} — please update your arrival status for today’s match.`)
                 window.requestAnimationFrame(() => {
                   composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                   composerRef.current?.focus()
@@ -1844,6 +1854,7 @@ function PublishedLineupPin({
   onCompleteMatch,
   onArrivalStatus,
   onMessageLatePlayer,
+  onMessageWaitingPlayers,
 }: {
   messageId: string
   card: TeamRoomMatchCard
@@ -1868,6 +1879,7 @@ function PublishedLineupPin({
   onCompleteMatch: () => void
   onArrivalStatus: (status: TeamRoomArrivalStatus) => void
   onMessageLatePlayer: (playerName: string, courtLabel: string) => void
+  onMessageWaitingPlayers: (playerNames: string[]) => void
 }) {
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
@@ -1888,9 +1900,10 @@ function PublishedLineupPin({
   const arrivalPlayers = arrivalCourts.flatMap((court) => court.players)
   const hereCount = arrivalPlayers.filter((player) => player.status === 'here').length
   const onWayCount = arrivalPlayers.filter((player) => player.status === 'on_my_way').length
-  const lateCount = arrivalPlayers.filter((player) => player.status === 'running_late').length
-  const waitingCount = arrivalPlayers.filter((player) => player.status === null).length
-  const lateArrival = findTeamRoomLateArrival(arrivalCourts, focusedCourtLabel)
+  const arrivalPriority = buildTeamRoomArrivalPriority(arrivalCourts, focusedCourtLabel)
+  const lateArrival = arrivalPriority.kind === 'late'
+    ? { courtLabel: arrivalPriority.courtLabel, playerName: arrivalPriority.playerName }
+    : null
   const backupHref = lateArrival ? buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival) : ''
   const focusedLineupHref = lateArrival ? buildTeamRoomLineupCourtHref(lineupHref, lateArrival.courtLabel) : lineupHref
   return (
@@ -1995,13 +2008,6 @@ function PublishedLineupPin({
           aria-label="Team arrival status"
           tabIndex={-1}
         >
-          <div className={styles.arrivalBoardHeader}>
-            <div>
-              <strong>{lateCount ? `${lateCount} running late` : hereCount === arrivalPlayers.length ? 'Team is here' : 'Team arrival'}</strong>
-              <span>{hereCount} here · {onWayCount} on my way · {waitingCount} waiting</span>
-            </div>
-            {lateCount ? <em>Check</em> : <em>{hereCount}/{arrivalPlayers.length}</em>}
-          </div>
           {canManage && lateArrival ? (
             <div className={styles.lateArrivalActions} role="alert">
               <div>
@@ -2016,7 +2022,20 @@ function PublishedLineupPin({
                 <Link className={styles.buttonSecondary} href={focusedLineupHref}>Update lineup</Link>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className={styles.arrivalPriority} data-status={arrivalPriority.kind} aria-live="polite">
+              <div>
+                <span>{arrivalPriority.kind === 'waiting' ? 'Next' : 'Arrival'}</span>
+                <strong>{arrivalPriority.title}</strong>
+                <small>{arrivalPriority.detail}</small>
+              </div>
+              {canManage && arrivalPriority.kind === 'waiting' ? (
+                <button className={styles.buttonPrimary} type="button" onClick={() => onMessageWaitingPlayers(arrivalPriority.names)}>
+                  Message waiting
+                </button>
+              ) : <em>{hereCount}/{arrivalPlayers.length}</em>}
+            </div>
+          )}
           {assignedCourt ? (
             <div className={styles.arrivalCheckIn}>
               <span>Your status · {assignedCourt.courtLabel}</span>
@@ -2040,22 +2059,28 @@ function PublishedLineupPin({
               </div>
             </div>
           ) : null}
-          <div className={styles.arrivalCourtGrid}>
-            {arrivalCourts.map((court) => (
-              <article
-                key={court.label}
-                className={`${styles.arrivalCourt} ${lateArrival?.courtLabel === court.label ? styles.arrivalCourtFocused : ''}`}
-              >
-                <strong>{court.label}</strong>
-                {court.players.map((player) => (
-                  <div key={player.name}>
-                    <span>{player.name}</span>
-                    <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
-                  </div>
-                ))}
-              </article>
-            ))}
-          </div>
+          <details className={styles.arrivalCourtDetails}>
+            <summary>
+              <span>Court arrivals</span>
+              <em>{hereCount} here · {onWayCount} on my way</em>
+            </summary>
+            <div className={styles.arrivalCourtGrid}>
+              {arrivalCourts.map((court) => (
+                <article
+                  key={court.label}
+                  className={`${styles.arrivalCourt} ${lateArrival?.courtLabel === court.label ? styles.arrivalCourtFocused : ''}`}
+                >
+                  <strong>{court.label}</strong>
+                  {court.players.map((player) => (
+                    <div key={player.name}>
+                      <span>{player.name}</span>
+                      <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
+                    </div>
+                  ))}
+                </article>
+              ))}
+            </div>
+          </details>
         </section>
       ) : !result ? (
         <div className={styles.publishedLineupRows}>

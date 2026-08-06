@@ -19,6 +19,15 @@ export type TeamRoomArrivalCourt = {
   }>
 }
 
+export type TeamRoomArrivalPriority = {
+  kind: 'late' | 'waiting' | 'on_way' | 'ready' | 'empty'
+  title: string
+  detail: string
+  names: string[]
+  courtLabel: string
+  playerName: string
+}
+
 type LineupRow = { label: string; players: string[] }
 
 export function isTeamRoomArrivalStatus(value: unknown): value is TeamRoomArrivalStatus {
@@ -114,6 +123,68 @@ export function findTeamRoomLateArrival(courts: TeamRoomArrivalCourt[], focusedC
   return player ? { courtLabel: court.label, playerName: player.name } : null
 }
 
+export function buildTeamRoomArrivalPriority(
+  courts: TeamRoomArrivalCourt[],
+  focusedCourtLabel = '',
+): TeamRoomArrivalPriority {
+  const players = courts.flatMap((court) => court.players)
+  const late = findTeamRoomLateArrival(courts, focusedCourtLabel)
+  if (late) {
+    return {
+      kind: 'late',
+      title: `${late.playerName} is running late`,
+      detail: `${late.courtLabel} needs the next call.`,
+      names: [late.playerName],
+      courtLabel: late.courtLabel,
+      playerName: late.playerName,
+    }
+  }
+
+  const waitingNames = players.filter((player) => player.status === null).map((player) => player.name)
+  if (waitingNames.length) {
+    return {
+      kind: 'waiting',
+      title: `${waitingNames.length} need${waitingNames.length === 1 ? 's' : ''} to check in`,
+      detail: formatArrivalNames(waitingNames),
+      names: waitingNames,
+      courtLabel: '',
+      playerName: '',
+    }
+  }
+
+  const onWayNames = players.filter((player) => player.status === 'on_my_way').map((player) => player.name)
+  if (onWayNames.length) {
+    return {
+      kind: 'on_way',
+      title: `${onWayNames.length} still on the way`,
+      detail: `No late players. ${formatArrivalNames(onWayNames)}`,
+      names: onWayNames,
+      courtLabel: '',
+      playerName: '',
+    }
+  }
+
+  if (players.length) {
+    return {
+      kind: 'ready',
+      title: 'Team is here',
+      detail: 'Every assigned player checked in.',
+      names: players.map((player) => player.name),
+      courtLabel: '',
+      playerName: '',
+    }
+  }
+
+  return {
+    kind: 'empty',
+    title: 'Lineup needed',
+    detail: 'Add the lineup to start arrival check-ins.',
+    names: [],
+    courtLabel: '',
+    playerName: '',
+  }
+}
+
 export function buildTeamRoomLateArrivalBuilderHref(
   baseHref: string,
   lateArrival: { courtLabel: string; playerName: string },
@@ -155,6 +226,12 @@ function personKeys(value: string | null | undefined) {
 
 function normalizePerson(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function formatArrivalNames(names: string[]) {
+  const visible = names.slice(0, 3)
+  const remaining = names.length - visible.length
+  return `${visible.join(', ')}${remaining > 0 ? ` +${remaining} more` : ''}`
 }
 
 function clean(value: unknown, maxLength: number) {
