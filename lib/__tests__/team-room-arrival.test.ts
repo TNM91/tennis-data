@@ -8,12 +8,16 @@ import {
   clearTeamRoomArrivalCheckInsForPlayer,
   findTeamRoomAssignedCourt,
   findTeamRoomArrivalContact,
+  findTeamRoomArrivalOutreach,
   findTeamRoomLateArrival,
   keepTeamRoomArrivalCheckInsForLineup,
+  keepTeamRoomArrivalOutreachForLineup,
   readTeamRoomArrivalCheckIns,
   readTeamRoomArrivalTextReturn,
+  readTeamRoomArrivalOutreach,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
+  upsertTeamRoomArrivalOutreach,
 } from '../team-room-arrival'
 
 const lineup = [
@@ -124,6 +128,28 @@ describe('Team Room arrival check-ins', () => {
     expect(readTeamRoomArrivalTextReturn({ ...context, playerName: '' }, now)).toBeNull()
   })
 
+  it('records only the latest outreach per player without storing their phone number', () => {
+    const first = upsertTeamRoomArrivalOutreach([], {
+      playerName: 'Lee, Jordan',
+      courtLabel: '3.5 Doubles',
+      contactedAt: '2026-08-06T02:30:00.000Z',
+      contactedByUserId: 'captain-1',
+    })
+    const latest = upsertTeamRoomArrivalOutreach(first, {
+      playerName: 'Jordan Lee',
+      courtLabel: '3.5 Doubles',
+      contactedAt: '2026-08-06T02:35:00.000Z',
+      contactedByUserId: 'captain-2',
+    })
+
+    expect(latest).toHaveLength(1)
+    expect(findTeamRoomArrivalOutreach('Lee, Jordan', latest)?.contactedAt)
+      .toBe('2026-08-06T02:35:00.000Z')
+    expect(readTeamRoomArrivalOutreach([{ ...latest[0], phone: '(312) 555-0100' }]))
+      .toEqual(latest)
+    expect(readTeamRoomArrivalOutreach(latest)[0]).not.toHaveProperty('phone')
+  })
+
   it('puts late courts first and gives every player a plain status', () => {
     const courts = buildTeamRoomArrivalCourts(lineup, [{
       profileId: 'player-3',
@@ -171,6 +197,11 @@ describe('Team Room arrival check-ins', () => {
     ]
 
     expect(keepTeamRoomArrivalCheckInsForLineup(changedLineup, checkIns)).toEqual([checkIns[0]])
+    const outreach = [
+      { playerName: 'Alex Morgan', courtLabel: '3.5 Doubles', contactedAt: '2026-08-05T22:01:00.000Z', contactedByUserId: 'captain-1' },
+      { playerName: 'Taylor Smith', courtLabel: '4.0 Doubles', contactedAt: '2026-08-05T22:02:00.000Z', contactedByUserId: 'captain-1' },
+    ]
+    expect(keepTeamRoomArrivalOutreachForLineup(changedLineup, outreach)).toEqual([outreach[0]])
   })
 
   it('prioritizes late, waiting, traveling, and ready states in that order', () => {

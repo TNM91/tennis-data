@@ -37,6 +37,13 @@ export type TeamRoomArrivalContact = {
   joined: boolean
 }
 
+export type TeamRoomArrivalOutreach = {
+  playerName: string
+  courtLabel: string
+  contactedAt: string
+  contactedByUserId: string
+}
+
 export type TeamRoomArrivalTextReturn = {
   roomId: string
   messageId: string
@@ -120,6 +127,39 @@ export function findTeamRoomArrivalContact(
   ) || null
 }
 
+export function readTeamRoomArrivalOutreach(value: unknown): TeamRoomArrivalOutreach[] {
+  if (!Array.isArray(value)) return []
+  const outreach: TeamRoomArrivalOutreach[] = []
+  for (const item of value.slice(-100)) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const row = item as Record<string, unknown>
+    const playerName = clean(row.playerName, 120)
+    const courtLabel = clean(row.courtLabel, 80)
+    const contactedAt = clean(row.contactedAt, 80)
+    const contactedByUserId = clean(row.contactedByUserId, 120)
+    if (!playerName || !courtLabel || !contactedAt || !contactedByUserId) continue
+    const contact = { playerName, courtLabel, contactedAt, contactedByUserId }
+    const existingIndex = outreach.findIndex((saved) => samePerson(saved.playerName, playerName))
+    if (existingIndex >= 0) outreach.splice(existingIndex, 1)
+    outreach.push(contact)
+  }
+  return outreach
+}
+
+export function findTeamRoomArrivalOutreach(playerName: string, value: unknown) {
+  return readTeamRoomArrivalOutreach(value).find((outreach) => samePerson(outreach.playerName, playerName)) || null
+}
+
+export function upsertTeamRoomArrivalOutreach(
+  value: unknown,
+  outreach: TeamRoomArrivalOutreach,
+): TeamRoomArrivalOutreach[] {
+  return [
+    ...readTeamRoomArrivalOutreach(value).filter((item) => !samePerson(item.playerName, outreach.playerName)),
+    outreach,
+  ].slice(-100)
+}
+
 export function buildTeamRoomArrivalSmsHref(phone: string, body: string, isIOS = false) {
   const digits = phone.replace(/\D/g, '')
   if (digits.length < 7 || !body.trim()) return ''
@@ -186,6 +226,19 @@ export function keepTeamRoomArrivalCheckInsForLineup(
   if (!activePlayerKeys.size) return []
   return readTeamRoomArrivalCheckIns(value).filter((checkIn) =>
     personKeys(checkIn.playerName).some((key) => activePlayerKeys.has(key)),
+  )
+}
+
+export function keepTeamRoomArrivalOutreachForLineup(
+  lineup: LineupRow[],
+  value: unknown,
+): TeamRoomArrivalOutreach[] {
+  const activePlayerKeys = new Set(
+    lineup.flatMap((court) => court.players.flatMap(personKeys)).filter(Boolean),
+  )
+  if (!activePlayerKeys.size) return []
+  return readTeamRoomArrivalOutreach(value).filter((outreach) =>
+    personKeys(outreach.playerName).some((key) => activePlayerKeys.has(key)),
   )
 }
 
@@ -308,6 +361,11 @@ function personKeys(value: string | null | undefined) {
     keys.push(normalizePerson(`${first.join(' ')} ${last}`))
   }
   return [...new Set(keys.filter(Boolean))]
+}
+
+function samePerson(left: string, right: string) {
+  const rightKeys = new Set(personKeys(right))
+  return personKeys(left).some((key) => rightKeys.has(key))
 }
 
 function normalizePerson(value: string) {
