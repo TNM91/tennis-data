@@ -5,6 +5,7 @@ import {
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
   findTeamRoomLateArrival,
+  keepTeamRoomArrivalCheckInsForLineup,
   readTeamRoomArrivalCheckIns,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
@@ -66,5 +67,30 @@ describe('Team Room arrival check-ins', () => {
     })).toBe('/captain/lineup-builder?team=Aces&source=team_room&availability=replies&mode=backup&replace=Taylor+Smith&court=4.0+Doubles#captain-lineup-courts')
     expect(buildTeamRoomLineupCourtHref('/captain/lineup-builder?team=Aces', '4.0 Doubles'))
       .toBe('/captain/lineup-builder?team=Aces&source=team_room&court=4.0+Doubles#captain-lineup-courts')
+  })
+
+  it('keeps unaffected arrivals when a backup replaces the late player', () => {
+    const checkIns = [
+      {
+        profileId: 'player-1',
+        playerName: 'Alex Morgan',
+        courtLabel: '3.5 Doubles',
+        status: 'here' as const,
+        updatedAt: '2026-08-05T22:10:00.000Z',
+      },
+      {
+        profileId: 'player-3',
+        playerName: 'Taylor Smith',
+        courtLabel: '4.0 Doubles',
+        status: 'running_late' as const,
+        updatedAt: '2026-08-05T22:11:00.000Z',
+      },
+    ]
+    const changedLineup = [
+      lineup[0],
+      { label: '4.0 Doubles', players: ['Riley Jones', 'Casey Reed'] },
+    ]
+
+    expect(keepTeamRoomArrivalCheckInsForLineup(changedLineup, checkIns)).toEqual([checkIns[0]])
   })
 })

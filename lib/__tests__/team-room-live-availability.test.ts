@@ -91,7 +91,7 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('notifyManagersOfLineupChangeResponse')
     expect(roomPage).toContain("action: 'respond_lineup_change'")
     expect(roomPage).toContain('Can you play this court?')
-    expect(roomPage).toContain('Find another player')
+    expect(roomPage).toContain('Choose another backup')
     expect(roomPage).toContain("lineupChangeNotice?.response === 'declined'")
     expect(roomStyles).toContain('.lineupChangeDecision')
     expect(roomStyles).toContain('.lineupChangeDeclined')
@@ -307,6 +307,18 @@ describe('Team Room live availability card', () => {
     expect(lineupBuilder).toContain('The backup was saved, but Team Room could not be updated.')
     expect(roomPage).toContain('Final lineup change ready')
     expect(roomPage).toContain('Send lineup change')
+  })
+
+  it('preserves team arrivals and closes the backup response loop', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+
+    expect(roomApi).toContain('keepTeamRoomArrivalCheckInsForLineup(')
+    expect(roomApi).toContain("arrivalCheckIns: response === 'accepted'")
+    expect(roomPage).toContain('document.getElementById(`team-room-arrival-${messageId}`)')
+    expect(roomPage).toContain('arrival.focus({ preventScroll: true })')
+    expect(roomPage).toContain('buildTeamRoomLateArrivalBuilderHref(lineupBaseHref, {')
+    expect(roomPage).toContain('Choose another backup')
   })
 
   it('replaces scorecard entry with the linked final result', () => {
