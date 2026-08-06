@@ -802,7 +802,7 @@ const planTopStyle: CSSProperties = {
 
 const compactPlanTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gridTemplateColumns: '48px minmax(0, 1fr)',
   gap: 8,
   alignItems: 'center',
   minWidth: 0,
