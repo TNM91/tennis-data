@@ -30,6 +30,12 @@ export type TeamRoomArrivalPriority = {
   playerName: string
 }
 
+export type TeamRoomArrivalContact = {
+  name: string
+  phone: string
+  joined: boolean
+}
+
 type LineupRow = { label: string; players: string[] }
 
 export function isTeamRoomArrivalStatus(value: unknown): value is TeamRoomArrivalStatus {
@@ -92,6 +98,24 @@ export function clearTeamRoomArrivalCheckInsForPlayer(value: unknown, playerName
   return readTeamRoomArrivalCheckIns(value).filter((checkIn) =>
     !personKeys(checkIn.playerName).some((key) => targetKeys.has(key)),
   )
+}
+
+export function findTeamRoomArrivalContact(
+  playerName: string,
+  contacts: TeamRoomArrivalContact[],
+) {
+  const playerKeys = new Set(personKeys(playerName))
+  if (!playerKeys.size) return null
+  return contacts.find((contact) =>
+    personKeys(contact.name).some((key) => playerKeys.has(key)),
+  ) || null
+}
+
+export function buildTeamRoomArrivalSmsHref(phone: string, body: string, isIOS = false) {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length < 7 || !body.trim()) return ''
+  const recipient = phone.trim().startsWith('+') ? `+${digits}` : digits
+  return `sms:${recipient}${isIOS ? '&' : '?'}body=${encodeURIComponent(body.trim())}`
 }
 
 export function buildTeamRoomArrivalCourts(

@@ -623,6 +623,24 @@
   font-family: inherit;
 }
 
+.arrivalPlayerControls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.arrivalTextButton {
+  min-height: 28px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg-strong));
+  color: var(--foreground-strong);
+  padding: 4px 7px;
+  font: inherit;
+  font-size: 0.6rem;
+  font-weight: 950;
+}
+
 .arrivalPlayerRow > em[data-status='here'],
 .arrivalStatusControl[data-status='here'] {
   background: color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg-strong));
