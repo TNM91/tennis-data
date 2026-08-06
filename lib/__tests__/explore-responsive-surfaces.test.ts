@@ -454,7 +454,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(pricingSource, 'compactHeroTextStyle')).toContain('fontSize: 14')
     expect(styleBlock(pricingSource, 'compactPlanGridStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(styleBlock(pricingSource, 'compactPlanCardStyle')).toContain('padding: 8')
-    expect(styleBlock(pricingSource, 'compactPlanTopStyle')).toContain("gridTemplateColumns: '34px minmax(0, 1fr)'")
+    expect(styleBlock(pricingSource, 'compactPlanTopStyle')).toContain("gridTemplateColumns: '48px minmax(0, 1fr)'")
     expect(styleBlock(pricingSource, 'compactPriceStyle')).toContain('fontSize: 16')
     expect(styleBlock(pricingSource, 'compactPrimaryPlanButtonStyle')).toContain("width: '100%'")
     expect(styleBlock(pricingSource, 'compactPrimaryPlanButtonStyle')).toContain('minHeight: 30')
