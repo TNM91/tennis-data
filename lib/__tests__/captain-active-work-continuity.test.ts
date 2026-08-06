@@ -17,11 +17,14 @@ describe('Captain active-work continuity', () => {
     expect(migration).toContain('auth.uid() = user_id')
   })
 
-  it('puts an unresolved court ahead of the exact Continue action', () => {
+  it('puts match-day arrival follow-up and unresolved courts ahead of Continue', () => {
     const captain = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 
     expect(captain).toContain("label: `Continue ${captainResume?.lastToolLabel || 'your work'}`")
-    expect(captain).toContain('const captainHomePrimaryAction = captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem')
+    expect(captain).toContain('const captainHomePrimaryAction = captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem')
+    expect(captain).toContain("id: 'arrival-follow-up'")
+    expect(captain).toContain('messageId: captainArrivalFollowUp.messageId')
+    expect(captain).toContain('court: captainArrivalFollowUp.courtLabel')
     expect(captain).toContain("captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue'")
     expect(captain).toContain("stage: 'team-room' as CaptainResumeStage")
   })

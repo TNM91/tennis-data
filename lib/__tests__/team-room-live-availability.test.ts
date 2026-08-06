@@ -158,6 +158,10 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('lineupChange: activeLineupChange ? {')
     expect(roomApi).toContain('afterPlayers: activeLineupChange.afterPlayers')
     expect(roomApi).toContain('respondedAt: activeLineupChange.respondedAt')
+    expect(roomApi).toContain('const arrivalPriority = buildTeamRoomArrivalPriority(')
+    expect(roomApi).toContain("arrivalPriority.kind === 'follow_up'")
+    expect(roomApi).toContain('arrivalFollowUp,')
+    expect(roomApi).toContain("cleanText(latestCard?.metadata?.matchDate) === todayDateKey()")
   })
 
   it('stores one shared final-lineup send for every captain', () => {

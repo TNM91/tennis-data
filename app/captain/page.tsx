@@ -284,6 +284,14 @@ type CaptainTeamRoomSummary = {
   latestMatchDate: string
   reminderAt: string
   reminderStatus: string
+  arrivalFollowUp?: {
+    count: number
+    names: string[]
+    playerName: string
+    courtLabel: string
+    detail: string
+    messageId: string
+  } | null
   courtReadiness?: {
     messageId: string
     confirmedCount: number
@@ -1760,6 +1768,7 @@ function CaptainHubContent() {
     latestMatchDate: '',
     reminderAt: '',
     reminderStatus: '',
+    arrivalFollowUp: null,
     courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] },
   })
   const [captainAvailabilityRequestSummary, setCaptainAvailabilityRequestSummary] = useState<CaptainAvailabilityRequestSummary | null>(null)
@@ -2312,7 +2321,7 @@ function CaptainHubContent() {
     teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
     const roomHref = buildTeamRoomHref({
@@ -16095,6 +16104,28 @@ function CaptainHubContent() {
   ] as const
 
   const captainCourtReadiness = teamRoomSummary.courtReadiness
+  const captainArrivalFollowUp = teamRoomSummary.arrivalFollowUp ?? null
+  const captainArrivalFollowUpHref = captainArrivalFollowUp ? buildTeamRoomHref({
+    teamName: selectedTeam,
+    leagueName: selectedLeague,
+    flight: selectedFlight,
+    date: teamRoomSummary.latestMatchDate || matchWeekDate,
+    opponent: matchWeekOpponent,
+    time: nextMatch?.time || '',
+    facility: nextMatch?.facility || '',
+    messageId: captainArrivalFollowUp.messageId,
+    court: captainArrivalFollowUp.courtLabel,
+  }) : ''
+  const captainArrivalFollowUpAction = captainArrivalFollowUp ? {
+    id: 'arrival-follow-up',
+    label: `${captainArrivalFollowUp.count} player${captainArrivalFollowUp.count === 1 ? '' : 's'} need follow-up`,
+    state: 'Needs follow-up',
+    detail: captainArrivalFollowUp.detail,
+    href: captainArrivalFollowUpHref,
+    stage: 'team-room' as CaptainResumeStage,
+    cta: 'Open Team Room',
+    tone: 'warn' as const,
+  } : null
   const captainUnresolvedCourts = captainCourtReadiness?.courts ?? []
   const buildCaptainCourtReadinessHref = (courtLabel: string) => buildTeamRoomHref({
     teamName: selectedTeam,
@@ -16180,14 +16211,16 @@ function CaptainHubContent() {
     },
     {
       id: 'chat',
-      label: 'Team chat',
-      detail: teamRoomSummary.unreadCount > 0
+      label: captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
+      detail: captainArrivalFollowUp
+        ? `${captainArrivalFollowUp.count} still waiting`
+        : teamRoomSummary.unreadCount > 0
         ? `${teamRoomSummary.unreadCount} unread`
         : 'Open team chat',
-      href: teamRoomHref,
+      href: captainArrivalFollowUpHref || teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: teamRoomSummary.unreadCount > 0,
+      primary: Boolean(captainArrivalFollowUp) || teamRoomSummary.unreadCount > 0,
     },
     {
       id: 'scorecard',
@@ -16228,9 +16261,11 @@ function CaptainHubContent() {
     handleCaptainAction(item.href, item.stage)
   }
 
-  const captainHomePrimaryAction = captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
-  const captainHomePrimaryStatus = captainCourtPrimaryAction
-    ? captainCourtPrimaryAction.state
+  const captainHomePrimaryAction = captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
+  const captainHomePrimaryStatus = captainArrivalFollowUpAction
+    ? captainArrivalFollowUpAction.state
+    : captainCourtPrimaryAction
+      ? captainCourtPrimaryAction.state
     : captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus
 
   const captainLineupConfirmationNextTaskItem = captainPrimaryUnresolvedCourt
