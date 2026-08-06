@@ -16,6 +16,7 @@ const environment = args.get('environment') || 'production'
 const since = args.get('since') || '2h'
 const limit = args.get('limit') || '50'
 const scope = args.get('scope') || 'tennis-data'
+const project = args.get('project') || 'tennis-data'
 const warningLimit = args.get('warning-limit') || '25'
 
 const blockingQueries = [
@@ -43,6 +44,7 @@ console.log(JSON.stringify({
   since,
   limit: Number(limit),
   scope,
+  project,
   blocking,
   warnings,
 }, null, 2))
@@ -65,6 +67,8 @@ function countLogs(extraArgs, queryLimit) {
     '--json',
     '--scope',
     scope,
+    '--project',
+    project,
     ...extraArgs,
   ], {
     cwd: process.cwd(),

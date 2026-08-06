@@ -23,6 +23,8 @@ describe('launch go/no-go packet', () => {
       'scripts/post-launch-monitor-card.mjs',
       'GO for public launch announcement',
       'Stripe live cutover',
+      'ownerActionAlreadySatisfied',
+      "check.name === 'Vercel production branch alignment' && check.ok === true",
     ]) {
       expect(goNoGoScript).toContain(expected)
     }
