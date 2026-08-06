@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTeamRoomArrivalCourts,
   buildTeamRoomArrivalPriority,
+  buildTeamRoomArrivalSmsHref,
   buildTeamRoomLateArrivalBuilderHref,
   buildTeamRoomLineupCourtHref,
   clearTeamRoomArrivalCheckInsForPlayer,
   findTeamRoomAssignedCourt,
+  findTeamRoomArrivalContact,
   findTeamRoomLateArrival,
   keepTeamRoomArrivalCheckInsForLineup,
   readTeamRoomArrivalCheckIns,
@@ -92,6 +94,18 @@ describe('Team Room arrival check-ins', () => {
     ]
 
     expect(clearTeamRoomArrivalCheckInsForPlayer(checkIns, 'Jordan Lee')).toEqual([checkIns[2]])
+  })
+
+  it('matches an imported roster contact and builds platform-safe arrival texts', () => {
+    expect(findTeamRoomArrivalContact('Jordan Lee', [
+      { name: 'Lee, Jordan', phone: '(312) 555-0100', joined: false },
+    ])).toMatchObject({ phone: '(312) 555-0100', joined: false })
+
+    expect(buildTeamRoomArrivalSmsHref('+1 (312) 555-0100', 'Reply Here', true))
+      .toBe('sms:+13125550100&body=Reply%20Here')
+    expect(buildTeamRoomArrivalSmsHref('(312) 555-0100', 'Reply Here'))
+      .toBe('sms:3125550100?body=Reply%20Here')
+    expect(buildTeamRoomArrivalSmsHref('missing', 'Reply Here')).toBe('')
   })
 
   it('puts late courts first and gives every player a plain status', () => {

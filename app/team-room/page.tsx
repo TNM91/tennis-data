@@ -35,11 +35,13 @@ import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain-lineup-confirmation'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import {
+  buildTeamRoomArrivalSmsHref,
   buildTeamRoomArrivalCourts,
   buildTeamRoomArrivalPriority,
   buildTeamRoomLateArrivalBuilderHref,
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
+  findTeamRoomArrivalContact,
   teamRoomArrivalStatusLabel,
   type TeamRoomArrivalCheckIn,
   type TeamRoomArrivalStatus,
@@ -1054,6 +1056,20 @@ function TeamRoomContent() {
     setNotice('Arrival check-in ready to send by text or another app.')
   }
 
+  function textArrivalPlayer(playerName: string, phone: string, card: TeamRoomMatchCard) {
+    const href = buildTeamRoomArrivalSmsHref(
+      phone,
+      buildArrivalReplyText([playerName], card),
+      getIsIOSSnapshot(),
+    )
+    if (!href) {
+      setError(`${playerName}'s roster phone number is not ready to text.`)
+      return
+    }
+    setNotice(`Text ready for ${playerName}. Their reply can be marked here.`)
+    window.location.href = href
+  }
+
   async function remindFinalLineupUnseen(messageId: string) {
     if (!room || remindingFinalLineup) return
     setRemindingFinalLineup(true)
@@ -1537,6 +1553,7 @@ function TeamRoomContent() {
               currentUserNames={[]}
               savingArrivalStatus=""
               savingManagedArrival=""
+              rosterMembers={[]}
               focusedCourtLabel=""
               defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
@@ -1547,6 +1564,7 @@ function TeamRoomContent() {
               onMessageWaitingPlayers={() => undefined}
               onShareWaitingPlayers={() => undefined}
               onManageArrivalStatus={() => undefined}
+              onTextArrivalPlayer={() => undefined}
             />
           </div>
         ) : null}
@@ -1579,6 +1597,7 @@ function TeamRoomContent() {
                 .flatMap((member) => [member.playerName, member.name])}
               savingArrivalStatus={savingArrivalStatus}
               savingManagedArrival={savingManagedArrival}
+              rosterMembers={room.rosterMembers}
               focusedCourtLabel={focusedCourtLabel}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
@@ -1602,6 +1621,7 @@ function TeamRoomContent() {
               }}
               onShareWaitingPlayers={(playerNames) => void shareArrivalCheckIn(playerNames, activeMatchMessage.card!)}
               onManageArrivalStatus={(playerName, status) => void saveManagedArrivalStatus(activeMatchMessage.id, playerName, status)}
+              onTextArrivalPlayer={(playerName, phone) => textArrivalPlayer(playerName, phone, activeMatchMessage.card!)}
             />
           </div>
         ) : null}
@@ -1897,6 +1917,7 @@ function PublishedLineupPin({
   currentUserNames,
   savingArrivalStatus,
   savingManagedArrival,
+  rosterMembers,
   focusedCourtLabel,
   defaultOpen,
   onSeen,
@@ -1907,6 +1928,7 @@ function PublishedLineupPin({
   onMessageWaitingPlayers,
   onShareWaitingPlayers,
   onManageArrivalStatus,
+  onTextArrivalPlayer,
 }: {
   messageId: string
   card: TeamRoomMatchCard
@@ -1925,6 +1947,7 @@ function PublishedLineupPin({
   currentUserNames: string[]
   savingArrivalStatus: TeamRoomArrivalStatus | ''
   savingManagedArrival: string
+  rosterMembers: TeamRoomRosterMember[]
   focusedCourtLabel: string
   defaultOpen?: boolean
   onSeen: () => void
@@ -1935,6 +1958,7 @@ function PublishedLineupPin({
   onMessageWaitingPlayers: (playerNames: string[]) => void
   onShareWaitingPlayers: (playerNames: string[]) => void
   onManageArrivalStatus: (playerName: string, status: TeamRoomManagedArrivalStatus) => void
+  onTextArrivalPlayer: (playerName: string, phone: string) => void
 }) {
   const [editingArrivalPlayer, setEditingArrivalPlayer] = useState('')
   const matchLabel = [
@@ -2135,6 +2159,11 @@ function PublishedLineupPin({
                   {court.players.map((player) => {
                     const playerKey = `${court.label}:${player.name}`
                     const isEditing = editingArrivalPlayer === playerKey
+                    const rosterContact = findTeamRoomArrivalContact(player.name, rosterMembers)
+                    const canTextDirectly = canManage
+                      && player.status === null
+                      && Boolean(rosterContact?.phone)
+                      && rosterContact?.joined === false
                     return (
                       <div className={styles.arrivalPlayerRow} key={player.name}>
                         <span className={styles.arrivalPlayerIdentity}>
@@ -2146,16 +2175,27 @@ function PublishedLineupPin({
                           ) : null}
                         </span>
                         {canManage ? (
-                          <button
-                            className={styles.arrivalStatusControl}
-                            type="button"
-                            data-status={player.status || 'waiting'}
-                            aria-expanded={isEditing}
-                            title={player.setByCaptain ? 'Last updated by a captain' : undefined}
-                            onClick={() => setEditingArrivalPlayer(isEditing ? '' : playerKey)}
-                          >
-                            {teamRoomArrivalStatusLabel(player.status)}
-                          </button>
+                          <span className={styles.arrivalPlayerControls}>
+                            {canTextDirectly && rosterContact ? (
+                              <button
+                                className={styles.arrivalTextButton}
+                                type="button"
+                                onClick={() => onTextArrivalPlayer(player.name, rosterContact.phone)}
+                              >
+                                Text
+                              </button>
+                            ) : null}
+                            <button
+                              className={styles.arrivalStatusControl}
+                              type="button"
+                              data-status={player.status || 'waiting'}
+                              aria-expanded={isEditing}
+                              title={player.setByCaptain ? 'Last updated by a captain' : undefined}
+                              onClick={() => setEditingArrivalPlayer(isEditing ? '' : playerKey)}
+                            >
+                              {teamRoomArrivalStatusLabel(player.status)}
+                            </button>
+                          </span>
                         ) : (
                           <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
                         )}
@@ -3239,6 +3279,16 @@ function formatArrivalUpdateAge(value: string) {
   const elapsedHours = Math.floor(elapsedMinutes / 60)
   if (elapsedHours < 24) return `${elapsedHours}h ago`
   return new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function buildArrivalReplyText(playerNames: string[], card: TeamRoomMatchCard) {
+  const names = playerNames.join(', ')
+  const match = [
+    card.matchDate ? formatMatchDate(card.matchDate) : 'today\'s match',
+    card.opponent ? `vs ${card.opponent}` : '',
+  ].filter(Boolean).join(' ')
+  const logistics = [card.matchTime, card.facility].filter(Boolean).join(' at ')
+  return `${names} — please reply Here or On my way for ${match}${logistics ? ` (${logistics})` : ''}. Reply here and I'll update the team.`
 }
 
 function formatMatchDate(value: string) {
