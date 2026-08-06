@@ -9,6 +9,7 @@ describe('profile identity first actions', () => {
     expect(source).toContain('Set profile')
     expect(source).toContain('Start your TIQ')
     expect(source).toContain('Save your name, then add the first verified tennis signal.')
+    expect(source.match(/<div style=\{playerIdPowersHeaderCopyStyle\}>/g)).toHaveLength(4)
     expect(source).toContain('{profileComplete ? (')
   })
 
