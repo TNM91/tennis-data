@@ -36,7 +36,9 @@ describe('Team Room', () => {
       facility: 'North Courts',
       messageId: 'match-card-1',
       court: '4.5 Doubles',
-    })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts&message=match-card-1&court=4.5+Doubles')
+      player: 'Alex Morgan',
+      arrivalAction: 'message',
+    })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts&message=match-card-1&court=4.5+Doubles&player=Alex+Morgan&arrival=message')
   })
 
   it('limits team invitations and announcements to team leaders', () => {
@@ -143,7 +145,7 @@ describe('Team Room', () => {
     expect(siteShell).toContain("appMode || pathname === '/team-room'")
     expect(upliftMigration).toContain('create table if not exists public.team_room_message_reactions')
     expect(upliftMigration).toContain('create table if not exists public.team_room_push_subscriptions')
-    expect(upliftMigration).toContain("'team-room-files',\n  'team-room-files'")
+    expect(upliftMigration.match(/'team-room-files'/g)).toHaveLength(2)
     expect(upliftMigration).toContain('alter publication supabase_realtime add table public.internal_messages')
   })
 })
