@@ -97,6 +97,7 @@ import { buildTeamRoomLateArrivalBuilderHref } from '@/lib/team-room-arrival'
 import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
+  getCaptainPostArrivalAction,
   orderCaptainMobileNowItems,
   shouldShowCaptainMobileTeamSelect,
   type CaptainMobileActionId,
@@ -285,6 +286,8 @@ type CaptainTeamRoomSummary = {
   latestMatchDate: string
   reminderAt: string
   reminderStatus: string
+  arrivalState?: 'late' | 'follow_up' | 'waiting' | 'on_way' | 'ready' | 'empty' | ''
+  matchCompleted?: boolean
   arrivalLate?: {
     playerName: string
     courtLabel: string
@@ -1775,6 +1778,8 @@ function CaptainHubContent() {
     latestMatchDate: '',
     reminderAt: '',
     reminderStatus: '',
+    arrivalState: '',
+    matchCompleted: false,
     arrivalLate: null,
     arrivalFollowUp: null,
     courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] },
@@ -2329,7 +2334,7 @@ function CaptainHubContent() {
     teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalState: '', matchCompleted: false, arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
     const roomHref = buildTeamRoomHref({
@@ -16153,6 +16158,38 @@ function CaptainHubContent() {
     cta: 'Message player',
     tone: 'warn' as const,
   } : null
+  const captainPostArrivalStep = getCaptainPostArrivalAction({
+    matchDate: teamRoomSummary.latestMatchDate || matchWeekDate,
+    todayDate: captainTodayDate,
+    hasFinalLineup: Boolean(captainCourtReadiness?.finalLineup),
+    lineupChangePending: captainOpenLineupChange?.pending === true,
+    arrivalState: teamRoomSummary.arrivalState,
+    matchCompleted: teamRoomSummary.matchCompleted === true,
+    weekClosed: postMatchClosed,
+  })
+  const captainPostArrivalAction = captainPostArrivalStep === 'send_lineup_change' && captainOpenLineupChange
+    ? {
+        id: 'send-lineup-change',
+        label: `Send ${captainOpenLineupChange.courtLabel} change`,
+        state: 'Change ready',
+        detail: `${captainOpenLineupChange.replacementPlayerName} is set. Send the updated court before play continues.`,
+        href: captainLineupChangeCourtHref,
+        stage: 'team-room' as CaptainResumeStage,
+        cta: 'Send lineup change',
+        tone: 'warn' as const,
+      }
+    : captainPostArrivalStep === 'capture_scores'
+      ? {
+          id: 'capture-scores',
+          label: 'Prepare the scorecard',
+          state: 'Next up',
+          detail: 'The lineup is settled. Use the saved courts to capture results as they finish.',
+          href: '#captain-score-capture-checklist',
+          stage: 'analytics' as CaptainResumeStage,
+          cta: 'Capture scores',
+          tone: 'info' as const,
+        }
+      : null
   const captainArrivalFollowUp = teamRoomSummary.arrivalFollowUp ?? null
   const captainArrivalFollowUpHref = captainArrivalFollowUp ? buildTeamRoomHref({
     teamName: selectedTeam,
@@ -16260,27 +16297,31 @@ function CaptainHubContent() {
     },
     {
       id: 'chat',
-      label: captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
+      label: captainPostArrivalStep === 'send_lineup_change'
+        ? 'Send lineup change'
+        : captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
       detail: captainLateArrival
         ? `${captainLateArrival.playerName} · ${captainLateArrival.courtLabel}`
+        : captainPostArrivalStep === 'send_lineup_change' && captainOpenLineupChange
+          ? `${captainOpenLineupChange.replacementPlayerName} · ${captainOpenLineupChange.courtLabel}`
         : captainArrivalFollowUp
         ? `${captainArrivalFollowUp.count} still waiting`
         : teamRoomSummary.unreadCount > 0
         ? `${teamRoomSummary.unreadCount} unread`
         : 'Open team chat',
-      href: captainLateArrivalMessageHref || captainArrivalFollowUpHref || teamRoomHref,
+      href: captainLateArrivalMessageHref || (captainPostArrivalStep === 'send_lineup_change' ? captainLineupChangeCourtHref : '') || captainArrivalFollowUpHref || teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
-      primary: Boolean(captainLateArrival || captainArrivalFollowUp) || teamRoomSummary.unreadCount > 0,
+      primary: Boolean(captainLateArrival || captainPostArrivalStep === 'send_lineup_change' || captainArrivalFollowUp) || teamRoomSummary.unreadCount > 0,
     },
     {
       id: 'scorecard',
-      label: 'Add scorecard',
-      detail: 'Save match results',
-      href: captainScorecardHref,
-      stage: 'team' as CaptainResumeStage,
+      label: captainPostArrivalStep === 'capture_scores' ? 'Capture scores' : 'Add scorecard',
+      detail: captainPostArrivalStep === 'capture_scores' ? 'Lineup settled' : 'Save match results',
+      href: captainPostArrivalStep === 'capture_scores' ? '#captain-score-capture-checklist' : captainScorecardHref,
+      stage: captainPostArrivalStep === 'capture_scores' ? 'analytics' as CaptainResumeStage : 'team' as CaptainResumeStage,
       icon: 'reports' as TiqFeatureIconName,
-      primary: false,
+      primary: captainPostArrivalStep === 'capture_scores',
     },
   ]
   const captainMobileActionLayout = getCaptainMobileActionLayout({
@@ -16312,11 +16353,13 @@ function CaptainHubContent() {
     handleCaptainAction(item.href, item.stage)
   }
 
-  const captainHomePrimaryAction = captainLateArrivalAction || captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
+  const captainHomePrimaryAction = captainLateArrivalAction || captainPostArrivalAction || captainArrivalFollowUpAction || captainCourtPrimaryAction || captainContinueAction || captainHomeShortcutPrimaryItem
   const captainHomePrimaryStatus = captainLateArrivalAction
     ? captainLateArrivalAction.state
-    : captainArrivalFollowUpAction
-      ? captainArrivalFollowUpAction.state
+    : captainPostArrivalAction
+      ? captainPostArrivalAction.state
+      : captainArrivalFollowUpAction
+        ? captainArrivalFollowUpAction.state
     : captainCourtPrimaryAction
       ? captainCourtPrimaryAction.state
     : captainHomePrimaryAction?.id === 'continue-captain-work' ? 'Continue' : captainHomeShortcutStatus
@@ -16446,7 +16489,7 @@ function CaptainHubContent() {
       </div>
     </div>
   ) : null
-  const captainVisibleCourtReadinessCard = captainShowLineupSuccess || captainLateArrival ? null : captainCourtReadinessCard
+  const captainVisibleCourtReadinessCard = captainShowLineupSuccess || captainLateArrival || captainPostArrivalAction ? null : captainCourtReadinessCard
 
   const captainMobileAttention = captainPrimaryTeamImprovement
     ? {
@@ -16703,7 +16746,7 @@ function CaptainHubContent() {
         Open the team job you need. Captain keeps the selected team and week with you.
       </div>
 
-      {captainReplyAlertSurface}
+      {captainPostArrivalStep === 'send_lineup_change' ? null : captainReplyAlertSurface}
 
       {captainLineupConfirmationSurface}
 

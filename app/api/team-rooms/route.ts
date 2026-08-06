@@ -2999,9 +2999,15 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     '',
     latestCard?.metadata?.arrivalOutreach,
   )
+  const matchCompleted = Boolean(cleanText(latestCard?.metadata?.matchCompletedAt))
+  const arrivalState = canManageTeamRoom(teamRoles(selected))
+    && finalLineup
+    && cleanText(latestCard?.metadata?.matchDate) === todayDateKey()
+      ? arrivalPriority.kind
+      : ''
   const arrivalFollowUp = canManageTeamRoom(teamRoles(selected))
     && finalLineup
-    && !cleanText(latestCard?.metadata?.matchCompletedAt)
+    && !matchCompleted
     && cleanText(latestCard?.metadata?.matchDate) === todayDateKey()
     && arrivalPriority.kind === 'follow_up'
       ? {
@@ -3015,7 +3021,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       : null
   const arrivalLate = canManageTeamRoom(teamRoles(selected))
     && finalLineup
-    && !cleanText(latestCard?.metadata?.matchCompletedAt)
+    && !matchCompleted
     && cleanText(latestCard?.metadata?.matchDate) === todayDateKey()
     && arrivalPriority.kind === 'late'
       ? {
@@ -3051,6 +3057,8 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       latestMatchDate: latestCard ? cleanText(latestCard.metadata?.matchDate) : '',
       reminderAt: actionQueue.reminderAt,
       reminderStatus: actionQueue.reminderStatus,
+      arrivalState,
+      matchCompleted,
       arrivalLate,
       arrivalFollowUp,
       courtReadiness: {
