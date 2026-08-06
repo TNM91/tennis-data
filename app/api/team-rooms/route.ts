@@ -59,6 +59,8 @@ import {
   type TeamRoomPlayerName,
 } from '@/lib/team-room-final-result'
 import {
+  buildTeamRoomArrivalCourts,
+  buildTeamRoomArrivalPriority,
   clearTeamRoomArrivalCheckInsForPlayer,
   findTeamRoomAssignedCourt,
   isTeamRoomArrivalStatus,
@@ -2989,6 +2991,28 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     ],
     lineupChange: activeLineupChange,
   })
+  const arrivalPriority = buildTeamRoomArrivalPriority(
+    buildTeamRoomArrivalCourts(
+      activeLineup,
+      readTeamRoomArrivalCheckIns(latestCard?.metadata?.arrivalCheckIns),
+    ),
+    '',
+    latestCard?.metadata?.arrivalOutreach,
+  )
+  const arrivalFollowUp = canManageTeamRoom(teamRoles(selected))
+    && finalLineup
+    && !cleanText(latestCard?.metadata?.matchCompletedAt)
+    && cleanText(latestCard?.metadata?.matchDate) === todayDateKey()
+    && arrivalPriority.kind === 'follow_up'
+      ? {
+          count: arrivalPriority.names.length,
+          names: arrivalPriority.names,
+          playerName: arrivalPriority.playerName,
+          courtLabel: arrivalPriority.courtLabel,
+          detail: arrivalPriority.detail,
+          messageId: message?.id || '',
+        }
+      : null
 
   const activeChallengeResult = await buildActiveTeamChallengeSummary(
     service,
@@ -3015,6 +3039,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       latestMatchDate: latestCard ? cleanText(latestCard.metadata?.matchDate) : '',
       reminderAt: actionQueue.reminderAt,
       reminderStatus: actionQueue.reminderStatus,
+      arrivalFollowUp,
       courtReadiness: {
         messageId: message?.id || '',
         confirmedCount: courtReadiness.filter((court) => court.status === 'confirmed').length,
