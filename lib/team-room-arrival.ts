@@ -86,6 +86,14 @@ export function upsertTeamRoomArrivalCheckIn(
   ].slice(-100)
 }
 
+export function clearTeamRoomArrivalCheckInsForPlayer(value: unknown, playerName: string) {
+  const targetKeys = new Set(personKeys(playerName))
+  if (!targetKeys.size) return readTeamRoomArrivalCheckIns(value)
+  return readTeamRoomArrivalCheckIns(value).filter((checkIn) =>
+    !personKeys(checkIn.playerName).some((key) => targetKeys.has(key)),
+  )
+}
+
 export function buildTeamRoomArrivalCourts(
   lineup: LineupRow[],
   checkIns: TeamRoomArrivalCheckIn[],
