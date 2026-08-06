@@ -1,5 +1,6 @@
 export const TEAM_ROOM_ARRIVAL_STATUSES = ['on_my_way', 'here', 'running_late'] as const
 export const TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY = 'tiq:team-room:arrival-text-return:v1'
+export const TEAM_ROOM_ARRIVAL_FOLLOW_UP_MINUTES = 15
 
 export type TeamRoomArrivalStatus = (typeof TEAM_ROOM_ARRIVAL_STATUSES)[number]
 
@@ -23,7 +24,7 @@ export type TeamRoomArrivalCourt = {
 }
 
 export type TeamRoomArrivalPriority = {
-  kind: 'late' | 'waiting' | 'on_way' | 'ready' | 'empty'
+  kind: 'late' | 'follow_up' | 'waiting' | 'on_way' | 'ready' | 'empty'
   title: string
   detail: string
   names: string[]
@@ -265,6 +266,8 @@ export function findTeamRoomLateArrival(courts: TeamRoomArrivalCourt[], focusedC
 export function buildTeamRoomArrivalPriority(
   courts: TeamRoomArrivalCourt[],
   focusedCourtLabel = '',
+  outreachValue: unknown = [],
+  now = Date.now(),
 ): TeamRoomArrivalPriority {
   const players = courts.flatMap((court) => court.players)
   const late = findTeamRoomLateArrival(courts, focusedCourtLabel)
@@ -276,6 +279,32 @@ export function buildTeamRoomArrivalPriority(
       names: [late.playerName],
       courtLabel: late.courtLabel,
       playerName: late.playerName,
+    }
+  }
+
+  const followUps = courts.flatMap((court) => court.players.flatMap((player) => {
+    if (player.status !== null) return []
+    const outreach = findTeamRoomArrivalOutreach(player.name, outreachValue)
+    if (!outreach) return []
+    const contactedAtMs = new Date(outreach.contactedAt).getTime()
+    const ageMs = now - contactedAtMs
+    if (!Number.isFinite(contactedAtMs) || ageMs < TEAM_ROOM_ARRIVAL_FOLLOW_UP_MINUTES * 60_000) return []
+    return [{
+      playerName: player.name,
+      courtLabel: court.label,
+      contactedAt: outreach.contactedAt,
+      contactedAtMs,
+    }]
+  })).sort((left, right) => left.contactedAtMs - right.contactedAtMs)
+  if (followUps.length) {
+    const first = followUps[0]
+    return {
+      kind: 'follow_up',
+      title: `${followUps.length} still waiting`,
+      detail: `${formatArrivalNames(followUps.map((item) => item.playerName))} · text opened ${formatArrivalElapsed(first.contactedAt, now)}`,
+      names: followUps.map((item) => item.playerName),
+      courtLabel: first.courtLabel,
+      playerName: first.playerName,
     }
   }
 
@@ -376,6 +405,14 @@ function formatArrivalNames(names: string[]) {
   const visible = names.slice(0, 3)
   const remaining = names.length - visible.length
   return `${visible.join(', ')}${remaining > 0 ? ` +${remaining} more` : ''}`
+}
+
+function formatArrivalElapsed(value: string, now: number) {
+  const contactedAt = new Date(value).getTime()
+  const elapsedMinutes = Math.max(0, Math.floor((now - contactedAt) / 60_000))
+  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`
+  const elapsedHours = Math.floor(elapsedMinutes / 60)
+  return `${elapsedHours}h ago`
 }
 
 function clean(value: unknown, maxLength: number) {

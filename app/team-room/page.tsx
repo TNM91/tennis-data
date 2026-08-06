@@ -2074,12 +2074,24 @@ function PublishedLineupPin({
   const arrivalPlayers = arrivalCourts.flatMap((court) => court.players)
   const hereCount = arrivalPlayers.filter((player) => player.status === 'here').length
   const onWayCount = arrivalPlayers.filter((player) => player.status === 'on_my_way').length
-  const arrivalPriority = buildTeamRoomArrivalPriority(arrivalCourts, focusedCourtLabel)
+  const arrivalPriority = buildTeamRoomArrivalPriority(arrivalCourts, focusedCourtLabel, card.arrivalOutreach)
   const lateArrival = arrivalPriority.kind === 'late'
     ? { courtLabel: arrivalPriority.courtLabel, playerName: arrivalPriority.playerName }
     : null
+  const followUpContact = arrivalPriority.kind === 'follow_up'
+    ? findTeamRoomArrivalContact(arrivalPriority.playerName, rosterMembers)
+    : null
   const backupHref = lateArrival ? buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival) : ''
   const focusedLineupHref = lateArrival ? buildTeamRoomLineupCourtHref(lineupHref, lateArrival.courtLabel) : lineupHref
+  function openArrivalPlayer(playerName: string, courtLabel: string) {
+    setEditingArrivalPlayer(`${courtLabel}:${playerName}`)
+    if (arrivalCourtDetailsRef.current) arrivalCourtDetailsRef.current.open = true
+    window.requestAnimationFrame(() => {
+      const player = document.getElementById(buildArrivalPlayerDomId(messageId, courtLabel, playerName))
+      player?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      player?.focus({ preventScroll: true })
+    })
+  }
   useEffect(() => {
     if (!focusedArrivalTextReturn || focusedArrivalTextReturn.messageId !== messageId) return
     const playerKey = `${focusedArrivalTextReturn.courtLabel}:${focusedArrivalTextReturn.playerName}`
@@ -2216,11 +2228,34 @@ function PublishedLineupPin({
           ) : (
             <div className={styles.arrivalPriority} data-status={arrivalPriority.kind} aria-live="polite">
               <div>
-                <span>{arrivalPriority.kind === 'waiting' ? 'Next' : 'Arrival'}</span>
+                <span>{arrivalPriority.kind === 'follow_up' ? 'Needs follow-up' : arrivalPriority.kind === 'waiting' ? 'Next' : 'Arrival'}</span>
                 <strong>{arrivalPriority.title}</strong>
                 <small>{arrivalPriority.detail}</small>
               </div>
-              {canManage && arrivalPriority.kind === 'waiting' ? (
+              {canManage && arrivalPriority.kind === 'follow_up' ? (
+                <div className={styles.arrivalPriorityActions}>
+                  {followUpContact?.phone && followUpContact.joined === false ? (
+                    <button
+                      className={styles.buttonPrimary}
+                      type="button"
+                      onClick={() => onTextArrivalPlayer(
+                        arrivalPriority.playerName,
+                        followUpContact.phone,
+                        arrivalPriority.courtLabel,
+                      )}
+                    >
+                      Text again
+                    </button>
+                  ) : null}
+                  <button
+                    className={styles.buttonSecondary}
+                    type="button"
+                    onClick={() => openArrivalPlayer(arrivalPriority.playerName, arrivalPriority.courtLabel)}
+                  >
+                    Open player
+                  </button>
+                </div>
+              ) : canManage && arrivalPriority.kind === 'waiting' ? (
                 <div className={styles.arrivalPriorityActions}>
                   <button className={styles.buttonPrimary} type="button" onClick={() => onMessageWaitingPlayers(arrivalPriority.names)}>
                     Team Chat
@@ -2300,8 +2335,7 @@ function PublishedLineupPin({
                                 className={styles.arrivalTextButton}
                                 type="button"
                                 onClick={() => {
-                                  if (arrivalCourtDetailsRef.current) arrivalCourtDetailsRef.current.open = true
-                                  setEditingArrivalPlayer(playerKey)
+                                  openArrivalPlayer(player.name, court.label)
                                   onTextArrivalPlayer(player.name, rosterContact.phone, court.label)
                                 }}
                               >

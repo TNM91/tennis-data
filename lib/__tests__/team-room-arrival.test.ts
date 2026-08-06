@@ -226,6 +226,26 @@ describe('Team Room arrival check-ins', () => {
       title: '3 need to check in',
     })
 
+    const now = new Date('2026-08-06T03:00:00.000Z').getTime()
+    expect(buildTeamRoomArrivalPriority(waitingCourts, '', [{
+      playerName: 'Jordan Lee',
+      courtLabel: '3.5 Doubles',
+      contactedAt: '2026-08-06T02:45:01.000Z',
+      contactedByUserId: 'captain-1',
+    }], now).kind).toBe('waiting')
+    expect(buildTeamRoomArrivalPriority(waitingCourts, '', [{
+      playerName: 'Lee, Jordan',
+      courtLabel: '3.5 Doubles',
+      contactedAt: '2026-08-06T02:40:00.000Z',
+      contactedByUserId: 'captain-1',
+    }], now)).toMatchObject({
+      kind: 'follow_up',
+      title: '1 still waiting',
+      detail: 'Jordan Lee · text opened 20m ago',
+      playerName: 'Jordan Lee',
+      courtLabel: '3.5 Doubles',
+    })
+
     const onWayCourts = buildTeamRoomArrivalCourts([lineup[0]], [
       {
         profileId: 'player-1',

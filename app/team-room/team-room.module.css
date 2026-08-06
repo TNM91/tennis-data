@@ -362,6 +362,15 @@
   background: rgba(120, 53, 15, 0.16);
 }
 
+.arrivalPriority[data-status='follow_up'] {
+  border-color: rgba(251, 113, 133, 0.5);
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.arrivalPriority[data-status='follow_up'] span {
+  color: #fda4af;
+}
+
 .arrivalPriority[data-status='ready'] {
   border-color: color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border));
   background: color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg));
