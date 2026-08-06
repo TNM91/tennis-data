@@ -10,6 +10,7 @@ describe('launch announcement packet', () => {
     const launchSummary = readFileSync(join(process.cwd(), 'docs/launch-readiness-summary-2026-06-29.md'), 'utf8')
     const statusScript = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
     const packetScript = readFileSync(join(process.cwd(), 'scripts/launch-announcement-packet.mjs'), 'utf8')
+    const freeFirstKit = readFileSync(join(process.cwd(), 'docs/free-first-launch-kit.md'), 'utf8')
 
     expect(packageJson).toContain('"qa:announcement": "node scripts/launch-announcement-packet.mjs"')
     expect(statusScript).toContain('qa:announcement')
@@ -29,12 +30,21 @@ describe('launch announcement packet', () => {
       'captain',
       'league',
       'full_court',
+      "launchMode: paidLaunch ? 'paid-launch' : 'free-first'",
+      'Paid Player, Coach, Captain, League, and Full-Court tools are opening soon',
+      'Use public/free screenshots now.',
+      'npm run qa:fixture-auth-smoke -- all',
     ]) {
       expect(packetScript).toContain(expected)
     }
 
     expect(packetScript).toContain('Do not imply direct USTA API dependence')
-    expect(packetScript).toContain('Stripe paid-upgrade language')
+    expect(packetScript).toContain('Say paid tools are opening soon and invite early access.')
+    expect(packetScript).toContain("process.argv.includes('--paid')")
+    expect(freeFirstKit).toContain('Explore free')
+    expect(freeFirstKit).toContain('Join early access')
+    expect(freeFirstKit).toContain('Do not say paid plans are available while checkout is paused.')
+    expect(freeFirstKit).toContain('Never use a real customer account')
     expect(packetScript).not.toContain('STRIPE_SECRET_KEY')
     expect(packetScript).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
     expect(packetScript).not.toContain('process.env.VERCEL_TOKEN')
