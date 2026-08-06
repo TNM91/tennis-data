@@ -3,6 +3,7 @@ import {
   getCaptainLocalDateKey,
   getCaptainMobileActionLayout,
   getCaptainMobileMatchPhase,
+  getCaptainPostArrivalAction,
   orderCaptainMobileNowItems,
   shouldShowCaptainMobileTeamSelect,
 } from '../captain-mobile-actions'
@@ -73,6 +74,44 @@ describe('Captain mobile action priority', () => {
       visible: ['scorecard', 'chat'],
       overflow: ['availability', 'lineup'],
     })
+  })
+
+  it('moves from a saved replacement to score capture without another dashboard step', () => {
+    const base = {
+      matchDate: '2026-08-04',
+      todayDate: '2026-08-04',
+      hasFinalLineup: true,
+      matchCompleted: false,
+      weekClosed: false,
+    }
+
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: true,
+      arrivalState: 'waiting',
+    })).toBe('send_lineup_change')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'ready',
+    })).toBe('capture_scores')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'waiting',
+    })).toBeNull()
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'waiting',
+      matchCompleted: true,
+    })).toBe('capture_scores')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'ready',
+      weekClosed: true,
+    })).toBeNull()
   })
 
   it('keeps only the most urgent Captain notice open', () => {

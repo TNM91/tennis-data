@@ -2,6 +2,18 @@ export type CaptainMobileActionId = 'availability' | 'lineup' | 'chat' | 'scorec
 
 export type CaptainMobileMatchPhase = 'setup' | 'upcoming' | 'match_day' | 'past'
 
+export type CaptainPostArrivalAction = 'send_lineup_change' | 'capture_scores' | null
+
+type CaptainPostArrivalActionInput = {
+  matchDate?: string | null
+  todayDate?: string | null
+  hasFinalLineup: boolean
+  lineupChangePending: boolean
+  arrivalState?: 'late' | 'follow_up' | 'waiting' | 'on_way' | 'ready' | 'empty' | '' | null
+  matchCompleted: boolean
+  weekClosed: boolean
+}
+
 export type CaptainMobileNowItemId =
   | 'reply-focus'
   | 'lineup-locked'
@@ -48,6 +60,15 @@ export function getCaptainMobileMatchPhase(matchDate?: string | null, todayDate?
   if (!/^\d{4}-\d{2}-\d{2}$/.test(matchDateKey) || !/^\d{4}-\d{2}-\d{2}$/.test(todayDateKey)) return 'setup'
   if (matchDateKey === todayDateKey) return 'match_day'
   return matchDateKey < todayDateKey ? 'past' : 'upcoming'
+}
+
+export function getCaptainPostArrivalAction(input: CaptainPostArrivalActionInput): CaptainPostArrivalAction {
+  if (input.lineupChangePending) return 'send_lineup_change'
+  if (!input.hasFinalLineup || input.weekClosed) return null
+
+  const phase = getCaptainMobileMatchPhase(input.matchDate, input.todayDate)
+  if (phase !== 'match_day' && phase !== 'past') return null
+  return input.matchCompleted || input.arrivalState === 'ready' ? 'capture_scores' : null
 }
 
 export function getCaptainMobileActionLayout(input: CaptainMobileActionLayoutInput): {

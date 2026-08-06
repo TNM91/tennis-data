@@ -163,6 +163,8 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('arrivalFollowUp,')
     expect(roomApi).toContain('arrivalLate,')
     expect(roomApi).toContain("arrivalPriority.kind === 'late'")
+    expect(roomApi).toContain('arrivalState,')
+    expect(roomApi).toContain('matchCompleted,')
     expect(roomApi).toContain("cleanText(latestCard?.metadata?.matchDate) === todayDateKey()")
   })
 
