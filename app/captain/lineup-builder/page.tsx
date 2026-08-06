@@ -1052,6 +1052,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
       replacementPlayer: '',
       replacementPlayerId: '',
       replacementCourt: '',
+      mode: '',
       source: '',
       availabilityOnly: false,
     }
@@ -1076,6 +1077,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     replacementPlayer: params.get('replacement') || '',
     replacementPlayerId: params.get('replacementId') || '',
     replacementCourt: params.get('court') || '',
+    mode: params.get('mode') || '',
     source: params.get('source') || '',
     availabilityOnly: params.get('source') === 'team_room' && params.get('availability') === 'replies',
   }
@@ -1154,6 +1156,12 @@ function LineupBuilderContent() {
       initialContext.replacementPlayerId,
     ]
   )
+  const backupHandoff = useMemo(
+    () => initialContext.mode === 'backup' && initialContext.replacePlayer && initialContext.replacementCourt
+      ? { playerName: initialContext.replacePlayer, courtLabel: initialContext.replacementCourt }
+      : null,
+    [initialContext.mode, initialContext.replacePlayer, initialContext.replacementCourt],
+  )
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
     buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
   )
@@ -1172,6 +1180,7 @@ function LineupBuilderContent() {
   const [prefillApplied, setPrefillApplied] = useState(false)
   const [scopedResumeResolved, setScopedResumeResolved] = useState(false)
   const scopedResumeAppliedRef = useRef(false)
+  const backupFocusHandledRef = useRef(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1200,6 +1209,11 @@ function LineupBuilderContent() {
     () => getCaptainLineupFormatKey(leagueName, flight, effectiveMatchFormatId),
     [effectiveMatchFormatId, flight, leagueName]
   )
+  const backupFocusSlot = useMemo(() => {
+    if (!backupHandoff) return null
+    const courtKey = normalizeTeamName(backupHandoff.courtLabel)
+    return teamSlots.find((slot) => normalizeTeamName(slot.label) === courtKey) || null
+  }, [backupHandoff, teamSlots])
 
   useEffect(() => {
     if (lineupFormatKey === activeLineupFormatKey) return
@@ -1215,6 +1229,17 @@ function LineupBuilderContent() {
 
     setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
   }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
+
+  useEffect(() => {
+    if (loading || !backupFocusSlot || backupFocusHandledRef.current) return
+    backupFocusHandledRef.current = true
+    window.requestAnimationFrame(() => {
+      document.getElementById(`captain-lineup-slot-${backupFocusSlot.id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+  }, [backupFocusSlot, loading])
 
   useEffect(() => {
     if (!appliedLineupNotice) return
@@ -3581,6 +3606,16 @@ function LineupBuilderContent() {
             </details>
 
             <section id="captain-lineup-courts" style={surfaceCardStrong}>
+              {backupHandoff ? (
+                <div id="captain-backup-handoff" style={backupHandoffStyle} role="status">
+                  <div>
+                    <p style={sectionKicker}>Match-day backup</p>
+                    <strong>Prepare backup for {backupHandoff.playerName}</strong>
+                    <span>{backupHandoff.courtLabel} is highlighted. Available players are already filtered.</span>
+                  </div>
+                  <span style={miniPillWarnStyle}>Running late</span>
+                </div>
+              ) : null}
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Your lineup</p>
@@ -3631,6 +3666,7 @@ function LineupBuilderContent() {
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
                     fixedFormat={isFixedLineupFormat}
+                    focused={backupFocusSlot?.id === slot.id}
                   />
                 ))}
               </div>
@@ -4190,6 +4226,7 @@ function SlotEditor({
   lockedSlotIds,
   lockedPlayerIds,
   fixedFormat,
+  focused = false,
 }: {
   side: 'team' | 'opponent'
   slot: LineupSlot
@@ -4203,13 +4240,18 @@ function SlotEditor({
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
   fixedFormat: boolean
+  focused?: boolean
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
     isPlayerEligibleForSlot(player, slot) || slot.players.some((selected) => selected.playerId === player.id)
   )
 
   return (
-    <div id={`captain-lineup-slot-${slot.id}`} style={slotCardStyle}>
+    <div
+      id={`captain-lineup-slot-${slot.id}`}
+      style={focused ? { ...slotCardStyle, ...focusedSlotCardStyle } : slotCardStyle}
+      tabIndex={focused ? -1 : undefined}
+    >
       <div style={slotHeaderStyle}>
         <div style={slotHeaderLeftStyle}>
           {fixedFormat ? (
@@ -4822,6 +4864,28 @@ const slotCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   padding: 16,
   minWidth: 0,
+}
+
+const focusedSlotCardStyle: CSSProperties = {
+  border: '2px solid color-mix(in srgb, var(--brand-green) 72%, var(--shell-panel-border))',
+  boxShadow: '0 0 0 4px color-mix(in srgb, var(--brand-green) 12%, transparent)',
+}
+
+const backupHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 12,
+  alignItems: 'center',
+  marginBottom: 14,
+  border: '1px solid rgba(251, 191, 36, 0.34)',
+  borderRadius: 14,
+  background: 'rgba(120, 53, 15, 0.2)',
+  padding: 12,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const slotHeaderStyle: CSSProperties = {

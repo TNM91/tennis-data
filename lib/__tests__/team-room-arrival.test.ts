@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildTeamRoomArrivalCourts,
+  buildTeamRoomLateArrivalBuilderHref,
+  buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
+  findTeamRoomLateArrival,
   readTeamRoomArrivalCheckIns,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
@@ -53,5 +56,15 @@ describe('Team Room arrival check-ins', () => {
     expect(courts[0]?.label).toBe('4.0 Doubles')
     expect(courts[0]?.players[0]?.status).toBe('running_late')
     expect(teamRoomArrivalStatusLabel(courts[0]?.players[1]?.status || null)).toBe('Waiting')
+    expect(findTeamRoomLateArrival(courts, '4.0 Doubles')).toEqual({
+      courtLabel: '4.0 Doubles',
+      playerName: 'Taylor Smith',
+    })
+    expect(buildTeamRoomLateArrivalBuilderHref('/captain/lineup-builder?team=Aces', {
+      courtLabel: '4.0 Doubles',
+      playerName: 'Taylor Smith',
+    })).toBe('/captain/lineup-builder?team=Aces&source=team_room&availability=replies&mode=backup&replace=Taylor+Smith&court=4.0+Doubles#captain-lineup-courts')
+    expect(buildTeamRoomLineupCourtHref('/captain/lineup-builder?team=Aces', '4.0 Doubles'))
+      .toBe('/captain/lineup-builder?team=Aces&source=team_room&court=4.0+Doubles#captain-lineup-courts')
   })
 })

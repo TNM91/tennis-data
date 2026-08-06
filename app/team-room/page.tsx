@@ -36,7 +36,10 @@ import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import {
   buildTeamRoomArrivalCourts,
+  buildTeamRoomLateArrivalBuilderHref,
+  buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
+  findTeamRoomLateArrival,
   teamRoomArrivalStatusLabel,
   type TeamRoomArrivalCheckIn,
   type TeamRoomArrivalStatus,
@@ -1480,11 +1483,13 @@ function TeamRoomContent() {
               currentUserId=""
               currentUserNames={[]}
               savingArrivalStatus=""
+              focusedCourtLabel=""
               defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
               onRemind={() => undefined}
               onCompleteMatch={() => undefined}
               onArrivalStatus={() => undefined}
+              onMessageLatePlayer={() => undefined}
             />
           </div>
         ) : null}
@@ -1515,10 +1520,18 @@ function TeamRoomContent() {
                 .filter((member) => member.id === userId)
                 .flatMap((member) => [member.playerName, member.name])}
               savingArrivalStatus={savingArrivalStatus}
+              focusedCourtLabel={focusedCourtLabel}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
               onCompleteMatch={() => currentFinalLineup && void completeMatchDay(currentFinalLineup.announcementMessageId)}
               onArrivalStatus={(status) => void saveArrivalStatus(activeMatchMessage.id, status)}
+              onMessageLatePlayer={(playerName, courtLabel) => {
+                setMessageBody(`${playerName} — are you still able to make ${courtLabel}? Please share your ETA.`)
+                window.requestAnimationFrame(() => {
+                  composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  composerRef.current?.focus()
+                })
+              }}
             />
           </div>
         ) : null}
@@ -1812,11 +1825,13 @@ function PublishedLineupPin({
   currentUserId,
   currentUserNames,
   savingArrivalStatus,
+  focusedCourtLabel,
   defaultOpen,
   onSeen,
   onRemind,
   onCompleteMatch,
   onArrivalStatus,
+  onMessageLatePlayer,
 }: {
   card: TeamRoomMatchCard
   receipt: TeamRoomFinalLineupReceipt | null
@@ -1833,11 +1848,13 @@ function PublishedLineupPin({
   currentUserId: string
   currentUserNames: string[]
   savingArrivalStatus: TeamRoomArrivalStatus | ''
+  focusedCourtLabel: string
   defaultOpen?: boolean
   onSeen: () => void
   onRemind: () => void
   onCompleteMatch: () => void
   onArrivalStatus: (status: TeamRoomArrivalStatus) => void
+  onMessageLatePlayer: (playerName: string, courtLabel: string) => void
 }) {
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
@@ -1860,6 +1877,9 @@ function PublishedLineupPin({
   const onWayCount = arrivalPlayers.filter((player) => player.status === 'on_my_way').length
   const lateCount = arrivalPlayers.filter((player) => player.status === 'running_late').length
   const waitingCount = arrivalPlayers.filter((player) => player.status === null).length
+  const lateArrival = findTeamRoomLateArrival(arrivalCourts, focusedCourtLabel)
+  const backupHref = lateArrival ? buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival) : ''
+  const focusedLineupHref = lateArrival ? buildTeamRoomLineupCourtHref(lineupHref, lateArrival.courtLabel) : lineupHref
   return (
     <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result || receipt)}>
       <summary>
@@ -1964,6 +1984,21 @@ function PublishedLineupPin({
             </div>
             {lateCount ? <em>Check</em> : <em>{hereCount}/{arrivalPlayers.length}</em>}
           </div>
+          {canManage && lateArrival ? (
+            <div className={styles.lateArrivalActions} role="alert">
+              <div>
+                <strong>{lateArrival.playerName} is running late</strong>
+                <span>{lateArrival.courtLabel} needs the next call.</span>
+              </div>
+              <div>
+                <button className={styles.buttonPrimary} type="button" onClick={() => onMessageLatePlayer(lateArrival.playerName, lateArrival.courtLabel)}>
+                  Message player
+                </button>
+                <Link className={styles.buttonSecondary} href={backupHref}>Prepare backup</Link>
+                <Link className={styles.buttonSecondary} href={focusedLineupHref}>Update lineup</Link>
+              </div>
+            </div>
+          ) : null}
           {assignedCourt ? (
             <div className={styles.arrivalCheckIn}>
               <span>Your status · {assignedCourt.courtLabel}</span>
@@ -1989,7 +2024,10 @@ function PublishedLineupPin({
           ) : null}
           <div className={styles.arrivalCourtGrid}>
             {arrivalCourts.map((court) => (
-              <article key={court.label} className={styles.arrivalCourt}>
+              <article
+                key={court.label}
+                className={`${styles.arrivalCourt} ${lateArrival?.courtLabel === court.label ? styles.arrivalCourtFocused : ''}`}
+              >
                 <strong>{court.label}</strong>
                 {court.players.map((player) => (
                   <div key={player.name}>

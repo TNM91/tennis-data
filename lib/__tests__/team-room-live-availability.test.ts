@@ -273,6 +273,27 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain("[data-status='running_late']")
   })
 
+  it('opens a late-arrival alert on the exact court with three captain actions', () => {
+    const roomApi = readSource('app/api/team-rooms/route.ts')
+    const roomPage = readSource('app/team-room/page.tsx')
+    const roomStyles = readSource('app/team-room/team-room.module.css')
+    const lineupBuilder = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(roomApi).toContain('hrefUrl.hash = `match-plan-${encodeURIComponent(input.messageId)}`')
+    expect(roomPage).toContain('findTeamRoomLateArrival(arrivalCourts, focusedCourtLabel)')
+    expect(roomPage).toContain('buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival)')
+    expect(roomPage).toContain('Message player')
+    expect(roomPage).toContain('Prepare backup')
+    expect(roomPage).toContain('Update lineup')
+    expect(roomPage).toContain('Please share your ETA.')
+    expect(roomStyles).toContain('.lateArrivalActions')
+    expect(roomStyles).toContain('.arrivalCourtFocused')
+    expect(lineupBuilder).toContain("initialContext.mode === 'backup'")
+    expect(lineupBuilder).toContain('Available players are already filtered.')
+    expect(lineupBuilder).toContain('document.getElementById(`captain-lineup-slot-${backupFocusSlot.id}`)?.scrollIntoView')
+    expect(lineupBuilder).toContain('focused={backupFocusSlot?.id === slot.id}')
+  })
+
   it('replaces scorecard entry with the linked final result', () => {
     const roomApi = readSource('app/api/team-rooms/route.ts')
     const roomPage = readSource('app/team-room/page.tsx')
