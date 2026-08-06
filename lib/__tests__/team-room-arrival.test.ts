@@ -11,6 +11,7 @@ import {
   findTeamRoomLateArrival,
   keepTeamRoomArrivalCheckInsForLineup,
   readTeamRoomArrivalCheckIns,
+  readTeamRoomArrivalTextReturn,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
 } from '../team-room-arrival'
@@ -106,6 +107,21 @@ describe('Team Room arrival check-ins', () => {
     expect(buildTeamRoomArrivalSmsHref('(312) 555-0100', 'Reply Here'))
       .toBe('sms:3125550100?body=Reply%20Here')
     expect(buildTeamRoomArrivalSmsHref('missing', 'Reply Here')).toBe('')
+  })
+
+  it('restores only fresh, complete SMS return context', () => {
+    const now = new Date('2026-08-06T03:00:00.000Z').getTime()
+    const context = {
+      roomId: 'room-1',
+      messageId: 'match-1',
+      playerName: 'Jordan Lee',
+      courtLabel: '3.5 Doubles',
+      createdAt: '2026-08-06T02:30:00.000Z',
+    }
+    expect(readTeamRoomArrivalTextReturn(JSON.stringify(context), now)).toEqual(context)
+    expect(readTeamRoomArrivalTextReturn(JSON.stringify({ ...context, createdAt: '2026-08-05T23:30:00.000Z' }), now)).toBeNull()
+    expect(readTeamRoomArrivalTextReturn('{bad json', now)).toBeNull()
+    expect(readTeamRoomArrivalTextReturn({ ...context, playerName: '' }, now)).toBeNull()
   })
 
   it('puts late courts first and gives every player a plain status', () => {

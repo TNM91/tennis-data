@@ -586,6 +586,12 @@
   min-width: 0;
 }
 
+.arrivalPlayerRow:focus {
+  border-radius: 9px;
+  outline: 2px solid color-mix(in srgb, var(--brand-green) 62%, transparent);
+  outline-offset: 4px;
+}
+
 .arrivalPlayerIdentity {
   display: grid;
   gap: 1px;

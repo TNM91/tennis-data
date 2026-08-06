@@ -42,9 +42,12 @@ import {
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
   findTeamRoomArrivalContact,
+  readTeamRoomArrivalTextReturn,
+  TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY,
   teamRoomArrivalStatusLabel,
   type TeamRoomArrivalCheckIn,
   type TeamRoomArrivalStatus,
+  type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
 import styles from './team-room.module.css'
@@ -331,6 +334,7 @@ function TeamRoomContent() {
   const [completingMatchDay, setCompletingMatchDay] = useState(false)
   const [savingArrivalStatus, setSavingArrivalStatus] = useState<TeamRoomArrivalStatus | ''>('')
   const [savingManagedArrival, setSavingManagedArrival] = useState('')
+  const [arrivalTextReturn, setArrivalTextReturn] = useState<TeamRoomArrivalTextReturn | null>(null)
   const [localDateKey, setLocalDateKey] = useState('')
   const [remindingChallengeId, setRemindingChallengeId] = useState('')
   const [closingChallengeId, setClosingChallengeId] = useState('')
@@ -665,6 +669,30 @@ function TeamRoomContent() {
       notifyPlatformResumeUpdated('team-chat')
     }
   }, [draftLoadedRoomId, messageBody, room?.id])
+
+  useEffect(() => {
+    const restoreArrivalText = () => {
+      try {
+        const stored = window.sessionStorage.getItem(TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY)
+        const context = readTeamRoomArrivalTextReturn(stored)
+        if (!context) {
+          if (stored) window.sessionStorage.removeItem(TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY)
+          setArrivalTextReturn(null)
+          return
+        }
+        setArrivalTextReturn(context)
+      } catch {
+        setArrivalTextReturn(null)
+      }
+    }
+    restoreArrivalText()
+    window.addEventListener('pageshow', restoreArrivalText)
+    window.addEventListener('focus', restoreArrivalText)
+    return () => {
+      window.removeEventListener('pageshow', restoreArrivalText)
+      window.removeEventListener('focus', restoreArrivalText)
+    }
+  }, [])
 
   useEffect(() => {
     if (!showMembers) return
@@ -1056,7 +1084,13 @@ function TeamRoomContent() {
     setNotice('Arrival check-in ready to send by text or another app.')
   }
 
-  function textArrivalPlayer(playerName: string, phone: string, card: TeamRoomMatchCard) {
+  function textArrivalPlayer(
+    messageId: string,
+    playerName: string,
+    phone: string,
+    courtLabel: string,
+    card: TeamRoomMatchCard,
+  ) {
     const href = buildTeamRoomArrivalSmsHref(
       phone,
       buildArrivalReplyText([playerName], card),
@@ -1066,8 +1100,29 @@ function TeamRoomContent() {
       setError(`${playerName}'s roster phone number is not ready to text.`)
       return
     }
+    try {
+      window.sessionStorage.setItem(TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY, JSON.stringify({
+        roomId: room?.id || '',
+        messageId,
+        playerName,
+        courtLabel,
+        createdAt: new Date().toISOString(),
+      }))
+    } catch {
+      // The SMS handoff still works when private browsing blocks session storage.
+    }
     setNotice(`Text ready for ${playerName}. Their reply can be marked here.`)
     window.location.href = href
+  }
+
+  function finishArrivalTextReturn(playerName: string) {
+    try {
+      window.sessionStorage.removeItem(TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY)
+    } catch {
+      // The restored controls are still usable when storage is unavailable.
+    }
+    setArrivalTextReturn(null)
+    setNotice(`${playerName} is ready to update. Mark their reply below.`)
   }
 
   async function remindFinalLineupUnseen(messageId: string) {
@@ -1554,6 +1609,7 @@ function TeamRoomContent() {
               savingArrivalStatus=""
               savingManagedArrival=""
               rosterMembers={[]}
+              focusedArrivalTextReturn={null}
               focusedCourtLabel=""
               defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
@@ -1565,6 +1621,7 @@ function TeamRoomContent() {
               onShareWaitingPlayers={() => undefined}
               onManageArrivalStatus={() => undefined}
               onTextArrivalPlayer={() => undefined}
+              onArrivalTextReturnRestored={() => undefined}
             />
           </div>
         ) : null}
@@ -1598,6 +1655,10 @@ function TeamRoomContent() {
               savingArrivalStatus={savingArrivalStatus}
               savingManagedArrival={savingManagedArrival}
               rosterMembers={room.rosterMembers}
+              focusedArrivalTextReturn={arrivalTextReturn?.roomId === room.id
+                && arrivalTextReturn.messageId === activeMatchMessage.id
+                ? arrivalTextReturn
+                : null}
               focusedCourtLabel={focusedCourtLabel}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
@@ -1621,7 +1682,14 @@ function TeamRoomContent() {
               }}
               onShareWaitingPlayers={(playerNames) => void shareArrivalCheckIn(playerNames, activeMatchMessage.card!)}
               onManageArrivalStatus={(playerName, status) => void saveManagedArrivalStatus(activeMatchMessage.id, playerName, status)}
-              onTextArrivalPlayer={(playerName, phone) => textArrivalPlayer(playerName, phone, activeMatchMessage.card!)}
+              onTextArrivalPlayer={(playerName, phone, courtLabel) => textArrivalPlayer(
+                activeMatchMessage.id,
+                playerName,
+                phone,
+                courtLabel,
+                activeMatchMessage.card!,
+              )}
+              onArrivalTextReturnRestored={finishArrivalTextReturn}
             />
           </div>
         ) : null}
@@ -1918,6 +1986,7 @@ function PublishedLineupPin({
   savingArrivalStatus,
   savingManagedArrival,
   rosterMembers,
+  focusedArrivalTextReturn,
   focusedCourtLabel,
   defaultOpen,
   onSeen,
@@ -1929,6 +1998,7 @@ function PublishedLineupPin({
   onShareWaitingPlayers,
   onManageArrivalStatus,
   onTextArrivalPlayer,
+  onArrivalTextReturnRestored,
 }: {
   messageId: string
   card: TeamRoomMatchCard
@@ -1948,6 +2018,7 @@ function PublishedLineupPin({
   savingArrivalStatus: TeamRoomArrivalStatus | ''
   savingManagedArrival: string
   rosterMembers: TeamRoomRosterMember[]
+  focusedArrivalTextReturn: TeamRoomArrivalTextReturn | null
   focusedCourtLabel: string
   defaultOpen?: boolean
   onSeen: () => void
@@ -1958,9 +2029,11 @@ function PublishedLineupPin({
   onMessageWaitingPlayers: (playerNames: string[]) => void
   onShareWaitingPlayers: (playerNames: string[]) => void
   onManageArrivalStatus: (playerName: string, status: TeamRoomManagedArrivalStatus) => void
-  onTextArrivalPlayer: (playerName: string, phone: string) => void
+  onTextArrivalPlayer: (playerName: string, phone: string, courtLabel: string) => void
+  onArrivalTextReturnRestored: (playerName: string) => void
 }) {
   const [editingArrivalPlayer, setEditingArrivalPlayer] = useState('')
+  const arrivalCourtDetailsRef = useRef<HTMLDetailsElement>(null)
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
     card.opponent ? `vs ${card.opponent}` : '',
@@ -1986,6 +2059,23 @@ function PublishedLineupPin({
     : null
   const backupHref = lateArrival ? buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival) : ''
   const focusedLineupHref = lateArrival ? buildTeamRoomLineupCourtHref(lineupHref, lateArrival.courtLabel) : lineupHref
+  useEffect(() => {
+    if (!focusedArrivalTextReturn || focusedArrivalTextReturn.messageId !== messageId) return
+    const playerKey = `${focusedArrivalTextReturn.courtLabel}:${focusedArrivalTextReturn.playerName}`
+    const frame = window.requestAnimationFrame(() => {
+      setEditingArrivalPlayer(playerKey)
+      if (arrivalCourtDetailsRef.current) arrivalCourtDetailsRef.current.open = true
+      const player = document.getElementById(buildArrivalPlayerDomId(
+        messageId,
+        focusedArrivalTextReturn.courtLabel,
+        focusedArrivalTextReturn.playerName,
+      ))
+      player?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      player?.focus({ preventScroll: true })
+      onArrivalTextReturnRestored(focusedArrivalTextReturn.playerName)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focusedArrivalTextReturn, messageId, onArrivalTextReturnRestored])
   return (
     <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result || receipt)}>
       <summary>
@@ -2144,7 +2234,7 @@ function PublishedLineupPin({
               </div>
             </div>
           ) : null}
-          <details className={styles.arrivalCourtDetails}>
+          <details className={styles.arrivalCourtDetails} ref={arrivalCourtDetailsRef}>
             <summary>
               <span>Court arrivals</span>
               <em>{hereCount} here · {onWayCount} on my way</em>
@@ -2165,7 +2255,12 @@ function PublishedLineupPin({
                       && Boolean(rosterContact?.phone)
                       && rosterContact?.joined === false
                     return (
-                      <div className={styles.arrivalPlayerRow} key={player.name}>
+                      <div
+                        id={buildArrivalPlayerDomId(messageId, court.label, player.name)}
+                        className={styles.arrivalPlayerRow}
+                        key={player.name}
+                        tabIndex={-1}
+                      >
                         <span className={styles.arrivalPlayerIdentity}>
                           <strong>{player.name}</strong>
                           {player.updatedAt ? (
@@ -2180,7 +2275,11 @@ function PublishedLineupPin({
                               <button
                                 className={styles.arrivalTextButton}
                                 type="button"
-                                onClick={() => onTextArrivalPlayer(player.name, rosterContact.phone)}
+                                onClick={() => {
+                                  if (arrivalCourtDetailsRef.current) arrivalCourtDetailsRef.current.open = true
+                                  setEditingArrivalPlayer(playerKey)
+                                  onTextArrivalPlayer(player.name, rosterContact.phone, court.label)
+                                }}
                               >
                                 Text
                               </button>
@@ -3289,6 +3388,10 @@ function buildArrivalReplyText(playerNames: string[], card: TeamRoomMatchCard) {
   ].filter(Boolean).join(' ')
   const logistics = [card.matchTime, card.facility].filter(Boolean).join(' at ')
   return `${names} — please reply Here or On my way for ${match}${logistics ? ` (${logistics})` : ''}. Reply here and I'll update the team.`
+}
+
+function buildArrivalPlayerDomId(messageId: string, courtLabel: string, playerName: string) {
+  return `team-room-arrival-player-${encodeURIComponent(messageId)}-${encodeURIComponent(courtLabel)}-${encodeURIComponent(playerName)}`
 }
 
 function formatMatchDate(value: string) {
