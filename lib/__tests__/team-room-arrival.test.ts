@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildTeamRoomArrivalCourts,
+  buildTeamRoomArrivalPriority,
   buildTeamRoomLateArrivalBuilderHref,
   buildTeamRoomLineupCourtHref,
   findTeamRoomAssignedCourt,
@@ -92,5 +93,55 @@ describe('Team Room arrival check-ins', () => {
     ]
 
     expect(keepTeamRoomArrivalCheckInsForLineup(changedLineup, checkIns)).toEqual([checkIns[0]])
+  })
+
+  it('prioritizes late, waiting, traveling, and ready states in that order', () => {
+    const lateCourts = buildTeamRoomArrivalCourts(lineup, [{
+      profileId: 'player-3',
+      playerName: 'Taylor Smith',
+      courtLabel: '4.0 Doubles',
+      status: 'running_late',
+      updatedAt: '2026-08-05T22:10:00.000Z',
+    }])
+    expect(buildTeamRoomArrivalPriority(lateCourts).kind).toBe('late')
+
+    const waitingCourts = buildTeamRoomArrivalCourts(lineup, [{
+      profileId: 'player-1',
+      playerName: 'Alex Morgan',
+      courtLabel: '3.5 Doubles',
+      status: 'here',
+      updatedAt: '2026-08-05T22:10:00.000Z',
+    }])
+    expect(buildTeamRoomArrivalPriority(waitingCourts)).toMatchObject({
+      kind: 'waiting',
+      title: '3 need to check in',
+    })
+
+    const onWayCourts = buildTeamRoomArrivalCourts([lineup[0]], [
+      {
+        profileId: 'player-1',
+        playerName: 'Alex Morgan',
+        courtLabel: '3.5 Doubles',
+        status: 'here',
+        updatedAt: '2026-08-05T22:10:00.000Z',
+      },
+      {
+        profileId: 'player-2',
+        playerName: 'Jordan Lee',
+        courtLabel: '3.5 Doubles',
+        status: 'on_my_way',
+        updatedAt: '2026-08-05T22:10:00.000Z',
+      },
+    ])
+    expect(buildTeamRoomArrivalPriority(onWayCourts).kind).toBe('on_way')
+
+    const readyCourts = buildTeamRoomArrivalCourts([lineup[0]], onWayCourts[0].players.map((player, index) => ({
+      profileId: `ready-${index}`,
+      playerName: player.name,
+      courtLabel: '3.5 Doubles',
+      status: 'here' as const,
+      updatedAt: '2026-08-05T22:12:00.000Z',
+    })))
+    expect(buildTeamRoomArrivalPriority(readyCourts).title).toBe('Team is here')
   })
 })
