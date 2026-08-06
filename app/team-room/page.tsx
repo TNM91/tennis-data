@@ -902,6 +902,15 @@ function TeamRoomContent() {
           : 'You’re confirmed for this court. The captain has been updated.'
         : 'The captain knows you can’t play and can choose another player.')
       await loadRoom({ quiet: true })
+      if (response === 'accepted') {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          const arrival = document.getElementById(`team-room-arrival-${messageId}`)
+          if (!arrival) return
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          arrival.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+          arrival.focus({ preventScroll: true })
+        }))
+      }
     } catch (responseError) {
       setError(responseError instanceof Error ? responseError.message : 'Your lineup answer could not be saved.')
     } finally {
@@ -1468,6 +1477,7 @@ function TeamRoomContent() {
             tabIndex={focusedFinalResult ? -1 : undefined}
           >
             <PublishedLineupPin
+              messageId={finalResultMessage.id}
               card={finalResultMessage.card}
               receipt={finalResultMessage.card.finalLineup}
               review={null}
@@ -1503,6 +1513,7 @@ function TeamRoomContent() {
             tabIndex={activeFinalResultFocused ? -1 : undefined}
           >
             <PublishedLineupPin
+              messageId={activeMatchMessage.id}
               card={activeMatchMessage.card}
               receipt={currentFinalLineup}
               review={room.finalLineupReview}
@@ -1810,6 +1821,7 @@ function TeamRoomContent() {
 }
 
 function PublishedLineupPin({
+  messageId,
   card,
   receipt,
   review,
@@ -1833,6 +1845,7 @@ function PublishedLineupPin({
   onArrivalStatus,
   onMessageLatePlayer,
 }: {
+  messageId: string
   card: TeamRoomMatchCard
   receipt: TeamRoomFinalLineupReceipt | null
   review: TeamRoomFinalLineupReview | null
@@ -1976,7 +1989,12 @@ function PublishedLineupPin({
         </div>
       ) : null}
       {!result && isMatchDay ? (
-        <section className={styles.arrivalBoard} aria-label="Team arrival status">
+        <section
+          id={`team-room-arrival-${messageId}`}
+          className={styles.arrivalBoard}
+          aria-label="Team arrival status"
+          tabIndex={-1}
+        >
           <div className={styles.arrivalBoardHeader}>
             <div>
               <strong>{lateCount ? `${lateCount} running late` : hereCount === arrivalPlayers.length ? 'Team is here' : 'Team arrival'}</strong>
@@ -2551,16 +2569,8 @@ function MatchCard({
   const lineupChangeOverdue = replacementNeedsAnswer && lineupChangeNotice?.deadlineStatus === 'reminded'
   const canScheduleLineupChangeDeadline = Boolean(card.matchDate && card.matchDate > localDateInputKey(new Date()))
   const declinedReplacementHref = lineupChangeNotice?.response === 'declined'
-    ? buildCaptainReplyReviewHref({
-        teamName,
-        leagueName,
-        flight,
-        matchDate: card.matchDate,
-        opponent: card.opponent,
-        messageId: message.id,
-        availabilityRequestId: card.availabilityRequestId,
+    ? buildTeamRoomLateArrivalBuilderHref(lineupBaseHref, {
         playerName: lineupChangeNotice.replacementPlayerName,
-        status: 'unavailable',
         courtLabel: lineupChangeNotice.courtLabel,
       })
     : ''
@@ -2772,7 +2782,7 @@ function MatchCard({
                       : `Notify ${lineupChangeNotice.affectedNames.length} affected`}
                 </button>
               ) : lineupChangeNotice?.response === 'declined' ? (
-                <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Find another player</Link>
+                <Link className={styles.buttonPrimary} href={declinedReplacementHref}>Choose another backup</Link>
               ) : lineupChangeOverdue ? (
                 <Link className={styles.buttonPrimary} href={waitingReplacementHref}>Review this court</Link>
               ) : card.finalLineup ? (

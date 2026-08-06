@@ -339,6 +339,12 @@
   padding-top: 10px;
 }
 
+.arrivalBoard:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-green) 72%, white);
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
 .arrivalBoardHeader {
   display: flex;
   gap: 10px;

@@ -61,6 +61,7 @@ import {
 import {
   findTeamRoomAssignedCourt,
   isTeamRoomArrivalStatus,
+  keepTeamRoomArrivalCheckInsForLineup,
   readTeamRoomArrivalCheckIns,
   teamRoomArrivalStatusLabel,
   upsertTeamRoomArrivalCheckIn,
@@ -1044,8 +1045,11 @@ export async function POST(request: Request) {
       finalLineup: preservesPublishedLineup
         ? readTeamRoomFinalLineupReceipt(existingRows?.[0]?.metadata?.finalLineup)
         : null,
-      arrivalCheckIns: preservesPublishedLineup
-        ? readTeamRoomArrivalCheckIns(existingRows?.[0]?.metadata?.arrivalCheckIns)
+      arrivalCheckIns: existingId
+        ? keepTeamRoomArrivalCheckInsForLineup(
+            effectiveCard.lineup,
+            existingRows?.[0]?.metadata?.arrivalCheckIns,
+          )
         : [],
     }
     const cardBody = effectiveCard.cardType === 'projected_lineup'
@@ -1342,6 +1346,12 @@ export async function POST(request: Request) {
           ...cardResult.metadata,
           lineupChangeNotice: nextNotice,
           finalLineup: nextFinalLineup,
+          arrivalCheckIns: response === 'accepted'
+            ? keepTeamRoomArrivalCheckInsForLineup(
+                normalizeLineupRows(cardResult.metadata.lineup),
+                cardResult.metadata.arrivalCheckIns,
+              )
+            : readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns),
         },
         edited_at: respondedAt,
       })

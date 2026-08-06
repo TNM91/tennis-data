@@ -81,6 +81,19 @@ export function buildTeamRoomArrivalCourts(
   })).sort((left, right) => arrivalRisk(right) - arrivalRisk(left))
 }
 
+export function keepTeamRoomArrivalCheckInsForLineup(
+  lineup: LineupRow[],
+  value: unknown,
+): TeamRoomArrivalCheckIn[] {
+  const activePlayerKeys = new Set(
+    lineup.flatMap((court) => court.players.flatMap(personKeys)).filter(Boolean),
+  )
+  if (!activePlayerKeys.size) return []
+  return readTeamRoomArrivalCheckIns(value).filter((checkIn) =>
+    personKeys(checkIn.playerName).some((key) => activePlayerKeys.has(key)),
+  )
+}
+
 export function teamRoomArrivalStatusLabel(status: TeamRoomArrivalStatus | null) {
   if (status === 'here') return 'Here'
   if (status === 'on_my_way') return 'On my way'
