@@ -34,7 +34,9 @@ const currentCommit = getCurrentCommit()
 const blockingOk = ownerBoard.ok && observability.ok && postLaunch.ok
 const ownerNext = [
   ...(ownerBoard.json?.next || []),
-  ...(postLaunch.json?.ownerActions || []).map((action) => `${action.item}: ${action.ownerAction}`),
+  ...(postLaunch.json?.ownerActions || [])
+    .filter((action) => !ownerActionAlreadySatisfied(action, ownerBoard.json?.checks))
+    .map((action) => `${action.item}: ${action.ownerAction}`),
 ]
 const uniqueOwnerNext = collapseOwnerActions(ownerNext)
 
@@ -120,6 +122,14 @@ function collapseOwnerActions(actions) {
   }
 
   return [...collapsed.values()]
+}
+
+function ownerActionAlreadySatisfied(action, checks = []) {
+  if (action.item !== 'Vercel production branch') return false
+
+  return checks.some((check) =>
+    check.name === 'Vercel production branch alignment' && check.ok === true,
+  )
 }
 
 function getCurrentCommit() {

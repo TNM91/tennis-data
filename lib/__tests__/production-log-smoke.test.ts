@@ -14,6 +14,8 @@ describe('production log smoke', () => {
     expect(smokeScript).toContain('logs')
     expect(smokeScript).toContain('--environment')
     expect(smokeScript).toContain('production')
+    expect(smokeScript).toContain("const project = args.get('project') || 'tennis-data'")
+    expect(smokeScript).toContain("'--project',\n    project,")
     expect(smokeScript).toContain('--level')
     expect(smokeScript).toContain('error')
     expect(smokeScript).toContain('fatal')
