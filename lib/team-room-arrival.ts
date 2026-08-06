@@ -88,6 +88,41 @@ export function teamRoomArrivalStatusLabel(status: TeamRoomArrivalStatus | null)
   return 'Waiting'
 }
 
+export function findTeamRoomLateArrival(courts: TeamRoomArrivalCourt[], focusedCourtLabel = '') {
+  const focusedKey = normalizePerson(focusedCourtLabel)
+  const focusedCourt = focusedKey
+    ? courts.find((court) => normalizePerson(court.label) === focusedKey)
+    : null
+  const court = focusedCourt?.players.some((player) => player.status === 'running_late')
+    ? focusedCourt
+    : courts.find((item) => item.players.some((player) => player.status === 'running_late'))
+  if (!court) return null
+  const player = court.players.find((item) => item.status === 'running_late')
+  return player ? { courtLabel: court.label, playerName: player.name } : null
+}
+
+export function buildTeamRoomLateArrivalBuilderHref(
+  baseHref: string,
+  lateArrival: { courtLabel: string; playerName: string },
+) {
+  const url = new URL(baseHref, 'https://tenaceiq.local')
+  url.searchParams.set('source', 'team_room')
+  url.searchParams.set('availability', 'replies')
+  url.searchParams.set('mode', 'backup')
+  url.searchParams.set('replace', lateArrival.playerName)
+  url.searchParams.set('court', lateArrival.courtLabel)
+  url.hash = 'captain-lineup-courts'
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
+export function buildTeamRoomLineupCourtHref(baseHref: string, courtLabel: string) {
+  const url = new URL(baseHref, 'https://tenaceiq.local')
+  url.searchParams.set('source', 'team_room')
+  url.searchParams.set('court', courtLabel)
+  url.hash = 'captain-lineup-courts'
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
 function arrivalRisk(court: TeamRoomArrivalCourt) {
   if (court.players.some((player) => player.status === 'running_late')) return 3
   if (court.players.some((player) => player.status === null)) return 2
