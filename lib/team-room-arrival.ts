@@ -1,4 +1,5 @@
 export const TEAM_ROOM_ARRIVAL_STATUSES = ['on_my_way', 'here', 'running_late'] as const
+export const TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY = 'tiq:team-room:arrival-text-return:v1'
 
 export type TeamRoomArrivalStatus = (typeof TEAM_ROOM_ARRIVAL_STATUSES)[number]
 
@@ -34,6 +35,14 @@ export type TeamRoomArrivalContact = {
   name: string
   phone: string
   joined: boolean
+}
+
+export type TeamRoomArrivalTextReturn = {
+  roomId: string
+  messageId: string
+  playerName: string
+  courtLabel: string
+  createdAt: string
 }
 
 type LineupRow = { label: string; players: string[] }
@@ -116,6 +125,36 @@ export function buildTeamRoomArrivalSmsHref(phone: string, body: string, isIOS =
   if (digits.length < 7 || !body.trim()) return ''
   const recipient = phone.trim().startsWith('+') ? `+${digits}` : digits
   return `sms:${recipient}${isIOS ? '&' : '?'}body=${encodeURIComponent(body.trim())}`
+}
+
+export function readTeamRoomArrivalTextReturn(value: unknown, now = Date.now()): TeamRoomArrivalTextReturn | null {
+  let parsed: unknown = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const row = parsed as Record<string, unknown>
+  const roomId = clean(row.roomId, 120)
+  const messageId = clean(row.messageId, 120)
+  const playerName = clean(row.playerName, 120)
+  const courtLabel = clean(row.courtLabel, 80)
+  const createdAt = clean(row.createdAt, 80)
+  const createdAtMs = new Date(createdAt).getTime()
+  const maxAgeMs = 2 * 60 * 60 * 1000
+  if (
+    !roomId
+    || !messageId
+    || !playerName
+    || !courtLabel
+    || !Number.isFinite(createdAtMs)
+    || createdAtMs > now + 5 * 60 * 1000
+    || now - createdAtMs > maxAgeMs
+  ) return null
+  return { roomId, messageId, playerName, courtLabel, createdAt }
 }
 
 export function buildTeamRoomArrivalCourts(

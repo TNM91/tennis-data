@@ -300,6 +300,12 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain("rosterContact?.joined === false")
     expect(roomPage).toContain('buildTeamRoomArrivalSmsHref(')
     expect(roomPage).toContain('Text ready for ${playerName}. Their reply can be marked here.')
+    expect(roomPage).toContain('TEAM_ROOM_ARRIVAL_TEXT_RETURN_KEY')
+    expect(roomPage).toContain("window.addEventListener('pageshow', restoreArrivalText)")
+    expect(roomPage).toContain("window.addEventListener('focus', restoreArrivalText)")
+    expect(roomPage).toContain('arrivalCourtDetailsRef.current.open = true')
+    expect(roomPage).toContain('buildArrivalPlayerDomId(')
+    expect(roomPage).toContain('is ready to update. Mark their reply below.')
     expect(roomPage).toContain("Reply here and I'll update the team.")
     expect(roomPage).toContain('Arrival check-in ready to send by text or another app.')
     expect(roomPage).toContain("please reply Here or On my way")
@@ -308,6 +314,7 @@ describe('Team Room live availability card', () => {
     expect(roomStyles).toContain('.arrivalStatusControl')
     expect(roomStyles).toContain('.arrivalPlayerIdentity')
     expect(roomStyles).toContain('.arrivalTextButton')
+    expect(roomStyles).toContain('.arrivalPlayerRow:focus')
   })
 
   it('opens a late-arrival alert on the exact court with three captain actions', () => {
