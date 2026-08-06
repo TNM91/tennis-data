@@ -751,7 +751,7 @@ function ProfilePageInner() {
     { label: 'Proof target', value: PROFILE_PLAYER_IDENTITY_READ.proofTarget },
     { label: 'Match test', value: PROFILE_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
-  const profileIdentityTitle = profileComplete ? profileDisplayName : 'Set your player identity'
+  const profileIdentityTitle = profileComplete ? profileDisplayName : 'Connect your player'
   const profileSyncText = profileSource === 'cloud'
     ? 'Cloud synced. This player should follow you across devices.'
     : profileSource === 'local'
@@ -775,9 +775,12 @@ function ProfilePageInner() {
     : signedIn
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
+  const showProfileIntro = !signedIn || profileComplete
+  const showTennisSetupChecklist = signedIn && profileComplete
 
   return (
     <section style={pageStyle}>
+      {showProfileIntro ? (
         <section style={profileIntroStyle(isTablet, isMobile)}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={profileIntroCopyStyle}>
@@ -807,8 +810,9 @@ function ProfilePageInner() {
           </div>
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
+      ) : null}
 
-          {signedIn ? (
+          {showTennisSetupChecklist ? (
             <TennisSetupChecklist
               hasPlayer={profileComplete}
               hasTeam={Boolean(profile?.linked_team_name || selectedPlayerTeams.length)}
@@ -821,7 +825,10 @@ function ProfilePageInner() {
             <div id="profile-identity" style={surfaceStyle(isMobile)}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
+                  {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 3</span> : null}
+                  {profileComplete
+                    ? <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
+                    : <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>}
                   <p style={sectionTextStyle(isMobile)}>
                     {profileComplete
                       ? 'Ratings, teams, leagues, and prep now start from this record.'
@@ -1380,6 +1387,15 @@ const sectionHeaderStyle: CSSProperties = {
   gap: 16,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const identitySetupEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
 }
 
 const sectionTitleStyle: CSSProperties = {
