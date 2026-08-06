@@ -6,6 +6,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState, hasPlanAccess } from '@/lib/access-model'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
 type UpgradePromptProps = {
@@ -56,8 +57,11 @@ export default function UpgradePrompt({
   )
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
-  const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
+  const canStartDirectCheckout = PAID_CHECKOUT_ENABLED && !ctaHref && authResolved && isSignedIn && planId !== 'free'
   const resolvedCtaHref = ctaHref || getPlanUnlockHref(planId)
+  const resolvedCtaLabel = !PAID_CHECKOUT_ENABLED && planId !== 'free'
+    ? 'Join early access'
+    : ctaLabel || plan.ctaLabel
   const resolvedSecondaryHref = secondaryHref || '/pricing'
   const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
   const visibleUnlockSteps = resolvedUnlockSteps.slice(0, compact ? 2 : resolvedUnlockSteps.length)
@@ -157,7 +161,9 @@ export default function UpgradePrompt({
         <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null) }}>{body}</p>
         {planId !== 'free' && showDetailedGuidance ? (
           <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>
-            Creating an account starts Free access. This tier unlocks after the plan is active.
+            {PAID_CHECKOUT_ENABLED
+              ? 'Creating an account starts Free access. This tier unlocks after the plan is active.'
+              : PAID_CHECKOUT_PAUSED_MESSAGE}
           </p>
         ) : null}
 
@@ -218,11 +224,11 @@ export default function UpgradePrompt({
               ...(checkoutSubmitting ? disabledActionStyle : null),
             }}
           >
-            {checkoutSubmitting ? 'Opening checkout...' : ctaLabel || plan.ctaLabel}
+            {checkoutSubmitting ? 'Opening checkout...' : resolvedCtaLabel}
           </button>
         ) : (
           <Link href={resolvedCtaHref} style={primaryActionStyle}>
-            {ctaLabel || plan.ctaLabel}
+            {resolvedCtaLabel}
           </Link>
         )}
         {resolvedSecondaryHref ? (

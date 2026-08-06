@@ -8,6 +8,7 @@ import {
   type PaidPricingPlanId,
 } from '@/lib/stripe-checkout'
 import { getTeamInviteOfferEligibility } from '@/lib/team-invite-offers'
+import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 
 export const runtime = 'nodejs'
 
@@ -29,6 +30,13 @@ const PAID_PLAN_IDS: PaidPricingPlanId[] = ['player_plus', 'coach', 'captain', '
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
 
 export async function POST(request: Request) {
+  if (!PAID_CHECKOUT_ENABLED) {
+    return Response.json(
+      { ok: false, code: 'checkout_paused', message: PAID_CHECKOUT_PAUSED_MESSAGE },
+      { status: 503 },
+    )
+  }
+
   const token = getBearerToken(request)
   if (!token) {
     return Response.json({ ok: false, message: 'Sign in before checkout.' }, { status: 401 })

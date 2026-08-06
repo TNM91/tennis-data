@@ -6,6 +6,7 @@ const args = new Set(process.argv.slice(2))
 const checkVercel = args.has('--vercel')
 
 const requiredEnvNames = [
+  'NEXT_PUBLIC_PAID_CHECKOUT_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_PLAYER_PRICE_ID',
@@ -39,6 +40,8 @@ checkFileIncludes('docs/stripe-lifecycle-qa.md', [
 checkFileIncludes('docs/stripe-lifecycle-qa.md', requiredWebhookEvents, 'Stripe lifecycle doc lists required webhook events')
 checkFileIncludes('lib/stripe-checkout.ts', requiredPriceEnvNames, 'Stripe checkout maps every paid plan to a price env var')
 checkFileIncludes('app/api/checkout/session/route.ts', [
+  'if (!PAID_CHECKOUT_ENABLED)',
+  "code: 'checkout_paused'",
   "STRIPE_API_VERSION = '2026-04-22.dahlia'",
   "'Stripe-Version': STRIPE_API_VERSION",
   'https://api.stripe.com/v1/checkout/sessions',
