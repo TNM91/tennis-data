@@ -1008,7 +1008,7 @@ function ProfilePageInner() {
                 <div style={nextMovePathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
-                    <div>
+                    <div style={playerIdPowersHeaderCopyStyle}>
                       <strong>{captainSetupEntry ? 'Player ID connected' : 'Next move'}</strong>
                       <span>
                         {captainSetupEntry
@@ -1045,7 +1045,7 @@ function ProfilePageInner() {
                 <div style={newPlayerPathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
-                    <div>
+                    <div style={playerIdPowersHeaderCopyStyle}>
                       <strong>Start your TIQ</strong>
                       <span>Save your name, then add the first verified tennis signal.</span>
                     </div>
@@ -1172,7 +1172,7 @@ function ProfilePageInner() {
                 <div style={newPlayerPathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
-                    <div>
+                    <div style={playerIdPowersHeaderCopyStyle}>
                       <strong>Your player tools start here</strong>
                       <span>Profile powers My Lab, Matchup, Team, and League context.</span>
                     </div>
