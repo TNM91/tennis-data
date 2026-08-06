@@ -185,6 +185,7 @@ type TeamRoomActionBody = {
   matchDate?: unknown
   lineupId?: unknown
   arrivalStatus?: unknown
+  playerName?: unknown
 }
 
 type TeamRoomLevelUpChallengePayload = {
@@ -358,9 +359,16 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
-  if (action === 'set_arrival_status') {
+  if (action === 'set_arrival_status' || action === 'set_player_arrival_status') {
+    const captainManaged = action === 'set_player_arrival_status'
     if (!isTeamRoomArrivalStatus(body.arrivalStatus)) {
       return Response.json({ ok: false, message: 'Choose On my way, Here, or Running late.' }, { status: 400 })
+    }
+    if (captainManaged && !canManageTeamRoom(teamRoles(selected))) {
+      return Response.json({ ok: false, message: 'Only a captain or co-captain can update a teammate\'s arrival.' }, { status: 403 })
+    }
+    if (captainManaged && body.arrivalStatus === 'running_late') {
+      return Response.json({ ok: false, message: 'Players set their own running-late status.' }, { status: 400 })
     }
     const requestedMessageId = cleanText(body.messageId)
     let cardResult = await loadActionableMatchCard(auth.service, conversation.id, '')
@@ -383,15 +391,31 @@ export async function POST(request: Request) {
       if (cleanText(cardResult.metadata.matchCompletedAt)) {
         return Response.json({ ok: false, message: 'This match is complete.' }, { status: 409 })
       }
-      const assignment = findTeamRoomAssignedCourt(normalizeLineupRows(cardResult.metadata.lineup), [
-        member.playerName,
-        member.name,
-      ])
+      const lineup = normalizeLineupRows(cardResult.metadata.lineup)
+      const requestedPlayerKey = normalizePersonKey(body.playerName)
+      const captainAssignment = captainManaged && requestedPlayerKey
+        ? lineup.flatMap((court, index) => court.players.map((playerName) => ({
+            courtLabel: court.label.trim() || `Court ${index + 1}`,
+            playerName,
+          }))).find((item) => normalizePersonKey(item.playerName) === requestedPlayerKey) || null
+        : null
+      const assignment = captainManaged
+        ? captainAssignment
+        : findTeamRoomAssignedCourt(lineup, [member.playerName, member.name])
       if (!assignment) {
-        return Response.json({ ok: false, message: 'Your name is not assigned to this lineup.' }, { status: 403 })
+        return Response.json({
+          ok: false,
+          message: captainManaged ? 'That player is not assigned to this lineup.' : 'Your name is not assigned to this lineup.',
+        }, { status: captainManaged ? 400 : 403 })
       }
+      const connectedPlayer = captainManaged
+        ? syncedMembers.find((item) => [item.playerName, item.name]
+            .some((name) => normalizePersonKey(name) === normalizePersonKey(assignment.playerName)))
+        : member
+      const checkInProfileId = connectedPlayer?.id
+        || `captain:${normalizePersonKey(assignment.playerName).slice(0, 110)}`
       const existing = readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns)
-      const prior = existing.find((item) => item.profileId === auth.userId)
+      const prior = existing.find((item) => item.profileId === checkInProfileId)
       if (
         prior?.status === body.arrivalStatus
         && prior.playerName === assignment.playerName
@@ -402,11 +426,12 @@ export async function POST(request: Request) {
 
       const updatedAt = new Date().toISOString()
       const checkIn = {
-        profileId: auth.userId,
+        profileId: checkInProfileId,
         playerName: assignment.playerName,
         courtLabel: assignment.courtLabel,
         status: body.arrivalStatus,
         updatedAt,
+        setByCaptain: captainManaged,
       }
       const claimedMetadata = {
         ...cardResult.metadata,
@@ -425,7 +450,7 @@ export async function POST(request: Request) {
       }
       if (updateResult.data) {
         await auth.service.from('internal_conversations').update({ updated_at: updatedAt }).eq('id', conversation.id)
-        if (body.arrivalStatus === 'running_late') {
+        if (!captainManaged && body.arrivalStatus === 'running_late') {
           await notifyManagersOfArrivalStatus(auth.service, {
             conversationId: conversation.id,
             messageId: cardResult.messageId,

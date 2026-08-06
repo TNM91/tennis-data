@@ -326,6 +326,7 @@ function TeamRoomContent() {
   const [remindingFinalLineup, setRemindingFinalLineup] = useState(false)
   const [completingMatchDay, setCompletingMatchDay] = useState(false)
   const [savingArrivalStatus, setSavingArrivalStatus] = useState<TeamRoomArrivalStatus | ''>('')
+  const [savingManagedArrival, setSavingManagedArrival] = useState('')
   const [localDateKey, setLocalDateKey] = useState('')
   const [remindingChallengeId, setRemindingChallengeId] = useState('')
   const [closingChallengeId, setClosingChallengeId] = useState('')
@@ -1011,6 +1012,42 @@ function TeamRoomContent() {
     }
   }
 
+  async function saveManagedArrivalStatus(
+    messageId: string,
+    playerName: string,
+    status: Extract<TeamRoomArrivalStatus, 'on_my_way' | 'here'>,
+  ) {
+    if (!room || savingManagedArrival) return
+    const savingKey = `${playerName}:${status}`
+    setSavingManagedArrival(savingKey)
+    setError('')
+    try {
+      await postAction({ action: 'set_player_arrival_status', messageId, playerName, arrivalStatus: status })
+      setNotice(`${playerName} marked ${teamRoomArrivalStatusLabel(status).toLowerCase()}.`)
+      await loadRoom({ quiet: true })
+    } catch (arrivalError) {
+      setError(arrivalError instanceof Error ? arrivalError.message : `${playerName}'s arrival could not be saved.`)
+    } finally {
+      setSavingManagedArrival('')
+    }
+  }
+
+  async function shareArrivalCheckIn(playerNames: string[], card: TeamRoomMatchCard) {
+    if (!room || !playerNames.length) return
+    const visibleNames = playerNames.slice(0, 3).join(', ')
+    const remaining = Math.max(0, playerNames.length - 3)
+    const match = [
+      card.matchDate ? formatMatchDate(card.matchDate) : 'today\'s match',
+      card.opponent ? `vs ${card.opponent}` : '',
+    ].filter(Boolean).join(' ')
+    const logistics = [card.matchTime, card.facility].filter(Boolean).join(' at ')
+    await shareOrCopy({
+      title: `${room.teamName} arrival check-in`,
+      text: `${visibleNames}${remaining ? ` +${remaining} more` : ''} — please reply Here or On my way for ${match}${logistics ? ` (${logistics})` : ''}.`,
+    })
+    setNotice('Arrival check-in ready to send by text or another app.')
+  }
+
   async function remindFinalLineupUnseen(messageId: string) {
     if (!room || remindingFinalLineup) return
     setRemindingFinalLineup(true)
@@ -1493,6 +1530,7 @@ function TeamRoomContent() {
               currentUserId=""
               currentUserNames={[]}
               savingArrivalStatus=""
+              savingManagedArrival=""
               focusedCourtLabel=""
               defaultOpen={resultJustUpdated || focusedFinalResult}
               onSeen={() => undefined}
@@ -1501,6 +1539,8 @@ function TeamRoomContent() {
               onArrivalStatus={() => undefined}
               onMessageLatePlayer={() => undefined}
               onMessageWaitingPlayers={() => undefined}
+              onShareWaitingPlayers={() => undefined}
+              onManageArrivalStatus={() => undefined}
             />
           </div>
         ) : null}
@@ -1532,6 +1572,7 @@ function TeamRoomContent() {
                 .filter((member) => member.id === userId)
                 .flatMap((member) => [member.playerName, member.name])}
               savingArrivalStatus={savingArrivalStatus}
+              savingManagedArrival={savingManagedArrival}
               focusedCourtLabel={focusedCourtLabel}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
@@ -1553,6 +1594,8 @@ function TeamRoomContent() {
                   composerRef.current?.focus()
                 })
               }}
+              onShareWaitingPlayers={(playerNames) => void shareArrivalCheckIn(playerNames, activeMatchMessage.card!)}
+              onManageArrivalStatus={(playerName, status) => void saveManagedArrivalStatus(activeMatchMessage.id, playerName, status)}
             />
           </div>
         ) : null}
@@ -1847,6 +1890,7 @@ function PublishedLineupPin({
   currentUserId,
   currentUserNames,
   savingArrivalStatus,
+  savingManagedArrival,
   focusedCourtLabel,
   defaultOpen,
   onSeen,
@@ -1855,6 +1899,8 @@ function PublishedLineupPin({
   onArrivalStatus,
   onMessageLatePlayer,
   onMessageWaitingPlayers,
+  onShareWaitingPlayers,
+  onManageArrivalStatus,
 }: {
   messageId: string
   card: TeamRoomMatchCard
@@ -1872,6 +1918,7 @@ function PublishedLineupPin({
   currentUserId: string
   currentUserNames: string[]
   savingArrivalStatus: TeamRoomArrivalStatus | ''
+  savingManagedArrival: string
   focusedCourtLabel: string
   defaultOpen?: boolean
   onSeen: () => void
@@ -1880,7 +1927,10 @@ function PublishedLineupPin({
   onArrivalStatus: (status: TeamRoomArrivalStatus) => void
   onMessageLatePlayer: (playerName: string, courtLabel: string) => void
   onMessageWaitingPlayers: (playerNames: string[]) => void
+  onShareWaitingPlayers: (playerNames: string[]) => void
+  onManageArrivalStatus: (playerName: string, status: Extract<TeamRoomArrivalStatus, 'on_my_way' | 'here'>) => void
 }) {
+  const [editingArrivalPlayer, setEditingArrivalPlayer] = useState('')
   const matchLabel = [
     card.matchDate ? formatMatchDate(card.matchDate) : 'Match',
     card.opponent ? `vs ${card.opponent}` : '',
@@ -2030,9 +2080,14 @@ function PublishedLineupPin({
                 <small>{arrivalPriority.detail}</small>
               </div>
               {canManage && arrivalPriority.kind === 'waiting' ? (
-                <button className={styles.buttonPrimary} type="button" onClick={() => onMessageWaitingPlayers(arrivalPriority.names)}>
-                  Message waiting
-                </button>
+                <div className={styles.arrivalPriorityActions}>
+                  <button className={styles.buttonPrimary} type="button" onClick={() => onMessageWaitingPlayers(arrivalPriority.names)}>
+                    Team Chat
+                  </button>
+                  <button className={styles.buttonSecondary} type="button" onClick={() => onShareWaitingPlayers(arrivalPriority.names)}>
+                    Share text
+                  </button>
+                </div>
               ) : <em>{hereCount}/{arrivalPlayers.length}</em>}
             </div>
           )}
@@ -2071,12 +2126,47 @@ function PublishedLineupPin({
                   className={`${styles.arrivalCourt} ${lateArrival?.courtLabel === court.label ? styles.arrivalCourtFocused : ''}`}
                 >
                   <strong>{court.label}</strong>
-                  {court.players.map((player) => (
-                    <div key={player.name}>
-                      <span>{player.name}</span>
-                      <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
-                    </div>
-                  ))}
+                  {court.players.map((player) => {
+                    const playerKey = `${court.label}:${player.name}`
+                    const isEditing = editingArrivalPlayer === playerKey
+                    return (
+                      <div className={styles.arrivalPlayerRow} key={player.name}>
+                        <span>{player.name}</span>
+                        {canManage ? (
+                          <button
+                            className={styles.arrivalStatusControl}
+                            type="button"
+                            data-status={player.status || 'waiting'}
+                            aria-expanded={isEditing}
+                            title={player.setByCaptain ? 'Last updated by a captain' : undefined}
+                            onClick={() => setEditingArrivalPlayer(isEditing ? '' : playerKey)}
+                          >
+                            {teamRoomArrivalStatusLabel(player.status)}
+                          </button>
+                        ) : (
+                          <em data-status={player.status || 'waiting'}>{teamRoomArrivalStatusLabel(player.status)}</em>
+                        )}
+                        {canManage && isEditing ? (
+                          <div className={styles.arrivalManagerActions} role="group" aria-label={`Update ${player.name}'s arrival`}>
+                            {([['here', 'Here'], ['on_my_way', 'On the way']] as const).map(([status, label]) => (
+                              <button
+                                key={status}
+                                type="button"
+                                aria-pressed={player.status === status}
+                                disabled={Boolean(savingManagedArrival)}
+                                onClick={() => {
+                                  onManageArrivalStatus(player.name, status)
+                                  setEditingArrivalPlayer('')
+                                }}
+                              >
+                                {savingManagedArrival === `${player.name}:${status}` ? 'Saving…' : label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })}
                 </article>
               ))}
             </div>
@@ -3113,7 +3203,8 @@ async function shareOrCopy(input: ShareData) {
       if (error instanceof DOMException && error.name === 'AbortError') return
     }
   }
-  if (input.url) await navigator.clipboard.writeText(String(input.url))
+  const copyText = [input.text, input.url].filter(Boolean).join('\n')
+  if (copyText && navigator.clipboard) await navigator.clipboard.writeText(copyText)
 }
 
 function formatMessageTime(value: string) {

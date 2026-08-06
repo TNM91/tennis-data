@@ -8,6 +8,7 @@ export type TeamRoomArrivalCheckIn = {
   courtLabel: string
   status: TeamRoomArrivalStatus
   updatedAt: string
+  setByCaptain?: boolean
 }
 
 export type TeamRoomArrivalCourt = {
@@ -16,6 +17,7 @@ export type TeamRoomArrivalCourt = {
     name: string
     status: TeamRoomArrivalStatus | null
     updatedAt: string
+    setByCaptain: boolean
   }>
 }
 
@@ -61,7 +63,15 @@ export function readTeamRoomArrivalCheckIns(value: unknown): TeamRoomArrivalChec
     const courtLabel = clean(row.courtLabel, 80)
     const updatedAt = clean(row.updatedAt, 80)
     if (!profileId || !playerName || !courtLabel || !isTeamRoomArrivalStatus(row.status)) continue
-    byProfileId.set(profileId, { profileId, playerName, courtLabel, status: row.status, updatedAt })
+    const checkIn: TeamRoomArrivalCheckIn = {
+      profileId,
+      playerName,
+      courtLabel,
+      status: row.status,
+      updatedAt,
+    }
+    if (row.setByCaptain === true) checkIn.setByCaptain = true
+    byProfileId.set(profileId, checkIn)
   }
   return [...byProfileId.values()]
 }
@@ -85,7 +95,12 @@ export function buildTeamRoomArrivalCourts(
     label: court.label.trim() || `Court ${index + 1}`,
     players: court.players.map((name) => {
       const checkIn = byPlayer.get(normalizePerson(name))
-      return { name, status: checkIn?.status || null, updatedAt: checkIn?.updatedAt || '' }
+      return {
+        name,
+        status: checkIn?.status || null,
+        updatedAt: checkIn?.updatedAt || '',
+        setByCaptain: checkIn?.setByCaptain === true,
+      }
     }),
   })).sort((left, right) => arrivalRisk(right) - arrivalRisk(left))
 }
