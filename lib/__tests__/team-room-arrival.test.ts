@@ -46,6 +46,24 @@ describe('Team Room arrival check-ins', () => {
     expect(readTeamRoomArrivalCheckIns(updated)).toEqual(updated)
   })
 
+  it('keeps captain-recorded external replies visible in the shared arrival board', () => {
+    const checkIns = readTeamRoomArrivalCheckIns([{
+      profileId: 'captain:jordan lee',
+      playerName: 'Jordan Lee',
+      courtLabel: '3.5 Doubles',
+      status: 'here',
+      updatedAt: '2026-08-05T22:12:00.000Z',
+      setByCaptain: true,
+    }])
+
+    expect(checkIns[0]?.setByCaptain).toBe(true)
+    expect(buildTeamRoomArrivalCourts([lineup[0]], checkIns)[0]?.players[1]).toMatchObject({
+      name: 'Jordan Lee',
+      status: 'here',
+      setByCaptain: true,
+    })
+  })
+
   it('puts late courts first and gives every player a plain status', () => {
     const courts = buildTeamRoomArrivalCourts(lineup, [{
       profileId: 'player-3',

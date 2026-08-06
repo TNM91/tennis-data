@@ -403,7 +403,13 @@
   font-weight: 950;
 }
 
-.arrivalPriority > button {
+.arrivalPriorityActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.arrivalPriorityActions > button {
   flex: 0 0 auto;
   min-height: 38px;
   padding: 7px 10px;
@@ -572,7 +578,7 @@
   text-transform: uppercase;
 }
 
-.arrivalCourt > div {
+.arrivalPlayerRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
@@ -580,15 +586,17 @@
   min-width: 0;
 }
 
-.arrivalCourt > div > span {
+.arrivalPlayerRow > span {
   color: var(--foreground-strong);
   font-size: 0.75rem;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
 
-.arrivalCourt > div > em {
+.arrivalPlayerRow > em,
+.arrivalStatusControl {
   border-radius: 999px;
+  border: 0;
   background: var(--shell-chip-bg-strong);
   color: var(--shell-copy-muted);
   padding: 4px 6px;
@@ -598,19 +606,52 @@
   white-space: nowrap;
 }
 
-.arrivalCourt > div > em[data-status='here'] {
+.arrivalStatusControl {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.arrivalPlayerRow > em[data-status='here'],
+.arrivalStatusControl[data-status='here'] {
   background: color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg-strong));
   color: var(--foreground-strong);
 }
 
-.arrivalCourt > div > em[data-status='on_my_way'] {
+.arrivalPlayerRow > em[data-status='on_my_way'],
+.arrivalStatusControl[data-status='on_my_way'] {
   background: rgba(59, 130, 246, 0.18);
   color: #bfdbfe;
 }
 
-.arrivalCourt > div > em[data-status='running_late'] {
+.arrivalPlayerRow > em[data-status='running_late'],
+.arrivalStatusControl[data-status='running_late'] {
   background: rgba(127, 29, 29, 0.42);
   color: #fecdd3;
+}
+
+.arrivalManagerActions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.arrivalManagerActions button {
+  min-height: 36px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 9px;
+  background: var(--shell-chip-bg-strong);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.arrivalManagerActions button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--brand-green) 62%, var(--shell-panel-border));
+  background: color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg-strong));
+  color: var(--foreground-strong);
 }
 
 .matchResultBody {
