@@ -27,7 +27,7 @@ TenAceIQ helps tennis players, captains, and league coordinators spend less time
 | Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
 | Coach | `coach` | `$9.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
 | Captain | `captain` | `$9.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
-| League | `league` | `$14.99/season` | Season fee | One-time | League | League coordinators and organizers running one league, ladder, or tournament |
+| League | `league` | `$25/season` | Season fee | One-time | League | League coordinators and organizers running one league, ladder, or tournament |
 | Full-Court | `full_court` | `$19.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
 
 Current entitlement grants:

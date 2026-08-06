@@ -125,7 +125,7 @@ const PRICING_BILLING: Record<PricingPlanId, PricingBillingModel> = {
     quantityMode: 'account',
   },
   league: {
-    amountCents: 1499,
+    amountCents: 2500,
     currency: USD,
     interval: 'season',
     checkoutMode: 'one_time',
