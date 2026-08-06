@@ -8283,7 +8283,14 @@ function CaptainHubContent() {
     weekAtGlance.opponentLabel,
   ])
   const captainFunRecapPreviewLines = captainFunRecapMessage.split('\n').slice(0, isMobile ? 5 : 6)
-  const captainPostMatchRecapCopied = copiedCaptainPostMatchRecap || copiedCaptainFunRecap
+  const captainPostMatchRecapSaved = useMemo(() => {
+    if (!workspaceState.currentEventKey || captainDecisionLogVersion < 0) return false
+    return readLocalArray<CaptainDecisionLogEntry>(CAPTAIN_DECISION_LOG_STORAGE_KEY).some((entry) => (
+      safeText(entry.event_key) === workspaceState.currentEventKey
+      && (safeText(entry.label) === 'Post-match recap copied' || safeText(entry.label) === 'Fun recap copied')
+    ))
+  }, [captainDecisionLogVersion, workspaceState.currentEventKey])
+  const captainPostMatchRecapCopied = copiedCaptainPostMatchRecap || copiedCaptainFunRecap || captainPostMatchRecapSaved
   const captainRecapStarterItems = useMemo<CaptainRecapStarterItem[]>(() => [
     {
       id: 'result',
@@ -16162,9 +16169,15 @@ function CaptainHubContent() {
     matchDate: teamRoomSummary.latestMatchDate || matchWeekDate,
     todayDate: captainTodayDate,
     hasFinalLineup: Boolean(captainCourtReadiness?.finalLineup),
+    hasScoreCaptureRows: captainScoreCaptureRows.length > 0,
     lineupChangePending: captainOpenLineupChange?.pending === true,
     arrivalState: teamRoomSummary.arrivalState,
     matchCompleted: teamRoomSummary.matchCompleted === true,
+    scoreCaptureComplete: captainScoreCaptureRows.length > 0
+      && captainScoreCapturePendingCount === 0
+      && captainScoreCaptureIssueCount === 0
+      && captainScoreCaptureLoggedCount === captainScoreCaptureRows.length,
+    recapPrepared: captainPostMatchRecapCopied,
     weekClosed: postMatchClosed,
   })
   const captainPostArrivalAction = captainPostArrivalStep === 'send_lineup_change' && captainOpenLineupChange
@@ -16189,6 +16202,28 @@ function CaptainHubContent() {
           cta: 'Capture scores',
           tone: 'info' as const,
         }
+      : captainPostArrivalStep === 'send_team_recap'
+        ? {
+            id: 'send-team-recap',
+            label: 'Send team recap',
+            state: 'Scores complete',
+            detail: 'Every court result is captured. Send the team a short recap while the match is fresh.',
+            href: '#captain-home-recap-ready',
+            stage: 'brief' as CaptainResumeStage,
+            cta: 'Open recap',
+            tone: 'good' as const,
+          }
+        : captainPostArrivalStep === 'close_week'
+          ? {
+              id: 'close-match-week',
+              label: 'Upload scorecard / close week',
+              state: 'Recap ready',
+              detail: 'Upload the official scorecard, then mark this match week closed.',
+              href: '#captain-post-match-closeout',
+              stage: 'brief' as CaptainResumeStage,
+              cta: 'Finish closeout',
+              tone: 'info' as const,
+            }
       : null
   const captainArrivalFollowUp = teamRoomSummary.arrivalFollowUp ?? null
   const captainArrivalFollowUpHref = captainArrivalFollowUp ? buildTeamRoomHref({
@@ -16316,12 +16351,30 @@ function CaptainHubContent() {
     },
     {
       id: 'scorecard',
-      label: captainPostArrivalStep === 'capture_scores' ? 'Capture scores' : 'Add scorecard',
-      detail: captainPostArrivalStep === 'capture_scores' ? 'Lineup settled' : 'Save match results',
-      href: captainPostArrivalStep === 'capture_scores' ? '#captain-score-capture-checklist' : captainScorecardHref,
-      stage: captainPostArrivalStep === 'capture_scores' ? 'analytics' as CaptainResumeStage : 'team' as CaptainResumeStage,
+      label: captainPostArrivalStep === 'capture_scores'
+        ? 'Capture scores'
+        : captainPostArrivalStep === 'send_team_recap'
+          ? 'Send team recap'
+          : captainPostArrivalStep === 'close_week' ? 'Close match week' : 'Add scorecard',
+      detail: captainPostArrivalStep === 'capture_scores'
+        ? 'Lineup settled'
+        : captainPostArrivalStep === 'send_team_recap'
+          ? 'All courts captured'
+          : captainPostArrivalStep === 'close_week' ? 'Recap ready' : 'Save match results',
+      href: captainPostArrivalStep === 'capture_scores'
+        ? '#captain-score-capture-checklist'
+        : captainPostArrivalStep === 'send_team_recap'
+          ? '#captain-home-recap-ready'
+          : captainPostArrivalStep === 'close_week' ? '#captain-post-match-closeout' : captainScorecardHref,
+      stage: captainPostArrivalStep === 'capture_scores'
+        ? 'analytics' as CaptainResumeStage
+        : captainPostArrivalStep === 'send_team_recap' || captainPostArrivalStep === 'close_week'
+          ? 'brief' as CaptainResumeStage
+          : 'team' as CaptainResumeStage,
       icon: 'reports' as TiqFeatureIconName,
-      primary: captainPostArrivalStep === 'capture_scores',
+      primary: captainPostArrivalStep === 'capture_scores'
+        || captainPostArrivalStep === 'send_team_recap'
+        || captainPostArrivalStep === 'close_week',
     },
   ]
   const captainMobileActionLayout = getCaptainMobileActionLayout({

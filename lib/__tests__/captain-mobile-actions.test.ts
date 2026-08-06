@@ -81,7 +81,10 @@ describe('Captain mobile action priority', () => {
       matchDate: '2026-08-04',
       todayDate: '2026-08-04',
       hasFinalLineup: true,
+      hasScoreCaptureRows: true,
       matchCompleted: false,
+      scoreCaptureComplete: false,
+      recapPrepared: false,
       weekClosed: false,
     }
 
@@ -110,6 +113,28 @@ describe('Captain mobile action priority', () => {
       ...base,
       lineupChangePending: false,
       arrivalState: 'ready',
+      scoreCaptureComplete: true,
+    })).toBe('send_team_recap')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'ready',
+      scoreCaptureComplete: true,
+      hasFinalLineup: false,
+      recapPrepared: true,
+    })).toBe('close_week')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      matchDate: '2026-08-03',
+      lineupChangePending: false,
+      arrivalState: '',
+    })).toBe('capture_scores')
+    expect(getCaptainPostArrivalAction({
+      ...base,
+      lineupChangePending: false,
+      arrivalState: 'ready',
+      scoreCaptureComplete: true,
+      recapPrepared: true,
       weekClosed: true,
     })).toBeNull()
   })
