@@ -113,6 +113,9 @@ function runVercelEnvList() {
     'vercel',
     'env',
     'ls',
+    'production',
+    '--project',
+    'tennis-data',
     '--scope',
     'tennis-data',
   ], {

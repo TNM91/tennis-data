@@ -18,6 +18,7 @@ describe('Stripe live readiness command', () => {
     expect(readinessScript).toContain('customer.subscription.updated')
     expect(readinessScript).toContain('invoice.payment_failed')
     expect(readinessScript).toContain('--vercel')
+    expect(readinessScript).toContain("'production',\n    '--project',\n    'tennis-data',")
     expect(readinessScript).not.toContain('.env.local')
   })
 })
