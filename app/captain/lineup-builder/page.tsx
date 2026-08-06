@@ -1214,6 +1214,13 @@ function LineupBuilderContent() {
     const courtKey = normalizeTeamName(backupHandoff.courtLabel)
     return teamSlots.find((slot) => normalizeTeamName(slot.label) === courtKey) || null
   }, [backupHandoff, teamSlots])
+  const backupSelectionDraft = useMemo(() => {
+    if (!backupHandoff || !suggestedSwapDraft) return null
+    return normalizeTeamName(suggestedSwapDraft.courtLabel) === normalizeTeamName(backupHandoff.courtLabel)
+      && normalizeTeamName(suggestedSwapDraft.outgoingPlayerName) === normalizeTeamName(backupHandoff.playerName)
+      ? suggestedSwapDraft
+      : null
+  }, [backupHandoff, suggestedSwapDraft])
 
   useEffect(() => {
     if (lineupFormatKey === activeLineupFormatKey) return
@@ -1941,6 +1948,65 @@ function LineupBuilderContent() {
     playerIndex: number,
     playerId: string
   ) {
+    if (side === 'team' && backupHandoff) {
+      const sourceSlots = backupSelectionDraft?.previousSlots ?? teamSlots
+      const sourceSlot = sourceSlots.find((slot) => slot.id === slotId)
+      const outgoingIndex = sourceSlot?.players.findIndex((player) =>
+        normalizeTeamName(player.playerName) === normalizeTeamName(backupHandoff.playerName)
+      ) ?? -1
+      const targetsBackup = sourceSlot
+        && normalizeTeamName(sourceSlot.label) === normalizeTeamName(backupHandoff.courtLabel)
+        && outgoingIndex === playerIndex
+
+      if (targetsBackup) {
+        if (!playerId) {
+          setTeamSlots(cloneSlots(sourceSlots))
+          setSuggestedSwapDraft(null)
+          setSavedLineupChangeDelivery(null)
+          setError('')
+          setMessage('Backup cleared. Choose an available player for this court.')
+          return
+        }
+
+        const replacement = myPlayerPool.find((player) => player.id === playerId) ?? null
+        const result = replacement
+          ? applyCaptainSuggestedSwap({
+              slots: sourceSlots,
+              courtLabel: backupHandoff.courtLabel,
+              outgoingPlayerName: backupHandoff.playerName,
+              replacement: {
+                playerId: replacement.id,
+                playerName: replacement.name,
+                availabilityStatus: replacement.availabilityStatus,
+                eligibleForCourt: isPlayerEligibleForSlot(replacement, sourceSlot),
+              },
+            })
+          : null
+
+        if (!result?.ok) {
+          setError('Choose an available, eligible player who is not already assigned.')
+          setMessage('')
+          return
+        }
+
+        setSuggestedSwapDraft({
+          previousSlots: cloneSlots(sourceSlots),
+          slotId: result.slotId,
+          playerIndex: result.playerIndex,
+          replacementPlayerId: playerId,
+          outgoingPlayerName: result.outgoingPlayerName,
+          replacementPlayerName: result.replacementPlayerName,
+          courtLabel: backupHandoff.courtLabel,
+          needsConfirmation: result.needsConfirmation,
+        })
+        setSavedLineupChangeDelivery(null)
+        setTeamSlots(result.slots)
+        setError('')
+        setMessage(`Backup selected: ${result.replacementPlayerName} for ${result.outgoingPlayerName}. Save to return to this court in Team Room.`)
+        return
+      }
+    }
+
     const update = (slots: LineupSlot[]) =>
       slots.map((slot) => {
         if (slot.id !== slotId) return slot
@@ -2665,7 +2731,17 @@ function LineupBuilderContent() {
       const syncedChange = swapToSync ? await syncSavedSuggestedSwapToTeamRoom(swapToSync) : null
       if (syncedChange) setSavedLineupChangeDelivery(syncedChange)
       setSaving(false)
+      if (swapToSync && backupHandoff && !syncedChange) {
+        setMessage('')
+        setError('The backup was saved, but Team Room could not be updated. Tap Save backup & return to try again.')
+        return updated as ScenarioRow
+      }
       setSuggestedSwapDraft(null)
+      if (syncedChange && backupHandoff) {
+        setMessage('Backup saved. Opening the affected court in Team Room...')
+        router.push(syncedChange.href)
+        return updated as ScenarioRow
+      }
       if (!quiet) setMessage(
         syncedChange
           ? 'Potential lineup updated. Team Chat is ready to notify the affected players.'
@@ -2691,7 +2767,17 @@ function LineupBuilderContent() {
     const syncedChange = swapToSync ? await syncSavedSuggestedSwapToTeamRoom(swapToSync) : null
     if (syncedChange) setSavedLineupChangeDelivery(syncedChange)
     setSaving(false)
+    if (swapToSync && backupHandoff && !syncedChange) {
+      setMessage('')
+      setError('The backup was saved, but Team Room could not be updated. Tap Save backup & return to try again.')
+      return data as ScenarioRow
+    }
     setSuggestedSwapDraft(null)
+    if (syncedChange && backupHandoff) {
+      setMessage('Backup saved. Opening the affected court in Team Room...')
+      router.push(syncedChange.href)
+      return data as ScenarioRow
+    }
     if (!quiet) setMessage(
       syncedChange
         ? 'Potential lineup saved. Team Chat is ready to notify the affected players.'
@@ -3610,10 +3696,18 @@ function LineupBuilderContent() {
                 <div id="captain-backup-handoff" style={backupHandoffStyle} role="status">
                   <div>
                     <p style={sectionKicker}>Match-day backup</p>
-                    <strong>Prepare backup for {backupHandoff.playerName}</strong>
-                    <span>{backupHandoff.courtLabel} is highlighted. Available players are already filtered.</span>
+                    <strong>{backupSelectionDraft
+                      ? `${backupSelectionDraft.replacementPlayerName} replaces ${backupHandoff.playerName}`
+                      : `Prepare backup for ${backupHandoff.playerName}`}</strong>
+                    <span>{backupSelectionDraft
+                      ? `${backupHandoff.courtLabel} is ready. Save it to return to Team Room and send the court update.`
+                      : `${backupHandoff.courtLabel} is highlighted. Available players are already filtered. Choose one below.`}</span>
                   </div>
-                  <span style={miniPillWarnStyle}>Running late</span>
+                  {backupSelectionDraft ? (
+                    <PrimaryBtn onClick={() => void saveScenario(false)} disabled={saving}>
+                      {saving ? 'Saving backup...' : 'Save backup & return'}
+                    </PrimaryBtn>
+                  ) : <span style={miniPillWarnStyle}>Choose player</span>}
                 </div>
               ) : null}
               <div style={sectionHeaderStyle}>
