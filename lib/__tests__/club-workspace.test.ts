@@ -119,7 +119,7 @@ describe('club workspace', () => {
       currentMembership: owner,
       memberships: [owner],
       invites: [
-        { id: 'invite-staff', clubId: club.id, email: 'coach@club.test', roles: ['coach'], inviteToken: 'staff-token', status: 'pending', expiresAt: '', createdAt: '' },
+        { id: 'invite-staff', clubId: club.id, email: 'coach@club.test', roles: ['coach'], target: { type: 'club', id: '', name: '' }, inviteToken: 'staff-token', status: 'pending', expiresAt: '', createdAt: '' },
       ],
       groups: [{ id: 'group-1' }] as ClubWorkspaceData['groups'],
       templates: [{ id: 'template-1' }] as ClubWorkspaceData['templates'],
@@ -145,6 +145,18 @@ describe('club workspace', () => {
     expect(getClubInviteLanding(club, ['coordinator']).href).toContain('/league-coordinator?')
     expect(getClubInviteLanding(club, ['player']).href).toContain('/mylab?')
     expect(getClubInviteLanding(club, ['guardian'])).toMatchObject({ title: 'Club programs' })
+  })
+
+  it('opens a scoped invitation in its exact program or competition', () => {
+    const club = { id: 'club-1', slug: 'forest-hills', name: 'Forest Hills' }
+
+    expect(getClubInviteLanding(club, ['player'], { type: 'group', id: 'clinic-1', name: 'Orange Ball', groupType: 'clinic' })).toMatchObject({
+      title: 'Orange Ball',
+      actionLabel: 'Open clinic',
+    })
+    expect(getClubInviteLanding(club, ['captain', 'player'], { type: 'group', id: 'team-1', name: '3.5 Women', groupType: 'team' }).href).toContain('groupId=team-1')
+    expect(getClubInviteLanding(club, ['player'], { type: 'league', id: 'ladder-1', name: 'Friday Ladder' }).href).toContain('/explore/leagues/tiq/ladder-1?')
+    expect(getClubInviteLanding(club, ['coordinator'], { type: 'tournament', id: 'open-1', name: 'Club Open' }).href).toContain('/league-coordinator/tournaments?')
   })
 
   it('does not hide guided setup until access has been shared', () => {
