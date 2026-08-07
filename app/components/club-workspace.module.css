@@ -151,6 +151,20 @@
 .tabActive { background: color-mix(in srgb, var(--club-color, var(--brand-green)) 15%, var(--shell-chip-bg)); color: var(--foreground-strong); border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 35%, var(--shell-panel-border)); }
 
 .panel { display: grid; gap: 16px; padding: clamp(16px, 3vw, 24px); }
+.guidedBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 42%, var(--shell-panel-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--club-color, var(--brand-green)) 9%, #071426);
+}
+.guidedBanner > div { display: grid; gap: 4px; min-width: 0; }
+.guidedBanner strong { font-size: 18px; overflow-wrap: anywhere; }
+.guidedBanner span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
 .panelHeading { display: grid; gap: 5px; }
 .panelHeading h2 { margin: 0; font-size: clamp(22px, 4vw, 30px); }
 .panelHeading p { margin: 0; color: var(--shell-copy-muted); line-height: 1.5; }
@@ -250,6 +264,8 @@
   .tabs { position: sticky; top: 8px; z-index: 4; }
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
   .headingRow, .setupTop { align-items: stretch; }
+  .guidedBanner { align-items: stretch; flex-direction: column; }
+  .guidedBanner .quietButton { align-self: flex-start; }
   .setupSteps li { align-items: flex-start; }
   .experienceStrip { grid-template-columns: 1fr; }
 }

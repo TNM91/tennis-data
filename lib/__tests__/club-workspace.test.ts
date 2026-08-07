@@ -97,6 +97,7 @@ describe('club workspace', () => {
       contactEmail: '',
       timeZone: 'America/Chicago',
       isPublic: true,
+      onboardingCompletedAt: '',
       createdAt: '',
       updatedAt: '',
     } satisfies Club
@@ -116,7 +117,9 @@ describe('club workspace', () => {
       club,
       currentMembership: owner,
       memberships: [owner],
-      invites: [],
+      invites: [
+        { id: 'invite-staff', clubId: club.id, email: 'coach@club.test', roles: ['coach'], inviteToken: 'staff-token', status: 'pending', expiresAt: '', createdAt: '' },
+      ],
       groups: [{ id: 'group-1' }] as ClubWorkspaceData['groups'],
       templates: [{ id: 'template-1' }] as ClubWorkspaceData['templates'],
       competitions: [],
@@ -124,10 +127,31 @@ describe('club workspace', () => {
 
     expect(steps.map((step) => [step.id, step.completed])).toEqual([
       ['club', true],
-      ['people', false],
+      ['staff', true],
+      ['players', false],
       ['programs', true],
-      ['competition', true],
+      ['access', false],
     ])
-    expect(steps.find((step) => !step.completed)?.actionLabel).toBe('Invite people')
+    expect(steps.find((step) => !step.completed)?.actionLabel).toBe('Invite player')
+  })
+
+  it('does not hide guided setup until access has been shared', () => {
+    const workspace = {
+      club: { description: 'Connected tennis.', locationLabel: 'Court Center', onboardingCompletedAt: '' },
+      currentMembership: { id: 'owner' },
+      memberships: [
+        { id: 'owner', status: 'active', roles: ['owner'] },
+        { id: 'coach', status: 'active', roles: ['coach'] },
+        { id: 'player', status: 'active', roles: ['player'] },
+      ],
+      invites: [],
+      groups: [{ id: 'clinic-1' }],
+      templates: [],
+      competitions: [],
+    } as unknown as ClubWorkspaceData
+
+    expect(getClubSetupSteps(workspace).at(-1)).toMatchObject({ id: 'access', completed: false })
+    workspace.club.onboardingCompletedAt = '2026-08-07T18:30:00Z'
+    expect(getClubSetupSteps(workspace).every((step) => step.completed)).toBe(true)
   })
 })

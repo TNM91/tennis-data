@@ -26,6 +26,7 @@ export type Club = {
   contactEmail: string
   timeZone: string
   isPublic: boolean
+  onboardingCompletedAt: string
   createdAt: string
   updatedAt: string
 }
@@ -106,7 +107,7 @@ export type ClubWorkspaceData = {
 }
 
 export type ClubSetupStep = {
-  id: 'club' | 'people' | 'programs' | 'competition'
+  id: 'club' | 'staff' | 'players' | 'programs' | 'access'
   label: string
   detail: string
   actionLabel: string
@@ -150,25 +151,36 @@ export function canRunClubPrograms(roles: ClubRole[]) {
 }
 
 export function getClubSetupSteps(workspace: ClubWorkspaceData): ClubSetupStep[] {
-  const hasAnotherPerson = workspace.memberships.some((membership) => membership.id !== workspace.currentMembership.id)
-  const hasPendingInvite = workspace.invites.some((invite) => invite.status === 'pending')
+  const staffRoles: ClubRole[] = ['admin', 'director', 'coach', 'captain', 'coordinator']
+  const playerRoles: ClubRole[] = ['player', 'guardian']
+  const hasConnectedRole = (roles: ClubRole[]) => workspace.memberships.some((membership) =>
+    membership.id !== workspace.currentMembership.id && membership.status === 'active' && membership.roles.some((role) => roles.includes(role)),
+  ) || workspace.invites.some((invite) => invite.status === 'pending' && invite.roles.some((role) => roles.includes(role)))
 
   return [
     {
       id: 'club',
-      label: 'Add the club basics',
-      detail: 'Add a location and a short description for players.',
-      actionLabel: 'Add club details',
+      label: 'Finish the club identity',
+      detail: 'Add the location, club story, color, and optional logo.',
+      actionLabel: 'Finish club identity',
       tab: 'settings',
       completed: Boolean(workspace.club.locationLabel && workspace.club.description),
     },
     {
-      id: 'people',
-      label: 'Invite your people',
-      detail: 'Connect a director, coach, captain, or player.',
-      actionLabel: 'Invite people',
+      id: 'staff',
+      label: 'Invite the first staff member',
+      detail: 'Connect a director, coach, captain, or coordinator.',
+      actionLabel: 'Invite staff',
       tab: 'people',
-      completed: hasAnotherPerson || hasPendingInvite,
+      completed: hasConnectedRole(staffRoles),
+    },
+    {
+      id: 'players',
+      label: 'Invite the first player',
+      detail: 'Send a player access link so their club experience is connected.',
+      actionLabel: 'Invite player',
+      tab: 'people',
+      completed: hasConnectedRole(playerRoles),
     },
     {
       id: 'programs',
@@ -179,12 +191,12 @@ export function getClubSetupSteps(workspace: ClubWorkspaceData): ClubSetupStep[]
       completed: workspace.groups.length > 0,
     },
     {
-      id: 'competition',
-      label: 'Set up club competition',
-      detail: 'Save the first league or tournament setup.',
-      actionLabel: 'Set up competition',
-      tab: 'compete',
-      completed: workspace.templates.length > 0 || workspace.competitions.length > 0,
+      id: 'access',
+      label: 'Open the club to your community',
+      detail: 'Share the club page, then return here whenever staff or programs change.',
+      actionLabel: 'Share club page',
+      tab: 'settings',
+      completed: Boolean(workspace.club.onboardingCompletedAt),
     },
   ]
 }
@@ -263,6 +275,7 @@ export function mapClubRow(row: Row): Club {
     contactEmail: cleanClubText(row.contact_email, 180).toLowerCase(),
     timeZone: cleanClubText(row.time_zone, 80) || 'America/Chicago',
     isPublic: row.is_public !== false,
+    onboardingCompletedAt: cleanClubText(row.onboarding_completed_at, 80),
     createdAt: cleanClubText(row.created_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
