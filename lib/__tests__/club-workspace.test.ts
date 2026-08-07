@@ -9,6 +9,7 @@ import {
   hasClubTeamProgram,
   isClubManager,
   mapClubGroupRow,
+  normalizeClubInviteEmails,
   normalizeClubColor,
   normalizeClubRoles,
   type Club,
@@ -134,6 +135,15 @@ describe('club workspace', () => {
       ['access', false],
     ])
     expect(steps.find((step) => !step.completed)?.actionLabel).toBe('Invite player')
+  })
+
+  it('normalizes pasted invitation emails without duplicates', () => {
+    expect(normalizeClubInviteEmails('One@Club.test, two@club.test\nONE@club.test; three@club.test')).toEqual([
+      'one@club.test',
+      'two@club.test',
+      'three@club.test',
+    ])
+    expect(normalizeClubInviteEmails(['player@club.test', null, 'coach@club.test'])).toEqual(['player@club.test', 'coach@club.test'])
   })
 
   it('opens each invited role in the most useful club-linked workspace', () => {

@@ -139,6 +139,14 @@ export function cleanClubMultiline(value: unknown, maxLength = 1200) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
 }
 
+export function normalizeClubInviteEmails(value: unknown) {
+  const values = Array.isArray(value) ? value : [value]
+  return Array.from(new Set(values
+    .flatMap((item) => typeof item === 'string' ? item.split(/[\s,;]+/) : [])
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)))
+}
+
 export function createClubSlug(value: unknown) {
   return cleanClubText(value, 120)
     .toLowerCase()

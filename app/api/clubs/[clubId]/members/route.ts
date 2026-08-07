@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getClubApiAuth } from '@/lib/club-api-auth'
-import { cleanClubText, mapClubInviteRow, normalizeClubRoles, type ClubGroupType, type ClubInviteTargetType } from '@/lib/club-workspace'
+import { cleanClubText, mapClubInviteRow, normalizeClubInviteEmails, normalizeClubRoles, type ClubGroupType, type ClubInviteTargetType } from '@/lib/club-workspace'
 
 export const runtime = 'nodejs'
 
@@ -16,8 +16,11 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
     return Response.json({ ok: false, message: 'Enter an email and choose a role.' }, { status: 400 })
   }
 
-  const email = cleanClubText(body.email, 180).toLowerCase()
-  if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ ok: false, message: 'Enter a valid email.' }, { status: 400 })
+  const emails = normalizeClubInviteEmails(body.emails ?? body.email)
+  if (!emails.length) return Response.json({ ok: false, message: 'Enter at least one email.' }, { status: 400 })
+  if (emails.length > 50) return Response.json({ ok: false, message: 'Invite up to 50 people at a time.' }, { status: 400 })
+  const invalidEmail = emails.find((email) => email.length > 180 || !/^\S+@\S+\.\S+$/.test(email))
+  if (invalidEmail) return Response.json({ ok: false, message: `Check this email: ${invalidEmail}` }, { status: 400 })
   const roles = normalizeClubRoles(body.roles).filter((role) => role !== 'owner')
   const targetType = normalizeInviteTargetType(body.targetType)
   const targetId = targetType === 'club' ? '' : cleanClubText(body.targetId, 180)
@@ -26,9 +29,22 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
   const target = await resolveInviteTarget(auth.supabase, clubId, targetType, targetId)
   if (!target) return Response.json({ ok: false, message: 'That program or competition is no longer available.' }, { status: 404 })
 
+  let pendingQuery = auth.supabase
+    .from('club_invites')
+    .select('email')
+    .eq('club_id', clubId)
+    .eq('status', 'pending')
+    .eq('target_type', target.type)
+    .in('email', emails)
+  pendingQuery = target.id ? pendingQuery.eq('target_id', target.id) : pendingQuery.is('target_id', null)
+  const { data: pendingInvites } = await pendingQuery
+  const pendingEmails = new Set((pendingInvites ?? []).map((invite) => cleanClubText(invite.email, 180).toLowerCase()))
+  const newEmails = emails.filter((email) => !pendingEmails.has(email))
+  if (!newEmails.length) return Response.json({ ok: false, message: 'Everyone in this list already has a pending invitation here.' }, { status: 409 })
+
   const { data, error } = await auth.supabase
     .from('club_invites')
-    .insert({
+    .insert(newEmails.map((email) => ({
       club_id: clubId,
       invited_by_user_id: auth.userId,
       email,
@@ -37,12 +53,12 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       target_id: target.id || null,
       target_name: target.name,
       target_group_type: target.groupType || null,
-    })
+    })))
     .select('id,club_id,email,roles,target_type,target_id,target_name,target_group_type,invite_token,status,expires_at,created_at')
-    .single()
 
   if (error) return Response.json({ ok: false, message: 'Only club managers can invite people.' }, { status: 403 })
-  return Response.json({ ok: true, invite: mapClubInviteRow(data as Record<string, unknown>) })
+  const invites = ((data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow)
+  return Response.json({ ok: true, invite: invites[0], invites, skippedEmails: emails.filter((email) => pendingEmails.has(email)) })
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ clubId: string }> }) {

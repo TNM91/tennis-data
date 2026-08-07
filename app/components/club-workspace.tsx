@@ -15,6 +15,7 @@ import {
   getClubSetupSteps,
   hasClubTeamProgram,
   isClubManager,
+  normalizeClubInviteEmails,
   type Club,
   type ClubCompetitionTemplate,
   type ClubGroup,
@@ -333,19 +334,25 @@ export default function ClubWorkspace() {
               setWorking(false)
             }
           }}
-          onInvite={async (email, roles, targetType, targetId) => {
+          onInvite={async (emailInput, roles, targetType, targetId) => {
             setWorking(true)
             try {
-              const response = await request<{ invite: { inviteToken: string } }>(`/api/clubs/${workspace.club.id}/members`, { method: 'POST', body: JSON.stringify({ email, roles, targetType, targetId }) })
-              const inviteUrl = `${window.location.origin}/clubs/invite/${response.invite.inviteToken}`
-              await navigator.clipboard?.writeText(inviteUrl).catch(() => undefined)
-              showMessage('Invitation ready. Its link was copied so you can send it now.')
+              const response = await request<{ invite: ClubInvite; invites?: ClubInvite[]; skippedEmails?: string[] }>(`/api/clubs/${workspace.club.id}/members`, { method: 'POST', body: JSON.stringify({ email: emailInput, roles, targetType, targetId }) })
+              const invites = response.invites?.length ? response.invites : [response.invite]
+              const inviteLinks = invites.map((invite) => `${invite.email}: ${window.location.origin}/clubs/invite/${invite.inviteToken}`).join('\n')
+              await navigator.clipboard?.writeText(inviteLinks).catch(() => undefined)
+              const skippedCount = response.skippedEmails?.length ?? 0
+              showMessage(invites.length === 1
+                ? `Invitation ready. Its link was copied${skippedCount ? `; ${skippedCount} already pending` : ''}.`
+                : `${invites.length} invitations ready and copied together${skippedCount ? `; ${skippedCount} already pending` : ''}.`)
               await refreshWorkspace()
               const staffRoles: ClubRole[] = ['admin', 'director', 'coach', 'captain', 'coordinator']
               if (guidedStepId === 'staff' && roles.some((role) => staffRoles.includes(role))) finishGuidedStep('staff', 'Staff invite ready. Next: invite a player.')
               if (guidedStepId === 'players' && roles.some((role) => role === 'player' || role === 'guardian')) finishGuidedStep('players', 'Player invite ready. Next: add the first program.')
+              return true
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'The invitation could not be created.', 'danger')
+              return false
             } finally {
               setWorking(false)
             }
@@ -498,11 +505,12 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite, onShare, onRevoke }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<void>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite, onShare, onRevoke }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void> }) {
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
-  const inviteLabel = guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
+  const inviteCount = normalizeClubInviteEmails(email).length
+  const inviteLabel = inviteCount > 1 ? `Create ${inviteCount} invite links` : guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
   const destinationSeparator = destination.indexOf(':')
   const targetType = destination.slice(0, destinationSeparator) as ClubInviteTargetType
   const targetId = destination.slice(destinationSeparator + 1)
@@ -510,9 +518,9 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>{guidedStepId ? 'Your next connection' : 'Club roster'}</p><h2>{guidedStepId === 'staff' ? 'Who helps run the tennis experience?' : guidedStepId === 'players' ? 'Bring the first player into the club.' : 'Everyone connected to the club.'}</h2><p>{guidedStepId === 'staff' ? 'Choose every role they have. They can be staff and a player at the same time.' : guidedStepId === 'players' ? 'Their setup link is copied after you create it, ready to text or email.' : 'One person can be a player, coach, captain, or coordinator at the same time.'}</p></div>
       {manager ? (
-        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then(() => setEmail('')) }}>
+        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then((created) => { if (created) setEmail('') }) }}>
           <div className={styles.fieldGrid}>
-            <label className={styles.field}><span>Email</span><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="player@club.com" /></label>
+            <label className={styles.field}><span>Email addresses</span><textarea required value={email} onChange={(event) => setEmail(event.target.value)} placeholder={'player@club.com\npartner@club.com'} /><small>One email or up to 50, separated by commas or new lines.</small></label>
             <label className={styles.field}><span>Invite into</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="club:">Club — general access</option>{workspace.groups.length ? <optgroup label="Programs and teams">{workspace.groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name} — {getClubGroupTypeLabel(group.groupType)}</option>)}</optgroup> : null}{workspace.competitions.length ? <optgroup label="Leagues and tournaments">{workspace.competitions.map((competition) => <option key={`${competition.type}-${competition.id}`} value={`${competition.type}:${competition.id}`}>{competition.name} — {competition.type}</option>)}</optgroup> : null}</select><small>They will open here after joining.</small></label>
             <div className={styles.field}><span>Club roles</span><RoleChecks value={roles} onChange={setRoles} /></div>
           </div>

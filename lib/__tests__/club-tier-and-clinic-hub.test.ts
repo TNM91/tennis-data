@@ -37,4 +37,14 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(memberRoute).toContain("update({ status: 'revoked' })")
     expect(memberRoute).toContain(".eq('status', 'pending')")
   })
+
+  it('supports one bulk invitation flow for club programs and competition', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const memberRoute = source('app/api/clubs/[clubId]/members/route.ts')
+    expect(club).toContain('One email or up to 50')
+    expect(club).toContain('invite links')
+    expect(memberRoute).toContain('Invite up to 50 people at a time.')
+    expect(memberRoute).toContain('.insert(newEmails.map')
+    expect(memberRoute).toContain('already has a pending invitation here')
+  })
 })
