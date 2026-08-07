@@ -3,12 +3,15 @@ import {
   buildClubCompetitionLaunchHref,
   canRunClubPrograms,
   createClubSlug,
+  getClubSetupSteps,
   isClubManager,
   mapClubGroupRow,
   normalizeClubColor,
   normalizeClubRoles,
   type Club,
   type ClubCompetitionTemplate,
+  type ClubMembership,
+  type ClubWorkspaceData,
 } from '../club-workspace'
 
 describe('club workspace', () => {
@@ -61,5 +64,53 @@ describe('club workspace', () => {
   it('maps public program types and defaults safely', () => {
     expect(mapClubGroupRow({ id: 'g1', club_id: 'c1', name: 'Green ball', group_type: 'camp' }).groupType).toBe('camp')
     expect(mapClubGroupRow({ id: 'g2', club_id: 'c1', name: 'Unknown', group_type: 'other' }).groupType).toBe('clinic')
+  })
+
+  it('advances the club setup guide from the next unfinished job', () => {
+    const club = {
+      id: 'club-1',
+      ownerUserId: 'user-1',
+      name: 'Forest Hills',
+      slug: 'forest-hills',
+      description: 'Tennis for every level.',
+      logoUrl: '',
+      heroImageUrl: '',
+      primaryColor: '#9dea16',
+      locationLabel: 'Court Center',
+      contactEmail: '',
+      timeZone: 'America/Chicago',
+      isPublic: true,
+      createdAt: '',
+      updatedAt: '',
+    } satisfies Club
+    const owner: ClubMembership = {
+      id: 'membership-1',
+      clubId: club.id,
+      userId: 'user-1',
+      roles: ['owner'],
+      status: 'active' as const,
+      displayName: 'Club owner',
+      email: '',
+      phone: '',
+      joinedAt: '',
+      updatedAt: '',
+    }
+    const steps = getClubSetupSteps({
+      club,
+      currentMembership: owner,
+      memberships: [owner],
+      invites: [],
+      groups: [{ id: 'group-1' }] as ClubWorkspaceData['groups'],
+      templates: [{ id: 'template-1' }] as ClubWorkspaceData['templates'],
+      competitions: [],
+    })
+
+    expect(steps.map((step) => [step.id, step.completed])).toEqual([
+      ['club', true],
+      ['people', false],
+      ['programs', true],
+      ['competition', true],
+    ])
+    expect(steps.find((step) => !step.completed)?.actionLabel).toBe('Invite people')
   })
 })

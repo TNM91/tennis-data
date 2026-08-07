@@ -153,6 +153,33 @@
 .panelHeading { display: grid; gap: 5px; }
 .panelHeading h2 { margin: 0; font-size: clamp(22px, 4vw, 30px); }
 .panelHeading p { margin: 0; color: var(--shell-copy-muted); line-height: 1.5; }
+.headingRow, .setupTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.setupCard {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 42%, var(--shell-panel-border));
+  border-radius: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 10%, var(--shell-chip-bg)), var(--shell-chip-bg));
+}
+.setupCard h3 { margin: 4px 0 5px; font-size: clamp(19px, 3vw, 23px); }
+.setupCard p { margin: 0; color: var(--shell-copy-muted); line-height: 1.45; }
+.setupProgress { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
+.setupProgress span { display: block; height: 100%; border-radius: inherit; background: var(--club-color, var(--brand-green)); transition: width .2s ease; }
+.setupCard > .primary { justify-self: start; }
+.setupToggle { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--foreground-strong); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
+.setupSteps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.setupSteps li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--shell-panel-border); }
+.setupSteps li > div { display: grid; gap: 3px; min-width: 0; }
+.setupSteps strong { overflow-wrap: anywhere; }
+.setupSteps span { color: var(--shell-copy-muted); font-size: 12px; line-height: 1.4; }
+.setupStepDone strong { color: var(--club-color, var(--brand-green)); }
 
 .actionGrid, .cardGrid, .statGrid {
   display: grid;
@@ -199,4 +226,10 @@
   .heroActions > *, .row > .primary, .row > .secondary { flex: 1 1 145px; }
   .tabs { position: sticky; top: 8px; z-index: 4; }
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
+  .headingRow, .setupTop { align-items: stretch; }
+  .setupSteps li { align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setupProgress span { transition: none; }
 }
