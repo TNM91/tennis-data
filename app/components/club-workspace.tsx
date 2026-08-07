@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
@@ -45,6 +45,8 @@ type ClubRosterContact = {
   ownedByYou: boolean
   sharedWithClub: boolean
   connectionStatus: ClubRosterConnectionStatus
+  matchedMembershipId: string
+  matchedUserId: string
   teamName: string
   leagueName: string
   flight: string
@@ -363,6 +365,14 @@ export default function ClubWorkspace() {
           guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
           onLoadRosterContacts={loadRosterContacts}
           onSetRosterSharing={setRosterSharing}
+          onAddConnectedPlayers={async (membershipIds, targetType, targetId) => {
+            const response = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/roster-contacts`, {
+              method: 'PUT',
+              body: JSON.stringify({ membershipIds, targetType, targetId }),
+            })
+            await refreshWorkspace()
+            return response.message ?? ''
+          }}
           onShare={shareInvite}
           onRevoke={async (inviteId) => {
             setWorking(true)
@@ -547,16 +557,23 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, initialRosterOpen, requestedRosterTeam, onInvite, onShare, onRevoke, onLoadRosterContacts, onSetRosterSharing }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; initialRosterOpen: boolean; requestedRosterTeam: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void>; onLoadRosterContacts: () => Promise<ClubRosterContact[]>; onSetRosterSharing: (contactIds: string[], share: boolean) => Promise<string> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, initialRosterOpen, requestedRosterTeam, onInvite, onShare, onRevoke, onLoadRosterContacts, onSetRosterSharing, onAddConnectedPlayers }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; initialRosterOpen: boolean; requestedRosterTeam: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void>; onLoadRosterContacts: () => Promise<ClubRosterContact[]>; onSetRosterSharing: (contactIds: string[], share: boolean) => Promise<string>; onAddConnectedPlayers: (membershipIds: string[], targetType: 'group' | 'league' | 'tournament', targetId: string) => Promise<string> }) {
+  const connectedDestinations = useMemo(() => [
+    ...workspace.groups.map((group) => ({ value: `group:${group.id}`, label: `${group.name} · ${getClubGroupTypeLabel(group.groupType)}` })),
+    ...workspace.competitions.filter((competition) => competition.entrantType === 'players').map((competition) => ({ value: `${competition.type}:${competition.id}`, label: `${competition.name} · ${competition.type}` })),
+  ], [workspace.competitions, workspace.groups])
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
   const [rosterOpen, setRosterOpen] = useState(initialRosterOpen)
   const [rosterLoading, setRosterLoading] = useState(false)
   const [rosterSharing, setRosterSharing] = useState(false)
+  const [rosterAdding, setRosterAdding] = useState(false)
   const [rosterContacts, setRosterContacts] = useState<ClubRosterContact[]>([])
   const [rosterTeam, setRosterTeam] = useState('')
   const [selectedRosterEmails, setSelectedRosterEmails] = useState<string[]>([])
+  const [selectedConnectedMembershipIds, setSelectedConnectedMembershipIds] = useState<string[]>([])
+  const [connectedDestination, setConnectedDestination] = useState(() => connectedDestinations.some((item) => item.value === initialDestination) ? initialDestination : connectedDestinations[0]?.value ?? '')
   const [rosterMessage, setRosterMessage] = useState('')
   const inviteCount = normalizeClubInviteEmails(email).length
   const inviteLabel = inviteCount > 1 ? `Create ${inviteCount} invite links` : guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
@@ -595,6 +612,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
       const nextTeam = requestedContact ? getRosterScopeKey(requestedContact) : contacts[0] ? getRosterScopeKey(contacts[0]) : ''
       setRosterTeam(nextTeam)
       setSelectedRosterEmails(getReadyRosterEmails(contacts, nextTeam))
+      setSelectedConnectedMembershipIds([])
       if (!contacts.length) setRosterMessage('No imported Player Roster contacts yet. Upload the roster, then Club will bring you back here.')
     } catch (error) {
       setRosterMessage(error instanceof Error ? error.message : 'Imported roster contacts could not be opened.')
@@ -609,9 +627,43 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     return () => window.clearTimeout(timeout)
   }, [initialRosterOpen, openRosterContacts])
 
+  useEffect(() => {
+    if (connectedDestinations.some((item) => item.value === connectedDestination)) return
+    setConnectedDestination(connectedDestinations[0]?.value ?? '')
+  }, [connectedDestination, connectedDestinations])
+
   function chooseRosterTeam(team: string) {
     setRosterTeam(team)
     setSelectedRosterEmails(getReadyRosterEmails(rosterContacts, team))
+    setSelectedConnectedMembershipIds([])
+  }
+
+  function toggleRosterContact(contact: ClubRosterContact) {
+    if (contact.connectionStatus === 'ready' && contact.email) {
+      setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])
+      return
+    }
+    if (contact.connectionStatus === 'connected' && contact.matchedMembershipId) {
+      setSelectedConnectedMembershipIds((current) => current.includes(contact.matchedMembershipId) ? current.filter((membershipId) => membershipId !== contact.matchedMembershipId) : [...current, contact.matchedMembershipId])
+    }
+  }
+
+  async function addConnectedPlayers() {
+    const separator = connectedDestination.indexOf(':')
+    const targetType = connectedDestination.slice(0, separator) as 'group' | 'league' | 'tournament'
+    const targetId = connectedDestination.slice(separator + 1)
+    if (!selectedConnectedMembershipIds.length || !targetId) return
+    setRosterAdding(true)
+    setRosterMessage('')
+    try {
+      const message = await onAddConnectedPlayers(selectedConnectedMembershipIds, targetType, targetId)
+      setSelectedConnectedMembershipIds([])
+      setRosterMessage(message)
+    } catch (error) {
+      setRosterMessage(error instanceof Error ? error.message : 'Connected players could not be added.')
+    } finally {
+      setRosterAdding(false)
+    }
   }
 
   async function updateRosterSharing() {
@@ -631,6 +683,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
           : ''
       setRosterTeam(nextTeam)
       setSelectedRosterEmails(getReadyRosterEmails(contacts, nextTeam))
+      setSelectedConnectedMembershipIds((current) => current.filter((membershipId) => contacts.some((contact) => contact.matchedMembershipId === membershipId)))
       setRosterMessage(message)
     } catch (error) {
       setRosterMessage(error instanceof Error ? error.message : 'Roster sharing could not be updated.')
@@ -655,7 +708,15 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
               {activeRosterScope ? <div className={styles.row}><p className={styles.muted}>{rosterSharingLabel}</p><button className={styles.quietButton} disabled={rosterSharing} type="button" onClick={() => void updateRosterSharing()}>{rosterSharing ? 'Updating...' : activeRosterScope.ownedByYou ? rosterIsFullyShared ? 'Stop sharing' : 'Share with club' : 'Remove from club'}</button></div> : null}
               {visibleRosterContacts.length ? <div className={styles.roleList}><span className={styles.pill}>{readyRosterCount} ready</span><span className={styles.pill}>{connectedRosterCount} connected</span><span className={styles.pill}>{pendingRosterCount} pending</span><span className={styles.pill}>{emailNeededRosterCount} need email</span></div> : null}
               {rosterMessage ? <p className={styles.muted}>{rosterMessage}</p> : null}
-              {visibleRosterContacts.length ? <><div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={contact.connectionStatus !== 'ready'} checked={Boolean(contact.connectionStatus === 'ready' && selectedRosterEmails.includes(contact.email))} onChange={() => setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])} /><span><strong>{contact.fullName}</strong><small>{getClubRosterConnectionLabel(contact.connectionStatus)}{contact.email ? ` · ${contact.email}` : ''}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>)}</div><div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} new ${selectedRosterEmails.length === 1 ? 'person is' : 'people are'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} selected` : 'No new emails to invite'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div></> : null}
+              {visibleRosterContacts.length ? <>
+                <div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => {
+                  const selectable = contact.connectionStatus === 'ready' || (contact.connectionStatus === 'connected' && Boolean(contact.matchedMembershipId))
+                  const checked = contact.connectionStatus === 'ready' ? selectedRosterEmails.includes(contact.email) : selectedConnectedMembershipIds.includes(contact.matchedMembershipId)
+                  return <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={!selectable} checked={selectable && checked} onChange={() => toggleRosterContact(contact)} /><span><strong>{contact.fullName}</strong><small>{getClubRosterConnectionLabel(contact.connectionStatus)}{contact.connectionStatus === 'connected' ? ' · Select to add directly' : ''}{contact.email ? ` · ${contact.email}` : ''}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>
+                })}</div>
+                {connectedDestinations.length ? <div className={styles.fieldGrid}><label className={styles.field}><span>Add connected players to</span><select value={connectedDestination} onChange={(event) => setConnectedDestination(event.target.value)}>{connectedDestinations.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><small>No invitation is sent.</small></label><button className={styles.secondary} disabled={!selectedConnectedMembershipIds.length || rosterAdding} type="button" onClick={() => void addConnectedPlayers()}>{rosterAdding ? 'Adding...' : selectedConnectedMembershipIds.length ? `Add ${selectedConnectedMembershipIds.length} connected` : 'Select connected players'}</button></div> : connectedRosterCount ? <p className={styles.muted}>Create a team, clinic, player league, or player tournament before placing connected players.</p> : null}
+                <div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} new ${selectedRosterEmails.length === 1 ? 'person is' : 'people are'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} new` : 'No new emails to invite'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div>
+              </> : null}
             </div>
           ) : null}
           {rosterMessage && !rosterOpen ? <div className={styles.notice} role="status">{rosterMessage}</div> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getClubRosterConnectionLabel, getClubRosterConnectionStatus } from '../club-roster-reconciliation'
+import { findClubRosterMembership, getClubRosterConnectionLabel, getClubRosterConnectionStatus } from '../club-roster-reconciliation'
 
 describe('Club roster reconciliation', () => {
   it('recognizes an existing member by normalized email or full phone number', () => {
@@ -21,6 +21,13 @@ describe('Club roster reconciliation', () => {
       memberships: [{ phone: '3145551212', status: 'active' }],
       invites: [],
     })).toBe('email_needed')
+  })
+
+  it('returns the exact Club membership used for a safe match', () => {
+    expect(findClubRosterMembership(
+      { email: 'player@example.com' },
+      [{ id: 'member-1', email: 'PLAYER@example.com', status: 'active' }],
+    )?.id).toBe('member-1')
   })
 
   it('recognizes a live invitation but permits a new invitation after expiration', () => {

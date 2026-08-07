@@ -60,8 +60,8 @@ export async function GET(request: Request) {
     auth.supabase.from('club_groups').select(groupSelect).eq('club_id', club.id).eq('is_active', true).order('updated_at', { ascending: false }),
     auth.supabase.from('club_competition_templates').select(templateSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_invites').select(inviteSelect).eq('club_id', club.id).eq('status', 'pending').order('created_at', { ascending: false }),
-    auth.supabase.from('tiq_leagues').select('id,league_name,season_status,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
-    auth.supabase.from('tiq_tournaments').select('id,name,status,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
+    auth.supabase.from('tiq_leagues').select('id,league_name,league_format,season_status,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
+    auth.supabase.from('tiq_tournaments').select('id,name,entrant_type,status,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
   ])
 
   const firstError = [memberResult.error, groupResult.error, templateResult.error, inviteResult.error, leagueResult.error, tournamentResult.error].find(Boolean)
@@ -91,6 +91,7 @@ export async function GET(request: Request) {
       id: cleanClubText(row.id),
       name: cleanClubText(row.league_name),
       type: 'league' as const,
+      entrantType: row.league_format === 'individual' ? 'players' as const : 'teams' as const,
       status: cleanClubText(row.season_status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator?leagueId=${encodeURIComponent(cleanClubText(row.id))}`,
@@ -99,6 +100,7 @@ export async function GET(request: Request) {
       id: cleanClubText(row.id),
       name: cleanClubText(row.name),
       type: 'tournament' as const,
+      entrantType: row.entrant_type === 'teams' ? 'teams' as const : 'players' as const,
       status: cleanClubText(row.status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator/tournaments?tournamentId=${encodeURIComponent(cleanClubText(row.id))}`,
