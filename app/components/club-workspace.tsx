@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
+import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
@@ -43,6 +44,7 @@ type ClubRosterContact = {
   importedByName: string
   ownedByYou: boolean
   sharedWithClub: boolean
+  connectionStatus: ClubRosterConnectionStatus
   teamName: string
   leagueName: string
   flight: string
@@ -564,6 +566,10 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   const rosterScopes = Array.from(new Map(rosterContacts.map((contact) => [getRosterScopeKey(contact), contact])).values())
   const visibleRosterContacts = rosterContacts.filter((contact) => getRosterScopeKey(contact) === rosterTeam)
   const activeRosterScope = visibleRosterContacts[0] ?? null
+  const readyRosterCount = visibleRosterContacts.filter((contact) => contact.connectionStatus === 'ready').length
+  const connectedRosterCount = visibleRosterContacts.filter((contact) => contact.connectionStatus === 'connected').length
+  const pendingRosterCount = visibleRosterContacts.filter((contact) => contact.connectionStatus === 'pending').length
+  const emailNeededRosterCount = visibleRosterContacts.filter((contact) => contact.connectionStatus === 'email_needed').length
   const sharedRosterCount = visibleRosterContacts.filter((contact) => contact.sharedWithClub).length
   const rosterIsFullyShared = Boolean(visibleRosterContacts.length && sharedRosterCount === visibleRosterContacts.length)
   const rosterSharingLabel = activeRosterScope?.ownedByYou
@@ -588,7 +594,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
       const requestedContact = contacts.find((contact) => normalizeRosterTeamKey(contact.teamName) === requestedKey)
       const nextTeam = requestedContact ? getRosterScopeKey(requestedContact) : contacts[0] ? getRosterScopeKey(contacts[0]) : ''
       setRosterTeam(nextTeam)
-      setSelectedRosterEmails(normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === nextTeam).map((contact) => contact.email)))
+      setSelectedRosterEmails(getReadyRosterEmails(contacts, nextTeam))
       if (!contacts.length) setRosterMessage('No imported Player Roster contacts yet. Upload the roster, then Club will bring you back here.')
     } catch (error) {
       setRosterMessage(error instanceof Error ? error.message : 'Imported roster contacts could not be opened.')
@@ -605,7 +611,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
 
   function chooseRosterTeam(team: string) {
     setRosterTeam(team)
-    setSelectedRosterEmails(normalizeClubInviteEmails(rosterContacts.filter((contact) => getRosterScopeKey(contact) === team).map((contact) => contact.email)))
+    setSelectedRosterEmails(getReadyRosterEmails(rosterContacts, team))
   }
 
   async function updateRosterSharing() {
@@ -624,7 +630,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
           ? getRosterScopeKey(contacts[0])
           : ''
       setRosterTeam(nextTeam)
-      setSelectedRosterEmails(normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === nextTeam).map((contact) => contact.email)))
+      setSelectedRosterEmails(getReadyRosterEmails(contacts, nextTeam))
       setRosterMessage(message)
     } catch (error) {
       setRosterMessage(error instanceof Error ? error.message : 'Roster sharing could not be updated.')
@@ -643,12 +649,13 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
           </div>
           {rosterOpen ? (
             <div className={styles.compactForm}>
-              <div className={styles.panelHeading}><h2>Choose from Player Roster</h2><p>TennisLink includes phone numbers for roster players, but email addresses may only be available for captains. Select the email-ready people to invite.</p></div>
+              <div className={styles.panelHeading}><h2>Choose from Player Roster</h2><p>TIQ checks the roster against connected members and live invitations. Only new, email-ready people are selected.</p></div>
               {rosterScopes.length > 1 ? <label className={styles.field}><span>Team</span><select value={rosterTeam} onChange={(event) => chooseRosterTeam(event.target.value)}>{rosterScopes.map((contact) => <option key={getRosterScopeKey(contact)} value={getRosterScopeKey(contact)}>{getRosterScopeOptionLabel(contact)}</option>)}</select></label> : null}
               {rosterScopes.length === 1 ? <p className={styles.muted}>{getRosterScopeOptionLabel(rosterScopes[0])}</p> : null}
               {activeRosterScope ? <div className={styles.row}><p className={styles.muted}>{rosterSharingLabel}</p><button className={styles.quietButton} disabled={rosterSharing} type="button" onClick={() => void updateRosterSharing()}>{rosterSharing ? 'Updating...' : activeRosterScope.ownedByYou ? rosterIsFullyShared ? 'Stop sharing' : 'Share with club' : 'Remove from club'}</button></div> : null}
+              {visibleRosterContacts.length ? <div className={styles.roleList}><span className={styles.pill}>{readyRosterCount} ready</span><span className={styles.pill}>{connectedRosterCount} connected</span><span className={styles.pill}>{pendingRosterCount} pending</span><span className={styles.pill}>{emailNeededRosterCount} need email</span></div> : null}
               {rosterMessage ? <p className={styles.muted}>{rosterMessage}</p> : null}
-              {visibleRosterContacts.length ? <><div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={!contact.email} checked={Boolean(contact.email && selectedRosterEmails.includes(contact.email))} onChange={() => setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])} /><span><strong>{contact.fullName}</strong><small>{contact.email || 'Email needed'}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>)}</div><div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} email${selectedRosterEmails.length === 1 ? '' : 's'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} selected` : 'Select email-ready people'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div></> : null}
+              {visibleRosterContacts.length ? <><div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={contact.connectionStatus !== 'ready'} checked={Boolean(contact.connectionStatus === 'ready' && selectedRosterEmails.includes(contact.email))} onChange={() => setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])} /><span><strong>{contact.fullName}</strong><small>{getClubRosterConnectionLabel(contact.connectionStatus)}{contact.email ? ` · ${contact.email}` : ''}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>)}</div><div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} new ${selectedRosterEmails.length === 1 ? 'person is' : 'people are'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} selected` : 'No new emails to invite'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div></> : null}
             </div>
           ) : null}
           {rosterMessage && !rosterOpen ? <div className={styles.notice} role="status">{rosterMessage}</div> : null}
@@ -824,3 +831,4 @@ function normalizeRosterTeamKey(value: string) { return value.trim().toLowerCase
 function getRosterScopeKey(contact: Pick<ClubRosterContact, 'importedByUserId' | 'teamName' | 'leagueName' | 'flight'>) { return [contact.importedByUserId, contact.teamName, contact.leagueName, contact.flight].join('\u001f') }
 function getRosterScopeLabel(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.flight, contact.leagueName].filter(Boolean).join(' · ') }
 function getRosterScopeOptionLabel(contact: Pick<ClubRosterContact, 'ownedByYou' | 'importedByName' | 'teamName' | 'leagueName' | 'flight'>) { return `${getRosterScopeLabel(contact)} · ${contact.ownedByYou ? 'Your import' : `Shared by ${contact.importedByName}`}` }
+function getReadyRosterEmails(contacts: ClubRosterContact[], scopeKey: string) { return normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === scopeKey && contact.connectionStatus === 'ready').map((contact) => contact.email)) }

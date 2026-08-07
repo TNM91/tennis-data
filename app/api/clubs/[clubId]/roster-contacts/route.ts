@@ -1,4 +1,5 @@
 import { getClubApiAuth } from '@/lib/club-api-auth'
+import { getClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import { cleanClubText, isClubManager, normalizeClubRoles } from '@/lib/club-workspace'
 
 export const runtime = 'nodejs'
@@ -35,17 +36,31 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
   const auth = await requireClubManager(request, clubId)
   if (!auth.ok) return auth.response
 
-  const { data: ownContacts, error: ownContactsError } = await auth.supabase
-    .from('captain_roster_contacts')
-    .select('id,captain_user_id,team_name,league_name,flight,full_name,phone,email,role,is_captain,updated_at')
-    .eq('captain_user_id', auth.userId)
-    .order('team_name')
-    .order('full_name')
-  const { data: shares, error: sharesError } = await auth.supabase
-    .from('club_roster_contact_shares')
-    .select('contact_id,shared_by_user_id')
-    .eq('club_id', clubId)
-  if (ownContactsError || sharesError) {
+  const [ownResult, shareResult, membershipResult, inviteResult] = await Promise.all([
+    auth.supabase
+      .from('captain_roster_contacts')
+      .select('id,captain_user_id,team_name,league_name,flight,full_name,phone,email,role,is_captain,updated_at')
+      .eq('captain_user_id', auth.userId)
+      .order('team_name')
+      .order('full_name'),
+    auth.supabase
+      .from('club_roster_contact_shares')
+      .select('contact_id,shared_by_user_id')
+      .eq('club_id', clubId),
+    auth.supabase
+      .from('club_memberships')
+      .select('email,phone,status')
+      .eq('club_id', clubId)
+      .neq('status', 'removed'),
+    auth.supabase
+      .from('club_invites')
+      .select('email,status,expires_at')
+      .eq('club_id', clubId)
+      .eq('status', 'pending'),
+  ])
+  const { data: ownContacts, error: ownContactsError } = ownResult
+  const { data: shares, error: sharesError } = shareResult
+  if (ownContactsError || sharesError || membershipResult.error || inviteResult.error) {
     return Response.json({ ok: false, message: 'Imported roster contacts could not be opened.' }, { status: 400 })
   }
 
@@ -89,6 +104,11 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
       importedByName: contact.captain_user_id === auth.userId ? 'You' : ownerNames.get(cleanClubText(contact.captain_user_id)) || 'Club manager',
       ownedByYou: contact.captain_user_id === auth.userId,
       sharedWithClub: sharedContactIdSet.has(cleanClubText(contact.id)),
+      connectionStatus: getClubRosterConnectionStatus({
+        contact,
+        memberships: membershipResult.data ?? [],
+        invites: inviteResult.data ?? [],
+      }),
       teamName: cleanClubText(contact.team_name),
       leagueName: cleanClubText(contact.league_name),
       flight: cleanClubText(contact.flight),
