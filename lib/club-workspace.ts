@@ -87,6 +87,13 @@ export type ClubInvite = {
   createdAt: string
 }
 
+export type ClubInviteLanding = {
+  title: string
+  detail: string
+  actionLabel: string
+  href: string
+}
+
 export type ClubLinkedCompetition = {
   id: string
   name: string
@@ -253,6 +260,58 @@ export function buildClubToolHref(
     ...params,
   })
   return `${path}?${search.toString()}`
+}
+
+export function getClubInviteLanding(
+  club: Pick<Club, 'id' | 'name' | 'slug'>,
+  roles: ClubRole[],
+): ClubInviteLanding {
+  if (roles.some((role) => role === 'admin' || role === 'director')) {
+    return {
+      title: 'Club workspace',
+      detail: 'Open staff, programs, coaching, leagues, and tournaments for this club.',
+      actionLabel: 'Open Club workspace',
+      href: buildClubToolHref('/clubs', club, { tab: 'home', source: 'club-invite' }),
+    }
+  }
+  if (roles.includes('coach')) {
+    return {
+      title: 'Coach Hub',
+      detail: 'Open the club roster and start connecting each player’s development work.',
+      actionLabel: 'Open Coach Hub',
+      href: buildClubToolHref('/coach', club, { source: 'club-invite' }),
+    }
+  }
+  if (roles.includes('captain')) {
+    return {
+      title: 'Team Hub',
+      detail: 'Open availability, projected lineups, and team communication.',
+      actionLabel: 'Open Team Hub',
+      href: buildClubToolHref('/captain', club, { source: 'club-invite' }),
+    }
+  }
+  if (roles.includes('coordinator')) {
+    return {
+      title: 'League Office',
+      detail: 'Open club leagues, schedules, entries, results, and tournament tools.',
+      actionLabel: 'Open League Office',
+      href: buildClubToolHref('/league-coordinator', club, { source: 'club-invite' }),
+    }
+  }
+  if (roles.includes('player')) {
+    return {
+      title: 'My Lab',
+      detail: 'Open your club-linked development work, match insight, and next steps.',
+      actionLabel: 'Open My Lab',
+      href: buildClubToolHref('/mylab', club, { source: 'club-invite' }),
+    }
+  }
+  return {
+    title: 'Club programs',
+    detail: 'Open the programs, teams, and updates connected to this club.',
+    actionLabel: 'Open club programs',
+    href: buildClubToolHref('/clubs', club, { tab: 'groups', source: 'club-invite' }),
+  }
 }
 
 export function hasClubTeamProgram(workspace: Pick<ClubWorkspaceData, 'groups'>) {

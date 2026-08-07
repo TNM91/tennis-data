@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { getClubApiAuth } from '@/lib/club-api-auth'
-import { cleanClubText, normalizeClubRoles } from '@/lib/club-workspace'
+import { cleanClubText, getClubInviteLanding, normalizeClubRoles } from '@/lib/club-workspace'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -17,6 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   return Response.json({
     ok: true,
     invite: {
+      clubId: cleanClubText(row.club_id),
       clubName: cleanClubText(row.club_name),
       clubSlug: cleanClubText(row.club_slug),
       clubLogoUrl: cleanClubText(row.club_logo_url, 800),
@@ -35,5 +36,22 @@ export async function POST(request: Request, context: { params: Promise<{ token:
 
   const { data, error } = await auth.supabase.rpc('accept_club_invite', { target_invite_token: token })
   if (error) return Response.json({ ok: false, message: error.message }, { status: 400 })
-  return Response.json({ ok: true, clubId: cleanClubText(data) })
+  const clubId = cleanClubText(data)
+  const [clubResult, membershipResult] = await Promise.all([
+    auth.supabase.from('clubs').select('id,name,slug').eq('id', clubId).maybeSingle(),
+    auth.supabase.from('club_memberships').select('roles').eq('club_id', clubId).eq('user_id', auth.userId).eq('status', 'active').maybeSingle(),
+  ])
+  const club = {
+    id: clubId,
+    name: cleanClubText(clubResult.data?.name) || 'Your club',
+    slug: cleanClubText(clubResult.data?.slug),
+  }
+  const roles = normalizeClubRoles(membershipResult.data?.roles)
+
+  return Response.json({
+    ok: true,
+    club,
+    roles,
+    landing: getClubInviteLanding(club, roles),
+  })
 }
