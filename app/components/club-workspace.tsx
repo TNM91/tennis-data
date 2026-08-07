@@ -60,6 +60,7 @@ export default function ClubWorkspace() {
   const [messageTone, setMessageTone] = useState<'success' | 'danger'>('success')
   const [guidedStepId, setGuidedStepId] = useState<ClubSetupStep['id'] | null>(null)
   const [requestedGroupId, setRequestedGroupId] = useState('')
+  const [inviteDestination, setInviteDestination] = useState('club:')
 
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const response = await fetch(path, {
@@ -118,6 +119,7 @@ export default function ClubWorkspace() {
 
   async function selectClub(clubId: string) {
     setSelectedClubId(clubId)
+    setInviteDestination('club:')
     setTab('home')
     setLoading(true)
     try {
@@ -148,8 +150,15 @@ export default function ClubWorkspace() {
       void shareClubPage()
       return
     }
+    if (step.tab === 'people') setInviteDestination('club:')
     setGuidedStepId(step.id)
     setTab(step.tab)
+  }
+
+  function openPeople(destination = 'club:') {
+    setGuidedStepId(null)
+    setInviteDestination(destination)
+    setTab('people')
   }
 
   function finishGuidedStep(stepId: ClubSetupStep['id'], successMessage: string) {
@@ -265,7 +274,7 @@ export default function ClubWorkspace() {
             ? <button className={styles.primary} type="button" onClick={() => setTab(heroAction.tab!)}>{heroAction.label}</button>
             : <Link className={styles.primary} href={heroAction.href!}>{heroAction.label}</Link>}
           {!heroAction.setupStep ? <Link className={styles.secondary} href={`/clubs/${workspace.club.slug}`}>View public club page</Link> : null}
-          {manager && !heroAction.setupStep && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => setTab('people')}>Invite people</button> : null}
+          {manager && !heroAction.setupStep && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => openPeople()}>Invite people</button> : null}
         </div>
       </section>
 
@@ -273,7 +282,7 @@ export default function ClubWorkspace() {
 
       <nav className={styles.tabs} aria-label="Club workspace sections">
         {tabs.filter((item) => item.id !== 'settings' || manager).map((item) => (
-          <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ''}`} onClick={() => setTab(item.id)}>{item.label}</button>
+          <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ''}`} onClick={() => item.id === 'people' ? openPeople() : setTab(item.id)}>{item.label}</button>
         ))}
       </nav>
 
@@ -284,13 +293,14 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} onOpenTab={setTab} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
-          key={guidedStepId ?? 'people'}
+          key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
           workspace={workspace}
           manager={manager}
           working={working}
+          initialDestination={inviteDestination}
           guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
           onInvite={async (email, roles, targetType, targetId) => {
             setWorking(true)
@@ -316,8 +326,10 @@ export default function ClubWorkspace() {
           workspace={workspace}
           requestedGroupId={requestedGroupId}
           staff={staff}
+          manager={manager}
           coachSync={clubRoles.includes('coach')}
           working={working}
+          onInvite={(groupId) => openPeople(`group:${groupId}`)}
           onCreate={async (payload) => {
             setWorking(true)
             try {
@@ -355,7 +367,9 @@ export default function ClubWorkspace() {
         <CompetitionPanel
           workspace={workspace}
           staff={staff}
+          manager={manager}
           working={working}
+          onInvite={(targetType, targetId) => openPeople(`${targetType}:${targetId}`)}
           onCreate={async (payload) => {
             setWorking(true)
             try {
@@ -453,10 +467,10 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, onInvite }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<void> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<void> }) {
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
-  const [destination, setDestination] = useState('club:')
+  const [destination, setDestination] = useState(initialDestination)
   const inviteLabel = guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
   const destinationSeparator = destination.indexOf(':')
   const targetType = destination.slice(0, destinationSeparator) as ClubInviteTargetType
@@ -488,7 +502,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, onInvite }: { 
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, coachSync, working, onCreate, onSaveRoster, onCoachSync }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void> }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -521,7 +535,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, coachSync, working, o
         </form>
       ) : null}
       <div className={styles.cardGrid}>
-        {workspace.groups.map((group) => <article id={`club-group-${group.id}`} className={`${styles.card} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected{group.capacity ? ` · ${group.capacity} spots` : ''}</span>{group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(group.memberIds) }}>Manage roster</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
+        {workspace.groups.map((group) => <article id={`club-group-${group.id}`} className={`${styles.card} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected{group.capacity ? ` · ${group.capacity} spots` : ''}</span>{group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}{manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(group.memberIds) }}>Manage roster</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
       </div>
       {editingGroup ? (
         <div className={styles.compactForm}>
@@ -534,7 +548,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, coachSync, working, o
   )
 }
 
-function CompetitionPanel({ workspace, staff, working, onCreate }: { workspace: ClubWorkspaceData; staff: boolean; working: boolean; onCreate: (payload: { name: string; competitionType: 'league' | 'tournament'; entrantType: 'players' | 'teams'; formatId: string; divisionLabel: string; defaultFacility: string }) => Promise<void> }) {
+function CompetitionPanel({ workspace, staff, manager, working, onCreate, onInvite }: { workspace: ClubWorkspaceData; staff: boolean; manager: boolean; working: boolean; onCreate: (payload: { name: string; competitionType: 'league' | 'tournament'; entrantType: 'players' | 'teams'; formatId: string; divisionLabel: string; defaultFacility: string }) => Promise<void>; onInvite: (targetType: 'league' | 'tournament', targetId: string) => void }) {
   const [name, setName] = useState('')
   const [competitionType, setCompetitionType] = useState<'league' | 'tournament'>('league')
   const [entrantType, setEntrantType] = useState<'players' | 'teams'>('players')
@@ -563,7 +577,7 @@ function CompetitionPanel({ workspace, staff, working, onCreate }: { workspace: 
         </form>
       ) : null}
       {workspace.templates.length ? <div className={styles.cardGrid}>{workspace.templates.map((template) => <TemplateCard club={workspace.club} template={template} key={template.id} />)}</div> : <p className={styles.copy}>No saved competition setups yet.</p>}
-      {workspace.competitions.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Club competitions</h2></div><div className={styles.cardGrid}>{workspace.competitions.map((competition) => <Link className={styles.actionCard} href={competition.href} key={`${competition.type}-${competition.id}`}><strong>{competition.name}</strong><span>{competition.type} · {competition.status}</span><b>Open</b></Link>)}</div></> : null}
+      {workspace.competitions.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Club competitions</h2></div><div className={styles.cardGrid}>{workspace.competitions.map((competition) => <article className={styles.card} key={`${competition.type}-${competition.id}`}><div className={styles.cardTop}><h3>{competition.name}</h3><span className={styles.pill}>{competition.type}</span></div><span className={styles.muted}>{competition.status}</span><Link className={styles.primary} href={competition.href}>Open</Link>{manager ? <button className={styles.quietButton} type="button" onClick={() => onInvite(competition.type, competition.id)}>Invite people</button> : null}</article>)}</div></> : null}
     </section>
   )
 }
