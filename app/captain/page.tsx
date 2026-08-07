@@ -6,10 +6,13 @@ import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
 import {
   buildCaptainScopedHref,
@@ -158,6 +161,8 @@ const captainTeamImprovementHrefs: Record<CaptainTeamImprovementId, string> = {
   ratings: captainPlayerRosterHref,
   scorecard: captainScorecardHref,
 }
+
+const CLUB_CAPTAIN_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'captain', 'coordinator']
 const CAPTAIN_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const CAPTAIN_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(CAPTAIN_PLAYER_IDENTITY)
 const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}#level-up-flow`
@@ -1686,7 +1691,9 @@ function CaptainHubContent() {
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
   const productAccess = buildProductAccessState(role, entitlements)
-  const premiumEnabled = productAccess.canUseCaptainWorkflow
+  const requestedClubId = searchParams.get('clubId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_CAPTAIN_SPONSORED_ROLES)
+  const premiumEnabled = productAccess.canUseCaptainWorkflow || clubAccess.allowed
   const incomingCaptainImportHandoff = useMemo(() => readCaptainImportHandoff(searchParams), [searchParams])
   const incomingCaptainSetupResult = useMemo(() => readWorkflowResult(searchParams), [searchParams])
   const incomingLevelUpTeamChallenge = useMemo(
@@ -12266,14 +12273,14 @@ function CaptainHubContent() {
     })
   }
 
-  if (!authResolved) {
+  if (!authResolved || (requestedClubId && clubAccess.checking && !productAccess.canUseCaptainWorkflow)) {
     return (
       <section style={loadingWrap}>
         <div style={loadingStateCardStyle}>
           <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
           <div>
             <h1 style={loadingStateTitleStyle}>Preparing Team Hub</h1>
-            <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
+            <div style={loadingStateTextStyle}>Checking your club role, team profile, and match-week context.</div>
           </div>
         </div>
       </section>
@@ -17989,11 +17996,14 @@ function CaptainHubContent() {
     && captainSetupProgress.nextStep !== 'ready'
   ) {
     return (
-      <CaptainFirstUseSetup
-        progress={captainSetupProgress}
-        setupResult={captainSetupResult}
-        onStatusDismiss={() => setCaptainSetupResult('')}
-      />
+      <>
+        {clubAccess.workspace ? <ClubContextBanner workspace={clubAccess.workspace} surface="Team Hub" detail="Team availability, projected lineups, and messages stay connected to the club." /> : null}
+        <CaptainFirstUseSetup
+          progress={captainSetupProgress}
+          setupResult={captainSetupResult}
+          onStatusDismiss={() => setCaptainSetupResult('')}
+        />
+      </>
     )
   }
 
@@ -18026,6 +18036,13 @@ function CaptainHubContent() {
 
   return (
     <div style={dynamicPageWrap}>
+        {clubAccess.workspace ? (
+          <ClubContextBanner
+            workspace={clubAccess.workspace}
+            surface="Team Hub"
+            detail="Team availability, projected lineups, and messages stay connected to the club."
+          />
+        ) : null}
         {captainImportHandoff && !isMobile ? (
           <CaptainImportConnectedCard
             handoff={captainImportHandoff}

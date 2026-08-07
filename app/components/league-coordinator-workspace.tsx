@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import RoleActionHome, {
   type RoleHomeAction,
   type RoleHomeQuickAction,
 } from '@/app/components/role-action-home'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
 import {
   chooseLatestLeagueCoordinatorResumeState,
   getLeagueCoordinatorResumeHref,
@@ -195,6 +198,8 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   teams: [],
   players: [],
 }
+
+const CLUB_COMPETITION_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coordinator', 'coach']
 
 const MATCH_DAY_OPTIONS = [
   { value: '', label: 'Choose day' },
@@ -539,6 +544,8 @@ export function LeagueCoordinatorWorkspace() {
 
   const leagueCards = useMemo(() => buildLeagueCardsFromRegistry(records), [records])
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_COMPETITION_SPONSORED_ROLES)
+  const canUseLeagueTools = access.canUseLeagueTools || clubAccess.allowed
   const teamLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'team'),
     [records],
@@ -707,7 +714,7 @@ export function LeagueCoordinatorWorkspace() {
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
   const hasSavedLeague = records.length > 0
-  const isFirstLeagueSetup = registryLoaded && access.canUseLeagueTools && !hasSavedLeague
+  const isFirstLeagueSetup = registryLoaded && canUseLeagueTools && !hasSavedLeague
   const knownTeamOptions = useMemo(
     () => Array.from(new Set(records.flatMap((record) => record.teams).filter(Boolean))).sort(),
     [records],
@@ -1003,8 +1010,8 @@ export function LeagueCoordinatorWorkspace() {
   const leagueOpsChecks = [
     {
       label: 'Access',
-      complete: access.canUseLeagueTools,
-      detail: access.canUseLeagueTools ? 'League Office is active.' : 'League access is not active yet.',
+      complete: canUseLeagueTools,
+      detail: canUseLeagueTools ? 'League Office is active.' : 'League access is not active yet.',
       href: '/pricing#league',
       cta: 'See plan',
     },
@@ -1278,7 +1285,7 @@ export function LeagueCoordinatorWorkspace() {
   }, [appliedEditHandoffId, editingId, records, requestedEditLeagueId, startEditing])
 
   useEffect(() => {
-    if (!coordinatorResumeResolved || !userId || !editingId || !access.canUseLeagueTools) return
+    if (!coordinatorResumeResolved || !userId || !editingId || !canUseLeagueTools) return
     const league = records.find((record) => record.id === editingId)
     if (!league) return
 
@@ -1298,7 +1305,7 @@ export function LeagueCoordinatorWorkspace() {
 
     return () => window.clearTimeout(timeout)
   }, [
-    access.canUseLeagueTools,
+    canUseLeagueTools,
     coordinatorResumeResolved,
     editingId,
     records,
@@ -1535,7 +1542,7 @@ export function LeagueCoordinatorWorkspace() {
         cta: 'Please wait',
         icon: 'schedule',
       }
-    : !access.canUseLeagueTools
+    : !canUseLeagueTools
       ? {
           label: 'Start here',
           title: 'Unlock League Office',
@@ -1676,8 +1683,19 @@ export function LeagueCoordinatorWorkspace() {
     </>
   )
 
+  if (requestedClubId && clubAccess.checking && !access.canUseLeagueTools) {
+    return <section style={responsivePageWrap}><div style={responsivePanelCard}>Opening the club League Office...</div></section>
+  }
+
   return (
       <section style={responsivePageWrap}>
+        {clubAccess.workspace ? (
+          <ClubContextBanner
+            workspace={clubAccess.workspace}
+            surface="League Office"
+            detail="Club defaults, participants, schedules, scores, and standings stay in one competition context."
+          />
+        ) : null}
         {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
         <div data-league-start-panel>
@@ -1686,7 +1704,7 @@ export function LeagueCoordinatorWorkspace() {
             contextLabel="Current season"
             contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}
             primaryAction={coordinatorContinueAction || leagueHomeAction}
-            quickActions={access.canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}
+            quickActions={canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}
             helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}
             steps={firstLeagueSteps}
             showSteps={isFirstLeagueSetup}
@@ -1696,7 +1714,7 @@ export function LeagueCoordinatorWorkspace() {
           />
         </div>
 
-        {access.canUseLeagueTools ? (
+        {canUseLeagueTools ? (
           <>
         <div style={responsiveLayoutGrid}>
           <details
@@ -2648,7 +2666,7 @@ export function LeagueCoordinatorWorkspace() {
               </div>
             ) : null}
 
-            {!access.canUseLeagueTools ? (
+            {!canUseLeagueTools ? (
               <div style={{ marginTop: 18 }}>
                 <UpgradePrompt
                   planId="league"

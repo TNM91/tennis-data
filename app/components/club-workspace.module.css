@@ -7,7 +7,7 @@
 
 .loading, .empty, .panel, .hero, .notice {
   border: 1px solid var(--shell-panel-border);
-  background: color-mix(in srgb, var(--shell-panel-bg) 94%, transparent);
+  background: color-mix(in srgb, var(--shell-panel-bg) 98%, #061225);
   border-radius: 16px;
 }
 
@@ -49,7 +49,7 @@
   gap: 18px;
   padding: clamp(18px, 4vw, 30px);
   background:
-    linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 14%, var(--shell-panel-bg)), rgba(7, 17, 33, .94));
+    linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 13%, #071426), #071426 72%);
 }
 
 .hero::after {
@@ -101,6 +101,7 @@
 
 .clubName { margin: 3px 0 5px; font-size: clamp(27px, 5vw, 42px); line-height: 1.04; overflow-wrap: anywhere; }
 .clubMeta { margin: 0; color: var(--shell-copy-muted); font-weight: 720; }
+.powered { position: relative; z-index: 1; color: var(--shell-copy-muted); font-size: 12px; font-weight: 900; letter-spacing: .04em; }
 
 .switcher select, .field input, .field textarea, .field select {
   width: 100%;
@@ -160,6 +161,27 @@
   gap: 14px;
 }
 
+.experienceStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 28%, var(--shell-panel-border));
+  border-radius: 14px;
+  background: var(--shell-panel-border);
+}
+
+.experienceStrip > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px;
+  background: #0a1a30;
+}
+
+.experienceStrip strong { color: var(--club-color, var(--brand-green)); font-size: 13px; }
+.experienceStrip span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.4; }
+
 .setupCard {
   display: grid;
   gap: 13px;
@@ -196,6 +218,7 @@
 }
 
 .actionCard { display: grid; gap: 8px; color: inherit; text-decoration: none; }
+.actionCardButton { width: 100%; color: inherit; text-align: left; font: inherit; cursor: pointer; }
 .actionCard strong, .card h3 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
 .actionCard span, .card p { color: var(--shell-copy-muted); line-height: 1.45; }
 .actionCard b { color: var(--club-color, var(--brand-green)); font-size: 13px; }
@@ -228,6 +251,7 @@
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
   .headingRow, .setupTop { align-items: stretch; }
   .setupSteps li { align-items: flex-start; }
+  .experienceStrip { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

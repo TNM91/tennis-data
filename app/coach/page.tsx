@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import RoleActionHome, {
   type RoleHomeAction,
   type RoleHomeQuickAction,
@@ -15,6 +17,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import { COACH_ASSIGNMENT_TEMPLATES, getCoachAssignmentTemplate } from '@/lib/coach-assignment-templates'
 import type { CoachStudentInvite } from '@/lib/coach-invites'
@@ -94,6 +97,8 @@ type CoachCalendarFeedStatus = {
   createdAt: string | null
   lastUsedAt: string | null
 }
+
+const CLUB_COACH_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coach']
 
 type CoachStudentDraft = {
   studentName: string
@@ -331,6 +336,9 @@ function CoachContent() {
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
+  const requestedClubId = searchParams.get('clubId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_COACH_SPONSORED_ROLES)
+  const canUseCoachWorkflow = access.canUseCoachWorkflow || clubAccess.allowed
   const studentSnapshots = useMemo(() => buildCoachStudentSnapshots(), [])
   const [savedStudents, setSavedStudents] = useState<CoachStudentLink[]>([])
   const [assignments, setAssignments] = useState<CoachAssignment[]>([])
@@ -385,7 +393,6 @@ function CoachContent() {
   const studentPhoneDigits = getPhoneDigits(studentPhone)
   const requestedStudentLinkId = searchParams.get('studentLinkId') || ''
   const firstAssignmentRequestActive = searchParams.get('firstAssignment') === '1'
-  const requestedClubName = searchParams.get('clubName') || ''
   const firstAssignmentRequestKey = firstAssignmentRequestActive && requestedStudentLinkId
     ? `${requestedStudentLinkId}:first-assignment`
     : ''
@@ -662,7 +669,7 @@ function CoachContent() {
   ])
 
   useEffect(() => {
-    if (!coachResumeResolved || !userId || !access.canUseCoachWorkflow) return
+    if (!coachResumeResolved || !userId || !canUseCoachWorkflow) return
 
     const assignmentDraft = {
       routeRequestKey: assignmentRouteRequestKey,
@@ -719,7 +726,7 @@ function CoachContent() {
 
     return () => window.clearTimeout(timeout)
   }, [
-    access.canUseCoachWorkflow,
+    canUseCoachWorkflow,
     activeMobileBenchStudentId,
     assignmentDueDate,
     assignmentEditId,
@@ -744,7 +751,7 @@ function CoachContent() {
   ])
 
   const loadCoachWorkspace = useCallback(async () => {
-    if (!session?.access_token || !access.canUseCoachWorkflow) return
+    if (!session?.access_token || !canUseCoachWorkflow) return
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
 
@@ -797,7 +804,7 @@ function CoachContent() {
     } finally {
       setWorkspaceLoading(false)
     }
-  }, [access.canUseCoachWorkflow, session?.access_token])
+  }, [canUseCoachWorkflow, session?.access_token])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -811,7 +818,7 @@ function CoachContent() {
   useEffect(() => {
     if (!authResolved) return
 
-    if (!session?.access_token || !access.canUseCoachWorkflow) {
+    if (!session?.access_token || !canUseCoachWorkflow) {
       setCalendarFeedStatusByStudentId({})
       return
     }
@@ -856,7 +863,7 @@ function CoachContent() {
     return () => {
       active = false
     }
-  }, [access.canUseCoachWorkflow, authResolved, session?.access_token])
+  }, [authResolved, canUseCoachWorkflow, session?.access_token])
 
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -872,7 +879,7 @@ function CoachContent() {
       return
     }
 
-    if (!access.canUseCoachWorkflow) {
+    if (!canUseCoachWorkflow) {
       setWorkspaceMessage('Coach access is required to save students.')
       return
     }
@@ -3122,9 +3129,9 @@ function CoachContent() {
     setWorkspaceMessage(`${assignment.title} loaded from drafts. Update it or assign when ready.`)
   }
 
-  if (!authResolved || role === 'public') return null
+  if (!authResolved || (requestedClubId && clubAccess.checking && !access.canUseCoachWorkflow) || role === 'public') return null
 
-  if (!access.canUseCoachWorkflow) {
+  if (!canUseCoachWorkflow) {
     return (
       <LockedPlanPage
         active="/coach"
@@ -3142,14 +3149,12 @@ function CoachContent() {
 
   return (
     <main style={pageStyle}>
-      {requestedClubName ? (
-        <section style={clubContextStyle} aria-label="Club coaching context">
-          <div>
-            <span style={clubContextEyebrowStyle}>Club coaching</span>
-            <strong style={clubContextTitleStyle}>{requestedClubName}</strong>
-          </div>
-          <Link href="/clubs" style={clubContextLinkStyle}>Back to Club Workspace</Link>
-        </section>
+      {clubAccess.workspace ? (
+        <ClubContextBanner
+          workspace={clubAccess.workspace}
+          surface="Coaching"
+          detail="Players, assignments, lesson notes, and progress stay connected to the club."
+        />
       ) : null}
       <RoleActionHome
         roleLabel="Coach"
@@ -5837,40 +5842,6 @@ const linkedEmptyStyle: CSSProperties = {
   lineHeight: 1.5,
   fontSize: 13,
   fontWeight: 800,
-}
-
-const clubContextStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  gap: 12,
-  padding: '12px 14px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border))',
-  borderRadius: 12,
-  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg))',
-}
-
-const clubContextEyebrowStyle: CSSProperties = {
-  display: 'block',
-  color: 'var(--brand-green)',
-  fontSize: 11,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const clubContextTitleStyle: CSSProperties = {
-  display: 'block',
-  marginTop: 3,
-  color: 'var(--foreground-strong)',
-  fontSize: 18,
-}
-
-const clubContextLinkStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 900,
-  textDecoration: 'none',
 }
 
 const workspaceGridStyle: CSSProperties = {

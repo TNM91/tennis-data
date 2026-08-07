@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState, type CSSProperties } from 'react'
-import { getClubGroupTypeLabel, type Club, type ClubCompetitionTemplate, type ClubGroup } from '@/lib/club-workspace'
+import { buildClubToolHref, getClubGroupTypeLabel, type Club, type ClubCompetitionTemplate, type ClubGroup } from '@/lib/club-workspace'
 import styles from './club-workspace.module.css'
 
 type PublicCompetition = { id: string; name: string; detail: string; type: 'league' | 'tournament'; href: string }
@@ -39,13 +39,26 @@ export default function PublicClubHome({ slug }: { slug: string }) {
       <section className={styles.hero} style={club.heroImageUrl ? { backgroundImage: `linear-gradient(100deg, rgba(5,14,28,.95), rgba(5,14,28,.72)), url(${JSON.stringify(club.heroImageUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
         <div className={styles.clubIdentity}>
           {club.logoUrl ? <Image className={styles.logo} src={club.logoUrl} alt={`${club.name} logo`} width={64} height={64} unoptimized /> : <div className={styles.logoFallback}>{club.name.slice(0, 2).toUpperCase()}</div>}
-          <div><p className={styles.eyebrow}>Tennis club</p><h1 className={styles.clubName}>{club.name}</h1><p className={styles.clubMeta}>{club.locationLabel}</p></div>
+          <div><p className={styles.eyebrow}>Your tennis home</p><h1 className={styles.clubName}>{club.name}</h1><p className={styles.clubMeta}>{club.locationLabel}</p></div>
         </div>
         <p className={styles.copy}>{club.description || 'Programs, competition, and club tennis in one place.'}</p>
         <div className={styles.heroActions}>
-          <Link className={styles.primary} href="/join">Join TenAceIQ</Link>
+          <Link className={styles.primary} href={`/login?next=${encodeURIComponent(`/clubs?clubId=${club.id}`)}`}>Open my club home</Link>
           {club.contactEmail ? <a className={styles.secondary} href={`mailto:${club.contactEmail}`}>Contact club</a> : null}
-          <Link className={styles.secondary} href="/clubs">Club member sign in</Link>
+          <Link className={styles.secondary} href="/join">Create player profile</Link>
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}><p className={styles.eyebrow}>Connected by TenAceIQ</p><h2>One club. One tennis journey.</h2><p>Players, coaches, programs, and competition keep the same club context.</p></div>
+        <div className={styles.experienceStrip}>
+          <div><strong>My tennis</strong><span>Goals, coach work, matches, and the next useful step.</span></div>
+          <div><strong>Coach connection</strong><span>Lesson follow-through, assignments, and visible progress.</span></div>
+          <div><strong>Club competition</strong><span>Leagues, tournaments, schedules, draws, and results.</span></div>
+        </div>
+        <div className={styles.heroActions}>
+          <Link className={styles.secondary} href={buildClubToolHref('/mylab', club)}>Open My Lab</Link>
+          <Link className={styles.secondary} href={buildClubToolHref('/compete', club)}>See club competition</Link>
         </div>
       </section>
 

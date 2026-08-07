@@ -225,6 +225,24 @@ export function buildClubCompetitionLaunchHref(
   return `${path}?${params.toString()}#${template.competitionType === 'tournament' ? 'tournament-setup' : 'league-setup-form'}`
 }
 
+export function buildClubToolHref(
+  path: string,
+  club: Pick<Club, 'id' | 'name' | 'slug'>,
+  params: Record<string, string> = {},
+) {
+  const search = new URLSearchParams({
+    clubId: club.id,
+    clubName: club.name,
+    club: club.slug,
+    ...params,
+  })
+  return `${path}?${search.toString()}`
+}
+
+export function hasClubTeamProgram(workspace: Pick<ClubWorkspaceData, 'groups'>) {
+  return workspace.groups.some((group) => group.isActive && group.groupType === 'team')
+}
+
 type Row = Record<string, unknown>
 
 export function mapClubRow(row: Row): Club {
