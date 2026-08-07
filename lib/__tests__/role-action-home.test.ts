@@ -50,6 +50,6 @@ describe('role action home', () => {
     expect(league).toContain('showSteps={isFirstLeagueSetup}')
     expect(coach).toContain('contextValue={activeMobileBenchCard?.student.playerName')
     expect(league).toContain('contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName')
-    expect(league).toContain('{access.canUseLeagueTools ? (')
+    expect(league).toContain('{canUseLeagueTools ? (')
   })
 })

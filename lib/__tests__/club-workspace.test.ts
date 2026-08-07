@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildClubCompetitionLaunchHref,
+  buildClubToolHref,
   canRunClubPrograms,
   createClubSlug,
   getClubSetupSteps,
+  hasClubTeamProgram,
   isClubManager,
   mapClubGroupRow,
   normalizeClubColor,
@@ -59,6 +61,21 @@ describe('club workspace', () => {
     expect(href).toContain('format=ladder')
     expect(href).toContain('facility=Court+Center')
     expect(href).toContain('#league-setup-form')
+  })
+
+  it('carries club context into connected tools', () => {
+    const href = buildClubToolHref('/coach', {
+      id: 'club-1',
+      slug: 'forest-hills',
+      name: 'Forest Hills Tennis Club',
+    })
+    expect(href).toBe('/coach?clubId=club-1&clubName=Forest+Hills+Tennis+Club&club=forest-hills')
+  })
+
+  it('only promotes Team Hub when the club has an active team program', () => {
+    expect(hasClubTeamProgram({ groups: [{ groupType: 'team', isActive: true }] as ClubWorkspaceData['groups'] })).toBe(true)
+    expect(hasClubTeamProgram({ groups: [{ groupType: 'clinic', isActive: true }] as ClubWorkspaceData['groups'] })).toBe(false)
+    expect(hasClubTeamProgram({ groups: [{ groupType: 'team', isActive: false }] as ClubWorkspaceData['groups'] })).toBe(false)
   })
 
   it('maps public program types and defaults safely', () => {

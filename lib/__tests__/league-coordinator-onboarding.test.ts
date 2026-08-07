@@ -13,7 +13,7 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain('setRegistryLoaded(true)')
     expect(source).toContain("title: 'Getting your leagues'")
     expect(source).toContain("contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}")
-    expect(source).toContain('const isFirstLeagueSetup = registryLoaded && access.canUseLeagueTools && !hasSavedLeague')
+    expect(source).toContain('const isFirstLeagueSetup = registryLoaded && canUseLeagueTools && !hasSavedLeague')
   })
 
   it('guides a new coordinator through one setup path', () => {

@@ -1,0 +1,80 @@
+.banner {
+  --club-context-color: var(--brand-green);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 1180px);
+  margin: 0 auto 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--club-context-color) 46%, var(--shell-panel-border));
+  border-radius: 16px;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--club-context-color) 12%, #071426), rgba(7, 20, 38, .96));
+  color: var(--foreground-strong);
+}
+
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 30%;
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--club-context-color) 9%, transparent));
+  pointer-events: none;
+}
+
+.identity {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logo, .fallback {
+  width: 52px;
+  height: 52px;
+  border: 1px solid color-mix(in srgb, var(--club-context-color) 40%, white 12%);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .96);
+  object-fit: contain;
+}
+
+.fallback {
+  display: grid;
+  place-items: center;
+  background: rgba(5, 14, 28, .88);
+  color: var(--club-context-color);
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.copy { display: grid; gap: 3px; min-width: 0; }
+.eyebrow { color: var(--club-context-color); font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.title { overflow-wrap: anywhere; font-size: clamp(18px, 3vw, 24px); line-height: 1.08; }
+.detail { color: var(--shell-copy-muted); font-size: 13px; font-weight: 720; line-height: 1.35; }
+.back {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground-strong);
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .banner { align-items: stretch; flex-direction: column; }
+  .back { width: 100%; }
+}

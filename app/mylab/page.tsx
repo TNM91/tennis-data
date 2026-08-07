@@ -3,12 +3,15 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import { useAuth } from '@/app/components/auth-provider'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
@@ -52,6 +55,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -94,6 +98,8 @@ type FollowItem = {
   subtitle: string | null
   created_at?: string | null
 }
+
+const CLUB_PLAYER_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coach', 'captain', 'coordinator', 'player', 'guardian']
 
 type FeedItem = {
   id: string
@@ -941,6 +947,7 @@ export default function MyLabPage() {
 
 function MyLabPageInner() {
   const { userId, authResolved, role, entitlements, session } = useAuth()
+  const searchParams = useSearchParams()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -995,8 +1002,11 @@ function MyLabPageInner() {
   const { isMobile, isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
-  const showLockedMobileMyLabPreview = isMobile && !accessPending && !access.canUseAdvancedPlayerInsights
+  const requestedClubId = searchParams.get('clubId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_PLAYER_SPONSORED_ROLES)
+  const canUseAdvancedPlayerInsights = access.canUseAdvancedPlayerInsights || clubAccess.allowed
+  const accessPending = !authResolved || (Boolean(userId) && entitlements === null) || (Boolean(requestedClubId) && clubAccess.checking && !access.canUseAdvancedPlayerInsights)
+  const showLockedMobileMyLabPreview = isMobile && !accessPending && !canUseAdvancedPlayerInsights
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
@@ -3239,7 +3249,14 @@ function MyLabPageInner() {
   ]
   return (
     <section style={pageStyle}>
-      {!accessPending && !access.canUseAdvancedPlayerInsights ? (
+      {clubAccess.workspace ? (
+        <ClubContextBanner
+          workspace={clubAccess.workspace}
+          surface="Player experience"
+          detail="Goals, coach work, matches, programs, and the next useful step stay connected to the club."
+        />
+      ) : null}
+      {!accessPending && !canUseAdvancedPlayerInsights ? (
         <UpgradePrompt
           planId="player_plus"
           headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}

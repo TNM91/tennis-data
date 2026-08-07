@@ -8,10 +8,12 @@ import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-f
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
+  buildClubToolHref,
   canRunClubPrograms,
   getClubGroupTypeLabel,
   getClubRoleLabel,
   getClubSetupSteps,
+  hasClubTeamProgram,
   isClubManager,
   type Club,
   type ClubCompetitionTemplate,
@@ -179,6 +181,7 @@ export default function ClubWorkspace() {
   const manager = isClubManager(clubRoles)
   const staff = canRunClubPrograms(clubRoles)
   const clubStyle = { '--club-color': workspace.club.primaryColor } as CSSProperties
+  const heroAction = getClubHeroAction(workspace, clubRoles)
 
   return (
     <main className={styles.page} style={clubStyle}>
@@ -194,18 +197,22 @@ export default function ClubWorkspace() {
               <p className={styles.clubMeta}>{[workspace.club.locationLabel, clubRoles.map(getClubRoleLabel).join(' + ')].filter(Boolean).join(' · ')}</p>
             </div>
           </div>
-          <label className={styles.switcher}>
-            <span className={styles.eyebrow}>Club</span>
-            <select value={selectedClubId} onChange={(event) => void selectClub(event.target.value)}>
-              {clubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
-            </select>
-          </label>
+          {clubs.length > 1 ? (
+            <label className={styles.switcher}>
+              <span className={styles.eyebrow}>Club</span>
+              <select value={selectedClubId} onChange={(event) => void selectClub(event.target.value)}>
+                {clubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
+              </select>
+            </label>
+          ) : <span className={styles.powered}>Powered by TenAceIQ</span>}
         </div>
-        <p className={styles.copy}>{workspace.club.description || 'Keep coaching, programs, leagues, tournaments, and member updates connected.'}</p>
+        <p className={styles.copy}>{workspace.club.description || 'One connected tennis experience for players, coaches, programs, leagues, and tournaments.'}</p>
         <div className={styles.heroActions}>
-          <Link className={styles.primary} href={getPrimaryActionHref(clubRoles)}>{getPrimaryActionLabel(clubRoles)}</Link>
+          {heroAction.tab
+            ? <button className={styles.primary} type="button" onClick={() => setTab(heroAction.tab!)}>{heroAction.label}</button>
+            : <Link className={styles.primary} href={heroAction.href!}>{heroAction.label}</Link>}
           <Link className={styles.secondary} href={`/clubs/${workspace.club.slug}`}>View public club page</Link>
-          {manager ? <button className={styles.secondary} type="button" onClick={() => setTab('people')}>Invite people</button> : null}
+          {manager && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => setTab('people')}>Invite people</button> : null}
         </div>
       </section>
 
@@ -330,6 +337,11 @@ function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDat
         <div className={styles.panelHeading}><p className={styles.eyebrow}>Right now</p><h2>{getHomeTitle(roles)}</h2><p>{getHomeCopy(roles)}</p></div>
         {manager && setupComplete && !showSetup ? <button className={styles.quietButton} type="button" onClick={() => setShowSetup(true)}>Setup help</button> : null}
       </div>
+      <div className={styles.experienceStrip} aria-label="Connected club value">
+        <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
+        <div><strong>Coaches</strong><span>Keep lessons, assignments, and progress connected.</span></div>
+        <div><strong>Club staff</strong><span>Run programs and competition without rebuilding context.</span></div>
+      </div>
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
@@ -363,9 +375,11 @@ function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDat
         <div className={styles.stat}><strong>{workspace.competitions.length}</strong><span>Live competitions</span></div>
       </div>
       <div className={styles.actionGrid}>
-        {actions.map((action) => <Link key={action.title} className={styles.actionCard} href={action.href}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></Link>)}
+        {actions.map((action) => action.tab
+          ? <button key={action.title} className={`${styles.actionCard} ${styles.actionCardButton}`} type="button" onClick={() => onOpenTab(action.tab!)}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></button>
+          : <Link key={action.title} className={styles.actionCard} href={action.href!}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></Link>)}
       </div>
-      {staff ? <button className={styles.secondary} type="button" onClick={() => onOpenTab('compete')}>Set up a club league or tournament</button> : null}
+      {staff ? <button className={styles.secondary} type="button" onClick={() => onOpenTab('compete')}>Set up club competition</button> : null}
     </section>
   )
 }
@@ -491,31 +505,40 @@ function RoleChecks({ value, onChange }: { value: ClubRole[]; onChange: (roles: 
 
 function getRoleActions(roles: ClubRole[], workspace: ClubWorkspaceData) {
   if (roles.some((role) => role === 'owner' || role === 'admin' || role === 'director')) return [
-    { title: 'Coach experience', detail: `${workspace.memberships.length} people connected across player development`, label: 'Open Coach Hub', href: `/coach?clubId=${encodeURIComponent(workspace.club.id)}&clubName=${encodeURIComponent(workspace.club.name)}` },
-    { title: 'Club leagues', detail: 'Schedules, entries, scores, and standings', label: 'Open League Office', href: '/league-coordinator' },
-    { title: 'Club tournaments', detail: 'Entries, draws, courts, and event day', label: 'Open Tournament Desk', href: '/league-coordinator/tournaments' },
+    { title: 'Develop players', detail: `${workspace.memberships.length} people connected to the club experience`, label: 'Open coaching view', href: buildClubToolHref('/coach', workspace.club) },
+    { title: 'Run programs', detail: `${workspace.groups.length} clinics, teams, camps, or development groups`, label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { title: 'Host competition', detail: 'Club leagues and tournaments with schedules, draws, and results', label: 'Open competition', tab: 'compete' as WorkspaceTab },
+    ...(hasClubTeamProgram(workspace) ? [{ title: 'Support teams', detail: 'Availability, projected lineups, and team messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
   ]
   if (roles.includes('coach')) return [
-    { title: 'Player book', detail: 'Goals, assignments, and reviews', label: 'Open Coach Hub', href: `/coach?clubId=${encodeURIComponent(workspace.club.id)}&clubName=${encodeURIComponent(workspace.club.name)}` },
-    { title: 'Video feedback', detail: 'Review a clip and return cues', label: 'Open Video Review', href: '/video-review' },
-    { title: 'Player paths', detail: 'Choose the next development focus', label: 'Open paths', href: '/player-development' },
+    { title: 'Player book', detail: 'Goals, assignments, and reviews', label: 'Open Coach Hub', href: buildClubToolHref('/coach', workspace.club) },
+    { title: 'Programs', detail: 'Open the groups you coach from the club roster', label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { title: 'Video feedback', detail: 'Review a clip and return cues', label: 'Open Video Review', href: buildClubToolHref('/video-review', workspace.club) },
   ]
   if (roles.some((role) => role === 'captain' || role === 'coordinator')) return [
-    { title: 'Team work', detail: 'Availability, lineups, and messages', label: 'Open Team Hub', href: '/captain' },
-    { title: 'Club league', detail: 'Schedules, entries, and results', label: 'Open League Office', href: '/league-coordinator' },
-    { title: 'Tournament day', detail: 'Entries, draws, courts, and scores', label: 'Open Tournament Desk', href: '/league-coordinator/tournaments' },
+    ...(hasClubTeamProgram(workspace) ? [{ title: 'Team work', detail: 'Availability, projected lineups, and messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
+    { title: 'Club league', detail: 'Schedules, entries, and results', label: 'Open League Office', href: buildClubToolHref('/league-coordinator', workspace.club) },
+    { title: 'Tournament day', detail: 'Entries, draws, courts, and scores', label: 'Open Tournament Desk', href: buildClubToolHref('/league-coordinator/tournaments', workspace.club) },
   ]
   return [
-    { title: 'My development', detail: 'Your assignments and next focus', label: 'Open My Lab', href: '/mylab' },
-    { title: 'Club competition', detail: 'Schedules, draws, and results', label: 'Open Compete', href: '/compete' },
-    { title: 'Video feedback', detail: 'Send a clip to your coach', label: 'Open Video Review', href: '/video-review' },
+    { title: 'My development', detail: 'Your assignments and next focus', label: 'Open My Lab', href: buildClubToolHref('/mylab', workspace.club) },
+    { title: 'My programs', detail: 'See the clinics, teams, and groups connected to you', label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { title: 'Club competition', detail: 'Schedules, draws, and results', label: 'Open Compete', href: buildClubToolHref('/compete', workspace.club) },
   ]
 }
 
-function getHomeTitle(roles: ClubRole[]) { return isClubManager(roles) ? 'What needs the club’s attention?' : roles.includes('coach') ? 'Who needs your attention?' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'What needs organizing?' : 'What is next for your tennis?' }
-function getHomeCopy(roles: ClubRole[]) { return isClubManager(roles) ? 'Open the work that moves the club today.' : roles.includes('coach') ? 'Keep each player’s lesson, assignment, and next step connected.' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'Move the team or competition without hunting for the right tool.' : 'Your club programs, coaching, and competition stay together here.' }
-function getPrimaryActionHref(roles: ClubRole[]) { return isClubManager(roles) ? '/league-coordinator' : roles.includes('coach') ? '/coach' : roles.includes('captain') ? '/captain' : '/mylab' }
-function getPrimaryActionLabel(roles: ClubRole[]) { return isClubManager(roles) ? 'Run club competition' : roles.includes('coach') ? 'Coach players' : roles.includes('captain') ? 'Open Team Hub' : 'Open My Lab' }
+function getHomeTitle(roles: ClubRole[]) { return isClubManager(roles) ? 'Keep the tennis experience moving.' : roles.includes('coach') ? 'Who needs your next step?' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'What needs organizing?' : 'What is next for your tennis?' }
+function getHomeCopy(roles: ClubRole[]) { return isClubManager(roles) ? 'Open the player, program, or competition job that matters today.' : roles.includes('coach') ? 'Keep each player’s lesson, assignment, and progress connected.' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'Move the team or competition without hunting for the right tool.' : 'Your club programs, coaching, and competition stay together here.' }
+function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { label: string; href?: string; tab?: WorkspaceTab } {
+  if (isClubManager(roles)) {
+    if (workspace.memberships.length <= 1 && !workspace.invites.some((invite) => invite.status === 'pending')) return { label: 'Invite your staff', tab: 'people' }
+    if (!workspace.groups.length) return { label: 'Add the first program', tab: 'groups' }
+    return { label: 'Open coaching view', href: buildClubToolHref('/coach', workspace.club) }
+  }
+  if (roles.includes('coach')) return { label: 'Open Coach Hub', href: buildClubToolHref('/coach', workspace.club) }
+  if (roles.includes('captain') && hasClubTeamProgram(workspace)) return { label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }
+  return { label: 'Open My Lab', href: buildClubToolHref('/mylab', workspace.club) }
+}
 function readStoredClubId() { try { return window.localStorage.getItem('tenaceiq.club.active') || '' } catch { return '' } }
 function rememberClubId(clubId: string) { try { window.localStorage.setItem('tenaceiq.club.active', clubId) } catch { /* best effort */ } }
 function readRequestedClubId() { return new URL(window.location.href).searchParams.get('clubId') || '' }

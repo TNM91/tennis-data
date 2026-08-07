@@ -94,7 +94,7 @@ describe('public access cue flicker guards', () => {
     expect(myLabSource).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
     expect(myLabSource).toContain('buildProductAccessState(resolvedRole, entitlements)')
     expect(myLabSource).toContain('const accessPending = !authResolved || (Boolean(userId) && entitlements === null)')
-    expect(myLabSource).toContain('!accessPending && !access.canUseAdvancedPlayerInsights')
+    expect(myLabSource).toContain('!accessPending && !canUseAdvancedPlayerInsights')
   })
 
   it('keeps upgrade access state on the shared auth provider', () => {

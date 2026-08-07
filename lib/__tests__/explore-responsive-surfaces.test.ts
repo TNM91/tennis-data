@@ -474,7 +474,7 @@ describe('Explore responsive surfaces', () => {
     expect(myLabSource).toContain('<TennisSetupChecklist')
     expect(myLabSource).toContain('{!isProfileConfirmed ? (')
     expect(myLabSource).toContain('<strong>Need help?</strong>')
-    expect(myLabSource).toContain('const showLockedMobileMyLabPreview = isMobile && !accessPending && !access.canUseAdvancedPlayerInsights')
+    expect(myLabSource).toContain('const showLockedMobileMyLabPreview = isMobile && !accessPending && !canUseAdvancedPlayerInsights')
     expect(myLabSource).not.toContain('open={!isMobile}')
     expect(myLabSource).not.toContain('desktopPassthroughDetailsStyle')
     expect(myLabSource).not.toContain('desktopHiddenSummaryStyle')

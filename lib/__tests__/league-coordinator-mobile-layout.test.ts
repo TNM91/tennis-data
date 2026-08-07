@@ -40,7 +40,7 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'leagueSecondaryToolsSummaryStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(source, 'leagueSecondaryToolsBodyStyle')).toContain('minWidth: 0')
     expect(source).toContain('<RoleActionHome')
-    expect(source).toContain('quickActions={access.canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}')
+    expect(source).toContain('quickActions={canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}')
     expect(source).toContain("title: 'Unlock League Office'")
     expect(source).toContain("title: 'Explore leagues'")
     expect(source).toContain('summaryOnly={isMobile}')

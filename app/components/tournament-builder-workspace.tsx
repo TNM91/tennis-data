@@ -1,11 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
 import {
   chooseLatestLeagueCoordinatorResumeState,
   loadLeagueCoordinatorResumeStateFromCloud,
@@ -63,6 +67,7 @@ import {
 } from '@/lib/tiq-awards-registry'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
+const CLUB_TOURNAMENT_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coordinator', 'coach']
 
 const lockedTournamentActions = [
   {
@@ -127,11 +132,15 @@ const tournamentDeskPaths = [
 ] as const
 
 export default function TournamentBuilderWorkspace() {
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
-  const canUseLeague = access.canUseLeagueTools
+  const requestedClubId = searchParams.get('clubId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_TOURNAMENT_SPONSORED_ROLES)
+  const canUseLeague = access.canUseLeagueTools || clubAccess.allowed
   const isFullCourt = access.currentPlanId === 'full_court'
+  const hasUnlimitedCompetition = isFullCourt || clubAccess.allowed
   const [records, setRecords] = useState<TiqTournamentRecord[]>([])
   const [clubId, setClubId] = useState('')
   const [name, setName] = useState('Saturday Smash')
@@ -309,7 +318,7 @@ export default function TournamentBuilderWorkspace() {
     alertCount: alertRecords.length,
   }) : []
   const activeCount = records.filter((record) => record.status !== 'completed').length
-  const canCreateMore = isFullCourt || activeCount < 1 || Boolean(selectedId)
+  const canCreateMore = hasUnlimitedCompetition || activeCount < 1 || Boolean(selectedId)
   const setupReadinessItems = [
     {
       label: 'Name',
@@ -1363,7 +1372,7 @@ export default function TournamentBuilderWorkspace() {
         </p>
         <div style={statGridStyle}>
           <Stat label="Saved events" value={String(records.length)} />
-          <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
+          <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
           <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
         </div>
         {!canUseLeague && authResolved ? (
@@ -1390,6 +1399,10 @@ export default function TournamentBuilderWorkspace() {
       </details>
     </section>
   )
+
+  if (requestedClubId && clubAccess.checking && !access.canUseLeagueTools) {
+    return <main style={pageStyle}><section style={panelStyle}>Opening the club Tournament Desk...</section></main>
+  }
 
   if (!canUseLeague && authResolved) {
     return (
@@ -1438,6 +1451,13 @@ export default function TournamentBuilderWorkspace() {
 
   return (
     <main style={pageStyle}>
+      {clubAccess.workspace ? (
+        <ClubContextBanner
+          workspace={clubAccess.workspace}
+          surface="Tournament Desk"
+          detail="Entrants, draws, courts, scores, alerts, and awards stay connected to the club."
+        />
+      ) : null}
       <section style={tournamentPathStyle} aria-labelledby="tournament-desk-path-title">
         <div style={tournamentPathHeaderStyle}>
           <div>
@@ -1681,7 +1701,7 @@ export default function TournamentBuilderWorkspace() {
           </p>
           <div style={statGridStyle}>
             <Stat label="Saved events" value={String(records.length)} />
-            <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
+            <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
             <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
           </div>
           {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
@@ -2555,7 +2575,7 @@ export default function TournamentBuilderWorkspace() {
             <div style={sectionEyebrowStyle}>Tournament room</div>
             <h2 style={sectionTitleStyle}>Saved events</h2>
           </div>
-          <span style={pillStyle}>{getTournamentLimitSummary(isFullCourt)}</span>
+          <span style={pillStyle}>{getTournamentLimitSummary(hasUnlimitedCompetition)}</span>
         </div>
 
         <div style={recordGridStyle}>
