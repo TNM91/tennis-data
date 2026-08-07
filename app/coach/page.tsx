@@ -385,6 +385,7 @@ function CoachContent() {
   const studentPhoneDigits = getPhoneDigits(studentPhone)
   const requestedStudentLinkId = searchParams.get('studentLinkId') || ''
   const firstAssignmentRequestActive = searchParams.get('firstAssignment') === '1'
+  const requestedClubName = searchParams.get('clubName') || ''
   const firstAssignmentRequestKey = firstAssignmentRequestActive && requestedStudentLinkId
     ? `${requestedStudentLinkId}:first-assignment`
     : ''
@@ -3141,6 +3142,15 @@ function CoachContent() {
 
   return (
     <main style={pageStyle}>
+      {requestedClubName ? (
+        <section style={clubContextStyle} aria-label="Club coaching context">
+          <div>
+            <span style={clubContextEyebrowStyle}>Club coaching</span>
+            <strong style={clubContextTitleStyle}>{requestedClubName}</strong>
+          </div>
+          <Link href="/clubs" style={clubContextLinkStyle}>Back to Club Workspace</Link>
+        </section>
+      ) : null}
       <RoleActionHome
         roleLabel="Coach"
         contextLabel="Working with"
@@ -5827,6 +5837,40 @@ const linkedEmptyStyle: CSSProperties = {
   lineHeight: 1.5,
   fontSize: 13,
   fontWeight: 800,
+}
+
+const clubContextStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  padding: '12px 14px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border))',
+  borderRadius: 12,
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg))',
+}
+
+const clubContextEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const clubContextTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+}
+
+const clubContextLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
 }
 
 const workspaceGridStyle: CSSProperties = {

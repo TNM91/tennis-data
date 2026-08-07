@@ -1,0 +1,202 @@
+.page {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: clamp(22px, 4vw, 48px) 0 64px;
+  color: var(--foreground-strong);
+}
+
+.loading, .empty, .panel, .hero, .notice {
+  border: 1px solid var(--shell-panel-border);
+  background: color-mix(in srgb, var(--shell-panel-bg) 94%, transparent);
+  border-radius: 16px;
+}
+
+.loading, .empty {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+  padding: clamp(20px, 5vw, 38px);
+  margin: 32px auto 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--brand-green);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -.035em;
+}
+
+.copy {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  line-height: 1.55;
+  font-weight: 650;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 4vw, 30px);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 14%, var(--shell-panel-bg)), rgba(7, 17, 33, .94));
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -70px -100px auto;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--club-color, var(--brand-green)) 14%, transparent);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.heroTop, .heroActions, .switcher, .tabs, .row, .cardTop, .roleList, .checkGrid {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heroTop { justify-content: space-between; }
+.heroActions { position: relative; z-index: 1; }
+
+.clubIdentity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.logo, .logoFallback {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 45%, white 10%);
+  object-fit: cover;
+  background: rgba(5, 14, 28, .76);
+}
+
+.logoFallback {
+  display: grid;
+  place-items: center;
+  color: var(--club-color, var(--brand-green));
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.clubName { margin: 3px 0 5px; font-size: clamp(27px, 5vw, 42px); line-height: 1.04; overflow-wrap: anywhere; }
+.clubMeta { margin: 0; color: var(--shell-copy-muted); font-weight: 720; }
+
+.switcher select, .field input, .field textarea, .field select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(6, 16, 31, .88);
+  color: var(--foreground-strong);
+  font: inherit;
+}
+
+.switcher select { width: auto; min-width: min(100%, 210px); }
+.field textarea { min-height: 90px; resize: vertical; }
+.field { display: grid; gap: 6px; min-width: 0; color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
+.fieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.full { grid-column: 1 / -1; }
+
+.primary, .secondary, .tab, .quietButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary { background: var(--club-color, var(--brand-green)); color: #07111f; }
+.secondary, .quietButton { border-color: var(--shell-panel-border); background: var(--shell-chip-bg); color: var(--foreground-strong); }
+.quietButton { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.primary:disabled, .secondary:disabled { opacity: .55; cursor: wait; }
+
+.tabs {
+  margin: 16px 0;
+  padding: 5px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 14px;
+  background: rgba(5, 14, 28, .68);
+}
+
+.tab { flex: 1 1 120px; min-height: 42px; background: transparent; color: var(--shell-copy-muted); }
+.tabActive { background: color-mix(in srgb, var(--club-color, var(--brand-green)) 15%, var(--shell-chip-bg)); color: var(--foreground-strong); border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 35%, var(--shell-panel-border)); }
+
+.panel { display: grid; gap: 16px; padding: clamp(16px, 3vw, 24px); }
+.panelHeading { display: grid; gap: 5px; }
+.panelHeading h2 { margin: 0; font-size: clamp(22px, 4vw, 30px); }
+.panelHeading p { margin: 0; color: var(--shell-copy-muted); line-height: 1.5; }
+
+.actionGrid, .cardGrid, .statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+}
+
+.actionCard, .card, .stat {
+  min-width: 0;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  padding: 15px;
+  background: var(--shell-chip-bg);
+}
+
+.actionCard { display: grid; gap: 8px; color: inherit; text-decoration: none; }
+.actionCard strong, .card h3 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.actionCard span, .card p { color: var(--shell-copy-muted); line-height: 1.45; }
+.actionCard b { color: var(--club-color, var(--brand-green)); font-size: 13px; }
+.stat { display: grid; gap: 3px; }
+.stat strong { font-size: 26px; }
+.stat span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
+.card { display: grid; gap: 10px; align-content: start; }
+.cardTop { justify-content: space-between; align-items: flex-start; }
+.pill { display: inline-flex; align-items: center; min-height: 25px; padding: 0 9px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 32%, var(--shell-panel-border)); color: var(--club-color, var(--brand-green)); font-size: 11px; font-weight: 900; }
+.muted { color: var(--shell-copy-muted); }
+.roleList { gap: 5px; }
+.notice { padding: 12px 14px; color: var(--foreground-strong); font-weight: 750; }
+.success { border-color: color-mix(in srgb, var(--brand-green) 45%, var(--shell-panel-border)); }
+.danger { border-color: rgba(255, 94, 112, .45); color: #ffd2d7; }
+.sectionDivider { height: 1px; background: var(--shell-panel-border); border: 0; margin: 2px 0; }
+.compactForm { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--shell-panel-border); border-radius: 13px; background: rgba(5, 14, 28, .48); }
+.checkGrid { align-items: flex-start; }
+.check { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 1px solid var(--shell-panel-border); border-radius: 999px; color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
+.check input { accent-color: var(--club-color, var(--brand-green)); }
+.groupRoster { display: grid; gap: 7px; max-height: 280px; overflow: auto; padding-right: 4px; }
+.memberRow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; min-height: 40px; }
+
+@media (max-width: 650px) {
+  .page { width: min(100% - 20px, 1180px); padding-top: 16px; }
+  .hero { border-radius: 14px; }
+  .fieldGrid { grid-template-columns: 1fr; }
+  .full { grid-column: auto; }
+  .heroActions > *, .row > .primary, .row > .secondary { flex: 1 1 145px; }
+  .tabs { position: sticky; top: 8px; z-index: 4; }
+  .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
+}

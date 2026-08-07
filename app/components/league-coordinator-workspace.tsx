@@ -25,12 +25,14 @@ import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   TEAM_MATCH_FORMATS,
   getTeamMatchFormatSummary,
+  normalizeTeamMatchFormatId,
   resolveTeamMatchFormat,
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
 import {
   getTiqIndividualCompetitionFormatDescription,
   getTiqIndividualCompetitionFormatLabel,
+  normalizeTiqIndividualCompetitionFormat,
   TIQ_INDIVIDUAL_COMPETITION_FORMATS,
 } from '@/lib/tiq-individual-format'
 import {
@@ -165,6 +167,7 @@ const LEAGUE_HOME_LOCKED_ACTIONS: readonly RoleHomeQuickAction[] = [
 ]
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
+  clubId: '',
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
   teamMatchFormatId: 'standard_2s_3d',
@@ -359,6 +362,8 @@ export function LeagueCoordinatorWorkspace() {
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
+  const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubTemplateId = searchParams.get('templateId') || ''
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
@@ -368,6 +373,7 @@ export function LeagueCoordinatorWorkspace() {
   const [setupOpen, setSetupOpen] = useState(false)
   const [registryLoaded, setRegistryLoaded] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
+  const [appliedClubTemplateId, setAppliedClubTemplateId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
   const [photoUploadStatus, setPhotoUploadStatus] = useState('')
@@ -417,6 +423,33 @@ export function LeagueCoordinatorWorkspace() {
 
     return () => window.clearTimeout(timeoutId)
   }, [refreshRegistry])
+
+  useEffect(() => {
+    if (!requestedClubId || !requestedClubTemplateId || appliedClubTemplateId === requestedClubTemplateId) return
+
+    const entrantType = searchParams.get('entrantType')
+    const requestedFormat = searchParams.get('format') || ''
+    const leagueFormat = entrantType === 'teams' ? 'team' : 'individual'
+    setDraft((current) => ({
+      ...current,
+      clubId: requestedClubId,
+      leagueFormat,
+      individualCompetitionFormat: leagueFormat === 'individual'
+        ? normalizeTiqIndividualCompetitionFormat(requestedFormat)
+        : current.individualCompetitionFormat,
+      teamMatchFormatId: leagueFormat === 'team'
+        ? normalizeTeamMatchFormatId(requestedFormat)
+        : current.teamMatchFormatId,
+      leagueName: searchParams.get('templateName') || current.leagueName,
+      flight: searchParams.get('division') || current.flight,
+      defaultFacility: searchParams.get('facility') || current.defaultFacility,
+      locationLabel: searchParams.get('clubName') || current.locationLabel,
+      scheduleTimeZone: searchParams.get('timeZone') || current.scheduleTimeZone,
+    }))
+    setSetupOpen(true)
+    setAppliedClubTemplateId(requestedClubTemplateId)
+    setStatus('Club setup applied. Add the season dates and first participants, then save the league.')
+  }, [appliedClubTemplateId, requestedClubId, requestedClubTemplateId, searchParams])
 
   useEffect(() => {
     if (!authResolved) return

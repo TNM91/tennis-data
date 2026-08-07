@@ -222,6 +222,12 @@ function MetricTile({ label, value, accent = false }: { label: string; value: st
 
 const organizerQuickPaths = [
   {
+    question: 'Run club tennis',
+    cta: 'Open Club Workspace',
+    href: '/clubs',
+    job: 'run_club_tennis',
+  },
+  {
     question: 'Schedule season',
     cta: 'Open setup',
     href: '/league-coordinator',
