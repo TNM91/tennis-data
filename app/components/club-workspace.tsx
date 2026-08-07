@@ -39,6 +39,10 @@ type ClubListResponse = {
 
 type ClubRosterContact = {
   id: string
+  importedByUserId: string
+  importedByName: string
+  ownedByYou: boolean
+  sharedWithClub: boolean
   teamName: string
   leagueName: string
   flight: string
@@ -122,6 +126,15 @@ export default function ClubWorkspace() {
     if (!selectedClubId) return []
     const response = await request<{ contacts?: ClubRosterContact[] }>(`/api/clubs/${selectedClubId}/roster-contacts`)
     return response.contacts ?? []
+  }, [request, selectedClubId])
+
+  const setRosterSharing = useCallback(async (contactIds: string[], share: boolean) => {
+    if (!selectedClubId) return ''
+    const response = await request<{ message?: string }>(`/api/clubs/${selectedClubId}/roster-contacts`, {
+      method: 'PATCH',
+      body: JSON.stringify({ contactIds, share }),
+    })
+    return response.message ?? ''
   }, [request, selectedClubId])
 
   useEffect(() => {
@@ -347,6 +360,7 @@ export default function ClubWorkspace() {
           requestedRosterTeam={requestedRosterTeam}
           guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
           onLoadRosterContacts={loadRosterContacts}
+          onSetRosterSharing={setRosterSharing}
           onShare={shareInvite}
           onRevoke={async (inviteId) => {
             setWorking(true)
@@ -531,12 +545,13 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, initialRosterOpen, requestedRosterTeam, onInvite, onShare, onRevoke, onLoadRosterContacts }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; initialRosterOpen: boolean; requestedRosterTeam: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void>; onLoadRosterContacts: () => Promise<ClubRosterContact[]> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, initialRosterOpen, requestedRosterTeam, onInvite, onShare, onRevoke, onLoadRosterContacts, onSetRosterSharing }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; initialRosterOpen: boolean; requestedRosterTeam: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void>; onLoadRosterContacts: () => Promise<ClubRosterContact[]>; onSetRosterSharing: (contactIds: string[], share: boolean) => Promise<string> }) {
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
   const [rosterOpen, setRosterOpen] = useState(initialRosterOpen)
   const [rosterLoading, setRosterLoading] = useState(false)
+  const [rosterSharing, setRosterSharing] = useState(false)
   const [rosterContacts, setRosterContacts] = useState<ClubRosterContact[]>([])
   const [rosterTeam, setRosterTeam] = useState('')
   const [selectedRosterEmails, setSelectedRosterEmails] = useState<string[]>([])
@@ -548,6 +563,18 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   const targetId = destination.slice(destinationSeparator + 1)
   const rosterScopes = Array.from(new Map(rosterContacts.map((contact) => [getRosterScopeKey(contact), contact])).values())
   const visibleRosterContacts = rosterContacts.filter((contact) => getRosterScopeKey(contact) === rosterTeam)
+  const activeRosterScope = visibleRosterContacts[0] ?? null
+  const sharedRosterCount = visibleRosterContacts.filter((contact) => contact.sharedWithClub).length
+  const rosterIsFullyShared = Boolean(visibleRosterContacts.length && sharedRosterCount === visibleRosterContacts.length)
+  const rosterSharingLabel = activeRosterScope?.ownedByYou
+    ? rosterIsFullyShared
+      ? 'Shared with authorized club managers.'
+      : sharedRosterCount
+        ? `${sharedRosterCount} of ${visibleRosterContacts.length} contacts shared. Share the whole roster to finish.`
+        : 'Private to you until you share it with the club.'
+    : activeRosterScope
+      ? `Shared by ${activeRosterScope.importedByName}.`
+      : ''
   const rosterUploadHref = `/data-assist?type=team_summary&help=1&context=Club%20People&returnTo=${encodeURIComponent(`/clubs?clubId=${workspace.club.id}&tab=people&roster=1`)}#upload`
 
   const openRosterContacts = useCallback(async () => {
@@ -580,6 +607,31 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     setRosterTeam(team)
     setSelectedRosterEmails(normalizeClubInviteEmails(rosterContacts.filter((contact) => getRosterScopeKey(contact) === team).map((contact) => contact.email)))
   }
+
+  async function updateRosterSharing() {
+    if (!activeRosterScope || !visibleRosterContacts.length) return
+    const share = activeRosterScope.ownedByYou ? !rosterIsFullyShared : false
+    if (!activeRosterScope.ownedByYou && !window.confirm('Remove this shared roster from Club People?')) return
+    setRosterSharing(true)
+    setRosterMessage('')
+    try {
+      const message = await onSetRosterSharing(visibleRosterContacts.map((contact) => contact.id), share)
+      const contacts = await onLoadRosterContacts()
+      setRosterContacts(contacts)
+      const nextTeam = contacts.some((contact) => getRosterScopeKey(contact) === rosterTeam)
+        ? rosterTeam
+        : contacts[0]
+          ? getRosterScopeKey(contacts[0])
+          : ''
+      setRosterTeam(nextTeam)
+      setSelectedRosterEmails(normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === nextTeam).map((contact) => contact.email)))
+      setRosterMessage(message)
+    } catch (error) {
+      setRosterMessage(error instanceof Error ? error.message : 'Roster sharing could not be updated.')
+    } finally {
+      setRosterSharing(false)
+    }
+  }
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>{guidedStepId ? 'Your next connection' : 'Club roster'}</p><h2>{guidedStepId === 'staff' ? 'Who helps run the tennis experience?' : guidedStepId === 'players' ? 'Bring the first player into the club.' : 'Everyone connected to the club.'}</h2><p>{guidedStepId === 'staff' ? 'Choose every role they have. They can be staff and a player at the same time.' : guidedStepId === 'players' ? 'Their setup link is copied after you create it, ready to text or email.' : 'One person can be a player, coach, captain, or coordinator at the same time.'}</p></div>
@@ -592,8 +644,9 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
           {rosterOpen ? (
             <div className={styles.compactForm}>
               <div className={styles.panelHeading}><h2>Choose from Player Roster</h2><p>TennisLink includes phone numbers for roster players, but email addresses may only be available for captains. Select the email-ready people to invite.</p></div>
-              {rosterScopes.length > 1 ? <label className={styles.field}><span>Team</span><select value={rosterTeam} onChange={(event) => chooseRosterTeam(event.target.value)}>{rosterScopes.map((contact) => <option key={getRosterScopeKey(contact)} value={getRosterScopeKey(contact)}>{getRosterScopeLabel(contact)}</option>)}</select></label> : null}
-              {rosterScopes.length === 1 ? <p className={styles.muted}>{getRosterScopeLabel(rosterScopes[0])}</p> : null}
+              {rosterScopes.length > 1 ? <label className={styles.field}><span>Team</span><select value={rosterTeam} onChange={(event) => chooseRosterTeam(event.target.value)}>{rosterScopes.map((contact) => <option key={getRosterScopeKey(contact)} value={getRosterScopeKey(contact)}>{getRosterScopeOptionLabel(contact)}</option>)}</select></label> : null}
+              {rosterScopes.length === 1 ? <p className={styles.muted}>{getRosterScopeOptionLabel(rosterScopes[0])}</p> : null}
+              {activeRosterScope ? <div className={styles.row}><p className={styles.muted}>{rosterSharingLabel}</p><button className={styles.quietButton} disabled={rosterSharing} type="button" onClick={() => void updateRosterSharing()}>{rosterSharing ? 'Updating...' : activeRosterScope.ownedByYou ? rosterIsFullyShared ? 'Stop sharing' : 'Share with club' : 'Remove from club'}</button></div> : null}
               {rosterMessage ? <p className={styles.muted}>{rosterMessage}</p> : null}
               {visibleRosterContacts.length ? <><div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={!contact.email} checked={Boolean(contact.email && selectedRosterEmails.includes(contact.email))} onChange={() => setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])} /><span><strong>{contact.fullName}</strong><small>{contact.email || 'Email needed'}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>)}</div><div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} email${selectedRosterEmails.length === 1 ? '' : 's'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} selected` : 'Select email-ready people'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div></> : null}
             </div>
@@ -768,5 +821,6 @@ function readRequestedGroupId() { return new URL(window.location.href).searchPar
 function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }
 function readRequestedRosterTeam() { return new URL(window.location.href).searchParams.get('team') || '' }
 function normalizeRosterTeamKey(value: string) { return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() }
-function getRosterScopeKey(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.leagueName, contact.flight].join('\u001f') }
+function getRosterScopeKey(contact: Pick<ClubRosterContact, 'importedByUserId' | 'teamName' | 'leagueName' | 'flight'>) { return [contact.importedByUserId, contact.teamName, contact.leagueName, contact.flight].join('\u001f') }
 function getRosterScopeLabel(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.flight, contact.leagueName].filter(Boolean).join(' · ') }
+function getRosterScopeOptionLabel(contact: Pick<ClubRosterContact, 'ownedByYou' | 'importedByName' | 'teamName' | 'leagueName' | 'flight'>) { return `${getRosterScopeLabel(contact)} · ${contact.ownedByYou ? 'Your import' : `Shared by ${contact.importedByName}`}` }
