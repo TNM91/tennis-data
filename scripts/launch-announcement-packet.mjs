@@ -147,6 +147,77 @@ const campaignAssets = {
   },
 }
 
+const freeFirstReadyCaptions = {
+  launch: [
+    'TenAceIQ is open for free tennis exploration.',
+    'Search players, teams, leagues, rankings, and tournaments in one place - then make the next tennis decision with clearer context.',
+    `Explore free: ${publicUrl}/explore`,
+  ],
+  exploreStory: [
+    'Explore tennis. Free.',
+    'Players. Teams. Leagues. Rankings. Tournaments.',
+    `Start here: ${publicUrl}/explore`,
+  ],
+  playerDiscovery: [
+    'Looking up a player should not mean bouncing between tabs.',
+    'Search the player directory, check public tennis context, and keep moving.',
+    `Explore players free: ${publicUrl}/explore/players`,
+  ],
+  knowTheField: [
+    'Before the next match, know the field.',
+    'Search players, teams, leagues, and rankings in one place. Start with the public tennis context you need, free.',
+    `${publicUrl}/explore`,
+  ],
+  matchPrepQuestion: [
+    'What takes too long before your next match?',
+    'Finding players? Checking a roster? Reading the league table? Comparing the field?',
+    `Explore free: ${publicUrl}/explore`,
+  ],
+  startFree: [
+    'Start free. Add the right tools when they help.',
+    'Public tennis exploration is open now. Player, Coach, Captain, League, and Full-Court tools are opening soon.',
+    `Explore now: ${publicUrl}/explore`,
+    `Early access: ${publicUrl}/pricing`,
+  ],
+  roleToolsStory: [
+    'Available now: free public tennis exploration.',
+    'Opening soon: tools for players, coaches, captains, leagues, and organizers.',
+    `Join early access: ${publicUrl}/pricing`,
+  ],
+  teamAndLeagueDiscovery: [
+    'Find the team. Check the roster. Open the league table.',
+    'TenAceIQ brings public tennis context together so the next step is easier to see.',
+    `Explore free: ${publicUrl}/explore`,
+  ],
+  founderNote: [
+    'I built TenAceIQ because tennis decisions are spread across too many pages, files, texts, and assumptions.',
+    'The first step is simple: public tennis exploration is free. Search the field, find the context, and tell me where the next step still feels harder than it should.',
+    `${publicUrl}/explore`,
+  ],
+  recapAndFeedback: [
+    'Two weeks into opening TenAceIQ, the goal is still simple: less searching, less guessing, more tennis.',
+    'Try one free search, then tell me: what were you trying to do, and where did you hesitate?',
+    `${publicUrl}/explore`,
+  ],
+}
+
+const freeFirstPublishingCalendar = [
+  { day: 1, channel: 'LinkedIn, Facebook, Instagram', asset: 'feed-01-explore-tennis-free.png', action: 'Publish launch', caption: 'launch' },
+  { day: 2, channel: 'Instagram and Facebook Stories', asset: 'story-01-explore-tennis-free.png', action: 'Share free-exploration Story', caption: 'exploreStory' },
+  { day: 3, channel: 'LinkedIn, Facebook', asset: 'square-01-explore-tennis-free.png', action: 'Publish player discovery', caption: 'playerDiscovery' },
+  { day: 4, channel: 'Direct outreach', asset: null, action: 'Send 10 personal invitations and ask the feedback prompt', caption: null },
+  { day: 5, channel: 'LinkedIn, Facebook, Instagram', asset: 'feed-02-know-the-field.png', action: 'Publish product discovery', caption: 'knowTheField' },
+  { day: 6, channel: 'Instagram and Facebook Stories', asset: 'story-02-know-the-field.png', action: 'Ask what takes too long before the next match', caption: 'matchPrepQuestion' },
+  { day: 7, channel: 'Owner review', asset: null, action: 'Reply, group repeated friction, and run post-launch checks', caption: null },
+  { day: 8, channel: 'LinkedIn, Facebook, Instagram', asset: 'feed-03-start-free.png', action: 'Publish free-now, roles-soon message', caption: 'startFree' },
+  { day: 9, channel: 'LinkedIn, Facebook', asset: 'square-02-know-the-field.png', action: 'Publish team and league discovery', caption: 'teamAndLeagueDiscovery' },
+  { day: 10, channel: 'Direct outreach', asset: null, action: 'Invite 10 captains, coaches, or organizers to early access', caption: null },
+  { day: 11, channel: 'Instagram and Facebook Stories', asset: 'story-03-start-free.png', action: 'Share role-tools early-access Story', caption: 'roleToolsStory' },
+  { day: 12, channel: 'LinkedIn', asset: 'square-03-start-free.png', action: 'Publish founder note', caption: 'founderNote' },
+  { day: 13, channel: 'Email', asset: 'feed-01-explore-tennis-free.png', action: 'Send launch email to the approved list', caption: null },
+  { day: 14, channel: 'LinkedIn, Facebook, Instagram', asset: 'feed-02-know-the-field.png', action: 'Publish recap and ask for feedback', caption: 'recapAndFeedback' },
+]
+
 const packet = {
   ok: true,
   generatedFrom: productStoryPath,
@@ -155,6 +226,16 @@ const packet = {
   brand,
   announcementCopy,
   campaignAssets,
+  publishingPlan: paidLaunch
+    ? {
+        status: 'Regenerate campaign captions after the controlled live purchase pass.',
+      }
+    : {
+        cadence: 'Two weeks from the owner-selected launch day, with quiet days reserved for replies, direct invitations, feedback, and production checks.',
+        assetFormats: ['1080 x 1350 feed', '1080 x 1080 square', '1080 x 1920 Story'],
+        calendar: freeFirstPublishingCalendar,
+        readyCaptions: freeFirstReadyCaptions,
+      },
   tierTalkingPoints: tiers.map((tier) => ({
     tier: tier.name,
     availability: tier.id === 'free' ? 'Available now' : paidLaunch ? 'Available now' : 'Early access',
