@@ -115,9 +115,9 @@ describe('parseTennisLinkExportFiles', () => {
         <tr><td>Captain Name</td><td>Captain Phone</td><td>Captain E-Mail Address</td></tr>
         <tr><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td></tr>
         <tr><td>Casey Partner</td><td>314-555-0101</td><td>casey@example.com</td></tr>
-        <tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>NTRP/Rating Date</td><td>Local Matches Played</td><td>Champ Matches Played</td><td>Total Matches Played</td><td>Local Wins by Default</td><td>Champ Wins by Default</td><td>Total Wins by Default</td></tr>
-        <tr><td>1112223334</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>4.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-        <tr><td>2223334445</td><td>12/31/2026</td><td>Casey Partner</td><td>314-555-0101</td><td>3.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>Email Address</td><td>NTRP/Rating Date</td><td>Local Matches Played</td><td>Champ Matches Played</td><td>Total Matches Played</td><td>Local Wins by Default</td><td>Champ Wins by Default</td><td>Total Wins by Default</td></tr>
+        <tr><td>1112223334</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td><td>4.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>2223334445</td><td>12/31/2026</td><td>Casey Partner</td><td>314-555-0101</td><td>casey@example.com</td><td>3.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
       </table>
     `
     const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileName: 'PlayerRoster_812026.xls', fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])

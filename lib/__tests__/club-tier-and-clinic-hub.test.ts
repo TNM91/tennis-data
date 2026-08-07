@@ -47,4 +47,17 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(memberRoute).toContain('.insert(newEmails.map')
     expect(memberRoute).toContain('already has a pending invitation here')
   })
+
+  it('brings imported Player Roster contacts into Club People', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const rosterRoute = source('app/api/clubs/[clubId]/roster-contacts/route.ts')
+    const dataAssist = source('app/data-assist/page.tsx')
+    expect(club).toContain('Use Player Roster')
+    expect(club).toContain('Select the email-ready people to invite.')
+    expect(club).toContain('Upload or refresh roster')
+    expect(rosterRoute).toContain("from('captain_roster_contacts')")
+    expect(rosterRoute).toContain('isClubManager')
+    expect(dataAssist).toContain("path === '/clubs' || path.startsWith('/clubs?')")
+    expect(dataAssist).toContain('Return to Club People')
+  })
 })

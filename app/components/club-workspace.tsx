@@ -37,6 +37,19 @@ type ClubListResponse = {
   workspace?: ClubWorkspaceData
 }
 
+type ClubRosterContact = {
+  id: string
+  teamName: string
+  leagueName: string
+  flight: string
+  fullName: string
+  phone: string
+  email: string
+  role: string
+  isCaptain: boolean
+  updatedAt: string
+}
+
 type WorkspaceTab = 'home' | 'people' | 'groups' | 'compete' | 'settings'
 
 const tabs: Array<{ id: WorkspaceTab; label: string }> = [
@@ -62,6 +75,8 @@ export default function ClubWorkspace() {
   const [messageTone, setMessageTone] = useState<'success' | 'danger'>('success')
   const [guidedStepId, setGuidedStepId] = useState<ClubSetupStep['id'] | null>(null)
   const [requestedGroupId, setRequestedGroupId] = useState('')
+  const [requestedRosterOpen, setRequestedRosterOpen] = useState(false)
+  const [requestedRosterTeam, setRequestedRosterTeam] = useState('')
   const [inviteDestination, setInviteDestination] = useState('club:')
 
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -103,6 +118,12 @@ export default function ClubWorkspace() {
     }
   }, [accessToken, request])
 
+  const loadRosterContacts = useCallback(async () => {
+    if (!selectedClubId) return []
+    const response = await request<{ contacts?: ClubRosterContact[] }>(`/api/clubs/${selectedClubId}/roster-contacts`)
+    return response.contacts ?? []
+  }, [request, selectedClubId])
+
   useEffect(() => {
     if (!authResolved) return
     if (!userId || !accessToken) {
@@ -117,6 +138,8 @@ export default function ClubWorkspace() {
     const requestedTab = readRequestedWorkspaceTab()
     if (requestedTab) setTab(requestedTab)
     setRequestedGroupId(readRequestedGroupId())
+    setRequestedRosterOpen(readRequestedRosterOpen())
+    setRequestedRosterTeam(readRequestedRosterTeam())
   }, [])
 
   async function selectClub(clubId: string) {
@@ -320,7 +343,10 @@ export default function ClubWorkspace() {
           manager={manager}
           working={working}
           initialDestination={inviteDestination}
+          initialRosterOpen={requestedRosterOpen}
+          requestedRosterTeam={requestedRosterTeam}
           guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
+          onLoadRosterContacts={loadRosterContacts}
           onShare={shareInvite}
           onRevoke={async (inviteId) => {
             setWorking(true)
@@ -505,27 +531,83 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite, onShare, onRevoke }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, initialRosterOpen, requestedRosterTeam, onInvite, onShare, onRevoke, onLoadRosterContacts }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; initialRosterOpen: boolean; requestedRosterTeam: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<boolean>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void>; onLoadRosterContacts: () => Promise<ClubRosterContact[]> }) {
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
+  const [rosterOpen, setRosterOpen] = useState(initialRosterOpen)
+  const [rosterLoading, setRosterLoading] = useState(false)
+  const [rosterContacts, setRosterContacts] = useState<ClubRosterContact[]>([])
+  const [rosterTeam, setRosterTeam] = useState('')
+  const [selectedRosterEmails, setSelectedRosterEmails] = useState<string[]>([])
+  const [rosterMessage, setRosterMessage] = useState('')
   const inviteCount = normalizeClubInviteEmails(email).length
   const inviteLabel = inviteCount > 1 ? `Create ${inviteCount} invite links` : guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
   const destinationSeparator = destination.indexOf(':')
   const targetType = destination.slice(0, destinationSeparator) as ClubInviteTargetType
   const targetId = destination.slice(destinationSeparator + 1)
+  const rosterScopes = Array.from(new Map(rosterContacts.map((contact) => [getRosterScopeKey(contact), contact])).values())
+  const visibleRosterContacts = rosterContacts.filter((contact) => getRosterScopeKey(contact) === rosterTeam)
+  const rosterUploadHref = `/data-assist?type=team_summary&help=1&context=Club%20People&returnTo=${encodeURIComponent(`/clubs?clubId=${workspace.club.id}&tab=people&roster=1`)}#upload`
+
+  const openRosterContacts = useCallback(async () => {
+    setRosterOpen(true)
+    setRosterLoading(true)
+    setRosterMessage('')
+    try {
+      const contacts = await onLoadRosterContacts()
+      setRosterContacts(contacts)
+      const requestedKey = normalizeRosterTeamKey(requestedRosterTeam)
+      const requestedContact = contacts.find((contact) => normalizeRosterTeamKey(contact.teamName) === requestedKey)
+      const nextTeam = requestedContact ? getRosterScopeKey(requestedContact) : contacts[0] ? getRosterScopeKey(contacts[0]) : ''
+      setRosterTeam(nextTeam)
+      setSelectedRosterEmails(normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === nextTeam).map((contact) => contact.email)))
+      if (!contacts.length) setRosterMessage('No imported Player Roster contacts yet. Upload the roster, then Club will bring you back here.')
+    } catch (error) {
+      setRosterMessage(error instanceof Error ? error.message : 'Imported roster contacts could not be opened.')
+    } finally {
+      setRosterLoading(false)
+    }
+  }, [onLoadRosterContacts, requestedRosterTeam])
+
+  useEffect(() => {
+    if (!initialRosterOpen) return
+    const timeout = window.setTimeout(() => void openRosterContacts(), 0)
+    return () => window.clearTimeout(timeout)
+  }, [initialRosterOpen, openRosterContacts])
+
+  function chooseRosterTeam(team: string) {
+    setRosterTeam(team)
+    setSelectedRosterEmails(normalizeClubInviteEmails(rosterContacts.filter((contact) => getRosterScopeKey(contact) === team).map((contact) => contact.email)))
+  }
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>{guidedStepId ? 'Your next connection' : 'Club roster'}</p><h2>{guidedStepId === 'staff' ? 'Who helps run the tennis experience?' : guidedStepId === 'players' ? 'Bring the first player into the club.' : 'Everyone connected to the club.'}</h2><p>{guidedStepId === 'staff' ? 'Choose every role they have. They can be staff and a player at the same time.' : guidedStepId === 'players' ? 'Their setup link is copied after you create it, ready to text or email.' : 'One person can be a player, coach, captain, or coordinator at the same time.'}</p></div>
       {manager ? (
-        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then((created) => { if (created) setEmail('') }) }}>
-          <div className={styles.fieldGrid}>
-            <label className={styles.field}><span>Email addresses</span><textarea required value={email} onChange={(event) => setEmail(event.target.value)} placeholder={'player@club.com\npartner@club.com'} /><small>One email or up to 50, separated by commas or new lines.</small></label>
-            <label className={styles.field}><span>Invite into</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="club:">Club — general access</option>{workspace.groups.length ? <optgroup label="Programs and teams">{workspace.groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name} — {getClubGroupTypeLabel(group.groupType)}</option>)}</optgroup> : null}{workspace.competitions.length ? <optgroup label="Leagues and tournaments">{workspace.competitions.map((competition) => <option key={`${competition.type}-${competition.id}`} value={`${competition.type}:${competition.id}`}>{competition.name} — {competition.type}</option>)}</optgroup> : null}</select><small>They will open here after joining.</small></label>
-            <div className={styles.field}><span>Club roles</span><RoleChecks value={roles} onChange={setRoles} /></div>
+        <>
+          <div className={styles.row}>
+            <button className={styles.secondary} disabled={rosterLoading} type="button" onClick={() => rosterOpen ? setRosterOpen(false) : void openRosterContacts()}>{rosterLoading ? 'Opening roster...' : rosterOpen ? 'Close Player Roster' : 'Use Player Roster'}</button>
+            <Link className={styles.quietButton} href={rosterUploadHref}>Upload or refresh roster</Link>
           </div>
-          <button className={styles.primary} disabled={working} type="submit">{working ? 'Preparing...' : inviteLabel}</button>
-        </form>
+          {rosterOpen ? (
+            <div className={styles.compactForm}>
+              <div className={styles.panelHeading}><h2>Choose from Player Roster</h2><p>TennisLink includes phone numbers for roster players, but email addresses may only be available for captains. Select the email-ready people to invite.</p></div>
+              {rosterScopes.length > 1 ? <label className={styles.field}><span>Team</span><select value={rosterTeam} onChange={(event) => chooseRosterTeam(event.target.value)}>{rosterScopes.map((contact) => <option key={getRosterScopeKey(contact)} value={getRosterScopeKey(contact)}>{getRosterScopeLabel(contact)}</option>)}</select></label> : null}
+              {rosterScopes.length === 1 ? <p className={styles.muted}>{getRosterScopeLabel(rosterScopes[0])}</p> : null}
+              {rosterMessage ? <p className={styles.muted}>{rosterMessage}</p> : null}
+              {visibleRosterContacts.length ? <><div className={styles.groupRoster}>{visibleRosterContacts.map((contact) => <label className={styles.memberRow} key={contact.id}><input type="checkbox" disabled={!contact.email} checked={Boolean(contact.email && selectedRosterEmails.includes(contact.email))} onChange={() => setSelectedRosterEmails((current) => current.includes(contact.email) ? current.filter((emailAddress) => emailAddress !== contact.email) : [...current, contact.email])} /><span><strong>{contact.fullName}</strong><small>{contact.email || 'Email needed'}{contact.phone ? ` · ${contact.phone}` : ''}</small></span></label>)}</div><div className={styles.row}><button className={styles.primary} disabled={!selectedRosterEmails.length} type="button" onClick={() => { setEmail(selectedRosterEmails.join('\n')); setRosterMessage(`${selectedRosterEmails.length} email${selectedRosterEmails.length === 1 ? '' : 's'} ready below. Choose roles and where they should open.`); setRosterOpen(false) }}>{selectedRosterEmails.length ? `Use ${selectedRosterEmails.length} selected` : 'Select email-ready people'}</button><Link className={styles.quietButton} href={rosterUploadHref}>Refresh Player Roster</Link></div></> : null}
+            </div>
+          ) : null}
+          {rosterMessage && !rosterOpen ? <div className={styles.notice} role="status">{rosterMessage}</div> : null}
+          <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then((created) => { if (created) setEmail('') }) }}>
+            <div className={styles.fieldGrid}>
+              <label className={styles.field}><span>Email addresses</span><textarea required value={email} onChange={(event) => setEmail(event.target.value)} placeholder={'player@club.com\npartner@club.com'} /><small>One email or up to 50, separated by commas or new lines.</small></label>
+              <label className={styles.field}><span>Invite into</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="club:">Club — general access</option>{workspace.groups.length ? <optgroup label="Programs and teams">{workspace.groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name} — {getClubGroupTypeLabel(group.groupType)}</option>)}</optgroup> : null}{workspace.competitions.length ? <optgroup label="Leagues and tournaments">{workspace.competitions.map((competition) => <option key={`${competition.type}-${competition.id}`} value={`${competition.type}:${competition.id}`}>{competition.name} — {competition.type}</option>)}</optgroup> : null}</select><small>They will open here after joining.</small></label>
+              <div className={styles.field}><span>Club roles</span><RoleChecks value={roles} onChange={setRoles} /></div>
+            </div>
+            <button className={styles.primary} disabled={working} type="submit">{working ? 'Preparing...' : inviteLabel}</button>
+          </form>
+        </>
       ) : null}
       <div className={styles.cardGrid}>
         {workspace.memberships.map((member) => (
@@ -683,3 +765,8 @@ function rememberClubId(clubId: string) { try { window.localStorage.setItem('ten
 function readRequestedClubId() { return new URL(window.location.href).searchParams.get('clubId') || '' }
 function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new URL(window.location.href).searchParams.get('tab'); return value === 'people' || value === 'groups' || value === 'compete' || value === 'settings' || value === 'home' ? value : null }
 function readRequestedGroupId() { return new URL(window.location.href).searchParams.get('groupId') || '' }
+function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }
+function readRequestedRosterTeam() { return new URL(window.location.href).searchParams.get('team') || '' }
+function normalizeRosterTeamKey(value: string) { return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() }
+function getRosterScopeKey(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.leagueName, contact.flight].join('\u001f') }
+function getRosterScopeLabel(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.flight, contact.leagueName].filter(Boolean).join(' · ') }
