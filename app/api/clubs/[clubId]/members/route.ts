@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getClubApiAuth } from '@/lib/club-api-auth'
+import { normalizeClubContactEmail } from '@/lib/club-roster-reconciliation'
 import { cleanClubText, mapClubInviteRow, normalizeClubInviteEmails, normalizeClubRoles, type ClubGroupType, type ClubInviteTargetType } from '@/lib/club-workspace'
 
 export const runtime = 'nodejs'
@@ -29,18 +30,34 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
   const target = await resolveInviteTarget(auth.supabase, clubId, targetType, targetId)
   if (!target) return Response.json({ ok: false, message: 'That program or competition is no longer available.' }, { status: 404 })
 
-  let pendingQuery = auth.supabase
-    .from('club_invites')
-    .select('email')
-    .eq('club_id', clubId)
-    .eq('status', 'pending')
-    .eq('target_type', target.type)
-    .in('email', emails)
-  pendingQuery = target.id ? pendingQuery.eq('target_id', target.id) : pendingQuery.is('target_id', null)
-  const { data: pendingInvites } = await pendingQuery
-  const pendingEmails = new Set((pendingInvites ?? []).map((invite) => cleanClubText(invite.email, 180).toLowerCase()))
-  const newEmails = emails.filter((email) => !pendingEmails.has(email))
-  if (!newEmails.length) return Response.json({ ok: false, message: 'Everyone in this list already has a pending invitation here.' }, { status: 409 })
+  const [membershipResult, pendingResult] = await Promise.all([
+    auth.supabase
+      .from('club_memberships')
+      .select('email')
+      .eq('club_id', clubId)
+      .neq('status', 'removed'),
+    auth.supabase
+      .from('club_invites')
+      .select('email')
+      .eq('club_id', clubId)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString()),
+  ])
+  if (membershipResult.error || pendingResult.error) {
+    return Response.json({ ok: false, message: 'Club connections could not be checked before inviting.' }, { status: 400 })
+  }
+  const connectedEmails = new Set((membershipResult.data ?? []).map((member) => normalizeClubContactEmail(member.email)).filter(Boolean))
+  const pendingEmails = new Set((pendingResult.data ?? []).map((invite) => normalizeClubContactEmail(invite.email)).filter(Boolean))
+  const skippedEmails = emails.filter((email) => connectedEmails.has(email) || pendingEmails.has(email))
+  const newEmails = emails.filter((email) => !connectedEmails.has(email) && !pendingEmails.has(email))
+  if (!newEmails.length) {
+    const message = emails.every((email) => connectedEmails.has(email))
+      ? 'Everyone in this list is already connected to the club.'
+      : emails.every((email) => pendingEmails.has(email))
+        ? 'Everyone in this list already has a pending invitation here.'
+        : 'Everyone in this list is already connected or invited.'
+    return Response.json({ ok: false, message }, { status: 409 })
+  }
 
   const { data, error } = await auth.supabase
     .from('club_invites')
@@ -58,7 +75,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
 
   if (error) return Response.json({ ok: false, message: 'Only club managers can invite people.' }, { status: 403 })
   const invites = ((data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow)
-  return Response.json({ ok: true, invite: invites[0], invites, skippedEmails: emails.filter((email) => pendingEmails.has(email)) })
+  return Response.json({ ok: true, invite: invites[0], invites, skippedEmails })
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ clubId: string }> }) {
