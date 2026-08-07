@@ -11,6 +11,7 @@ import {
   canRunClubPrograms,
   getClubGroupTypeLabel,
   getClubRoleLabel,
+  getClubSetupSteps,
   isClubManager,
   type Club,
   type ClubCompetitionTemplate,
@@ -315,10 +316,47 @@ export default function ClubWorkspace() {
 
 function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
   const staff = canRunClubPrograms(roles)
+  const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
+  const setupSteps = getClubSetupSteps(workspace)
+  const completedSetupSteps = setupSteps.filter((step) => step.completed).length
+  const setupComplete = completedSetupSteps === setupSteps.length
+  const [showSetup, setShowSetup] = useState(false)
+  const [showAllSteps, setShowAllSteps] = useState(false)
+  const nextStep = setupSteps.find((step) => !step.completed) ?? setupSteps[setupSteps.length - 1]
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeading}><p className={styles.eyebrow}>Right now</p><h2>{getHomeTitle(roles)}</h2><p>{getHomeCopy(roles)}</p></div>
+      <div className={styles.headingRow}>
+        <div className={styles.panelHeading}><p className={styles.eyebrow}>Right now</p><h2>{getHomeTitle(roles)}</h2><p>{getHomeCopy(roles)}</p></div>
+        {manager && setupComplete && !showSetup ? <button className={styles.quietButton} type="button" onClick={() => setShowSetup(true)}>Setup help</button> : null}
+      </div>
+      {manager && (!setupComplete || showSetup) ? (
+        <section className={styles.setupCard} aria-labelledby="club-setup-title">
+          <div className={styles.setupTop}>
+            <div>
+              <p className={styles.eyebrow}>Club setup · {completedSetupSteps} of {setupSteps.length}</p>
+              <h3 id="club-setup-title">{setupComplete ? 'Your club is ready.' : nextStep.label}</h3>
+              <p>{setupComplete ? 'Open any step whenever the club changes.' : nextStep.detail}</p>
+            </div>
+            {setupComplete ? <button className={styles.quietButton} type="button" onClick={() => setShowSetup(false)}>Close</button> : null}
+          </div>
+          <div className={styles.setupProgress} role="progressbar" aria-label="Club setup progress" aria-valuemin={0} aria-valuemax={setupSteps.length} aria-valuenow={completedSetupSteps}>
+            <span style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%` }} />
+          </div>
+          {!setupComplete ? <button className={styles.primary} type="button" onClick={() => onOpenTab(nextStep.tab)}>{nextStep.actionLabel}</button> : null}
+          <button className={styles.setupToggle} type="button" aria-expanded={showAllSteps} onClick={() => setShowAllSteps((current) => !current)}>{showAllSteps ? 'Hide steps' : 'View all steps'}</button>
+          {showAllSteps ? (
+            <ol className={styles.setupSteps}>
+              {setupSteps.map((step) => (
+                <li key={step.id} className={step.completed ? styles.setupStepDone : ''}>
+                  <div><strong>{step.label}</strong><span>{step.completed ? 'Done' : step.detail}</span></div>
+                  <button className={styles.quietButton} type="button" onClick={() => onOpenTab(step.tab)}>{step.completed ? 'Review' : step.actionLabel}</button>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </section>
+      ) : null}
       <div className={styles.statGrid}>
         <div className={styles.stat}><strong>{workspace.memberships.length}</strong><span>People</span></div>
         <div className={styles.stat}><strong>{workspace.groups.length}</strong><span>Programs + teams</span></div>

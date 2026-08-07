@@ -101,6 +101,15 @@ export type ClubWorkspaceData = {
   competitions: ClubLinkedCompetition[]
 }
 
+export type ClubSetupStep = {
+  id: 'club' | 'people' | 'programs' | 'competition'
+  label: string
+  detail: string
+  actionLabel: string
+  tab: 'settings' | 'people' | 'groups' | 'compete'
+  completed: boolean
+}
+
 export function cleanClubText(value: unknown, maxLength = 240) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, maxLength) : ''
 }
@@ -134,6 +143,46 @@ export function isClubManager(roles: ClubRole[]) {
 
 export function canRunClubPrograms(roles: ClubRole[]) {
   return isClubManager(roles) || roles.some((role) => role === 'coach' || role === 'captain' || role === 'coordinator')
+}
+
+export function getClubSetupSteps(workspace: ClubWorkspaceData): ClubSetupStep[] {
+  const hasAnotherPerson = workspace.memberships.some((membership) => membership.id !== workspace.currentMembership.id)
+  const hasPendingInvite = workspace.invites.some((invite) => invite.status === 'pending')
+
+  return [
+    {
+      id: 'club',
+      label: 'Add the club basics',
+      detail: 'Add a location and a short description for players.',
+      actionLabel: 'Add club details',
+      tab: 'settings',
+      completed: Boolean(workspace.club.locationLabel && workspace.club.description),
+    },
+    {
+      id: 'people',
+      label: 'Invite your people',
+      detail: 'Connect a director, coach, captain, or player.',
+      actionLabel: 'Invite people',
+      tab: 'people',
+      completed: hasAnotherPerson || hasPendingInvite,
+    },
+    {
+      id: 'programs',
+      label: 'Add a program or team',
+      detail: 'Create the first clinic, team, camp, or development group.',
+      actionLabel: 'Add a program',
+      tab: 'groups',
+      completed: workspace.groups.length > 0,
+    },
+    {
+      id: 'competition',
+      label: 'Set up club competition',
+      detail: 'Save the first league or tournament setup.',
+      actionLabel: 'Set up competition',
+      tab: 'compete',
+      completed: workspace.templates.length > 0 || workspace.competitions.length > 0,
+    },
+  ]
 }
 
 export function getClubRoleLabel(role: ClubRole) {
