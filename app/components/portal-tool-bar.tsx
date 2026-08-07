@@ -15,7 +15,7 @@ import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BO
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
+type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league' | 'club'
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
@@ -143,9 +143,25 @@ const portalLanes: PortalLane[] = [
       { title: 'Player book', detail: 'Run individual leagues with clear records.', metric: 'League', href: '/league-coordinator/individual-results', icon: 'playerRatings', requiredRoute: '/league-coordinator' },
     ],
   },
+  {
+    id: 'club',
+    label: 'Club',
+    cue: 'Players, programs, staff, competition',
+    route: '/clubs',
+    planRoute: '/explore',
+    icon: 'teamRankings',
+    paths: ['/clubs'],
+    searchScope: 'players',
+    tasks: [
+      { title: 'Club home', detail: 'Open the branded home for your staff and players.', metric: 'Club', href: '/clubs', icon: 'teamRankings', requiredRoute: '/explore' },
+      { title: 'Run clinics', detail: 'Open clinic schedules, rosters, plans, attendance, and updates.', metric: 'Club', href: '/clubs?tab=groups&type=clinic', icon: 'schedule', requiredRoute: '/explore' },
+      { title: 'Develop players', detail: 'Keep club coaching and player follow-through connected.', metric: 'Coach', href: '/coach?source=club', icon: 'scenarioBuilder', requiredRoute: '/explore' },
+      { title: 'Host competition', detail: 'Open club leagues and tournaments without replacing registration.', metric: 'Club', href: '/clubs?tab=compete', icon: 'reports', requiredRoute: '/explore' },
+    ],
+  },
 ]
 
-const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league']
+const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league', 'club']
 const orderedPortalLanes = [...portalLanes].sort(
   (left, right) => portalLaneOrder.indexOf(left.id) - portalLaneOrder.indexOf(right.id),
 )
@@ -460,7 +476,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
               ...(mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle),
               gridTemplateColumns: isMobile
                 ? 'repeat(3, minmax(0, 1fr))'
-                : 'repeat(6, minmax(0, 1fr))',
+                : 'repeat(7, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
@@ -991,6 +1007,7 @@ function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'compete') return '#19c8b6'
   if (laneId === 'coach') return '#a6ff2e'
   if (laneId === 'team') return '#f3b51b'
+  if (laneId === 'club') return '#7dd3fc'
   return '#9be11d'
 }
 
@@ -1000,6 +1017,7 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
   if (laneId === 'compete') return 'Compete'
   if (laneId === 'coach') return 'Coaches'
   if (laneId === 'team') return 'Captain'
+  if (laneId === 'club') return 'Club'
   return 'Leagues'
 }
 
@@ -1009,6 +1027,7 @@ function getMobileHubLabel(laneId: PortalLaneId) {
   if (laneId === 'compete') return 'Compete Hub'
   if (laneId === 'coach') return 'Coaches Hub'
   if (laneId === 'team') return 'Team Hub'
+  if (laneId === 'club') return 'Club Home'
   return 'Organizer Hub'
 }
 
@@ -1023,6 +1042,9 @@ function getMobileTaskLabel(title: string) {
   if (title === 'Prep matchup') return 'Match prep'
   if (title === 'Shared calendar') return 'Calendar'
   if (title === 'Build tournament') return 'Tournament'
+  if (title === 'Run clinics') return 'Clinics'
+  if (title === 'Develop players') return 'Players'
+  if (title === 'Host competition') return 'Compete'
   return title
 }
 

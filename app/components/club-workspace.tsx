@@ -67,7 +67,7 @@ export default function ClubWorkspace() {
       },
     })
     const payload = await response.json() as T & { message?: string }
-    if (!response.ok) throw new Error(payload.message || 'Club Workspace could not complete that action.')
+    if (!response.ok) throw new Error(payload.message || 'Club could not complete that action.')
     return payload
   }, [accessToken])
 
@@ -90,7 +90,7 @@ export default function ClubWorkspace() {
         setWorkspace(null)
       }
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'Club Workspace could not load.', 'danger')
+      showMessage(error instanceof Error ? error.message : 'Club could not load.', 'danger')
     } finally {
       setLoading(false)
     }
@@ -105,6 +105,11 @@ export default function ClubWorkspace() {
     const timeout = window.setTimeout(() => void loadClubs(), 0)
     return () => window.clearTimeout(timeout)
   }, [accessToken, authResolved, loadClubs, userId])
+
+  useEffect(() => {
+    const requestedTab = readRequestedWorkspaceTab()
+    if (requestedTab) setTab(requestedTab)
+  }, [])
 
   async function selectClub(clubId: string) {
     setSelectedClubId(clubId)
@@ -134,14 +139,14 @@ export default function ClubWorkspace() {
   }
 
   if (!authResolved || loading) {
-    return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club Workspace</p><h1 className={styles.title}>Opening your club...</h1></div></main>
+    return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
 
   if (!userId || !accessToken) {
     return (
       <main className={styles.page}>
         <section className={styles.empty}>
-          <p className={styles.eyebrow}>Club Workspace</p>
+          <p className={styles.eyebrow}>Club</p>
           <h1 className={styles.title}>One home for your club.</h1>
           <p className={styles.copy}>Sign in to connect players, coaches, programs, leagues, and tournaments.</p>
           <div className={styles.row}>
@@ -192,7 +197,7 @@ export default function ClubWorkspace() {
               ? <Image className={styles.logo} src={workspace.club.logoUrl} alt={`${workspace.club.name} logo`} width={64} height={64} unoptimized />
               : <div className={styles.logoFallback} aria-hidden="true">{workspace.club.name.slice(0, 2).toUpperCase()}</div>}
             <div>
-              <p className={styles.eyebrow}>Club Workspace</p>
+              <p className={styles.eyebrow}>Club</p>
               <h1 className={styles.clubName}>{workspace.club.name}</h1>
               <p className={styles.clubMeta}>{[workspace.club.locationLabel, clubRoles.map(getClubRoleLabel).join(' + ')].filter(Boolean).join(' · ')}</p>
             </div>
@@ -413,29 +418,35 @@ function PeoplePanel({ workspace, manager, working, onInvite }: { workspace: Clu
   )
 }
 
-function GroupsPanel({ workspace, staff, coachSync, working, onCreate, onSaveRoster, onCoachSync }: { workspace: ClubWorkspaceData; staff: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string }) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void> }) {
+function GroupsPanel({ workspace, staff, coachSync, working, onCreate, onSaveRoster, onCoachSync }: { workspace: ClubWorkspaceData; staff: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void> }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
   const [seasonLabel, setSeasonLabel] = useState('')
+  const [leadUserId, setLeadUserId] = useState('')
+  const [capacity, setCapacity] = useState(0)
+  const [locationLabel, setLocationLabel] = useState(workspace.club.locationLabel)
+  const [registrationUrl, setRegistrationUrl] = useState('')
+  const [defaultDurationMinutes, setDefaultDurationMinutes] = useState(90)
   const [editingGroup, setEditingGroup] = useState<ClubGroup | null>(null)
   const [memberIds, setMemberIds] = useState<string[]>([])
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>Programs + teams</p><h2>Put the right people together.</h2><p>Create clinics, teams, camps, or development groups from the same club roster.</p></div>
       {staff ? (
-        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onCreate({ name, groupType, description, seasonLabel }).then(() => { setName(''); setDescription('') }) }}>
+        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onCreate({ name, groupType, description, seasonLabel, leadUserId, capacity, locationLabel, registrationUrl, defaultDurationMinutes }).then(() => { setName(''); setDescription('') }) }}>
           <div className={styles.fieldGrid}>
             <label className={styles.field}><span>Name</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="12U green ball" /></label>
             <label className={styles.field}><span>Type</span><select value={groupType} onChange={(event) => setGroupType(event.target.value as ClubGroupType)}>{groupTypes.map((type) => <option key={type} value={type}>{getClubGroupTypeLabel(type)}</option>)}</select></label>
             <label className={styles.field}><span>Season</span><input value={seasonLabel} onChange={(event) => setSeasonLabel(event.target.value)} placeholder="Fall 2026" /></label>
+            {groupType === 'clinic' ? <><label className={styles.field}><span>Lead coach</span><select value={leadUserId} onChange={(event) => setLeadUserId(event.target.value)}><option value="">Choose coach</option>{workspace.memberships.filter((member) => member.roles.some((role) => role === 'coach' || role === 'owner' || role === 'admin' || role === 'director')).map((member) => <option value={member.userId} key={member.id}>{member.displayName || member.email}</option>)}</select></label><label className={styles.field}><span>Capacity</span><input type="number" min="0" max="500" value={capacity} onChange={(event) => setCapacity(Number(event.target.value))} /></label><label className={styles.field}><span>Location</span><input value={locationLabel} onChange={(event) => setLocationLabel(event.target.value)} /></label><label className={styles.field}><span>Duration</span><select value={defaultDurationMinutes} onChange={(event) => setDefaultDurationMinutes(Number(event.target.value))}><option value="60">60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select></label><label className={`${styles.field} ${styles.full}`}><span>Club registration link</span><input type="url" value={registrationUrl} onChange={(event) => setRegistrationUrl(event.target.value)} placeholder="https://your-club.com/register" /></label></> : null}
             <label className={`${styles.field} ${styles.full}`}><span>What is this group working on?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label>
           </div>
           <button className={styles.primary} disabled={working} type="submit">Add program</button>
         </form>
       ) : null}
       <div className={styles.cardGrid}>
-        {workspace.groups.map((group) => <article className={styles.card} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected</span>{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(group.memberIds) }}>Manage roster</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
+        {workspace.groups.map((group) => <article className={styles.card} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected{group.capacity ? ` · ${group.capacity} spots` : ''}</span>{group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(group.memberIds) }}>Manage roster</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
       </div>
       {editingGroup ? (
         <div className={styles.compactForm}>
@@ -496,7 +507,7 @@ function CreateClubForm({ working, message, messageTone, onCreate }: { working: 
   const [name, setName] = useState('')
   const [locationLabel, setLocationLabel] = useState('')
   const [description, setDescription] = useState('')
-  return <section className={styles.empty}><p className={styles.eyebrow}>Club Workspace</p><h1 className={styles.title}>Give the club one home.</h1><p className={styles.copy}>Start with the club. Add people, programs, leagues, and tournaments next.</p>{message ? <div className={`${styles.notice} ${messageTone === 'danger' ? styles.danger : styles.success}`}>{message}</div> : null}<form className={styles.compactForm} onSubmit={(event: FormEvent) => { event.preventDefault(); void onCreate({ name, locationLabel, description }) }}><label className={styles.field}><span>Club name</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="Westside Tennis Club" /></label><label className={styles.field}><span>Location</span><input value={locationLabel} onChange={(event) => setLocationLabel(event.target.value)} placeholder="St. Louis, Missouri" /></label><label className={styles.field}><span>What should players know?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label><button className={styles.primary} disabled={working} type="submit">{working ? 'Creating...' : 'Create club workspace'}</button></form></section>
+  return <section className={styles.empty}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Give the club one home.</h1><p className={styles.copy}>Start with the club. Add people, clinics, teams, leagues, and tournaments next.</p>{message ? <div className={`${styles.notice} ${messageTone === 'danger' ? styles.danger : styles.success}`}>{message}</div> : null}<form className={styles.compactForm} onSubmit={(event: FormEvent) => { event.preventDefault(); void onCreate({ name, locationLabel, description }) }}><label className={styles.field}><span>Club name</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="Westside Tennis Club" /></label><label className={styles.field}><span>Location</span><input value={locationLabel} onChange={(event) => setLocationLabel(event.target.value)} placeholder="St. Louis, Missouri" /></label><label className={styles.field}><span>What should players know?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label><button className={styles.primary} disabled={working} type="submit">{working ? 'Creating...' : 'Create club'}</button></form></section>
 }
 
 function RoleChecks({ value, onChange }: { value: ClubRole[]; onChange: (roles: ClubRole[]) => void }) {
@@ -542,3 +553,4 @@ function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { l
 function readStoredClubId() { try { return window.localStorage.getItem('tenaceiq.club.active') || '' } catch { return '' } }
 function rememberClubId(clubId: string) { try { window.localStorage.setItem('tenaceiq.club.active', clubId) } catch { /* best effort */ } }
 function readRequestedClubId() { return new URL(window.location.href).searchParams.get('clubId') || '' }
+function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new URL(window.location.href).searchParams.get('tab'); return value === 'people' || value === 'groups' || value === 'compete' || value === 'settings' || value === 'home' ? value : null }

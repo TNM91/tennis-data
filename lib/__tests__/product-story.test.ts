@@ -71,7 +71,7 @@ describe('product story guardrails', () => {
   })
 
   it('keeps the clarified platform why centralized', () => {
-    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournament organizers')
+    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, clubs, leagues, and tournament organizers')
     expect(PRODUCT_NORTH_STAR).toContain('spend less time searching, guessing, and coordinating')
     expect(PRODUCT_NORTH_STAR).toContain('more time playing, improving, coaching, captaining, and enjoying tennis')
     expect(PLATFORM_MISSION).toContain('more time playing, improving, and enjoying the sport')
@@ -81,7 +81,7 @@ describe('product story guardrails', () => {
     expect(HOME_HERO_STORY.body).not.toContain('tennis job')
     expect(HOME_HERO_STORY.body).not.toContain('home base')
     expect(PLATFORM_POSITIONING).toBe(
-      'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.',
+      'The tennis platform that gives players, captains, coaches, clubs, leagues, and tournaments the context and tools to play, improve, and run tennis with less friction.',
     )
     expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Captain'])
     expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/captain'])
@@ -108,6 +108,7 @@ describe('product story guardrails', () => {
       'Captains',
       'Coaches',
       'Leagues and tournaments',
+      'Clubs',
     ])
   })
 

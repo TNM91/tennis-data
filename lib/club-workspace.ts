@@ -51,6 +51,10 @@ export type ClubGroup = {
   description: string
   seasonLabel: string
   leadUserId: string
+  capacity: number
+  locationLabel: string
+  registrationUrl: string
+  defaultDurationMinutes: number
   isPublic: boolean
   isActive: boolean
   memberIds: string[]
@@ -292,6 +296,10 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = []): ClubGroup {
     description: cleanClubMultiline(row.description),
     seasonLabel: cleanClubText(row.season_label),
     leadUserId: cleanClubText(row.lead_user_id),
+    capacity: Math.min(500, Math.max(0, Number(row.capacity) || 0)),
+    locationLabel: cleanClubText(row.location_label),
+    registrationUrl: cleanClubText(row.registration_url, 800),
+    defaultDurationMinutes: Math.min(360, Math.max(15, Number(row.default_duration_minutes) || 90)),
     isPublic: row.is_public !== false,
     isActive: row.is_active !== false,
     memberIds,

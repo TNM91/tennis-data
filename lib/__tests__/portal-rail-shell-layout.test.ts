@@ -16,8 +16,8 @@ describe('consistent portal shell layout', () => {
     expect(siteShellSource).not.toContain("position: 'fixed'")
   })
 
-  it('keeps all six lanes visible, ordered, and mobile-safe', () => {
-    expect(portalToolBarSource).toContain("const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league']")
+  it('keeps all seven lanes visible, ordered, and mobile-safe', () => {
+    expect(portalToolBarSource).toContain("const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league', 'club']")
     expect(portalToolBarSource).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(portalToolBarSource).toContain("overflow: 'hidden'")
     expect(portalToolBarSource).toContain('minHeight: 56')

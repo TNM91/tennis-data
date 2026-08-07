@@ -251,7 +251,7 @@ export default function CoachesPage() {
 const coachQuickPaths = [
   {
     question: 'How can our club connect coaches and players?',
-    cta: 'Open Club Workspace',
+    cta: 'Open Club',
     href: '/clubs',
     job: 'connect_club_coaching',
     event: {

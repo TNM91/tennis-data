@@ -1,7 +1,7 @@
 import type { ProductAccessState } from './access-model'
 
 type PortalLaneRoutingInput = {
-  laneId: 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
+  laneId: 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league' | 'club'
   fallbackHref: string
   planRoute: '/explore' | '/player-development' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   access: ProductAccessState
