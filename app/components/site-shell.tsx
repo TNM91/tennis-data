@@ -124,7 +124,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
 }
 
 function getBrandAtmosphereClassName(pathname: string) {
-  const hubRoutes = new Set(['/', '/mylab', '/coach', '/captain', '/league-coordinator', '/admin'])
+  const hubRoutes = new Set(['/', '/mylab', '/coach', '/captain', '/league-coordinator', '/clubs', '/admin'])
   const authRoutes = new Set(['/login', '/join', '/forget-password', '/reset-password'])
   const quietPrefixes = [
     '/admin/',

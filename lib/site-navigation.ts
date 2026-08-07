@@ -23,6 +23,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
+  { href: '/clubs', label: 'Club Workspace' },
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
   { href: '/video-review', label: 'Video Review' },
@@ -112,6 +113,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Leagues and tournaments',
     items: [
       { href: '/leagues-and-tournaments', label: 'Organizer hub' },
+      { href: '/clubs', label: 'Club Workspace' },
       { href: '/leagues', label: 'Find leagues' },
       { href: '/tournaments', label: 'Find tournaments' },
       { href: '/compete/schedule', label: 'Shared calendar' },

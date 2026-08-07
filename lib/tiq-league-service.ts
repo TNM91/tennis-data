@@ -82,6 +82,7 @@ export type TiqPlayerLeagueEntryRecord = {
 
 type TiqLeagueRow = {
   id: string
+  club_id?: string | null
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
@@ -134,6 +135,7 @@ type TiqPlayerEntryRow = {
 
 type TiqLeagueRemotePayload = {
   id: string
+  club_id: string | null
   competition_layer: 'tiq'
   league_format: 'team' | 'individual'
   individual_competition_format: 'standard' | 'ladder' | 'round_robin' | 'challenge'
@@ -213,6 +215,7 @@ function normalizeEntryStatus(value: string | null | undefined): TiqLeagueEntryS
 function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
   return {
     id: cleanText(row.id),
+    clubId: cleanText(row.club_id),
     competitionLayer: 'tiq',
     leagueFormat: row.league_format === 'individual' ? 'individual' : 'team',
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
@@ -313,6 +316,7 @@ async function getAuthenticatedUserId() {
 function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueRemotePayload {
   return {
     id: record.id,
+    club_id: cleanText(record.clubId) || null,
     competition_layer: 'tiq',
     league_format: record.leagueFormat,
     individual_competition_format: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),

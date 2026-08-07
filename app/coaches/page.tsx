@@ -250,6 +250,20 @@ export default function CoachesPage() {
 
 const coachQuickPaths = [
   {
+    question: 'How can our club connect coaches and players?',
+    cta: 'Open Club Workspace',
+    href: '/clubs',
+    job: 'connect_club_coaching',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'connect_club_coaching',
+      },
+    },
+  },
+  {
     question: 'How can I assign drills?',
     cta: 'Assign Drills',
     href: '/coach',

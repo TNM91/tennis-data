@@ -30,6 +30,7 @@ export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
+  clubId?: string
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
@@ -62,6 +63,7 @@ export type TiqLeagueRecord = {
 }
 
 export type TiqLeagueDraft = {
+  clubId?: string
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   teamMatchFormatId: TeamMatchFormatId
@@ -216,6 +218,7 @@ function buildRegistryId(input: {
 
 function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
+    clubId: cleanText(input.clubId),
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     teamMatchFormatId: normalizeTeamMatchFormatId(input.teamMatchFormatId),
@@ -258,6 +261,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
     .filter((record) => record && typeof record === 'object')
     .map((record): TiqLeagueRecord => ({
       ...record,
+      clubId: cleanText(record.clubId),
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
