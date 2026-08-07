@@ -209,6 +209,7 @@ function getSafeDataAssistReturnTo(value: string | null): string {
   if (!path || path.length > 500 || path.startsWith('//')) return ''
   if (path === '/captain' || path.startsWith('/captain/')) return path
   if (path === '/team-room' || path.startsWith('/team-room?')) return path
+  if (path === '/clubs' || path.startsWith('/clubs?')) return path
   return ''
 }
 
@@ -2707,7 +2708,7 @@ function buildRosterPostImportActions(
   const actions: Array<{ label: string; href: string }> = []
   if (options.returnTo) {
     actions.push({
-      label: options.returnTo.startsWith('/captain/lineup-builder') ? 'Return to Build Lineup' : 'Continue Captain setup',
+      label: options.returnTo.startsWith('/clubs') ? 'Return to Club People' : options.returnTo.startsWith('/captain/lineup-builder') ? 'Return to Build Lineup' : 'Continue Captain setup',
       href: options.returnTo,
     })
   } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {

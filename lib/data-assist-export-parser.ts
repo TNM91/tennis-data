@@ -265,6 +265,7 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
     const ustaIndex = findCellIndex(header, /^Usta#$/i)
     const nameIndex = findCellIndex(header, /^Player$/i)
     const phoneIndex = findCellIndex(header, /^Phone no$/i)
+    const emailIndex = findCellIndex(header, /^(?:E-?mail|E-?mail Address|Player E-?mail)$/i)
     const ratingIndex = findCellIndex(header, /^NTRP\/Rating Date$/i)
 
     for (const cells of rows.slice(playerRosterHeaderIndex + 1)) {
@@ -272,9 +273,10 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
       if (!/^\d{9,10}$/.test(ustaNumber)) continue
       const name = cells[nameIndex] || ''
       const phone = cells[phoneIndex] || ''
+      const email = emailIndex >= 0 ? cells[emailIndex] || '' : ''
       const rating = (cells[ratingIndex] || '').match(/\b([2-5](?:\.[05])?)\b/)?.[1] || ''
       if (!name || !rating) continue
-      lines.push(['Roster player', name, rating, phone, '', ustaNumber].join(' | '))
+      lines.push(['Roster player', name, rating, phone, email, ustaNumber].join(' | '))
     }
     return lines
   }

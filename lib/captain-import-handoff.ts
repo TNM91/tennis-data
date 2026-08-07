@@ -183,7 +183,7 @@ function normalizeScheduleTeam(value: string) {
 function getSafeCaptainReturnTo(value: string) {
   const path = cleanText(value)
   if (!path || path.length > 500 || path.startsWith('//')) return ''
-  return path === '/captain' || path.startsWith('/captain/') || path.startsWith('/captain?')
+  return path === '/captain' || path.startsWith('/captain/') || path.startsWith('/captain?') || path === '/clubs' || path.startsWith('/clubs?')
     ? path
     : ''
 }
