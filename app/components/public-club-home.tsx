@@ -30,7 +30,7 @@ export default function PublicClubHome({ slug }: { slug: string }) {
   }, [slug])
 
   if (!data) return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening club home...</h1></div></main>
-  if (!data.ok || !data.club) return <main className={styles.page}><div className={styles.empty}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Club page not found.</h1><p className={styles.copy}>{data.message}</p><Link className={styles.secondary} href="/clubs">Open Club Workspace</Link></div></main>
+  if (!data.ok || !data.club) return <main className={styles.page}><div className={styles.empty}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Club page not found.</h1><p className={styles.copy}>{data.message}</p><Link className={styles.secondary} href="/clubs">Open Club</Link></div></main>
 
   const { club } = data
   const clubStyle = { '--club-color': club.primaryColor } as CSSProperties
@@ -64,7 +64,7 @@ export default function PublicClubHome({ slug }: { slug: string }) {
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}><p className={styles.eyebrow}>Play here</p><h2>Programs and teams</h2><p>See what is active at the club.</p></div>
-        {data.groups?.length ? <div className={styles.cardGrid}>{data.groups.map((group) => <article className={styles.card} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Club program'}</p></article>)}</div> : <p className={styles.copy}>Club programs will appear here as they open.</p>}
+        {data.groups?.length ? <div className={styles.cardGrid}>{data.groups.map((group) => <article className={styles.card} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Club program'}</p>{group.groupType === 'clinic' ? <div className={styles.heroActions}>{group.registrationUrl ? <a className={styles.primary} href={group.registrationUrl} target="_blank" rel="noreferrer">Register with club</a> : null}<Link className={styles.secondary} href={`/login?next=${encodeURIComponent(`/clubs/clinics/${group.id}?clubId=${club.id}`)}`}>Member view</Link></div> : null}</article>)}</div> : <p className={styles.copy}>Club programs will appear here as they open.</p>}
       </section>
 
       <section className={styles.panel}>

@@ -9,7 +9,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
@@ -336,6 +336,31 @@ function PricingContent() {
             )
           })}
         </div>
+      </section>
+
+      <section id="club" style={sectionStyle} aria-labelledby="club-title">
+        <SectionHeader
+          eyebrow="For clubs"
+          title="One club experience. Two simple options."
+          body="Club is its own TenAceIQ tier. It connects players, coaches, clinics, teams, leagues, tournaments, people, and branding without replacing registration or payments."
+        />
+        <div style={isMobile ? compactPlanGridStyle : { ...planGridStyle, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          {[CLUB_PLAN_STORY.starter, CLUB_PLAN_STORY.unlimited].map((plan) => (
+            <article key={plan.id} id={plan.id} style={isMobile ? compactPlanCardStyle : planCardStyle}>
+              <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
+                <TiqFeatureIcon name="teamRankings" size={isMobile ? 'md' : 'lg'} variant="surface" />
+                <span style={planNameStyle}>{plan.name}</span>
+              </div>
+              <div style={isMobile ? compactPriceStyle : priceStyle}>{plan.priceLabel}</div>
+              <p style={cardTextStyle}>{plan.description}</p>
+              <ul style={isMobile ? compactFeatureListStyle : featureListStyle}>
+                {plan.valueProps.slice(0, isMobile ? 3 : 5).map((valueProp) => <li key={valueProp}>{valueProp}</li>)}
+              </ul>
+              <Link href="/clubs" style={plan.id === 'club_starter' ? primaryButtonStyle : secondaryButtonStyle}>Open Club</Link>
+            </article>
+          ))}
+        </div>
+        <p style={{ ...smallTextStyle, marginTop: 14 }}>{CLUB_PLAN_STORY.boundary}</p>
       </section>
 
       <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">

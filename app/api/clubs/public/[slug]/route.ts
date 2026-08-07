@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   const club = mapClubRow(clubRow as Record<string, unknown>)
 
   const [groupResult, templateResult, leagueResult, tournamentResult] = await Promise.all([
-    supabase.from('club_groups').select('id,club_id,name,group_type,description,season_label,lead_user_id,is_public,is_active,updated_at').eq('club_id', club.id).eq('is_public', true).eq('is_active', true),
+    supabase.from('club_groups').select('id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,updated_at').eq('club_id', club.id).eq('is_public', true).eq('is_active', true),
     supabase.from('club_competition_templates').select('id,club_id,name,competition_type,entrant_type,format_id,division_label,default_facility,schedule_notes,is_public,updated_at').eq('club_id', club.id).eq('is_public', true),
     supabase.from('tiq_leagues').select('id,league_name,season_label,season_status,is_public').eq('club_id', club.id).eq('is_public', true),
     supabase.from('tiq_tournaments').select('id,name,starts_on,status,is_public').eq('club_id', club.id).eq('is_public', true),

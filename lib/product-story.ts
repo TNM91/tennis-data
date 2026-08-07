@@ -1,12 +1,12 @@
 import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 
 export const PRODUCT_NORTH_STAR =
-  'TenAceIQ helps players, captains, coaches, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
+  'TenAceIQ helps players, captains, coaches, clubs, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
 
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
 
 export const PLATFORM_POSITIONING =
-  'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.'
+  'The tennis platform that gives players, captains, coaches, clubs, leagues, and tournaments the context and tools to play, improve, and run tennis with less friction.'
 
 export const PLATFORM_MISSION =
   'Help the tennis community spend less time searching, guessing, and coordinating, and more time playing, improving, and enjoying the sport.'
@@ -17,7 +17,7 @@ export const PRODUCT_LANGUAGE_SYSTEM = {
   mission:
     'Spend less time searching, guessing, and coordinating. Spend more time playing, improving, and enjoying tennis.',
   umbrellaTerms: ['tools', 'toolkit', 'resources', 'tennis context', 'support', 'competition'] as const,
-  roleTerms: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office', 'Tournament Desk', 'Full-Court'] as const,
+  roleTerms: ['My Lab', 'Coach Hub', 'Team Hub', 'Club', 'League Office', 'Tournament Desk', 'Full-Court'] as const,
   discouragedPublicTerms: ['home base', 'tennis job', 'workspace', 'suite', 'platform-first language'] as const,
   competitionTerms: {
     league: 'season',
@@ -84,6 +84,12 @@ export const PLATFORM_AUDIENCE_PATHS = [
     href: '/leagues-and-tournaments',
     cta: 'Open Organizer Tools',
   },
+  {
+    audience: 'Clubs',
+    question: 'How do we connect our players, coaches, clinics, teams, leagues, tournaments, and club identity?',
+    href: '/clubs',
+    cta: 'Open Club',
+  },
 ] as const
 
 export const PRODUCT_UPGRADE_MESSAGE =
@@ -99,7 +105,45 @@ export const PRODUCT_PRINCIPLES = [
   'Connected development workflows for coaches',
   'Team decision support for captains',
   'Competition tools for league and tournament organizers',
+  'One connected club experience for players, coaches, programs, teams, leagues, and tournaments',
 ] as const
+
+export const CLUB_PLAN_STORY = {
+  starter: {
+    id: 'club_starter',
+    name: 'Club Starter',
+    priceLabel: '$99/month',
+    audience: 'Clubs bringing their core tennis experience together',
+    shortPromise: 'Give the club one connected tennis home.',
+    description:
+      'Connect the club brand, staff, players, clinics, teams, leagues, and tournaments without replacing the club’s registration or payment system.',
+    valueProps: [
+      'Branded public club home and member portal',
+      'Clinic Hub for schedules, rosters, waitlists, plans, attendance, and updates',
+      'Connected Coach, Player, League, Tournament, and optional Captain experiences',
+      'External registration links back to the club’s current system',
+      'Up to 5 staff and 100 connected players',
+    ],
+  },
+  unlimited: {
+    id: 'club_unlimited',
+    name: 'Club Unlimited',
+    priceLabel: '$199/month',
+    audience: 'Clubs supporting tennis across every coach and player',
+    shortPromise: 'Extend the connected club experience to everyone.',
+    description:
+      'Everything in Club Starter with unlimited coaches and players, built for a club-wide rollout across programs and competition.',
+    valueProps: [
+      'Unlimited coaches and connected players',
+      'Unlimited clinics, camps, development groups, and teams',
+      'Reusable club league and tournament setups',
+      'One club identity across every applicable TenAceIQ tool',
+      'Club-wide onboarding and role-based home views',
+    ],
+  },
+  boundary:
+    'TenAceIQ does not replace court booking, member registration, point-of-sale, or payment systems. Club links can send registration and payment back to the system the club already uses.',
+} as const
 
 export const PRODUCT_AVOID_LIST = [
   'Vague SaaS language',

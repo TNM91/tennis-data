@@ -1,4 +1,5 @@
 import { getClubApiAuth } from '@/lib/club-api-auth'
+import { normalizeClinicCapacity, normalizeClinicDuration, normalizeClinicExternalUrl } from '@/lib/club-clinics'
 import { cleanClubMultiline, cleanClubText, mapClubGroupRow, type ClubGroupType } from '@/lib/club-workspace'
 
 export const runtime = 'nodejs'
@@ -31,10 +32,14 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       description: cleanClubMultiline(body.description),
       season_label: cleanClubText(body.seasonLabel),
       lead_user_id: cleanClubText(body.leadUserId) || null,
+      capacity: normalizeClinicCapacity(body.capacity),
+      location_label: cleanClubText(body.locationLabel),
+      registration_url: normalizeClinicExternalUrl(body.registrationUrl),
+      default_duration_minutes: normalizeClinicDuration(body.defaultDurationMinutes),
       is_public: body.isPublic !== false,
       created_by_user_id: auth.userId,
     })
-    .select('id,club_id,name,group_type,description,season_label,lead_user_id,is_public,is_active,updated_at')
+    .select('id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,updated_at')
     .single()
 
   if (error) return Response.json({ ok: false, message: 'Club staff access is required to add a group.' }, { status: 403 })

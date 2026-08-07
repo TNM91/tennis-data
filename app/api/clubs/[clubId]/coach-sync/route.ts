@@ -68,7 +68,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       contactPreference: cleanClubText(member.phone) ? 'both' : 'in_app',
       setupStatus: cleanClubText(member.user_id) ? 'linked' : 'manual',
       status: 'needs_assignment',
-      notes: `Connected from ${cleanClubText(club?.name) || 'Club Workspace'}.`,
+      notes: `Connected from ${cleanClubText(club?.name) || 'Club'}.`,
     }, auth.userId))
     .filter((payload): payload is NonNullable<typeof payload> => Boolean(payload))
 

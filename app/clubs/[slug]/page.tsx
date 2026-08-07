@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: ClubPageProps): Promise<Metad
   const { slug } = await params
   const label = slug.split('-').filter(Boolean).map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`).join(' ')
   return {
-    title: `${label || 'Club'} | TenAceIQ`,
+    title: label || 'Club',
     description: 'Club programs, leagues, tournaments, and tennis updates in one place.',
   }
 }
