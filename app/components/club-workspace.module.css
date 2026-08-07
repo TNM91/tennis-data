@@ -121,7 +121,7 @@
 .fieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .full { grid-column: 1 / -1; }
 
-.primary, .secondary, .tab, .quietButton {
+.primary, .secondary, .tab, .quietButton, .dangerButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,7 +138,8 @@
 .primary { background: var(--club-color, var(--brand-green)); color: #07111f; }
 .secondary, .quietButton { border-color: var(--shell-panel-border); background: var(--shell-chip-bg); color: var(--foreground-strong); }
 .quietButton { min-height: 36px; padding: 0 12px; font-size: 12px; }
-.primary:disabled, .secondary:disabled { opacity: .55; cursor: wait; }
+.dangerButton { min-height: 36px; padding: 0 12px; border-color: rgba(255, 94, 112, .42); background: rgba(92, 19, 32, .24); color: #ffd2d7; font-size: 12px; }
+.primary:disabled, .secondary:disabled, .quietButton:disabled, .dangerButton:disabled { opacity: .55; cursor: wait; }
 
 .tabs {
   margin: 16px 0;
@@ -296,7 +297,7 @@
   .hero { border-radius: 14px; }
   .fieldGrid { grid-template-columns: 1fr; }
   .full { grid-column: auto; }
-  .heroActions > *, .row > .primary, .row > .secondary { flex: 1 1 145px; }
+  .heroActions > *, .row > .primary, .row > .secondary, .row > .quietButton, .row > .dangerButton { flex: 1 1 145px; }
   .tabs { position: sticky; top: 8px; z-index: 4; }
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
   .headingRow, .setupTop { align-items: stretch; }

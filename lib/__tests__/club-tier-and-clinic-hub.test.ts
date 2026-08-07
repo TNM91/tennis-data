@@ -27,4 +27,14 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(clinic).toContain('Attendance')
     expect(clinic).toContain('Clinic updates')
   })
+
+  it('lets club managers share and revoke pending invitations', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const memberRoute = source('app/api/clubs/[clubId]/members/route.ts')
+    expect(club).toContain('Share invite')
+    expect(club).toContain('Revoke this invitation?')
+    expect(memberRoute).toContain('export async function DELETE')
+    expect(memberRoute).toContain("update({ status: 'revoked' })")
+    expect(memberRoute).toContain(".eq('status', 'pending')")
+  })
 })

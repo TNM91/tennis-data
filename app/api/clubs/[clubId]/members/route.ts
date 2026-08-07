@@ -45,6 +45,27 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
   return Response.json({ ok: true, invite: mapClubInviteRow(data as Record<string, unknown>) })
 }
 
+export async function DELETE(request: Request, context: { params: Promise<{ clubId: string }> }) {
+  const auth = await getClubApiAuth(request)
+  if (!auth.ok) return auth.response
+  const { clubId } = await context.params
+  const inviteId = cleanClubText(new URL(request.url).searchParams.get('inviteId'))
+  if (!inviteId) return Response.json({ ok: false, message: 'Choose an invitation to revoke.' }, { status: 400 })
+
+  const { data, error } = await auth.supabase
+    .from('club_invites')
+    .update({ status: 'revoked' })
+    .eq('id', inviteId)
+    .eq('club_id', clubId)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle()
+
+  if (error) return Response.json({ ok: false, message: 'Only club managers can revoke invitations.' }, { status: 403 })
+  if (!data) return Response.json({ ok: false, message: 'That invitation is no longer pending.' }, { status: 404 })
+  return Response.json({ ok: true })
+}
+
 function normalizeInviteTargetType(value: unknown): ClubInviteTargetType {
   const targetType = cleanClubText(value)
   return targetType === 'group' || targetType === 'league' || targetType === 'tournament' ? targetType : 'club'
