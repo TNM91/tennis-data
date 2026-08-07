@@ -117,6 +117,7 @@
 .switcher select { width: auto; min-width: min(100%, 210px); }
 .field textarea { min-height: 90px; resize: vertical; }
 .field { display: grid; gap: 6px; min-width: 0; color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
+.field small { font-size: 11px; font-weight: 700; line-height: 1.4; }
 .fieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .full { grid-column: 1 / -1; }
 
@@ -274,6 +275,7 @@
 .stat strong { font-size: 26px; }
 .stat span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
 .card { display: grid; gap: 10px; align-content: start; }
+.cardTargeted { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 62%, var(--shell-panel-border)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-color, var(--brand-green)) 16%, transparent); }
 .cardTop { justify-content: space-between; align-items: flex-start; }
 .pill { display: inline-flex; align-items: center; min-height: 25px; padding: 0 9px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 32%, var(--shell-panel-border)); color: var(--club-color, var(--brand-green)); font-size: 11px; font-weight: 900; }
 .muted { color: var(--shell-copy-muted); }

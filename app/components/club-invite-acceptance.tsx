@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
-import { getClubInviteLanding, getClubRoleLabel, type ClubInviteLanding, type ClubRole } from '@/lib/club-workspace'
+import { getClubInviteLanding, getClubRoleLabel, type ClubInviteLanding, type ClubInviteTarget, type ClubRole } from '@/lib/club-workspace'
 import styles from './club-workspace.module.css'
 
 type InvitePreview = {
@@ -15,6 +15,7 @@ type InvitePreview = {
   clubLogoUrl: string
   email: string
   roles: ClubRole[]
+  target: ClubInviteTarget
   status: string
   expiresAt: string
 }
@@ -81,7 +82,7 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
   const invitedEmail = invite?.email.trim().toLowerCase() ?? ''
   const signedInEmail = session?.user.email?.trim().toLowerCase() ?? ''
   const inviteEmailMismatch = Boolean(userId && invitedEmail && signedInEmail !== invitedEmail)
-  const landing = invite ? getClubInviteLanding({ id: invite.clubId, name: invite.clubName, slug: invite.clubSlug }, invite.roles) : null
+  const landing = invite ? getClubInviteLanding({ id: invite.clubId, name: invite.clubName, slug: invite.clubSlug }, invite.roles, invite.target) : null
   const signInHref = buildInviteAuthHref('/login', inviteHref, invite?.email, Boolean(userId))
   const joinHref = buildInviteAuthHref('/join', inviteHref, invite?.email)
   const title = acceptedLanding
@@ -103,7 +104,7 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
 
         {invite ? (
           <>
-            <p className={styles.copy}>You were invited as {invite.roles.map(getClubRoleLabel).join(' + ')}. Every role stays connected to the same club profile.</p>
+            <p className={styles.copy}>{invite.target.type === 'club' ? 'You were invited to the club' : <>You were invited to <strong>{invite.target.name}</strong></>} as {invite.roles.map(getClubRoleLabel).join(' + ')}.</p>
             <div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div>
 
             <div className={styles.inviteAccountCheck} aria-label="Club invite account check">
@@ -124,7 +125,7 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
         {acceptedLanding ? (
           <div className={styles.inviteSuccess} role="status">
             <strong>Opening {acceptedLanding.title}...</strong>
-            <span>Your club context and roles are coming with you.</span>
+            <span>Your club access and destination are coming with you.</span>
           </div>
         ) : message ? <div className={`${styles.notice} ${styles.danger}`} role="alert">{message}</div> : null}
 

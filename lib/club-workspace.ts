@@ -12,6 +12,14 @@ export const CLUB_ROLES = [
 export type ClubRole = (typeof CLUB_ROLES)[number]
 export type ClubGroupType = 'clinic' | 'team' | 'camp' | 'development_group' | 'league_division' | 'tournament_field'
 export type ClubCompetitionType = 'league' | 'tournament'
+export type ClubInviteTargetType = 'club' | 'group' | 'league' | 'tournament'
+
+export type ClubInviteTarget = {
+  type: ClubInviteTargetType
+  id: string
+  name: string
+  groupType?: ClubGroupType
+}
 
 export type Club = {
   id: string
@@ -81,6 +89,7 @@ export type ClubInvite = {
   clubId: string
   email: string
   roles: ClubRole[]
+  target: ClubInviteTarget
   inviteToken: string
   status: 'pending' | 'accepted' | 'revoked' | 'expired'
   expiresAt: string
@@ -265,7 +274,47 @@ export function buildClubToolHref(
 export function getClubInviteLanding(
   club: Pick<Club, 'id' | 'name' | 'slug'>,
   roles: ClubRole[],
+  target: ClubInviteTarget = { type: 'club', id: '', name: '' },
 ): ClubInviteLanding {
+  const clubContext = { clubId: club.id, clubName: club.name, club: club.slug, source: 'club-invite' }
+  if (target.type === 'group' && target.id) {
+    if (target.groupType === 'clinic') {
+      return {
+        title: target.name || 'Clinic Hub',
+        detail: 'Open the clinic schedule, roster, assignments, and updates.',
+        actionLabel: 'Open clinic',
+        href: `/clubs/clinics/${encodeURIComponent(target.id)}?${new URLSearchParams(clubContext).toString()}`,
+      }
+    }
+    return {
+      title: target.name || 'Club program',
+      detail: `Open this ${target.groupType ? getClubGroupTypeLabel(target.groupType).toLowerCase() : 'program'} and its connected roster.`,
+      actionLabel: target.groupType === 'team' ? 'Open team' : 'Open program',
+      href: buildClubToolHref('/clubs', club, { tab: 'groups', groupId: target.id, source: 'club-invite' }),
+    }
+  }
+  if (target.type === 'league' && target.id) {
+    const coordinator = roles.some((role) => role === 'owner' || role === 'admin' || role === 'director' || role === 'coordinator')
+    return {
+      title: target.name || 'Club league',
+      detail: coordinator ? 'Open this league’s schedule, entries, and results.' : 'Open this league’s schedule, standings, and results.',
+      actionLabel: 'Open league',
+      href: coordinator
+        ? buildClubToolHref('/league-coordinator', club, { leagueId: target.id, source: 'club-invite' })
+        : buildClubToolHref(`/explore/leagues/tiq/${encodeURIComponent(target.id)}`, club, { league_id: target.id, source: 'club-invite' }),
+    }
+  }
+  if (target.type === 'tournament' && target.id) {
+    const coordinator = roles.some((role) => role === 'owner' || role === 'admin' || role === 'director' || role === 'coordinator')
+    return {
+      title: target.name || 'Club tournament',
+      detail: coordinator ? 'Open this tournament’s entries, draw, courts, and results.' : 'Open this tournament’s draw, schedule, and results.',
+      actionLabel: 'Open tournament',
+      href: coordinator
+        ? buildClubToolHref('/league-coordinator/tournaments', club, { tournamentId: target.id, source: 'club-invite' })
+        : buildClubToolHref(`/tournaments/${encodeURIComponent(target.id)}`, club, { source: 'club-invite' }),
+    }
+  }
   if (roles.some((role) => role === 'admin' || role === 'director')) {
     return {
       title: 'Club workspace',
@@ -402,9 +451,23 @@ export function mapClubInviteRow(row: Row): ClubInvite {
     clubId: cleanClubText(row.club_id),
     email: cleanClubText(row.email, 180).toLowerCase(),
     roles: normalizeClubRoles(row.roles),
+    target: mapClubInviteTargetRow(row),
     inviteToken: cleanClubText(row.invite_token),
     status: status === 'accepted' || status === 'revoked' || status === 'expired' ? status : 'pending',
     expiresAt: cleanClubText(row.expires_at, 80),
     createdAt: cleanClubText(row.created_at, 80),
+  }
+}
+
+export function mapClubInviteTargetRow(row: Row): ClubInviteTarget {
+  const targetType = cleanClubText(row.target_type)
+  const groupType = cleanClubText(row.target_group_type)
+  return {
+    type: ['group', 'league', 'tournament'].includes(targetType) ? targetType as ClubInviteTargetType : 'club',
+    id: cleanClubText(row.target_id, 180),
+    name: cleanClubText(row.target_name),
+    groupType: ['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'].includes(groupType)
+      ? groupType as ClubGroupType
+      : undefined,
   }
 }
