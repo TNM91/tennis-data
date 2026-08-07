@@ -21,6 +21,7 @@ import {
   type ClubGroupType,
   type ClubMembership,
   type ClubRole,
+  type ClubSetupStep,
   type ClubWorkspaceData,
 } from '@/lib/club-workspace'
 import styles from './club-workspace.module.css'
@@ -56,6 +57,7 @@ export default function ClubWorkspace() {
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<'success' | 'danger'>('success')
+  const [guidedStepId, setGuidedStepId] = useState<ClubSetupStep['id'] | null>(null)
 
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const response = await fetch(path, {
@@ -138,6 +140,46 @@ export default function ClubWorkspace() {
     if (detail.clubs) setClubs(detail.clubs)
   }
 
+  function openGuidedStep(step: ClubSetupStep) {
+    if (step.id === 'access') {
+      void shareClubPage()
+      return
+    }
+    setGuidedStepId(step.id)
+    setTab(step.tab)
+  }
+
+  function finishGuidedStep(stepId: ClubSetupStep['id'], successMessage: string) {
+    if (guidedStepId !== stepId) return
+    setGuidedStepId(null)
+    setTab('home')
+    showMessage(successMessage)
+  }
+
+  async function shareClubPage() {
+    if (!workspace || working) return
+    const publicUrl = `${window.location.origin}/clubs/${workspace.club.slug}`
+    const useNativeShare = typeof navigator.share === 'function'
+    setWorking(true)
+    try {
+      if (useNativeShare) {
+        await navigator.share({ title: workspace.club.name, text: `Open ${workspace.club.name} on TenAceIQ.`, url: publicUrl })
+      } else {
+        await navigator.clipboard.writeText(publicUrl)
+      }
+      await request(`/api/clubs/${workspace.club.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'complete_onboarding' }) })
+      await refreshWorkspace()
+      setGuidedStepId(null)
+      setTab('home')
+      showMessage(useNativeShare ? 'Club page shared. Setup is complete.' : 'Club page copied. Setup is complete.')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      showMessage(error instanceof Error ? error.message : 'The club page could not be shared.', 'danger')
+    } finally {
+      setWorking(false)
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -187,6 +229,7 @@ export default function ClubWorkspace() {
   const staff = canRunClubPrograms(clubRoles)
   const clubStyle = { '--club-color': workspace.club.primaryColor } as CSSProperties
   const heroAction = getClubHeroAction(workspace, clubRoles)
+  const guidedStep = guidedStepId ? getClubSetupSteps(workspace).find((step) => step.id === guidedStepId) ?? null : null
 
   return (
     <main className={styles.page} style={clubStyle}>
@@ -213,11 +256,13 @@ export default function ClubWorkspace() {
         </div>
         <p className={styles.copy}>{workspace.club.description || 'One connected tennis experience for players, coaches, programs, leagues, and tournaments.'}</p>
         <div className={styles.heroActions}>
-          {heroAction.tab
+          {heroAction.setupStep
+            ? <button className={styles.primary} type="button" onClick={() => openGuidedStep(heroAction.setupStep!)}>{heroAction.label}</button>
+            : heroAction.tab
             ? <button className={styles.primary} type="button" onClick={() => setTab(heroAction.tab!)}>{heroAction.label}</button>
             : <Link className={styles.primary} href={heroAction.href!}>{heroAction.label}</Link>}
-          <Link className={styles.secondary} href={`/clubs/${workspace.club.slug}`}>View public club page</Link>
-          {manager && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => setTab('people')}>Invite people</button> : null}
+          {!heroAction.setupStep ? <Link className={styles.secondary} href={`/clubs/${workspace.club.slug}`}>View public club page</Link> : null}
+          {manager && !heroAction.setupStep && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => setTab('people')}>Invite people</button> : null}
         </div>
       </section>
 
@@ -229,12 +274,21 @@ export default function ClubWorkspace() {
         ))}
       </nav>
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} onOpenTab={setTab} /> : null}
+      {guidedStep ? (
+        <section className={styles.guidedBanner} aria-label="Current club setup step">
+          <div><p className={styles.eyebrow}>Guided setup</p><strong>{guidedStep.label}</strong><span>{guidedStep.detail}</span></div>
+          <button className={styles.quietButton} type="button" onClick={() => { setGuidedStepId(null); setTab('home') }}>Back to setup</button>
+        </section>
+      ) : null}
+
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} onOpenTab={setTab} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
+          key={guidedStepId ?? 'people'}
           workspace={workspace}
           manager={manager}
           working={working}
+          guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
           onInvite={async (email, roles) => {
             setWorking(true)
             try {
@@ -243,6 +297,9 @@ export default function ClubWorkspace() {
               await navigator.clipboard?.writeText(inviteUrl).catch(() => undefined)
               showMessage('Invitation ready. Its link was copied so you can send it now.')
               await refreshWorkspace()
+              const staffRoles: ClubRole[] = ['admin', 'director', 'coach', 'captain', 'coordinator']
+              if (guidedStepId === 'staff' && roles.some((role) => staffRoles.includes(role))) finishGuidedStep('staff', 'Staff invite ready. Next: invite a player.')
+              if (guidedStepId === 'players' && roles.some((role) => role === 'player' || role === 'guardian')) finishGuidedStep('players', 'Player invite ready. Next: add the first program.')
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'The invitation could not be created.', 'danger')
             } finally {
@@ -263,6 +320,7 @@ export default function ClubWorkspace() {
               await request(`/api/clubs/${workspace.club.id}/groups`, { method: 'POST', body: JSON.stringify(payload) })
               showMessage(`${payload.name} was added.`)
               await refreshWorkspace()
+              finishGuidedStep('programs', `${payload.name} is ready. Next: share the club page.`)
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'The program could not be added.', 'danger')
             } finally { setWorking(false) }
@@ -316,6 +374,7 @@ export default function ClubWorkspace() {
               await request(`/api/clubs/${workspace.club.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
               showMessage('Club page updated.')
               await refreshWorkspace()
+              finishGuidedStep('club', 'Club identity saved. Next: invite the first staff member.')
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'Club details could not be saved.', 'danger')
             } finally { setWorking(false) }
@@ -326,7 +385,7 @@ export default function ClubWorkspace() {
   )
 }
 
-function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
+function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -336,17 +395,18 @@ function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDat
   const [showSetup, setShowSetup] = useState(false)
   const [showAllSteps, setShowAllSteps] = useState(false)
   const nextStep = setupSteps.find((step) => !step.completed) ?? setupSteps[setupSteps.length - 1]
+  const showEverydayWorkspace = !manager || setupComplete
   return (
     <section className={styles.panel}>
       <div className={styles.headingRow}>
-        <div className={styles.panelHeading}><p className={styles.eyebrow}>Right now</p><h2>{getHomeTitle(roles)}</h2><p>{getHomeCopy(roles)}</p></div>
+        <div className={styles.panelHeading}><p className={styles.eyebrow}>{manager && !setupComplete ? 'Start here' : 'Right now'}</p><h2>{manager && !setupComplete ? 'Get the club ready, one step at a time.' : getHomeTitle(roles)}</h2><p>{manager && !setupComplete ? 'Finish the next job below. Club brings you back here automatically.' : getHomeCopy(roles)}</p></div>
         {manager && setupComplete && !showSetup ? <button className={styles.quietButton} type="button" onClick={() => setShowSetup(true)}>Setup help</button> : null}
       </div>
-      <div className={styles.experienceStrip} aria-label="Connected club value">
+      {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
         <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
         <div><strong>Coaches</strong><span>Keep lessons, assignments, and progress connected.</span></div>
         <div><strong>Club staff</strong><span>Run programs and competition without rebuilding context.</span></div>
-      </div>
+      </div> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
@@ -360,21 +420,21 @@ function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDat
           <div className={styles.setupProgress} role="progressbar" aria-label="Club setup progress" aria-valuemin={0} aria-valuemax={setupSteps.length} aria-valuenow={completedSetupSteps}>
             <span style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%` }} />
           </div>
-          {!setupComplete ? <button className={styles.primary} type="button" onClick={() => onOpenTab(nextStep.tab)}>{nextStep.actionLabel}</button> : null}
+          {!setupComplete ? <button className={styles.primary} type="button" onClick={() => onRunSetupStep(nextStep)}>{nextStep.actionLabel}</button> : null}
           <button className={styles.setupToggle} type="button" aria-expanded={showAllSteps} onClick={() => setShowAllSteps((current) => !current)}>{showAllSteps ? 'Hide steps' : 'View all steps'}</button>
           {showAllSteps ? (
             <ol className={styles.setupSteps}>
               {setupSteps.map((step) => (
                 <li key={step.id} className={step.completed ? styles.setupStepDone : ''}>
                   <div><strong>{step.label}</strong><span>{step.completed ? 'Done' : step.detail}</span></div>
-                  <button className={styles.quietButton} type="button" onClick={() => onOpenTab(step.tab)}>{step.completed ? 'Review' : step.actionLabel}</button>
+                  <button className={styles.quietButton} type="button" onClick={() => step.completed ? onOpenTab(step.tab) : onRunSetupStep(step)}>{step.completed ? 'Review' : step.actionLabel}</button>
                 </li>
               ))}
             </ol>
           ) : null}
         </section>
       ) : null}
-      <div className={styles.statGrid}>
+      {showEverydayWorkspace ? <><div className={styles.statGrid}>
         <div className={styles.stat}><strong>{workspace.memberships.length}</strong><span>People</span></div>
         <div className={styles.stat}><strong>{workspace.groups.length}</strong><span>Programs + teams</span></div>
         <div className={styles.stat}><strong>{workspace.competitions.length}</strong><span>Live competitions</span></div>
@@ -384,24 +444,25 @@ function ClubHome({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDat
           ? <button key={action.title} className={`${styles.actionCard} ${styles.actionCardButton}`} type="button" onClick={() => onOpenTab(action.tab!)}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></button>
           : <Link key={action.title} className={styles.actionCard} href={action.href!}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></Link>)}
       </div>
-      {staff ? <button className={styles.secondary} type="button" onClick={() => onOpenTab('compete')}>Set up club competition</button> : null}
+      {staff ? <button className={styles.secondary} type="button" onClick={() => onOpenTab('compete')}>Set up club competition</button> : null}</> : null}
     </section>
   )
 }
 
-function PeoplePanel({ workspace, manager, working, onInvite }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; onInvite: (email: string, roles: ClubRole[]) => Promise<void> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, onInvite }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; onInvite: (email: string, roles: ClubRole[]) => Promise<void> }) {
   const [email, setEmail] = useState('')
-  const [roles, setRoles] = useState<ClubRole[]>(['player'])
+  const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
+  const inviteLabel = guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeading}><p className={styles.eyebrow}>Club roster</p><h2>Everyone connected to the club.</h2><p>One person can be a player, coach, captain, or coordinator at the same time.</p></div>
+      <div className={styles.panelHeading}><p className={styles.eyebrow}>{guidedStepId ? 'Your next connection' : 'Club roster'}</p><h2>{guidedStepId === 'staff' ? 'Who helps run the tennis experience?' : guidedStepId === 'players' ? 'Bring the first player into the club.' : 'Everyone connected to the club.'}</h2><p>{guidedStepId === 'staff' ? 'Choose every role they have. They can be staff and a player at the same time.' : guidedStepId === 'players' ? 'Their setup link is copied after you create it, ready to text or email.' : 'One person can be a player, coach, captain, or coordinator at the same time.'}</p></div>
       {manager ? (
         <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles).then(() => setEmail('')) }}>
           <div className={styles.fieldGrid}>
             <label className={styles.field}><span>Email</span><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="player@club.com" /></label>
             <div className={styles.field}><span>Club roles</span><RoleChecks value={roles} onChange={setRoles} /></div>
           </div>
-          <button className={styles.primary} disabled={working} type="submit">{working ? 'Preparing...' : 'Create invite link'}</button>
+          <button className={styles.primary} disabled={working} type="submit">{working ? 'Preparing...' : inviteLabel}</button>
         </form>
       ) : null}
       <div className={styles.cardGrid}>
@@ -540,10 +601,10 @@ function getRoleActions(roles: ClubRole[], workspace: ClubWorkspaceData) {
 
 function getHomeTitle(roles: ClubRole[]) { return isClubManager(roles) ? 'Keep the tennis experience moving.' : roles.includes('coach') ? 'Who needs your next step?' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'What needs organizing?' : 'What is next for your tennis?' }
 function getHomeCopy(roles: ClubRole[]) { return isClubManager(roles) ? 'Open the player, program, or competition job that matters today.' : roles.includes('coach') ? 'Keep each player’s lesson, assignment, and progress connected.' : roles.some((role) => role === 'captain' || role === 'coordinator') ? 'Move the team or competition without hunting for the right tool.' : 'Your club programs, coaching, and competition stay together here.' }
-function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { label: string; href?: string; tab?: WorkspaceTab } {
+function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { label: string; href?: string; tab?: WorkspaceTab; setupStep?: ClubSetupStep } {
   if (isClubManager(roles)) {
-    if (workspace.memberships.length <= 1 && !workspace.invites.some((invite) => invite.status === 'pending')) return { label: 'Invite your staff', tab: 'people' }
-    if (!workspace.groups.length) return { label: 'Add the first program', tab: 'groups' }
+    const nextSetupStep = getClubSetupSteps(workspace).find((step) => !step.completed)
+    if (nextSetupStep) return { label: nextSetupStep.actionLabel, setupStep: nextSetupStep }
     return { label: 'Open coaching view', href: buildClubToolHref('/coach', workspace.club) }
   }
   if (roles.includes('coach')) return { label: 'Open Coach Hub', href: buildClubToolHref('/coach', workspace.club) }

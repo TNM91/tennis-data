@@ -15,6 +15,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
     return Response.json({ ok: false, message: 'Check the club details and try again.' }, { status: 400 })
   }
 
+  if (body.action === 'complete_onboarding') {
+    const { data, error } = await auth.supabase
+      .from('clubs')
+      .update({ onboarding_completed_at: new Date().toISOString() })
+      .eq('id', clubId)
+      .select('id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,onboarding_completed_at,created_at,updated_at')
+      .single()
+
+    if (error) return Response.json({ ok: false, message: 'Only club managers can finish club setup.' }, { status: 403 })
+    return Response.json({ ok: true, club: mapClubRow(data as Record<string, unknown>) })
+  }
+
   const payload = {
     name: cleanClubText(body.name, 120),
     description: cleanClubMultiline(body.description),
@@ -32,7 +44,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
     .from('clubs')
     .update(payload)
     .eq('id', clubId)
-    .select('id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,created_at,updated_at')
+    .select('id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,onboarding_completed_at,created_at,updated_at')
     .single()
 
   if (error) return Response.json({ ok: false, message: 'Only club managers can update this club.' }, { status: 403 })
