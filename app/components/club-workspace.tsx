@@ -19,6 +19,7 @@ import {
   type ClubCompetitionTemplate,
   type ClubGroup,
   type ClubGroupType,
+  type ClubInvite,
   type ClubMembership,
   type ClubRole,
   type ClubSetupStep,
@@ -192,6 +193,23 @@ export default function ClubWorkspace() {
     }
   }
 
+  async function shareInvite(invite: ClubInvite) {
+    const inviteUrl = `${window.location.origin}/clubs/invite/${invite.inviteToken}`
+    const destination = invite.target.type === 'club' ? workspace?.club.name || 'the club' : invite.target.name
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `Join ${destination}`, text: `You are invited to join ${destination} on TenAceIQ.`, url: inviteUrl })
+        showMessage('Invitation shared.')
+      } else {
+        await navigator.clipboard.writeText(inviteUrl)
+        showMessage('Invitation link copied. Send it by text or email.')
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      showMessage('The invitation could not be shared. Try copying it again.', 'danger')
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -302,6 +320,19 @@ export default function ClubWorkspace() {
           working={working}
           initialDestination={inviteDestination}
           guidedStepId={guidedStepId === 'staff' || guidedStepId === 'players' ? guidedStepId : null}
+          onShare={shareInvite}
+          onRevoke={async (inviteId) => {
+            setWorking(true)
+            try {
+              await request(`/api/clubs/${workspace.club.id}/members?inviteId=${encodeURIComponent(inviteId)}`, { method: 'DELETE' })
+              showMessage('Invitation revoked. Its link no longer works.')
+              await refreshWorkspace()
+            } catch (error) {
+              showMessage(error instanceof Error ? error.message : 'The invitation could not be revoked.', 'danger')
+            } finally {
+              setWorking(false)
+            }
+          }}
           onInvite={async (email, roles, targetType, targetId) => {
             setWorking(true)
             try {
@@ -467,7 +498,7 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   )
 }
 
-function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<void> }) {
+function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestination, onInvite, onShare, onRevoke }: { workspace: ClubWorkspaceData; manager: boolean; working: boolean; guidedStepId: 'staff' | 'players' | null; initialDestination: string; onInvite: (email: string, roles: ClubRole[], targetType: ClubInviteTargetType, targetId: string) => Promise<void>; onShare: (invite: ClubInvite) => Promise<void>; onRevoke: (inviteId: string) => Promise<void> }) {
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
@@ -497,7 +528,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
           </article>
         ))}
       </div>
-      {manager && workspace.invites.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Pending invitations</h2></div><div className={styles.cardGrid}>{workspace.invites.map((invite) => <article className={styles.card} key={invite.id}><h3>{invite.email}</h3>{invite.target.type !== 'club' ? <span className={styles.muted}>Opens {invite.target.name}</span> : <span className={styles.muted}>Club-wide access</span>}<div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div><button className={styles.quietButton} type="button" onClick={() => void navigator.clipboard?.writeText(`${window.location.origin}/clubs/invite/${invite.inviteToken}`)}>Copy invite link</button></article>)}</div></> : null}
+      {manager && workspace.invites.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Pending invitations</h2><p>Share a link again or revoke one that should no longer be used.</p></div><div className={styles.cardGrid}>{workspace.invites.map((invite) => <article className={styles.card} key={invite.id}><h3>{invite.email}</h3>{invite.target.type !== 'club' ? <span className={styles.muted}>Opens {invite.target.name}</span> : <span className={styles.muted}>Club-wide access</span>}<div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div><div className={styles.row}><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onShare(invite)}>Share invite</button><button className={styles.dangerButton} disabled={working} type="button" onClick={() => { if (window.confirm('Revoke this invitation? Its current link will stop working.')) void onRevoke(invite.id) }}>Revoke</button></div></article>)}</div></> : null}
     </section>
   )
 }
