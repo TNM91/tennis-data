@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     slug: baseSlug,
     description: cleanClubMultiline(body.description),
     location_label: cleanClubText(body.locationLabel),
-    contact_email: cleanClubText(body.contactEmail || auth.user.email, 180).toLowerCase(),
+    contact_email: cleanClubText(body.contactEmail, 180).toLowerCase(),
     time_zone: cleanClubText(body.timeZone, 80) || 'America/Chicago',
     primary_color: normalizeClubColor(body.primaryColor),
     is_public: body.isPublic !== false,
