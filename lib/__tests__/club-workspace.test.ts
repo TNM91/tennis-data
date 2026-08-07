@@ -5,6 +5,7 @@ import {
   canRunClubPrograms,
   createClubSlug,
   getClubSetupSteps,
+  getClubInviteLanding,
   hasClubTeamProgram,
   isClubManager,
   mapClubGroupRow,
@@ -133,6 +134,17 @@ describe('club workspace', () => {
       ['access', false],
     ])
     expect(steps.find((step) => !step.completed)?.actionLabel).toBe('Invite player')
+  })
+
+  it('opens each invited role in the most useful club-linked workspace', () => {
+    const club = { id: 'club-1', slug: 'forest-hills', name: 'Forest Hills' }
+
+    expect(getClubInviteLanding(club, ['director']).href).toContain('/clubs?')
+    expect(getClubInviteLanding(club, ['coach', 'player'])).toMatchObject({ title: 'Coach Hub', actionLabel: 'Open Coach Hub' })
+    expect(getClubInviteLanding(club, ['captain', 'player']).href).toContain('/captain?')
+    expect(getClubInviteLanding(club, ['coordinator']).href).toContain('/league-coordinator?')
+    expect(getClubInviteLanding(club, ['player']).href).toContain('/mylab?')
+    expect(getClubInviteLanding(club, ['guardian'])).toMatchObject({ title: 'Club programs' })
   })
 
   it('does not hide guided setup until access has been shared', () => {

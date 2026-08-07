@@ -162,6 +162,40 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--club-color, var(--brand-green)) 9%, #071426);
 }
+
+.inviteShell { max-width: 760px; }
+.inviteLogo {
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 16px;
+  background: rgba(5, 14, 28, .76);
+  object-fit: cover;
+}
+.inviteAccountCheck {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-panel-border);
+}
+.inviteAccountCheck > div { display: grid; gap: 4px; min-width: 0; padding: 12px; background: var(--shell-chip-bg); }
+.inviteAccountCheck span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.inviteAccountCheck strong { overflow-wrap: anywhere; }
+.inviteDestination, .inviteSuccess, .inviteMismatch {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 38%, var(--shell-panel-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--club-color, var(--brand-green)) 8%, var(--shell-chip-bg));
+}
+.inviteDestination > strong, .inviteSuccess > strong, .inviteMismatch > strong { font-size: 18px; }
+.inviteDestination > span, .inviteSuccess > span, .inviteMismatch > span { color: var(--shell-copy-muted); line-height: 1.45; font-weight: 700; }
+.inviteMismatch { border-color: rgba(255, 184, 91, .42); }
+.inviteMismatch .primary { justify-self: start; margin-top: 4px; }
 .guidedBanner > div { display: grid; gap: 4px; min-width: 0; }
 .guidedBanner strong { font-size: 18px; overflow-wrap: anywhere; }
 .guidedBanner span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
@@ -268,6 +302,8 @@
   .guidedBanner .quietButton { align-self: flex-start; }
   .setupSteps li { align-items: flex-start; }
   .experienceStrip { grid-template-columns: 1fr; }
+  .inviteAccountCheck { grid-template-columns: 1fr; }
+  .inviteShell > .primary, .inviteMismatch .primary { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

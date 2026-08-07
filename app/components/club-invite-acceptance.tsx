@@ -1,12 +1,15 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
-import { getClubRoleLabel, type ClubRole } from '@/lib/club-workspace'
+import { getClubInviteLanding, getClubRoleLabel, type ClubInviteLanding, type ClubRole } from '@/lib/club-workspace'
 import styles from './club-workspace.module.css'
 
 type InvitePreview = {
+  clubId: string
   clubName: string
   clubSlug: string
   clubLogoUrl: string
@@ -16,9 +19,17 @@ type InvitePreview = {
   expiresAt: string
 }
 
+type AcceptInviteResponse = {
+  ok: boolean
+  landing?: ClubInviteLanding
+  message?: string
+}
+
 export default function ClubInviteAcceptance({ token }: { token: string }) {
+  const router = useRouter()
   const { authResolved, session, userId } = useAuth()
   const [invite, setInvite] = useState<InvitePreview | null>(null)
+  const [acceptedLanding, setAcceptedLanding] = useState<ClubInviteLanding | null>(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
@@ -31,10 +42,21 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
         if (!response.ok || !data.invite) throw new Error(data.message || 'Invitation not found.')
         setInvite(data.invite)
       })
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'Invitation not found.'))
-      .finally(() => setLoading(false))
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setMessage(error instanceof Error ? error.message : 'Invitation not found.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
     return () => controller.abort()
   }, [token])
+
+  useEffect(() => {
+    if (!acceptedLanding) return
+    const timeout = window.setTimeout(() => router.replace(acceptedLanding.href), 900)
+    return () => window.clearTimeout(timeout)
+  }, [acceptedLanding, router])
 
   async function acceptInvite() {
     if (!session?.access_token) return
@@ -45,9 +67,9 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
-      const data = await response.json() as { ok: boolean; clubId?: string; message?: string }
-      if (!response.ok) throw new Error(data.message || 'This invitation could not be accepted.')
-      window.location.assign(`/clubs?clubId=${encodeURIComponent(data.clubId || '')}`)
+      const data = await response.json() as AcceptInviteResponse
+      if (!response.ok || !data.landing) throw new Error(data.message || 'This invitation could not be accepted.')
+      setAcceptedLanding(data.landing)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'This invitation could not be accepted.')
     } finally {
@@ -55,15 +77,85 @@ export default function ClubInviteAcceptance({ token }: { token: string }) {
     }
   }
 
+  const inviteHref = `/clubs/invite/${token}`
+  const invitedEmail = invite?.email.trim().toLowerCase() ?? ''
+  const signedInEmail = session?.user.email?.trim().toLowerCase() ?? ''
+  const inviteEmailMismatch = Boolean(userId && invitedEmail && signedInEmail !== invitedEmail)
+  const landing = invite ? getClubInviteLanding({ id: invite.clubId, name: invite.clubName, slug: invite.clubSlug }, invite.roles) : null
+  const signInHref = buildInviteAuthHref('/login', inviteHref, invite?.email, Boolean(userId))
+  const joinHref = buildInviteAuthHref('/join', inviteHref, invite?.email)
+  const title = acceptedLanding
+    ? `You’re connected to ${invite?.clubName || 'the club'}.`
+    : loading
+      ? 'Opening invitation...'
+      : invite
+        ? `Join ${invite.clubName}`
+        : 'Invitation unavailable'
+
   return (
     <main className={styles.page}>
-      <section className={styles.empty}>
-        <p className={styles.eyebrow}>Club invitation</p>
-        <h1 className={styles.title}>{loading ? 'Opening invitation...' : invite ? `Join ${invite.clubName}` : 'Invitation unavailable'}</h1>
-        {invite ? <><p className={styles.copy}>Connect this club to your profile as {invite.roles.map(getClubRoleLabel).join(' + ')}.</p><div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div></> : null}
-        {message ? <div className={`${styles.notice} ${styles.danger}`}>{message}</div> : null}
-        {!authResolved ? null : !userId ? <div className={styles.row}><Link className={styles.primary} href={`/login?next=${encodeURIComponent(`/clubs/invite/${token}`)}`}>Sign in to accept</Link><Link className={styles.secondary} href={`/join?next=${encodeURIComponent(`/clubs/invite/${token}`)}`}>Create account</Link></div> : invite?.status === 'pending' ? <button className={styles.primary} disabled={accepting} type="button" onClick={() => void acceptInvite()}>{accepting ? 'Connecting...' : 'Accept and open club'}</button> : <p className={styles.copy}>This invitation is {invite?.status || 'not active'}.</p>}
+      <section className={`${styles.empty} ${styles.inviteShell}`}>
+        {invite?.clubLogoUrl ? <Image className={styles.inviteLogo} src={invite.clubLogoUrl} alt={`${invite.clubName} logo`} width={72} height={72} unoptimized /> : null}
+        <div>
+          <p className={styles.eyebrow}>{acceptedLanding ? 'Club connected' : 'Club invitation'}</p>
+          <h1 className={styles.title}>{title}</h1>
+        </div>
+
+        {invite ? (
+          <>
+            <p className={styles.copy}>You were invited as {invite.roles.map(getClubRoleLabel).join(' + ')}. Every role stays connected to the same club profile.</p>
+            <div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div>
+
+            <div className={styles.inviteAccountCheck} aria-label="Club invite account check">
+              <div><span>Invite sent to</span><strong>{invite.email}</strong></div>
+              <div><span>Signed in as</span><strong>{userId ? session?.user.email || 'Signed-in account' : 'Not signed in'}</strong></div>
+            </div>
+
+            {landing ? (
+              <div className={styles.inviteDestination} aria-label="Club invite destination">
+                <p className={styles.eyebrow}>Opens next</p>
+                <strong>{landing.title}</strong>
+                <span>{landing.detail}</span>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {acceptedLanding ? (
+          <div className={styles.inviteSuccess} role="status">
+            <strong>Opening {acceptedLanding.title}...</strong>
+            <span>Your club context and roles are coming with you.</span>
+          </div>
+        ) : message ? <div className={`${styles.notice} ${styles.danger}`} role="alert">{message}</div> : null}
+
+        {!acceptedLanding && authResolved && invite ? (
+          !userId ? (
+            <div className={styles.row}>
+              <Link className={styles.primary} href={signInHref}>Sign in as {invite?.email || 'invited user'}</Link>
+              <Link className={styles.secondary} href={joinHref}>Create account</Link>
+            </div>
+          ) : inviteEmailMismatch ? (
+            <div className={styles.inviteMismatch}>
+              <strong>This invitation belongs to another account.</strong>
+              <span>Switch to {invite?.email} to connect the correct profile.</span>
+              <Link className={styles.primary} href={signInHref}>Switch account</Link>
+            </div>
+          ) : invite?.status === 'pending' ? (
+            <button className={styles.primary} disabled={accepting} type="button" onClick={() => void acceptInvite()}>{accepting ? 'Connecting...' : `Accept and ${landing?.actionLabel.toLowerCase() || 'open club'}`}</button>
+          ) : invite?.status === 'accepted' && landing ? (
+            <Link className={styles.primary} href={landing.href}>{landing.actionLabel}</Link>
+          ) : invite ? (
+            <p className={styles.copy}>This invitation is {invite.status || 'not active'}. Ask the club to send a new link.</p>
+          ) : null
+        ) : acceptedLanding ? <button className={styles.primary} type="button" onClick={() => router.replace(acceptedLanding.href)}>{acceptedLanding.actionLabel}</button> : null}
       </section>
     </main>
   )
+}
+
+function buildInviteAuthHref(path: '/login' | '/join', nextHref: string, email = '', switchingAccount = false) {
+  const params = new URLSearchParams({ next: nextHref })
+  if (email) params.set('email', email)
+  if (switchingAccount) params.set('switchAccount', '1')
+  return `${path}?${params.toString()}`
 }
