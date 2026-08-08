@@ -68,16 +68,28 @@ export async function GET(request: Request) {
   if (firstError) return clubDatabaseError(firstError.message)
 
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
-  let groupMemberRows: Record<string, unknown>[] = []
-  if (groups.length) {
-    const result = await auth.supabase
-      .from('club_group_members')
-      .select('group_id,membership_id,status')
-      .in('group_id', groups.map((group) => group.id))
-      .neq('status', 'inactive')
-    if (result.error) return clubDatabaseError(result.error.message)
-    groupMemberRows = (result.data ?? []) as Record<string, unknown>[]
-  }
+  const individualLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
+    .filter((row) => row.league_format === 'individual')
+    .map((row) => cleanClubText(row.id))
+    .filter(Boolean)
+  const playerTournamentIds = ((tournamentResult.data ?? []) as Record<string, unknown>[])
+    .filter((row) => row.entrant_type !== 'teams')
+    .map((row) => cleanClubText(row.id))
+    .filter(Boolean)
+  const [groupMemberResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
+    groups.length
+      ? auth.supabase.from('club_group_members').select('group_id,membership_id,status').in('group_id', groups.map((group) => group.id)).neq('status', 'inactive')
+      : Promise.resolve({ data: [], error: null }),
+    individualLeagueIds.length
+      ? auth.supabase.from('tiq_player_league_entries').select('league_id,club_membership_id,entry_status').in('league_id', individualLeagueIds).eq('entry_status', 'active').not('club_membership_id', 'is', null)
+      : Promise.resolve({ data: [], error: null }),
+    playerTournamentIds.length
+      ? auth.supabase.from('tiq_tournament_entries').select('tournament_id,club_membership_id,status').in('tournament_id', playerTournamentIds).eq('status', 'approved').not('club_membership_id', 'is', null)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  const assignmentError = [groupMemberResult.error, leagueEntryResult.error, tournamentEntryResult.error].find(Boolean)
+  if (assignmentError) return clubDatabaseError(assignmentError.message)
+  const groupMemberRows = (groupMemberResult.data ?? []) as Record<string, unknown>[]
 
   const memberIdsByGroup = new Map<string, string[]>()
   for (const row of groupMemberRows) {
@@ -86,12 +98,26 @@ export async function GET(request: Request) {
     if (groupId && membershipId && row.status === 'active') memberIdsByGroup.set(groupId, [...(memberIdsByGroup.get(groupId) ?? []), membershipId])
   }
 
+  const memberIdsByLeague = new Map<string, string[]>()
+  for (const row of (leagueEntryResult.data ?? []) as Record<string, unknown>[]) {
+    const leagueId = cleanClubText(row.league_id)
+    const membershipId = cleanClubText(row.club_membership_id)
+    if (leagueId && membershipId) memberIdsByLeague.set(leagueId, [...(memberIdsByLeague.get(leagueId) ?? []), membershipId])
+  }
+  const memberIdsByTournament = new Map<string, string[]>()
+  for (const row of (tournamentEntryResult.data ?? []) as Record<string, unknown>[]) {
+    const tournamentId = cleanClubText(row.tournament_id)
+    const membershipId = cleanClubText(row.club_membership_id)
+    if (tournamentId && membershipId) memberIdsByTournament.set(tournamentId, [...(memberIdsByTournament.get(tournamentId) ?? []), membershipId])
+  }
+
   const competitions: ClubLinkedCompetition[] = [
     ...((leagueResult.data ?? []) as Record<string, unknown>[]).map((row) => ({
       id: cleanClubText(row.id),
       name: cleanClubText(row.league_name),
       type: 'league' as const,
       entrantType: row.league_format === 'individual' ? 'players' as const : 'teams' as const,
+      memberIds: memberIdsByLeague.get(cleanClubText(row.id)) ?? [],
       status: cleanClubText(row.season_status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator?leagueId=${encodeURIComponent(cleanClubText(row.id))}`,
@@ -101,6 +127,7 @@ export async function GET(request: Request) {
       name: cleanClubText(row.name),
       type: 'tournament' as const,
       entrantType: row.entrant_type === 'teams' ? 'teams' as const : 'players' as const,
+      memberIds: memberIdsByTournament.get(cleanClubText(row.id)) ?? [],
       status: cleanClubText(row.status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator/tournaments?tournamentId=${encodeURIComponent(cleanClubText(row.id))}`,
