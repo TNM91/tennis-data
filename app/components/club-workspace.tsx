@@ -12,6 +12,7 @@ import {
   buildClubToolHref,
   canRunClubPrograms,
   getClubGroupTypeLabel,
+  getClubProgramLaunchAction,
   getClubRoleLabel,
   getClubSetupSteps,
   hasClubTeamProgram,
@@ -361,6 +362,22 @@ export default function ClubWorkspace() {
     }
   }
 
+  async function launchProgram(group: ClubGroup) {
+    if (!workspace) return
+    const launch = getClubProgramLaunchAction(group, workspace.club)
+    setWorking(true)
+    try {
+      if (launch.syncCoachRoster) {
+        await request(`/api/clubs/${workspace.club.id}/coach-sync`, { method: 'POST', body: JSON.stringify({ groupId: group.id }) })
+      }
+      await request(`/api/clubs/${workspace.club.id}/groups`, { method: 'PATCH', body: JSON.stringify({ action: 'mark-launched', groupId: group.id }) })
+      window.location.assign(launch.href)
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'The program launch could not open.', 'danger')
+      setWorking(false)
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -462,7 +479,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
           key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
@@ -640,7 +657,7 @@ export default function ClubWorkspace() {
   )
 }
 
-function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -662,6 +679,9 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const fillOpenGroups = workspace.groups.filter((group) => group.isActive && Boolean(group.renewalsFinalizedAt) && !group.renewalFillCompletedAt && group.renewalTargetRosterSize > group.memberIds.length)
   const nextFillGroup = fillOpenGroups[0]
   const nextOpenSpotCount = nextFillGroup ? Math.max(0, nextFillGroup.renewalTargetRosterSize - nextFillGroup.memberIds.length) : 0
+  const launchReadyGroups = workspace.groups.filter((group) => group.isActive && group.memberIds.length > 0 && !group.reviewMemberIds.length && !group.launchHandoffCompletedAt)
+  const nextLaunchGroup = launchReadyGroups[0]
+  const nextLaunchAction = nextLaunchGroup ? getClubProgramLaunchAction(nextLaunchGroup, workspace.club) : null
 
   async function openRenewalReview(group: ClubGroup) {
     setRenewalReviewGroup(group)
@@ -700,6 +720,10 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
       {manager && pendingRenewalCount === 0 && !readyRenewalGroups.length && fillOpenGroups.length ? <section className={styles.renewalTask} aria-labelledby="fill-open-spots-title">
         <div><p className={styles.eyebrow}>Roster openings</p><h3 id="fill-open-spots-title">{nextFillGroup.name} has {nextOpenSpotCount} open {nextOpenSpotCount === 1 ? 'spot' : 'spots'}.</h3><p>Add Club members, use Player Roster contacts, or invite someone new.{fillOpenGroups.length > 1 ? ` ${fillOpenGroups.length - 1} more ${fillOpenGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => onFillOpenSpots(nextFillGroup.id)}>Fill open spots</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onCompleteRenewalFill(nextFillGroup.id)}>No replacements needed</button></div>
+      </section> : null}
+      {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && nextLaunchGroup && nextLaunchAction ? <section className={styles.renewalTask} aria-labelledby="launch-program-title">
+        <div><p className={styles.eyebrow}>Ready to launch</p><h3 id="launch-program-title">{nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
+        <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onLaunchProgram(nextLaunchGroup)}>{working ? 'Opening...' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
       </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
         <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>

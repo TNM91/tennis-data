@@ -76,7 +76,16 @@ export type ClubGroup = {
   renewalsFinalizedAt: string
   renewalTargetRosterSize: number
   renewalFillCompletedAt: string
+  launchHandoffCompletedAt: string
   updatedAt: string
+}
+
+export type ClubProgramLaunchAction = {
+  title: string
+  detail: string
+  label: string
+  href: string
+  syncCoachRoster: boolean
 }
 
 export type ClubCompetitionTemplate = {
@@ -290,6 +299,50 @@ export function buildClubToolHref(
   return `${path}?${search.toString()}`
 }
 
+export function getClubProgramLaunchAction(
+  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'>,
+  club: Pick<Club, 'id' | 'name' | 'slug'>,
+): ClubProgramLaunchAction {
+  const context = { source: 'club-program-launch', groupId: group.id, program: group.name }
+  if (group.groupType === 'clinic') return {
+    title: `${group.name} is ready for its first date.`,
+    detail: 'Add the schedule so coaches and players see what comes next.',
+    label: 'Add clinic schedule',
+    href: `/clubs/clinics/${encodeURIComponent(group.id)}?${new URLSearchParams({ clubId: club.id, tab: 'schedule', source: context.source }).toString()}`,
+    syncCoachRoster: false,
+  }
+  if (group.groupType === 'team') return {
+    title: `${group.name} is ready for team planning.`,
+    detail: 'Open availability, the season schedule, and the first team message.',
+    label: 'Open Team Hub',
+    href: buildClubToolHref('/captain', club, { ...context, team: group.name }),
+    syncCoachRoster: false,
+  }
+  if (group.groupType === 'league_division') return {
+    title: `${group.name} is ready for its schedule.`,
+    detail: 'Set the league format, dates, entries, and results flow.',
+    label: 'Open League Office',
+    href: buildClubToolHref('/league-coordinator', club, { ...context, division: group.name }),
+    syncCoachRoster: false,
+  }
+  if (group.groupType === 'tournament_field') return {
+    title: `${group.name} is ready for its draw.`,
+    detail: 'Set entries, format, courts, schedule, and scoring.',
+    label: 'Open Tournament Desk',
+    href: buildClubToolHref('/league-coordinator/tournaments', club, { ...context, division: group.name }),
+    syncCoachRoster: false,
+  }
+  return {
+    title: `${group.name} is ready for the first plan.`,
+    detail: group.groupType === 'camp'
+      ? 'Connect the roster, then plan the first camp day in Coach Hub.'
+      : 'Connect the roster, then give players their first development focus.',
+    label: 'Open Coach Hub',
+    href: buildClubToolHref('/coach', club, context),
+    syncCoachRoster: true,
+  }
+}
+
 export function getClubInviteLanding(
   club: Pick<Club, 'id' | 'name' | 'slug'>,
   roles: ClubRole[],
@@ -452,6 +505,7 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     renewalsFinalizedAt: cleanClubText(row.renewals_finalized_at, 80),
     renewalTargetRosterSize: Math.max(0, Number(row.renewal_target_roster_size) || 0),
     renewalFillCompletedAt: cleanClubText(row.renewal_fill_completed_at, 80),
+    launchHandoffCompletedAt: cleanClubText(row.launch_handoff_completed_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

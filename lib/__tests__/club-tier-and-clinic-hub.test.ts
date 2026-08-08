@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { getClubProgramLaunchAction, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -262,5 +263,30 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(migration).toContain('renewal_target_roster_size integer')
     expect(migration).toContain('renewal_fill_completed_at timestamptz')
     expect(migration).toContain('club_group_renewals')
+  })
+
+  it('promotes a roster-ready program into its one connected launch action', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clinic = source('app/components/clinic-hub.tsx')
+    const clinicPage = source('app/clubs/clinics/[groupId]/page.tsx')
+    const groupRoute = source('app/api/clubs/[clubId]/groups/route.ts')
+    const migration = source('supabase/migrations/20260808000300_add_club_program_launch_handoff.sql')
+    const clubIdentity = { id: 'club-1', name: 'Vetta Racquet Sports', slug: 'vetta' }
+    const actionFor = (groupType: ClubGroupType) => getClubProgramLaunchAction({ id: `${groupType}-1`, name: 'Fall program', groupType }, clubIdentity)
+
+    expect(actionFor('clinic').label).toBe('Add clinic schedule')
+    expect(actionFor('clinic').href).toContain('tab=schedule')
+    expect(actionFor('team').href).toContain('/captain?')
+    expect(actionFor('camp').syncCoachRoster).toBe(true)
+    expect(actionFor('development_group').href).toContain('/coach?')
+    expect(actionFor('league_division').href).toContain('/league-coordinator?')
+    expect(actionFor('tournament_field').href).toContain('/league-coordinator/tournaments?')
+    expect(club).toContain('Ready to launch')
+    expect(club).toContain("action: 'mark-launched'")
+    expect(club).toContain('group.memberIds.length > 0')
+    expect(clinic).toContain('buildClinicReturnPath')
+    expect(clinicPage).toContain('initialTab={initialTab}')
+    expect(groupRoute).toContain("action === 'mark-launched'")
+    expect(migration).toContain('launch_handoff_completed_at timestamptz')
   })
 })
