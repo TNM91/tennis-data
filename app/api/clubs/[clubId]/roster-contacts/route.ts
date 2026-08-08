@@ -99,6 +99,55 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
     cleanClubText(owner.display_name, 120) || cleanClubText(owner.email, 180) || 'Club manager',
   ]))
 
+  const [groupResult, leagueResult, tournamentResult] = await Promise.all([
+    auth.supabase.from('club_groups').select('id,name,group_type').eq('club_id', clubId).eq('is_active', true),
+    auth.supabase.from('tiq_leagues').select('id,league_name').eq('club_id', clubId).eq('league_format', 'individual'),
+    auth.supabase.from('tiq_tournaments').select('id,name').eq('club_id', clubId).eq('entrant_type', 'players'),
+  ])
+  if (groupResult.error || leagueResult.error || tournamentResult.error) {
+    return Response.json({ ok: false, message: 'Player destinations could not be opened.' }, { status: 400 })
+  }
+
+  const groupIds = (groupResult.data ?? []).map((group) => cleanClubText(group.id)).filter(Boolean)
+  const leagueIds = (leagueResult.data ?? []).map((league) => cleanClubText(league.id)).filter(Boolean)
+  const tournamentIds = (tournamentResult.data ?? []).map((tournament) => cleanClubText(tournament.id)).filter(Boolean)
+  const [groupMemberResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
+    groupIds.length
+      ? auth.supabase.from('club_group_members').select('group_id,membership_id').in('group_id', groupIds).eq('status', 'active')
+      : Promise.resolve({ data: [], error: null }),
+    leagueIds.length
+      ? auth.supabase.from('tiq_player_league_entries').select('league_id,club_membership_id').in('league_id', leagueIds).eq('entry_status', 'active').not('club_membership_id', 'is', null)
+      : Promise.resolve({ data: [], error: null }),
+    tournamentIds.length
+      ? auth.supabase.from('tiq_tournament_entries').select('tournament_id,club_membership_id').in('tournament_id', tournamentIds).eq('status', 'approved').not('club_membership_id', 'is', null)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (groupMemberResult.error || leagueEntryResult.error || tournamentEntryResult.error) {
+    return Response.json({ ok: false, message: 'Player destinations could not be opened.' }, { status: 400 })
+  }
+
+  const destinationsByMembershipId = new Map<string, Array<{ type: 'group' | 'league' | 'tournament'; id: string; name: string; label: string }>>()
+  const addDestination = (membershipId: unknown, destination: { type: 'group' | 'league' | 'tournament'; id: string; name: string; label: string }) => {
+    const key = cleanClubText(membershipId)
+    if (!key) return
+    destinationsByMembershipId.set(key, [...(destinationsByMembershipId.get(key) ?? []), destination])
+  }
+  const groupsById = new Map((groupResult.data ?? []).map((group) => [cleanClubText(group.id), group]))
+  for (const item of groupMemberResult.data ?? []) {
+    const group = groupsById.get(cleanClubText(item.group_id))
+    if (group) addDestination(item.membership_id, { type: 'group', id: cleanClubText(group.id), name: cleanClubText(group.name), label: getDestinationTypeLabel(group.group_type) })
+  }
+  const leaguesById = new Map((leagueResult.data ?? []).map((league) => [cleanClubText(league.id), league]))
+  for (const item of leagueEntryResult.data ?? []) {
+    const league = leaguesById.get(cleanClubText(item.league_id))
+    if (league) addDestination(item.club_membership_id, { type: 'league', id: cleanClubText(league.id), name: cleanClubText(league.league_name), label: 'League' })
+  }
+  const tournamentsById = new Map((tournamentResult.data ?? []).map((tournament) => [cleanClubText(tournament.id), tournament]))
+  for (const item of tournamentEntryResult.data ?? []) {
+    const tournament = tournamentsById.get(cleanClubText(item.tournament_id))
+    if (tournament) addDestination(item.club_membership_id, { type: 'tournament', id: cleanClubText(tournament.id), name: cleanClubText(tournament.name), label: 'Tournament' })
+  }
+
   return Response.json({
     ok: true,
     contacts: (data ?? []).map((contact) => {
@@ -116,6 +165,7 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
         }),
         matchedMembershipId: cleanClubText(matchedMembership?.id),
         matchedUserId: cleanClubText(matchedMembership?.user_id),
+        connectedDestinations: destinationsByMembershipId.get(cleanClubText(matchedMembership?.id)) ?? [],
         teamName: cleanClubText(contact.team_name),
         leagueName: cleanClubText(contact.league_name),
         flight: cleanClubText(contact.flight),
@@ -175,10 +225,11 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
     return Response.json({ ok: true, addedCount: membershipIds.length, message: `${membershipIds.length} connected ${membershipIds.length === 1 ? 'player is' : 'players are'} now in ${cleanClubText(group.name)}.` })
   }
 
-  const entrantNames = Array.from(new Set((memberships ?? [])
-    .map((membership) => cleanClubText(membership.display_name, 120) || cleanClubText(membership.email, 180))
-    .filter(Boolean)))
-  if (!entrantNames.length) return Response.json({ ok: false, message: 'Add names to the selected Club members first.' }, { status: 400 })
+  const entrants = (memberships ?? []).map((membership) => ({
+    membership,
+    playerName: cleanClubText(membership.display_name, 120) || cleanClubText(membership.email, 180),
+  }))
+  if (entrants.some((entrant) => !entrant.playerName)) return Response.json({ ok: false, message: 'Add names to the selected Club members first.' }, { status: 400 })
 
   if (targetType === 'league') {
     const { data: league } = await auth.supabase
@@ -194,27 +245,34 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
 
     const { data: existingEntries, error: existingError } = await auth.supabase
       .from('tiq_player_league_entries')
-      .select('id,player_name,entry_status')
+      .select('id,player_name,club_membership_id,entry_status')
       .eq('league_id', targetId)
     if (existingError) return Response.json({ ok: false, message: 'League entries could not be checked.' }, { status: 400 })
-    const existingByName = new Map((existingEntries ?? []).map((entry) => [normalizeComparable(entry.player_name), entry]))
-    const existingIds = entrantNames.map((name) => existingByName.get(normalizeComparable(name))?.id).filter(Boolean) as string[]
-    const missingNames = entrantNames.filter((name) => !existingByName.has(normalizeComparable(name)))
-    if (existingIds.length) {
-      const { error } = await auth.supabase.from('tiq_player_league_entries').update({ entry_status: 'active', updated_by_user_id: auth.userId }).in('id', existingIds)
-      if (error) return Response.json({ ok: false, message: 'Existing league entries could not be activated.' }, { status: 400 })
+    const existingMatches = entrants.map((entrant) => ({
+      entrant,
+      existing: (existingEntries ?? []).find((entry) => cleanClubText(entry.club_membership_id) === cleanClubText(entrant.membership.id))
+        ?? (existingEntries ?? []).find((entry) => normalizeComparable(entry.player_name) === normalizeComparable(entrant.playerName)),
+    }))
+    const updateResults = await Promise.all(existingMatches.filter((item) => item.existing).map((item) => auth.supabase
+      .from('tiq_player_league_entries')
+      .update({ club_membership_id: item.entrant.membership.id, entry_status: 'active', updated_by_user_id: auth.userId })
+      .eq('id', item.existing!.id)))
+    if (updateResults.some((result) => result.error)) {
+      return Response.json({ ok: false, message: 'Existing league entries could not be activated.' }, { status: 400 })
     }
-    if (missingNames.length) {
-      const { error } = await auth.supabase.from('tiq_player_league_entries').insert(missingNames.map((playerName) => ({
+    const missingEntrants = existingMatches.filter((item) => !item.existing).map((item) => item.entrant)
+    if (missingEntrants.length) {
+      const { error } = await auth.supabase.from('tiq_player_league_entries').insert(missingEntrants.map((entrant) => ({
         league_id: targetId,
-        player_name: playerName,
+        club_membership_id: entrant.membership.id,
+        player_name: entrant.playerName,
         entry_status: 'active',
         created_by_user_id: auth.userId,
         updated_by_user_id: auth.userId,
       })))
       if (error) return Response.json({ ok: false, message: 'Connected players could not be added to this league.' }, { status: 400 })
     }
-    return Response.json({ ok: true, addedCount: entrantNames.length, message: `${entrantNames.length} connected ${entrantNames.length === 1 ? 'player is' : 'players are'} now in ${cleanClubText(league.league_name)}.` })
+    return Response.json({ ok: true, addedCount: entrants.length, message: `${entrants.length} connected ${entrants.length === 1 ? 'player is' : 'players are'} now in ${cleanClubText(league.league_name)}.` })
   }
 
   const { data: tournament } = await auth.supabase
@@ -230,32 +288,92 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
 
   const { data: existingEntries, error: existingError } = await auth.supabase
     .from('tiq_tournament_entries')
-    .select('id,player_name,email,phone,status')
+    .select('id,player_name,email,phone,club_membership_id,status')
     .eq('tournament_id', targetId)
   if (existingError) return Response.json({ ok: false, message: 'Tournament entries could not be checked.' }, { status: 400 })
   const existingIds: string[] = []
-  const newEntries: Array<{ tournament_id: string; player_name: string; email: string; phone: string; status: string }> = []
+  const updateEntries: Array<{ id: string; clubMembershipId: string }> = []
+  const newEntries: Array<{ tournament_id: string; club_membership_id: string; player_name: string; email: string; phone: string; status: string }> = []
   for (const membership of memberships ?? []) {
     const email = normalizeClubContactEmail(membership.email)
     const phone = normalizeClubContactPhone(membership.phone)
     const playerName = cleanClubText(membership.display_name, 120) || email
     const existing = (existingEntries ?? []).find((entry) => {
+      if (cleanClubText(entry.club_membership_id) === cleanClubText(membership.id)) return true
       const entryEmail = normalizeClubContactEmail(entry.email)
       const entryPhone = normalizeClubContactPhone(entry.phone)
       return Boolean((email && entryEmail === email) || (phone && entryPhone === phone) || (!email && !phone && normalizeComparable(entry.player_name) === normalizeComparable(playerName)))
     })
-    if (existing?.id) existingIds.push(existing.id)
-    else newEntries.push({ tournament_id: targetId, player_name: playerName, email, phone, status: 'approved' })
+    if (existing?.id) {
+      existingIds.push(existing.id)
+      updateEntries.push({ id: existing.id, clubMembershipId: membership.id })
+    } else newEntries.push({ tournament_id: targetId, club_membership_id: membership.id, player_name: playerName, email, phone, status: 'approved' })
   }
   if (existingIds.length) {
-    const { error } = await auth.supabase.from('tiq_tournament_entries').update({ status: 'approved', updated_at: new Date().toISOString() }).in('id', existingIds)
-    if (error) return Response.json({ ok: false, message: 'Existing tournament entries could not be approved.' }, { status: 400 })
+    const updateResults = await Promise.all(updateEntries.map((entry) => auth.supabase
+      .from('tiq_tournament_entries')
+      .update({ club_membership_id: entry.clubMembershipId, status: 'approved', updated_at: new Date().toISOString() })
+      .eq('id', entry.id)))
+    if (updateResults.some((result) => result.error)) return Response.json({ ok: false, message: 'Existing tournament entries could not be approved.' }, { status: 400 })
   }
   if (newEntries.length) {
     const { error } = await auth.supabase.from('tiq_tournament_entries').insert(newEntries)
     if (error) return Response.json({ ok: false, message: 'Connected players could not be added to this tournament.' }, { status: 400 })
   }
   return Response.json({ ok: true, addedCount: memberships?.length ?? 0, message: `${memberships?.length ?? 0} connected ${(memberships?.length ?? 0) === 1 ? 'player is' : 'players are'} now in ${cleanClubText(tournament.name)}.` })
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ clubId: string }> }) {
+  const { clubId } = await context.params
+  const auth = await requireClubManager(request, clubId)
+  if (!auth.ok) return auth.response
+
+  const body = await request.json().catch(() => ({})) as RosterContactBody
+  const membershipIds = Array.from(new Set(
+    (Array.isArray(body.membershipIds) ? body.membershipIds : [])
+      .map((value) => cleanClubText(value))
+      .filter((value) => uuidPattern.test(value)),
+  )).slice(0, 200)
+  const targetType = cleanClubText(body.targetType)
+  const targetId = cleanClubText(body.targetId, 180)
+  if (!membershipIds.length) return Response.json({ ok: false, message: 'Choose at least one connected player.' }, { status: 400 })
+  if (!['group', 'league', 'tournament'].includes(targetType) || !targetId) {
+    return Response.json({ ok: false, message: 'Choose where the player should be removed.' }, { status: 400 })
+  }
+
+  const { data: memberships, error: membershipError } = await auth.supabase
+    .from('club_memberships')
+    .select('id')
+    .eq('club_id', clubId)
+    .neq('status', 'removed')
+    .in('id', membershipIds)
+  if (membershipError || (memberships ?? []).length !== membershipIds.length) {
+    return Response.json({ ok: false, message: 'Every selected player must still be connected to this club.' }, { status: 409 })
+  }
+
+  if (targetType === 'group') {
+    const { data: group } = await auth.supabase.from('club_groups').select('id,name').eq('club_id', clubId).eq('id', targetId).maybeSingle()
+    if (!group) return Response.json({ ok: false, message: 'That Club program is no longer available.' }, { status: 404 })
+    const { error } = await auth.supabase.from('club_group_members').delete().eq('group_id', targetId).in('membership_id', membershipIds)
+    if (error) return Response.json({ ok: false, message: 'The selected players could not be removed from this program.' }, { status: 400 })
+    return Response.json({ ok: true, message: `${membershipIds.length === 1 ? 'Player' : 'Players'} removed from ${cleanClubText(group.name)}.` })
+  }
+
+  if (targetType === 'league') {
+    const { data: league } = await auth.supabase.from('tiq_leagues').select('id,league_name,league_format').eq('club_id', clubId).eq('id', targetId).maybeSingle()
+    if (!league) return Response.json({ ok: false, message: 'That Club league is no longer available.' }, { status: 404 })
+    if (league.league_format !== 'individual') return Response.json({ ok: false, message: 'Player removal is only available for individual Club leagues.' }, { status: 400 })
+    const { error } = await auth.supabase.from('tiq_player_league_entries').delete().eq('league_id', targetId).in('club_membership_id', membershipIds)
+    if (error) return Response.json({ ok: false, message: 'The selected players could not be removed from this league.' }, { status: 400 })
+    return Response.json({ ok: true, message: `${membershipIds.length === 1 ? 'Player' : 'Players'} removed from ${cleanClubText(league.league_name)}.` })
+  }
+
+  const { data: tournament } = await auth.supabase.from('tiq_tournaments').select('id,name,entrant_type').eq('club_id', clubId).eq('id', targetId).maybeSingle()
+  if (!tournament) return Response.json({ ok: false, message: 'That Club tournament is no longer available.' }, { status: 404 })
+  if (tournament.entrant_type !== 'players') return Response.json({ ok: false, message: 'Player removal is only available for player-entry Club tournaments.' }, { status: 400 })
+  const { error } = await auth.supabase.from('tiq_tournament_entries').delete().eq('tournament_id', targetId).in('club_membership_id', membershipIds)
+  if (error) return Response.json({ ok: false, message: 'The selected players could not be removed from this tournament.' }, { status: 400 })
+  return Response.json({ ok: true, message: `${membershipIds.length === 1 ? 'Player' : 'Players'} removed from ${cleanClubText(tournament.name)}.` })
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ clubId: string }> }) {
@@ -324,4 +442,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
 
 function normalizeComparable(value: unknown) {
   return cleanClubText(value, 180).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function getDestinationTypeLabel(value: unknown) {
+  const type = cleanClubText(value)
+  if (type === 'clinic') return 'Clinic'
+  if (type === 'team') return 'Team'
+  if (type === 'camp') return 'Camp'
+  if (type === 'development_group') return 'Development group'
+  if (type === 'league_division') return 'League division'
+  if (type === 'tournament_field') return 'Tournament field'
+  return 'Program'
 }
