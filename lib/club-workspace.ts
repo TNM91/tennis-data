@@ -108,6 +108,7 @@ export type ClubLinkedCompetition = {
   name: string
   type: ClubCompetitionType
   entrantType: 'players' | 'teams'
+  memberIds: string[]
   status: string
   isPublic: boolean
   href: string

@@ -66,6 +66,12 @@ type ClubRosterDestination = {
   label: string
 }
 
+type ClubPeopleFilter = 'all' | 'unassigned' | 'teams' | 'clinics' | 'competition'
+
+type ClubPeopleAssignment = ClubRosterDestination & {
+  category: Exclude<ClubPeopleFilter, 'all' | 'unassigned'> | 'programs'
+}
+
 type WorkspaceTab = 'home' | 'people' | 'groups' | 'compete' | 'settings'
 
 const tabs: Array<{ id: WorkspaceTab; label: string }> = [
@@ -77,6 +83,14 @@ const tabs: Array<{ id: WorkspaceTab; label: string }> = [
 ]
 
 const groupTypes: ClubGroupType[] = ['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field']
+
+const clubPeopleFilters: Array<{ id: ClubPeopleFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'unassigned', label: 'Unassigned' },
+  { id: 'teams', label: 'Teams' },
+  { id: 'clinics', label: 'Clinics' },
+  { id: 'competition', label: 'Competition' },
+]
 
 export default function ClubWorkspace() {
   const { authResolved, session, userId } = useAuth()
@@ -578,6 +592,19 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     ...workspace.groups.map((group) => ({ value: `group:${group.id}`, label: `${group.name} · ${getClubGroupTypeLabel(group.groupType)}` })),
     ...workspace.competitions.filter((competition) => competition.entrantType === 'players').map((competition) => ({ value: `${competition.type}:${competition.id}`, label: `${competition.name} · ${competition.type}` })),
   ], [workspace.competitions, workspace.groups])
+  const assignmentsByMemberId = useMemo(() => {
+    const assignments = new Map<string, ClubPeopleAssignment[]>()
+    const add = (membershipId: string, assignment: ClubPeopleAssignment) => assignments.set(membershipId, [...(assignments.get(membershipId) ?? []), assignment])
+    for (const group of workspace.groups) {
+      const category = group.groupType === 'team' ? 'teams' : group.groupType === 'clinic' ? 'clinics' : 'programs'
+      for (const membershipId of group.memberIds) add(membershipId, { type: 'group', id: group.id, name: group.name, label: getClubGroupTypeLabel(group.groupType), category })
+    }
+    for (const competition of workspace.competitions) {
+      if (competition.entrantType !== 'players') continue
+      for (const membershipId of competition.memberIds) add(membershipId, { type: competition.type, id: competition.id, name: competition.name, label: competition.type === 'league' ? 'League' : 'Tournament', category: 'competition' })
+    }
+    return assignments
+  }, [workspace.competitions, workspace.groups])
   const [email, setEmail] = useState('')
   const [roles, setRoles] = useState<ClubRole[]>(guidedStepId === 'staff' ? ['coach'] : ['player'])
   const [destination, setDestination] = useState(initialDestination)
@@ -592,6 +619,13 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   const [connectedDestination, setConnectedDestination] = useState(() => connectedDestinations.some((item) => item.value === initialDestination) ? initialDestination : connectedDestinations[0]?.value ?? '')
   const [movingPlacement, setMovingPlacement] = useState<{ membershipId: string; playerName: string; source: ClubRosterDestination } | null>(null)
   const [rosterMessage, setRosterMessage] = useState('')
+  const [peopleSearch, setPeopleSearch] = useState('')
+  const [peopleFilter, setPeopleFilter] = useState<ClubPeopleFilter>('all')
+  const [selectedPeopleIds, setSelectedPeopleIds] = useState<string[]>([])
+  const [peopleDestination, setPeopleDestination] = useState(() => connectedDestinations[0]?.value ?? '')
+  const [peopleWorking, setPeopleWorking] = useState(false)
+  const [peopleMessage, setPeopleMessage] = useState('')
+  const [inviteOpen, setInviteOpen] = useState(Boolean(guidedStepId))
   const inviteCount = normalizeClubInviteEmails(email).length
   const inviteLabel = inviteCount > 1 ? `Create ${inviteCount} invite links` : guidedStepId === 'staff' ? 'Invite staff member' : guidedStepId === 'players' ? 'Invite player' : 'Create invite link'
   const destinationSeparator = destination.indexOf(':')
@@ -616,6 +650,32 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
       ? `Shared by ${activeRosterScope.importedByName}.`
       : ''
   const rosterUploadHref = `/data-assist?type=team_summary&help=1&context=Club%20People&returnTo=${encodeURIComponent(`/clubs?clubId=${workspace.club.id}&tab=people&roster=1`)}#upload`
+  const normalizedPeopleSearch = peopleSearch.trim().toLowerCase()
+  const memberMatchesFilter = (memberId: string, filter: ClubPeopleFilter) => {
+    const assignments = assignmentsByMemberId.get(memberId) ?? []
+    if (filter === 'all') return true
+    if (filter === 'unassigned') return assignments.length === 0
+    return assignments.some((assignment) => assignment.category === filter)
+  }
+  const peopleFilterCounts: Record<ClubPeopleFilter, number> = {
+    all: workspace.memberships.length,
+    unassigned: workspace.memberships.filter((member) => memberMatchesFilter(member.id, 'unassigned')).length,
+    teams: workspace.memberships.filter((member) => memberMatchesFilter(member.id, 'teams')).length,
+    clinics: workspace.memberships.filter((member) => memberMatchesFilter(member.id, 'clinics')).length,
+    competition: workspace.memberships.filter((member) => memberMatchesFilter(member.id, 'competition')).length,
+  }
+  const visiblePeople = workspace.memberships
+    .filter((member) => memberMatchesFilter(member.id, peopleFilter))
+    .filter((member) => !normalizedPeopleSearch || [member.displayName, member.email, member.phone, ...member.roles].join(' ').toLowerCase().includes(normalizedPeopleSearch))
+    .sort((left, right) => {
+      const assignmentDifference = (assignmentsByMemberId.get(left.id)?.length ?? 0) - (assignmentsByMemberId.get(right.id)?.length ?? 0)
+      if (peopleFilter === 'all' && assignmentDifference !== 0) return assignmentDifference
+      return (left.displayName || left.email).localeCompare(right.displayName || right.email)
+    })
+  const selectedPeopleInDestination = selectedPeopleIds.filter((membershipId) => {
+    const [type, id] = splitClubDestination(peopleDestination)
+    return (assignmentsByMemberId.get(membershipId) ?? []).some((assignment) => assignment.type === type && assignment.id === id)
+  })
 
   const openRosterContacts = useCallback(async () => {
     setRosterOpen(true)
@@ -649,6 +709,41 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     if (connectedDestinations.some((item) => item.value === connectedDestination)) return
     setConnectedDestination(connectedDestinations[0]?.value ?? '')
   }, [connectedDestination, connectedDestinations])
+
+  useEffect(() => {
+    if (connectedDestinations.some((item) => item.value === peopleDestination)) return
+    setPeopleDestination(connectedDestinations[0]?.value ?? '')
+  }, [connectedDestinations, peopleDestination])
+
+  function choosePeopleFilter(filter: ClubPeopleFilter) {
+    setPeopleFilter(filter)
+    setSelectedPeopleIds([])
+    setPeopleMessage('')
+  }
+
+  function togglePerson(membershipId: string) {
+    setSelectedPeopleIds((current) => current.includes(membershipId) ? current.filter((id) => id !== membershipId) : [...current, membershipId])
+  }
+
+  async function updatePeopleAssignments(action: 'add' | 'remove') {
+    const [targetType, targetId] = splitClubDestination(peopleDestination)
+    const membershipIds = action === 'remove' ? selectedPeopleInDestination : selectedPeopleIds
+    if (!membershipIds.length || !targetId) return
+    if (action === 'remove' && !window.confirm(`Remove ${membershipIds.length} selected ${membershipIds.length === 1 ? 'person' : 'people'} from this destination?`)) return
+    setPeopleWorking(true)
+    setPeopleMessage('')
+    try {
+      const message = action === 'add'
+        ? await onAddConnectedPlayers(membershipIds, targetType, targetId)
+        : await onRemoveConnectedPlayers(membershipIds, targetType, targetId)
+      setSelectedPeopleIds([])
+      setPeopleMessage(message)
+    } catch (error) {
+      setPeopleMessage(error instanceof Error ? error.message : 'Club assignments could not be updated.')
+    } finally {
+      setPeopleWorking(false)
+    }
+  }
 
   function chooseRosterTeam(team: string) {
     setRosterTeam(team)
@@ -754,6 +849,24 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>{guidedStepId ? 'Your next connection' : 'Club roster'}</p><h2>{guidedStepId === 'staff' ? 'Who helps run the tennis experience?' : guidedStepId === 'players' ? 'Bring the first player into the club.' : 'Everyone connected to the club.'}</h2><p>{guidedStepId === 'staff' ? 'Choose every role they have. They can be staff and a player at the same time.' : guidedStepId === 'players' ? 'Their setup link is copied after you create it, ready to text or email.' : 'One person can be a player, coach, captain, or coordinator at the same time.'}</p></div>
+      {workspace.memberships.length ? <div className={styles.peopleManager}>
+        <div className={styles.peopleSearchRow}>
+          <label className={styles.field}><span>Find a person</span><input type="search" value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Name, email, phone, or role" /></label>
+          <span className={styles.muted}>{visiblePeople.length} shown · Unassigned first</span>
+        </div>
+        <div className={styles.peopleFilters} role="group" aria-label="Filter Club people">
+          {clubPeopleFilters.map((filter) => <button aria-pressed={peopleFilter === filter.id} className={peopleFilter === filter.id ? styles.peopleFilterActive : ''} type="button" key={filter.id} onClick={() => choosePeopleFilter(filter.id)}>{filter.label}<span>{peopleFilterCounts[filter.id]}</span></button>)}
+        </div>
+        {manager ? <div className={styles.bulkPanel}>
+          <div className={styles.row}><strong>{selectedPeopleIds.length ? `${selectedPeopleIds.length} selected` : 'Choose people for a bulk action'}</strong><button className={styles.quietButton} disabled={!visiblePeople.length || peopleWorking} type="button" onClick={() => setSelectedPeopleIds(visiblePeople.map((member) => member.id))}>Select results</button>{selectedPeopleIds.length ? <button className={styles.quietButton} disabled={peopleWorking} type="button" onClick={() => setSelectedPeopleIds([])}>Clear</button> : null}</div>
+          {connectedDestinations.length ? <div className={styles.fieldGrid}><label className={styles.field}><span>Destination</span><select value={peopleDestination} onChange={(event) => setPeopleDestination(event.target.value)}>{connectedDestinations.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label><div className={styles.placementActions}><button className={styles.secondary} disabled={!selectedPeopleIds.length || peopleWorking} type="button" onClick={() => void updatePeopleAssignments('add')}>{peopleWorking ? 'Saving...' : 'Add selected'}</button><button className={styles.quietButton} disabled={!selectedPeopleInDestination.length || peopleWorking} type="button" onClick={() => void updatePeopleAssignments('remove')}>{selectedPeopleInDestination.length ? `Remove ${selectedPeopleInDestination.length} selected` : 'Remove from destination'}</button></div></div> : <p className={styles.muted}>Create a team, clinic, player league, or player tournament to start assigning people.</p>}
+          {peopleMessage ? <p className={styles.muted} role="status">{peopleMessage}</p> : null}
+        </div> : null}
+        {visiblePeople.length ? <div className={styles.peopleGrid}>{visiblePeople.map((member) => {
+          const assignments = assignmentsByMemberId.get(member.id) ?? []
+          return <article className={styles.peopleCard} key={member.id}>{manager ? <input aria-label={`Select ${member.displayName || member.email || 'Club member'}`} type="checkbox" checked={selectedPeopleIds.includes(member.id)} onChange={() => togglePerson(member.id)} /> : null}<div><div className={styles.cardTop}><h3>{member.displayName || member.email || 'Club member'}</h3><span className={styles.pill}>{member.status}</span></div><div className={styles.roleList}>{member.roles.map((role) => <span key={role} className={styles.pill}>{getClubRoleLabel(role)}</span>)}</div>{member.email ? <span className={styles.muted}>{member.email}</span> : null}{assignments.length ? <div className={styles.peopleAssignments}>{assignments.map((assignment) => <span key={`${assignment.type}:${assignment.id}`}>{assignment.name} · {assignment.label}</span>)}</div> : <span className={styles.unassignedLabel}>Needs a destination</span>}</div></article>
+        })}</div> : <div className={styles.emptyPeople}><strong>No people match this view.</strong><span>Try another filter or search.</span></div>}
+      </div> : null}
       {manager ? (
         <>
           <div className={styles.row}>
@@ -785,25 +898,19 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
             </div>
           ) : null}
           {rosterMessage && !rosterOpen ? <div className={styles.notice} role="status">{rosterMessage}</div> : null}
-          <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then((created) => { if (created) setEmail('') }) }}>
+          <details className={styles.inviteDetails} open={inviteOpen} onToggle={(event) => setInviteOpen(event.currentTarget.open)}>
+            <summary><span>Invite by email</span><small>Add one person or prepare several invitation links.</small></summary>
+            <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onInvite(email, roles, targetType, targetId).then((created) => { if (created) setEmail('') }) }}>
             <div className={styles.fieldGrid}>
               <label className={styles.field}><span>Email addresses</span><textarea required value={email} onChange={(event) => setEmail(event.target.value)} placeholder={'player@club.com\npartner@club.com'} /><small>One email or up to 50, separated by commas or new lines.</small></label>
               <label className={styles.field}><span>Invite into</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="club:">Club — general access</option>{workspace.groups.length ? <optgroup label="Programs and teams">{workspace.groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name} — {getClubGroupTypeLabel(group.groupType)}</option>)}</optgroup> : null}{workspace.competitions.length ? <optgroup label="Leagues and tournaments">{workspace.competitions.map((competition) => <option key={`${competition.type}-${competition.id}`} value={`${competition.type}:${competition.id}`}>{competition.name} — {competition.type}</option>)}</optgroup> : null}</select><small>They will open here after joining.</small></label>
               <div className={styles.field}><span>Club roles</span><RoleChecks value={roles} onChange={setRoles} /></div>
             </div>
             <button className={styles.primary} disabled={working} type="submit">{working ? 'Preparing...' : inviteLabel}</button>
-          </form>
+            </form>
+          </details>
         </>
       ) : null}
-      <div className={styles.cardGrid}>
-        {workspace.memberships.map((member) => (
-          <article className={styles.card} key={member.id}>
-            <div className={styles.cardTop}><h3>{member.displayName || member.email || 'Club member'}</h3><span className={styles.pill}>{member.status}</span></div>
-            <div className={styles.roleList}>{member.roles.map((role) => <span key={role} className={styles.pill}>{getClubRoleLabel(role)}</span>)}</div>
-            {member.email ? <span className={styles.muted}>{member.email}</span> : null}
-          </article>
-        ))}
-      </div>
       {manager && workspace.invites.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Pending invitations</h2><p>Share a link again or revoke one that should no longer be used.</p></div><div className={styles.cardGrid}>{workspace.invites.map((invite) => <article className={styles.card} key={invite.id}><h3>{invite.email}</h3>{invite.target.type !== 'club' ? <span className={styles.muted}>Opens {invite.target.name}</span> : <span className={styles.muted}>Club-wide access</span>}<div className={styles.roleList}>{invite.roles.map((role) => <span className={styles.pill} key={role}>{getClubRoleLabel(role)}</span>)}</div><div className={styles.row}><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onShare(invite)}>Share invite</button><button className={styles.dangerButton} disabled={working} type="button" onClick={() => { if (window.confirm('Revoke this invitation? Its current link will stop working.')) void onRevoke(invite.id) }}>Revoke</button></div></article>)}</div></> : null}
     </section>
   )
@@ -958,3 +1065,4 @@ function getRosterScopeKey(contact: Pick<ClubRosterContact, 'importedByUserId' |
 function getRosterScopeLabel(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.flight, contact.leagueName].filter(Boolean).join(' · ') }
 function getRosterScopeOptionLabel(contact: Pick<ClubRosterContact, 'ownedByYou' | 'importedByName' | 'teamName' | 'leagueName' | 'flight'>) { return `${getRosterScopeLabel(contact)} · ${contact.ownedByYou ? 'Your import' : `Shared by ${contact.importedByName}`}` }
 function getReadyRosterEmails(contacts: ClubRosterContact[], scopeKey: string) { return normalizeClubInviteEmails(contacts.filter((contact) => getRosterScopeKey(contact) === scopeKey && contact.connectionStatus === 'ready').map((contact) => contact.email)) }
+function splitClubDestination(value: string): ['group' | 'league' | 'tournament', string] { const separator = value.indexOf(':'); return [value.slice(0, separator) as 'group' | 'league' | 'tournament', value.slice(separator + 1)] }
