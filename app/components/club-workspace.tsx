@@ -608,10 +608,10 @@ export default function ClubWorkspace() {
               showMessage(error instanceof Error ? error.message : 'The program could not be added.', 'danger')
             } finally { setWorking(false) }
           }}
-          onRollover={async (sourceGroupIds, seasonLabel, copyMembers) => {
+          onRollover={async (sourceGroupIds, seasonLabel, copyMembers, copyCompetitionSetup) => {
             setWorking(true)
             try {
-              const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups`, { method: 'PUT', body: JSON.stringify({ sourceGroupIds, seasonLabel, copyMembers }) })
+              const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups`, { method: 'PUT', body: JSON.stringify({ sourceGroupIds, seasonLabel, copyMembers, copyCompetitionSetup }) })
               await refreshWorkspace()
               showMessage(result.message || `${seasonLabel} is ready.`)
               return result.message || `${seasonLabel} is ready.`
@@ -1180,7 +1180,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onLinkCompetition, onSyncCompetitionRoster, onSyncCompetitionTeams, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onLinkCompetition: (groupId: string, competitionId: string) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onSyncCompetitionTeams: (groupId: string, teamGroupIds: string[]) => Promise<void>; onInvite: (groupId: string) => void }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onLinkCompetition, onSyncCompetitionRoster, onSyncCompetitionTeams, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean, copyCompetitionSetup: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onLinkCompetition: (groupId: string, competitionId: string) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onSyncCompetitionTeams: (groupId: string, teamGroupIds: string[]) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -1211,10 +1211,12 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
   const [rolloverSourceSeason, setRolloverSourceSeason] = useState(initialSourceSeason)
   const [nextSeasonLabel, setNextSeasonLabel] = useState('')
   const [copyReturningMembers, setCopyReturningMembers] = useState(true)
+  const [copyCompetitionSetup, setCopyCompetitionSetup] = useState(true)
   const [closeSeasonLabel, setCloseSeasonLabel] = useState(activeSeasonLabels[0] ?? '')
   const [reopenSeasonLabel, setReopenSeasonLabel] = useState(archivedSeasonLabels[0] ?? '')
   const rolloverSourceGroups = useMemo(() => activeGroups.filter((group) => rolloverSourceSeason === '__none__' ? !group.seasonLabel : group.seasonLabel === rolloverSourceSeason), [activeGroups, rolloverSourceSeason])
   const [rolloverGroupIds, setRolloverGroupIds] = useState(() => rolloverSourceGroups.map((group) => group.id))
+  const rolloverCompetitionCount = rolloverSourceGroups.filter((group) => rolloverGroupIds.includes(group.id) && group.linkedCompetitionId).length
   const statusGroups = statusView === 'active' ? activeGroups : statusView === 'archive' ? archivedGroups : workspace.groups
   const visibleGroups = seasonView === 'all' ? statusGroups : statusGroups.filter((group) => group.seasonLabel === seasonView)
   const visibleSeasonLabels = Array.from(new Set(statusGroups.map((group) => group.seasonLabel).filter(Boolean)))
@@ -1269,14 +1271,15 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
       <div className={styles.panelHeading}><p className={styles.eyebrow}>Programs + teams</p><h2>Put the right people together.</h2><p>Create clinics, teams, camps, or development groups from the same club roster.</p></div>
       {manager && activeGroups.length ? <details className={styles.rolloverDetails} open={rolloverOpen} onToggle={(event) => setRolloverOpen(event.currentTarget.open)}>
         <summary><span>Start next season</span><small>Copy the setup. Review returning players before they become active.</small></summary>
-        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onRollover(rolloverGroupIds, nextSeasonLabel, copyReturningMembers).then(() => { setSeasonView(nextSeasonLabel.trim()); setNextSeasonLabel(''); setRolloverOpen(false) }).catch(() => undefined) }}>
+        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onRollover(rolloverGroupIds, nextSeasonLabel, copyReturningMembers, copyCompetitionSetup).then(() => { setSeasonView(nextSeasonLabel.trim()); setNextSeasonLabel(''); setRolloverOpen(false) }).catch(() => undefined) }}>
           <div className={styles.fieldGrid}>
             <label className={styles.field}><span>Copy from</span><select value={rolloverSourceSeason} onChange={(event) => { const sourceSeason = event.target.value; setRolloverSourceSeason(sourceSeason); setRolloverGroupIds(activeGroups.filter((group) => sourceSeason === '__none__' ? !group.seasonLabel : group.seasonLabel === sourceSeason).map((group) => group.id)) }}>{activeSeasonLabels.map((season) => <option value={season} key={season}>{season}</option>)}{activeGroups.some((group) => !group.seasonLabel) ? <option value="__none__">No season set</option> : null}</select></label>
             <label className={styles.field}><span>New season</span><input required maxLength={80} value={nextSeasonLabel} onChange={(event) => setNextSeasonLabel(event.target.value)} placeholder="Winter 2027" />{repeatsSourceSeason ? <small>Use a different season name.</small> : null}</label>
           </div>
           <fieldset className={styles.rolloverChoices}><legend>Programs to carry forward</legend>{rolloverSourceGroups.map((group) => <label className={styles.memberRow} key={group.id}><input type="checkbox" checked={rolloverGroupIds.includes(group.id)} onChange={() => setRolloverGroupIds((current) => current.includes(group.id) ? current.filter((id) => id !== group.id) : [...current, group.id])} /><span><strong>{group.name}</strong><small>{getClubGroupTypeLabel(group.groupType)} · {group.memberIds.length} current</small></span></label>)}</fieldset>
           <label className={styles.check}><input type="checkbox" checked={copyReturningMembers} onChange={(event) => setCopyReturningMembers(event.target.checked)} />Bring current players over for review</label>
-          <p className={styles.muted}>The current season stays intact. New rosters remain in review until you save them.</p>
+          {rolloverCompetitionCount ? <label className={styles.check}><input type="checkbox" checked={copyCompetitionSetup} onChange={(event) => setCopyCompetitionSetup(event.target.checked)} />Prepare {rolloverCompetitionCount === 1 ? 'a fresh competition draft' : `${rolloverCompetitionCount} fresh competition drafts`}</label> : null}
+          <p className={styles.muted}>The current season stays intact. New rosters remain in review.{rolloverCompetitionCount && copyCompetitionSetup ? ' Competition formats and rules carry forward; entries, dates, schedules, and results start fresh.' : ''}</p>
           <button className={styles.primary} disabled={working || !rolloverGroupIds.length || nextSeasonLabel.trim().length < 2 || repeatsSourceSeason} type="submit">{working ? 'Creating season...' : rolloverGroupIds.length ? `Create ${rolloverGroupIds.length} for new season` : 'Choose programs'}</button>
         </form>
       </details> : null}
