@@ -87,6 +87,9 @@ describe('club workspace', () => {
     expect(rolled.sourceGroupId).toBe('g1')
     expect(rolled.memberIds).toEqual(['m1'])
     expect(rolled.reviewMemberIds).toEqual(['m2'])
+    const archived = mapClubGroupRow({ id: 'g4', club_id: 'c1', name: 'Spring team', group_type: 'team', is_active: false, closed_at: '2026-08-08T01:00:00Z' })
+    expect(archived.isActive).toBe(false)
+    expect(archived.closedAt).toBe('2026-08-08T01:00:00Z')
   })
 
   it('advances the club setup guide from the next unfinished job', () => {
@@ -126,7 +129,7 @@ describe('club workspace', () => {
       invites: [
         { id: 'invite-staff', clubId: club.id, email: 'coach@club.test', roles: ['coach'], target: { type: 'club', id: '', name: '' }, inviteToken: 'staff-token', status: 'pending', expiresAt: '', createdAt: '' },
       ],
-      groups: [{ id: 'group-1' }] as ClubWorkspaceData['groups'],
+      groups: [{ id: 'group-1', isActive: true }] as ClubWorkspaceData['groups'],
       templates: [{ id: 'template-1' }] as ClubWorkspaceData['templates'],
       competitions: [],
     })
@@ -183,7 +186,7 @@ describe('club workspace', () => {
         { id: 'player', status: 'active', roles: ['player'] },
       ],
       invites: [],
-      groups: [{ id: 'clinic-1' }],
+      groups: [{ id: 'clinic-1', isActive: true }],
       templates: [],
       competitions: [],
     } as unknown as ClubWorkspaceData

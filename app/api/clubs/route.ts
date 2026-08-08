@@ -16,7 +16,7 @@ export const runtime = 'nodejs'
 
 const clubSelect = 'id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,onboarding_completed_at,created_at,updated_at'
 const membershipSelect = 'id,club_id,user_id,roles,status,display_name,email,phone,joined_at,updated_at'
-const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,rollover_source_group_id,updated_at'
+const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,updated_at'
 const templateSelect = 'id,club_id,name,competition_type,entrant_type,format_id,division_label,default_facility,schedule_notes,is_public,updated_at'
 const inviteSelect = 'id,club_id,email,roles,target_type,target_id,target_name,target_group_type,invite_token,status,expires_at,created_at'
 
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
   const [memberResult, groupResult, templateResult, inviteResult, leagueResult, tournamentResult] = await Promise.all([
     auth.supabase.from('club_memberships').select(membershipSelect).eq('club_id', club.id).neq('status', 'removed').order('display_name'),
-    auth.supabase.from('club_groups').select(groupSelect).eq('club_id', club.id).eq('is_active', true).order('updated_at', { ascending: false }),
+    auth.supabase.from('club_groups').select(groupSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_competition_templates').select(templateSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_invites').select(inviteSelect).eq('club_id', club.id).eq('status', 'pending').order('created_at', { ascending: false }),
     auth.supabase.from('tiq_leagues').select('id,league_name,league_format,season_status,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),

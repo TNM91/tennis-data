@@ -66,6 +66,7 @@ export type ClubGroup = {
   defaultDurationMinutes: number
   isPublic: boolean
   isActive: boolean
+  closedAt: string
   sourceGroupId: string
   memberIds: string[]
   reviewMemberIds: string[]
@@ -216,7 +217,7 @@ export function getClubSetupSteps(workspace: ClubWorkspaceData): ClubSetupStep[]
       detail: 'Create the first clinic, team, camp, or development group.',
       actionLabel: 'Add a program',
       tab: 'groups',
-      completed: workspace.groups.length > 0,
+      completed: workspace.groups.some((group) => group.isActive),
     },
     {
       id: 'access',
@@ -435,6 +436,7 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     defaultDurationMinutes: Math.min(360, Math.max(15, Number(row.default_duration_minutes) || 90)),
     isPublic: row.is_public !== false,
     isActive: row.is_active !== false,
+    closedAt: cleanClubText(row.closed_at, 80),
     sourceGroupId: cleanClubText(row.rollover_source_group_id),
     memberIds,
     reviewMemberIds,
