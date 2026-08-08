@@ -1,6 +1,6 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
 import { buildCoachStudentLinkPayload } from '@/lib/coach-storage'
-import { cleanClubText, canRunClubPrograms, normalizeClubRoles } from '@/lib/club-workspace'
+import { buildClubCoachStudentLinkId, cleanClubText, canRunClubPrograms, normalizeClubRoles } from '@/lib/club-workspace'
 
 export const runtime = 'nodejs'
 
@@ -61,7 +61,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
     .filter((member) => !allowedMembershipIds || allowedMembershipIds.has(cleanClubText(member.id)))
     .filter((member) => cleanClubText(member.user_id) !== auth.userId)
     .map((member) => buildCoachStudentLinkPayload({
-      id: `club-${clubId}-${cleanClubText(member.id)}`,
+      id: buildClubCoachStudentLinkId(clubId, cleanClubText(member.id)),
       playerUserId: cleanClubText(member.user_id),
       playerName: cleanClubText(member.display_name) || cleanClubText(member.email) || 'Club player',
       playerEmail: cleanClubText(member.email),
