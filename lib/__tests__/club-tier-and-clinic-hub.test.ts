@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getClubCompetitionReadiness, getClubProgramLaunchAction, getClubProgramReadinessAction, getLinkableClubCompetitions, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
+import { getClubCompetitionReadiness, getClubCompetitionRosterHandoff, getClubCompetitionTeamHandoff, getClubProgramLaunchAction, getClubProgramReadinessAction, getLinkableClubCompetitions, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -458,5 +458,54 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(linkRoute).toContain(".eq('club_id', clubId)")
     expect(linkRoute).toContain('club_group_id: groupId')
     expect(linkRoute).toContain('already connected to another Club program')
+  })
+
+  it('hands connected Club players into linked player competitions without duplicate entries', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const rosterRoute = source('app/api/clubs/[clubId]/roster-contacts/route.ts')
+    const competition = { id: 'league-1', clubGroupId: 'group-1', name: 'Friday League', type: 'league' as const, entrantType: 'players' as const, memberIds: ['member-1'], status: 'draft', isPublic: true, href: '/league-coordinator', entryCount: 1, scheduleCount: 0, nextEventAt: '' }
+    const memberships = [
+      { id: 'member-1', clubId: 'club-1', userId: 'user-1', roles: ['player' as const], status: 'active' as const, displayName: 'One', email: '', phone: '', joinedAt: '', updatedAt: '' },
+      { id: 'member-2', clubId: 'club-1', userId: 'user-2', roles: ['player' as const], status: 'active' as const, displayName: 'Two', email: '', phone: '', joinedAt: '', updatedAt: '' },
+      { id: 'member-3', clubId: 'club-1', userId: 'user-3', roles: ['player' as const], status: 'inactive' as const, displayName: 'Three', email: '', phone: '', joinedAt: '', updatedAt: '' },
+    ]
+    const handoff = getClubCompetitionRosterHandoff({ linkedCompetitionId: 'league-1', linkedCompetitionType: 'league', memberIds: ['member-1', 'member-2', 'member-3'] }, [competition], memberships)
+
+    expect(handoff?.eligibleMemberIds).toEqual(['member-1', 'member-2'])
+    expect(handoff?.missingMemberIds).toEqual(['member-2'])
+    expect(handoff?.connectedCount).toBe(1)
+    expect(getClubCompetitionRosterHandoff({ linkedCompetitionId: 'league-1', linkedCompetitionType: 'league', memberIds: ['member-1'] }, [{ ...competition, entrantType: 'teams' }], memberships)).toBeNull()
+    expect(club).toContain('Add ${nextRosterHandoff.missingMemberIds.length} Club')
+    expect(club).toContain('Club roster connected')
+    expect(club).toContain("method: 'PUT'")
+    expect(rosterRoute).toContain('existingMatches')
+    expect(rosterRoute).toContain('missingEntrants')
+    expect(rosterRoute).toContain('normalizeComparable(entry.player_name)')
+  })
+
+  it('lets staff choose Club teams for linked team competitions without duplicate names', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const competitionRoute = source('app/api/clubs/[clubId]/groups/[groupId]/competition/route.ts')
+    const migration = source('supabase/migrations/20260808000500_allow_club_staff_team_entries.sql')
+    const competition = { id: 'league-1', clubGroupId: 'division-1', name: 'Friday League', type: 'league' as const, entrantType: 'teams' as const, memberIds: [], entryNames: ['Existing Team'], status: 'draft', isPublic: true, href: '/league-coordinator', entryCount: 1, scheduleCount: 0, nextEventAt: '' }
+    const groups = [
+      { id: 'team-1', name: 'Existing Team', groupType: 'team' as const, isActive: true, memberIds: [] },
+      { id: 'team-2', name: 'New Team', groupType: 'team' as const, isActive: true, memberIds: ['member-1'] },
+      { id: 'team-3', name: 'Closed Team', groupType: 'team' as const, isActive: false, memberIds: [] },
+    ]
+    const handoff = getClubCompetitionTeamHandoff({ linkedCompetitionId: 'league-1', linkedCompetitionType: 'league' }, [competition], groups)
+
+    expect(handoff?.eligibleTeams.map((team) => team.id)).toEqual(['team-1', 'team-2'])
+    expect(handoff?.missingTeams.map((team) => team.id)).toEqual(['team-2'])
+    expect(handoff?.connectedCount).toBe(1)
+    expect(club).toContain('Choose Club teams')
+    expect(club).toContain('Teams entering')
+    expect(clubRoute).toContain('entryNames:')
+    expect(competitionRoute).toContain("from('tiq_team_league_entries')")
+    expect(competitionRoute).toContain('normalizeEntryName(entry.team_name)')
+    expect(competitionRoute).toContain('nextEntrants')
+    expect(migration).toContain('Club staff can add team league entries')
+    expect(migration).toContain('Club staff can update team league entries')
   })
 })

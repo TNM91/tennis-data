@@ -11,6 +11,8 @@ import {
   buildClubCompetitionLaunchHref,
   buildClubToolHref,
   canRunClubPrograms,
+  getClubCompetitionRosterHandoff,
+  getClubCompetitionTeamHandoff,
   getClubCompetitionReadiness,
   getClubGroupTypeLabel,
   getLinkableClubCompetitions,
@@ -30,6 +32,7 @@ import {
   type ClubRole,
   type ClubSetupStep,
   type ClubInviteTargetType,
+  type ClubLinkedCompetition,
   type ClubWorkspaceData,
 } from '@/lib/club-workspace'
 import styles from './club-workspace.module.css'
@@ -381,6 +384,42 @@ export default function ClubWorkspace() {
     }
   }
 
+  async function syncCompetitionRoster(competition: ClubLinkedCompetition, membershipIds: string[]) {
+    if (!workspace || !membershipIds.length) return
+    setWorking(true)
+    try {
+      const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/roster-contacts`, {
+        method: 'PUT',
+        body: JSON.stringify({ membershipIds, targetType: competition.type, targetId: competition.id }),
+      })
+      await refreshWorkspace()
+      showMessage(result.message || 'Club players added to the competition.')
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Club players could not be added to the competition.', 'danger')
+      throw error
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function syncCompetitionTeams(groupId: string, teamGroupIds: string[]) {
+    if (!workspace || !teamGroupIds.length) return
+    setWorking(true)
+    try {
+      const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups/${groupId}/competition`, {
+        method: 'PUT',
+        body: JSON.stringify({ teamGroupIds }),
+      })
+      await refreshWorkspace()
+      showMessage(result.message || 'Club teams added to the competition.')
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Club teams could not be added to the competition.', 'danger')
+      throw error
+    } finally {
+      setWorking(false)
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -482,7 +521,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
           key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
@@ -630,6 +669,8 @@ export default function ClubWorkspace() {
               throw error
             } finally { setWorking(false) }
           }}
+          onSyncCompetitionRoster={syncCompetitionRoster}
+          onSyncCompetitionTeams={syncCompetitionTeams}
         />
       ) : null}
       {tab === 'compete' ? (
@@ -672,7 +713,7 @@ export default function ClubWorkspace() {
   )
 }
 
-function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -697,6 +738,8 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const launchReadyGroups = workspace.groups.filter(needsClubProgramLaunch)
   const nextLaunchGroup = launchReadyGroups[0]
   const nextLaunchAction = nextLaunchGroup ? getClubProgramReadinessAction(nextLaunchGroup, workspace.club) : null
+  const nextRosterHandoff = nextLaunchGroup ? getClubCompetitionRosterHandoff(nextLaunchGroup, workspace.competitions, workspace.memberships) : null
+  const nextTeamHandoff = nextLaunchGroup ? getClubCompetitionTeamHandoff(nextLaunchGroup, workspace.competitions, workspace.groups) : null
   const competitionNeedsWork = workspace.competitions
     .map((competition) => ({ competition, readiness: getClubCompetitionReadiness(competition) }))
     .filter((item) => !item.readiness.ready)
@@ -744,8 +787,8 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => onFillOpenSpots(nextFillGroup.id)}>Fill open spots</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onCompleteRenewalFill(nextFillGroup.id)}>No replacements needed</button></div>
       </section> : null}
       {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && nextLaunchGroup && nextLaunchAction ? <section className={styles.renewalTask} aria-labelledby="launch-program-title">
-        <div><p className={styles.eyebrow}>{finishingClinicSchedule || finishingTeamSetup || finishingCoachSetup ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
-        <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onLaunchProgram(nextLaunchGroup)}>{working ? 'Opening...' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
+        <div><p className={styles.eyebrow}>{nextRosterHandoff?.missingMemberIds.length || nextTeamHandoff?.missingTeams.length ? 'Roster ready' : finishingClinicSchedule || finishingTeamSetup || finishingCoachSetup ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{nextRosterHandoff?.missingMemberIds.length ? `${nextLaunchGroup.name} can use its Club roster.` : nextTeamHandoff?.missingTeams.length ? `${nextLaunchGroup.name} has Club teams ready.` : finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextRosterHandoff?.missingMemberIds.length ? `${nextRosterHandoff.missingMemberIds.length} connected ${nextRosterHandoff.missingMemberIds.length === 1 ? 'player is' : 'players are'} ready to add without duplicates.` : nextTeamHandoff?.missingTeams.length ? `Choose exactly which of the ${nextTeamHandoff.missingTeams.length} available Club ${nextTeamHandoff.missingTeams.length === 1 ? 'team enters' : 'teams enter'}.` : nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
+        <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => nextRosterHandoff?.missingMemberIds.length ? void onSyncCompetitionRoster(nextRosterHandoff.competition, nextRosterHandoff.missingMemberIds) : nextTeamHandoff?.missingTeams.length ? onOpenProgram(nextLaunchGroup.id) : void onLaunchProgram(nextLaunchGroup)}>{working ? nextRosterHandoff?.missingMemberIds.length ? 'Adding players...' : 'Opening...' : nextRosterHandoff?.missingMemberIds.length ? `Add ${nextRosterHandoff.missingMemberIds.length} Club ${nextRosterHandoff.missingMemberIds.length === 1 ? 'player' : 'players'}` : nextTeamHandoff?.missingTeams.length ? 'Choose Club teams' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
       </section> : null}
       {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && !nextLaunchGroup && nextCompetitionWork ? <section className={styles.renewalTask} aria-labelledby="finish-competition-title">
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
@@ -1137,7 +1180,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onLinkCompetition, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onLinkCompetition: (groupId: string, competitionId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onLinkCompetition, onSyncCompetitionRoster, onSyncCompetitionTeams, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onLinkCompetition: (groupId: string, competitionId: string) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onSyncCompetitionTeams: (groupId: string, teamGroupIds: string[]) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -1154,6 +1197,8 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
   const [renewalMessage, setRenewalMessage] = useState('')
   const [linkingGroupId, setLinkingGroupId] = useState('')
   const [linkingCompetitionId, setLinkingCompetitionId] = useState('')
+  const [teamPickerGroupId, setTeamPickerGroupId] = useState('')
+  const [selectedTeamGroupIds, setSelectedTeamGroupIds] = useState<string[]>([])
   const activeGroups = useMemo(() => workspace.groups.filter((group) => group.isActive), [workspace.groups])
   const archivedGroups = useMemo(() => workspace.groups.filter((group) => !group.isActive), [workspace.groups])
   const activeSeasonLabels = Array.from(new Set(activeGroups.map((group) => group.seasonLabel).filter(Boolean)))
@@ -1273,6 +1318,8 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
           const competitionProgram = group.groupType === 'league_division' || group.groupType === 'tournament_field'
           const competitionAction = competitionProgram ? getClubProgramReadinessAction(group, workspace.club) : null
           const linkableCompetitions = competitionProgram ? getLinkableClubCompetitions(group, workspace.competitions) : []
+          const competitionRosterHandoff = competitionProgram ? getClubCompetitionRosterHandoff(group, workspace.competitions, workspace.memberships) : null
+          const competitionTeamHandoff = competitionProgram ? getClubCompetitionTeamHandoff(group, workspace.competitions, workspace.groups) : null
           const competitionReady = Boolean(group.linkedCompetitionId && group.competitionEntryCount >= 2 && group.competitionScheduleCount > 0)
           const missingCoachLinks = Math.max(0, group.coachExpectedPlayerCount - group.coachLinkedPlayerCount)
           const missingCoachPlans = Math.max(0, group.coachExpectedPlayerCount - group.coachPlannedPlayerCount)
@@ -1306,7 +1353,12 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && manager && groupOpenSpotCount ? <button type="button" className={styles.quietButton} onClick={() => onFillOpenSpots(group.id)}>Fill open spots</button> : null}
             {group.isActive && group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}
             {group.isActive && group.groupType === 'team' ? <Link className={styles.primary} href={teamHubHref}>Open Team Hub</Link> : null}
-            {group.isActive && competitionProgram && competitionAction ? <Link className={styles.primary} href={competitionAction.href}>{competitionAction.label}</Link> : null}
+            {group.isActive && manager && competitionRosterHandoff?.missingMemberIds.length ? <button className={styles.primary} disabled={working} type="button" onClick={() => void onSyncCompetitionRoster(competitionRosterHandoff.competition, competitionRosterHandoff.missingMemberIds)}>{working ? 'Adding players...' : `Add ${competitionRosterHandoff.missingMemberIds.length} Club ${competitionRosterHandoff.missingMemberIds.length === 1 ? 'player' : 'players'}`}</button> : null}
+            {group.isActive && Boolean(competitionRosterHandoff?.eligibleMemberIds.length) && !competitionRosterHandoff?.missingMemberIds.length ? <span className={styles.pill}>Club roster connected</span> : null}
+            {group.isActive && manager && competitionTeamHandoff?.missingTeams.length ? <button className={styles.primary} disabled={working} type="button" onClick={() => { const opening = teamPickerGroupId !== group.id; setTeamPickerGroupId(opening ? group.id : ''); setSelectedTeamGroupIds(opening ? competitionTeamHandoff.missingTeams.map((team) => team.id) : []) }}>{teamPickerGroupId === group.id ? 'Cancel team selection' : 'Choose Club teams'}</button> : null}
+            {group.isActive && Boolean(competitionTeamHandoff?.eligibleTeams.length) && !competitionTeamHandoff?.missingTeams.length ? <span className={styles.pill}>Club teams connected</span> : null}
+            {teamPickerGroupId === group.id && competitionTeamHandoff ? <form className={styles.competitionLinkForm} onSubmit={(event) => { event.preventDefault(); void onSyncCompetitionTeams(group.id, selectedTeamGroupIds).then(() => { setTeamPickerGroupId(''); setSelectedTeamGroupIds([]) }).catch(() => undefined) }}><fieldset className={styles.rolloverChoices}><legend>Teams entering {competitionTeamHandoff.competition.name}</legend>{competitionTeamHandoff.missingTeams.map((team) => <label className={styles.memberRow} key={team.id}><input type="checkbox" checked={selectedTeamGroupIds.includes(team.id)} onChange={() => setSelectedTeamGroupIds((current) => current.includes(team.id) ? current.filter((id) => id !== team.id) : [...current, team.id])} /><span><strong>{team.name}</strong><small>{team.memberIds.length} connected players</small></span></label>)}</fieldset><button className={styles.primary} disabled={working || !selectedTeamGroupIds.length} type="submit">{working ? 'Adding teams...' : selectedTeamGroupIds.length ? `Add ${selectedTeamGroupIds.length} ${selectedTeamGroupIds.length === 1 ? 'team' : 'teams'}` : 'Choose teams'}</button></form> : null}
+            {group.isActive && competitionProgram && competitionAction ? <Link className={competitionRosterHandoff?.missingMemberIds.length || competitionTeamHandoff?.missingTeams.length ? styles.quietButton : styles.primary} href={competitionAction.href}>{competitionRosterHandoff?.missingMemberIds.length || competitionTeamHandoff?.missingTeams.length ? `Open ${competitionRosterHandoff?.competition.type ?? competitionTeamHandoff?.competition.type}` : competitionAction.label}</Link> : null}
             {group.isActive && staff && competitionProgram && !group.linkedCompetitionId && linkableCompetitions.length ? <button className={styles.quietButton} disabled={working} type="button" onClick={() => { setLinkingGroupId((current) => current === group.id ? '' : group.id); setLinkingCompetitionId(linkableCompetitions[0]?.id ?? '') }}>{linkingGroupId === group.id ? 'Cancel connection' : 'Connect existing'}</button> : null}
             {linkingGroupId === group.id ? <form className={styles.competitionLinkForm} onSubmit={(event) => { event.preventDefault(); void onLinkCompetition(group.id, linkingCompetitionId).then(() => { setLinkingGroupId(''); setLinkingCompetitionId('') }).catch(() => undefined) }}><label className={styles.field}><span>{group.groupType === 'league_division' ? 'Club league' : 'Club tournament'}</span><select required value={linkingCompetitionId} onChange={(event) => setLinkingCompetitionId(event.target.value)}>{linkableCompetitions.map((competition) => <option value={competition.id} key={competition.id}>{competition.name} · {competition.entryCount} {competition.entryCount === 1 ? 'entry' : 'entries'}</option>)}</select><small>Keeps this program and its competition progress together.</small></label><button className={styles.primary} disabled={working || !linkingCompetitionId} type="submit">{working ? 'Connecting...' : 'Connect competition'}</button></form> : null}
             {group.isActive && manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}
