@@ -43,6 +43,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       .select('id')
       .eq('id', groupId)
       .eq('club_id', clubId)
+      .eq('is_active', true)
       .maybeSingle()
     if (!group) return Response.json({ ok: false, message: 'Club program not found.' }, { status: 404 })
 

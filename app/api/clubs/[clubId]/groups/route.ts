@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 const allowedTypes = new Set<ClubGroupType>(['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'])
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,rollover_source_group_id,updated_at'
+const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,updated_at'
 
 export async function POST(request: Request, context: { params: Promise<{ clubId: string }> }) {
   const auth = await getClubApiAuth(request)
@@ -160,11 +160,49 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
   if (!auth.ok) return auth.response
   const { clubId } = await context.params
 
-  let body: { groupId?: unknown; membershipIds?: unknown }
+  let body: { action?: unknown; seasonLabel?: unknown; groupId?: unknown; membershipIds?: unknown }
   try {
-    body = await request.json() as { groupId?: unknown; membershipIds?: unknown }
+    body = await request.json() as { action?: unknown; seasonLabel?: unknown; groupId?: unknown; membershipIds?: unknown }
   } catch {
     return Response.json({ ok: false, message: 'Choose a group and its members.' }, { status: 400 })
+  }
+
+  const action = cleanClubText(body.action)
+  if (action === 'close-season' || action === 'reopen-season') {
+    const seasonLabel = cleanClubText(body.seasonLabel, 80)
+    if (seasonLabel.length < 2) return Response.json({ ok: false, message: 'Choose a named season.' }, { status: 400 })
+
+    const { data: managerMembership } = await auth.supabase
+      .from('club_memberships')
+      .select('roles')
+      .eq('club_id', clubId)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!managerMembership || !isClubManager(normalizeClubRoles(managerMembership.roles, []))) {
+      return Response.json({ ok: false, message: 'Club manager access is required to close or reopen a season.' }, { status: 403 })
+    }
+
+    const closing = action === 'close-season'
+    const { data: changedGroups, error } = await auth.supabase
+      .from('club_groups')
+      .update(closing
+        ? { is_active: false, closed_at: new Date().toISOString(), closed_by_user_id: auth.userId }
+        : { is_active: true, closed_at: null, closed_by_user_id: null })
+      .eq('club_id', clubId)
+      .eq('season_label', seasonLabel)
+      .eq('is_active', closing)
+      .select('id')
+    if (error) return Response.json({ ok: false, message: `The season could not be ${closing ? 'closed' : 'reopened'}.` }, { status: 400 })
+    if (!changedGroups?.length) return Response.json({ ok: false, message: `No ${closing ? 'active' : 'archived'} programs were found in ${seasonLabel}.` }, { status: 409 })
+
+    return Response.json({
+      ok: true,
+      changedCount: changedGroups.length,
+      message: closing
+        ? `${seasonLabel} is closed. ${changedGroups.length} ${changedGroups.length === 1 ? 'program is' : 'programs are'} now read-only history.`
+        : `${seasonLabel} is active again with ${changedGroups.length} ${changedGroups.length === 1 ? 'program' : 'programs'}.`,
+    })
   }
 
   const groupId = cleanClubText(body.groupId)
@@ -172,8 +210,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
     ? Array.from(new Set(body.membershipIds.map((value) => cleanClubText(value)).filter(Boolean)))
     : []
 
-  const { data: group } = await auth.supabase.from('club_groups').select('id').eq('id', groupId).eq('club_id', clubId).maybeSingle()
-  if (!group) return Response.json({ ok: false, message: 'Group not found.' }, { status: 404 })
+  const { data: group } = await auth.supabase.from('club_groups').select('id').eq('id', groupId).eq('club_id', clubId).eq('is_active', true).maybeSingle()
+  if (!group) return Response.json({ ok: false, message: 'Active program not found.' }, { status: 404 })
 
   const deleteResult = await auth.supabase.from('club_group_members').delete().eq('group_id', groupId)
   if (deleteResult.error) return Response.json({ ok: false, message: 'Club staff access is required to update this group.' }, { status: 403 })
