@@ -213,7 +213,7 @@ function TokenTool({
       type="button"
     >
       {type === 'player' ? (
-        <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tiq/logo/tiq-app-icon.png" width={34} />
+        <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png" width={34} />
       ) : (
         <MarkerIcon type={type} />
       )}

@@ -1,0 +1,35 @@
+TENACEIQ BRAND DEPLOYMENT — CODEX IMPLEMENTATION PROMPT
+
+Use the assets in this folder as the production source of truth. Do not redraw, recreate, reinterpret, or substitute the TenAceIQ logo.
+
+Brand rules:
+- Primary dark background: #06172F
+- Brand green: #9BE11D
+- White: #FFFFFF
+- The standalone iQ mark ends visually at the green border. Pixels outside that border are transparent in transparent assets.
+- Preserve the approved tennis-ball seam exactly as supplied.
+- Do not change the i/Q spacing, open-left enclosure, wordmark geometry, or proportions.
+
+Recommended web usage:
+- Header on dark UI: /web/header-logo-transparent.png
+- Compact/mobile mark: /web/header-iq-compact.png
+- Footer on dark UI: /web/footer-logo-dark-bg.png
+- Footer on light UI: /web/footer-logo-light-bg.png
+- Open Graph / share card: /social/og-image-1200x630.png
+- Apple touch icon: /icons/apple-touch-icon.png
+- PWA icons: /icons/pwa-192.png and /icons/pwa-512.png
+- Favicon: /icons/favicon.ico
+
+Implementation:
+1. Copy these assets into the site's public/brand or equivalent static directory.
+2. Replace any older TenAceIQ logo assets and references with these files.
+3. Use object-fit: contain; never stretch or crop logo artwork.
+4. Do not apply CSS filters, skew, rotation, shadows, or border-radius to the transparent logo files.
+5. Keep sufficient clear space around full-logo lockups.
+6. For standalone iQ transparent assets, do not add a colored padding/background outside the supplied border unless the UI intentionally requires a tile.
+7. Update metadata/social sharing to use social/og-image-1200x630.png.
+8. Update favicon/PWA manifest references to use the supplied icon set.
+9. Verify on both dark and light themes at desktop and mobile sizes.
+10. Remove obsolete logo files only after confirming all references have been migrated.
+
+Do not alter the logo design during implementation.

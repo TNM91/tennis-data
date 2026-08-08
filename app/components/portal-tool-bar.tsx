@@ -1386,9 +1386,8 @@ const portalBrandRunwayStyle: CSSProperties = {
 
 const portalBrandRunwayMarkStyle: CSSProperties = {
   display: 'block',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  mixBlendMode: 'screen',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   pointerEvents: 'none',
 }
 

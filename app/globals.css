@@ -42,7 +42,7 @@
   --text-dark: #08111d;
   --error-text: #ffd7bf;
 
-  --brand-navy: #081a31;
+  --brand-navy: #06172F;
   --brand-navy-2: #102347;
   --brand-blue: #255be3;
   --brand-blue-2: #5d9fe8;
@@ -51,7 +51,7 @@
   --brand-green-3: #c7f36b;
   --brand-green-rgb: 155, 225, 29;
   --brand-white: #ffffff;
-  --tenaceiq-navy: #0D1B2A;
+  --tenaceiq-navy: #06172F;
   --tenaceiq-lime: #9BE11D;
   --tenaceiq-white: #FFFFFF;
 
@@ -333,6 +333,22 @@ footer {
   height: 0;
 }
 
+.site-header-brand-picture {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 168px;
+  height: 54px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 819px) {
+  .site-header-brand-picture {
+    width: 35px;
+    height: 36px;
+  }
+}
+
 [data-mobile-portal-palette] {
   scrollbar-width: none;
   scrollbar-gutter: auto;
@@ -350,15 +366,14 @@ footer {
   right: clamp(24px, 4vw, 72px);
   bottom: clamp(58px, 8vh, 120px);
   width: min(76vw, 980px);
-  aspect-ratio: 1045 / 490;
+  aspect-ratio: 1552 / 1614;
   pointer-events: none;
   z-index: 0;
   opacity: 0.17;
-  background-image: url("/tiq/logo/tiq-mark-light.png");
+  background-image: url("/brand/web/header-iq-compact.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  mix-blend-mode: screen;
 }
 
 .brand-atmosphere-mark--hub {
@@ -1302,10 +1317,10 @@ hr {
   }
 
   .brand-atmosphere-mark--hub {
-    width: min(94vw, 560px);
-    right: 10px;
+    width: min(86vw, 520px);
+    right: 16px;
     bottom: 102px;
-    opacity: 0.19;
+    opacity: 0.1;
   }
 
   .brand-atmosphere-mark--quiet {

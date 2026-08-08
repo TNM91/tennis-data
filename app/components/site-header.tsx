@@ -226,7 +226,6 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   }
 
   const useRailHeader = railLayout && !isMobile
-  const useCompactBrand = screenWidth < 340
   const access = buildProductAccessState(resolvedRole, entitlements)
   const roleLabel =
     accessPending
@@ -365,7 +364,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               textDecoration: 'none',
             }}
           >
-            <BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />
+            <BrandWordmark responsiveHeader />
           </Link>
 
           {!useCompactHeader ? (

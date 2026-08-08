@@ -13536,7 +13536,7 @@
   bottom: 0;
   width: 360px;
   aspect-ratio: 1;
-  background: url("/tiq/logo/tiq-mark-dark.png") center / contain no-repeat;
+  background: url("/brand/logos/tenaceiq-iq-for-light-bg.png") center / contain no-repeat;
   opacity: 0.045;
   pointer-events: none;
   transform: translate(36%, 42%);
@@ -15921,7 +15921,6 @@
 
 .printBook .workbookPage::after {
   opacity: 0.055;
-  mix-blend-mode: multiply;
 }
 
 .printBook .coverPage {

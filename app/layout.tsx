@@ -9,13 +9,13 @@ import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-da
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
-const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png'
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#081a31',
+  themeColor: '#06172F',
   colorScheme: 'dark',
 }
 
@@ -81,8 +81,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: SOCIAL_BRAND_IMAGE,
-        width: 1731,
-        height: 909,
+        width: 1200,
+        height: 630,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -96,13 +96,12 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
-      { url: '/tiq/logo/tiq-app-icon.png', sizes: '512x512', type: 'image/png' },
-      { url: '/tenaceiq-icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/tenaceiq-icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/brand/icons/favicon.ico', sizes: 'any', type: 'image/x-icon' },
+      { url: '/brand/icons/favicon-256.png', sizes: '256x256', type: 'image/png' },
+      { url: '/brand/icons/favicon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico',
-    apple: '/tenaceiq-icon-180.png',
+    shortcut: '/brand/icons/favicon.ico',
+    apple: '/brand/icons/apple-touch-icon.png',
   },
 }
 

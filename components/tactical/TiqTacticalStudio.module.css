@@ -58,8 +58,6 @@
 }
 
 .brandIcon {
-  border-radius: 12px;
-  box-shadow: 0 0 22px rgba(155, 225, 29, 0.2);
   height: 38px;
   object-fit: contain;
   width: 38px;
@@ -580,7 +578,7 @@
 }
 
 .activePaletteButton .paletteQIcon {
-  filter: drop-shadow(0 0 8px rgba(7, 17, 31, 0.34));
+  filter: none;
 }
 
 .quickAddButton {
@@ -1177,9 +1175,13 @@
 }
 
 .paletteQIcon {
-  border-radius: 999px;
-  filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.54));
+  border-radius: 0;
+  filter: none;
   object-fit: contain;
+}
+
+.paletteButton .paletteQIcon {
+  filter: none;
 }
 
 .tokenLabel {

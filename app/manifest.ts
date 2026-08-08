@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
-const PWA_ICON = '/tenaceiq-icon-192.png'
+const PWA_ICON = '/brand/icons/pwa-192.png'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#08111d',
-    theme_color: '#081a31',
+    background_color: '#06172F',
+    theme_color: '#06172F',
     categories: ['sports', 'productivity', 'utilities'],
     shortcuts: [
       {
@@ -69,15 +69,9 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     icons: [
       {
-        src: '/favicon.ico',
+        src: '/brand/icons/favicon.ico',
         sizes: 'any',
         type: 'image/x-icon',
-      },
-      {
-        src: '/tiq/logo/tiq-app-icon.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any',
       },
       {
         src: PWA_ICON,
@@ -86,22 +80,16 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'any',
       },
       {
-        src: '/tenaceiq-icon-512.png',
+        src: '/brand/icons/pwa-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
-      {
-        src: '/tenaceiq-icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
     ],
     screenshots: [
       {
-        src: '/tenaceiq/logos/tenaceiq-brand-preview.png',
-        sizes: '1600x1000',
+        src: '/brand/social/og-image-1200x630.png',
+        sizes: '1200x630',
         type: 'image/png',
       },
     ],

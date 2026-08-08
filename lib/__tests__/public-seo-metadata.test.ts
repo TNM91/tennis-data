@@ -37,9 +37,9 @@ describe('public SEO metadata', () => {
       url: '/coaches',
       images: [
         {
-          url: '/tenaceiq/logos/tenaceiq-social-preview.png',
-          width: 1731,
-          height: 909,
+          url: '/brand/social/og-image-1200x630.png',
+          width: 1200,
+          height: 630,
         },
       ],
     })
@@ -47,7 +47,7 @@ describe('public SEO metadata', () => {
       card: 'summary_large_image',
       title: 'Coaches',
       description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
-      images: ['/tenaceiq/logos/tenaceiq-social-preview.png'],
+      images: ['/brand/social/og-image-1200x630.png'],
     })
   })
 

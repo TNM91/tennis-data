@@ -142,12 +142,16 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - Deleted legacy homepage and logo assets were audited against source files in `app`, `lib`, `docs`, and `supabase`
 - No remaining source references were found for the removed public assets
 - Header and footer branding now use:
-  - `public/tiq/logo/tiq-lockup-dark.png`
-  - `public/tiq/logo/tiq-lockup-light.png`
-  - `public/tiq/logo/tiq-app-icon.png`
-  - `public/tiq/logo/tiq-q-icon-dark.png`
-  - `public/tiq/logo/tiq-mark-dark.png`
-  - `public/tiq/logo/tiq-mark-light.png`
+  - `public/brand/web/header-logo-transparent.png`
+  - `public/brand/web/header-iq-compact.png`
+  - `public/brand/web/footer-logo-dark-bg.png`
+  - `public/brand/web/footer-logo-light-bg.png`
+- Social sharing and install surfaces use:
+  - `public/brand/social/og-image-1200x630.png`
+  - `public/brand/icons/favicon.ico`
+  - `public/brand/icons/apple-touch-icon.png`
+  - `public/brand/icons/pwa-192.png`
+  - `public/brand/icons/pwa-512.png`
 
 ## Quick Smoke Test
 

@@ -1,0 +1,37 @@
+TenAceIQ FINAL Deployment Pack
+
+logos/
+  tenaceiq-full-transparent.png
+  tenaceiq-full-for-light-bg.png
+  tenaceiq-full-white.png
+  tenaceiq-full-black.png
+  tenaceiq-full-navy.jpg
+  tenaceiq-iq-transparent.png
+  tenaceiq-iq-for-light-bg.png
+  tenaceiq-iq-white.png
+  tenaceiq-iq-black.png
+  tenaceiq-iq-navy.jpg
+
+icons/
+  app-icon-1024.png
+  favicon.ico
+  favicon-256.png
+  favicon-512.png
+  apple-touch-icon.png
+  pwa-192.png
+  pwa-512.png
+
+web/
+  header-logo-transparent.png
+  header-iq-compact.png
+  footer-logo-dark-bg.png
+  footer-logo-light-bg.png
+
+social/
+  og-image-1200x630.png
+  social-profile-1080.png
+
+docs/
+  CODEX_IMPLEMENTATION_PROMPT.txt
+
+All derivatives come from the frozen approved full-logo master and corrected no-blue standalone iQ master.
