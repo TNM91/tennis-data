@@ -357,6 +357,8 @@
 .emptyState { display: grid; gap: 4px; padding: 18px; border: 1px dashed var(--shell-panel-border); border-radius: 13px; color: var(--shell-copy-muted); }
 .emptyState strong { color: var(--foreground-strong); }
 .emptyState span { font-size: 12px; font-weight: 700; line-height: 1.45; }
+.competitionLinkForm { display: grid; gap: 9px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 34%, var(--shell-panel-border)); border-radius: 12px; background: color-mix(in srgb, var(--club-color, var(--brand-green)) 7%, rgba(5, 14, 28, .64)); padding: 11px; }
+.competitionLinkForm > button { width: 100%; }
 .reviewLabel { width: fit-content; border: 1px solid rgba(255, 194, 87, .34); border-radius: 999px; background: rgba(255, 194, 87, .08); color: #ffd68b; padding: 5px 8px; font-size: 10px; font-weight: 900; }
 .renewalSummary { display: flex; flex-wrap: wrap; gap: 6px; }
 .renewalSummary span, .renewalStatus { border: 1px solid var(--shell-panel-border); border-radius: 999px; background: rgba(255, 255, 255, .035); color: var(--shell-copy-muted); padding: 5px 8px; font-size: 10px; font-weight: 900; }
