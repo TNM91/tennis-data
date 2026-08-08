@@ -18,6 +18,7 @@ export type TiqTournamentAlertStatus = 'draft' | 'queued' | 'sent' | 'cancelled'
 export type TiqTournamentRecord = {
   id: string
   clubId?: string
+  clubGroupId?: string
   name: string
   format: TiqTournamentFormat
   entrantType: TiqTournamentEntrantType
@@ -159,6 +160,7 @@ export type TiqTournamentPreferenceEventRecord = {
 type TiqTournamentCloudRow = {
   id: string
   club_id?: string | null
+  club_group_id?: string | null
   name: string
   format: string | null
   entrant_type: string | null
@@ -287,6 +289,7 @@ function normalizeTiqTournamentRecord(record: Partial<TiqTournamentRecord>): Tiq
   return {
     id: cleanText(record.id),
     clubId: cleanText(record.clubId),
+    clubGroupId: cleanText(record.clubGroupId),
     name: cleanText(record.name),
     format: normalizeTiqTournamentFormat(record.format),
     entrantType: normalizeTiqTournamentEntrantType(record.entrantType),
@@ -309,6 +312,7 @@ function mapCloudTournamentRow(row: TiqTournamentCloudRow): TiqTournamentRecord 
   return normalizeTiqTournamentRecord({
     id: row.id,
     clubId: row.club_id || '',
+    clubGroupId: row.club_group_id || '',
     name: row.name,
     format: normalizeTiqTournamentFormat(row.format),
     entrantType: normalizeTiqTournamentEntrantType(row.entrant_type),
@@ -331,6 +335,7 @@ function toCloudTournamentPayload(record: TiqTournamentRecord, userId: string) {
   return {
     id: record.id,
     club_id: cleanText(record.clubId) || null,
+    club_group_id: cleanText(record.clubGroupId) || null,
     name: record.name,
     format: record.format,
     entrant_type: record.entrantType,
@@ -466,7 +471,7 @@ export async function loadTiqTournamentRegistry(userId?: string | null): Promise
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,club_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .order('updated_at', { ascending: false })
 
   if (result.error) {
@@ -489,7 +494,7 @@ export async function loadTiqTournamentRecord(id: string): Promise<{
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,club_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .eq('id', cleanId)
     .maybeSingle()
 
@@ -520,6 +525,7 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
   const now = new Date().toISOString()
   const normalizedDraft: TiqTournamentDraft = {
     clubId: cleanText(draft.clubId),
+    clubGroupId: cleanText(draft.clubGroupId),
     name: cleanText(draft.name),
     format: normalizeTiqTournamentFormat(draft.format),
     entrantType: normalizeTiqTournamentEntrantType(draft.entrantType),
@@ -561,7 +567,7 @@ export async function saveTiqTournamentRecord(
   const result = await supabase
     .from('tiq_tournaments')
     .upsert(toCloudTournamentPayload(record, userId), { onConflict: 'id' })
-    .select('id,club_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {

@@ -62,8 +62,8 @@ export async function GET(request: Request) {
     auth.supabase.from('club_groups').select(groupSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_competition_templates').select(templateSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_invites').select(inviteSelect).eq('club_id', club.id).eq('status', 'pending').order('created_at', { ascending: false }),
-    auth.supabase.from('tiq_leagues').select('id,league_name,league_format,season_status,teams,players,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
-    auth.supabase.from('tiq_tournaments').select('id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
+    auth.supabase.from('tiq_leagues').select('id,club_group_id,league_name,league_format,season_status,teams,players,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
+    auth.supabase.from('tiq_tournaments').select('id,club_group_id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
   ])
 
   const firstError = [memberResult.error, groupResult.error, templateResult.error, inviteResult.error, leagueResult.error, tournamentResult.error].find(Boolean)
@@ -274,6 +274,7 @@ export async function GET(request: Request) {
       const schedule = scheduleByLeague.get(id) ?? { count: 0, nextAt: '' }
       return {
       id: cleanClubText(row.id),
+      clubGroupId: cleanClubText(row.club_group_id),
       name: cleanClubText(row.league_name),
       type: 'league' as const,
       entrantType: row.league_format === 'individual' ? 'players' as const : 'teams' as const,
@@ -305,6 +306,7 @@ export async function GET(request: Request) {
         .sort()[0] ?? cleanClubText(row.starts_on, 20)
       return {
       id: cleanClubText(row.id),
+      clubGroupId: cleanClubText(row.club_group_id),
       name: cleanClubText(row.name),
       type: 'tournament' as const,
       entrantType: row.entrant_type === 'teams' ? 'teams' as const : 'players' as const,
@@ -317,6 +319,7 @@ export async function GET(request: Request) {
       nextEventAt,
     }}),
   ]
+  const competitionByGroupId = new Map(competitions.filter((competition) => competition.clubGroupId).map((competition) => [competition.clubGroupId, competition]))
 
   return Response.json({
     ok: true,
@@ -332,6 +335,7 @@ export async function GET(request: Request) {
         const clinicSchedule = clinicScheduleByGroup.get(group.id) ?? { count: 0, nextAt: '' }
         const teamReadiness = teamReadinessByGroup.get(group.id) ?? { rosterCount: 0, matchCount: 0, nextAt: '' }
         const coachReadiness = coachReadinessByGroup.get(group.id) ?? { expectedCount: 0, linkedCount: 0, plannedCount: 0, nextAt: '', actionPlayerLinkId: '' }
+        const linkedCompetition = competitionByGroupId.get(group.id)
         return {
           ...group,
           memberIds: memberIdsByGroup.get(group.id) ?? [],
@@ -349,6 +353,11 @@ export async function GET(request: Request) {
           coachPlannedPlayerCount: coachReadiness.plannedCount,
           nextCoachSessionAt: coachReadiness.nextAt,
           coachActionPlayerLinkId: coachReadiness.actionPlayerLinkId,
+          linkedCompetitionId: linkedCompetition?.id ?? '',
+          linkedCompetitionType: linkedCompetition?.type ?? '',
+          competitionEntryCount: linkedCompetition?.entryCount ?? 0,
+          competitionScheduleCount: linkedCompetition?.scheduleCount ?? 0,
+          nextCompetitionEventAt: linkedCompetition?.nextEventAt ?? '',
         }
       }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),

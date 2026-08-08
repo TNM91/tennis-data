@@ -137,12 +137,14 @@ export default function TournamentBuilderWorkspace() {
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubGroupId = searchParams.get('groupId') || ''
   const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_TOURNAMENT_SPONSORED_ROLES)
   const canUseLeague = access.canUseLeagueTools || clubAccess.allowed
   const isFullCourt = access.currentPlanId === 'full_court'
   const hasUnlimitedCompetition = isFullCourt || clubAccess.allowed
   const [records, setRecords] = useState<TiqTournamentRecord[]>([])
   const [clubId, setClubId] = useState('')
+  const [clubGroupId, setClubGroupId] = useState('')
   const [name, setName] = useState('Saturday Smash')
   const [format, setFormat] = useState<TiqTournamentFormat>('single_elimination')
   const [entrantType, setEntrantType] = useState<'players' | 'teams'>('players')
@@ -565,14 +567,16 @@ export default function TournamentBuilderWorkspace() {
       const requestParams = new URLSearchParams(window.location.search)
       const requestedId = requestParams.get('tournamentId') || ''
       const requestedClubTemplateId = requestParams.get('templateId') || ''
+      const requestedClubProgramId = requestParams.get('groupId') || ''
       const targetId = requestedId || (resumeState?.lastSurface === 'tournament' ? resumeState.tournamentId || '' : '')
       setResumeTargetTournamentId(targetId)
       const draft = resumeState?.lastSurface === 'tournament' ? resumeState.tournamentDraft : null
-      if (requestedClubTemplateId && requestParams.get('clubId')) {
+      if (!requestedId && (requestedClubTemplateId || requestedClubProgramId) && requestParams.get('clubId')) {
         const requestedFormat = requestParams.get('format') || 'single_elimination'
         setClubId(requestParams.get('clubId') || '')
+        setClubGroupId(requestedClubProgramId)
         setSelectedId('')
-        setName(requestParams.get('templateName') || 'Club tournament')
+        setName(requestParams.get('templateName') || requestParams.get('program') || 'Club tournament')
         if (TOURNAMENT_DRAW_FORMATS.some((item) => item.id === requestedFormat)) {
           setFormat(requestedFormat as TiqTournamentFormat)
         }
@@ -580,8 +584,10 @@ export default function TournamentBuilderWorkspace() {
         setLocationLabel(requestParams.get('facility') || requestParams.get('clubName') || '')
         setDirectorNotes(requestParams.get('division') ? `${requestParams.get('division')} division` : '')
         setEntrantsText('')
-        setAppliedResumeTournamentId(`club-template:${requestedClubTemplateId}`)
-        setNotice('Club setup applied. Add the date and entrants, then save the tournament.')
+        setAppliedResumeTournamentId(requestedClubProgramId ? `club-program:${requestedClubProgramId}` : `club-template:${requestedClubTemplateId}`)
+        setNotice(requestedClubProgramId
+          ? 'Club program connected. Add the date and entrants, then save the tournament.'
+          : 'Club setup applied. Add the date and entrants, then save the tournament.')
       } else if (draft && (!targetId || !draft.tournamentId || draft.tournamentId === targetId)) {
         setSelectedId(draft.tournamentId || targetId)
         setName(draft.name || 'Saturday Smash')
@@ -611,6 +617,7 @@ export default function TournamentBuilderWorkspace() {
     if (!record) return
     setSelectedId(record.id)
     setClubId(record.clubId || '')
+    setClubGroupId(record.clubGroupId || '')
     setName(record.name)
     setFormat(record.format)
     setEntrantType(record.entrantType)
@@ -839,6 +846,7 @@ export default function TournamentBuilderWorkspace() {
 
     const saved = await upsertTiqTournamentRecordForUser({
       clubId,
+      clubGroupId,
       name,
       format,
       entrantType,
@@ -852,7 +860,7 @@ export default function TournamentBuilderWorkspace() {
 
     refreshRecords(saved.data.id)
     setSyncNotice(saved.source === 'cloud' ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${saved.data.name} is saved. The draw preview is ready for scheduling.`)
+    setNotice(`${saved.data.name} is saved${saved.data.clubGroupId ? ' and connected to its Club program' : ''}. The draw preview is ready for scheduling.`)
     if (saved.error) setNotice(saved.error.message)
   }
 
@@ -1305,6 +1313,8 @@ export default function TournamentBuilderWorkspace() {
 
   function loadRecord(record: TiqTournamentRecord) {
     setSelectedId(record.id)
+    setClubId(record.clubId || '')
+    setClubGroupId(record.clubGroupId || '')
     setName(record.name)
     setFormat(record.format)
     setEntrantType(record.entrantType)
@@ -1330,6 +1340,7 @@ export default function TournamentBuilderWorkspace() {
 
   function startNew() {
     setSelectedId('')
+    setClubGroupId('')
     setName('Saturday Smash')
     setFormat('single_elimination')
     setEntrantType('players')
@@ -1646,6 +1657,7 @@ export default function TournamentBuilderWorkspace() {
                 Open bracket
               </Link>
             ) : null}
+            {clubId && (clubGroupId || requestedClubGroupId) ? <Link href={`/clubs?${new URLSearchParams({ clubId, tab: 'home' }).toString()}`} style={secondaryButtonStyle}>Return to Club</Link> : null}
             <Link href="/compete/schedule" style={secondaryButtonStyle}>Open calendar</Link>
           </div>
         </form>

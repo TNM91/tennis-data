@@ -31,6 +31,7 @@ export type TiqLeagueVisibility = 'public' | 'private'
 export type TiqLeagueRecord = {
   id: string
   clubId?: string
+  clubGroupId?: string
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
@@ -64,6 +65,7 @@ export type TiqLeagueRecord = {
 
 export type TiqLeagueDraft = {
   clubId?: string
+  clubGroupId?: string
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   teamMatchFormatId: TeamMatchFormatId
@@ -219,6 +221,7 @@ function buildRegistryId(input: {
 function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
     clubId: cleanText(input.clubId),
+    clubGroupId: cleanText(input.clubGroupId),
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     teamMatchFormatId: normalizeTeamMatchFormatId(input.teamMatchFormatId),
@@ -262,6 +265,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
     .map((record): TiqLeagueRecord => ({
       ...record,
       clubId: cleanText(record.clubId),
+      clubGroupId: cleanText(record.clubGroupId),
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
@@ -321,6 +325,8 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
 
   const nextRecord: TiqLeagueRecord = {
     id: nextId,
+    clubId: normalized.clubId,
+    clubGroupId: normalized.clubGroupId,
     competitionLayer: 'tiq',
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,
