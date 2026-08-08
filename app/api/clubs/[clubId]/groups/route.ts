@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 const allowedTypes = new Set<ClubGroupType>(['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'])
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,updated_at'
+const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,launch_handoff_completed_at,updated_at'
 
 export async function POST(request: Request, context: { params: Promise<{ clubId: string }> }) {
   const auth = await getClubApiAuth(request)
@@ -203,6 +203,32 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
         ? `${seasonLabel} is closed. ${changedGroups.length} ${changedGroups.length === 1 ? 'program is' : 'programs are'} now read-only history.`
         : `${seasonLabel} is active again with ${changedGroups.length} ${changedGroups.length === 1 ? 'program' : 'programs'}.`,
     })
+  }
+
+  if (action === 'mark-launched') {
+    const groupId = cleanClubText(body.groupId)
+    if (!uuidPattern.test(groupId)) return Response.json({ ok: false, message: 'Choose a valid program to launch.' }, { status: 400 })
+    const { data: managerMembership } = await auth.supabase
+      .from('club_memberships')
+      .select('roles')
+      .eq('club_id', clubId)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!managerMembership || !isClubManager(normalizeClubRoles(managerMembership.roles, []))) {
+      return Response.json({ ok: false, message: 'Club manager access is required to launch this program.' }, { status: 403 })
+    }
+    const { data: launchedGroup, error } = await auth.supabase
+      .from('club_groups')
+      .update({ launch_handoff_completed_at: new Date().toISOString() })
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .select('id')
+      .maybeSingle()
+    if (error) return Response.json({ ok: false, message: 'The program launch could not be saved.' }, { status: 400 })
+    if (!launchedGroup) return Response.json({ ok: false, message: 'Active program not found.' }, { status: 404 })
+    return Response.json({ ok: true, message: 'Program launch opened.' })
   }
 
   const groupId = cleanClubText(body.groupId)

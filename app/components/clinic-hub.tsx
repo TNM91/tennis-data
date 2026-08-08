@@ -15,7 +15,7 @@ import {
 } from '@/lib/club-clinics'
 import styles from './clinic-hub.module.css'
 
-type ClinicTab = 'home' | 'schedule' | 'people' | 'plan' | 'messages'
+export type ClinicTab = 'home' | 'schedule' | 'people' | 'plan' | 'messages'
 type ClinicResponse = { ok: boolean; message?: string; workspace?: ClubClinicWorkspace }
 
 const tabs: Array<{ id: ClinicTab; label: string }> = [
@@ -40,11 +40,11 @@ const attendanceStatuses: Array<{ value: ClinicAttendanceStatus; label: string }
   { value: 'excused', label: 'Excused' },
 ]
 
-export default function ClinicHub({ groupId }: { groupId: string }) {
+export default function ClinicHub({ groupId, initialClubId = '', initialTab = 'home' }: { groupId: string; initialClubId?: string; initialTab?: ClinicTab }) {
   const { authResolved, session, userId } = useAuth()
   const accessToken = session?.access_token ?? ''
   const [workspace, setWorkspace] = useState<ClubClinicWorkspace | null>(null)
-  const [tab, setTab] = useState<ClinicTab>('home')
+  const [tab, setTab] = useState<ClinicTab>(initialTab)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [notice, setNotice] = useState('')
@@ -66,7 +66,7 @@ export default function ClinicHub({ groupId }: { groupId: string }) {
 
   const load = useCallback(async () => {
     if (!accessToken) return
-    const clubId = readClubId()
+    const clubId = readClubId(initialClubId)
     if (!clubId) {
       setNotice('Open this clinic from Club so the club stays connected.')
       setNoticeTone('danger')
@@ -83,7 +83,7 @@ export default function ClinicHub({ groupId }: { groupId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, groupId, request])
+  }, [accessToken, groupId, initialClubId, request])
 
   useEffect(() => {
     if (!authResolved) return
@@ -115,7 +115,7 @@ export default function ClinicHub({ groupId }: { groupId: string }) {
   }
 
   if (!authResolved || loading) return <ClinicShell title="Opening Clinic Hub..." copy="Connecting the clinic schedule, roster, and next session." />
-  if (!userId || !accessToken) return <ClinicShell title="Sign in to open Clinic Hub." copy="Your club role decides what you can see and do." action={<Link className={styles.primary} href={`/login?next=${encodeURIComponent(`/clubs/clinics/${groupId}`)}`}>Sign in</Link>} />
+  if (!userId || !accessToken) return <ClinicShell title="Sign in to open Clinic Hub." copy="Your club role decides what you can see and do." action={<Link className={styles.primary} href={`/login?next=${encodeURIComponent(buildClinicReturnPath(groupId, initialClubId, initialTab))}`}>Sign in</Link>} />
   if (!workspace) return <ClinicShell title="Clinic Hub could not open." copy={notice || 'Open the clinic again from Club.'} action={<Link className={styles.secondary} href="/clubs">Back to Club</Link>} />
 
   const manager = canManageClinic(workspace.currentMembership.roles, workspace.clinic.leadUserId, userId)
@@ -302,11 +302,20 @@ function formatSessionTime(session: ClubClinicSession) {
   return `${start}–${end}`
 }
 
-function readClubId() {
+function readClubId(initialClubId = '') {
+  if (initialClubId) return initialClubId
   try {
     const params = new URL(window.location.href).searchParams
     return params.get('clubId') || window.sessionStorage.getItem('tenaceiq.club.active') || window.localStorage.getItem('tenaceiq.club.active') || ''
   } catch {
     return ''
   }
+}
+
+function buildClinicReturnPath(groupId: string, clubId: string, tab: ClinicTab) {
+  const params = new URLSearchParams()
+  if (clubId) params.set('clubId', clubId)
+  if (tab !== 'home') params.set('tab', tab)
+  const search = params.toString()
+  return `/clubs/clinics/${groupId}${search ? `?${search}` : ''}`
 }
