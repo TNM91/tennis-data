@@ -100,7 +100,7 @@ export async function GET(request: Request) {
       ? auth.supabase.from('tiq_player_league_entries').select('league_id,club_membership_id,entry_status').in('league_id', individualLeagueIds).eq('entry_status', 'active')
       : Promise.resolve({ data: [], error: null }),
     teamLeagueIds.length
-      ? auth.supabase.from('tiq_team_league_entries').select('league_id,entry_status').in('league_id', teamLeagueIds).eq('entry_status', 'active')
+      ? auth.supabase.from('tiq_team_league_entries').select('league_id,team_name,team_entity_id,entry_status').in('league_id', teamLeagueIds).eq('entry_status', 'active')
       : Promise.resolve({ data: [], error: null }),
     leagueIds.length
       ? auth.supabase.from('tiq_league_schedule_items').select('league_id,scheduled_date,scheduled_time,status').in('league_id', leagueIds).neq('status', 'cancelled')
@@ -235,6 +235,7 @@ export async function GET(request: Request) {
 
   const memberIdsByLeague = new Map<string, string[]>()
   const entryCountByLeague = new Map<string, number>()
+  const teamNamesByLeague = new Map<string, string[]>()
   for (const row of (leagueEntryResult.data ?? []) as Record<string, unknown>[]) {
     const leagueId = cleanClubText(row.league_id)
     const membershipId = cleanClubText(row.club_membership_id)
@@ -244,6 +245,8 @@ export async function GET(request: Request) {
   for (const row of (teamLeagueEntryResult.data ?? []) as Record<string, unknown>[]) {
     const leagueId = cleanClubText(row.league_id)
     if (leagueId) entryCountByLeague.set(leagueId, (entryCountByLeague.get(leagueId) ?? 0) + 1)
+    const teamName = cleanClubText(row.team_name, 120)
+    if (leagueId && teamName) teamNamesByLeague.set(leagueId, [...(teamNamesByLeague.get(leagueId) ?? []), teamName])
   }
   const scheduleByLeague = new Map<string, { count: number; nextAt: string }>()
   for (const row of (leagueScheduleResult.data ?? []) as Record<string, unknown>[]) {
@@ -279,6 +282,7 @@ export async function GET(request: Request) {
       type: 'league' as const,
       entrantType: row.league_format === 'individual' ? 'players' as const : 'teams' as const,
       memberIds: memberIdsByLeague.get(cleanClubText(row.id)) ?? [],
+      entryNames: Array.from(new Set([...(Array.isArray(seededEntryValues) ? seededEntryValues.map((value) => cleanClubText(value, 120)).filter(Boolean) : []), ...(teamNamesByLeague.get(id) ?? [])])),
       status: cleanClubText(row.season_status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator?leagueId=${encodeURIComponent(cleanClubText(row.id))}`,
@@ -311,6 +315,7 @@ export async function GET(request: Request) {
       type: 'tournament' as const,
       entrantType: row.entrant_type === 'teams' ? 'teams' as const : 'players' as const,
       memberIds: memberIdsByTournament.get(cleanClubText(row.id)) ?? [],
+      entryNames: Array.isArray(row.entrants) ? row.entrants.map((value) => cleanClubText(value, 120)).filter(Boolean) : [],
       status: cleanClubText(row.status) || 'draft',
       isPublic: row.is_public !== false,
       href: `/league-coordinator/tournaments?tournamentId=${encodeURIComponent(cleanClubText(row.id))}`,

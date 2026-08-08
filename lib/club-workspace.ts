@@ -143,6 +143,7 @@ export type ClubLinkedCompetition = {
   type: ClubCompetitionType
   entrantType: 'players' | 'teams'
   memberIds: string[]
+  entryNames?: string[]
   status: string
   isPublic: boolean
   href: string
@@ -170,6 +171,44 @@ export function getLinkableClubCompetitions(
       : ''
   if (!competitionType) return []
   return competitions.filter((competition) => competition.type === competitionType && !competition.clubGroupId)
+}
+
+export function getClubCompetitionRosterHandoff(
+  group: Pick<ClubGroup, 'linkedCompetitionId' | 'linkedCompetitionType' | 'memberIds'>,
+  competitions: ClubLinkedCompetition[],
+  memberships: ClubMembership[],
+) {
+  const competition = competitions.find((item) => item.id === group.linkedCompetitionId && item.type === group.linkedCompetitionType)
+  if (!competition || competition.entrantType !== 'players') return null
+  const activeMembershipIds = new Set(memberships.filter((membership) => membership.status === 'active').map((membership) => membership.id))
+  const eligibleMemberIds = Array.from(new Set(group.memberIds.filter((membershipId) => activeMembershipIds.has(membershipId))))
+  const connectedMemberIds = new Set(competition.memberIds)
+  const missingMemberIds = eligibleMemberIds.filter((membershipId) => !connectedMemberIds.has(membershipId))
+  return {
+    competition,
+    eligibleMemberIds,
+    missingMemberIds,
+    connectedCount: eligibleMemberIds.length - missingMemberIds.length,
+  }
+}
+
+export function getClubCompetitionTeamHandoff(
+  group: Pick<ClubGroup, 'linkedCompetitionId' | 'linkedCompetitionType'>,
+  competitions: ClubLinkedCompetition[],
+  groups: Array<Pick<ClubGroup, 'id' | 'name' | 'isActive' | 'groupType' | 'memberIds'>>,
+) {
+  const competition = competitions.find((item) => item.id === group.linkedCompetitionId && item.type === group.linkedCompetitionType)
+  if (!competition || competition.entrantType !== 'teams') return null
+  const normalizeName = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ')
+  const enteredNames = new Set((competition.entryNames ?? []).map(normalizeName))
+  const eligibleTeams = groups.filter((item) => item.isActive && item.groupType === 'team')
+  const missingTeams = eligibleTeams.filter((team) => !enteredNames.has(normalizeName(team.name)))
+  return {
+    competition,
+    eligibleTeams,
+    missingTeams,
+    connectedCount: eligibleTeams.length - missingTeams.length,
+  }
 }
 
 export type ClubWorkspaceData = {
