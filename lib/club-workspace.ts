@@ -79,6 +79,9 @@ export type ClubGroup = {
   launchHandoffCompletedAt: string
   clinicSessionCount: number
   nextClinicSessionAt: string
+  teamRosterCount: number
+  teamMatchCount: number
+  nextTeamMatchAt: string
   updatedAt: string
 }
 
@@ -345,9 +348,35 @@ export function getClubProgramLaunchAction(
   }
 }
 
-export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'clinicSessionCount' | 'launchHandoffCompletedAt'>) {
+export function getClubProgramReadinessAction(
+  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'> & Partial<Pick<ClubGroup, 'teamRosterCount' | 'teamMatchCount'>>,
+  club: Pick<Club, 'id' | 'name' | 'slug'>,
+): ClubProgramLaunchAction {
+  if (group.groupType !== 'team') return getClubProgramLaunchAction(group, club)
+
+  const returnTo = `/clubs?${new URLSearchParams({ clubId: club.id, tab: 'home' }).toString()}`
+  if (!group.teamRosterCount) return {
+    title: `${group.name} needs its Player Roster.`,
+    detail: 'Import the TennisLink Player Roster to connect players, ratings, phone numbers, and email addresses.',
+    label: 'Add Player Roster',
+    href: `/data-assist?${new URLSearchParams({ type: 'team_summary', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
+    syncCoachRoster: false,
+  }
+  if (!group.teamMatchCount) return {
+    title: `${group.name} needs its schedule.`,
+    detail: 'Import the TennisLink Match Schedule so the team sees every match and what comes next.',
+    label: 'Add team schedule',
+    href: `/data-assist?${new URLSearchParams({ type: 'schedule', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
+    syncCoachRoster: false,
+  }
+  return getClubProgramLaunchAction(group, club)
+}
+
+export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'launchHandoffCompletedAt'> & Partial<Pick<ClubGroup, 'clinicSessionCount' | 'teamRosterCount' | 'teamMatchCount'>>) {
   if (!group.isActive || !group.memberIds.length || group.reviewMemberIds.length) return false
-  return group.groupType === 'clinic' ? group.clinicSessionCount === 0 : !group.launchHandoffCompletedAt
+  if (group.groupType === 'clinic') return group.clinicSessionCount === 0
+  if (group.groupType === 'team') return group.teamRosterCount === 0 || group.teamMatchCount === 0
+  return !group.launchHandoffCompletedAt
 }
 
 export function getClubInviteLanding(
@@ -515,6 +544,9 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     launchHandoffCompletedAt: cleanClubText(row.launch_handoff_completed_at, 80),
     clinicSessionCount: Math.max(0, Number(row.clinic_session_count) || 0),
     nextClinicSessionAt: cleanClubText(row.next_clinic_session_at, 80),
+    teamRosterCount: Math.max(0, Number(row.team_roster_count) || 0),
+    teamMatchCount: Math.max(0, Number(row.team_match_count) || 0),
+    nextTeamMatchAt: cleanClubText(row.next_team_match_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

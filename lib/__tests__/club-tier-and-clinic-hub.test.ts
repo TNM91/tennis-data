@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getClubProgramLaunchAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
+import { getClubProgramLaunchAction, getClubProgramReadinessAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -309,5 +309,37 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Schedule ready')
     expect(club).toContain('Schedule not added')
     expect(club).toContain('Next session')
+  })
+
+  it('keeps team setup open until the Player Roster and schedule exist', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const clubIdentity = { id: 'club-1', name: 'Vetta Racquet Sports', slug: 'vetta' }
+    const teamState = {
+      id: 'team-1',
+      name: 'Vetta 4.0',
+      groupType: 'team' as const,
+      isActive: true,
+      memberIds: ['player-1'],
+      reviewMemberIds: [],
+      launchHandoffCompletedAt: '2026-08-08T10:00:00.000Z',
+      teamRosterCount: 0,
+      teamMatchCount: 0,
+    }
+
+    expect(getClubProgramReadinessAction(teamState, clubIdentity).label).toBe('Add Player Roster')
+    expect(getClubProgramReadinessAction({ ...teamState, teamRosterCount: 12 }, clubIdentity).label).toBe('Add team schedule')
+    expect(getClubProgramReadinessAction({ ...teamState, teamRosterCount: 12, teamMatchCount: 8 }, clubIdentity).label).toBe('Open Team Hub')
+    expect(needsClubProgramLaunch(teamState)).toBe(true)
+    expect(needsClubProgramLaunch({ ...teamState, teamRosterCount: 12 })).toBe(true)
+    expect(needsClubProgramLaunch({ ...teamState, teamRosterCount: 12, teamMatchCount: 8 })).toBe(false)
+    expect(clubRoute).toContain("from('team_roster_members')")
+    expect(clubRoute).toContain("from('matches')")
+    expect(clubRoute).toContain(".is('line_number', null)")
+    expect(clubRoute).toContain('teamRosterCount: teamReadiness.rosterCount')
+    expect(clubRoute).toContain('nextTeamMatchAt: teamReadiness.nextAt')
+    expect(club).toContain('Player Roster not connected')
+    expect(club).toContain('Team ready')
+    expect(club).toContain('Next match')
   })
 })

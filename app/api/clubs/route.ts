@@ -70,6 +70,8 @@ export async function GET(request: Request) {
 
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
   const clinicGroupIds = groups.filter((group) => group.groupType === 'clinic').map((group) => group.id)
+  const teamGroups = groups.filter((group) => group.groupType === 'team')
+  const normalizedTeamNames = Array.from(new Set(teamGroups.flatMap((group) => getTeamNameKeys(group.name))))
   const canReadRenewals = isClubManager(currentMembership.roles)
   const individualLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
     .filter((row) => row.league_format === 'individual')
@@ -79,7 +81,7 @@ export async function GET(request: Request) {
     .filter((row) => row.entrant_type !== 'teams')
     .map((row) => cleanClubText(row.id))
     .filter(Boolean)
-  const [groupMemberResult, renewalResult, leagueEntryResult, tournamentEntryResult, clinicSessionResult] = await Promise.all([
+  const [groupMemberResult, renewalResult, leagueEntryResult, tournamentEntryResult, clinicSessionResult, teamRosterResult] = await Promise.all([
     groups.length
       ? auth.supabase.from('club_group_members').select('group_id,membership_id,status').in('group_id', groups.map((group) => group.id)).neq('status', 'inactive')
       : Promise.resolve({ data: [], error: null }),
@@ -95,10 +97,35 @@ export async function GET(request: Request) {
     clinicGroupIds.length
       ? auth.supabase.from('club_clinic_sessions').select('group_id,starts_at,ends_at,status').in('group_id', clinicGroupIds).neq('status', 'canceled')
       : Promise.resolve({ data: [], error: null }),
+    normalizedTeamNames.length
+      ? auth.supabase.from('team_roster_members').select('normalized_team_name,team_name,player_id').in('normalized_team_name', normalizedTeamNames).limit(5000)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  const assignmentError = [groupMemberResult.error, renewalResult.error, leagueEntryResult.error, tournamentEntryResult.error, clinicSessionResult.error].find(Boolean)
+  const assignmentError = [groupMemberResult.error, renewalResult.error, leagueEntryResult.error, tournamentEntryResult.error, clinicSessionResult.error, teamRosterResult.error].find(Boolean)
   if (assignmentError) return clubDatabaseError(assignmentError.message)
   const groupMemberRows = (groupMemberResult.data ?? []) as Record<string, unknown>[]
+
+  const rosterRowsByTeam = new Map<string, Record<string, unknown>[]>()
+  for (const row of (teamRosterResult.data ?? []) as Record<string, unknown>[]) {
+    const normalizedName = cleanClubText(row.normalized_team_name)
+    if (normalizedName) rosterRowsByTeam.set(normalizedName, [...(rosterRowsByTeam.get(normalizedName) ?? []), row])
+  }
+  const getTeamRosterRows = (teamName: string) => getTeamNameKeys(teamName).flatMap((key) => rosterRowsByTeam.get(key) ?? [])
+  const teamMatchResults = await Promise.all(teamGroups.map(async (group) => {
+    const rosterTeamName = cleanClubText(getTeamRosterRows(group.name)[0]?.team_name)
+    const teamName = rosterTeamName || group.name
+    const safeTeamName = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const result = await auth.supabase
+      .from('matches')
+      .select('match_date')
+      .or(`home_team.eq."${safeTeamName}",away_team.eq."${safeTeamName}"`)
+      .is('line_number', null)
+      .order('match_date', { ascending: true })
+      .limit(1000)
+    return { groupId: group.id, result }
+  }))
+  const teamMatchError = teamMatchResults.map(({ result }) => result.error).find(Boolean)
+  if (teamMatchError) return clubDatabaseError(teamMatchError.message)
 
   const memberIdsByGroup = new Map<string, string[]>()
   const reviewMemberIdsByGroup = new Map<string, string[]>()
@@ -130,6 +157,15 @@ export async function GET(request: Request) {
     const endsAtTime = new Date(endsAt).getTime()
     if (startsAt && Number.isFinite(startsAtTime) && Number.isFinite(endsAtTime) && endsAtTime >= now && (!current.nextAt || startsAtTime < new Date(current.nextAt).getTime())) current.nextAt = startsAt
     clinicScheduleByGroup.set(groupId, current)
+  }
+  const teamReadinessByGroup = new Map<string, { rosterCount: number; matchCount: number; nextAt: string }>()
+  const today = new Date().toISOString().slice(0, 10)
+  for (const group of teamGroups) {
+    const rosterRows = getTeamRosterRows(group.name)
+    const rosterCount = new Set(rosterRows.map((row) => cleanClubText(row.player_id)).filter(Boolean)).size
+    const matchRows = (teamMatchResults.find((item) => item.groupId === group.id)?.result.data ?? []) as Record<string, unknown>[]
+    const nextAt = matchRows.map((row) => cleanClubText(row.match_date, 80)).find((matchDate) => matchDate >= today) ?? ''
+    teamReadinessByGroup.set(group.id, { rosterCount, matchCount: matchRows.length, nextAt })
   }
 
   const memberIdsByLeague = new Map<string, string[]>()
@@ -180,6 +216,7 @@ export async function GET(request: Request) {
       groups: groups.map((group) => {
         const renewalCounts = renewalCountsByGroup.get(group.id) ?? { pending: 0, confirmed: 0, declined: 0 }
         const clinicSchedule = clinicScheduleByGroup.get(group.id) ?? { count: 0, nextAt: '' }
+        const teamReadiness = teamReadinessByGroup.get(group.id) ?? { rosterCount: 0, matchCount: 0, nextAt: '' }
         return {
           ...group,
           memberIds: memberIdsByGroup.get(group.id) ?? [],
@@ -189,6 +226,9 @@ export async function GET(request: Request) {
           renewalDeclinedCount: renewalCounts.declined,
           clinicSessionCount: clinicSchedule.count,
           nextClinicSessionAt: clinicSchedule.nextAt,
+          teamRosterCount: teamReadiness.rosterCount,
+          teamMatchCount: teamReadiness.matchCount,
+          nextTeamMatchAt: teamReadiness.nextAt,
         }
       }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),
@@ -248,4 +288,10 @@ function clubDatabaseError(message: string) {
     },
     { status: 500 },
   )
+}
+
+function getTeamNameKeys(value: unknown) {
+  const normalized = cleanClubText(value).replace(/\s+/g, ' ').toLowerCase()
+  if (!normalized) return []
+  return Array.from(new Set([normalized, normalized.replace(/\s*\/\s*/g, '/')]))
 }
