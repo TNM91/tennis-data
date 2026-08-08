@@ -207,10 +207,10 @@ export default function DataBallHero() {
           />
 
           <Image
-            src="/tiq/logo/tiq-mark-light.png"
+            src="/brand/web/header-iq-compact.png"
             alt="TenAceIQ"
-            width={1800}
-            height={844}
+            width={1552}
+            height={1614}
             priority
             style={{
               width: `${ballSize}px`,

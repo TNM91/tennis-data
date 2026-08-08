@@ -318,9 +318,12 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain("paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments'")
   })
 
-  it('keeps mobile universal search actionable in one compact row', () => {
+  it('keeps default mobile search compact while giving the homepage search breathing room', () => {
     expect(universalSearchSource).toContain("'minmax(0, 1fr) minmax(78px, auto)'")
-    expect(universalSearchSource).toContain('gap: isMobile ? 7 : 10')
+    expect(universalSearchSource).toContain('isMobile && stackOnMobile')
+    expect(universalSearchSource).toContain("? 'minmax(0, 1fr)'")
+    expect(universalSearchSource).toContain('gap: 10')
+    expect(commandCenterSource).toContain('stackOnMobile={searchCompact}')
     expect(styleBlock(universalSearchSource, 'mobileInputStyle')).toContain('minHeight: 48')
     expect(styleBlock(universalSearchSource, 'mobileButtonStyle')).toContain('minHeight: 48')
     expect(universalSearchSource).toContain('aria-label="Search TenAceIQ"')

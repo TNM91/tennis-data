@@ -6,23 +6,31 @@ const root = process.cwd()
 
 const sourceRoots = ['app', 'components', 'lib', 'public', 'docs']
 const textFilePattern = /\.(css|html|json|md|mjs|ts|tsx|txt|webmanifest)$/i
-const allowedLegacyLogoRefs = new Set([
-  '/tenaceiq/logos/tenaceiq-brand-preview.png',
-  '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
-  '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
-  '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
-  '/tenaceiq/logos/tenaceiq-symbol.svg',
-  '/tenaceiq/logos/tenaceiq-social-preview.png',
-])
-
 const lockedAssets = [
   'public/tiq/courts/tiq-court-master.png',
-  'public/tiq/logo/tiq-lockup-light.png',
-  'public/tiq/logo/tiq-lockup-dark.png',
-  'public/tiq/logo/tiq-q-icon-dark.png',
-  'public/tiq/logo/tiq-app-icon.png',
-  'public/tiq/logo/tiq-mark-dark.png',
-  'public/tiq/logo/tiq-mark-light.png',
+  'public/brand/icons/app-icon-1024.png',
+  'public/brand/icons/apple-touch-icon.png',
+  'public/brand/icons/favicon-256.png',
+  'public/brand/icons/favicon-512.png',
+  'public/brand/icons/favicon.ico',
+  'public/brand/icons/pwa-192.png',
+  'public/brand/icons/pwa-512.png',
+  'public/brand/logos/tenaceiq-full-black.png',
+  'public/brand/logos/tenaceiq-full-for-light-bg.png',
+  'public/brand/logos/tenaceiq-full-navy.jpg',
+  'public/brand/logos/tenaceiq-full-transparent.png',
+  'public/brand/logos/tenaceiq-full-white.png',
+  'public/brand/logos/tenaceiq-iq-black.png',
+  'public/brand/logos/tenaceiq-iq-for-light-bg.png',
+  'public/brand/logos/tenaceiq-iq-navy.jpg',
+  'public/brand/logos/tenaceiq-iq-transparent.png',
+  'public/brand/logos/tenaceiq-iq-white.png',
+  'public/brand/social/og-image-1200x630.png',
+  'public/brand/social/social-profile-1080.png',
+  'public/brand/web/footer-logo-dark-bg.png',
+  'public/brand/web/footer-logo-light-bg.png',
+  'public/brand/web/header-iq-compact.png',
+  'public/brand/web/header-logo-transparent.png',
 ]
 
 function textFiles(dir: string): string[] {
@@ -52,8 +60,8 @@ function readSourceFiles() {
     }))
 }
 
-describe('TIQ locked tactical assets', () => {
-  it('keeps every approved court and logo asset present in public/tiq', () => {
+describe('TenAceIQ locked brand assets', () => {
+  it('keeps every approved court and production brand asset present', () => {
     for (const asset of lockedAssets) {
       const path = join(root, asset)
       expect(existsSync(path), asset).toBe(true)
@@ -69,21 +77,21 @@ describe('TIQ locked tactical assets', () => {
     expect(boardSource).toContain('fill priority')
   })
 
-  it('keeps legacy TenAceIQ logo-folder references out of source except the restored nav and social previews', () => {
+  it('keeps obsolete TenAceIQ logo references out of source', () => {
     const offenders: string[] = []
-    const legacyLogoPattern = /\/tenaceiq\/logos\/[^"'`\s),]+/g
+    const legacyLogoPattern = /\/(?:tenaceiq\/logos|tiq\/logo)\/[^"'`\s),]+/g
 
     for (const file of readSourceFiles()) {
       const matches = file.source.match(legacyLogoPattern) ?? []
       for (const match of matches) {
-        if (!allowedLegacyLogoRefs.has(match)) offenders.push(`${file.path}: ${match}`)
+        offenders.push(`${file.path}: ${match}`)
       }
     }
 
     expect(offenders).toEqual([])
   })
 
-  it('keeps tactical UI on the refreshed TIQ logo system', () => {
+  it('keeps tactical UI on the approved production brand system', () => {
     const tacticalSources = [
       'components/tactical/TiqTacticalStudio.tsx',
       'components/tactical/TiqToolbar.tsx',
@@ -92,25 +100,27 @@ describe('TIQ locked tactical assets', () => {
       'app/components/TiqLoader.tsx',
     ].map((path) => readFileSync(join(root, path), 'utf8')).join('\n')
 
-    expect(tacticalSources).toContain('/tiq/logo/tiq-app-icon.png')
-    expect(tacticalSources).toContain('/tiq/logo/tiq-lockup-light.png')
+    expect(tacticalSources).toContain('/brand/icons/app-icon-1024.png')
+    expect(tacticalSources).toContain('/brand/web/header-logo-transparent.png')
     expect(tacticalSources).not.toContain('tenaceiq-q-icon.svg')
     expect(tacticalSources).not.toContain('tenaceiq-app-icon.svg')
   })
 
-  it('keeps the restored nav wordmark scoped to the site header brand component', () => {
-    const offenders = readSourceFiles()
-      .filter((file) => file.path !== 'app/components/brand-wordmark.tsx')
-      .flatMap((file) => {
-        const matches = file.source.match(/\/tenaceiq\/logos\/tenaceiq-(primary-horizontal(?:-reverse)?|symbol(?:-reverse)?)\.svg/g) ?? []
-        return matches.map((match) => `${file.path}: ${match}`)
-      })
-
+  it('uses the approved header, mobile, footer, and light-background variants', () => {
     const brandSource = readFileSync(join(root, 'app/components/brand-wordmark.tsx'), 'utf8')
     const headerSource = readFileSync(join(root, 'app/components/site-header.tsx'), 'utf8')
 
-    expect(offenders).toEqual([])
-    expect(brandSource).toContain('legacyNav')
-    expect(headerSource).toContain('<BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />')
+    expect(brandSource).toContain('/brand/web/header-logo-transparent.png')
+    expect(brandSource).toContain('/brand/web/header-iq-compact.png')
+    expect(brandSource).toContain('/brand/web/footer-logo-dark-bg.png')
+    expect(brandSource).toContain('/brand/web/footer-logo-light-bg.png')
+    expect(brandSource).toContain('/brand/logos/tenaceiq-full-for-light-bg.png')
+    expect(brandSource).toContain('/brand/logos/tenaceiq-iq-for-light-bg.png')
+    expect(brandSource).toContain("objectFit: 'contain'")
+    expect(brandSource).not.toMatch(/filter|rotate|skew|boxShadow|borderRadius/)
+    expect(brandSource).toContain('getImageProps')
+    expect(brandSource).toContain('media="(min-width: 820px)"')
+    expect(brandSource).toContain('media="(max-width: 819px)"')
+    expect(headerSource).toContain('<BrandWordmark responsiveHeader />')
   })
 })

@@ -189,10 +189,12 @@ export default function UniversalSearch({
   compact = false,
   placeholder = 'Search a player, team, league, coach, tournament, or tennis resource',
   showResults = true,
+  stackOnMobile = false,
 }: {
   compact?: boolean
   placeholder?: string
   showResults?: boolean
+  stackOnMobile?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [activeGroup, setActiveGroup] = useState<SearchGroup | 'All'>('All')
@@ -305,7 +307,7 @@ export default function UniversalSearch({
 
   return (
     <div style={searchShellStyle}>
-      <form action="/explore/search" method="get" onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile)}>
+      <form action="/explore/search" method="get" onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile, stackOnMobile)}>
         <label htmlFor={`tiq-universal-search-${searchId}`} style={srOnlyStyle}>
           Search tennis
         </label>
@@ -486,10 +488,14 @@ const searchShellStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const formStyle = (isMobile: boolean): CSSProperties => ({
+const formStyle = (isMobile: boolean, stackOnMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(78px, auto)' : 'minmax(0, 1fr) minmax(120px, auto)',
-  gap: isMobile ? 7 : 10,
+  gridTemplateColumns: isMobile && stackOnMobile
+    ? 'minmax(0, 1fr)'
+    : isMobile
+      ? 'minmax(0, 1fr) minmax(78px, auto)'
+      : 'minmax(0, 1fr) minmax(120px, auto)',
+  gap: 10,
   minWidth: 0,
 })
 

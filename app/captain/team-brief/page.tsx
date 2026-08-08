@@ -648,8 +648,8 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-92px, -7vw, -34px)',
   bottom: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

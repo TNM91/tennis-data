@@ -358,6 +358,7 @@ export function CommandHero({
               compact={searchCompact}
               placeholder={searchPlaceholder}
               showResults={showSearchResults}
+              stackOnMobile={searchCompact}
             />
           ) : null}
           {(primary || secondary) ? (
@@ -826,10 +827,9 @@ const heroCopyBrandMarkStyle: CSSProperties = {
   right: 'clamp(14px, 4vw, 36px)',
   bottom: 'clamp(12px, 4vw, 34px)',
   width: 'min(58%, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.12,
-  mixBlendMode: 'screen',
   pointerEvents: 'none',
   zIndex: 0,
 }
@@ -865,10 +865,9 @@ const heroPanelBrandMarkStyle: CSSProperties = {
   right: 'clamp(14px, 3vw, 28px)',
   top: 'clamp(26px, 5vw, 58px)',
   width: 'min(70%, 430px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.2,
-  mixBlendMode: 'screen',
   pointerEvents: 'none',
   zIndex: 0,
 }
