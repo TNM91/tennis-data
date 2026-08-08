@@ -199,6 +199,19 @@
 .inviteMismatch { border-color: rgba(255, 184, 91, .42); }
 .inviteMismatch .primary { justify-self: start; margin-top: 4px; }
 .renewalDecision { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.renewalTask {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid rgba(255, 194, 87, .42);
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(255, 194, 87, .1), color-mix(in srgb, var(--club-color, var(--brand-green)) 7%, var(--shell-chip-bg)));
+}
+.renewalTask h3 { margin: 4px 0 5px; font-size: clamp(19px, 3vw, 23px); }
+.renewalTask p { margin: 0; color: var(--shell-copy-muted); line-height: 1.45; }
+.renewalTaskActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .guidedBanner > div { display: grid; gap: 4px; min-width: 0; }
 .guidedBanner strong { font-size: 18px; overflow-wrap: anywhere; }
 .guidedBanner span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
@@ -376,6 +389,9 @@
   .inviteAccountCheck { grid-template-columns: 1fr; }
   .inviteShell > .primary, .inviteMismatch .primary { width: 100%; }
   .renewalDecision { grid-template-columns: 1fr; }
+  .renewalTask { grid-template-columns: 1fr; }
+  .renewalTaskActions { justify-content: flex-start; }
+  .renewalTaskActions > button { flex: 1 1 150px; }
   .renewalBackdrop { align-items: end; padding: 8px; }
   .renewalSheet { max-height: 88vh; border-radius: 16px 16px 10px 10px; padding: 14px; }
   .renewalRow { grid-template-columns: minmax(0, 1fr) auto; }
