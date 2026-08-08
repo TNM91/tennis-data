@@ -1,5 +1,6 @@
 import { getClubApiAuth } from '@/lib/club-api-auth'
 import {
+  buildClubCoachStudentLinkId,
   cleanClubMultiline,
   cleanClubText,
   createClubSlug,
@@ -68,9 +69,11 @@ export async function GET(request: Request) {
   const firstError = [memberResult.error, groupResult.error, templateResult.error, inviteResult.error, leagueResult.error, tournamentResult.error].find(Boolean)
   if (firstError) return clubDatabaseError(firstError.message)
 
+  const workspaceMemberships = ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow)
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
   const clinicGroupIds = groups.filter((group) => group.groupType === 'clinic').map((group) => group.id)
   const teamGroups = groups.filter((group) => group.groupType === 'team')
+  const coachGroups = groups.filter((group) => group.groupType === 'camp' || group.groupType === 'development_group')
   const normalizedTeamNames = Array.from(new Set(teamGroups.flatMap((group) => getTeamNameKeys(group.name))))
   const canReadRenewals = isClubManager(currentMembership.roles)
   const individualLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
@@ -111,21 +114,49 @@ export async function GET(request: Request) {
     if (normalizedName) rosterRowsByTeam.set(normalizedName, [...(rosterRowsByTeam.get(normalizedName) ?? []), row])
   }
   const getTeamRosterRows = (teamName: string) => getTeamNameKeys(teamName).flatMap((key) => rosterRowsByTeam.get(key) ?? [])
-  const teamMatchResults = await Promise.all(teamGroups.map(async (group) => {
-    const rosterTeamName = cleanClubText(getTeamRosterRows(group.name)[0]?.team_name)
-    const teamName = rosterTeamName || group.name
-    const safeTeamName = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-    const result = await auth.supabase
-      .from('matches')
-      .select('match_date')
-      .or(`home_team.eq."${safeTeamName}",away_team.eq."${safeTeamName}"`)
-      .is('line_number', null)
-      .order('match_date', { ascending: true })
-      .limit(1000)
-    return { groupId: group.id, result }
-  }))
+  const coachPlayerMembershipIds = new Set(workspaceMemberships
+    .filter((membership) => membership.roles.includes('player') && membership.userId !== auth.userId)
+    .map((membership) => membership.id))
+  const coachExpectedLinkIdsByGroup = new Map<string, string[]>()
+  for (const group of coachGroups) {
+    const linkIds = groupMemberRows
+      .filter((row) => row.status === 'active' && cleanClubText(row.group_id) === group.id && coachPlayerMembershipIds.has(cleanClubText(row.membership_id)))
+      .map((row) => buildClubCoachStudentLinkId(club.id, cleanClubText(row.membership_id)))
+    coachExpectedLinkIdsByGroup.set(group.id, Array.from(new Set(linkIds)))
+  }
+  const coachExpectedLinkIds = Array.from(new Set(Array.from(coachExpectedLinkIdsByGroup.values()).flat()))
+  const [teamMatchResults, coachLinkResult] = await Promise.all([
+    Promise.all(teamGroups.map(async (group) => {
+      const rosterTeamName = cleanClubText(getTeamRosterRows(group.name)[0]?.team_name)
+      const teamName = rosterTeamName || group.name
+      const safeTeamName = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+      const result = await auth.supabase
+        .from('matches')
+        .select('match_date')
+        .or(`home_team.eq."${safeTeamName}",away_team.eq."${safeTeamName}"`)
+        .is('line_number', null)
+        .order('match_date', { ascending: true })
+        .limit(1000)
+      return { groupId: group.id, result }
+    })),
+    coachExpectedLinkIds.length
+      ? auth.supabase.from('coach_player_links').select('id').in('id', coachExpectedLinkIds).limit(5000)
+      : Promise.resolve({ data: [], error: null }),
+  ])
   const teamMatchError = teamMatchResults.map(({ result }) => result.error).find(Boolean)
   if (teamMatchError) return clubDatabaseError(teamMatchError.message)
+  if (coachLinkResult.error) return clubDatabaseError(coachLinkResult.error.message)
+  const linkedCoachLinkIds = new Set(((coachLinkResult.data ?? []) as Record<string, unknown>[]).map((row) => cleanClubText(row.id)).filter(Boolean))
+  const coachAssignmentResult = linkedCoachLinkIds.size
+    ? await auth.supabase
+        .from('coach_assignments')
+        .select('student_link_id,status,assignment_json')
+        .in('student_link_id', Array.from(linkedCoachLinkIds))
+        .in('status', ['assigned', 'completed'])
+        .limit(5000)
+    : { data: [], error: null }
+  if (coachAssignmentResult.error) return clubDatabaseError(coachAssignmentResult.error.message)
+  const coachAssignmentRows = (coachAssignmentResult.data ?? []) as Record<string, unknown>[]
 
   const memberIdsByGroup = new Map<string, string[]>()
   const reviewMemberIdsByGroup = new Map<string, string[]>()
@@ -166,6 +197,29 @@ export async function GET(request: Request) {
     const matchRows = (teamMatchResults.find((item) => item.groupId === group.id)?.result.data ?? []) as Record<string, unknown>[]
     const nextAt = matchRows.map((row) => cleanClubText(row.match_date, 80)).find((matchDate) => matchDate >= today) ?? ''
     teamReadinessByGroup.set(group.id, { rosterCount, matchCount: matchRows.length, nextAt })
+  }
+  const coachReadinessByGroup = new Map<string, { expectedCount: number; linkedCount: number; plannedCount: number; nextAt: string; actionPlayerLinkId: string }>()
+  for (const group of coachGroups) {
+    const expectedLinkIds = coachExpectedLinkIdsByGroup.get(group.id) ?? []
+    const linkedLinkIds = expectedLinkIds.filter((linkId) => linkedCoachLinkIds.has(linkId))
+    const assignmentRows = coachAssignmentRows.filter((row) => linkedLinkIds.includes(cleanClubText(row.student_link_id)) && coachAssignmentMatchesGroup(row.assignment_json, group.id))
+    const plannedLinkIds = new Set(assignmentRows.map((row) => cleanClubText(row.student_link_id)).filter(Boolean))
+    const nextAt = assignmentRows
+      .filter((row) => cleanClubText(row.status) === 'assigned')
+      .map((row) => getCoachLessonDateTime(row.assignment_json))
+      .filter((lessonDateTime) => lessonDateTime && new Date(lessonDateTime).getTime() >= now)
+      .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())[0] ?? ''
+    const actionPlayerLinkId = expectedLinkIds.find((linkId) => !linkedCoachLinkIds.has(linkId))
+      ?? linkedLinkIds.find((linkId) => !plannedLinkIds.has(linkId))
+      ?? linkedLinkIds[0]
+      ?? ''
+    coachReadinessByGroup.set(group.id, {
+      expectedCount: expectedLinkIds.length,
+      linkedCount: linkedLinkIds.length,
+      plannedCount: plannedLinkIds.size,
+      nextAt,
+      actionPlayerLinkId,
+    })
   }
 
   const memberIdsByLeague = new Map<string, string[]>()
@@ -211,12 +265,13 @@ export async function GET(request: Request) {
     workspace: {
       club,
       currentMembership,
-      memberships: ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow),
+      memberships: workspaceMemberships,
       invites: ((inviteResult.data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow),
       groups: groups.map((group) => {
         const renewalCounts = renewalCountsByGroup.get(group.id) ?? { pending: 0, confirmed: 0, declined: 0 }
         const clinicSchedule = clinicScheduleByGroup.get(group.id) ?? { count: 0, nextAt: '' }
         const teamReadiness = teamReadinessByGroup.get(group.id) ?? { rosterCount: 0, matchCount: 0, nextAt: '' }
+        const coachReadiness = coachReadinessByGroup.get(group.id) ?? { expectedCount: 0, linkedCount: 0, plannedCount: 0, nextAt: '', actionPlayerLinkId: '' }
         return {
           ...group,
           memberIds: memberIdsByGroup.get(group.id) ?? [],
@@ -229,6 +284,11 @@ export async function GET(request: Request) {
           teamRosterCount: teamReadiness.rosterCount,
           teamMatchCount: teamReadiness.matchCount,
           nextTeamMatchAt: teamReadiness.nextAt,
+          coachExpectedPlayerCount: coachReadiness.expectedCount,
+          coachLinkedPlayerCount: coachReadiness.linkedCount,
+          coachPlannedPlayerCount: coachReadiness.plannedCount,
+          nextCoachSessionAt: coachReadiness.nextAt,
+          coachActionPlayerLinkId: coachReadiness.actionPlayerLinkId,
         }
       }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),
@@ -294,4 +354,18 @@ function getTeamNameKeys(value: unknown) {
   const normalized = cleanClubText(value).replace(/\s+/g, ' ').toLowerCase()
   if (!normalized) return []
   return Array.from(new Set([normalized, normalized.replace(/\s*\/\s*/g, '/')]))
+}
+
+function coachAssignmentMatchesGroup(value: unknown, groupId: string) {
+  const assignment = getRecord(value)
+  const assignedGroupId = cleanClubText(assignment?.clubGroupId)
+  return !assignedGroupId || assignedGroupId === groupId
+}
+
+function getCoachLessonDateTime(value: unknown) {
+  return cleanClubText(getRecord(value)?.lessonDateTime, 80)
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
 }

@@ -82,6 +82,11 @@ export type ClubGroup = {
   teamRosterCount: number
   teamMatchCount: number
   nextTeamMatchAt: string
+  coachExpectedPlayerCount: number
+  coachLinkedPlayerCount: number
+  coachPlannedPlayerCount: number
+  nextCoachSessionAt: string
+  coachActionPlayerLinkId: string
   updatedAt: string
 }
 
@@ -304,6 +309,10 @@ export function buildClubToolHref(
   return `${path}?${search.toString()}`
 }
 
+export function buildClubCoachStudentLinkId(clubId: string, membershipId: string) {
+  return `club-${cleanClubText(clubId)}-${cleanClubText(membershipId)}`
+}
+
 export function getClubProgramLaunchAction(
   group: Pick<ClubGroup, 'id' | 'name' | 'groupType'>,
   club: Pick<Club, 'id' | 'name' | 'slug'>,
@@ -349,33 +358,81 @@ export function getClubProgramLaunchAction(
 }
 
 export function getClubProgramReadinessAction(
-  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'> & Partial<Pick<ClubGroup, 'teamRosterCount' | 'teamMatchCount'>>,
+  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'> & Partial<Pick<ClubGroup, 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt' | 'coachActionPlayerLinkId'>>,
   club: Pick<Club, 'id' | 'name' | 'slug'>,
 ): ClubProgramLaunchAction {
-  if (group.groupType !== 'team') return getClubProgramLaunchAction(group, club)
+  if (group.groupType === 'team') {
+    const returnTo = `/clubs?${new URLSearchParams({ clubId: club.id, tab: 'home' }).toString()}`
+    if (!group.teamRosterCount) return {
+      title: `${group.name} needs its Player Roster.`,
+      detail: 'Import the TennisLink Player Roster to connect players, ratings, phone numbers, and email addresses.',
+      label: 'Add Player Roster',
+      href: `/data-assist?${new URLSearchParams({ type: 'team_summary', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
+      syncCoachRoster: false,
+    }
+    if (!group.teamMatchCount) return {
+      title: `${group.name} needs its schedule.`,
+      detail: 'Import the TennisLink Match Schedule so the team sees every match and what comes next.',
+      label: 'Add team schedule',
+      href: `/data-assist?${new URLSearchParams({ type: 'schedule', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
+      syncCoachRoster: false,
+    }
+  }
 
-  const returnTo = `/clubs?${new URLSearchParams({ clubId: club.id, tab: 'home' }).toString()}`
-  if (!group.teamRosterCount) return {
-    title: `${group.name} needs its Player Roster.`,
-    detail: 'Import the TennisLink Player Roster to connect players, ratings, phone numbers, and email addresses.',
-    label: 'Add Player Roster',
-    href: `/data-assist?${new URLSearchParams({ type: 'team_summary', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
-    syncCoachRoster: false,
+  if (group.groupType === 'camp' || group.groupType === 'development_group') {
+    const expectedPlayers = group.coachExpectedPlayerCount ?? 0
+    const linkedPlayers = group.coachLinkedPlayerCount ?? 0
+    const plannedPlayers = group.coachPlannedPlayerCount ?? 0
+    const coachContext = {
+      source: 'club-program-launch',
+      groupId: group.id,
+      program: group.name,
+      ...(group.coachActionPlayerLinkId ? { studentLinkId: group.coachActionPlayerLinkId } : {}),
+    }
+    const coachHref = `${buildClubToolHref('/coach', club, coachContext)}#coach-lesson-frame`
+    if (linkedPlayers < expectedPlayers) {
+      const missingPlayers = expectedPlayers - linkedPlayers
+      return {
+        title: `${group.name} needs ${missingPlayers} ${missingPlayers === 1 ? 'player' : 'players'} in Coach Hub.`,
+        detail: 'Connect the program roster once so coaches can assign work and keep each player moving.',
+        label: 'Connect Coach roster',
+        href: `${buildClubToolHref('/coach', club, { ...coachContext, firstAssignment: '1' })}#coach-lesson-frame`,
+        syncCoachRoster: true,
+      }
+    }
+    if (plannedPlayers < expectedPlayers) {
+      const missingPlans = expectedPlayers - plannedPlayers
+      return {
+        title: `${missingPlans} ${missingPlans === 1 ? 'player needs' : 'players need'} a development plan.`,
+        detail: 'Give each player one clear focus and the work to complete before the next session.',
+        label: 'Add player plans',
+        href: `${buildClubToolHref('/coach', club, { ...coachContext, firstAssignment: '1' })}#coach-lesson-frame`,
+        syncCoachRoster: false,
+      }
+    }
+    if (!group.nextCoachSessionAt) return {
+      title: `${group.name} needs its next session.`,
+      detail: 'Add a lesson date so coaches and players see what comes next on their calendars.',
+      label: 'Schedule next session',
+      href: coachHref,
+      syncCoachRoster: false,
+    }
   }
-  if (!group.teamMatchCount) return {
-    title: `${group.name} needs its schedule.`,
-    detail: 'Import the TennisLink Match Schedule so the team sees every match and what comes next.',
-    label: 'Add team schedule',
-    href: `/data-assist?${new URLSearchParams({ type: 'schedule', help: '1', context: 'Club Team', returnTo }).toString()}#upload`,
-    syncCoachRoster: false,
-  }
+
   return getClubProgramLaunchAction(group, club)
 }
 
-export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'launchHandoffCompletedAt'> & Partial<Pick<ClubGroup, 'clinicSessionCount' | 'teamRosterCount' | 'teamMatchCount'>>) {
+export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'launchHandoffCompletedAt'> & Partial<Pick<ClubGroup, 'clinicSessionCount' | 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt'>>) {
   if (!group.isActive || !group.memberIds.length || group.reviewMemberIds.length) return false
   if (group.groupType === 'clinic') return group.clinicSessionCount === 0
   if (group.groupType === 'team') return group.teamRosterCount === 0 || group.teamMatchCount === 0
+  if (group.groupType === 'camp' || group.groupType === 'development_group') {
+    const expectedPlayers = group.coachExpectedPlayerCount ?? 0
+    if (!expectedPlayers) return false
+    return (group.coachLinkedPlayerCount ?? 0) < expectedPlayers
+      || (group.coachPlannedPlayerCount ?? 0) < expectedPlayers
+      || !group.nextCoachSessionAt
+  }
   return !group.launchHandoffCompletedAt
 }
 
@@ -547,6 +604,11 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     teamRosterCount: Math.max(0, Number(row.team_roster_count) || 0),
     teamMatchCount: Math.max(0, Number(row.team_match_count) || 0),
     nextTeamMatchAt: cleanClubText(row.next_team_match_at, 80),
+    coachExpectedPlayerCount: Math.max(0, Number(row.coach_expected_player_count) || 0),
+    coachLinkedPlayerCount: Math.max(0, Number(row.coach_linked_player_count) || 0),
+    coachPlannedPlayerCount: Math.max(0, Number(row.coach_planned_player_count) || 0),
+    nextCoachSessionAt: cleanClubText(row.next_coach_session_at, 80),
+    coachActionPlayerLinkId: cleanClubText(row.coach_action_player_link_id, 240),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

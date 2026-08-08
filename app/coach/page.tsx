@@ -337,6 +337,8 @@ function CoachContent() {
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubGroupId = searchParams.get('groupId') || ''
+  const requestedClubProgram = searchParams.get('program') || ''
   const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_COACH_SPONSORED_ROLES)
   const canUseCoachWorkflow = access.canUseCoachWorkflow || clubAccess.allowed
   const studentSnapshots = useMemo(() => buildCoachStudentSnapshots(), [])
@@ -1083,6 +1085,13 @@ function CoachContent() {
                     lessonFocus: normalizedLessonFocus || effectiveFocus || effectiveTitle,
                     lessonLocation: normalizedLessonLocation,
                     calendarLayer: 'coach_student_lesson',
+                  }
+                : {}),
+              ...(requestedClubGroupId
+                ? {
+                    clubId: requestedClubId,
+                    clubGroupId: requestedClubGroupId,
+                    clubProgram: requestedClubProgram,
                   }
                 : {}),
               source: 'coach-portal',

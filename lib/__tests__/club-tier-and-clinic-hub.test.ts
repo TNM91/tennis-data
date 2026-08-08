@@ -342,4 +342,45 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Team ready')
     expect(club).toContain('Next match')
   })
+
+  it('keeps coach programs open until players have plans and a next session', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const coachPage = source('app/coach/page.tsx')
+    const coachSyncRoute = source('app/api/clubs/[clubId]/coach-sync/route.ts')
+    const clubIdentity = { id: 'club-1', name: 'Vetta Racquet Sports', slug: 'vetta' }
+    const coachState = {
+      id: 'development-1',
+      name: 'High Performance 14U',
+      groupType: 'development_group' as const,
+      isActive: true,
+      memberIds: ['player-1', 'player-2'],
+      reviewMemberIds: [],
+      launchHandoffCompletedAt: '2026-08-08T10:00:00.000Z',
+      coachExpectedPlayerCount: 2,
+      coachLinkedPlayerCount: 0,
+      coachPlannedPlayerCount: 0,
+      nextCoachSessionAt: '',
+      coachActionPlayerLinkId: 'club-club-1-membership-1',
+    }
+
+    const connectAction = getClubProgramReadinessAction(coachState, clubIdentity)
+    expect(connectAction.label).toBe('Connect Coach roster')
+    expect(connectAction.syncCoachRoster).toBe(true)
+    expect(connectAction.href).toContain('firstAssignment=1')
+    expect(connectAction.href).toContain('studentLinkId=club-club-1-membership-1')
+    expect(getClubProgramReadinessAction({ ...coachState, coachLinkedPlayerCount: 2 }, clubIdentity).label).toBe('Add player plans')
+    expect(getClubProgramReadinessAction({ ...coachState, coachLinkedPlayerCount: 2, coachPlannedPlayerCount: 2 }, clubIdentity).label).toBe('Schedule next session')
+    expect(getClubProgramReadinessAction({ ...coachState, coachLinkedPlayerCount: 2, coachPlannedPlayerCount: 2, nextCoachSessionAt: '2026-08-15T15:00:00.000Z' }, clubIdentity).label).toBe('Open Coach Hub')
+    expect(needsClubProgramLaunch(coachState)).toBe(true)
+    expect(needsClubProgramLaunch({ ...coachState, coachLinkedPlayerCount: 2, coachPlannedPlayerCount: 2, nextCoachSessionAt: '2026-08-15T15:00:00.000Z' })).toBe(false)
+    expect(clubRoute).toContain("from('coach_player_links')")
+    expect(clubRoute).toContain("from('coach_assignments')")
+    expect(clubRoute).toContain('coachExpectedPlayerCount: coachReadiness.expectedCount')
+    expect(clubRoute).toContain('nextCoachSessionAt: coachReadiness.nextAt')
+    expect(coachPage).toContain('clubGroupId: requestedClubGroupId')
+    expect(coachSyncRoute).toContain('buildClubCoachStudentLinkId')
+    expect(club).toContain('Coach plan ready')
+    expect(club).toContain('Next session not added')
+  })
 })

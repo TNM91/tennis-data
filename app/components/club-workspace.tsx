@@ -611,7 +611,8 @@ export default function ClubWorkspace() {
             try {
               const result = await request<{ synced: number }>(`/api/clubs/${workspace.club.id}/coach-sync`, { method: 'POST', body: JSON.stringify({ groupId }) })
               showMessage(result.synced ? `${result.synced} players are ready in Coach Hub.` : 'Add players to this program before opening it in Coach Hub.')
-              if (result.synced) window.location.assign(`/coach?clubId=${encodeURIComponent(workspace.club.id)}&clubName=${encodeURIComponent(workspace.club.name)}`)
+              const group = workspace.groups.find((item) => item.id === groupId)
+              if (result.synced) window.location.assign(`${buildClubToolHref('/coach', workspace.club, { source: 'club-program-card', groupId, program: group?.name ?? '' })}#coach-lesson-frame`)
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'The roster could not be connected.', 'danger')
             } finally { setWorking(false) }
@@ -685,6 +686,7 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const nextLaunchAction = nextLaunchGroup ? getClubProgramReadinessAction(nextLaunchGroup, workspace.club) : null
   const finishingClinicSchedule = Boolean(nextLaunchGroup?.groupType === 'clinic' && nextLaunchGroup.launchHandoffCompletedAt && nextLaunchGroup.clinicSessionCount === 0)
   const finishingTeamSetup = Boolean(nextLaunchGroup?.groupType === 'team')
+  const finishingCoachSetup = Boolean(nextLaunchGroup?.groupType === 'camp' || nextLaunchGroup?.groupType === 'development_group')
 
   async function openRenewalReview(group: ClubGroup) {
     setRenewalReviewGroup(group)
@@ -725,7 +727,7 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => onFillOpenSpots(nextFillGroup.id)}>Fill open spots</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onCompleteRenewalFill(nextFillGroup.id)}>No replacements needed</button></div>
       </section> : null}
       {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && nextLaunchGroup && nextLaunchAction ? <section className={styles.renewalTask} aria-labelledby="launch-program-title">
-        <div><p className={styles.eyebrow}>{finishingClinicSchedule || finishingTeamSetup ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
+        <div><p className={styles.eyebrow}>{finishingClinicSchedule || finishingTeamSetup || finishingCoachSetup ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onLaunchProgram(nextLaunchGroup)}>{working ? 'Opening...' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
       </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
@@ -1244,6 +1246,9 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
           const renewalCount = group.renewalPendingCount + group.renewalConfirmedCount + group.renewalDeclinedCount
           const groupOpenSpotCount = group.renewalFillCompletedAt ? 0 : Math.max(0, group.renewalTargetRosterSize - group.memberIds.length)
           const teamHubHref = buildClubToolHref('/captain', workspace.club, { source: 'club-program-card', groupId: group.id, program: group.name, team: group.name })
+          const coachProgram = group.groupType === 'camp' || group.groupType === 'development_group'
+          const missingCoachLinks = Math.max(0, group.coachExpectedPlayerCount - group.coachLinkedPlayerCount)
+          const missingCoachPlans = Math.max(0, group.coachExpectedPlayerCount - group.coachPlannedPlayerCount)
           return <article id={`club-group-${group.id}`} className={`${styles.card} ${!group.isActive ? styles.archivedCard : ''} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}>
             <div className={styles.cardTop}><h3>{group.name}</h3><span className={group.isActive ? styles.pill : styles.archivePill}>{group.isActive ? getClubGroupTypeLabel(group.groupType) : 'Archived'}</span></div>
             {group.seasonLabel ? <span className={styles.muted}>{group.seasonLabel} · {getClubGroupTypeLabel(group.groupType)}</span> : null}
@@ -1260,6 +1265,12 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && group.groupType === 'team' && group.nextTeamMatchAt ? <span className={styles.muted}>Next match {formatClubProgramDate(group.nextTeamMatchAt, workspace.club.timeZone)}</span> : null}
             {group.isActive && staff && group.groupType === 'team' && !group.teamRosterCount ? <span className={styles.reviewLabel}>Player Roster not connected</span> : null}
             {group.isActive && staff && group.groupType === 'team' && group.teamRosterCount > 0 && !group.teamMatchCount ? <span className={styles.reviewLabel}>Schedule not added</span> : null}
+            {group.isActive && coachProgram && group.coachExpectedPlayerCount > 0 ? <span className={styles.muted}>Coach Hub · {group.coachLinkedPlayerCount} of {group.coachExpectedPlayerCount} players</span> : null}
+            {group.isActive && coachProgram && group.coachExpectedPlayerCount > 0 && !missingCoachLinks && !missingCoachPlans && group.nextCoachSessionAt ? <span className={styles.pill}>Coach plan ready</span> : null}
+            {group.isActive && coachProgram && group.nextCoachSessionAt ? <span className={styles.muted}>Next session {formatClubProgramDate(group.nextCoachSessionAt, workspace.club.timeZone)}</span> : null}
+            {group.isActive && staff && coachProgram && missingCoachLinks > 0 ? <span className={styles.reviewLabel}>{missingCoachLinks} {missingCoachLinks === 1 ? 'player is' : 'players are'} not connected</span> : null}
+            {group.isActive && staff && coachProgram && !missingCoachLinks && missingCoachPlans > 0 ? <span className={styles.reviewLabel}>{missingCoachPlans} {missingCoachPlans === 1 ? 'player needs' : 'players need'} a plan</span> : null}
+            {group.isActive && staff && coachProgram && group.coachExpectedPlayerCount > 0 && !missingCoachLinks && !missingCoachPlans && !group.nextCoachSessionAt ? <span className={styles.reviewLabel}>Next session not added</span> : null}
             {group.isActive && groupOpenSpotCount ? <span className={styles.reviewLabel}>{groupOpenSpotCount} open {groupOpenSpotCount === 1 ? 'spot' : 'spots'}</span> : null}
             {group.isActive && manager && (group.reviewMemberIds.length || renewalCount) ? <button type="button" disabled={working} className={styles.primary} onClick={() => void openRenewals(group)}>{group.renewalsFinalizedAt ? 'View renewal results' : renewalCount ? group.renewalPendingCount ? 'Open renewal messages' : 'Review and finalize' : 'Request player decisions'}</button> : null}
             {group.isActive && manager && groupOpenSpotCount ? <button type="button" className={styles.quietButton} onClick={() => onFillOpenSpots(group.id)}>Fill open spots</button> : null}
@@ -1267,7 +1278,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && group.groupType === 'team' ? <Link className={styles.primary} href={teamHubHref}>Open Team Hub</Link> : null}
             {group.isActive && manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}
             {staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(Array.from(new Set([...group.memberIds, ...group.reviewMemberIds]))) }}>{group.isActive ? renewalCount ? 'Adjust roster manually' : group.reviewMemberIds.length ? 'Review returning players' : 'Manage roster' : 'View archived roster'}</button> : null}
-            {group.isActive && coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}
+            {group.isActive && coachSync && coachProgram ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open Coach Hub</button> : null}
           </article>
         })}
       </div>
