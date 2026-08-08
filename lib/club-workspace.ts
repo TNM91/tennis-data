@@ -193,15 +193,20 @@ export function getClubCompetitionRosterHandoff(
 }
 
 export function getClubCompetitionTeamHandoff(
-  group: Pick<ClubGroup, 'linkedCompetitionId' | 'linkedCompetitionType'>,
+  group: Pick<ClubGroup, 'linkedCompetitionId' | 'linkedCompetitionType' | 'seasonLabel'>,
   competitions: ClubLinkedCompetition[],
-  groups: Array<Pick<ClubGroup, 'id' | 'name' | 'isActive' | 'groupType' | 'memberIds'>>,
+  groups: Array<Pick<ClubGroup, 'id' | 'name' | 'isActive' | 'groupType' | 'seasonLabel' | 'sourceGroupId' | 'memberIds' | 'reviewMemberIds'>>,
 ) {
   const competition = competitions.find((item) => item.id === group.linkedCompetitionId && item.type === group.linkedCompetitionType)
   if (!competition || competition.entrantType !== 'teams') return null
   const normalizeName = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ')
   const enteredNames = new Set((competition.entryNames ?? []).map(normalizeName))
-  const eligibleTeams = groups.filter((item) => item.isActive && item.groupType === 'team')
+  const eligibleTeams = Array.from(new Map(groups
+    .filter((item) => item.isActive && item.groupType === 'team')
+    .filter((item) => !group.seasonLabel || item.seasonLabel === group.seasonLabel)
+    .filter((item) => item.reviewMemberIds.length === 0)
+    .filter((item) => !item.sourceGroupId || item.memberIds.length > 0)
+    .map((item) => [normalizeName(item.name), item])).values())
   const missingTeams = eligibleTeams.filter((team) => !enteredNames.has(normalizeName(team.name)))
   return {
     competition,

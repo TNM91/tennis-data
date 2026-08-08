@@ -7,6 +7,8 @@ export const runtime = 'nodejs'
 const allowedTypes = new Set<ClubGroupType>(['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'])
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,launch_handoff_completed_at,updated_at'
+const leagueRolloverSelect = 'id,club_group_id,league_format,individual_competition_format,team_match_format_id,scoring_system,third_set_rule,league_name,max_weeks,max_match_events,is_public,scheduling_mode,default_match_day,default_match_time,schedule_time_zone,default_facility,scheduling_notes,flight,location_label,photo_url,notes'
+const tournamentRolloverSelect = 'id,club_group_id,name,format,entrant_type,location_label,director_notes,is_public'
 
 export async function POST(request: Request, context: { params: Promise<{ clubId: string }> }) {
   const auth = await getClubApiAuth(request)
@@ -65,7 +67,7 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
     return Response.json({ ok: false, message: 'Club manager access is required to start a new season.' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({})) as { sourceGroupIds?: unknown; seasonLabel?: unknown; copyMembers?: unknown }
+  const body = await request.json().catch(() => ({})) as { sourceGroupIds?: unknown; seasonLabel?: unknown; copyMembers?: unknown; copyCompetitionSetup?: unknown }
   const sourceGroupIds = Array.from(new Set(
     (Array.isArray(body.sourceGroupIds) ? body.sourceGroupIds : [])
       .map((value) => cleanClubText(value))
@@ -73,6 +75,7 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
   )).slice(0, 50)
   const seasonLabel = cleanClubText(body.seasonLabel, 80)
   const copyMembers = body.copyMembers !== false
+  const copyCompetitionSetup = body.copyCompetitionSetup !== false
   if (!sourceGroupIds.length) return Response.json({ ok: false, message: 'Choose at least one program to carry forward.' }, { status: 400 })
   if (seasonLabel.length < 2) return Response.json({ ok: false, message: 'Name the new season.' }, { status: 400 })
 
@@ -88,6 +91,20 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
   const sourceSeasons = Array.from(new Set((sourceGroups ?? []).map((group) => cleanClubText(group.season_label).toLowerCase())))
   if (sourceSeasons.length !== 1) return Response.json({ ok: false, message: 'Carry programs forward from one season at a time.' }, { status: 400 })
   if (sourceSeasons[0] === seasonLabel.toLowerCase()) return Response.json({ ok: false, message: 'Use a different name for the new season.' }, { status: 400 })
+
+  const leagueSourceGroupIds = (sourceGroups ?? []).filter((group) => group.group_type === 'league_division').map((group) => cleanClubText(group.id))
+  const tournamentSourceGroupIds = (sourceGroups ?? []).filter((group) => group.group_type === 'tournament_field').map((group) => cleanClubText(group.id))
+  const [sourceLeagueResult, sourceTournamentResult] = await Promise.all([
+    copyCompetitionSetup && leagueSourceGroupIds.length
+      ? auth.supabase.from('tiq_leagues').select(leagueRolloverSelect).eq('club_id', clubId).in('club_group_id', leagueSourceGroupIds)
+      : Promise.resolve({ data: [], error: null }),
+    copyCompetitionSetup && tournamentSourceGroupIds.length
+      ? auth.supabase.from('tiq_tournaments').select(tournamentRolloverSelect).eq('club_id', clubId).in('club_group_id', tournamentSourceGroupIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (sourceLeagueResult.error || sourceTournamentResult.error) {
+    return Response.json({ ok: false, message: 'The linked competition setup could not be read.' }, { status: 400 })
+  }
 
   const { data: existingRollovers, error: rolloverReadError } = await auth.supabase
     .from('club_groups')
@@ -123,6 +140,8 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
     return Response.json({ ok: false, message: 'The selected programs could not be carried into the new season.' }, { status: createError?.code === '23505' ? 409 : 400 })
   }
 
+  const createdGroupIds = createdGroups.map((group) => cleanClubText(group.id)).filter(Boolean)
+  const createdBySource = new Map(createdGroups.map((group) => [cleanClubText(group.rollover_source_group_id), cleanClubText(group.id)]))
   let reviewCount = 0
   if (copyMembers) {
     const { data: sourceMembers, error: memberReadError } = await auth.supabase
@@ -130,7 +149,6 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
       .select('group_id,membership_id')
       .in('group_id', sourceGroupIds)
       .eq('status', 'active')
-    const createdBySource = new Map(createdGroups.map((group) => [cleanClubText(group.rollover_source_group_id), cleanClubText(group.id)]))
     const reviewRows = (sourceMembers ?? []).map((member) => ({
       group_id: createdBySource.get(cleanClubText(member.group_id)) ?? '',
       membership_id: cleanClubText(member.membership_id),
@@ -146,12 +164,104 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
     reviewCount = new Set(reviewRows.map((row) => row.membership_id)).size
   }
 
+  const rollbackRollover = async () => {
+    await Promise.all([
+      auth.supabase.from('tiq_leagues').delete().in('club_group_id', createdGroupIds),
+      auth.supabase.from('tiq_tournaments').delete().in('club_group_id', createdGroupIds),
+    ])
+    await auth.supabase.from('club_groups').delete().in('id', createdGroupIds)
+  }
+
+  let competitionCount = 0
+  if (copyCompetitionSetup) {
+    const leagueRows = ((sourceLeagueResult.data ?? []) as Record<string, unknown>[]).flatMap((league) => {
+      const nextGroupId = createdBySource.get(cleanClubText(league.club_group_id))
+      if (!nextGroupId) return []
+      return [{
+        id: `tiq-league-${nextGroupId}`,
+        club_id: clubId,
+        club_group_id: nextGroupId,
+        competition_layer: 'tiq',
+        league_format: league.league_format,
+        individual_competition_format: league.individual_competition_format,
+        team_match_format_id: league.team_match_format_id,
+        scoring_system: league.scoring_system,
+        third_set_rule: league.third_set_rule,
+        league_name: league.league_name,
+        season_label: seasonLabel,
+        season_status: 'draft',
+        starts_on: null,
+        ends_on: null,
+        max_weeks: league.max_weeks,
+        max_match_events: league.max_match_events,
+        is_public: league.is_public,
+        scheduling_mode: league.scheduling_mode,
+        default_match_day: league.default_match_day,
+        default_match_time: league.default_match_time,
+        schedule_time_zone: league.schedule_time_zone,
+        default_facility: league.default_facility,
+        scheduling_notes: league.scheduling_notes,
+        flight: league.flight,
+        location_label: league.location_label,
+        photo_url: league.photo_url,
+        captain_team_name: '',
+        notes: league.notes,
+        teams: [],
+        players: [],
+        created_by_user_id: auth.userId,
+        updated_by_user_id: auth.userId,
+      }]
+    })
+    const tournamentRows = ((sourceTournamentResult.data ?? []) as Record<string, unknown>[]).flatMap((tournament) => {
+      const nextGroupId = createdBySource.get(cleanClubText(tournament.club_group_id))
+      if (!nextGroupId) return []
+      return [{
+        id: `tiq-tournament-${nextGroupId}`,
+        club_id: clubId,
+        club_group_id: nextGroupId,
+        name: tournament.name,
+        format: tournament.format,
+        entrant_type: tournament.entrant_type,
+        status: 'draft',
+        starts_on: '',
+        location_label: tournament.location_label,
+        director_notes: tournament.director_notes,
+        entrants: [],
+        results: {},
+        schedule: {},
+        contacts: {},
+        entrant_player_ids: {},
+        is_public: tournament.is_public,
+        created_by_user_id: auth.userId,
+        updated_by_user_id: auth.userId,
+      }]
+    })
+
+    if (leagueRows.length) {
+      const { error } = await auth.supabase.from('tiq_leagues').insert(leagueRows)
+      if (error) {
+        await rollbackRollover()
+        return Response.json({ ok: false, message: 'The new season was not created because its league setup could not be prepared.' }, { status: 400 })
+      }
+      competitionCount += leagueRows.length
+    }
+    if (tournamentRows.length) {
+      const { error } = await auth.supabase.from('tiq_tournaments').insert(tournamentRows)
+      if (error) {
+        await rollbackRollover()
+        return Response.json({ ok: false, message: 'The new season was not created because its tournament setup could not be prepared.' }, { status: 400 })
+      }
+      competitionCount += tournamentRows.length
+    }
+  }
+
   return Response.json({
     ok: true,
     createdCount: createdGroups.length,
     reviewCount,
+    competitionCount,
     seasonLabel,
-    message: `${createdGroups.length} ${createdGroups.length === 1 ? 'program is' : 'programs are'} ready for ${seasonLabel}${reviewCount ? ` with ${reviewCount} returning ${reviewCount === 1 ? 'player' : 'players'} to review` : ''}.`,
+    message: `${createdGroups.length} ${createdGroups.length === 1 ? 'program is' : 'programs are'} ready for ${seasonLabel}${reviewCount ? ` with ${reviewCount} returning ${reviewCount === 1 ? 'player' : 'players'} to review` : ''}.${competitionCount ? ` ${competitionCount} fresh competition ${competitionCount === 1 ? 'draft is' : 'drafts are'} connected without old entries, schedules, or results.` : ''}`,
   })
 }
 

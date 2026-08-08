@@ -153,6 +153,7 @@ describe('Club tier and Clinic Hub integration', () => {
     const clubRoute = source('app/api/clubs/route.ts')
     const groupRoute = source('app/api/clubs/[clubId]/groups/route.ts')
     const migration = source('supabase/migrations/20260807000900_add_club_program_rollover_lineage.sql')
+    const draftMigration = source('supabase/migrations/20260808000600_allow_empty_competition_drafts.sql')
     expect(club).toContain('Start next season')
     expect(club).toContain('Bring current players over for review')
     expect(club).toContain('Review returning players')
@@ -161,9 +162,18 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(groupRoute).toContain("status: 'waitlist'")
     expect(groupRoute).toContain('Carry programs forward from one season at a time.')
     expect(groupRoute).toContain('rollover_source_group_id: group.id')
+    expect(club).toContain('a fresh competition draft')
+    expect(club).toContain('fresh competition drafts')
+    expect(club).toContain('entries, dates, schedules, and results start fresh')
+    expect(groupRoute).toContain('copyCompetitionSetup')
+    expect(groupRoute).toContain('teams: []')
+    expect(groupRoute).toContain('entrants: []')
+    expect(groupRoute).toContain('competitionCount')
     expect(clubRoute).toContain("row.status === 'waitlist'")
     expect(migration).toContain('rollover_source_group_id')
     expect(migration).toContain('club_groups_rollover_once_per_season_idx')
+    expect(draftMigration).toContain("season_status = 'draft'")
+    expect(draftMigration).toContain("status = 'draft' or cardinality(entrants) >= 2")
   })
 
   it('closes finished Club seasons into read-only history without deleting rosters', () => {
@@ -490,11 +500,13 @@ describe('Club tier and Clinic Hub integration', () => {
     const migration = source('supabase/migrations/20260808000500_allow_club_staff_team_entries.sql')
     const competition = { id: 'league-1', clubGroupId: 'division-1', name: 'Friday League', type: 'league' as const, entrantType: 'teams' as const, memberIds: [], entryNames: ['Existing Team'], status: 'draft', isPublic: true, href: '/league-coordinator', entryCount: 1, scheduleCount: 0, nextEventAt: '' }
     const groups = [
-      { id: 'team-1', name: 'Existing Team', groupType: 'team' as const, isActive: true, memberIds: [] },
-      { id: 'team-2', name: 'New Team', groupType: 'team' as const, isActive: true, memberIds: ['member-1'] },
-      { id: 'team-3', name: 'Closed Team', groupType: 'team' as const, isActive: false, memberIds: [] },
+      { id: 'team-1', name: 'Existing Team', groupType: 'team' as const, seasonLabel: 'Winter 2027', sourceGroupId: '', isActive: true, memberIds: [], reviewMemberIds: [] },
+      { id: 'team-2', name: 'New Team', groupType: 'team' as const, seasonLabel: 'Winter 2027', sourceGroupId: 'old-team-2', isActive: true, memberIds: ['member-1'], reviewMemberIds: [] },
+      { id: 'team-3', name: 'Closed Team', groupType: 'team' as const, seasonLabel: 'Winter 2027', sourceGroupId: '', isActive: false, memberIds: [], reviewMemberIds: [] },
+      { id: 'team-4', name: 'Prior Season Team', groupType: 'team' as const, seasonLabel: 'Fall 2026', sourceGroupId: '', isActive: true, memberIds: ['member-2'], reviewMemberIds: [] },
+      { id: 'team-5', name: 'Waiting Team', groupType: 'team' as const, seasonLabel: 'Winter 2027', sourceGroupId: 'old-team-5', isActive: true, memberIds: [], reviewMemberIds: ['member-3'] },
     ]
-    const handoff = getClubCompetitionTeamHandoff({ linkedCompetitionId: 'league-1', linkedCompetitionType: 'league' }, [competition], groups)
+    const handoff = getClubCompetitionTeamHandoff({ linkedCompetitionId: 'league-1', linkedCompetitionType: 'league', seasonLabel: 'Winter 2027' }, [competition], groups)
 
     expect(handoff?.eligibleTeams.map((team) => team.id)).toEqual(['team-1', 'team-2'])
     expect(handoff?.missingTeams.map((team) => team.id)).toEqual(['team-2'])
