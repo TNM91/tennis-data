@@ -69,6 +69,7 @@ export async function GET(request: Request) {
   if (firstError) return clubDatabaseError(firstError.message)
 
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
+  const clinicGroupIds = groups.filter((group) => group.groupType === 'clinic').map((group) => group.id)
   const canReadRenewals = isClubManager(currentMembership.roles)
   const individualLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
     .filter((row) => row.league_format === 'individual')
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
     .filter((row) => row.entrant_type !== 'teams')
     .map((row) => cleanClubText(row.id))
     .filter(Boolean)
-  const [groupMemberResult, renewalResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
+  const [groupMemberResult, renewalResult, leagueEntryResult, tournamentEntryResult, clinicSessionResult] = await Promise.all([
     groups.length
       ? auth.supabase.from('club_group_members').select('group_id,membership_id,status').in('group_id', groups.map((group) => group.id)).neq('status', 'inactive')
       : Promise.resolve({ data: [], error: null }),
@@ -91,8 +92,11 @@ export async function GET(request: Request) {
     playerTournamentIds.length
       ? auth.supabase.from('tiq_tournament_entries').select('tournament_id,club_membership_id,status').in('tournament_id', playerTournamentIds).eq('status', 'approved').not('club_membership_id', 'is', null)
       : Promise.resolve({ data: [], error: null }),
+    clinicGroupIds.length
+      ? auth.supabase.from('club_clinic_sessions').select('group_id,starts_at,ends_at,status').in('group_id', clinicGroupIds).neq('status', 'canceled')
+      : Promise.resolve({ data: [], error: null }),
   ])
-  const assignmentError = [groupMemberResult.error, renewalResult.error, leagueEntryResult.error, tournamentEntryResult.error].find(Boolean)
+  const assignmentError = [groupMemberResult.error, renewalResult.error, leagueEntryResult.error, tournamentEntryResult.error, clinicSessionResult.error].find(Boolean)
   if (assignmentError) return clubDatabaseError(assignmentError.message)
   const groupMemberRows = (groupMemberResult.data ?? []) as Record<string, unknown>[]
 
@@ -112,6 +116,20 @@ export async function GET(request: Request) {
     const current = renewalCountsByGroup.get(groupId) ?? { pending: 0, confirmed: 0, declined: 0 }
     current[status as 'pending' | 'confirmed' | 'declined'] += 1
     renewalCountsByGroup.set(groupId, current)
+  }
+  const clinicScheduleByGroup = new Map<string, { count: number; nextAt: string }>()
+  const now = Date.now()
+  for (const row of (clinicSessionResult.data ?? []) as Record<string, unknown>[]) {
+    const groupId = cleanClubText(row.group_id)
+    if (!groupId) continue
+    const current = clinicScheduleByGroup.get(groupId) ?? { count: 0, nextAt: '' }
+    current.count += 1
+    const startsAt = cleanClubText(row.starts_at, 80)
+    const endsAt = cleanClubText(row.ends_at, 80)
+    const startsAtTime = new Date(startsAt).getTime()
+    const endsAtTime = new Date(endsAt).getTime()
+    if (startsAt && Number.isFinite(startsAtTime) && Number.isFinite(endsAtTime) && endsAtTime >= now && (!current.nextAt || startsAtTime < new Date(current.nextAt).getTime())) current.nextAt = startsAt
+    clinicScheduleByGroup.set(groupId, current)
   }
 
   const memberIdsByLeague = new Map<string, string[]>()
@@ -161,6 +179,7 @@ export async function GET(request: Request) {
       invites: ((inviteResult.data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow),
       groups: groups.map((group) => {
         const renewalCounts = renewalCountsByGroup.get(group.id) ?? { pending: 0, confirmed: 0, declined: 0 }
+        const clinicSchedule = clinicScheduleByGroup.get(group.id) ?? { count: 0, nextAt: '' }
         return {
           ...group,
           memberIds: memberIdsByGroup.get(group.id) ?? [],
@@ -168,6 +187,8 @@ export async function GET(request: Request) {
           renewalPendingCount: renewalCounts.pending,
           renewalConfirmedCount: renewalCounts.confirmed,
           renewalDeclinedCount: renewalCounts.declined,
+          clinicSessionCount: clinicSchedule.count,
+          nextClinicSessionAt: clinicSchedule.nextAt,
         }
       }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),

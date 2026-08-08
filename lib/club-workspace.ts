@@ -77,6 +77,8 @@ export type ClubGroup = {
   renewalTargetRosterSize: number
   renewalFillCompletedAt: string
   launchHandoffCompletedAt: string
+  clinicSessionCount: number
+  nextClinicSessionAt: string
   updatedAt: string
 }
 
@@ -343,6 +345,11 @@ export function getClubProgramLaunchAction(
   }
 }
 
+export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'clinicSessionCount' | 'launchHandoffCompletedAt'>) {
+  if (!group.isActive || !group.memberIds.length || group.reviewMemberIds.length) return false
+  return group.groupType === 'clinic' ? group.clinicSessionCount === 0 : !group.launchHandoffCompletedAt
+}
+
 export function getClubInviteLanding(
   club: Pick<Club, 'id' | 'name' | 'slug'>,
   roles: ClubRole[],
@@ -506,6 +513,8 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     renewalTargetRosterSize: Math.max(0, Number(row.renewal_target_roster_size) || 0),
     renewalFillCompletedAt: cleanClubText(row.renewal_fill_completed_at, 80),
     launchHandoffCompletedAt: cleanClubText(row.launch_handoff_completed_at, 80),
+    clinicSessionCount: Math.max(0, Number(row.clinic_session_count) || 0),
+    nextClinicSessionAt: cleanClubText(row.next_clinic_session_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }
