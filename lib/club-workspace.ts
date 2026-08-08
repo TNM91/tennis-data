@@ -140,6 +140,16 @@ export type ClubLinkedCompetition = {
   status: string
   isPublic: boolean
   href: string
+  entryCount: number
+  scheduleCount: number
+  nextEventAt: string
+}
+
+export type ClubCompetitionReadiness = {
+  ready: boolean
+  label: string
+  detail: string
+  actionLabel: string
 }
 
 export type ClubWorkspaceData = {
@@ -307,6 +317,39 @@ export function buildClubToolHref(
     ...params,
   })
   return `${path}?${search.toString()}`
+}
+
+export function getClubCompetitionReadiness(
+  competition: Pick<ClubLinkedCompetition, 'type' | 'entryCount' | 'scheduleCount' | 'nextEventAt'>,
+): ClubCompetitionReadiness {
+  if (competition.entryCount < 2) return {
+    ready: false,
+    label: 'Add entries',
+    detail: `Add at least ${2 - competition.entryCount} more ${competition.entryCount === 1 ? 'entry' : 'entries'} before building the ${competition.type === 'league' ? 'schedule' : 'draw'}.`,
+    actionLabel: 'Add entries',
+  }
+  if (!competition.scheduleCount) return {
+    ready: false,
+    label: competition.type === 'league' ? 'Build schedule' : 'Build draw',
+    detail: competition.type === 'league'
+      ? `${competition.entryCount} entries are ready. Build the match schedule next.`
+      : `${competition.entryCount} entries are ready. Build and schedule the draw next.`,
+    actionLabel: competition.type === 'league' ? 'Build schedule' : 'Build draw',
+  }
+  return {
+    ready: true,
+    label: 'Ready',
+    detail: competition.nextEventAt
+      ? `Next event: ${formatClubEventDate(competition.nextEventAt)}.`
+      : `${competition.entryCount} entries and ${competition.scheduleCount} scheduled ${competition.scheduleCount === 1 ? 'match' : 'matches'}.`,
+    actionLabel: 'Open competition',
+  }
+}
+
+function formatClubEventDate(value: string) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
 }
 
 export function buildClubCoachStudentLinkId(clubId: string, membershipId: string) {
