@@ -113,7 +113,7 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
   const tournamentIds = (tournamentResult.data ?? []).map((tournament) => cleanClubText(tournament.id)).filter(Boolean)
   const [groupMemberResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
     groupIds.length
-      ? auth.supabase.from('club_group_members').select('group_id,membership_id').in('group_id', groupIds).eq('status', 'active')
+      ? auth.supabase.from('club_group_members').select('group_id,membership_id,status').in('group_id', groupIds).neq('status', 'inactive')
       : Promise.resolve({ data: [], error: null }),
     leagueIds.length
       ? auth.supabase.from('tiq_player_league_entries').select('league_id,club_membership_id').in('league_id', leagueIds).eq('entry_status', 'active').not('club_membership_id', 'is', null)
@@ -135,7 +135,7 @@ export async function GET(request: Request, context: { params: Promise<{ clubId:
   const groupsById = new Map((groupResult.data ?? []).map((group) => [cleanClubText(group.id), group]))
   for (const item of groupMemberResult.data ?? []) {
     const group = groupsById.get(cleanClubText(item.group_id))
-    if (group) addDestination(item.membership_id, { type: 'group', id: cleanClubText(group.id), name: cleanClubText(group.name), label: getDestinationTypeLabel(group.group_type) })
+    if (group) addDestination(item.membership_id, { type: 'group', id: cleanClubText(group.id), name: cleanClubText(group.name), label: `${getDestinationTypeLabel(group.group_type)}${item.status === 'waitlist' ? ' · Review' : ''}` })
   }
   const leaguesById = new Map((leagueResult.data ?? []).map((league) => [cleanClubText(league.id), league]))
   for (const item of leagueEntryResult.data ?? []) {

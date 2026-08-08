@@ -83,6 +83,10 @@ describe('club workspace', () => {
   it('maps public program types and defaults safely', () => {
     expect(mapClubGroupRow({ id: 'g1', club_id: 'c1', name: 'Green ball', group_type: 'camp' }).groupType).toBe('camp')
     expect(mapClubGroupRow({ id: 'g2', club_id: 'c1', name: 'Unknown', group_type: 'other' }).groupType).toBe('clinic')
+    const rolled = mapClubGroupRow({ id: 'g3', club_id: 'c1', name: 'Green ball', group_type: 'clinic', rollover_source_group_id: 'g1' }, ['m1'], ['m2'])
+    expect(rolled.sourceGroupId).toBe('g1')
+    expect(rolled.memberIds).toEqual(['m1'])
+    expect(rolled.reviewMemberIds).toEqual(['m2'])
   })
 
   it('advances the club setup guide from the next unfinished job', () => {

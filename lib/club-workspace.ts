@@ -66,7 +66,9 @@ export type ClubGroup = {
   defaultDurationMinutes: number
   isPublic: boolean
   isActive: boolean
+  sourceGroupId: string
   memberIds: string[]
+  reviewMemberIds: string[]
   updatedAt: string
 }
 
@@ -414,7 +416,7 @@ export function mapClubMembershipRow(row: Row): ClubMembership {
   }
 }
 
-export function mapClubGroupRow(row: Row, memberIds: string[] = []): ClubGroup {
+export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMemberIds: string[] = []): ClubGroup {
   const rawType = cleanClubText(row.group_type) as ClubGroupType
   const groupType: ClubGroupType = ['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'].includes(rawType)
     ? rawType
@@ -433,7 +435,9 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = []): ClubGroup {
     defaultDurationMinutes: Math.min(360, Math.max(15, Number(row.default_duration_minutes) || 90)),
     isPublic: row.is_public !== false,
     isActive: row.is_active !== false,
+    sourceGroupId: cleanClubText(row.rollover_source_group_id),
     memberIds,
+    reviewMemberIds,
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

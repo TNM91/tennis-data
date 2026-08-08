@@ -16,7 +16,7 @@ export const runtime = 'nodejs'
 
 const clubSelect = 'id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,onboarding_completed_at,created_at,updated_at'
 const membershipSelect = 'id,club_id,user_id,roles,status,display_name,email,phone,joined_at,updated_at'
-const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,updated_at'
+const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,rollover_source_group_id,updated_at'
 const templateSelect = 'id,club_id,name,competition_type,entrant_type,format_id,division_label,default_facility,schedule_notes,is_public,updated_at'
 const inviteSelect = 'id,club_id,email,roles,target_type,target_id,target_name,target_group_type,invite_token,status,expires_at,created_at'
 
@@ -92,10 +92,12 @@ export async function GET(request: Request) {
   const groupMemberRows = (groupMemberResult.data ?? []) as Record<string, unknown>[]
 
   const memberIdsByGroup = new Map<string, string[]>()
+  const reviewMemberIdsByGroup = new Map<string, string[]>()
   for (const row of groupMemberRows) {
     const groupId = cleanClubText(row.group_id)
     const membershipId = cleanClubText(row.membership_id)
     if (groupId && membershipId && row.status === 'active') memberIdsByGroup.set(groupId, [...(memberIdsByGroup.get(groupId) ?? []), membershipId])
+    if (groupId && membershipId && row.status === 'waitlist') reviewMemberIdsByGroup.set(groupId, [...(reviewMemberIdsByGroup.get(groupId) ?? []), membershipId])
   }
 
   const memberIdsByLeague = new Map<string, string[]>()
@@ -143,7 +145,7 @@ export async function GET(request: Request) {
       currentMembership,
       memberships: ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow),
       invites: ((inviteResult.data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow),
-      groups: groups.map((group) => ({ ...group, memberIds: memberIdsByGroup.get(group.id) ?? [] })),
+      groups: groups.map((group) => ({ ...group, memberIds: memberIdsByGroup.get(group.id) ?? [], reviewMemberIds: reviewMemberIdsByGroup.get(group.id) ?? [] })),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),
       competitions,
     },
