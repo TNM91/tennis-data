@@ -319,6 +319,30 @@
 .peopleFilters button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; min-height: 38px; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); padding: 0 11px; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
 .peopleFilters button span { display: grid; min-width: 21px; min-height: 21px; place-items: center; border-radius: 999px; background: rgba(255, 255, 255, .06); font-size: 10px; }
 .peopleFilters .peopleFilterActive { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 54%, var(--shell-panel-border)); background: color-mix(in srgb, var(--club-color, var(--brand-green)) 12%, var(--shell-chip-bg)); color: var(--foreground-strong); }
+.calendarFilters { display: flex; flex-wrap: wrap; gap: 7px; }
+.calendarFilters button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); padding: 0 11px; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.calendarFilters button span { display: grid; min-width: 21px; min-height: 21px; place-items: center; border-radius: 999px; background: rgba(255, 255, 255, .06); font-size: 10px; }
+.calendarFilters .calendarFilterActive { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 54%, var(--shell-panel-border)); background: color-mix(in srgb, var(--club-color, var(--brand-green)) 12%, var(--shell-chip-bg)); color: var(--foreground-strong); }
+.calendarAlert { display: grid; gap: 5px; border: 1px solid rgba(255, 194, 87, .4); border-radius: 13px; background: rgba(104, 66, 10, .16); padding: 13px 14px; }
+.calendarAlert strong { color: #ffd68b; }
+.calendarAlert span, .calendarAlert li { color: var(--shell-copy-muted); font-size: 12px; font-weight: 720; line-height: 1.4; }
+.calendarAlert ul { display: grid; gap: 4px; margin: 3px 0 0; padding-left: 18px; }
+.calendarDays { display: grid; gap: 12px; }
+.calendarDay { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; align-items: start; }
+.calendarDate { position: sticky; top: 76px; display: grid; gap: 2px; padding: 9px 0; }
+.calendarDate span { color: var(--club-color, var(--brand-green)); font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.calendarDate strong { font-size: 17px; }
+.calendarEventList { display: grid; gap: 7px; }
+.calendarEvent { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-width: 0; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-chip-bg); padding: 11px 12px; color: inherit; text-decoration: none; }
+.calendarEventConflict { border-color: rgba(255, 194, 87, .42); background: color-mix(in srgb, rgba(104, 66, 10, .24) 45%, var(--shell-chip-bg)); }
+.calendarEventTime { color: var(--foreground-strong); font-size: 12px; font-weight: 900; }
+.calendarEventBody { display: grid; gap: 3px; min-width: 0; }
+.calendarEventBody strong, .calendarEventBody small { overflow-wrap: anywhere; }
+.calendarEventBody small { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
+.calendarEventType { color: var(--club-color, var(--brand-green)); font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.calendarEvent > b { color: var(--club-color, var(--brand-green)); font-size: 12px; }
+.calendarEventConflict > b { color: #ffd68b; }
+.calendarNote { margin: 0; color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
 .bulkPanel { display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 22%, var(--shell-panel-border)); border-radius: 12px; padding: 11px; }
 .bulkPanel .row { justify-content: flex-start; }
 .peopleGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 9px; }
@@ -401,6 +425,12 @@
   .peopleSearchRow { grid-template-columns: 1fr; align-items: stretch; }
   .peopleSearchRow > .muted { display: none; }
   .peopleFilters { margin-inline: -3px; padding-inline: 3px; }
+  .calendarFilters { align-items: stretch; }
+  .calendarFilters button { flex: 1 1 94px; justify-content: center; }
+  .calendarDay { grid-template-columns: 1fr; gap: 5px; }
+  .calendarDate { position: static; display: flex; gap: 7px; padding: 5px 2px 1px; }
+  .calendarEvent { grid-template-columns: 62px minmax(0, 1fr); gap: 9px; padding: 10px; }
+  .calendarEvent > b { grid-column: 2; }
   .bulkPanel .fieldGrid { gap: 9px; }
   .peopleGrid { grid-template-columns: 1fr; }
 }

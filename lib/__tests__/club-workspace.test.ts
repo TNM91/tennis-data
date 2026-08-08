@@ -5,6 +5,7 @@ import {
   canRunClubPrograms,
   createClubSlug,
   getClubSetupSteps,
+  getClubCalendarConflicts,
   getClubInviteLanding,
   hasClubTeamProgram,
   isClubManager,
@@ -33,6 +34,27 @@ describe('club workspace', () => {
   it('keeps club colors safe', () => {
     expect(normalizeClubColor('#12A4ef')).toBe('#12a4ef')
     expect(normalizeClubColor('lime')).toBe('#9dea16')
+  })
+
+  it('flags overlapping Club people and exact courts without treating all-day events as conflicts', () => {
+    const base = {
+      startsAt: '2026-08-12T18:00:00',
+      endsAt: '2026-08-12T19:30:00',
+      allDay: false,
+      locationLabel: 'Vetta West',
+      courtLabel: '',
+      groupId: 'group-1',
+      groupName: 'Program',
+      href: '/clubs',
+    }
+    const conflicts = getClubCalendarConflicts([
+      { ...base, id: 'clinic-1', type: 'clinic', title: '3.5 Clinic', courtLabel: 'Court 2', membershipIds: ['member-1'] },
+      { ...base, id: 'team-1', type: 'team_match', title: 'Club Team vs Visitors', courtLabel: 'Court 2', membershipIds: ['member-1', 'member-2'] },
+      { ...base, id: 'tournament-1', type: 'tournament_match', title: 'Junior Open', allDay: true, membershipIds: ['member-1'] },
+    ])
+
+    expect(conflicts.map((conflict) => conflict.kind)).toEqual(['people', 'court'])
+    expect(conflicts.every((conflict) => !conflict.eventIds.includes('tournament-1'))).toBe(true)
   })
 
   it('launches club competition defaults in the existing desks', () => {

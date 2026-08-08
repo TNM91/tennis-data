@@ -7,6 +7,20 @@ import { CLUB_PLAN_STORY } from '../product-story'
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 
 describe('Club tier and Clinic Hub integration', () => {
+  it('brings every Club schedule into one action-first view', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+
+    expect(club).toContain("{ id: 'calendar', label: 'Schedule' }")
+    expect(club).toContain('Clinics, team matches, leagues, and tournaments in one place.')
+    expect(club).toContain('Court booking stays in your club system.')
+    expect(clubRoute).toContain("type: 'clinic'")
+    expect(clubRoute).toContain("type: 'team_match'")
+    expect(clubRoute).toContain("type: 'league_match'")
+    expect(clubRoute).toContain("type: 'tournament_match'")
+    expect(clubRoute).toContain('calendarEvents.sort')
+  })
+
   it('defines Club as a separate offering without claiming club operations', () => {
     expect(CLUB_PLAN_STORY.starter.priceLabel).toBe('$99/month')
     expect(CLUB_PLAN_STORY.unlimited.priceLabel).toBe('$199/month')
@@ -102,8 +116,8 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Add connected players to')
     expect(club).toContain('No invitation is sent.')
     expect(club).toContain('Select to add directly')
-    expect(clubRoute).toContain("select('id,club_group_id,league_name,league_format,season_status,teams,players,is_public')")
-    expect(clubRoute).toContain("select('id,club_group_id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public')")
+    expect(clubRoute).toContain("select('id,club_group_id,league_name,league_format,season_status,location_label,teams,players,is_public')")
+    expect(clubRoute).toContain("select('id,club_group_id,name,entrant_type,status,starts_on,location_label,entrants,results,schedule,is_public')")
     expect(rosterRoute).toContain('export async function PUT')
     expect(rosterRoute).toContain("from('club_group_members').upsert")
     expect(rosterRoute).toContain("from('tiq_player_league_entries')")
