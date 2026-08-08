@@ -126,6 +126,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
   const auth = await getClubApiAuth(request)
   if (!auth.ok) return auth.response
   const { clubId, groupId } = await context.params
+  const body = await request.json().catch(() => ({})) as { action?: unknown }
+  const action = cleanClubText(body.action) || 'finalize'
   if (!uuidPattern.test(clubId) || !uuidPattern.test(groupId)) {
     return Response.json({ ok: false, message: 'Choose a valid Club program.' }, { status: 400 })
   }
@@ -140,7 +142,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
       .maybeSingle(),
     auth.supabase
       .from('club_groups')
-      .select('id,name,renewals_finalized_at')
+      .select('id,name,renewals_finalized_at,renewal_target_roster_size,renewal_fill_completed_at')
       .eq('id', groupId)
       .eq('club_id', clubId)
       .eq('is_active', true)
@@ -150,15 +152,36 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
     return Response.json({ ok: false, message: 'Club manager access is required to finalize this roster.' }, { status: 403 })
   }
   if (!groupResult.data) return Response.json({ ok: false, message: 'That active Club program was not found.' }, { status: 404 })
+  if (action === 'complete-fill') {
+    if (!groupResult.data.renewals_finalized_at) {
+      return Response.json({ ok: false, message: 'Finalize renewal decisions before closing open spots.' }, { status: 409 })
+    }
+    const { error: completeError } = await auth.supabase
+      .from('club_groups')
+      .update({ renewal_fill_completed_at: new Date().toISOString() })
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+    if (completeError) return Response.json({ ok: false, message: 'Open spots could not be closed.' }, { status: 400 })
+    return Response.json({ ok: true, message: `${cleanClubText(groupResult.data.name)} will use its current roster.` })
+  }
+  if (action !== 'finalize') return Response.json({ ok: false, message: 'Choose a valid roster action.' }, { status: 400 })
   if (groupResult.data.renewals_finalized_at) {
     return Response.json({ ok: true, message: `${cleanClubText(groupResult.data.name)} is already finalized.` })
   }
 
-  const { data: renewals, error: renewalError } = await auth.supabase
-    .from('club_group_renewals')
-    .select('status')
-    .eq('group_id', groupId)
-  if (renewalError) return Response.json({ ok: false, message: 'Renewal responses could not be checked.' }, { status: 400 })
+  const [renewalResult, activeMemberResult] = await Promise.all([
+    auth.supabase
+      .from('club_group_renewals')
+      .select('status')
+      .eq('group_id', groupId),
+    auth.supabase
+      .from('club_group_members')
+      .select('membership_id', { count: 'exact', head: true })
+      .eq('group_id', groupId)
+      .eq('status', 'active'),
+  ])
+  const renewals = renewalResult.data
+  if (renewalResult.error || activeMemberResult.error) return Response.json({ ok: false, message: 'Renewal responses could not be checked.' }, { status: 400 })
   if (!renewals?.length) return Response.json({ ok: false, message: 'There are no renewal responses to finalize.' }, { status: 409 })
   const pendingCount = renewals.filter((renewal) => cleanClubText(renewal.status) === 'pending').length
   if (pendingCount) {
@@ -166,13 +189,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ clubI
   }
 
   const finalizedAt = new Date().toISOString()
+  const targetRosterSize = Math.max(renewals.length, activeMemberResult.count ?? 0)
   const { error: finalizeError } = await auth.supabase
     .from('club_groups')
-    .update({ renewals_finalized_at: finalizedAt })
+    .update({ renewals_finalized_at: finalizedAt, renewal_target_roster_size: targetRosterSize, renewal_fill_completed_at: null })
     .eq('id', groupId)
     .eq('club_id', clubId)
     .is('renewals_finalized_at', null)
   if (finalizeError) return Response.json({ ok: false, message: 'The roster could not be finalized.' }, { status: 400 })
 
-  return Response.json({ ok: true, finalizedAt, message: `${cleanClubText(groupResult.data.name)} roster finalized.` })
+  return Response.json({ ok: true, finalizedAt, targetRosterSize, message: `${cleanClubText(groupResult.data.name)} roster finalized.` })
 }

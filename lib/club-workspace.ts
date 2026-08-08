@@ -74,6 +74,8 @@ export type ClubGroup = {
   renewalConfirmedCount: number
   renewalDeclinedCount: number
   renewalsFinalizedAt: string
+  renewalTargetRosterSize: number
+  renewalFillCompletedAt: string
   updatedAt: string
 }
 
@@ -448,6 +450,8 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     renewalConfirmedCount: 0,
     renewalDeclinedCount: 0,
     renewalsFinalizedAt: cleanClubText(row.renewals_finalized_at, 80),
+    renewalTargetRosterSize: Math.max(0, Number(row.renewal_target_roster_size) || 0),
+    renewalFillCompletedAt: cleanClubText(row.renewal_fill_completed_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

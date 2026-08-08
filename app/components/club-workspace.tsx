@@ -230,9 +230,10 @@ export default function ClubWorkspace() {
     setTab(step.tab)
   }
 
-  function openPeople(destination = 'club:') {
+  function openPeople(destination = 'club:', openRoster = false) {
     setGuidedStepId(null)
     setInviteDestination(destination)
+    setRequestedRosterOpen(openRoster)
     setTab('people')
   }
 
@@ -345,6 +346,21 @@ export default function ClubWorkspace() {
     }
   }
 
+  async function completeRenewalFill(groupId: string) {
+    if (!workspace) return
+    setWorking(true)
+    try {
+      const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups/${groupId}/renewals`, { method: 'PATCH', body: JSON.stringify({ action: 'complete-fill' }) })
+      await refreshWorkspace()
+      showMessage(result.message || 'The current roster is set.')
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Open spots could not be closed.', 'danger')
+      throw error
+    } finally {
+      setWorking(false)
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -446,7 +462,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
           key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
@@ -561,6 +577,7 @@ export default function ClubWorkspace() {
           }}
           onPrepareRenewals={prepareRenewals}
           onFinalizeRenewals={finalizeRenewals}
+          onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)}
           onSaveRoster={async (groupId, membershipIds) => {
             setWorking(true)
             try {
@@ -623,7 +640,7 @@ export default function ClubWorkspace() {
   )
 }
 
-function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -642,6 +659,9 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const readyRenewalGroups = workspace.groups.filter((group) => group.isActive && !group.renewalsFinalizedAt && group.renewalPendingCount === 0 && group.renewalConfirmedCount + group.renewalDeclinedCount > 0)
   const readyConfirmedCount = readyRenewalGroups.reduce((total, group) => total + group.renewalConfirmedCount, 0)
   const readyDeclinedCount = readyRenewalGroups.reduce((total, group) => total + group.renewalDeclinedCount, 0)
+  const fillOpenGroups = workspace.groups.filter((group) => group.isActive && Boolean(group.renewalsFinalizedAt) && !group.renewalFillCompletedAt && group.renewalTargetRosterSize > group.memberIds.length)
+  const nextFillGroup = fillOpenGroups[0]
+  const nextOpenSpotCount = nextFillGroup ? Math.max(0, nextFillGroup.renewalTargetRosterSize - nextFillGroup.memberIds.length) : 0
 
   async function openRenewalReview(group: ClubGroup) {
     setRenewalReviewGroup(group)
@@ -676,6 +696,10 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
       {manager && pendingRenewalCount === 0 && readyRenewalGroups.length ? <section className={styles.renewalTask} aria-labelledby="finalize-renewals-title">
         <div><p className={styles.eyebrow}>Ready to finish</p><h3 id="finalize-renewals-title">{readyRenewalGroups.length === 1 ? `${readyRenewalGroups[0].name} is ready to finalize.` : `${readyRenewalGroups.length} rosters are ready to finalize.`}</h3><p>{readyConfirmedCount} returning · {readyDeclinedCount} not returning</p></div>
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void openRenewalReview(readyRenewalGroups[0])}>{working ? 'Opening roster...' : 'Review and finalize'}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
+      </section> : null}
+      {manager && pendingRenewalCount === 0 && !readyRenewalGroups.length && fillOpenGroups.length ? <section className={styles.renewalTask} aria-labelledby="fill-open-spots-title">
+        <div><p className={styles.eyebrow}>Roster openings</p><h3 id="fill-open-spots-title">{nextFillGroup.name} has {nextOpenSpotCount} open {nextOpenSpotCount === 1 ? 'spot' : 'spots'}.</h3><p>Add Club members, use Player Roster contacts, or invite someone new.{fillOpenGroups.length > 1 ? ` ${fillOpenGroups.length - 1} more ${fillOpenGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
+        <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => onFillOpenSpots(nextFillGroup.id)}>Fill open spots</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onCompleteRenewalFill(nextFillGroup.id)}>No replacements needed</button></div>
       </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
         <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
@@ -1063,7 +1087,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -1191,6 +1215,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
       <div className={styles.cardGrid}>
         {visibleGroups.map((group) => {
           const renewalCount = group.renewalPendingCount + group.renewalConfirmedCount + group.renewalDeclinedCount
+          const groupOpenSpotCount = group.renewalFillCompletedAt ? 0 : Math.max(0, group.renewalTargetRosterSize - group.memberIds.length)
           return <article id={`club-group-${group.id}`} className={`${styles.card} ${!group.isActive ? styles.archivedCard : ''} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}>
             <div className={styles.cardTop}><h3>{group.name}</h3><span className={group.isActive ? styles.pill : styles.archivePill}>{group.isActive ? getClubGroupTypeLabel(group.groupType) : 'Archived'}</span></div>
             {group.seasonLabel ? <span className={styles.muted}>{group.seasonLabel} · {getClubGroupTypeLabel(group.groupType)}</span> : null}
@@ -1199,7 +1224,9 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && group.reviewMemberIds.length ? <span className={styles.reviewLabel}>{group.reviewMemberIds.length} returning {group.reviewMemberIds.length === 1 ? 'player' : 'players'} to review</span> : null}
             {group.isActive && renewalCount ? <div className={styles.renewalSummary} aria-label="Season renewal responses"><span>{group.renewalConfirmedCount} yes</span><span>{group.renewalPendingCount} waiting</span><span>{group.renewalDeclinedCount} no</span></div> : null}
             {group.isActive && group.renewalsFinalizedAt ? <span className={styles.pill}>Roster finalized</span> : null}
+            {group.isActive && groupOpenSpotCount ? <span className={styles.reviewLabel}>{groupOpenSpotCount} open {groupOpenSpotCount === 1 ? 'spot' : 'spots'}</span> : null}
             {group.isActive && manager && (group.reviewMemberIds.length || renewalCount) ? <button type="button" disabled={working} className={styles.primary} onClick={() => void openRenewals(group)}>{group.renewalsFinalizedAt ? 'View renewal results' : renewalCount ? group.renewalPendingCount ? 'Open renewal messages' : 'Review and finalize' : 'Request player decisions'}</button> : null}
+            {group.isActive && manager && groupOpenSpotCount ? <button type="button" className={styles.quietButton} onClick={() => onFillOpenSpots(group.id)}>Fill open spots</button> : null}
             {group.isActive && group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}
             {group.isActive && manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}
             {staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(Array.from(new Set([...group.memberIds, ...group.reviewMemberIds]))) }}>{group.isActive ? renewalCount ? 'Adjust roster manually' : group.reviewMemberIds.length ? 'Review returning players' : 'Manage roster' : 'View archived roster'}</button> : null}
