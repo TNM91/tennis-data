@@ -17,7 +17,7 @@ export const runtime = 'nodejs'
 
 const clubSelect = 'id,owner_user_id,name,slug,description,logo_url,hero_image_url,primary_color,location_label,contact_email,time_zone,is_public,onboarding_completed_at,created_at,updated_at'
 const membershipSelect = 'id,club_id,user_id,roles,status,display_name,email,phone,joined_at,updated_at'
-const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,updated_at'
+const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,renewals_finalized_at,updated_at'
 const templateSelect = 'id,club_id,name,competition_type,entrant_type,format_id,division_label,default_facility,schedule_notes,is_public,updated_at'
 const inviteSelect = 'id,club_id,email,roles,target_type,target_id,target_name,target_group_type,invite_token,status,expires_at,created_at'
 
