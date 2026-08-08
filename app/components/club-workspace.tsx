@@ -11,6 +11,7 @@ import {
   buildClubCompetitionLaunchHref,
   buildClubToolHref,
   canRunClubPrograms,
+  getClubCompetitionReadiness,
   getClubGroupTypeLabel,
   getClubProgramReadinessAction,
   getClubRoleLabel,
@@ -684,6 +685,10 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const launchReadyGroups = workspace.groups.filter(needsClubProgramLaunch)
   const nextLaunchGroup = launchReadyGroups[0]
   const nextLaunchAction = nextLaunchGroup ? getClubProgramReadinessAction(nextLaunchGroup, workspace.club) : null
+  const competitionNeedsWork = workspace.competitions
+    .map((competition) => ({ competition, readiness: getClubCompetitionReadiness(competition) }))
+    .filter((item) => !item.readiness.ready)
+  const nextCompetitionWork = competitionNeedsWork[0]
   const finishingClinicSchedule = Boolean(nextLaunchGroup?.groupType === 'clinic' && nextLaunchGroup.launchHandoffCompletedAt && nextLaunchGroup.clinicSessionCount === 0)
   const finishingTeamSetup = Boolean(nextLaunchGroup?.groupType === 'team')
   const finishingCoachSetup = Boolean(nextLaunchGroup?.groupType === 'camp' || nextLaunchGroup?.groupType === 'development_group')
@@ -729,6 +734,10 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
       {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && nextLaunchGroup && nextLaunchAction ? <section className={styles.renewalTask} aria-labelledby="launch-program-title">
         <div><p className={styles.eyebrow}>{finishingClinicSchedule || finishingTeamSetup || finishingCoachSetup ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onLaunchProgram(nextLaunchGroup)}>{working ? 'Opening...' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
+      </section> : null}
+      {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && !nextLaunchGroup && nextCompetitionWork ? <section className={styles.renewalTask} aria-labelledby="finish-competition-title">
+        <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
+        <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
         <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
@@ -1331,7 +1340,10 @@ function CompetitionPanel({ workspace, staff, manager, working, onCreate, onInvi
         </form>
       ) : null}
       {workspace.templates.length ? <div className={styles.cardGrid}>{workspace.templates.map((template) => <TemplateCard club={workspace.club} template={template} key={template.id} />)}</div> : <p className={styles.copy}>No saved competition setups yet.</p>}
-      {workspace.competitions.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Club competitions</h2></div><div className={styles.cardGrid}>{workspace.competitions.map((competition) => <article className={styles.card} key={`${competition.type}-${competition.id}`}><div className={styles.cardTop}><h3>{competition.name}</h3><span className={styles.pill}>{competition.type}</span></div><span className={styles.muted}>{competition.status}</span><Link className={styles.primary} href={competition.href}>Open</Link>{manager ? <button className={styles.quietButton} type="button" onClick={() => onInvite(competition.type, competition.id)}>Invite people</button> : null}</article>)}</div></> : null}
+      {workspace.competitions.length ? <><hr className={styles.sectionDivider} /><div className={styles.panelHeading}><h2>Club competitions</h2><p>See what is ready and finish the one missing step.</p></div><div className={styles.cardGrid}>{workspace.competitions.map((competition) => {
+        const readiness = getClubCompetitionReadiness(competition)
+        return <article className={styles.card} key={`${competition.type}-${competition.id}`}><div className={styles.cardTop}><h3>{competition.name}</h3><span className={styles.pill}>{readiness.label}</span></div><p>{readiness.detail}</p><span className={styles.muted}>{competition.entryCount} {competition.entryCount === 1 ? 'entry' : 'entries'} · {competition.scheduleCount} scheduled {competition.scheduleCount === 1 ? 'match' : 'matches'}</span><Link className={styles.primary} href={competition.href}>{readiness.actionLabel}</Link>{manager ? <button className={styles.quietButton} type="button" onClick={() => onInvite(competition.type, competition.id)}>Invite people</button> : null}</article>
+      })}</div></> : null}
     </section>
   )
 }

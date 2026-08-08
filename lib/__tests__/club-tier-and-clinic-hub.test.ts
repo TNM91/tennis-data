@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getClubProgramLaunchAction, getClubProgramReadinessAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
+import { getClubCompetitionReadiness, getClubProgramLaunchAction, getClubProgramReadinessAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -102,8 +102,8 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Add connected players to')
     expect(club).toContain('No invitation is sent.')
     expect(club).toContain('Select to add directly')
-    expect(clubRoute).toContain("select('id,league_name,league_format,season_status,is_public')")
-    expect(clubRoute).toContain("select('id,name,entrant_type,status,is_public')")
+    expect(clubRoute).toContain("select('id,league_name,league_format,season_status,teams,players,is_public')")
+    expect(clubRoute).toContain("select('id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public')")
     expect(rosterRoute).toContain('export async function PUT')
     expect(rosterRoute).toContain("from('club_group_members').upsert")
     expect(rosterRoute).toContain("from('tiq_player_league_entries')")
@@ -382,5 +382,22 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(coachSyncRoute).toContain('buildClubCoachStudentLinkId')
     expect(club).toContain('Coach plan ready')
     expect(club).toContain('Next session not added')
+  })
+
+  it('keeps Club competition work open until entries and a schedule or draw exist', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+
+    expect(getClubCompetitionReadiness({ type: 'league', entryCount: 1, scheduleCount: 0, nextEventAt: '' }).actionLabel).toBe('Add entries')
+    expect(getClubCompetitionReadiness({ type: 'league', entryCount: 8, scheduleCount: 0, nextEventAt: '' }).actionLabel).toBe('Build schedule')
+    expect(getClubCompetitionReadiness({ type: 'tournament', entryCount: 16, scheduleCount: 0, nextEventAt: '' }).actionLabel).toBe('Build draw')
+    expect(getClubCompetitionReadiness({ type: 'tournament', entryCount: 16, scheduleCount: 15, nextEventAt: '2026-08-15T09:00:00' }).ready).toBe(true)
+    expect(clubRoute).toContain("from('tiq_team_league_entries')")
+    expect(clubRoute).toContain("from('tiq_league_schedule_items')")
+    expect(clubRoute).toContain('entryCount: Math.max')
+    expect(clubRoute).toContain('scheduleCount: Math.max')
+    expect(club).toContain('Finish competition')
+    expect(club).toContain('competitionNeedsWork')
+    expect(club).toContain('See what is ready and finish the one missing step.')
   })
 })
