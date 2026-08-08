@@ -87,6 +87,11 @@ export type ClubGroup = {
   coachPlannedPlayerCount: number
   nextCoachSessionAt: string
   coachActionPlayerLinkId: string
+  linkedCompetitionId: string
+  linkedCompetitionType: ClubCompetitionType | ''
+  competitionEntryCount: number
+  competitionScheduleCount: number
+  nextCompetitionEventAt: string
   updatedAt: string
 }
 
@@ -133,6 +138,7 @@ export type ClubInviteLanding = {
 
 export type ClubLinkedCompetition = {
   id: string
+  clubGroupId: string
   name: string
   type: ClubCompetitionType
   entrantType: 'players' | 'teams'
@@ -401,9 +407,47 @@ export function getClubProgramLaunchAction(
 }
 
 export function getClubProgramReadinessAction(
-  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'> & Partial<Pick<ClubGroup, 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt' | 'coachActionPlayerLinkId'>>,
+  group: Pick<ClubGroup, 'id' | 'name' | 'groupType'> & Partial<Pick<ClubGroup, 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt' | 'coachActionPlayerLinkId' | 'linkedCompetitionId' | 'linkedCompetitionType' | 'competitionEntryCount' | 'competitionScheduleCount'>>,
   club: Pick<Club, 'id' | 'name' | 'slug'>,
 ): ClubProgramLaunchAction {
+  if (group.groupType === 'league_division' && group.linkedCompetitionId) {
+    const href = buildClubToolHref('/league-coordinator', club, { leagueId: group.linkedCompetitionId, groupId: group.id, program: group.name })
+    if ((group.competitionEntryCount ?? 0) < 2) return {
+      title: `${group.name} needs league entries.`,
+      detail: 'Add at least two teams or players before building the schedule.',
+      label: 'Add league entries',
+      href,
+      syncCoachRoster: false,
+    }
+    if (!(group.competitionScheduleCount ?? 0)) return {
+      title: `${group.name} needs its match schedule.`,
+      detail: 'The field is ready. Build the schedule so everyone sees what comes next.',
+      label: 'Build league schedule',
+      href,
+      syncCoachRoster: false,
+    }
+    return { title: `${group.name} is ready.`, detail: 'Open the linked league.', label: 'Open league', href, syncCoachRoster: false }
+  }
+
+  if (group.groupType === 'tournament_field' && group.linkedCompetitionId) {
+    const href = buildClubToolHref('/league-coordinator/tournaments', club, { tournamentId: group.linkedCompetitionId, groupId: group.id, program: group.name })
+    if ((group.competitionEntryCount ?? 0) < 2) return {
+      title: `${group.name} needs tournament entries.`,
+      detail: 'Add at least two players or teams before building the draw.',
+      label: 'Add tournament entries',
+      href,
+      syncCoachRoster: false,
+    }
+    if (!(group.competitionScheduleCount ?? 0)) return {
+      title: `${group.name} needs its scheduled draw.`,
+      detail: 'The field is ready. Add the first match time or court to finish the draw.',
+      label: 'Schedule tournament draw',
+      href,
+      syncCoachRoster: false,
+    }
+    return { title: `${group.name} is ready.`, detail: 'Open the linked tournament.', label: 'Open tournament', href, syncCoachRoster: false }
+  }
+
   if (group.groupType === 'team') {
     const returnTo = `/clubs?${new URLSearchParams({ clubId: club.id, tab: 'home' }).toString()}`
     if (!group.teamRosterCount) return {
@@ -465,8 +509,10 @@ export function getClubProgramReadinessAction(
   return getClubProgramLaunchAction(group, club)
 }
 
-export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'launchHandoffCompletedAt'> & Partial<Pick<ClubGroup, 'clinicSessionCount' | 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt'>>) {
-  if (!group.isActive || !group.memberIds.length || group.reviewMemberIds.length) return false
+export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memberIds' | 'reviewMemberIds' | 'groupType' | 'launchHandoffCompletedAt'> & Partial<Pick<ClubGroup, 'clinicSessionCount' | 'teamRosterCount' | 'teamMatchCount' | 'coachExpectedPlayerCount' | 'coachLinkedPlayerCount' | 'coachPlannedPlayerCount' | 'nextCoachSessionAt' | 'linkedCompetitionId' | 'competitionEntryCount' | 'competitionScheduleCount'>>) {
+  if (!group.isActive || group.reviewMemberIds.length) return false
+  const competitionProgram = group.groupType === 'league_division' || group.groupType === 'tournament_field'
+  if (!competitionProgram && !group.memberIds.length) return false
   if (group.groupType === 'clinic') return group.clinicSessionCount === 0
   if (group.groupType === 'team') return group.teamRosterCount === 0 || group.teamMatchCount === 0
   if (group.groupType === 'camp' || group.groupType === 'development_group') {
@@ -475,6 +521,11 @@ export function needsClubProgramLaunch(group: Pick<ClubGroup, 'isActive' | 'memb
     return (group.coachLinkedPlayerCount ?? 0) < expectedPlayers
       || (group.coachPlannedPlayerCount ?? 0) < expectedPlayers
       || !group.nextCoachSessionAt
+  }
+  if (group.groupType === 'league_division' || group.groupType === 'tournament_field') {
+    return !group.linkedCompetitionId
+      || (group.competitionEntryCount ?? 0) < 2
+      || !(group.competitionScheduleCount ?? 0)
   }
   return !group.launchHandoffCompletedAt
 }
@@ -652,6 +703,11 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     coachPlannedPlayerCount: Math.max(0, Number(row.coach_planned_player_count) || 0),
     nextCoachSessionAt: cleanClubText(row.next_coach_session_at, 80),
     coachActionPlayerLinkId: cleanClubText(row.coach_action_player_link_id, 240),
+    linkedCompetitionId: cleanClubText(row.linked_competition_id, 240),
+    linkedCompetitionType: row.linked_competition_type === 'league' || row.linked_competition_type === 'tournament' ? row.linked_competition_type : '',
+    competitionEntryCount: Math.max(0, Number(row.competition_entry_count) || 0),
+    competitionScheduleCount: Math.max(0, Number(row.competition_schedule_count) || 0),
+    nextCompetitionEventAt: cleanClubText(row.next_competition_event_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

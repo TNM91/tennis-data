@@ -102,8 +102,8 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Add connected players to')
     expect(club).toContain('No invitation is sent.')
     expect(club).toContain('Select to add directly')
-    expect(clubRoute).toContain("select('id,league_name,league_format,season_status,teams,players,is_public')")
-    expect(clubRoute).toContain("select('id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public')")
+    expect(clubRoute).toContain("select('id,club_group_id,league_name,league_format,season_status,teams,players,is_public')")
+    expect(clubRoute).toContain("select('id,club_group_id,name,entrant_type,status,starts_on,entrants,results,schedule,is_public')")
     expect(rosterRoute).toContain('export async function PUT')
     expect(rosterRoute).toContain("from('club_group_members').upsert")
     expect(rosterRoute).toContain("from('tiq_player_league_entries')")
@@ -399,5 +399,43 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Finish competition')
     expect(club).toContain('competitionNeedsWork')
     expect(club).toContain('See what is ready and finish the one missing step.')
+  })
+
+  it('keeps each Club competition program linked to the exact league or tournament it creates', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const leagueOffice = source('app/components/league-coordinator-workspace.tsx')
+    const tournamentDesk = source('app/components/tournament-builder-workspace.tsx')
+    const leagueRegistry = source('lib/tiq-league-registry.ts')
+    const tournamentRegistry = source('lib/tiq-tournament-registry.ts')
+    const migration = source('supabase/migrations/20260808000400_link_club_programs_to_competitions.sql')
+    const clubIdentity = { id: 'club-1', name: 'Vetta Racquet Sports', slug: 'vetta' }
+    const linkedLeague = {
+      id: 'league-group-1',
+      name: 'Friday League',
+      groupType: 'league_division' as const,
+      linkedCompetitionId: 'friday-league-2026',
+      competitionEntryCount: 8,
+      competitionScheduleCount: 0,
+    }
+
+    expect(getClubProgramReadinessAction(linkedLeague, clubIdentity).label).toBe('Build league schedule')
+    expect(getClubProgramReadinessAction(linkedLeague, clubIdentity).href).toContain('leagueId=friday-league-2026')
+    expect(getClubProgramReadinessAction({ ...linkedLeague, competitionScheduleCount: 10 }, clubIdentity).label).toBe('Open league')
+    expect(needsClubProgramLaunch({ ...linkedLeague, isActive: true, memberIds: [], reviewMemberIds: [], launchHandoffCompletedAt: '' })).toBe(true)
+    expect(needsClubProgramLaunch({ ...linkedLeague, competitionScheduleCount: 10, isActive: true, memberIds: [], reviewMemberIds: [], launchHandoffCompletedAt: '' })).toBe(false)
+    expect(leagueOffice).toContain("searchParams.get('groupId')")
+    expect(leagueOffice).toContain('clubGroupId: requestedClubGroupId')
+    expect(tournamentDesk).toContain("requestParams.get('groupId')")
+    expect(tournamentDesk).toContain('clubGroupId,')
+    expect(leagueRegistry).toContain('clubGroupId?: string')
+    expect(tournamentRegistry).toContain('club_group_id: cleanText(record.clubGroupId) || null')
+    expect(clubRoute).toContain('competitionByGroupId')
+    expect(clubRoute).toContain('linkedCompetitionId: linkedCompetition?.id')
+    expect(club).toContain('Competition not connected')
+    expect(club).toContain('Competition ready')
+    expect(migration).toContain('club_group_id uuid references public.club_groups(id)')
+    expect(migration).toContain('tiq_leagues_club_group_unique')
+    expect(migration).toContain('tiq_tournaments_club_group_unique')
   })
 })

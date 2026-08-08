@@ -171,6 +171,7 @@ const LEAGUE_HOME_LOCKED_ACTIONS: readonly RoleHomeQuickAction[] = [
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   clubId: '',
+  clubGroupId: '',
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
   teamMatchFormatId: 'standard_2s_3d',
@@ -369,6 +370,12 @@ export function LeagueCoordinatorWorkspace() {
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const requestedClubId = searchParams.get('clubId') || ''
   const requestedClubTemplateId = searchParams.get('templateId') || ''
+  const requestedClubGroupId = searchParams.get('groupId') || ''
+  const requestedClubSetupId = requestedClubTemplateId
+    ? `template:${requestedClubTemplateId}`
+    : requestedClubGroupId
+      ? `program:${requestedClubGroupId}`
+      : ''
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
@@ -378,7 +385,7 @@ export function LeagueCoordinatorWorkspace() {
   const [setupOpen, setSetupOpen] = useState(false)
   const [registryLoaded, setRegistryLoaded] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
-  const [appliedClubTemplateId, setAppliedClubTemplateId] = useState('')
+  const [appliedClubSetupId, setAppliedClubSetupId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
   const [photoUploadStatus, setPhotoUploadStatus] = useState('')
@@ -430,7 +437,7 @@ export function LeagueCoordinatorWorkspace() {
   }, [refreshRegistry])
 
   useEffect(() => {
-    if (!requestedClubId || !requestedClubTemplateId || appliedClubTemplateId === requestedClubTemplateId) return
+    if (!requestedClubId || !requestedClubSetupId || appliedClubSetupId === requestedClubSetupId) return
 
     const entrantType = searchParams.get('entrantType')
     const requestedFormat = searchParams.get('format') || ''
@@ -438,6 +445,7 @@ export function LeagueCoordinatorWorkspace() {
     setDraft((current) => ({
       ...current,
       clubId: requestedClubId,
+      clubGroupId: requestedClubGroupId,
       leagueFormat,
       individualCompetitionFormat: leagueFormat === 'individual'
         ? normalizeTiqIndividualCompetitionFormat(requestedFormat)
@@ -445,16 +453,18 @@ export function LeagueCoordinatorWorkspace() {
       teamMatchFormatId: leagueFormat === 'team'
         ? normalizeTeamMatchFormatId(requestedFormat)
         : current.teamMatchFormatId,
-      leagueName: searchParams.get('templateName') || current.leagueName,
+      leagueName: searchParams.get('templateName') || searchParams.get('program') || current.leagueName,
       flight: searchParams.get('division') || current.flight,
       defaultFacility: searchParams.get('facility') || current.defaultFacility,
       locationLabel: searchParams.get('clubName') || current.locationLabel,
       scheduleTimeZone: searchParams.get('timeZone') || current.scheduleTimeZone,
     }))
     setSetupOpen(true)
-    setAppliedClubTemplateId(requestedClubTemplateId)
-    setStatus('Club setup applied. Add the season dates and first participants, then save the league.')
-  }, [appliedClubTemplateId, requestedClubId, requestedClubTemplateId, searchParams])
+    setAppliedClubSetupId(requestedClubSetupId)
+    setStatus(requestedClubGroupId
+      ? 'Club program connected. Add the season dates and first participants, then save the league.'
+      : 'Club setup applied. Add the season dates and first participants, then save the league.')
+  }, [appliedClubSetupId, requestedClubGroupId, requestedClubId, requestedClubSetupId, searchParams])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1073,7 +1083,12 @@ export function LeagueCoordinatorWorkspace() {
   ] as const
 
   function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
-    setDraft(EMPTY_DRAFT)
+    setDraft({
+      ...EMPTY_DRAFT,
+      clubId: requestedClubId,
+      clubGroupId: requestedClubGroupId,
+      leagueName: requestedClubGroupId ? searchParams.get('program') || '' : '',
+    })
     setTeamListInput('')
     setPlayerListInput('')
     setParticipantQuickAddInput('')
@@ -1087,8 +1102,11 @@ export function LeagueCoordinatorWorkspace() {
     setEditingId('')
     setDraft({
       ...EMPTY_DRAFT,
+      clubId: requestedClubId,
+      clubGroupId: requestedClubGroupId,
       leagueFormat: format,
       individualCompetitionFormat: format === 'individual' ? 'round_robin' : 'standard',
+      leagueName: requestedClubGroupId ? searchParams.get('program') || '' : '',
     })
     setTeamListInput('')
     setPlayerListInput('')
@@ -1218,6 +1236,8 @@ export function LeagueCoordinatorWorkspace() {
     const normalizedSeason = normalizeSeasonLabel(record.seasonLabel)
     setEditingId(record.id)
     setDraft({
+      clubId: record.clubId,
+      clubGroupId: record.clubGroupId,
       leagueFormat: record.leagueFormat,
       individualCompetitionFormat: record.individualCompetitionFormat,
       teamMatchFormatId: record.teamMatchFormatId,
@@ -2436,6 +2456,9 @@ export function LeagueCoordinatorWorkspace() {
                   <GhostLink href={buildTiqLeaguePageHref(lastSavedRecord)} onClick={dismissLeagueSetupConfirmation}>
                     View public league
                   </GhostLink>
+                  {lastSavedRecord.clubId && lastSavedRecord.clubGroupId ? <GhostLink href={`/clubs?${new URLSearchParams({ clubId: lastSavedRecord.clubId, tab: 'home' }).toString()}`} onClick={dismissLeagueSetupConfirmation}>
+                    Return to Club
+                  </GhostLink> : null}
                   <GhostBtn onClick={dismissLeagueSetupConfirmation}>
                     Done
                   </GhostBtn>
