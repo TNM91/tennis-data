@@ -3,6 +3,7 @@ import {
   cleanClubMultiline,
   cleanClubText,
   createClubSlug,
+  isClubManager,
   mapClubGroupRow,
   mapClubInviteRow,
   mapClubMembershipRow,
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
   if (firstError) return clubDatabaseError(firstError.message)
 
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
+  const canReadRenewals = isClubManager(currentMembership.roles)
   const individualLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
     .filter((row) => row.league_format === 'individual')
     .map((row) => cleanClubText(row.id))
@@ -76,9 +78,12 @@ export async function GET(request: Request) {
     .filter((row) => row.entrant_type !== 'teams')
     .map((row) => cleanClubText(row.id))
     .filter(Boolean)
-  const [groupMemberResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
+  const [groupMemberResult, renewalResult, leagueEntryResult, tournamentEntryResult] = await Promise.all([
     groups.length
       ? auth.supabase.from('club_group_members').select('group_id,membership_id,status').in('group_id', groups.map((group) => group.id)).neq('status', 'inactive')
+      : Promise.resolve({ data: [], error: null }),
+    canReadRenewals && groups.length
+      ? auth.supabase.from('club_group_renewals').select('group_id,status').in('group_id', groups.map((group) => group.id))
       : Promise.resolve({ data: [], error: null }),
     individualLeagueIds.length
       ? auth.supabase.from('tiq_player_league_entries').select('league_id,club_membership_id,entry_status').in('league_id', individualLeagueIds).eq('entry_status', 'active').not('club_membership_id', 'is', null)
@@ -87,7 +92,7 @@ export async function GET(request: Request) {
       ? auth.supabase.from('tiq_tournament_entries').select('tournament_id,club_membership_id,status').in('tournament_id', playerTournamentIds).eq('status', 'approved').not('club_membership_id', 'is', null)
       : Promise.resolve({ data: [], error: null }),
   ])
-  const assignmentError = [groupMemberResult.error, leagueEntryResult.error, tournamentEntryResult.error].find(Boolean)
+  const assignmentError = [groupMemberResult.error, renewalResult.error, leagueEntryResult.error, tournamentEntryResult.error].find(Boolean)
   if (assignmentError) return clubDatabaseError(assignmentError.message)
   const groupMemberRows = (groupMemberResult.data ?? []) as Record<string, unknown>[]
 
@@ -98,6 +103,15 @@ export async function GET(request: Request) {
     const membershipId = cleanClubText(row.membership_id)
     if (groupId && membershipId && row.status === 'active') memberIdsByGroup.set(groupId, [...(memberIdsByGroup.get(groupId) ?? []), membershipId])
     if (groupId && membershipId && row.status === 'waitlist') reviewMemberIdsByGroup.set(groupId, [...(reviewMemberIdsByGroup.get(groupId) ?? []), membershipId])
+  }
+  const renewalCountsByGroup = new Map<string, { pending: number; confirmed: number; declined: number }>()
+  for (const row of (renewalResult.data ?? []) as Record<string, unknown>[]) {
+    const groupId = cleanClubText(row.group_id)
+    const status = cleanClubText(row.status)
+    if (!groupId || !['pending', 'confirmed', 'declined'].includes(status)) continue
+    const current = renewalCountsByGroup.get(groupId) ?? { pending: 0, confirmed: 0, declined: 0 }
+    current[status as 'pending' | 'confirmed' | 'declined'] += 1
+    renewalCountsByGroup.set(groupId, current)
   }
 
   const memberIdsByLeague = new Map<string, string[]>()
@@ -145,7 +159,17 @@ export async function GET(request: Request) {
       currentMembership,
       memberships: ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow),
       invites: ((inviteResult.data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow),
-      groups: groups.map((group) => ({ ...group, memberIds: memberIdsByGroup.get(group.id) ?? [], reviewMemberIds: reviewMemberIdsByGroup.get(group.id) ?? [] })),
+      groups: groups.map((group) => {
+        const renewalCounts = renewalCountsByGroup.get(group.id) ?? { pending: 0, confirmed: 0, declined: 0 }
+        return {
+          ...group,
+          memberIds: memberIdsByGroup.get(group.id) ?? [],
+          reviewMemberIds: reviewMemberIdsByGroup.get(group.id) ?? [],
+          renewalPendingCount: renewalCounts.pending,
+          renewalConfirmedCount: renewalCounts.confirmed,
+          renewalDeclinedCount: renewalCounts.declined,
+        }
+      }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),
       competitions,
     },

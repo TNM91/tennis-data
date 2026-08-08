@@ -70,6 +70,9 @@ export type ClubGroup = {
   sourceGroupId: string
   memberIds: string[]
   reviewMemberIds: string[]
+  renewalPendingCount: number
+  renewalConfirmedCount: number
+  renewalDeclinedCount: number
   updatedAt: string
 }
 
@@ -440,6 +443,9 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     sourceGroupId: cleanClubText(row.rollover_source_group_id),
     memberIds,
     reviewMemberIds,
+    renewalPendingCount: 0,
+    renewalConfirmedCount: 0,
+    renewalDeclinedCount: 0,
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

@@ -198,6 +198,7 @@
 .inviteDestination > span, .inviteSuccess > span, .inviteMismatch > span { color: var(--shell-copy-muted); line-height: 1.45; font-weight: 700; }
 .inviteMismatch { border-color: rgba(255, 184, 91, .42); }
 .inviteMismatch .primary { justify-self: start; margin-top: 4px; }
+.renewalDecision { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .guidedBanner > div { display: grid; gap: 4px; min-width: 0; }
 .guidedBanner strong { font-size: 18px; overflow-wrap: anywhere; }
 .guidedBanner span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
@@ -344,6 +345,18 @@
 .emptyState strong { color: var(--foreground-strong); }
 .emptyState span { font-size: 12px; font-weight: 700; line-height: 1.45; }
 .reviewLabel { width: fit-content; border: 1px solid rgba(255, 194, 87, .34); border-radius: 999px; background: rgba(255, 194, 87, .08); color: #ffd68b; padding: 5px 8px; font-size: 10px; font-weight: 900; }
+.renewalSummary { display: flex; flex-wrap: wrap; gap: 6px; }
+.renewalSummary span, .renewalStatus { border: 1px solid var(--shell-panel-border); border-radius: 999px; background: rgba(255, 255, 255, .035); color: var(--shell-copy-muted); padding: 5px 8px; font-size: 10px; font-weight: 900; }
+.renewalBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: end center; padding: 18px; background: rgba(2, 8, 18, .74); backdrop-filter: blur(8px); }
+.renewalSheet { display: grid; gap: 13px; width: min(680px, 100%); max-height: min(82vh, 760px); overflow: auto; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 38%, var(--shell-panel-border)); border-radius: 18px; background: #071528; padding: 18px; box-shadow: 0 24px 90px rgba(0, 0, 0, .48); }
+.renewalActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.renewalList { display: grid; gap: 8px; }
+.renewalRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-chip-bg); padding: 11px; }
+.renewalRow > div { display: grid; gap: 3px; min-width: 0; }
+.renewalRow strong, .renewalRow span { overflow-wrap: anywhere; }
+.renewalRow > div span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
+.renewalYes { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 45%, var(--shell-panel-border)); color: var(--club-color, var(--brand-green)); }
+.renewalNo { border-color: rgba(255, 94, 112, .36); color: #ffd2d7; }
 
 @media (max-width: 650px) {
   .page { width: min(100% - 20px, 1180px); padding-top: 16px; }
@@ -362,6 +375,11 @@
   .experienceStrip { grid-template-columns: 1fr; }
   .inviteAccountCheck { grid-template-columns: 1fr; }
   .inviteShell > .primary, .inviteMismatch .primary { width: 100%; }
+  .renewalDecision { grid-template-columns: 1fr; }
+  .renewalBackdrop { align-items: end; padding: 8px; }
+  .renewalSheet { max-height: 88vh; border-radius: 16px 16px 10px 10px; padding: 14px; }
+  .renewalRow { grid-template-columns: minmax(0, 1fr) auto; }
+  .renewalRow > button { grid-column: 1 / -1; width: 100%; }
   .peopleSearchRow { grid-template-columns: 1fr; align-items: stretch; }
   .peopleSearchRow > .muted { display: none; }
   .peopleFilters { margin-inline: -3px; padding-inline: 3px; }
