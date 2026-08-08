@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getClubCompetitionReadiness, getClubProgramLaunchAction, getClubProgramReadinessAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
+import { getClubCompetitionReadiness, getClubProgramLaunchAction, getClubProgramReadinessAction, getLinkableClubCompetitions, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -437,5 +437,26 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(migration).toContain('club_group_id uuid references public.club_groups(id)')
     expect(migration).toContain('tiq_leagues_club_group_unique')
     expect(migration).toContain('tiq_tournaments_club_group_unique')
+  })
+
+  it('connects older Club programs to compatible existing competitions', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const linkRoute = source('app/api/clubs/[clubId]/groups/[groupId]/competition/route.ts')
+    const competitions = [
+      { id: 'league-1', clubGroupId: '', name: 'Friday League', type: 'league' as const, entrantType: 'teams' as const, memberIds: [], status: 'draft', isPublic: true, href: '/league-coordinator', entryCount: 8, scheduleCount: 0, nextEventAt: '' },
+      { id: 'league-2', clubGroupId: 'group-2', name: 'Linked League', type: 'league' as const, entrantType: 'players' as const, memberIds: [], status: 'draft', isPublic: true, href: '/league-coordinator', entryCount: 4, scheduleCount: 0, nextEventAt: '' },
+      { id: 'tournament-1', clubGroupId: '', name: 'Club Open', type: 'tournament' as const, entrantType: 'players' as const, memberIds: [], status: 'draft', isPublic: true, href: '/league-coordinator/tournaments', entryCount: 16, scheduleCount: 0, nextEventAt: '' },
+    ]
+
+    expect(getLinkableClubCompetitions({ groupType: 'league_division', linkedCompetitionId: '' }, competitions).map((item) => item.id)).toEqual(['league-1'])
+    expect(getLinkableClubCompetitions({ groupType: 'tournament_field', linkedCompetitionId: '' }, competitions).map((item) => item.id)).toEqual(['tournament-1'])
+    expect(getLinkableClubCompetitions({ groupType: 'team', linkedCompetitionId: '' }, competitions)).toEqual([])
+    expect(getLinkableClubCompetitions({ groupType: 'league_division', linkedCompetitionId: 'league-1' }, competitions)).toEqual([])
+    expect(club).toContain('Connect existing')
+    expect(club).toContain('/competition`')
+    expect(linkRoute).toContain("groupType === 'league_division'")
+    expect(linkRoute).toContain(".eq('club_id', clubId)")
+    expect(linkRoute).toContain('club_group_id: groupId')
+    expect(linkRoute).toContain('already connected to another Club program')
   })
 })

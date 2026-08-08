@@ -158,6 +158,20 @@ export type ClubCompetitionReadiness = {
   actionLabel: string
 }
 
+export function getLinkableClubCompetitions(
+  group: Pick<ClubGroup, 'groupType' | 'linkedCompetitionId'>,
+  competitions: ClubLinkedCompetition[],
+) {
+  if (group.linkedCompetitionId) return []
+  const competitionType = group.groupType === 'league_division'
+    ? 'league'
+    : group.groupType === 'tournament_field'
+      ? 'tournament'
+      : ''
+  if (!competitionType) return []
+  return competitions.filter((competition) => competition.type === competitionType && !competition.clubGroupId)
+}
+
 export type ClubWorkspaceData = {
   club: Club
   currentMembership: ClubMembership

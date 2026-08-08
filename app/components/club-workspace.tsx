@@ -13,6 +13,7 @@ import {
   canRunClubPrograms,
   getClubCompetitionReadiness,
   getClubGroupTypeLabel,
+  getLinkableClubCompetitions,
   getClubProgramReadinessAction,
   getClubRoleLabel,
   getClubSetupSteps,
@@ -618,6 +619,17 @@ export default function ClubWorkspace() {
               showMessage(error instanceof Error ? error.message : 'The roster could not be connected.', 'danger')
             } finally { setWorking(false) }
           }}
+          onLinkCompetition={async (groupId, competitionId) => {
+            setWorking(true)
+            try {
+              const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups/${groupId}/competition`, { method: 'PATCH', body: JSON.stringify({ competitionId }) })
+              await refreshWorkspace()
+              showMessage(result.message || 'Competition connected.')
+            } catch (error) {
+              showMessage(error instanceof Error ? error.message : 'The competition could not be connected.', 'danger')
+              throw error
+            } finally { setWorking(false) }
+          }}
         />
       ) : null}
       {tab === 'compete' ? (
@@ -1125,7 +1137,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSeasonAction, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onSaveRoster, onCoachSync, onLinkCompetition, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSeasonAction: (action: 'close-season' | 'reopen-season', seasonLabel: string) => Promise<string>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onLinkCompetition: (groupId: string, competitionId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -1140,6 +1152,8 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
   const [renewalGroup, setRenewalGroup] = useState<ClubGroup | null>(null)
   const [renewals, setRenewals] = useState<ClubGroupRenewal[]>([])
   const [renewalMessage, setRenewalMessage] = useState('')
+  const [linkingGroupId, setLinkingGroupId] = useState('')
+  const [linkingCompetitionId, setLinkingCompetitionId] = useState('')
   const activeGroups = useMemo(() => workspace.groups.filter((group) => group.isActive), [workspace.groups])
   const archivedGroups = useMemo(() => workspace.groups.filter((group) => !group.isActive), [workspace.groups])
   const activeSeasonLabels = Array.from(new Set(activeGroups.map((group) => group.seasonLabel).filter(Boolean)))
@@ -1258,6 +1272,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
           const coachProgram = group.groupType === 'camp' || group.groupType === 'development_group'
           const competitionProgram = group.groupType === 'league_division' || group.groupType === 'tournament_field'
           const competitionAction = competitionProgram ? getClubProgramReadinessAction(group, workspace.club) : null
+          const linkableCompetitions = competitionProgram ? getLinkableClubCompetitions(group, workspace.competitions) : []
           const competitionReady = Boolean(group.linkedCompetitionId && group.competitionEntryCount >= 2 && group.competitionScheduleCount > 0)
           const missingCoachLinks = Math.max(0, group.coachExpectedPlayerCount - group.coachLinkedPlayerCount)
           const missingCoachPlans = Math.max(0, group.coachExpectedPlayerCount - group.coachPlannedPlayerCount)
@@ -1292,6 +1307,8 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}
             {group.isActive && group.groupType === 'team' ? <Link className={styles.primary} href={teamHubHref}>Open Team Hub</Link> : null}
             {group.isActive && competitionProgram && competitionAction ? <Link className={styles.primary} href={competitionAction.href}>{competitionAction.label}</Link> : null}
+            {group.isActive && staff && competitionProgram && !group.linkedCompetitionId && linkableCompetitions.length ? <button className={styles.quietButton} disabled={working} type="button" onClick={() => { setLinkingGroupId((current) => current === group.id ? '' : group.id); setLinkingCompetitionId(linkableCompetitions[0]?.id ?? '') }}>{linkingGroupId === group.id ? 'Cancel connection' : 'Connect existing'}</button> : null}
+            {linkingGroupId === group.id ? <form className={styles.competitionLinkForm} onSubmit={(event) => { event.preventDefault(); void onLinkCompetition(group.id, linkingCompetitionId).then(() => { setLinkingGroupId(''); setLinkingCompetitionId('') }).catch(() => undefined) }}><label className={styles.field}><span>{group.groupType === 'league_division' ? 'Club league' : 'Club tournament'}</span><select required value={linkingCompetitionId} onChange={(event) => setLinkingCompetitionId(event.target.value)}>{linkableCompetitions.map((competition) => <option value={competition.id} key={competition.id}>{competition.name} · {competition.entryCount} {competition.entryCount === 1 ? 'entry' : 'entries'}</option>)}</select><small>Keeps this program and its competition progress together.</small></label><button className={styles.primary} disabled={working || !linkingCompetitionId} type="submit">{working ? 'Connecting...' : 'Connect competition'}</button></form> : null}
             {group.isActive && manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}
             {staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(Array.from(new Set([...group.memberIds, ...group.reviewMemberIds]))) }}>{group.isActive ? renewalCount ? 'Adjust roster manually' : group.reviewMemberIds.length ? 'Review returning players' : 'Manage roster' : 'View archived roster'}</button> : null}
             {group.isActive && coachSync && coachProgram ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open Coach Hub</button> : null}
