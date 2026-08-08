@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getClubProgramLaunchAction, type ClubGroupType } from '../club-workspace'
+import { getClubProgramLaunchAction, needsClubProgramLaunch, type ClubGroupType } from '../club-workspace'
 import { CLUB_PLAN_STORY } from '../product-story'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -283,10 +283,31 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(actionFor('tournament_field').href).toContain('/league-coordinator/tournaments?')
     expect(club).toContain('Ready to launch')
     expect(club).toContain("action: 'mark-launched'")
-    expect(club).toContain('group.memberIds.length > 0')
+    expect(club).toContain('workspace.groups.filter(needsClubProgramLaunch)')
     expect(clinic).toContain('buildClinicReturnPath')
     expect(clinicPage).toContain('initialTab={initialTab}')
     expect(groupRoute).toContain("action === 'mark-launched'")
     expect(migration).toContain('launch_handoff_completed_at timestamptz')
+  })
+
+  it('keeps clinic launch work open until the real schedule exists', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const workspace = source('lib/club-workspace.ts')
+    expect(clubRoute).toContain("from('club_clinic_sessions')")
+    expect(clubRoute).toContain(".neq('status', 'canceled')")
+    expect(clubRoute).toContain('clinicSessionCount: clinicSchedule.count')
+    expect(clubRoute).toContain('nextClinicSessionAt: clinicSchedule.nextAt')
+    expect(workspace).toContain('clinicSessionCount: number')
+    expect(workspace).toContain('nextClinicSessionAt: string')
+    const clinicState = { isActive: true, memberIds: ['player-1'], reviewMemberIds: [], groupType: 'clinic' as const, clinicSessionCount: 0, launchHandoffCompletedAt: '2026-08-08T10:00:00.000Z' }
+    expect(needsClubProgramLaunch(clinicState)).toBe(true)
+    expect(needsClubProgramLaunch({ ...clinicState, clinicSessionCount: 8 })).toBe(false)
+    expect(needsClubProgramLaunch({ ...clinicState, reviewMemberIds: ['player-1'] })).toBe(false)
+    expect(club).toContain('workspace.groups.filter(needsClubProgramLaunch)')
+    expect(club).toContain('still needs its first date.')
+    expect(club).toContain('Schedule ready')
+    expect(club).toContain('Schedule not added')
+    expect(club).toContain('Next session')
   })
 })

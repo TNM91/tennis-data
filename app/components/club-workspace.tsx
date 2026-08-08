@@ -17,6 +17,7 @@ import {
   getClubSetupSteps,
   hasClubTeamProgram,
   isClubManager,
+  needsClubProgramLaunch,
   normalizeClubInviteEmails,
   type Club,
   type ClubCompetitionTemplate,
@@ -679,9 +680,10 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
   const fillOpenGroups = workspace.groups.filter((group) => group.isActive && Boolean(group.renewalsFinalizedAt) && !group.renewalFillCompletedAt && group.renewalTargetRosterSize > group.memberIds.length)
   const nextFillGroup = fillOpenGroups[0]
   const nextOpenSpotCount = nextFillGroup ? Math.max(0, nextFillGroup.renewalTargetRosterSize - nextFillGroup.memberIds.length) : 0
-  const launchReadyGroups = workspace.groups.filter((group) => group.isActive && group.memberIds.length > 0 && !group.reviewMemberIds.length && !group.launchHandoffCompletedAt)
+  const launchReadyGroups = workspace.groups.filter(needsClubProgramLaunch)
   const nextLaunchGroup = launchReadyGroups[0]
   const nextLaunchAction = nextLaunchGroup ? getClubProgramLaunchAction(nextLaunchGroup, workspace.club) : null
+  const finishingClinicSchedule = Boolean(nextLaunchGroup?.groupType === 'clinic' && nextLaunchGroup.launchHandoffCompletedAt && nextLaunchGroup.clinicSessionCount === 0)
 
   async function openRenewalReview(group: ClubGroup) {
     setRenewalReviewGroup(group)
@@ -722,7 +724,7 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => onFillOpenSpots(nextFillGroup.id)}>Fill open spots</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void onCompleteRenewalFill(nextFillGroup.id)}>No replacements needed</button></div>
       </section> : null}
       {manager && setupComplete && pendingRenewalCount === 0 && !readyRenewalGroups.length && !fillOpenGroups.length && nextLaunchGroup && nextLaunchAction ? <section className={styles.renewalTask} aria-labelledby="launch-program-title">
-        <div><p className={styles.eyebrow}>Ready to launch</p><h3 id="launch-program-title">{nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
+        <div><p className={styles.eyebrow}>{finishingClinicSchedule ? 'Finish setup' : 'Ready to launch'}</p><h3 id="launch-program-title">{finishingClinicSchedule ? `${nextLaunchGroup.name} still needs its first date.` : nextLaunchAction.title}</h3><p>{nextLaunchAction.detail}{launchReadyGroups.length > 1 ? ` ${launchReadyGroups.length - 1} more ${launchReadyGroups.length === 2 ? 'program' : 'programs'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onLaunchProgram(nextLaunchGroup)}>{working ? 'Opening...' : nextLaunchAction.label}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Open Programs</button></div>
       </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
@@ -1248,6 +1250,9 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
             {group.isActive && group.reviewMemberIds.length ? <span className={styles.reviewLabel}>{group.reviewMemberIds.length} returning {group.reviewMemberIds.length === 1 ? 'player' : 'players'} to review</span> : null}
             {group.isActive && renewalCount ? <div className={styles.renewalSummary} aria-label="Season renewal responses"><span>{group.renewalConfirmedCount} yes</span><span>{group.renewalPendingCount} waiting</span><span>{group.renewalDeclinedCount} no</span></div> : null}
             {group.isActive && group.renewalsFinalizedAt ? <span className={styles.pill}>Roster finalized</span> : null}
+            {group.isActive && group.groupType === 'clinic' && group.clinicSessionCount ? <span className={styles.pill}>Schedule ready</span> : null}
+            {group.isActive && group.groupType === 'clinic' && group.nextClinicSessionAt ? <span className={styles.muted}>Next session {formatClubProgramDate(group.nextClinicSessionAt, workspace.club.timeZone)}</span> : null}
+            {group.isActive && staff && group.groupType === 'clinic' && group.launchHandoffCompletedAt && !group.clinicSessionCount ? <span className={styles.reviewLabel}>Schedule not added</span> : null}
             {group.isActive && groupOpenSpotCount ? <span className={styles.reviewLabel}>{groupOpenSpotCount} open {groupOpenSpotCount === 1 ? 'spot' : 'spots'}</span> : null}
             {group.isActive && manager && (group.reviewMemberIds.length || renewalCount) ? <button type="button" disabled={working} className={styles.primary} onClick={() => void openRenewals(group)}>{group.renewalsFinalizedAt ? 'View renewal results' : renewalCount ? group.renewalPendingCount ? 'Open renewal messages' : 'Review and finalize' : 'Request player decisions'}</button> : null}
             {group.isActive && manager && groupOpenSpotCount ? <button type="button" className={styles.quietButton} onClick={() => onFillOpenSpots(group.id)}>Fill open spots</button> : null}
@@ -1377,6 +1382,16 @@ function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new UR
 function readRequestedGroupId() { return new URL(window.location.href).searchParams.get('groupId') || '' }
 function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }
 function readRequestedRosterTeam() { return new URL(window.location.href).searchParams.get('team') || '' }
+
+function formatClubProgramDate(value: string, timeZone: string) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+  try {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone }).format(date)
+  } catch {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date)
+  }
+}
 function normalizeRosterTeamKey(value: string) { return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() }
 function getRosterScopeKey(contact: Pick<ClubRosterContact, 'importedByUserId' | 'teamName' | 'leagueName' | 'flight'>) { return [contact.importedByUserId, contact.teamName, contact.leagueName, contact.flight].join('\u001f') }
 function getRosterScopeLabel(contact: Pick<ClubRosterContact, 'teamName' | 'leagueName' | 'flight'>) { return [contact.teamName, contact.flight, contact.leagueName].filter(Boolean).join(' · ') }
