@@ -461,6 +461,19 @@ export default function ClubWorkspace() {
               showMessage(error instanceof Error ? error.message : 'The program could not be added.', 'danger')
             } finally { setWorking(false) }
           }}
+          onRollover={async (sourceGroupIds, seasonLabel, copyMembers) => {
+            setWorking(true)
+            try {
+              const result = await request<{ message?: string }>(`/api/clubs/${workspace.club.id}/groups`, { method: 'PUT', body: JSON.stringify({ sourceGroupIds, seasonLabel, copyMembers }) })
+              await refreshWorkspace()
+              showMessage(result.message || `${seasonLabel} is ready.`)
+              return result.message || `${seasonLabel} is ready.`
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'The new season could not be created.'
+              showMessage(errorMessage, 'danger')
+              throw error
+            } finally { setWorking(false) }
+          }}
           onSaveRoster={async (groupId, membershipIds) => {
             setWorking(true)
             try {
@@ -598,6 +611,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
     for (const group of workspace.groups) {
       const category = group.groupType === 'team' ? 'teams' : group.groupType === 'clinic' ? 'clinics' : 'programs'
       for (const membershipId of group.memberIds) add(membershipId, { type: 'group', id: group.id, name: group.name, label: getClubGroupTypeLabel(group.groupType), category })
+      for (const membershipId of group.reviewMemberIds) add(membershipId, { type: 'group', id: group.id, name: group.name, label: `${getClubGroupTypeLabel(group.groupType)} · Review`, category })
     }
     for (const competition of workspace.competitions) {
       if (competition.entrantType !== 'players') continue
@@ -916,7 +930,7 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
   )
 }
 
-function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
+function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, working, onCreate, onRollover, onSaveRoster, onCoachSync, onInvite }: { workspace: ClubWorkspaceData; requestedGroupId: string; staff: boolean; manager: boolean; coachSync: boolean; working: boolean; onCreate: (payload: { name: string; groupType: ClubGroupType; description: string; seasonLabel: string; leadUserId: string; capacity: number; locationLabel: string; registrationUrl: string; defaultDurationMinutes: number }) => Promise<void>; onRollover: (sourceGroupIds: string[], seasonLabel: string, copyMembers: boolean) => Promise<string>; onSaveRoster: (groupId: string, membershipIds: string[]) => Promise<void>; onCoachSync: (groupId: string) => Promise<void>; onInvite: (groupId: string) => void }) {
   const [name, setName] = useState('')
   const [groupType, setGroupType] = useState<ClubGroupType>('clinic')
   const [description, setDescription] = useState('')
@@ -928,6 +942,17 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
   const [defaultDurationMinutes, setDefaultDurationMinutes] = useState(90)
   const [editingGroup, setEditingGroup] = useState<ClubGroup | null>(null)
   const [memberIds, setMemberIds] = useState<string[]>([])
+  const seasonLabels = Array.from(new Set(workspace.groups.map((group) => group.seasonLabel).filter(Boolean)))
+  const initialSourceSeason = seasonLabels[0] ?? '__none__'
+  const [seasonView, setSeasonView] = useState('all')
+  const [rolloverOpen, setRolloverOpen] = useState(false)
+  const [rolloverSourceSeason, setRolloverSourceSeason] = useState(initialSourceSeason)
+  const [nextSeasonLabel, setNextSeasonLabel] = useState('')
+  const [copyReturningMembers, setCopyReturningMembers] = useState(true)
+  const rolloverSourceGroups = useMemo(() => workspace.groups.filter((group) => rolloverSourceSeason === '__none__' ? !group.seasonLabel : group.seasonLabel === rolloverSourceSeason), [rolloverSourceSeason, workspace.groups])
+  const [rolloverGroupIds, setRolloverGroupIds] = useState(() => rolloverSourceGroups.map((group) => group.id))
+  const visibleGroups = seasonView === 'all' ? workspace.groups : workspace.groups.filter((group) => group.seasonLabel === seasonView)
+  const repeatsSourceSeason = rolloverSourceSeason !== '__none__' && nextSeasonLabel.trim().toLowerCase() === rolloverSourceSeason.toLowerCase()
   useEffect(() => {
     if (!requestedGroupId) return
     const frame = window.requestAnimationFrame(() => document.getElementById(`club-group-${requestedGroupId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -936,6 +961,19 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>Programs + teams</p><h2>Put the right people together.</h2><p>Create clinics, teams, camps, or development groups from the same club roster.</p></div>
+      {manager && workspace.groups.length ? <details className={styles.rolloverDetails} open={rolloverOpen} onToggle={(event) => setRolloverOpen(event.currentTarget.open)}>
+        <summary><span>Start next season</span><small>Copy the setup. Review returning players before they become active.</small></summary>
+        <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onRollover(rolloverGroupIds, nextSeasonLabel, copyReturningMembers).then(() => { setSeasonView(nextSeasonLabel.trim()); setNextSeasonLabel(''); setRolloverOpen(false) }).catch(() => undefined) }}>
+          <div className={styles.fieldGrid}>
+            <label className={styles.field}><span>Copy from</span><select value={rolloverSourceSeason} onChange={(event) => { const sourceSeason = event.target.value; setRolloverSourceSeason(sourceSeason); setRolloverGroupIds(workspace.groups.filter((group) => sourceSeason === '__none__' ? !group.seasonLabel : group.seasonLabel === sourceSeason).map((group) => group.id)) }}>{seasonLabels.map((season) => <option value={season} key={season}>{season}</option>)}{workspace.groups.some((group) => !group.seasonLabel) ? <option value="__none__">No season set</option> : null}</select></label>
+            <label className={styles.field}><span>New season</span><input required maxLength={80} value={nextSeasonLabel} onChange={(event) => setNextSeasonLabel(event.target.value)} placeholder="Winter 2027" />{repeatsSourceSeason ? <small>Use a different season name.</small> : null}</label>
+          </div>
+          <fieldset className={styles.rolloverChoices}><legend>Programs to carry forward</legend>{rolloverSourceGroups.map((group) => <label className={styles.memberRow} key={group.id}><input type="checkbox" checked={rolloverGroupIds.includes(group.id)} onChange={() => setRolloverGroupIds((current) => current.includes(group.id) ? current.filter((id) => id !== group.id) : [...current, group.id])} /><span><strong>{group.name}</strong><small>{getClubGroupTypeLabel(group.groupType)} · {group.memberIds.length} current</small></span></label>)}</fieldset>
+          <label className={styles.check}><input type="checkbox" checked={copyReturningMembers} onChange={(event) => setCopyReturningMembers(event.target.checked)} />Bring current players over for review</label>
+          <p className={styles.muted}>The current season stays intact. New rosters remain in review until you save them.</p>
+          <button className={styles.primary} disabled={working || !rolloverGroupIds.length || nextSeasonLabel.trim().length < 2 || repeatsSourceSeason} type="submit">{working ? 'Creating season...' : rolloverGroupIds.length ? `Create ${rolloverGroupIds.length} for new season` : 'Choose programs'}</button>
+        </form>
+      </details> : null}
       {staff ? (
         <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onCreate({ name, groupType, description, seasonLabel, leadUserId, capacity, locationLabel, registrationUrl, defaultDurationMinutes }).then(() => { setName(''); setDescription('') }) }}>
           <div className={styles.fieldGrid}>
@@ -948,12 +986,13 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
           <button className={styles.primary} disabled={working} type="submit">Add program</button>
         </form>
       ) : null}
+      {seasonLabels.length ? <label className={styles.seasonView}><span>Showing season</span><select value={seasonView} onChange={(event) => setSeasonView(event.target.value)}><option value="all">All seasons</option>{seasonLabels.map((season) => <option value={season} key={season}>{season}</option>)}</select></label> : null}
       <div className={styles.cardGrid}>
-        {workspace.groups.map((group) => <article id={`club-group-${group.id}`} className={`${styles.card} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div><p>{group.description || group.seasonLabel || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected{group.capacity ? ` · ${group.capacity} spots` : ''}</span>{group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}{manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(group.memberIds) }}>Manage roster</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
+        {visibleGroups.map((group) => <article id={`club-group-${group.id}`} className={`${styles.card} ${requestedGroupId === group.id ? styles.cardTargeted : ''}`} key={group.id}><div className={styles.cardTop}><h3>{group.name}</h3><span className={styles.pill}>{getClubGroupTypeLabel(group.groupType)}</span></div>{group.seasonLabel ? <span className={styles.muted}>{group.seasonLabel}</span> : null}<p>{group.description || 'Ready for players.'}</p><span className={styles.muted}>{group.memberIds.length} connected{group.capacity ? ` · ${group.capacity} spots` : ''}</span>{group.reviewMemberIds.length ? <span className={styles.reviewLabel}>{group.reviewMemberIds.length} returning {group.reviewMemberIds.length === 1 ? 'player' : 'players'} to review</span> : null}{group.groupType === 'clinic' ? <Link className={styles.primary} href={`/clubs/clinics/${group.id}?clubId=${encodeURIComponent(workspace.club.id)}`}>Open Clinic Hub</Link> : null}{manager ? <button type="button" className={styles.quietButton} onClick={() => onInvite(group.id)}>Invite people</button> : null}{staff ? <button type="button" className={styles.quietButton} onClick={() => { setEditingGroup(group); setMemberIds(Array.from(new Set([...group.memberIds, ...group.reviewMemberIds]))) }}>{group.reviewMemberIds.length ? 'Review returning players' : 'Manage roster'}</button> : null}{coachSync ? <button type="button" disabled={working} className={styles.quietButton} onClick={() => void onCoachSync(group.id)}>Open roster in Coach Hub</button> : null}</article>)}
       </div>
       {editingGroup ? (
         <div className={styles.compactForm}>
-          <div className={styles.panelHeading}><h2>{editingGroup.name}</h2><p>Choose who belongs in this program.</p></div>
+          <div className={styles.panelHeading}><h2>{editingGroup.name}</h2><p>{editingGroup.reviewMemberIds.length ? 'Confirm returning players. Uncheck anyone not continuing, then save.' : 'Choose who belongs in this program.'}</p></div>
           <div className={styles.groupRoster}>{workspace.memberships.map((member) => <label className={styles.memberRow} key={member.id}><input type="checkbox" checked={memberIds.includes(member.id)} onChange={() => setMemberIds((current) => current.includes(member.id) ? current.filter((id) => id !== member.id) : [...current, member.id])} /><span>{member.displayName || member.email || 'Club member'}</span></label>)}</div>
           <div className={styles.row}><button className={styles.primary} disabled={working} type="button" onClick={() => void onSaveRoster(editingGroup.id, memberIds).then(() => setEditingGroup(null))}>Save roster</button><button className={styles.secondary} type="button" onClick={() => setEditingGroup(null)}>Cancel</button></div>
         </div>

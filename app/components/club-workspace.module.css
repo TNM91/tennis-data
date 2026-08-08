@@ -325,6 +325,18 @@
 .inviteDetails > summary small { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
 .inviteDetails[open] > summary { border-bottom: 1px solid var(--shell-panel-border); }
 .inviteDetails > .compactForm { border: 0; border-radius: 0; }
+.rolloverDetails { border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 28%, var(--shell-panel-border)); border-radius: 13px; background: color-mix(in srgb, var(--club-color, var(--brand-green)) 5%, rgba(5, 14, 28, .42)); overflow: hidden; }
+.rolloverDetails > summary { display: grid; gap: 3px; padding: 13px 14px; cursor: pointer; list-style: none; }
+.rolloverDetails > summary::-webkit-details-marker { display: none; }
+.rolloverDetails > summary span { color: var(--foreground-strong); font-weight: 900; }
+.rolloverDetails > summary small { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
+.rolloverDetails[open] > summary { border-bottom: 1px solid var(--shell-panel-border); }
+.rolloverDetails > .compactForm { border: 0; border-radius: 0; }
+.rolloverChoices { display: grid; gap: 7px; max-height: 250px; margin: 0; overflow: auto; border: 1px solid var(--shell-panel-border); border-radius: 11px; padding: 10px; }
+.rolloverChoices legend { padding: 0 5px; color: var(--shell-copy-muted); font-size: 11px; font-weight: 900; }
+.seasonView { display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--shell-copy-muted); font-size: 12px; font-weight: 850; }
+.seasonView select { min-height: 38px; border: 1px solid var(--shell-panel-border); border-radius: 10px; background: var(--shell-panel-bg); color: var(--shell-copy); padding: 0 10px; font: inherit; }
+.reviewLabel { width: fit-content; border: 1px solid rgba(255, 194, 87, .34); border-radius: 999px; background: rgba(255, 194, 87, .08); color: #ffd68b; padding: 5px 8px; font-size: 10px; font-weight: 900; }
 
 @media (max-width: 650px) {
   .page { width: min(100% - 20px, 1180px); padding-top: 16px; }
