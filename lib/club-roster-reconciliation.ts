@@ -5,7 +5,9 @@ type RosterContactCandidate = {
   phone?: string | null
 }
 
-type ClubMembershipCandidate = {
+export type ClubMembershipCandidate = {
+  id?: string | null
+  user_id?: string | null
   email?: string | null
   phone?: string | null
   status?: string | null
@@ -26,6 +28,20 @@ export function normalizeClubContactPhone(value: string | null | undefined) {
   return digits.length >= 10 ? digits.slice(-10) : ''
 }
 
+export function findClubRosterMembership<T extends ClubMembershipCandidate>(
+  contact: RosterContactCandidate,
+  memberships: T[],
+): T | null {
+  const email = normalizeClubContactEmail(contact.email)
+  const phone = normalizeClubContactPhone(contact.phone)
+  return memberships.find((membership) => {
+    if ((membership.status || '').toLowerCase() === 'removed') return false
+    const memberEmail = normalizeClubContactEmail(membership.email)
+    const memberPhone = normalizeClubContactPhone(membership.phone)
+    return Boolean((email && memberEmail === email) || (phone && memberPhone === phone))
+  }) ?? null
+}
+
 export function getClubRosterConnectionStatus(input: {
   contact: RosterContactCandidate
   memberships: ClubMembershipCandidate[]
@@ -33,14 +49,7 @@ export function getClubRosterConnectionStatus(input: {
   now?: Date
 }): ClubRosterConnectionStatus {
   const email = normalizeClubContactEmail(input.contact.email)
-  const phone = normalizeClubContactPhone(input.contact.phone)
-  const connected = input.memberships.some((membership) => {
-    if ((membership.status || '').toLowerCase() === 'removed') return false
-    const memberEmail = normalizeClubContactEmail(membership.email)
-    const memberPhone = normalizeClubContactPhone(membership.phone)
-    return Boolean((email && memberEmail === email) || (phone && memberPhone === phone))
-  })
-  if (connected) return 'connected'
+  if (findClubRosterMembership(input.contact, input.memberships)) return 'connected'
 
   const now = input.now?.getTime() ?? Date.now()
   const pending = Boolean(email && input.invites.some((invite) => {
