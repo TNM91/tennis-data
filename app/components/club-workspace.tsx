@@ -284,6 +284,37 @@ export default function ClubWorkspace() {
     }
   }
 
+  async function copyPendingRenewalReminders() {
+    if (!workspace || working) return
+    const pendingGroups = workspace.groups.filter((group) => group.isActive && group.renewalPendingCount > 0)
+    if (!pendingGroups.length) {
+      showMessage('No returning players are waiting for a response.')
+      return
+    }
+    setWorking(true)
+    try {
+      const groupRenewals = await Promise.all(pendingGroups.map(async (group) => {
+        const result = await request<{ renewals?: ClubGroupRenewal[] }>(`/api/clubs/${workspace.club.id}/groups/${group.id}/renewals`, { method: 'POST' })
+        return { group, renewals: result.renewals ?? [] }
+      }))
+      const messages = groupRenewals.flatMap(({ group, renewals }) => renewals
+        .filter((renewal) => renewal.status === 'pending')
+        .map((renewal) => `${renewal.playerName}, are you returning for ${group.name}${group.seasonLabel ? ` · ${group.seasonLabel}` : ''}? Confirm here: ${window.location.origin}/clubs/renew/${renewal.responseToken}`))
+      if (!messages.length) {
+        await refreshWorkspace()
+        showMessage('Everyone has responded. Club Home is up to date.')
+        return
+      }
+      await navigator.clipboard.writeText(messages.join('\n\n'))
+      await refreshWorkspace()
+      showMessage(`${messages.length} personalized ${messages.length === 1 ? 'reminder is' : 'reminders are'} copied. Paste ${messages.length === 1 ? 'it' : 'them'} into a team text or email.`)
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Pending reminders could not be copied.', 'danger')
+    } finally {
+      setWorking(false)
+    }
+  }
+
   if (!authResolved || loading) {
     return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
   }
@@ -385,7 +416,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
           key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
@@ -571,7 +602,7 @@ export default function ClubWorkspace() {
   )
 }
 
-function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -582,12 +613,19 @@ function ClubHome({ workspace, roles, onOpenTab, onRunSetupStep }: { workspace: 
   const [showAllSteps, setShowAllSteps] = useState(false)
   const nextStep = setupSteps.find((step) => !step.completed) ?? setupSteps[setupSteps.length - 1]
   const showEverydayWorkspace = !manager || setupComplete
+  const pendingRenewalCount = workspace.groups
+    .filter((group) => group.isActive)
+    .reduce((total, group) => total + group.renewalPendingCount, 0)
   return (
     <section className={styles.panel}>
       <div className={styles.headingRow}>
         <div className={styles.panelHeading}><p className={styles.eyebrow}>{manager && !setupComplete ? 'Start here' : 'Right now'}</p><h2>{manager && !setupComplete ? 'Get the club ready, one step at a time.' : getHomeTitle(roles)}</h2><p>{manager && !setupComplete ? 'Finish the next job below. Club brings you back here automatically.' : getHomeCopy(roles)}</p></div>
         {manager && setupComplete && !showSetup ? <button className={styles.quietButton} type="button" onClick={() => setShowSetup(true)}>Setup help</button> : null}
       </div>
+      {manager && pendingRenewalCount > 0 ? <section className={styles.renewalTask} aria-labelledby="pending-renewals-title">
+        <div><p className={styles.eyebrow}>Needs attention</p><h3 id="pending-renewals-title">{pendingRenewalCount} returning {pendingRenewalCount === 1 ? 'player is' : 'players are'} still waiting.</h3><p>Copy private reminders for everyone who has not answered.</p></div>
+        <div className={styles.renewalTaskActions}><button className={styles.primary} disabled={working} type="button" onClick={() => void onCopyPendingRenewals()}>{working ? 'Preparing reminders...' : 'Copy pending reminders'}</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('groups')}>Review responses</button></div>
+      </section> : null}
       {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
         <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
         <div><strong>Coaches</strong><span>Keep lessons, assignments, and progress connected.</span></div>
@@ -1037,10 +1075,11 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
 
   async function copyAllRenewals() {
     if (!renewalGroup) return
-    const messages = renewals.map((renewal) => `${renewal.playerName}: ${window.location.origin}/clubs/renew/${renewal.responseToken}`).join('\n')
+    const pendingRenewals = renewals.filter((renewal) => renewal.status === 'pending')
+    const messages = pendingRenewals.map((renewal) => `${renewal.playerName}, are you returning for ${renewalGroup.name}${renewalGroup.seasonLabel ? ` · ${renewalGroup.seasonLabel}` : ''}? Confirm here: ${window.location.origin}/clubs/renew/${renewal.responseToken}`).join('\n\n')
     try {
       await navigator.clipboard.writeText(messages)
-      setRenewalMessage(`${renewals.length} personalized ${renewals.length === 1 ? 'link is' : 'links are'} copied.`)
+      setRenewalMessage(`${pendingRenewals.length} personalized ${pendingRenewals.length === 1 ? 'reminder is' : 'reminders are'} copied.`)
     } catch {
       setRenewalMessage('The links could not be copied. Share them one at a time below.')
     }
@@ -1119,7 +1158,7 @@ function GroupsPanel({ workspace, requestedGroupId, staff, manager, coachSync, w
       {renewalGroup ? <div className={styles.renewalBackdrop} role="presentation">
         <section className={styles.renewalSheet} role="dialog" aria-modal="true" aria-labelledby="club-renewal-title">
           <div className={styles.headingRow}><div className={styles.panelHeading}><p className={styles.eyebrow}>Returning players</p><h2 id="club-renewal-title">{renewalGroup.name}</h2><p>Share each private link. Yes adds the player; no removes them from this season.</p></div><button className={styles.quietButton} type="button" onClick={() => setRenewalGroup(null)}>Close</button></div>
-          <div className={styles.renewalActions}><button className={styles.secondary} disabled={!renewals.length} type="button" onClick={() => void copyAllRenewals()}>Copy all links</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void openRenewals(renewalGroup)}>Refresh responses</button></div>
+          <div className={styles.renewalActions}><button className={styles.secondary} disabled={!renewals.some((renewal) => renewal.status === 'pending')} type="button" onClick={() => void copyAllRenewals()}>Copy waiting reminders</button><button className={styles.quietButton} disabled={working} type="button" onClick={() => void openRenewals(renewalGroup)}>Refresh responses</button></div>
           {renewalMessage ? <div className={`${styles.notice} ${styles.success}`} role="status">{renewalMessage}</div> : null}
           <div className={styles.renewalList}>{renewals.map((renewal) => <article className={styles.renewalRow} key={renewal.membershipId}><div><strong>{renewal.playerName}</strong><span>{renewal.phone || renewal.email || 'Share the private link directly'}</span></div><span className={`${styles.renewalStatus} ${renewal.status === 'confirmed' ? styles.renewalYes : renewal.status === 'declined' ? styles.renewalNo : ''}`}>{renewal.status === 'confirmed' ? 'Yes' : renewal.status === 'declined' ? 'No' : 'Waiting'}</span><button className={styles.quietButton} type="button" onClick={() => void shareRenewal(renewal)}>{renewal.status === 'pending' ? 'Share' : 'Share again'}</button></article>)}</div>
         </section>

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { getClubApiAuth } from '@/lib/club-api-auth'
 import { cleanClubText, isClubManager, normalizeClubRoles } from '@/lib/club-workspace'
 
@@ -42,7 +43,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       .eq('status', 'waitlist'),
     auth.supabase
       .from('club_group_renewals')
-      .select('membership_id')
+      .select('id,membership_id,status,expires_at')
       .eq('group_id', groupId),
   ])
   if (reviewResult.error || existingResult.error) {
@@ -64,6 +65,18 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       created_by_user_id: auth.userId,
     })))
     if (error) return Response.json({ ok: false, message: 'Renewal links could not be prepared.' }, { status: 400 })
+  }
+
+  const expiredPendingRenewals = (existingResult.data ?? []).filter((renewal) => cleanClubText(renewal.status) === 'pending' && Date.parse(cleanClubText(renewal.expires_at, 80)) <= Date.now())
+  if (expiredPendingRenewals.length) {
+    const expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString()
+    const refreshResults = await Promise.all(expiredPendingRenewals.map((renewal) => auth.supabase
+      .from('club_group_renewals')
+      .update({ response_token: randomUUID(), expires_at: expiresAt })
+      .eq('id', renewal.id)))
+    if (refreshResults.some((result) => result.error)) {
+      return Response.json({ ok: false, message: 'Expired renewal links could not be refreshed.' }, { status: 400 })
+    }
   }
 
   const { data: renewalRows, error: renewalError } = await auth.supabase
