@@ -152,6 +152,66 @@ export type ClubLinkedCompetition = {
   nextEventAt: string
 }
 
+export type ClubCalendarEventType = 'clinic' | 'team_match' | 'league_match' | 'tournament_match'
+
+export type ClubCalendarEvent = {
+  id: string
+  type: ClubCalendarEventType
+  title: string
+  startsAt: string
+  endsAt: string
+  allDay: boolean
+  locationLabel: string
+  courtLabel: string
+  groupId: string
+  groupName: string
+  membershipIds: string[]
+  href: string
+}
+
+export type ClubCalendarConflict = {
+  id: string
+  eventIds: [string, string]
+  kind: 'people' | 'court'
+  detail: string
+}
+
+export function getClubCalendarConflicts(events: ClubCalendarEvent[]): ClubCalendarConflict[] {
+  const conflicts: ClubCalendarConflict[] = []
+  const scheduled = events.filter((event) => !event.allDay && Number.isFinite(new Date(event.startsAt).getTime()) && Number.isFinite(new Date(event.endsAt).getTime()))
+
+  for (let leftIndex = 0; leftIndex < scheduled.length; leftIndex += 1) {
+    const left = scheduled[leftIndex]
+    for (let rightIndex = leftIndex + 1; rightIndex < scheduled.length; rightIndex += 1) {
+      const right = scheduled[rightIndex]
+      if (new Date(left.startsAt).getTime() >= new Date(right.endsAt).getTime() || new Date(right.startsAt).getTime() >= new Date(left.endsAt).getTime()) continue
+
+      const sharedMembershipIds = new Set(left.membershipIds)
+      const sharesPeople = right.membershipIds.some((membershipId) => sharedMembershipIds.has(membershipId))
+      const leftCourt = cleanClubText(left.courtLabel).toLowerCase()
+      const rightCourt = cleanClubText(right.courtLabel).toLowerCase()
+      const leftLocation = cleanClubText(left.locationLabel).toLowerCase()
+      const rightLocation = cleanClubText(right.locationLabel).toLowerCase()
+      const sharesCourt = Boolean(leftCourt && rightCourt && leftCourt === rightCourt && leftLocation && leftLocation === rightLocation)
+
+      if (sharesPeople) conflicts.push({
+        id: `people:${left.id}:${right.id}`,
+        eventIds: [left.id, right.id],
+        kind: 'people',
+        detail: `${left.title} and ${right.title} include the same people.`,
+      })
+      if (sharesCourt) conflicts.push({
+        id: `court:${left.id}:${right.id}`,
+        eventIds: [left.id, right.id],
+        kind: 'court',
+        detail: `${left.title} and ${right.title} use ${left.courtLabel} at the same time.`,
+      })
+    }
+  }
+
+  return conflicts
+}
+
 export type ClubCompetitionReadiness = {
   ready: boolean
   label: string
@@ -224,6 +284,7 @@ export type ClubWorkspaceData = {
   groups: ClubGroup[]
   templates: ClubCompetitionTemplate[]
   competitions: ClubLinkedCompetition[]
+  calendarEvents?: ClubCalendarEvent[]
 }
 
 export type ClubSetupStep = {

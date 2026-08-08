@@ -13,6 +13,7 @@ import {
   canRunClubPrograms,
   getClubCompetitionRosterHandoff,
   getClubCompetitionTeamHandoff,
+  getClubCalendarConflicts,
   getClubCompetitionReadiness,
   getClubGroupTypeLabel,
   getLinkableClubCompetitions,
@@ -24,6 +25,8 @@ import {
   needsClubProgramLaunch,
   normalizeClubInviteEmails,
   type Club,
+  type ClubCalendarEvent,
+  type ClubCalendarEventType,
   type ClubCompetitionTemplate,
   type ClubGroup,
   type ClubGroupType,
@@ -90,10 +93,11 @@ type ClubGroupRenewal = {
   respondedAt: string
 }
 
-type WorkspaceTab = 'home' | 'people' | 'groups' | 'compete' | 'settings'
+type WorkspaceTab = 'home' | 'calendar' | 'people' | 'groups' | 'compete' | 'settings'
 
 const tabs: Array<{ id: WorkspaceTab; label: string }> = [
   { id: 'home', label: 'Home' },
+  { id: 'calendar', label: 'Schedule' },
   { id: 'people', label: 'People' },
   { id: 'groups', label: 'Programs' },
   { id: 'compete', label: 'Compete' },
@@ -522,6 +526,7 @@ export default function ClubWorkspace() {
       ) : null}
 
       {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'calendar' ? <ClubCalendarPanel workspace={workspace} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
           key={`${guidedStepId ?? 'people'}:${inviteDestination}`}
@@ -711,6 +716,112 @@ export default function ClubWorkspace() {
       ) : null}
     </main>
   )
+}
+
+type ClubCalendarFilter = 'all' | ClubCalendarEventType
+
+const clubCalendarFilters: Array<{ id: ClubCalendarFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'clinic', label: 'Clinics' },
+  { id: 'team_match', label: 'Teams' },
+  { id: 'league_match', label: 'Leagues' },
+  { id: 'tournament_match', label: 'Tournaments' },
+]
+
+function ClubCalendarPanel({ workspace }: { workspace: ClubWorkspaceData }) {
+  const [filter, setFilter] = useState<ClubCalendarFilter>('all')
+  const calendarEvents = useMemo(() => workspace.calendarEvents ?? [], [workspace.calendarEvents])
+  const conflicts = useMemo(() => getClubCalendarConflicts(calendarEvents), [calendarEvents])
+  const conflictEventIds = useMemo(() => new Set(conflicts.flatMap((conflict) => conflict.eventIds)), [conflicts])
+  const events = filter === 'all' ? calendarEvents : calendarEvents.filter((event) => event.type === filter)
+  const days = events.reduce<Array<{ date: string; events: ClubCalendarEvent[] }>>((result, event) => {
+    const date = event.startsAt.slice(0, 10)
+    const current = result[result.length - 1]
+    if (current?.date === date) current.events.push(event)
+    else result.push({ date, events: [event] })
+    return result
+  }, [])
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.headingRow}>
+        <div className={styles.panelHeading}>
+          <p className={styles.eyebrow}>Club schedule</p>
+          <h2>Everything happening next.</h2>
+          <p>Clinics, team matches, leagues, and tournaments in one place.</p>
+        </div>
+        <span className={styles.pill}>{events.length} upcoming</span>
+      </div>
+
+      {conflicts.length ? (
+        <div className={styles.calendarAlert} role="status">
+          <strong>{conflicts.length} schedule {conflicts.length === 1 ? 'check' : 'checks'}</strong>
+          <span>TIQ found overlapping people or courts. Open the event that needs attention.</span>
+          <ul>{conflicts.slice(0, 4).map((conflict) => <li key={conflict.id}>{conflict.detail}</li>)}</ul>
+        </div>
+      ) : null}
+
+      <div className={styles.calendarFilters} aria-label="Filter club schedule">
+        {clubCalendarFilters.map((item) => {
+          const count = item.id === 'all' ? calendarEvents.length : calendarEvents.filter((event) => event.type === item.id).length
+          return <button key={item.id} type="button" className={filter === item.id ? styles.calendarFilterActive : ''} onClick={() => setFilter(item.id)}>{item.label}<span>{count}</span></button>
+        })}
+      </div>
+
+      {days.length ? (
+        <div className={styles.calendarDays}>
+          {days.map((day) => (
+            <section className={styles.calendarDay} key={day.date}>
+              <div className={styles.calendarDate}>
+                <span>{formatClubCalendarWeekday(day.date)}</span>
+                <strong>{formatClubCalendarDate(day.date)}</strong>
+              </div>
+              <div className={styles.calendarEventList}>
+                {day.events.map((event) => (
+                  <Link className={`${styles.calendarEvent} ${conflictEventIds.has(event.id) ? styles.calendarEventConflict : ''}`} href={event.href} key={event.id}>
+                    <div className={styles.calendarEventTime}>{event.allDay ? 'All day' : formatClubCalendarTime(event.startsAt, workspace.club.timeZone)}</div>
+                    <div className={styles.calendarEventBody}>
+                      <span className={styles.calendarEventType}>{getClubCalendarTypeLabel(event.type)}</span>
+                      <strong>{event.title}</strong>
+                      <small>{[event.groupName !== event.title ? event.groupName : '', event.locationLabel, event.courtLabel].filter(Boolean).join(' · ')}</small>
+                    </div>
+                    <b>{conflictEventIds.has(event.id) ? 'Check' : 'Open'}</b>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.emptyState}><strong>No upcoming {filter === 'all' ? 'club events' : getClubCalendarTypeLabel(filter).toLowerCase()}.</strong><span>Add the schedule in its TIQ tool and it will appear here automatically.</span></div>
+      )}
+
+      <p className={styles.calendarNote}>TIQ brings schedules together. Court booking stays in your club system.</p>
+    </section>
+  )
+}
+
+function formatClubCalendarWeekday(date: string) {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))
+}
+
+function formatClubCalendarDate(date: string) {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(`${date}T12:00:00`))
+}
+
+function formatClubCalendarTime(startsAt: string, timeZone: string) {
+  const date = new Date(startsAt)
+  if (!Number.isFinite(date.getTime())) return 'Time TBD'
+  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
+  if (startsAt.endsWith('Z') && timeZone) options.timeZone = timeZone
+  return new Intl.DateTimeFormat('en-US', options).format(date)
+}
+
+function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
+  if (type === 'team_match') return 'Team match'
+  if (type === 'league_match') return 'League match'
+  if (type === 'tournament_match') return 'Tournament'
+  return 'Clinic'
 }
 
 function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
@@ -1488,7 +1599,7 @@ function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { l
 function readStoredClubId() { try { return window.localStorage.getItem('tenaceiq.club.active') || '' } catch { return '' } }
 function rememberClubId(clubId: string) { try { window.localStorage.setItem('tenaceiq.club.active', clubId) } catch { /* best effort */ } }
 function readRequestedClubId() { return new URL(window.location.href).searchParams.get('clubId') || '' }
-function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new URL(window.location.href).searchParams.get('tab'); return value === 'people' || value === 'groups' || value === 'compete' || value === 'settings' || value === 'home' ? value : null }
+function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new URL(window.location.href).searchParams.get('tab'); return value === 'calendar' || value === 'people' || value === 'groups' || value === 'compete' || value === 'settings' || value === 'home' ? value : null }
 function readRequestedGroupId() { return new URL(window.location.href).searchParams.get('groupId') || '' }
 function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }
 function readRequestedRosterTeam() { return new URL(window.location.href).searchParams.get('team') || '' }
