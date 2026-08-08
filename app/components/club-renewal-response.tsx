@@ -17,6 +17,8 @@ type RenewalPreview = {
   status: 'pending' | 'confirmed' | 'declined'
   expiresAt: string
   expired: boolean
+  finalizedAt: string
+  finalized: boolean
 }
 
 export default function ClubRenewalResponse({ token }: { token: string }) {
@@ -67,6 +69,7 @@ export default function ClubRenewalResponse({ token }: { token: string }) {
 
   const title = loading ? 'Opening your season...' : renewal ? `Will you join ${renewal.groupName}?` : 'Renewal unavailable'
   const expired = renewal?.expired === true
+  const finalized = renewal?.finalized === true
   return (
     <main className={styles.page}>
       <section className={`${styles.empty} ${styles.inviteShell}`}>
@@ -84,10 +87,10 @@ export default function ClubRenewalResponse({ token }: { token: string }) {
             <span>{getClubGroupTypeLabel(renewal.groupType as ClubGroupType)}</span>
           </div>
           {expired ? <div className={`${styles.notice} ${styles.danger}`} role="alert">This response link has expired. Ask the club to prepare a new one.</div> : null}
-          {renewal.status !== 'pending' ? <div className={styles.inviteSuccess} role="status"><strong>{renewal.status === 'confirmed' ? 'You said yes.' : 'You said no.'}</strong><span>You can change your answer below while this link is active.</span></div> : null}
+          {finalized ? <div className={styles.inviteSuccess} role="status"><strong>Roster finalized.</strong><span>Your saved answer is {renewal.status === 'confirmed' ? 'yes' : 'no'}.</span></div> : renewal.status !== 'pending' ? <div className={styles.inviteSuccess} role="status"><strong>{renewal.status === 'confirmed' ? 'You said yes.' : 'You said no.'}</strong><span>You can change your answer below while this link is active.</span></div> : null}
           <div className={styles.renewalDecision} role="group" aria-label="Will you return this season?">
-            <button className={styles.primary} disabled={saving || expired} type="button" onClick={() => void respond('confirmed')}>{saving ? 'Saving...' : 'Yes, I am returning'}</button>
-            <button className={styles.secondary} disabled={saving || expired} type="button" onClick={() => void respond('declined')}>No, not this season</button>
+            <button className={styles.primary} disabled={saving || expired || finalized} type="button" onClick={() => void respond('confirmed')}>{saving ? 'Saving...' : 'Yes, I am returning'}</button>
+            <button className={styles.secondary} disabled={saving || expired || finalized} type="button" onClick={() => void respond('declined')}>No, not this season</button>
           </div>
           {message ? <div className={`${styles.notice} ${styles.success}`} role="status">{message}</div> : null}
           <Link className={styles.quietButton} href={`/clubs/${renewal.clubSlug}`}>View {renewal.clubName}</Link>

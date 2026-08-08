@@ -29,6 +29,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       status: cleanClubText(row.renewal_status),
       expiresAt: cleanClubText(row.expires_at, 80),
       expired: Boolean(row.expires_at && new Date(String(row.expires_at)).getTime() <= Date.now()),
+      finalizedAt: cleanClubText(row.finalized_at, 80),
+      finalized: Boolean(row.finalized_at),
     },
   })
 }

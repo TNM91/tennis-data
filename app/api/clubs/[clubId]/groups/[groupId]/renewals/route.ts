@@ -24,7 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       .maybeSingle(),
     auth.supabase
       .from('club_groups')
-      .select('id,name,season_label,is_active')
+      .select('id,name,season_label,is_active,renewals_finalized_at')
       .eq('id', groupId)
       .eq('club_id', clubId)
       .eq('is_active', true)
@@ -52,7 +52,8 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
 
   const existingMembershipIds = new Set((existingResult.data ?? []).map((row) => cleanClubText(row.membership_id)))
   const reviewMembershipIds = Array.from(new Set((reviewResult.data ?? []).map((row) => cleanClubText(row.membership_id)).filter(Boolean))).slice(0, 200)
-  const missingMembershipIds = reviewMembershipIds.filter((membershipId) => !existingMembershipIds.has(membershipId))
+  const finalized = Boolean(groupResult.data.renewals_finalized_at)
+  const missingMembershipIds = finalized ? [] : reviewMembershipIds.filter((membershipId) => !existingMembershipIds.has(membershipId))
   if (!reviewMembershipIds.length && !existingMembershipIds.size) {
     return Response.json({ ok: false, message: 'No returning players are waiting for a decision in this program.' }, { status: 409 })
   }
@@ -67,7 +68,7 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
     if (error) return Response.json({ ok: false, message: 'Renewal links could not be prepared.' }, { status: 400 })
   }
 
-  const expiredPendingRenewals = (existingResult.data ?? []).filter((renewal) => cleanClubText(renewal.status) === 'pending' && Date.parse(cleanClubText(renewal.expires_at, 80)) <= Date.now())
+  const expiredPendingRenewals = finalized ? [] : (existingResult.data ?? []).filter((renewal) => cleanClubText(renewal.status) === 'pending' && Date.parse(cleanClubText(renewal.expires_at, 80)) <= Date.now())
   if (expiredPendingRenewals.length) {
     const expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString()
     const refreshResults = await Promise.all(expiredPendingRenewals.map((renewal) => auth.supabase
@@ -119,4 +120,59 @@ export async function POST(request: Request, context: { params: Promise<{ clubId
       }
     }),
   })
+}
+
+export async function PATCH(request: Request, context: { params: Promise<{ clubId: string; groupId: string }> }) {
+  const auth = await getClubApiAuth(request)
+  if (!auth.ok) return auth.response
+  const { clubId, groupId } = await context.params
+  if (!uuidPattern.test(clubId) || !uuidPattern.test(groupId)) {
+    return Response.json({ ok: false, message: 'Choose a valid Club program.' }, { status: 400 })
+  }
+
+  const [managerResult, groupResult] = await Promise.all([
+    auth.supabase
+      .from('club_memberships')
+      .select('roles')
+      .eq('club_id', clubId)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    auth.supabase
+      .from('club_groups')
+      .select('id,name,renewals_finalized_at')
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .maybeSingle(),
+  ])
+  if (!managerResult.data || !isClubManager(normalizeClubRoles(managerResult.data.roles, []))) {
+    return Response.json({ ok: false, message: 'Club manager access is required to finalize this roster.' }, { status: 403 })
+  }
+  if (!groupResult.data) return Response.json({ ok: false, message: 'That active Club program was not found.' }, { status: 404 })
+  if (groupResult.data.renewals_finalized_at) {
+    return Response.json({ ok: true, message: `${cleanClubText(groupResult.data.name)} is already finalized.` })
+  }
+
+  const { data: renewals, error: renewalError } = await auth.supabase
+    .from('club_group_renewals')
+    .select('status')
+    .eq('group_id', groupId)
+  if (renewalError) return Response.json({ ok: false, message: 'Renewal responses could not be checked.' }, { status: 400 })
+  if (!renewals?.length) return Response.json({ ok: false, message: 'There are no renewal responses to finalize.' }, { status: 409 })
+  const pendingCount = renewals.filter((renewal) => cleanClubText(renewal.status) === 'pending').length
+  if (pendingCount) {
+    return Response.json({ ok: false, message: `${pendingCount} ${pendingCount === 1 ? 'player still needs' : 'players still need'} to answer.` }, { status: 409 })
+  }
+
+  const finalizedAt = new Date().toISOString()
+  const { error: finalizeError } = await auth.supabase
+    .from('club_groups')
+    .update({ renewals_finalized_at: finalizedAt })
+    .eq('id', groupId)
+    .eq('club_id', clubId)
+    .is('renewals_finalized_at', null)
+  if (finalizeError) return Response.json({ ok: false, message: 'The roster could not be finalized.' }, { status: 400 })
+
+  return Response.json({ ok: true, finalizedAt, message: `${cleanClubText(groupResult.data.name)} roster finalized.` })
 }
