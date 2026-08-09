@@ -11,6 +11,7 @@ import {
   type PlayerEligibilityEvidence,
   type PlayerEligibilityStatus,
 } from './player-eligibility'
+import { notifyEntryStatus } from './entry-status-notifications'
 
 export const TIQ_TOURNAMENT_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_tournament_registry'
 
@@ -115,6 +116,10 @@ export type TiqTournamentEntryRecord = {
   eligibilityStatus: PlayerEligibilityStatus
   eligibilityReviewNote: string
   eligibilityEvidence: PlayerEligibilityEvidence
+  submittedByUserId: string
+  playerActionRequired: boolean
+  playerRequestNote: string
+  playerRespondedAt: string
   createdAt: string
   updatedAt: string
 }
@@ -208,6 +213,10 @@ type TiqTournamentEntryCloudRow = {
   eligibility_mixed_pair_role_source: string | null
   eligibility_age_division: string | null
   eligibility_age_division_source: string | null
+  submitted_by_user_id: string | null
+  player_action_required: boolean | null
+  player_request_note: string | null
+  player_responded_at: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -429,6 +438,10 @@ function mapTournamentEntryRow(row: TiqTournamentEntryCloudRow): TiqTournamentEn
       ageDivisions: [cleanText(row.eligibility_age_division)].filter(Boolean),
       ageDivisionSource: normalizePlayerRatingSource(row.eligibility_age_division_source),
     },
+    submittedByUserId: cleanText(row.submitted_by_user_id),
+    playerActionRequired: Boolean(row.player_action_required),
+    playerRequestNote: cleanText(row.player_request_note),
+    playerRespondedAt: cleanText(row.player_responded_at),
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
@@ -725,7 +738,7 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
 
   const result = await supabase
     .from('tiq_tournament_entries')
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
     .eq('tournament_id', cleanId)
     .order('created_at', { ascending: false })
 
@@ -743,12 +756,12 @@ export async function updateTiqTournamentEntryStatus(
   linkedPlayerId?: string | null,
   eligibilityReview?: { status: PlayerEligibilityStatus; note: string } | null,
 ) {
-  const reviewerId = eligibilityReview
-    ? cleanText((await supabase.auth.getUser()).data.user?.id)
-    : ''
+  const actorUserId = cleanText((await supabase.auth.getUser()).data.user?.id)
+  const reviewerId = eligibilityReview ? actorUserId : ''
   const payload = {
     status: normalizeTiqTournamentEntryStatus(status),
     linked_player_id: cleanText(linkedPlayerId || '') || null,
+    player_action_required: false,
     ...(eligibilityReview ? {
       eligibility_status: normalizeEligibilityStatus(eligibilityReview.status),
       eligibility_review_note: cleanMultiline(eligibilityReview.note),
@@ -762,14 +775,60 @@ export async function updateTiqTournamentEntryStatus(
     .from('tiq_tournament_entries')
     .update(payload)
     .eq('id', cleanText(entryId))
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
     return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
   }
 
-  return { data: result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null, error: null, source: 'cloud' as const }
+  const entry = result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null
+  if (entry?.submittedByUserId && actorUserId) {
+    await notifyEntryStatus({
+      recipientProfileId: entry.submittedByUserId,
+      actorUserId,
+      title: status === 'approved' ? 'Tournament entry approved' : status === 'declined' ? 'Tournament entry update' : 'Tournament entry received',
+      body: status === 'approved' ? `${entry.playerName}, you are in the tournament.` : status === 'declined' ? `${entry.playerName}, your tournament request was not approved.` : `${entry.playerName}, your tournament request is under review.`,
+      href: '/compete#my-entries',
+    }).catch(() => undefined)
+  }
+
+  return { data: entry, error: null, source: 'cloud' as const }
+}
+
+export async function requestTiqTournamentEntryInformation(entryId: string, note: string) {
+  const actorUserId = cleanText((await supabase.auth.getUser()).data.user?.id)
+  const requestNote = cleanMultiline(note)
+  if (!actorUserId) return { data: null, error: new Error('Sign in to request player information.'), source: 'cloud' as const }
+  if (!requestNote) return { data: null, error: new Error('Tell the player what information is missing.'), source: 'cloud' as const }
+
+  const result = await supabase
+    .from('tiq_tournament_entries')
+    .update({
+      player_action_required: true,
+      player_request_note: requestNote,
+      eligibility_status: 'needs_confirmation',
+      eligibility_review_note: requestNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cleanText(entryId))
+    .eq('status', 'pending')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
+    .maybeSingle()
+
+  if (result.error) return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
+  const entry = result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null
+  if (entry?.submittedByUserId) {
+    await notifyEntryStatus({
+      recipientProfileId: entry.submittedByUserId,
+      actorUserId,
+      title: 'Tournament entry needs information',
+      body: requestNote,
+      href: '/compete#my-entries',
+    }).catch(() => undefined)
+  }
+
+  return { data: entry, error: null, source: 'cloud' as const }
 }
 
 export async function loadTiqTournamentAlertRecordsForUser(tournamentId: string) {

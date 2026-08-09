@@ -1,6 +1,7 @@
 'use client'
 
 import { getClientAuthState } from '@/lib/auth'
+import { notifyEntryStatus } from '@/lib/entry-status-notifications'
 import { supabase } from '@/lib/supabase'
 import {
   deleteTiqLeagueRecord,
@@ -1078,6 +1079,7 @@ export async function updateTiqLeagueEntryStatus(input: {
     const updatePayload = {
       entry_status: input.entryStatus,
       updated_by_user_id: userId,
+      player_action_required: false,
       ...(input.leagueFormat === 'individual' && input.eligibilityReview
         ? {
             eligibility_status: normalizePlayerEligibilityStatus(input.eligibilityReview.status),
@@ -1088,15 +1090,29 @@ export async function updateTiqLeagueEntryStatus(input: {
         : {}),
     }
 
-    const { error } = await supabase
+    const { data: updatedEntry, error } = await supabase
       .from(table)
       .update(updatePayload)
       .eq('league_id', normalizedLeagueId)
       .eq(nameColumn, normalizedEntryName)
+      .select('created_by_user_id')
+      .maybeSingle()
 
     if (error) throw error
 
     const latest = await getTiqLeagueById(normalizedLeagueId)
+    const recipientProfileId = cleanText((updatedEntry as { created_by_user_id?: string | null } | null)?.created_by_user_id)
+    if (recipientProfileId) {
+      await notifyEntryStatus({
+        recipientProfileId,
+        actorUserId: userId,
+        title: input.entryStatus === 'active' ? 'League entry approved' : 'League entry update',
+        body: input.entryStatus === 'active'
+          ? `${normalizedEntryName}, you are in ${latest.record?.leagueName || 'the league'}.`
+          : `${normalizedEntryName}, your request for ${latest.record?.leagueName || 'the league'} was not approved.`,
+        href: '/compete#my-entries',
+      }).catch(() => undefined)
+    }
     return {
       record: latest.record || localRecord,
       source: 'supabase',
@@ -1110,6 +1126,57 @@ export async function updateTiqLeagueEntryStatus(input: {
         error instanceof Error
           ? 'Entry request updated locally. Cloud sync will retry later.'
           : 'Entry request updated locally. Cloud sync will retry later.',
+    }
+  }
+}
+
+export async function requestTiqPlayerLeagueEntryInformation(input: {
+  leagueId: string
+  entryName: string
+  note: string
+}): Promise<{ source: TiqLeagueStorageSource; warning: string | null }> {
+  const leagueId = cleanText(input.leagueId)
+  const entryName = cleanText(input.entryName)
+  const note = cleanText(input.note)
+
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) return { source: 'local', warning: 'Sign in as the coordinator to request player information.' }
+    if (!note) return { source: 'local', warning: 'Tell the player what information is missing.' }
+
+    const { data, error } = await supabase
+      .from(TIQ_PLAYER_ENTRIES_TABLE)
+      .update({
+        player_action_required: true,
+        player_request_note: note,
+        eligibility_status: 'needs_confirmation',
+        eligibility_review_note: note,
+        updated_by_user_id: userId,
+      })
+      .eq('league_id', leagueId)
+      .eq('player_name', entryName)
+      .eq('entry_status', 'pending')
+      .select('created_by_user_id')
+      .maybeSingle()
+
+    if (error) throw error
+    const recipientProfileId = cleanText((data as { created_by_user_id?: string | null } | null)?.created_by_user_id)
+    const league = await getTiqLeagueById(leagueId)
+    if (recipientProfileId) {
+      await notifyEntryStatus({
+        recipientProfileId,
+        actorUserId: userId,
+        title: 'League entry needs information',
+        body: `${league.record?.leagueName || 'League Office'}: ${note}`,
+        href: '/compete#my-entries',
+      }).catch(() => undefined)
+    }
+
+    return { source: 'supabase', warning: null }
+  } catch (error) {
+    return {
+      source: 'local',
+      warning: error instanceof Error ? error.message : 'That information request could not be sent.',
     }
   }
 }

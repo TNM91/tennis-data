@@ -97,6 +97,7 @@ import {
   listTiqPlayerLeagueEntries,
   listTiqTeamLeagueEntries,
   removeTiqLeague,
+  requestTiqPlayerLeagueEntryInformation,
   saveTiqLeague,
   updateTiqLeagueEntryStatus,
   type TiqPlayerLeagueEntryRecord,
@@ -411,6 +412,8 @@ export function LeagueCoordinatorWorkspace() {
   const [teamEntryRequests, setTeamEntryRequests] = useState<TiqTeamLeagueEntryRecord[]>([])
   const [playerEntryRequests, setPlayerEntryRequests] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [entryRequestStatus, setEntryRequestStatus] = useState('')
+  const [entryInfoRequestKey, setEntryInfoRequestKey] = useState('')
+  const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
   const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
   const [leagueAwardRefresh, setLeagueAwardRefresh] = useState(0)
@@ -1402,6 +1405,30 @@ export function LeagueCoordinatorWorkspace() {
         ? `${entryName} was approved for ${league.leagueName}.`
         : `${entryName} was declined for ${league.leagueName}.`,
     )
+  }
+
+  async function handleEntryInformationRequest(league: TiqLeagueRecord, entryName: string) {
+    const note = entryInfoRequestNote.trim()
+    if (!note) {
+      setEntryRequestStatus('Tell the player what information is missing.')
+      return
+    }
+    setEntryRequestStatus(`Notifying ${entryName}...`)
+    const result = await requestTiqPlayerLeagueEntryInformation({
+      leagueId: league.id,
+      entryName,
+      note,
+    })
+    setStorageSource(result.source)
+    setStorageWarning(result.warning || '')
+    if (result.warning) {
+      setEntryRequestStatus(result.warning)
+      return
+    }
+    setEntryInfoRequestKey('')
+    setEntryInfoRequestNote('')
+    await refreshRegistry()
+    setEntryRequestStatus(`${entryName} was notified and can respond from Compete.`)
   }
 
   async function copyPublicLeagueLink(record: TiqLeagueRecord) {
@@ -2732,12 +2759,14 @@ export function LeagueCoordinatorWorkspace() {
                   {[...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].map((entry) => {
                     const league = records.find((record) => record.id === entry.leagueId)
                     if (!league) return null
-                    const playerEligibility = 'playerName' in entry ? entry.eligibility : null
+                    const isPlayerEntry = 'playerName' in entry
+                    const playerEligibility = isPlayerEntry ? entry.eligibility : null
                     const cannotApprove = playerEligibility?.status === 'ineligible'
                     const entryName =
                       'teamName' in entry
                         ? entry.teamName
                         : entry.playerName
+                    const infoRequestKey = `${entry.leagueId}:${entryName}`
                     const detail =
                       'teamName' in entry
                         ? [entry.sourceLeagueName, entry.sourceFlight, 'Team request'].filter(Boolean).join(' | ')
@@ -2770,7 +2799,33 @@ export function LeagueCoordinatorWorkspace() {
                           <DangerBtn onClick={() => void handleEntryRequestAction(league, entryName, 'rejected')}>
                             Decline
                           </DangerBtn>
+                          {isPlayerEntry ? (
+                            <GhostBtn onClick={() => {
+                              setEntryInfoRequestKey(infoRequestKey)
+                              setEntryInfoRequestNote(playerEligibility?.detail || '')
+                            }}>
+                              Request info
+                            </GhostBtn>
+                          ) : null}
                         </div>
+                        {isPlayerEntry && entryInfoRequestKey === infoRequestKey ? (
+                          <div style={entryInfoRequestStyle}>
+                            <label style={fieldLabel}>
+                              <span>What does the player need to confirm?</span>
+                              <textarea
+                                value={entryInfoRequestNote}
+                                onChange={(event) => setEntryInfoRequestNote(event.target.value)}
+                                placeholder="Confirm your age division or current rating."
+                                rows={3}
+                                style={textareaStyle}
+                              />
+                            </label>
+                            <div style={responsiveButtonRowStyle}>
+                              <PrimaryBtn onClick={() => void handleEntryInformationRequest(league, entryName)}>Send request</PrimaryBtn>
+                              <GhostBtn onClick={() => { setEntryInfoRequestKey(''); setEntryInfoRequestNote('') }}>Cancel</GhostBtn>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     )
                   })}
@@ -5540,6 +5595,17 @@ const eligibilityReviewRowStyle: CSSProperties = {
   display: 'grid',
   gap: '6px',
   marginTop: '6px',
+  minWidth: 0,
+}
+
+const entryInfoRequestStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: '10px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,36,0.68)',
   minWidth: 0,
 }
 

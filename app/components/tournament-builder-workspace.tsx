@@ -45,6 +45,7 @@ import {
   parseTournamentEntrantsInput,
   queueTiqTournamentAlertRecordForUser,
   readTiqTournamentRegistry,
+  requestTiqTournamentEntryInformation,
   saveTiqTournamentAlertRecordForUser,
   saveTiqTournamentRecord,
   summarizeTournamentResults,
@@ -188,6 +189,8 @@ export default function TournamentBuilderWorkspace() {
   const [awardCounts, setAwardCounts] = useState<Record<string, number>>({})
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({})
   const [entrySyncingId, setEntrySyncingId] = useState('')
+  const [entryInfoRequestId, setEntryInfoRequestId] = useState('')
+  const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [awardRecipients, setAwardRecipients] = useState<Record<TiqAwardPlacement, string>>({
     first: '',
     second: '',
@@ -1313,6 +1316,29 @@ export default function TournamentBuilderWorkspace() {
     }
   }
 
+  async function requestTournamentEntryInfo(entry: TiqTournamentEntryRecord) {
+    if (entrySyncingId) return
+    const requestNote = entryInfoRequestNote.trim()
+    if (!requestNote) {
+      setNotice('Tell the player what information is missing.')
+      return
+    }
+    setEntrySyncingId(entry.id)
+    setNotice('')
+    try {
+      const result = await requestTiqTournamentEntryInformation(entry.id, requestNote)
+      if (result.error) throw result.error
+      await refreshTournamentEntries(entry.tournamentId)
+      setEntryInfoRequestId('')
+      setEntryInfoRequestNote('')
+      setNotice(`${entry.playerName} was notified and can respond from Compete.`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'That information request could not be sent.')
+    } finally {
+      setEntrySyncingId('')
+    }
+  }
+
   function updateContactInput(entrant: string, key: 'phone' | 'smsOptIn' | 'consentNote', value: string | boolean) {
     setContactInputs((current) => ({
       ...current,
@@ -1956,7 +1982,40 @@ export default function TournamentBuilderWorkspace() {
                     >
                       Decline
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntryInfoRequestId(entry.id)
+                        setEntryInfoRequestNote(entry.playerRequestNote || eligibility?.detail || '')
+                      }}
+                      disabled={Boolean(entrySyncingId)}
+                      style={{ ...ghostButtonStyle, ...(entrySyncingId ? disabledButtonStyle : null) }}
+                    >
+                      Request info
+                    </button>
                   </div>
+                  {entryInfoRequestId === entry.id ? (
+                    <div style={entryInfoRequestStyle}>
+                      <label style={scoreFieldStyle}>
+                        <span>What does the player need to confirm?</span>
+                        <textarea
+                          value={entryInfoRequestNote}
+                          onChange={(event) => setEntryInfoRequestNote(event.target.value)}
+                          placeholder="Confirm your age division or current rating."
+                          rows={3}
+                          style={{ ...textareaStyle, minHeight: 76 }}
+                        />
+                      </label>
+                      <div style={actionRowStyle}>
+                        <button type="button" onClick={() => void requestTournamentEntryInfo(entry)} disabled={Boolean(entrySyncingId)} style={secondaryButtonStyle}>
+                          {entrySyncingId === entry.id ? 'Sending...' : 'Send request'}
+                        </button>
+                        <button type="button" onClick={() => { setEntryInfoRequestId(''); setEntryInfoRequestNote('') }} disabled={Boolean(entrySyncingId)} style={ghostButtonStyle}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               }) : (
                 <div style={tournamentActionEmptyStyle}>
@@ -4382,6 +4441,15 @@ const entryQueueCardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
+}
+
+const entryInfoRequestStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,36,0.72)',
 }
 
 const entryQueueTopStyle: CSSProperties = {
