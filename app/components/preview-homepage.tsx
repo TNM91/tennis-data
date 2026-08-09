@@ -150,7 +150,7 @@ const commandModes: Array<{
     label: 'Players, teams, leagues, rankings',
     href: '/explore',
     cta: 'Start searching',
-    icon: 'opponentScouting',
+    icon: 'exploreTennis',
     proof: ['Player profiles', 'Team pages', 'Rankings'],
   },
   {
@@ -160,7 +160,7 @@ const commandModes: Array<{
     label: 'My Lab, data, matchups, messages',
     href: '/pricing#player_plus',
     cta: 'Unlock Player',
-    icon: 'myLab',
+    icon: 'improveTennis',
     proof: ['Linked player', 'Next matchup', 'Goal notes'],
   },
   {
@@ -170,7 +170,7 @@ const commandModes: Array<{
     label: 'Lessons, assignments, Tactical Studio',
     href: '/pricing#coach',
     cta: 'Unlock Coach',
-    icon: 'scenarioBuilder',
+    icon: 'coachTennis',
     proof: ['Students', 'Drill boards', 'Check-ins'],
   },
   {
@@ -180,7 +180,7 @@ const commandModes: Array<{
     label: 'Availability, lineup, message status',
     href: '/pricing#captain',
     cta: 'Unlock Captain',
-    icon: 'lineupBuilder',
+    icon: 'captainTennis',
     proof: ['8 / 10 available', 'Lineup ready', 'Message queued'],
   },
   {
@@ -190,7 +190,7 @@ const commandModes: Array<{
     label: 'Entries, schedule, standings, results',
     href: '/pricing#league',
     cta: 'Open Leagues',
-    icon: 'teamRankings',
+    icon: 'leagueTennis',
     proof: ['Approvals', 'Schedule', 'Standings'],
   },
   {

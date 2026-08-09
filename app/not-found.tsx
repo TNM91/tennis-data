@@ -13,9 +13,9 @@ const recoveryLinks: Array<{
   text: string
   icon: TiqFeatureIconName
 }> = [
-  { href: '/explore', label: 'Find', text: 'Search tennis context', icon: 'opponentScouting' },
-  { href: '/mylab', label: 'You', text: 'Open My Lab', icon: 'myLab' },
-  { href: '/captain', label: 'Team', text: 'Open Captain', icon: 'lineupBuilder' },
+  { href: '/explore', label: 'Find', text: 'Search tennis context', icon: 'exploreTennis' },
+  { href: '/mylab', label: 'You', text: 'Open My Lab', icon: 'improveTennis' },
+  { href: '/captain', label: 'Team', text: 'Open Captain', icon: 'captainTennis' },
 ]
 
 export default function NotFound() {
