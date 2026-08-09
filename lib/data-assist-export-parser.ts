@@ -344,7 +344,7 @@ function buildStructuredScorecardLines(rows: HtmlRow[]) {
   const lines: string[] = []
   for (const cells of rows) {
     if (cells.length < 5) continue
-    const vsIndex = cells.findIndex((cell) => /^vs\.?$/i.test(cell))
+    const vsIndex = cells.findIndex((cell) => /^vs\.?(?:\s*\/)?$/i.test(cell))
     if (vsIndex < 0) continue
     const lineLabel = normalizeScorecardLineLabel(cells[0] || '')
     const homePlayers = cleanScorecardPlayers(cells[1] || '')
@@ -359,6 +359,9 @@ function buildStructuredScorecardLines(rows: HtmlRow[]) {
 }
 
 function normalizeScorecardLineLabel(value: string) {
+  const triLevelMatch = value.match(/\b[2-5](?:\.[05])\s*(Singles|Doubles)\s*#\s*([1-5])/i)
+  if (triLevelMatch) return `${triLevelMatch[2]} ${triLevelMatch[1]}`
+
   const match = value.match(/\b([1-5])#?\s*(Singles|Doubles)/i)
   return match ? `${match[1]} ${match[2]}` : ''
 }
@@ -367,6 +370,7 @@ function cleanScorecardPlayers(value: string) {
   return value
     .replace(/\bCompleted\b/gi, ' ')
     .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*$/, '')
     .trim()
 }
 
@@ -374,6 +378,7 @@ function cleanScorecardTeam(value: string) {
   return value
     .replace(/\bTeam ID:.*$/i, '')
     .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*$/, '')
     .trim()
 }
 
@@ -396,7 +401,7 @@ function htmlCellToText(value: string) {
       ? ' imgVisitorPlayer '
       : ''
   return decodeHtmlEntities(value)
-    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<br\s*\/?\s*>/gi, ' / ')
     .replace(/<img\b[^>]*id=["'][^"']*imgHomePlayer[^"']*["'][^>]*>/gi, ' imgHomePlayer ')
     .replace(/<img\b[^>]*id=["'][^"']*imgVisitorPlayer[^"']*["'][^>]*>/gi, ' imgVisitorPlayer ')
     .replace(/<[^>]+>/g, ' ')

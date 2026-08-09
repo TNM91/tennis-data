@@ -7,7 +7,7 @@ const source = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'u
 describe('player profile next actions', () => {
   it('ties player profile actions directly to the next player move.', () => {
     expect(source).toContain("import { DATA_ASSIST_STORY } from '@/lib/product-story'")
-    expect(source).toContain('Find the next useful move.')
+    expect(source).toContain('Turn this rating into action.')
     expect(source).not.toContain('PRODUCT_MOTTO')
     expect(source).toContain('Use this player ID to decide what to work on')
     expect(source).toContain('what drill or resource should come next')

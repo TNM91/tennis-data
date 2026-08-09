@@ -541,9 +541,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(leagueCoordinatorSource, 'portalWatermarkStyle')).toContain("width: 'min(220px, 52vw)'")
     expect(styleBlock(leagueCoordinatorSource, 'portalWatermarkStyle')).not.toContain("right: '-72px'")
 
-    expect(styleBlock(captainSource, 'watermarkStyle')).toContain('right: 0')
-    expect(styleBlock(captainSource, 'watermarkStyle')).toContain("width: 'min(280px, 58vw)'")
-    expect(styleBlock(captainSource, 'watermarkStyle')).not.toContain("right: 'clamp(-92px")
+    expect(captainSource).not.toContain('watermarkStyle')
 
     expect(playerDevelopmentSource).toContain('playerQuestionStripInline')
     expect(playerDevelopmentSource).toContain('playerQuestionStripDrawer')
