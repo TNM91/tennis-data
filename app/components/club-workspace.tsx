@@ -307,6 +307,32 @@ export default function ClubWorkspace() {
     if (detail.clubs) setClubs(detail.clubs)
   }
 
+  async function uploadClubLogo(file: File) {
+    if (!workspace || !accessToken) throw new Error('Open a club before uploading its logo.')
+    setWorking(true)
+    try {
+      const body = new FormData()
+      body.set('file', file)
+      const response = await fetch(`/api/clubs/${encodeURIComponent(workspace.club.id)}/branding`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body,
+      })
+      const payload = await response.json() as { club?: Club; logoUrl?: string; message?: string }
+      if (!response.ok || !payload.logoUrl || !payload.club) throw new Error(payload.message || 'The club logo could not be uploaded.')
+      const updatedClub = payload.club
+      setWorkspace((current) => current ? { ...current, club: updatedClub } : current)
+      setClubs((current) => current.map((club) => club.id === updatedClub.id ? updatedClub : club))
+      showMessage('Club logo uploaded and saved.')
+      return payload.logoUrl
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'The club logo could not be uploaded.', 'danger')
+      throw error
+    } finally {
+      setWorking(false)
+    }
+  }
+
   function openGuidedStep(step: ClubSetupStep) {
     if (step.id === 'access') {
       void shareClubPage()
@@ -777,6 +803,7 @@ export default function ClubWorkspace() {
         <ClubSettings
           club={workspace.club}
           working={working}
+          onUploadLogo={uploadClubLogo}
           onSave={async (payload) => {
             setWorking(true)
             try {
@@ -1969,10 +1996,67 @@ function TemplateCard({ club, template }: { club: Club; template: ClubCompetitio
   return <article className={styles.card}><div className={styles.cardTop}><h3>{template.name}</h3><span className={styles.pill}>{template.competitionType}</span></div><p>{[template.divisionLabel, template.defaultFacility, template.formatId.replaceAll('_', ' ')].filter(Boolean).join(' · ')}</p><Link className={styles.primary} href={buildClubCompetitionLaunchHref(club, template)}>Open {template.competitionType === 'league' ? 'League Office' : 'Tournament Desk'}</Link></article>
 }
 
-function ClubSettings({ club, working, onSave }: { club: Club; working: boolean; onSave: (payload: Record<string, unknown>) => Promise<void> }) {
+function ClubSettings({ club, working, onUploadLogo, onSave }: { club: Club; working: boolean; onUploadLogo: (file: File) => Promise<string>; onSave: (payload: Record<string, unknown>) => Promise<void> }) {
   const [form, setForm] = useState({ name: club.name, description: club.description, logoUrl: club.logoUrl, heroImageUrl: club.heroImageUrl, primaryColor: club.primaryColor, locationLabel: club.locationLabel, contactEmail: club.contactEmail, timeZone: club.timeZone, isPublic: club.isPublic })
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoNotice, setLogoNotice] = useState('')
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) { setForm((current) => ({ ...current, [key]: value })) }
-  return <section className={styles.panel}><div className={styles.panelHeading}><p className={styles.eyebrow}>Club page</p><h2>Make the club feel like your club.</h2><p>These details carry into the public club home and new competition setups.</p></div><form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onSave(form) }}><div className={styles.fieldGrid}><label className={styles.field}><span>Name</span><input value={form.name} onChange={(event) => set('name', event.target.value)} /></label><label className={styles.field}><span>Club color</span><input type="color" value={form.primaryColor} onChange={(event) => set('primaryColor', event.target.value)} /></label><label className={styles.field}><span>Location</span><input value={form.locationLabel} onChange={(event) => set('locationLabel', event.target.value)} /></label><label className={styles.field}><span>Public contact email (optional)</span><input type="email" value={form.contactEmail} onChange={(event) => set('contactEmail', event.target.value)} /></label><label className={styles.field}><span>Time zone</span><input value={form.timeZone} onChange={(event) => set('timeZone', event.target.value)} /></label><label className={styles.field}><span>Logo URL</span><input value={form.logoUrl} onChange={(event) => set('logoUrl', event.target.value)} /></label><label className={`${styles.field} ${styles.full}`}><span>Hero image URL</span><input value={form.heroImageUrl} onChange={(event) => set('heroImageUrl', event.target.value)} /></label><label className={`${styles.field} ${styles.full}`}><span>About the club</span><textarea value={form.description} onChange={(event) => set('description', event.target.value)} /></label><label className={styles.check}><input type="checkbox" checked={form.isPublic} onChange={(event) => set('isPublic', event.target.checked)} />Public club page</label></div><button className={styles.primary} disabled={working} type="submit">Save club page</button></form></section>
+
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return
+    setLogoUploading(true)
+    setLogoNotice('')
+    try {
+      const logoUrl = await onUploadLogo(file)
+      set('logoUrl', logoUrl)
+      setLogoNotice('Logo uploaded and saved.')
+    } catch (error) {
+      setLogoNotice(error instanceof Error ? error.message : 'The club logo could not be uploaded.')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeading}><p className={styles.eyebrow}>Club page</p><h2>Make the club feel like your club.</h2><p>These details carry into the public club home and new competition setups.</p></div>
+      <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onSave(form) }}>
+        <div className={styles.fieldGrid}>
+          <label className={styles.field}><span>Name</span><input value={form.name} onChange={(event) => set('name', event.target.value)} /></label>
+          <label className={styles.field}><span>Club color</span><input type="color" value={form.primaryColor} onChange={(event) => set('primaryColor', event.target.value)} /></label>
+          <section className={`${styles.clubLogoEditor} ${styles.full}`} aria-labelledby="club-logo-title">
+            <div className={styles.clubLogoPreview}>
+              {form.logoUrl
+                ? <Image src={form.logoUrl} alt={`${form.name || club.name} logo preview`} width={88} height={88} unoptimized />
+                : <span aria-hidden="true">{(form.name || club.name).slice(0, 2).toUpperCase()}</span>}
+            </div>
+            <div className={styles.clubLogoControls}>
+              <div><strong id="club-logo-title">Club logo</strong><span>Upload a JPG, PNG, or WebP image up to 5 MB.</span></div>
+              <div className={styles.clubLogoActions}>
+                <label className={styles.primary} aria-disabled={working || logoUploading}>
+                  <input className={styles.clubLogoInput} disabled={working || logoUploading} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void uploadLogo(file) }} />
+                  {logoUploading ? 'Uploading...' : form.logoUrl ? 'Replace logo' : 'Upload logo'}
+                </label>
+                {form.logoUrl ? <button className={styles.quietButton} disabled={working || logoUploading} type="button" onClick={() => { set('logoUrl', ''); setLogoNotice('Logo removed from this draft. Save the club page to finish.') }}>Remove</button> : null}
+              </div>
+              {logoNotice ? <p className={styles.clubLogoNotice} role="status">{logoNotice}</p> : null}
+              <details className={styles.clubLogoUrlFallback}>
+                <summary>Use an image URL instead</summary>
+                <label className={styles.field}><span>Logo URL</span><input value={form.logoUrl} onChange={(event) => set('logoUrl', event.target.value)} placeholder="https://..." /></label>
+              </details>
+            </div>
+          </section>
+          <label className={styles.field}><span>Location</span><input value={form.locationLabel} onChange={(event) => set('locationLabel', event.target.value)} /></label>
+          <label className={styles.field}><span>Public contact email (optional)</span><input type="email" value={form.contactEmail} onChange={(event) => set('contactEmail', event.target.value)} /></label>
+          <label className={styles.field}><span>Time zone</span><input value={form.timeZone} onChange={(event) => set('timeZone', event.target.value)} /></label>
+          <label className={`${styles.field} ${styles.full}`}><span>Hero image URL</span><input value={form.heroImageUrl} onChange={(event) => set('heroImageUrl', event.target.value)} /></label>
+          <label className={`${styles.field} ${styles.full}`}><span>About the club</span><textarea value={form.description} onChange={(event) => set('description', event.target.value)} /></label>
+          <label className={styles.check}><input type="checkbox" checked={form.isPublic} onChange={(event) => set('isPublic', event.target.checked)} />Public club page</label>
+        </div>
+        <button className={styles.primary} disabled={working || logoUploading} type="submit">Save club page</button>
+      </form>
+    </section>
+  )
 }
 
 function CreateClubForm({ working, message, messageTone, onCreate }: { working: boolean; message: string; messageTone: 'success' | 'danger'; onCreate: (payload: Record<string, unknown>) => Promise<void> }) {

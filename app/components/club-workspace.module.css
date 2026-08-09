@@ -121,6 +121,44 @@
 .fieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .full { grid-column: 1 / -1; }
 
+.clubLogoEditor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 32%, var(--shell-panel-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--club-color, var(--brand-green)) 5%, var(--shell-chip-bg));
+}
+
+.clubLogoPreview {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 42%, var(--shell-panel-border));
+  border-radius: 18px;
+  background: rgba(5, 14, 28, .76);
+  color: var(--club-color, var(--brand-green));
+  font-size: 26px;
+  font-weight: 950;
+}
+
+.clubLogoPreview img { width: 100%; height: 100%; object-fit: contain; }
+.clubLogoControls { display: grid; gap: 10px; min-width: 0; }
+.clubLogoControls > div:first-child { display: grid; gap: 4px; }
+.clubLogoControls strong { color: var(--foreground-strong); font-size: 15px; }
+.clubLogoControls span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.4; }
+.clubLogoActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.clubLogoInput { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.clubLogoActions label:focus-within { outline: 2px solid var(--club-color, var(--brand-green)); outline-offset: 2px; }
+.clubLogoNotice { margin: 0; color: var(--club-color, var(--brand-green)); font-size: 12px; font-weight: 800; line-height: 1.4; }
+.clubLogoUrlFallback { border-top: 1px solid var(--shell-panel-border); padding-top: 8px; }
+.clubLogoUrlFallback summary { width: fit-content; color: var(--shell-copy-muted); font-size: 12px; font-weight: 850; cursor: pointer; }
+.clubLogoUrlFallback .field { margin-top: 9px; }
+
 .primary, .secondary, .tab, .quietButton, .dangerButton {
   display: inline-flex;
   align-items: center;
@@ -461,6 +499,9 @@
   .hero { border-radius: 14px; }
   .fieldGrid { grid-template-columns: 1fr; }
   .full { grid-column: auto; }
+  .clubLogoEditor { grid-template-columns: 1fr; }
+  .clubLogoPreview { width: 76px; height: 76px; }
+  .clubLogoActions > * { flex: 1 1 132px; }
   .heroActions > *, .row > .primary, .row > .secondary, .row > .quietButton, .row > .dangerButton { flex: 1 1 145px; }
   .tabs { position: sticky; top: 8px; z-index: 4; }
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }

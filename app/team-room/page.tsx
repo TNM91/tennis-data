@@ -1498,7 +1498,7 @@ function TeamRoomContent() {
       body: room.actionQueue.matchDate
         ? `Open the ${formatMatchDate(room.actionQueue.matchDate)} match card.`
         : 'Open Team Chat to review the latest match update.',
-      icon: '/tenaceiq-icon-192.png',
+      icon: '/brand/icons/pwa-192.png',
     })
   }, [room?.actionQueue.lastReminderAt, room?.actionQueue.matchDate, room?.actionQueue.unresolvedProfileIds, room?.id, room?.teamName, userId])
 
@@ -1544,7 +1544,7 @@ function TeamRoomContent() {
     <main className={styles.page}>
       <nav className={styles.appBar} aria-label="Team Chat navigation">
         <Link className={styles.appBack} href={room.canManage ? captainHref : '/mylab'}>
-          <Image src="/tenaceiq-icon-192.png" alt="" width={32} height={32} />
+          <Image src="/brand/icons/pwa-192.png" alt="" width={32} height={32} />
           <span>{room.canManage ? 'Captain' : 'My Lab'}</span>
         </Link>
         <div className={styles.appIdentity}>
