@@ -15,6 +15,16 @@ export type PlayerCompetitionScheduleEvent = {
   detail: string
   href: string
   status: string
+  responseStatus?: '' | 'available' | 'unavailable'
+  responseUpdatedAt?: string
+  responseIsStale?: boolean
+}
+
+type ScheduleResponseRow = {
+  event_id?: string | null
+  response?: string | null
+  event_snapshot?: Record<string, unknown> | null
+  updated_at?: string | null
 }
 
 type TournamentEntryRow = {
@@ -196,6 +206,7 @@ export function mapApprovedCompetitionSchedule(input: {
   leagueEntries: LeagueEntryRow[]
   leagues: LeagueRow[]
   leagueSchedule: LeagueScheduleRow[]
+  responses?: ScheduleResponseRow[]
 }): PlayerCompetitionScheduleEvent[] {
   const tournamentById = new Map(input.tournaments.map((row) => [cleanText(row.id), row]))
   const leagueById = new Map(input.leagues.map((row) => [cleanText(row.id), row]))
@@ -305,14 +316,33 @@ export function mapApprovedCompetitionSchedule(input: {
     }
   }
 
-  return sortEvents(events)
+  const responseByEventId = new Map((input.responses ?? []).map((row) => [cleanText(row.event_id), row]))
+  return sortEvents(events.map((event) => {
+    const response = responseByEventId.get(event.id)
+    const snapshot = response?.event_snapshot ?? {}
+    const responseStatus = response?.response === 'available' || response?.response === 'unavailable'
+      ? response.response
+      : ''
+    const responseIsStale = Boolean(responseStatus) && (
+      cleanText(snapshot.date) !== event.date
+      || cleanText(snapshot.time) !== event.time
+      || cleanText(snapshot.location) !== event.location
+    )
+
+    return {
+      ...event,
+      responseStatus: responseIsStale ? '' : responseStatus,
+      responseUpdatedAt: cleanText(response?.updated_at),
+      responseIsStale,
+    }
+  }))
 }
 
 export async function loadPlayerCompetitionSchedule(client: SupabaseClient, userId: string) {
   const profileId = cleanText(userId)
   if (!profileId) return []
 
-  const [tournamentEntriesResult, leagueEntriesResult] = await Promise.all([
+  const [tournamentEntriesResult, leagueEntriesResult, responseResult] = await Promise.all([
     client
       .from('tiq_tournament_entries')
       .select('id,tournament_id,player_name,linked_player_id')
@@ -323,10 +353,15 @@ export async function loadPlayerCompetitionSchedule(client: SupabaseClient, user
       .select('id,league_id,player_name,player_id')
       .eq('created_by_user_id', profileId)
       .eq('entry_status', 'active'),
+    client
+      .from('player_schedule_responses')
+      .select('event_id,response,event_snapshot,updated_at')
+      .eq('player_user_id', profileId),
   ])
 
   if (tournamentEntriesResult.error) throw tournamentEntriesResult.error
   if (leagueEntriesResult.error) throw leagueEntriesResult.error
+  if (responseResult.error) throw responseResult.error
 
   const tournamentEntries = (tournamentEntriesResult.data ?? []) as TournamentEntryRow[]
   const leagueEntries = (leagueEntriesResult.data ?? []) as LeagueEntryRow[]
@@ -360,6 +395,7 @@ export async function loadPlayerCompetitionSchedule(client: SupabaseClient, user
     leagueEntries,
     leagues: (leagueResult.data ?? []) as LeagueRow[],
     leagueSchedule: (leagueScheduleResult.data ?? []) as LeagueScheduleRow[],
+    responses: (responseResult.data ?? []) as ScheduleResponseRow[],
   })
 }
 

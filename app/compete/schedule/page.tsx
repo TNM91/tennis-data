@@ -113,10 +113,12 @@ export default function CompeteSchedulePage() {
 }
 
 function CompeteScheduleContent() {
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const [matches, setMatches] = useState<PlayerCompetitionScheduleEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [responseSavingId, setResponseSavingId] = useState('')
+  const [responseMessage, setResponseMessage] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const postedDateCount = matches.filter((match) => match.date).length
@@ -210,6 +212,42 @@ function CompeteScheduleContent() {
     }
   }, [userId])
 
+  async function respondToSchedule(eventId: string, response: 'available' | 'unavailable') {
+    if (!session?.access_token) {
+      setResponseMessage('Sign in to send your availability.')
+      return
+    }
+
+    setResponseSavingId(eventId)
+    setResponseMessage('')
+    try {
+      const result = await fetch('/api/player/competition-schedule-response', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId, response }),
+      })
+      const body = (await result.json()) as { ok?: boolean; message?: string }
+      if (!result.ok || !body.ok) throw new Error(body.message || 'Availability could not be sent.')
+
+      setMatches((current) => current.map((item) => item.id === eventId
+        ? {
+            ...item,
+            responseStatus: response,
+            responseUpdatedAt: new Date().toISOString(),
+            responseIsStale: false,
+          }
+        : item))
+      setResponseMessage(response === 'available' ? 'Available sent to the organizer.' : 'Can’t play sent to the organizer.')
+    } catch (responseError) {
+      setResponseMessage(responseError instanceof Error ? responseError.message : 'Availability could not be sent.')
+    } finally {
+      setResponseSavingId('')
+    }
+  }
+
   return (
     <>
       <SchedulePathPanel />
@@ -269,10 +307,16 @@ function CompeteScheduleContent() {
         ) : (
           <div style={listStyle}>
             {matches.map((match) => (
-              <CompetitionScheduleRow key={match.id} match={match} />
+              <CompetitionScheduleRow
+                key={match.id}
+                match={match}
+                saving={responseSavingId === match.id}
+                onRespond={respondToSchedule}
+              />
             ))}
           </div>
         )}
+        {responseMessage ? <div style={responseMessageStyle} aria-live="polite">{responseMessage}</div> : null}
       </section>
 
       <ScheduleToolsDisclosure>
@@ -475,7 +519,15 @@ function EmptyScheduleState() {
   )
 }
 
-function CompetitionScheduleRow({ match }: { match: PlayerCompetitionScheduleEvent }) {
+function CompetitionScheduleRow({
+  match,
+  saving,
+  onRespond,
+}: {
+  match: PlayerCompetitionScheduleEvent
+  saving: boolean
+  onRespond: (eventId: string, response: 'available' | 'unavailable') => Promise<void>
+}) {
   const rowReadinessItems = [
     { label: 'Entry', value: 'Approved', ready: true },
     { label: 'Time', value: match.time || 'Pending', ready: Boolean(match.time) },
@@ -483,7 +535,7 @@ function CompetitionScheduleRow({ match }: { match: PlayerCompetitionScheduleEve
   ]
 
   return (
-    <div style={rowStyle}>
+    <div id={`event-${match.id}`} style={rowStyle}>
       <div style={matchInfoStyle}>
         <div style={rowDateStyle}>
           {formatWeekdayDate(match.date, 'Date pending')}
@@ -510,6 +562,40 @@ function CompetitionScheduleRow({ match }: { match: PlayerCompetitionScheduleEve
       </div>
 
       <div style={teamPrepStackStyle}>
+        <div style={scheduleResponsePanelStyle} data-response={match.responseStatus || 'pending'}>
+          <div style={scheduleResponseCopyStyle}>
+            <strong>
+              {match.responseIsStale
+                ? 'The schedule changed. Please answer again.'
+                : match.responseStatus === 'available'
+                  ? 'You’re available.'
+                  : match.responseStatus === 'unavailable'
+                    ? 'You told the organizer you can’t play.'
+                    : 'Can you play?'}
+            </strong>
+            <span>{match.responseIsStale ? 'Your earlier answer was for the previous time or site.' : 'The organizer receives your answer immediately.'}</span>
+          </div>
+          <div style={scheduleResponseActionsStyle}>
+            <button
+              type="button"
+              disabled={saving}
+              aria-pressed={match.responseStatus === 'available'}
+              onClick={() => void onRespond(match.id, 'available')}
+              style={scheduleResponseButtonStyle(match.responseStatus === 'available', 'available')}
+            >
+              {saving ? 'Sending…' : 'Available'}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              aria-pressed={match.responseStatus === 'unavailable'}
+              onClick={() => void onRespond(match.id, 'unavailable')}
+              style={scheduleResponseButtonStyle(match.responseStatus === 'unavailable', 'unavailable')}
+            >
+              Can’t play
+            </button>
+          </div>
+        </div>
         <div style={teamPrepRowStyle}>
           <div style={teamPrepNameStyle}>
             {match.opponent ? `Opponent: ${match.opponent}` : 'Your entry is confirmed. Match details are next.'}
@@ -1147,6 +1233,18 @@ const rowNextActionStyle = {
   textAlign: 'center',
 } as const
 
+const responseMessageStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
 const supportActionRowStyle = {
   display: 'flex',
   gap: '8px',
@@ -1158,6 +1256,58 @@ const teamPrepStackStyle = {
   display: 'grid',
   gap: '10px',
 } as const
+
+const scheduleResponsePanelStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '11px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.06))',
+  overflowWrap: 'anywhere',
+}
+
+const scheduleResponseCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const scheduleResponseActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+function scheduleResponseButtonStyle(active: boolean, tone: 'available' | 'unavailable'): CSSProperties {
+  return {
+    appearance: 'none',
+    minWidth: 0,
+    minHeight: '40px',
+    cursor: 'pointer',
+    borderRadius: '12px',
+    border: active
+      ? tone === 'available' ? '1px solid rgba(155,225,29,0.50)' : '1px solid rgba(255,206,116,0.48)'
+      : '1px solid rgba(116,190,255,0.18)',
+    background: active
+      ? tone === 'available' ? 'rgba(155,225,29,0.18)' : 'rgba(255,206,116,0.14)'
+      : 'rgba(8,16,34,0.54)',
+    color: 'var(--foreground-strong)',
+    padding: '8px 10px',
+    font: 'inherit',
+    fontSize: '12px',
+    fontWeight: 950,
+    overflowWrap: 'anywhere',
+  }
+}
 
 const teamPrepRowStyle = {
   display: 'grid',

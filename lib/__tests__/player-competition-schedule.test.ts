@@ -37,6 +37,12 @@ describe('approved player competition schedule', () => {
         facility: 'Court 5',
         status: 'confirmed',
       }],
+      responses: [{
+        event_id: 'league:league-1:match-1',
+        response: 'available',
+        event_snapshot: { date: '2026-09-03', time: '19:00', location: 'Court 5' },
+        updated_at: '2026-09-01T12:00:00.000Z',
+      }],
     })
 
     expect(events).toHaveLength(2)
@@ -53,6 +59,8 @@ describe('approved player competition schedule', () => {
       opponent: 'Casey Player',
       date: '2026-09-03',
       status: 'Confirmed',
+      responseStatus: 'available',
+      responseIsStale: false,
     })
   })
 
@@ -71,6 +79,12 @@ describe('approved player competition schedule', () => {
       leagueEntries: [],
       leagues: [],
       leagueSchedule: [],
+      responses: [{
+        event_id: 'tournament:tournament-2:start',
+        response: 'available',
+        event_snapshot: { date: '2026-10-09', time: '', location: 'North Courts' },
+        updated_at: '2026-10-01T12:00:00.000Z',
+      }],
     })
 
     expect(events).toEqual([expect.objectContaining({
@@ -78,6 +92,8 @@ describe('approved player competition schedule', () => {
       competitionName: 'Compass Classic',
       date: '2026-10-10',
       detail: 'Entry approved · Match time pending',
+      responseStatus: '',
+      responseIsStale: true,
     })])
   })
 })
