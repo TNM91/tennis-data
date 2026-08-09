@@ -167,6 +167,7 @@ export type ClubCalendarEvent = {
   groupName: string
   membershipIds: string[]
   href: string
+  needsResult?: boolean
 }
 
 export type ClubCalendarConflict = {
@@ -210,6 +211,23 @@ export function getClubCalendarConflicts(events: ClubCalendarEvent[]): ClubCalen
   }
 
   return conflicts
+}
+
+export function getVisibleClubCalendarEvents(
+  events: ClubCalendarEvent[],
+  groups: Array<Pick<ClubGroup, 'id' | 'leadUserId'>>,
+  membership: Pick<ClubMembership, 'id' | 'userId'>,
+  roles: ClubRole[],
+) {
+  if (isClubManager(roles)) return events
+  const leadGroupIds = new Set(groups.filter((group) => group.leadUserId === membership.userId).map((group) => group.id))
+  return events.filter((event) => {
+    if (event.membershipIds.includes(membership.id)) return true
+    if (!leadGroupIds.has(event.groupId)) return false
+    if (roles.includes('coach') && event.type === 'clinic') return true
+    if (roles.includes('captain') && event.type === 'team_match') return true
+    return roles.includes('coordinator') && (event.type === 'league_match' || event.type === 'tournament_match')
+  })
 }
 
 export type ClubCompetitionReadiness = {

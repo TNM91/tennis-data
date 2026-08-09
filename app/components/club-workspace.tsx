@@ -14,6 +14,7 @@ import {
   getClubCompetitionRosterHandoff,
   getClubCompetitionTeamHandoff,
   getClubCalendarConflicts,
+  getVisibleClubCalendarEvents,
   getClubCompetitionReadiness,
   getClubGroupTypeLabel,
   getLinkableClubCompetitions,
@@ -730,7 +731,10 @@ const clubCalendarFilters: Array<{ id: ClubCalendarFilter; label: string }> = [
 
 function ClubCalendarPanel({ workspace }: { workspace: ClubWorkspaceData }) {
   const [filter, setFilter] = useState<ClubCalendarFilter>('all')
-  const calendarEvents = useMemo(() => workspace.calendarEvents ?? [], [workspace.calendarEvents])
+  const calendarEvents = useMemo(() => {
+    const today = getClubTodayForTimeZone(workspace.club.timeZone)
+    return (workspace.calendarEvents ?? []).filter((event) => event.startsAt.slice(0, 10) >= today)
+  }, [workspace.calendarEvents, workspace.club.timeZone])
   const conflicts = useMemo(() => getClubCalendarConflicts(calendarEvents), [calendarEvents])
   const conflictEventIds = useMemo(() => new Set(conflicts.flatMap((conflict) => conflict.eventIds)), [conflicts])
   const events = filter === 'all' ? calendarEvents : calendarEvents.filter((event) => event.type === filter)
@@ -824,6 +828,53 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
   return 'Clinic'
 }
 
+function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
+  const manager = isClubManager(roles)
+  const today = getClubTodayForTimeZone(workspace.club.timeZone)
+  const visibleEvents = getVisibleClubCalendarEvents(workspace.calendarEvents ?? [], workspace.groups, workspace.currentMembership, roles)
+  const upcomingEvents = visibleEvents.filter((event) => event.startsAt.slice(0, 10) >= today)
+  const todayEvents = upcomingEvents.filter((event) => event.startsAt.slice(0, 10) === today)
+  const resultsNeeded = visibleEvents.filter((event) => event.needsResult)
+  const conflicts = getClubCalendarConflicts(upcomingEvents)
+  const pendingRenewals = manager ? workspace.groups.reduce((total, group) => total + group.renewalPendingCount, 0) : 0
+  const openSpots = manager ? workspace.groups
+    .filter((group) => group.isActive && Boolean(group.renewalsFinalizedAt) && !group.renewalFillCompletedAt)
+    .reduce((total, group) => total + Math.max(0, group.renewalTargetRosterSize - group.memberIds.length), 0) : 0
+  const nextEvent = upcomingEvents[0]
+  const pulseClear = !conflicts.length && !resultsNeeded.length && !pendingRenewals && !openSpots
+
+  return (
+    <section className={styles.clubPulse} aria-labelledby="club-pulse-title">
+      <div className={styles.clubPulseHeading}>
+        <div><p className={styles.eyebrow}>Club pulse</p><h3 id="club-pulse-title">{pulseClear ? 'Everything is moving.' : 'See what needs attention.'}</h3></div>
+        <button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button>
+      </div>
+      <div className={styles.clubPulseStats}>
+        <button type="button" onClick={() => onOpenTab('calendar')}><strong>{todayEvents.length}</strong><span>Today</span></button>
+        <button type="button" onClick={() => onOpenTab('calendar')}><strong>{conflicts.length}</strong><span>Schedule checks</span></button>
+        <div><strong>{resultsNeeded.length}</strong><span>Results to add</span></div>
+        {manager ? <button type="button" onClick={() => onOpenTab('groups')}><strong>{pendingRenewals + openSpots}</strong><span>Roster follow-ups</span></button> : null}
+      </div>
+      <div className={styles.clubPulseList}>
+        {conflicts.length ? <button type="button" onClick={() => onOpenTab('calendar')}><span>Check schedule</span><strong>{conflicts[0].detail}</strong><b>Review</b></button> : null}
+        {resultsNeeded.length ? <Link href={resultsNeeded[0].href}><span>Add result</span><strong>{resultsNeeded[0].title}</strong><b>Open</b></Link> : null}
+        {nextEvent ? <Link href={nextEvent.href}><span>{todayEvents.length ? 'Next today' : 'Next up'}</span><strong>{nextEvent.title}</strong><small>{nextEvent.allDay ? formatClubCalendarDate(nextEvent.startsAt.slice(0, 10)) : `${formatClubCalendarDate(nextEvent.startsAt.slice(0, 10))} · ${formatClubCalendarTime(nextEvent.startsAt, workspace.club.timeZone)}`}</small><b>Open</b></Link> : null}
+        {!nextEvent && pulseClear ? <div className={styles.clubPulseClear}><strong>No immediate Club work.</strong><span>New schedules and follow-ups will appear here automatically.</span></div> : null}
+      </div>
+    </section>
+  )
+}
+
+function getClubTodayForTimeZone(timeZone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: timeZone || 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+    const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+    return `${value('year')}-${value('month')}-${value('day')}`
+  } catch {
+    return new Date().toISOString().slice(0, 10)
+  }
+}
+
 function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
@@ -905,11 +956,7 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
-      {showEverydayWorkspace ? <div className={styles.experienceStrip} aria-label="Connected club value">
-        <div><strong>Players</strong><span>Know what to work on and what comes next.</span></div>
-        <div><strong>Coaches</strong><span>Keep lessons, assignments, and progress connected.</span></div>
-        <div><strong>Club staff</strong><span>Run programs and competition without rebuilding context.</span></div>
-      </div> : null}
+      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
