@@ -58,6 +58,15 @@ import {
   type TeamCompetitionRules,
 } from '@/lib/competition-rules'
 import {
+  getMixedPairEligibilityIssues,
+  getPlayerEligibilitySourceLabel,
+  isMixedPairEligible,
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
+  type MixedPairRole,
+  type PlayerRatingSource,
+} from '@/lib/player-eligibility'
+import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
@@ -83,6 +92,9 @@ type PlayerRow = {
   overall_rating: number | null
   overall_dynamic_rating: number | null
   overall_usta_dynamic_rating: number | null
+  rating_source: PlayerRatingSource | string | null
+  mixed_pair_role: MixedPairRole | string | null
+  roster_age_division?: string | null
 }
 
 type AvailabilityRow = {
@@ -120,6 +132,9 @@ type TeamRosterMemberRow = {
   player_name: string | null
   league_name: string | null
   flight: string | null
+  rating_source: PlayerRatingSource | string | null
+  mixed_pair_role: MixedPairRole | string | null
+  age_division: string | null
 }
 
 type TiqTeamLeagueFormatRow = {
@@ -336,6 +351,20 @@ function buildRosterPlayerIdSet(
     ids.add(row.player_id)
   }
 
+  for (const row of getScopedRosterMembers(targetTeam, rosterMembers, filters)) {
+    if (!row.player_id) continue
+    ids.add(row.player_id)
+  }
+
+  return ids
+}
+
+function getScopedRosterMembers(
+  targetTeam: string,
+  rosterMembers: TeamRosterMemberRow[],
+  filters: { leagueName: string; flight: string },
+) {
+  const normalizedTarget = normalizeTeamName(targetTeam)
   const teamRosterMembers = rosterMembers.filter((row) => (
     Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
   ))
@@ -344,18 +373,43 @@ function buildRosterPlayerIdSet(
     if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) return false
     return true
   })
-
-  for (const row of scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers) {
-    if (!row.player_id) continue
-    ids.add(row.player_id)
-  }
-
-  return ids
+  return scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers
 }
 
-function filterPlayerPoolByRoster(playerPool: PoolPlayer[], rosterIds: Set<string>) {
+function buildRosterEligibilityByPlayerId(
+  targetTeam: string,
+  rosterMembers: TeamRosterMemberRow[],
+  filters: { leagueName: string; flight: string },
+) {
+  return new Map(getScopedRosterMembers(targetTeam, rosterMembers, filters)
+    .filter((row) => Boolean(row.player_id))
+    .map((row) => [row.player_id as string, row]))
+}
+
+function filterPlayerPoolByRoster(
+  playerPool: PoolPlayer[],
+  rosterIds: Set<string>,
+  eligibilityByPlayerId = new Map<string, TeamRosterMemberRow>(),
+) {
   if (!rosterIds.size) return []
-  return playerPool.filter((player) => rosterIds.has(player.id))
+  return playerPool
+    .filter((player) => rosterIds.has(player.id))
+    .map((player) => {
+      const roster = eligibilityByPlayerId.get(player.id)
+      if (!roster) return player
+      const rosterRatingSource = normalizePlayerRatingSource(roster.rating_source)
+      const rosterMixedPairRole = normalizeMixedPairRole(roster.mixed_pair_role)
+      return {
+        ...player,
+        rating_source: rosterRatingSource === 'unknown'
+          ? normalizePlayerRatingSource(player.rating_source)
+          : rosterRatingSource,
+        mixed_pair_role: rosterMixedPairRole === 'unknown'
+          ? normalizeMixedPairRole(player.mixed_pair_role)
+          : rosterMixedPairRole,
+        roster_age_division: roster.age_division,
+      }
+    })
 }
 
 function createManualRosterPlayer(
@@ -382,6 +436,9 @@ function createManualRosterPlayer(
     overall_rating: null,
     overall_dynamic_rating: null,
     overall_usta_dynamic_rating: null,
+    rating_source: 'self',
+    mixed_pair_role: 'unknown',
+    roster_age_division: null,
     manualTeamName: scope.teamName,
     manualLeagueName: scope.leagueName,
     manualFlight: scope.flight,
@@ -708,6 +765,10 @@ function recommendLineupFromPool(
           [getPlayerBaseRating(first), getPlayerBaseRating(second)],
           slot.ratingLevel,
         )) continue
+        if (rules && !isMixedPairEligible(
+          rules.requiresMixedPair,
+          [first.mixed_pair_role, second.mixed_pair_role],
+        )) continue
         pairCandidates.push({
           first,
           second,
@@ -911,6 +972,10 @@ function optimizeLineupFromPool(
           [getPlayerBaseRating(a), getPlayerBaseRating(b)],
           slot.ratingLevel,
         )) continue
+        if (rules && !isMixedPairEligible(
+          rules.requiresMixedPair,
+          [a.mixed_pair_role, b.mixed_pair_role],
+        )) continue
         pairCandidates.push({ a, b, score: rankDoubles(a, b) })
       }
     }
@@ -1067,6 +1132,22 @@ function getLineupWarnings(
         ) {
           warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TIQ can confirm eligibility.`)
         }
+        if (
+          player &&
+          sideLabel === 'Your' &&
+          rules &&
+          rules.ratingRule !== 'open' &&
+          normalizePlayerRatingSource(player.rating_source) === 'self'
+        ) {
+          warnings.push(`${selected.playerName || 'Selected player'} is self-rated. Confirm league eligibility before finalizing.`)
+        }
+        if (player && sideLabel === 'Your' && rules?.ageDivision) {
+          if (!player.roster_age_division) {
+            warnings.push(`${selected.playerName || 'Selected player'} needs ${rules.ageDivision} roster eligibility confirmed.`)
+          } else if (player.roster_age_division !== rules.ageDivision) {
+            warnings.push(`${selected.playerName || 'Selected player'} is verified for ${player.roster_age_division}, not ${rules.ageDivision}.`)
+          }
+        }
         if (player && !isPlayerEligibleForSlot(player, slot, rules)) {
           warnings.push(
             typeof slot.ratingLevel === 'number'
@@ -1084,6 +1165,10 @@ function getLineupWarnings(
           slot.ratingLevel,
         )
         pairIssues.forEach((issue) => warnings.push(`${sideLabel} ${slot.label}: ${issue}`))
+        getMixedPairEligibilityIssues(
+          rules.requiresMixedPair,
+          selectedPlayers.map((player) => player?.mixed_pair_role),
+        ).forEach((issue) => warnings.push(`${sideLabel} ${slot.label}: ${issue}`))
       }
     }
   }
@@ -1473,7 +1558,9 @@ function LineupBuilderContent() {
           doubles_usta_dynamic_rating,
           overall_rating,
           overall_dynamic_rating,
-          overall_usta_dynamic_rating
+          overall_usta_dynamic_rating,
+          rating_source,
+          mixed_pair_role
         `)
         .order('name', { ascending: true }),
       supabase
@@ -1507,7 +1594,10 @@ function LineupBuilderContent() {
           player_id,
           player_name,
           league_name,
-          flight
+          flight,
+          rating_source,
+          mixed_pair_role,
+          age_division
         `)
         .limit(4000),
       supabase
@@ -1751,6 +1841,16 @@ function LineupBuilderContent() {
     [opponentTeam, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
   )
 
+  const myRosterEligibilityByPlayerId = useMemo(
+    () => buildRosterEligibilityByPlayerId(teamName, rosterMembers, { leagueName, flight }),
+    [flight, leagueName, rosterMembers, teamName],
+  )
+
+  const opponentRosterEligibilityByPlayerId = useMemo(
+    () => buildRosterEligibilityByPlayerId(opponentTeam, rosterMembers, { leagueName, flight }),
+    [flight, leagueName, opponentTeam, rosterMembers],
+  )
+
   const scopedManualRosterPlayers = useMemo(
     () => manualRosterPlayers.filter((player) =>
       normalizeTeamName(player.manualTeamName) === normalizeTeamName(teamName) &&
@@ -1760,13 +1860,8 @@ function LineupBuilderContent() {
     [flight, leagueName, manualRosterPlayers, teamName]
   )
 
-  const builderPlayers = useMemo<PlayerRow[]>(
-    () => [...players, ...scopedManualRosterPlayers],
-    [players, scopedManualRosterPlayers]
-  )
-
   const myPlayerPool = useMemo<PoolPlayer[]>(() => {
-    const importedRoster = filterPlayerPoolByRoster(availablePlayerPool, myRosterPlayerIds)
+    const importedRoster = filterPlayerPoolByRoster(availablePlayerPool, myRosterPlayerIds, myRosterEligibilityByPlayerId)
     const importedIds = new Set(importedRoster.map((player) => player.id))
     const manualRoster = scopedManualRosterPlayers
       .filter((player) => !importedIds.has(player.id))
@@ -1776,7 +1871,7 @@ function LineupBuilderContent() {
         availabilityNotes: null,
       }))
     return [...importedRoster, ...manualRoster]
-  }, [availablePlayerPool, myRosterPlayerIds, scopedManualRosterPlayers])
+  }, [availablePlayerPool, myRosterEligibilityByPlayerId, myRosterPlayerIds, scopedManualRosterPlayers])
 
   const opponentPlayerPool = useMemo<PoolPlayer[]>(() => {
     return filterPlayerPoolByRoster(
@@ -1792,9 +1887,19 @@ function LineupBuilderContent() {
           if (ratingB !== ratingA) return ratingB - ratingA
           return a.name.localeCompare(b.name)
         }),
-      opponentRosterPlayerIds
+      opponentRosterPlayerIds,
+      opponentRosterEligibilityByPlayerId,
     )
-  }, [players, opponentRosterPlayerIds])
+  }, [opponentRosterEligibilityByPlayerId, opponentRosterPlayerIds, players])
+
+  const builderPlayers = useMemo<PlayerRow[]>(() => {
+    const enrichedById = new Map<string, PlayerRow>()
+    for (const player of players) enrichedById.set(player.id, player)
+    for (const player of opponentPlayerPool) enrichedById.set(player.id, player)
+    for (const player of myPlayerPool) enrichedById.set(player.id, player)
+    for (const player of scopedManualRosterPlayers) enrichedById.set(player.id, player)
+    return Array.from(enrichedById.values())
+  }, [myPlayerPool, opponentPlayerPool, players, scopedManualRosterPlayers])
 
   const teamAssignedPlayerIds = useMemo(() => {
     const ids = new Set<string>()
@@ -4336,6 +4441,11 @@ function LineupBuilderContent() {
               <div style={stackStyleCompact}>
                 {myPlayerPool.length ? myPlayerPool.map((player) => {
                   const rStatus = getLineupRatingStatus(player)
+                  const eligibilityLabels = getPlayerEligibilitySourceLabel({
+                    ratingSource: player.rating_source,
+                    ageDivision: player.roster_age_division,
+                    mixedPairRole: competitionRules.requiresMixedPair ? player.mixed_pair_role : 'unknown',
+                  })
                   return (
                     <div key={player.id} style={listCardStyleCompact}>
                       <div>
@@ -4344,6 +4454,7 @@ function LineupBuilderContent() {
                           OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` - ${player.location}` : ''}
                         </div>
                         {player.lineup_notes ? <div style={tinyNoteStyle}>{player.lineup_notes}</div> : null}
+                        {eligibilityLabels.length ? <div style={tinyNoteStyle}>{eligibilityLabels.join(' · ')}</div> : null}
                       </div>
 
                       <div style={rightPillStackStyle}>

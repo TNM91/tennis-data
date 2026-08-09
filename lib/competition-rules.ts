@@ -4,6 +4,7 @@ import {
   type TeamMatchFormatId,
   type TournamentDrawFormatId,
 } from './competition-format-registry'
+import { inferLeagueAgeDivision } from './player-eligibility'
 
 export type CompetitionRatingRule =
   | 'open'
@@ -41,6 +42,7 @@ export type TeamCompetitionRules = {
   courts: number
   players: number
   competitionLevel: number | null
+  ageDivision: string | null
   minimumPlayerRating: number | null
   ratingRule: CompetitionRatingRule
   requiresMixedPair: boolean
@@ -167,6 +169,7 @@ export function resolveTeamCompetitionRules(input: {
   const summary = getTeamMatchFormatSummary(format)
   const rulesOverride = normalizeTeamCompetitionRulesOverride(input.rulesOverride)
   const competitionLevel = rulesOverride.competitionLevel ?? extractCompetitionLevel(leagueName, flight)
+  const ageDivision = inferLeagueAgeDivision(leagueName, flight)
   const mixed = /\bmixed\b/i.test(context) || format.id === 'mixed_tri_level'
   const combo = /\bcombo\b/i.test(context)
   const combinedAdult = /\badult\s*(?:55|65|70|75)\s*(?:&|and)?\s*over\b/i.test(context)
@@ -279,6 +282,7 @@ export function resolveTeamCompetitionRules(input: {
     courts: summary.courts,
     players: summary.players,
     competitionLevel,
+    ageDivision,
     minimumPlayerRating,
     ratingRule,
     requiresMixedPair,

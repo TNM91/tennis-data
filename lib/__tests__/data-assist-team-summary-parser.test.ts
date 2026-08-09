@@ -21,9 +21,9 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
     expect(draft.leagueName).toBe('2026 Adult 18 & Over Spring')
     expect(draft.flight).toBe('Men 4.5')
     expect(draft.players).toEqual([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Eric Abramson', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
+      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'Eric Abramson', ntrp: 4, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
     ])
     expect(draft.parserWarnings).toEqual([])
   })
@@ -47,10 +47,10 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
     )
 
     expect(draft.players).toEqual(expect.arrayContaining([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
+      expect.objectContaining({ name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
     ]))
     expect(draft.parserWarnings).toEqual([])
   })
@@ -82,9 +82,9 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
 
     expect(draft.players).toHaveLength(20)
     expect(draft.players.slice(0, 3)).toEqual([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
+      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
     ])
     expect(draft.parserWarnings).toEqual([])
   })

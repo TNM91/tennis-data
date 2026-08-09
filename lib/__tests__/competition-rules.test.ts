@@ -15,6 +15,7 @@ describe('competition rules', () => {
     expect(extractCompetitionLevel('Adult 18 & Over', 'Women 4.0')).toBe(4)
     expect(extractCompetitionLevel('Mixed 40 & Over', '8.0')).toBe(8)
     expect(extractCompetitionLevel('Adult 55 & Over', 'Open')).toBeNull()
+    expect(resolveTeamCompetitionRules({ leagueName: 'Adult 55 & Over', flight: 'Women 7.0' }).ageDivision).toBe('55 & Over')
   })
 
   it.each([
