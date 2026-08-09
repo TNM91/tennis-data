@@ -58,16 +58,17 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, message: 'This club is not linked to your profile.' }, { status: 403 })
   }
 
-  const [memberResult, groupResult, templateResult, inviteResult, leagueResult, tournamentResult] = await Promise.all([
+  const [memberResult, groupResult, templateResult, inviteResult, leagueResult, tournamentResult, teamLinkResult] = await Promise.all([
     auth.supabase.from('club_memberships').select(membershipSelect).eq('club_id', club.id).neq('status', 'removed').order('display_name'),
     auth.supabase.from('club_groups').select(groupSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_competition_templates').select(templateSelect).eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('club_invites').select(inviteSelect).eq('club_id', club.id).eq('status', 'pending').order('created_at', { ascending: false }),
     auth.supabase.from('tiq_leagues').select('id,club_group_id,league_name,league_format,season_status,location_label,teams,players,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
     auth.supabase.from('tiq_tournaments').select('id,club_group_id,name,entrant_type,status,starts_on,location_label,entrants,results,schedule,is_public').eq('club_id', club.id).order('updated_at', { ascending: false }),
+    auth.supabase.from('team_profile_links').select('team_name,normalized_team_name,league_name,flight,team_role,team_roles,is_default,updated_at').eq('profile_user_id', auth.userId).eq('status', 'accepted').order('is_default', { ascending: false }).order('updated_at', { ascending: false }),
   ])
 
-  const firstError = [memberResult.error, groupResult.error, templateResult.error, inviteResult.error, leagueResult.error, tournamentResult.error].find(Boolean)
+  const firstError = [memberResult.error, groupResult.error, templateResult.error, inviteResult.error, leagueResult.error, tournamentResult.error, teamLinkResult.error].find(Boolean)
   if (firstError) return clubDatabaseError(firstError.message)
 
   const workspaceMemberships = ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow)
@@ -76,6 +77,23 @@ export async function GET(request: Request) {
   const teamGroups = groups.filter((group) => group.groupType === 'team')
   const coachGroups = groups.filter((group) => group.groupType === 'camp' || group.groupType === 'development_group')
   const normalizedTeamNames = Array.from(new Set(teamGroups.flatMap((group) => getTeamNameKeys(group.name))))
+  const manageableTeamLinks = ((teamLinkResult.data ?? []) as Record<string, unknown>[]).filter((row) => {
+    const roles = Array.isArray(row.team_roles) ? row.team_roles : [row.team_role]
+    return roles.includes('captain') || roles.includes('co_captain')
+  })
+  const teamChatScopeByGroupId = new Map(teamGroups.flatMap((group) => {
+    const groupKeys = new Set(getTeamNameKeys(group.name))
+    const link = manageableTeamLinks.find((row) => {
+      const linkKeys = getTeamNameKeys(row.team_name)
+      const normalizedKey = cleanClubText(row.normalized_team_name).toLowerCase()
+      return linkKeys.some((key) => groupKeys.has(key)) || Boolean(normalizedKey && groupKeys.has(normalizedKey))
+    })
+    return link ? [[group.id, {
+      teamName: cleanClubText(link.team_name, 120),
+      leagueName: cleanClubText(link.league_name, 160),
+      flight: cleanClubText(link.flight, 120),
+    }] as const] : []
+  }))
   const canReadRenewals = isClubManager(currentMembership.roles)
   const leagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[]).map((row) => cleanClubText(row.id)).filter(Boolean)
   const teamLeagueIds = ((leagueResult.data ?? []) as Record<string, unknown>[])
@@ -503,6 +521,7 @@ export async function GET(request: Request) {
           competitionEntryCount: linkedCompetition?.entryCount ?? 0,
           competitionScheduleCount: linkedCompetition?.scheduleCount ?? 0,
           nextCompetitionEventAt: linkedCompetition?.nextEventAt ?? '',
+          teamChatScope: teamChatScopeByGroupId.get(group.id) ?? null,
         }
       }),
       templates: ((templateResult.data ?? []) as Record<string, unknown>[]).map(mapClubTemplateRow),

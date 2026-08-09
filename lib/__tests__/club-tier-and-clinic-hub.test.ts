@@ -35,9 +35,16 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('Share weekly brief')
     expect(club).toContain('navigator.share')
     expect(club).toContain('navigator.clipboard.writeText(text)')
+    expect(club).toContain('Post to chat')
+    expect(club).toContain("action: 'send'")
+    expect(club).toContain("kind: 'announcement'")
+    expect(club).toContain('Open chat')
     expect(clubRoute).toContain('resultLookback')
     expect(clubRoute).toContain('needsResult: date < today')
+    expect(clubRoute).toContain("from('team_profile_links')")
+    expect(clubRoute).toContain('teamChatScopeByGroupId')
     expect(styles).toContain('.clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }')
+    expect(styles).toContain('.clubPulsePost { grid-template-columns: 1fr; }')
   })
 
   it('defines Club as a separate offering without claiming club operations', () => {
