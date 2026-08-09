@@ -225,26 +225,23 @@
   gap: 14px;
 }
 
-.experienceStrip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 28%, var(--shell-panel-border));
-  border-radius: 14px;
-  background: var(--shell-panel-border);
-}
-
-.experienceStrip > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 14px;
-  background: #0a1a30;
-}
-
-.experienceStrip strong { color: var(--club-color, var(--brand-green)); font-size: 13px; }
-.experienceStrip span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.4; }
+.clubPulse { display: grid; gap: 11px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 34%, var(--shell-panel-border)); border-radius: 14px; background: color-mix(in srgb, var(--club-color, var(--brand-green)) 5%, #08172b); padding: 14px; }
+.clubPulseHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.clubPulseHeading > div { display: grid; gap: 3px; min-width: 0; }
+.clubPulseHeading h3 { margin: 0; font-size: clamp(19px, 3vw, 23px); }
+.clubPulseStats { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-panel-border); }
+.clubPulseStats > div, .clubPulseStats > button { display: grid; gap: 2px; min-width: 0; border: 0; border-radius: 0; background: #0a1a30; color: inherit; padding: 11px; text-align: left; font: inherit; }
+.clubPulseStats > button { cursor: pointer; }
+.clubPulseStats strong { color: var(--foreground-strong); font-size: 21px; }
+.clubPulseStats span { color: var(--shell-copy-muted); font-size: 10px; font-weight: 900; line-height: 1.25; text-transform: uppercase; }
+.clubPulseList { display: grid; gap: 6px; }
+.clubPulseList > a, .clubPulseList > button { display: grid; grid-template-columns: 94px minmax(0, 1fr) auto; gap: 9px; align-items: center; min-width: 0; min-height: 45px; border: 1px solid var(--shell-panel-border); border-radius: 11px; background: var(--shell-chip-bg); color: inherit; padding: 9px 11px; text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+.clubPulseList > a > span, .clubPulseList > button > span { color: var(--club-color, var(--brand-green)); font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.clubPulseList strong { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.clubPulseList small { grid-column: 2; color: var(--shell-copy-muted); font-size: 10px; font-weight: 750; }
+.clubPulseList b { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--club-color, var(--brand-green)); font-size: 11px; }
+.clubPulseClear { display: grid; gap: 3px; border: 1px dashed var(--shell-panel-border); border-radius: 11px; padding: 11px; }
+.clubPulseClear span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
 
 .setupCard {
   display: grid;
@@ -411,7 +408,9 @@
   .seasonAction { grid-template-columns: 1fr; }
   .seasonAction > button { width: 100%; }
   .setupSteps li { align-items: flex-start; }
-  .experienceStrip { grid-template-columns: 1fr; }
+  .clubPulseHeading { align-items: flex-start; }
+  .clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .clubPulseList > a, .clubPulseList > button { grid-template-columns: 76px minmax(0, 1fr) auto; padding: 9px; }
   .inviteAccountCheck { grid-template-columns: 1fr; }
   .inviteShell > .primary, .inviteMismatch .primary { width: 100%; }
   .renewalDecision { grid-template-columns: 1fr; }

@@ -6,6 +6,7 @@ import {
   createClubSlug,
   getClubSetupSteps,
   getClubCalendarConflicts,
+  getVisibleClubCalendarEvents,
   getClubInviteLanding,
   hasClubTeamProgram,
   isClubManager,
@@ -55,6 +56,28 @@ describe('club workspace', () => {
 
     expect(conflicts.map((conflict) => conflict.kind)).toEqual(['people', 'court'])
     expect(conflicts.every((conflict) => !conflict.eventIds.includes('tournament-1'))).toBe(true)
+  })
+
+  it('shows each Club role only the schedules they play in or lead', () => {
+    const event = (id: string, type: 'clinic' | 'team_match' | 'league_match', groupId: string, membershipIds: string[] = []) => ({
+      id,
+      type,
+      title: id,
+      startsAt: '2026-08-12T18:00:00',
+      endsAt: '2026-08-12T19:30:00',
+      allDay: false,
+      locationLabel: '',
+      courtLabel: '',
+      groupId,
+      groupName: groupId,
+      membershipIds,
+      href: '/clubs',
+    })
+    const events = [event('own-player-event', 'league_match', 'league-group', ['member-1']), event('led-clinic', 'clinic', 'clinic-group'), event('other-team', 'team_match', 'team-group')]
+    const groups = [{ id: 'league-group', leadUserId: 'other' }, { id: 'clinic-group', leadUserId: 'user-1' }, { id: 'team-group', leadUserId: 'other' }]
+
+    expect(getVisibleClubCalendarEvents(events, groups, { id: 'member-1', userId: 'user-1' }, ['coach', 'player']).map((item) => item.id)).toEqual(['own-player-event', 'led-clinic'])
+    expect(getVisibleClubCalendarEvents(events, groups, { id: 'member-1', userId: 'user-1' }, ['director']).map((item) => item.id)).toEqual(events.map((item) => item.id))
   })
 
   it('launches club competition defaults in the existing desks', () => {

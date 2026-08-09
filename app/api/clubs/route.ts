@@ -144,7 +144,7 @@ export async function GET(request: Request) {
       const safeTeamName = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
       const result = await auth.supabase
         .from('matches')
-        .select('id,match_date,match_time,facility,home_team,away_team')
+        .select('id,match_date,match_time,facility,home_team,away_team,status,winner_side,score')
         .or(`home_team.eq."${safeTeamName}",away_team.eq."${safeTeamName}"`)
         .is('line_number', null)
         .order('match_date', { ascending: true })
@@ -329,6 +329,7 @@ export async function GET(request: Request) {
   const groupById = new Map(groups.map((group) => [group.id, group]))
   const leagueById = new Map(((leagueResult.data ?? []) as Record<string, unknown>[]).map((row) => [cleanClubText(row.id), row]))
   const calendarEvents: ClubCalendarEvent[] = []
+  const resultLookback = getClubCalendarDateOffset(club.timeZone, -7)
 
   for (const row of (clinicSessionResult.data ?? []) as Record<string, unknown>[]) {
     const groupId = cleanClubText(row.group_id)
@@ -349,6 +350,7 @@ export async function GET(request: Request) {
       groupName: group.name,
       membershipIds: memberIdsByGroup.get(groupId) ?? [],
       href: `/clubs/clinics/${encodeURIComponent(groupId)}?clubId=${encodeURIComponent(club.id)}&tab=schedule`,
+      needsResult: false,
     })
   }
 
@@ -356,7 +358,7 @@ export async function GET(request: Request) {
     const matchRows = (teamMatchResults.find((item) => item.groupId === group.id)?.result.data ?? []) as Record<string, unknown>[]
     for (const row of matchRows) {
       const date = cleanClubText(row.match_date, 20)
-      if (!date || date < today) continue
+      if (!date || date < resultLookback) continue
       const startsAt = buildClubCalendarDateTime(date, cleanClubText(row.match_time, 20))
       const homeTeam = cleanClubText(row.home_team, 120)
       const awayTeam = cleanClubText(row.away_team, 120)
@@ -373,6 +375,7 @@ export async function GET(request: Request) {
         groupName: group.name,
         membershipIds: memberIdsByGroup.get(group.id) ?? [],
         href: `/captain?clubId=${encodeURIComponent(club.id)}&clubName=${encodeURIComponent(club.name)}&club=${encodeURIComponent(club.slug)}&groupId=${encodeURIComponent(group.id)}&team=${encodeURIComponent(group.name)}`,
+        needsResult: date < today && !cleanClubText(row.winner_side) && !cleanClubText(row.score) && cleanClubText(row.status) !== 'completed',
       })
     }
   }
@@ -381,7 +384,7 @@ export async function GET(request: Request) {
     const leagueId = cleanClubText(row.league_id)
     const league = leagueById.get(leagueId)
     const date = cleanClubText(row.scheduled_date, 20)
-    if (!league || !date || date < today) continue
+    if (!league || !date || date < resultLookback) continue
     const groupId = cleanClubText(league.club_group_id)
     const group = groupById.get(groupId)
     const time = cleanClubText(row.scheduled_time, 20)
@@ -404,6 +407,7 @@ export async function GET(request: Request) {
       groupName: group?.name || cleanClubText(league.league_name),
       membershipIds: Array.from(new Set([...(memberIdsByLeague.get(leagueId) ?? []), ...participantTeamMembershipIds])),
       href: `/league-coordinator?leagueId=${encodeURIComponent(leagueId)}`,
+      needsResult: date < today && cleanClubText(row.status) !== 'completed',
     })
   }
 
@@ -421,7 +425,7 @@ export async function GET(request: Request) {
     for (const [matchId, rawItem] of schedule) {
       const item = rawItem && typeof rawItem === 'object' ? rawItem as Record<string, unknown> : {}
       const date = cleanClubText(item.date, 20)
-      if (!date || date < today) continue
+      if (!date || date < resultLookback) continue
       const time = cleanClubText(item.time, 20)
       const courtLabel = cleanClubText(item.court, 120)
       const startsAt = buildClubCalendarDateTime(date, time)
@@ -439,6 +443,7 @@ export async function GET(request: Request) {
         groupName: group?.name || tournamentName,
         membershipIds: memberIdsByTournament.get(tournamentId) ?? [],
         href,
+        needsResult: date < today && !getClubCalendarTournamentResult(row.results, matchId),
       })
     }
     const startsOn = cleanClubText(row.starts_on, 20)
@@ -455,6 +460,7 @@ export async function GET(request: Request) {
       groupName: group?.name || tournamentName,
       membershipIds: memberIdsByTournament.get(tournamentId) ?? [],
       href,
+      needsResult: false,
     })
   }
 
@@ -519,6 +525,18 @@ function getClubCalendarToday(timeZone: string) {
   } catch {
     return new Date().toISOString().slice(0, 10)
   }
+}
+
+function getClubCalendarDateOffset(timeZone: string, dayOffset: number) {
+  const today = getClubCalendarToday(timeZone)
+  const date = new Date(`${today}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + dayOffset)
+  return date.toISOString().slice(0, 10)
+}
+
+function getClubCalendarTournamentResult(value: unknown, matchId: string) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return (value as Record<string, unknown>)[matchId] ?? null
 }
 
 function normalizeClubCalendarTime(value: string) {

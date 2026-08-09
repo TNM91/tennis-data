@@ -21,6 +21,22 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(clubRoute).toContain('calendarEvents.sort')
   })
 
+  it('turns the Club home into a role-aware daily pulse', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const clubRoute = source('app/api/clubs/route.ts')
+    const styles = source('app/components/club-workspace.module.css')
+
+    expect(club).toContain('Club pulse')
+    expect(club).toContain('Schedule checks')
+    expect(club).toContain('Results to add')
+    expect(club).toContain('Roster follow-ups')
+    expect(club).toContain('getVisibleClubCalendarEvents')
+    expect(club).not.toContain('Connected club value')
+    expect(clubRoute).toContain('resultLookback')
+    expect(clubRoute).toContain('needsResult: date < today')
+    expect(styles).toContain('.clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }')
+  })
+
   it('defines Club as a separate offering without claiming club operations', () => {
     expect(CLUB_PLAN_STORY.starter.priceLabel).toBe('$99/month')
     expect(CLUB_PLAN_STORY.unlimited.priceLabel).toBe('$199/month')
