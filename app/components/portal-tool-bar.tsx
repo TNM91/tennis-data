@@ -50,7 +50,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Players, teams, leagues, events',
     route: '/explore',
     planRoute: '/explore',
-    icon: 'opponentScouting',
+    icon: 'exploreTennis',
     paths: ['/explore', '/players', '/teams', '/rankings', '/leagues'],
     searchScope: 'players',
     tasks: [
@@ -66,7 +66,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Drills, skills, My Lab',
     route: '/player-development',
     planRoute: '/player-development',
-    icon: 'myLab',
+    icon: 'improveTennis',
     paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/level-up', '/player-development', '/resources', '/tactics'],
     searchScope: 'players',
     tasks: [
@@ -84,7 +84,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Matchups, scouting, lineups',
     route: '/compete',
     planRoute: '/compete',
-    icon: 'matchupAnalysis',
+    icon: 'competeTennis',
     paths: ['/compete', '/matchup'],
     searchScope: 'players',
     tasks: [
@@ -100,7 +100,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Support player development',
     route: '/coaches',
     planRoute: '/coach',
-    icon: 'scenarioBuilder',
+    icon: 'coachTennis',
     paths: ['/coach', '/coaches', '/player-development', '/tactics'],
     searchScope: 'players',
     tasks: [
@@ -116,7 +116,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Team Hub and match week',
     route: '/captain',
     planRoute: '/captain',
-    icon: 'lineupBuilder',
+    icon: 'captainTennis',
     paths: ['/captain', '/manage', '/compete/teams'],
     searchScope: 'teams',
     tasks: [
@@ -133,7 +133,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Schedules, scores, events',
     route: '/leagues-and-tournaments',
     planRoute: '/league-coordinator',
-    icon: 'teamRankings',
+    icon: 'leagueTennis',
     paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments', '/compete/leagues', '/compete/schedule', '/explore/leagues', '/leagues'],
     searchScope: 'leagues',
     tasks: [
@@ -149,7 +149,7 @@ const portalLanes: PortalLane[] = [
     cue: 'Players, programs, staff, competition',
     route: '/clubs',
     planRoute: '/explore',
-    icon: 'clubOperations',
+    icon: 'clubTennis',
     paths: ['/clubs'],
     searchScope: 'players',
     tasks: [

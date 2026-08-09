@@ -23,21 +23,21 @@ const aboutActions: InfoActionCard[] = [
     text: 'Search players, teams, leagues, rankings, flights, and areas before choosing paid tools.',
     href: '/explore',
     cta: 'Open Explore',
-    icon: 'opponentScouting',
+    icon: 'exploreTennis',
   },
   {
     title: 'Make it personal',
     text: 'Open My Lab, refresh your data, prep Matchup, and keep messages tied to your player record.',
     href: '/mylab',
     cta: 'Open My Lab',
-    icon: 'myLab',
+    icon: 'improveTennis',
   },
   {
     title: 'Run the week',
     text: 'Team Hub and League Office reduce scattered work for match weeks and seasons.',
     href: '/pricing',
     cta: 'Compare tiers',
-    icon: 'lineupBuilder',
+    icon: 'captainTennis',
   },
 ]
 

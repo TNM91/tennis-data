@@ -34,6 +34,11 @@ describe('TenAceIQ feature icon system', () => {
       'FlaskIcon',
       'LockKeyIcon',
       'BuildingsIcon',
+      'MagnifyingGlassIcon',
+      'TargetIcon',
+      'TrophyIcon',
+      'ListChecksIcon',
+      'TreeStructureIcon',
     ]) {
       expect(iconSource).toContain(icon)
     }
@@ -42,10 +47,18 @@ describe('TenAceIQ feature icon system', () => {
     expect(iconSource).toContain('prefers-reduced-motion: reduce')
   })
 
-  it('keeps League and Club visually distinct in the mobile lane menu', () => {
-    expect(portalSource).toContain("id: 'league'")
-    expect(portalSource).toContain("icon: 'teamRankings'")
-    expect(portalSource).toContain("id: 'club'")
-    expect(portalSource).toContain("icon: 'clubOperations'")
+  it('gives every mobile lane a destination-specific tennis icon', () => {
+    for (const [id, icon] of [
+      ['find', 'exploreTennis'],
+      ['you', 'improveTennis'],
+      ['compete', 'competeTennis'],
+      ['team', 'captainTennis'],
+      ['coach', 'coachTennis'],
+      ['league', 'leagueTennis'],
+      ['club', 'clubTennis'],
+    ]) {
+      expect(portalSource).toContain(`id: '${id}'`)
+      expect(portalSource).toContain(`icon: '${icon}'`)
+    }
   })
 })
