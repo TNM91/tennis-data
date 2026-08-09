@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
   getMixedPairEligibilityIssues,
   inferLeagueAgeDivision,
   inferMixedPairRole,
@@ -39,5 +41,59 @@ describe('player eligibility evidence', () => {
     expect(profile).toContain('Mixed team eligibility')
     expect(captain).toContain('getMixedPairEligibilityIssues')
     expect(captain).toContain('roster_age_division')
+  })
+
+  it('assesses registration evidence without treating missing evidence as a rejection', () => {
+    const requirement = buildPlayerEligibilityRequirement('Women 4.0', 'Adult 40 & Over')
+    expect(assessPlayerEligibility(requirement, {
+      rating: 4,
+      ratingSource: 'verified',
+      mixedPairRole: 'woman',
+      ageDivisions: ['40 & Over'],
+    }).status).toBe('verified')
+    expect(assessPlayerEligibility(requirement, {
+      rating: 4,
+      ratingSource: 'self',
+      mixedPairRole: 'woman',
+      ageDivisions: [],
+    }).status).toBe('needs_confirmation')
+    expect(assessPlayerEligibility(requirement, {
+      rating: 4.5,
+      ratingSource: 'verified',
+      mixedPairRole: 'woman',
+      ageDivisions: ['40 & Over'],
+    }).status).toBe('ineligible')
+    expect(assessPlayerEligibility(requirement, {
+      rating: 4.5,
+      ratingSource: 'self',
+      mixedPairRole: 'woman',
+      ageDivisions: ['40 & Over'],
+    }).status).toBe('needs_confirmation')
+  })
+
+  it('does not mistake notes or multi-level formats for one NTRP division', () => {
+    expect(buildPlayerEligibilityRequirement('Three matches guaranteed').ratingLevel).toBeNull()
+    expect(buildPlayerEligibilityRequirement('Tri-Level 3.5 / 4.0 / 4.5').ratingLevel).toBeNull()
+    expect(buildPlayerEligibilityRequirement('Women 4.0').ratingLevel).toBe(4)
+  })
+
+  it('carries eligibility evidence through tournament and League Office approvals', () => {
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260809000500_add_entry_eligibility_reviews.sql'),
+      'utf8',
+    )
+    const tournament = readFileSync(join(process.cwd(), 'app/components/tournament-builder-workspace.tsx'), 'utf8')
+    const leagueOffice = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
+    const leagueService = readFileSync(join(process.cwd(), 'lib/tiq-league-service.ts'), 'utf8')
+
+    expect(migration).toContain('alter table public.tiq_tournament_entries')
+    expect(migration).toContain('alter table public.tiq_player_league_entries')
+    expect(migration).toContain('eligibility_reviewed_by')
+    expect(tournament).toContain('Confirm & approve')
+    expect(tournament).toContain('updateTiqTournamentEntryStatus')
+    expect(leagueOffice).toContain('leagueEligibilityPillStyle')
+    expect(leagueOffice).toContain('does not match this division')
+    expect(leagueService).toContain('attachPlayerEligibilityAssessments')
+    expect(leagueService).toContain('eligibility_reviewed_by: userId')
   })
 })

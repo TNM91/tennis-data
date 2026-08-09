@@ -1374,12 +1374,22 @@ export function LeagueCoordinatorWorkspace() {
     entryName: string,
     entryStatus: 'active' | 'rejected',
   ) {
+    const playerEntry = league.leagueFormat === 'individual'
+      ? playerEntryRequests.find((entry) => entry.leagueId === league.id && entry.playerName === entryName)
+      : null
+    if (entryStatus === 'active' && playerEntry?.eligibility.status === 'ineligible') {
+      setEntryRequestStatus(`${entryName} does not match this division. ${playerEntry.eligibility.detail}`)
+      return
+    }
     setEntryRequestStatus(entryStatus === 'active' ? `Approving ${entryName}...` : `Declining ${entryName}...`)
     const result = await updateTiqLeagueEntryStatus({
       leagueId: league.id,
       leagueFormat: league.leagueFormat,
       entryName,
       entryStatus,
+      eligibilityReview: playerEntry
+        ? { status: playerEntry.eligibility.status, note: playerEntry.eligibility.detail }
+        : null,
     })
     await refreshRegistry()
     if (result.record) {
@@ -2722,6 +2732,8 @@ export function LeagueCoordinatorWorkspace() {
                   {[...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].map((entry) => {
                     const league = records.find((record) => record.id === entry.leagueId)
                     if (!league) return null
+                    const playerEligibility = 'playerName' in entry ? entry.eligibility : null
+                    const cannotApprove = playerEligibility?.status === 'ineligible'
                     const entryName =
                       'teamName' in entry
                         ? entry.teamName
@@ -2737,10 +2749,23 @@ export function LeagueCoordinatorWorkspace() {
                           <div style={registryTitle}>{entryName}</div>
                           <div style={registryText}>{league.leagueName}</div>
                           {detail ? <div style={registryNotes}>{detail}</div> : null}
+                          {playerEligibility ? (
+                            <div style={eligibilityReviewRowStyle}>
+                              <span style={leagueEligibilityPillStyle(playerEligibility.status)}>{playerEligibility.label}</span>
+                              <span style={registryNotes}>{playerEligibility.detail}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div style={responsiveButtonRowStyle}>
-                          <PrimaryBtn onClick={() => void handleEntryRequestAction(league, entryName, 'active')}>
-                            Approve
+                          <PrimaryBtn
+                            onClick={() => void handleEntryRequestAction(league, entryName, 'active')}
+                            disabled={cannotApprove}
+                          >
+                            {cannotApprove
+                              ? 'Does not match'
+                              : playerEligibility?.status === 'needs_confirmation'
+                                ? 'Confirm & approve'
+                                : 'Approve'}
                           </PrimaryBtn>
                           <DangerBtn onClick={() => void handleEntryRequestAction(league, entryName, 'rejected')}>
                             Decline
@@ -5509,6 +5534,40 @@ const requestCardContentStyle: CSSProperties = {
   gap: '4px',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const eligibilityReviewRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  marginTop: '6px',
+  minWidth: 0,
+}
+
+function leagueEligibilityPillStyle(status: TiqPlayerLeagueEntryRecord['eligibility']['status']): CSSProperties {
+  if (status === 'verified') {
+    return {
+      ...pillBase,
+      justifySelf: 'start',
+      background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+      color: 'var(--foreground-strong)',
+    }
+  }
+  if (status === 'ineligible') {
+    return {
+      ...pillBase,
+      justifySelf: 'start',
+      border: '1px solid color-mix(in srgb, #f87171 32%, var(--shell-panel-border) 68%)',
+      background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-chip-bg) 86%)',
+      color: 'color-mix(in srgb, #fca5a5 78%, var(--foreground-strong) 22%)',
+    }
+  }
+  return {
+    ...pillBase,
+    justifySelf: 'start',
+    border: '1px solid color-mix(in srgb, #facc15 26%, var(--shell-panel-border) 74%)',
+    background: 'color-mix(in srgb, #713f12 12%, var(--shell-chip-bg) 88%)',
+    color: 'var(--foreground-strong)',
+  }
 }
 
 const registryTimestamp: CSSProperties = {

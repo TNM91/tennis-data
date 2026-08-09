@@ -5,6 +5,7 @@ import {
   normalizeTournamentDrawFormatId,
   type TournamentDrawFormatId,
 } from './competition-format-registry'
+import type { PlayerEligibilityStatus } from './player-eligibility'
 
 export const TIQ_TOURNAMENT_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_tournament_registry'
 
@@ -106,6 +107,8 @@ export type TiqTournamentEntryRecord = {
   consentNote: string
   status: TiqTournamentEntryStatus
   linkedPlayerId: string
+  eligibilityStatus: PlayerEligibilityStatus
+  eligibilityReviewNote: string
   createdAt: string
   updatedAt: string
 }
@@ -189,6 +192,8 @@ type TiqTournamentEntryCloudRow = {
   consent_note: string | null
   status: string | null
   linked_player_id: string | null
+  eligibility_status: string | null
+  eligibility_review_note: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -399,9 +404,16 @@ function mapTournamentEntryRow(row: TiqTournamentEntryCloudRow): TiqTournamentEn
     consentNote: cleanText(row.consent_note),
     status: normalizeTiqTournamentEntryStatus(row.status),
     linkedPlayerId: cleanText(row.linked_player_id),
+    eligibilityStatus: normalizeEligibilityStatus(row.eligibility_status),
+    eligibilityReviewNote: cleanText(row.eligibility_review_note),
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
+}
+
+function normalizeEligibilityStatus(value: unknown): PlayerEligibilityStatus {
+  if (value === 'verified' || value === 'ineligible') return value
+  return 'needs_confirmation'
 }
 
 function mapTournamentAlertRow(row: TiqTournamentAlertCloudRow): TiqTournamentAlertRecord {
@@ -607,7 +619,7 @@ export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
   const result = await supabase
     .from('tiq_tournament_entries')
     .insert(payload)
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
@@ -623,7 +635,7 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
 
   const result = await supabase
     .from('tiq_tournament_entries')
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
     .eq('tournament_id', cleanId)
     .order('created_at', { ascending: false })
 
@@ -638,10 +650,20 @@ export async function updateTiqTournamentEntryStatus(
   entryId: string,
   status: TiqTournamentEntryStatus,
   linkedPlayerId?: string | null,
+  eligibilityReview?: { status: PlayerEligibilityStatus; note: string } | null,
 ) {
+  const reviewerId = eligibilityReview
+    ? cleanText((await supabase.auth.getUser()).data.user?.id)
+    : ''
   const payload = {
     status: normalizeTiqTournamentEntryStatus(status),
     linked_player_id: cleanText(linkedPlayerId || '') || null,
+    ...(eligibilityReview ? {
+      eligibility_status: normalizeEligibilityStatus(eligibilityReview.status),
+      eligibility_review_note: cleanMultiline(eligibilityReview.note),
+      eligibility_reviewed_at: new Date().toISOString(),
+      eligibility_reviewed_by: reviewerId || null,
+    } : {}),
     updated_at: new Date().toISOString(),
   }
 
@@ -649,7 +671,7 @@ export async function updateTiqTournamentEntryStatus(
     .from('tiq_tournament_entries')
     .update(payload)
     .eq('id', cleanText(entryId))
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {

@@ -1,7 +1,31 @@
 export type PlayerRatingSource = 'verified' | 'self' | 'unknown'
 export type MixedPairRole = 'man' | 'woman' | 'unknown'
+export type PlayerEligibilityStatus = 'verified' | 'needs_confirmation' | 'ineligible'
+
+export type PlayerEligibilityRequirement = {
+  ratingLevel: number | null
+  ageDivision: string | null
+  mixedPairRole: MixedPairRole
+}
+
+export type PlayerEligibilityEvidence = {
+  playerId?: string | null
+  rating?: number | null
+  ratingSource?: PlayerRatingSource | string | null
+  mixedPairRole?: MixedPairRole | string | null
+  ageDivisions?: Array<string | null | undefined>
+}
+
+export type PlayerEligibilityAssessment = {
+  status: PlayerEligibilityStatus
+  label: string
+  detail: string
+  issues: string[]
+  requirement: PlayerEligibilityRequirement
+}
 
 const AGE_DIVISION_PATTERN = /\b(10|12|14|16|18|21|25|30|35|40|45|50|55|60|65|70|75|80|85)\s*(?:&|and)?\s*(over|under)\b/i
+const RATING_LEVEL_PATTERN = /\b([2-5]\.[05])\b/g
 
 export function normalizePlayerRatingSource(value: unknown): PlayerRatingSource {
   if (value === 'verified' || value === 'self') return value
@@ -33,6 +57,78 @@ export function inferLeagueAgeDivision(...values: Array<string | null | undefine
 export function normalizeLeagueAgeDivision(value: unknown) {
   if (typeof value !== 'string') return null
   return inferLeagueAgeDivision(value)
+}
+
+export function buildPlayerEligibilityRequirement(...values: Array<string | null | undefined>): PlayerEligibilityRequirement {
+  const context = values.filter(Boolean).join(' ')
+  const ratingLevels = Array.from(new Set(Array.from(context.matchAll(RATING_LEVEL_PATTERN), (match) => Number(match[1]))))
+  const parsedRating = ratingLevels.length === 1 ? ratingLevels[0] : null
+  return {
+    ratingLevel: typeof parsedRating === 'number' && Number.isFinite(parsedRating) ? parsedRating : null,
+    ageDivision: inferLeagueAgeDivision(context),
+    mixedPairRole: inferMixedPairRole(context),
+  }
+}
+
+export function assessPlayerEligibility(
+  requirement: PlayerEligibilityRequirement,
+  evidence: PlayerEligibilityEvidence,
+): PlayerEligibilityAssessment {
+  const issues: string[] = []
+  let ineligible = false
+  const rating = typeof evidence.rating === 'number' && Number.isFinite(evidence.rating) ? evidence.rating : null
+  const ratingSource = normalizePlayerRatingSource(evidence.ratingSource)
+  const mixedPairRole = normalizeMixedPairRole(evidence.mixedPairRole)
+  const ageDivisions = Array.from(new Set((evidence.ageDivisions || []).map(normalizeLeagueAgeDivision).filter(Boolean))) as string[]
+
+  if (typeof requirement.ratingLevel === 'number') {
+    if (rating === null) {
+      issues.push(`Confirm the ${requirement.ratingLevel.toFixed(1)} rating requirement.`)
+    } else if (rating > requirement.ratingLevel + 0.001 || rating < requirement.ratingLevel - 0.5 - 0.001) {
+      issues.push(`${rating.toFixed(1)} is outside the ${requirement.ratingLevel.toFixed(1)} division.`)
+      if (ratingSource === 'verified') ineligible = true
+      else issues.push('Verify this self-rating before deciding.')
+    } else if (ratingSource !== 'verified') {
+      issues.push(`Verify the ${rating.toFixed(1)} self-rating.`)
+    }
+  }
+
+  if (requirement.ageDivision && !ageDivisions.includes(requirement.ageDivision)) {
+    issues.push(`Confirm ${requirement.ageDivision} eligibility.`)
+  }
+
+  if (requirement.mixedPairRole !== 'unknown') {
+    if (mixedPairRole === 'unknown') {
+      issues.push(`Confirm ${requirement.mixedPairRole === 'man' ? "men's" : "women's"} division eligibility.`)
+    } else if (mixedPairRole !== requirement.mixedPairRole) {
+      issues.push(`Player eligibility is saved for the ${mixedPairRole === 'man' ? "men's" : "women's"} division.`)
+      ineligible = true
+    }
+  }
+
+  const hasRequirement = requirement.ratingLevel !== null || Boolean(requirement.ageDivision) || requirement.mixedPairRole !== 'unknown'
+  if (!hasRequirement) {
+    return {
+      status: 'verified',
+      label: 'Open entry',
+      detail: 'No rating, age, or division restriction was detected.',
+      issues: [],
+      requirement,
+    }
+  }
+  if (ineligible) {
+    return { status: 'ineligible', label: 'Does not match', detail: issues.join(' '), issues, requirement }
+  }
+  if (issues.length) {
+    return { status: 'needs_confirmation', label: 'Confirm eligibility', detail: issues.join(' '), issues, requirement }
+  }
+  return {
+    status: 'verified',
+    label: 'Eligibility verified',
+    detail: 'Saved rating and roster evidence match this division.',
+    issues: [],
+    requirement,
+  }
 }
 
 export function getMixedPairEligibilityIssues(

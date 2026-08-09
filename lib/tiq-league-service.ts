@@ -30,6 +30,12 @@ import {
   type TiqLeagueSeasonStatus,
 } from '@/lib/tiq-league-limits'
 import { normalizeSeasonLabel } from '@/lib/season-labels'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityAssessment,
+  type PlayerEligibilityStatus,
+} from '@/lib/player-eligibility'
 
 const TIQ_LEAGUES_TABLE = 'tiq_leagues'
 const TIQ_TEAM_ENTRIES_TABLE = 'tiq_team_league_entries'
@@ -82,6 +88,9 @@ export type TiqPlayerLeagueEntryRecord = {
   playerId: string
   playerLocation: string
   entryStatus: TiqLeagueEntryStatus
+  eligibilityStatus: PlayerEligibilityStatus
+  eligibilityReviewNote: string
+  eligibility: PlayerEligibilityAssessment
 }
 
 type TiqLeagueRow = {
@@ -137,6 +146,8 @@ type TiqPlayerEntryRow = {
   player_id?: string | null
   player_location?: string | null
   entry_status?: string | null
+  eligibility_status?: string | null
+  eligibility_review_note?: string | null
 }
 
 type TiqLeagueRemotePayload = {
@@ -309,13 +320,79 @@ function normalizePlayerEntryRow(row: TiqPlayerEntryRow): TiqPlayerLeagueEntryRe
   const playerName = cleanText(row.player_name)
   if (!leagueId || !playerName) return null
 
+  const eligibilityStatus = normalizePlayerEligibilityStatus(row.eligibility_status)
   return {
     leagueId,
     playerName,
     playerId: cleanText(row.player_id),
     playerLocation: cleanText(row.player_location),
     entryStatus: normalizeEntryStatus(row.entry_status),
+    eligibilityStatus,
+    eligibilityReviewNote: cleanText(row.eligibility_review_note),
+    eligibility: {
+      status: eligibilityStatus,
+      label: eligibilityStatus === 'verified' ? 'Eligibility verified' : eligibilityStatus === 'ineligible' ? 'Does not match' : 'Confirm eligibility',
+      detail: cleanText(row.eligibility_review_note) || 'Player evidence has not been checked against this division yet.',
+      issues: [],
+      requirement: { ratingLevel: null, ageDivision: null, mixedPairRole: 'unknown' },
+    },
   }
+}
+
+function normalizePlayerEligibilityStatus(value: unknown): PlayerEligibilityStatus {
+  if (value === 'verified' || value === 'ineligible') return value
+  return 'needs_confirmation'
+}
+
+async function attachPlayerEligibilityAssessments(
+  entries: TiqPlayerLeagueEntryRecord[],
+  league: TiqLeagueRecord | null,
+) {
+  if (!entries.length) return entries
+  const playerIds = Array.from(new Set(entries.map((entry) => entry.playerId).filter(Boolean)))
+  const playerNames = Array.from(new Set(entries.map((entry) => entry.playerName).filter(Boolean)))
+  const select = 'id,name,overall_rating,doubles_rating,singles_rating,rating_source,mixed_pair_role'
+  const [byIdResult, byNameResult] = await Promise.all([
+    playerIds.length ? supabase.from('players').select(select).in('id', playerIds) : Promise.resolve({ data: [], error: null }),
+    playerNames.length ? supabase.from('players').select(select).in('name', playerNames) : Promise.resolve({ data: [], error: null }),
+  ])
+  type EligibilityPlayerRow = {
+    id?: string | null
+    name?: string | null
+    overall_rating?: number | null
+    doubles_rating?: number | null
+    singles_rating?: number | null
+    rating_source?: string | null
+    mixed_pair_role?: string | null
+  }
+  const playerRows = [...((byIdResult.data || []) as EligibilityPlayerRow[]), ...((byNameResult.data || []) as EligibilityPlayerRow[])]
+  const playerById = new Map(playerRows.map((row) => [cleanText(row.id), row]))
+  const playerByName = new Map(playerRows.map((row) => [cleanText(row.name).toLowerCase(), row]))
+  const evidencePlayerIds = Array.from(new Set(playerRows.map((row) => cleanText(row.id)).filter(Boolean)))
+  const rosterResult = evidencePlayerIds.length
+    ? await supabase.from('team_roster_members').select('player_id,age_division').in('player_id', evidencePlayerIds)
+    : { data: [], error: null }
+  const ageDivisionsByPlayerId = new Map<string, string[]>()
+  for (const row of (rosterResult.data || []) as Array<{ player_id?: string | null; age_division?: string | null }>) {
+    const playerId = cleanText(row.player_id)
+    const ageDivision = cleanText(row.age_division)
+    if (!playerId || !ageDivision) continue
+    ageDivisionsByPlayerId.set(playerId, [...(ageDivisionsByPlayerId.get(playerId) || []), ageDivision])
+  }
+  const requirement = buildPlayerEligibilityRequirement(league?.leagueName, league?.flight, league?.notes)
+
+  return entries.map((entry) => {
+    const player = playerById.get(entry.playerId) || playerByName.get(entry.playerName.toLowerCase())
+    const playerId = cleanText(player?.id) || entry.playerId
+    const eligibility = assessPlayerEligibility(requirement, {
+      playerId,
+      rating: player?.overall_rating ?? player?.doubles_rating ?? player?.singles_rating ?? null,
+      ratingSource: player?.rating_source,
+      mixedPairRole: player?.mixed_pair_role,
+      ageDivisions: ageDivisionsByPlayerId.get(playerId) || [],
+    })
+    return { ...entry, eligibility }
+  })
 }
 
 async function getAuthenticatedUserId() {
@@ -647,15 +724,17 @@ export async function listTiqPlayerLeagueEntries(
   try {
     const { data, error } = await supabase
       .from(TIQ_PLAYER_ENTRIES_TABLE)
-      .select('league_id, player_name, player_id, player_location, entry_status')
+      .select('league_id, player_name, player_id, player_location, entry_status, eligibility_status, eligibility_review_note')
       .eq('league_id', normalizedLeagueId)
 
     if (error) throw error
 
-    const entries = ((data || []) as TiqPlayerEntryRow[])
+    const normalizedEntries = ((data || []) as TiqPlayerEntryRow[])
       .map(normalizePlayerEntryRow)
       .filter((entry): entry is TiqPlayerLeagueEntryRecord => Boolean(entry))
       .filter((entry) => options.includeAllStatuses ? entry.entryStatus !== 'removed' : entry.entryStatus === 'active')
+    const leagueResult = await getTiqLeagueById(normalizedLeagueId)
+    const entries = await attachPlayerEligibilityAssessments(normalizedEntries, leagueResult.record)
 
     return {
       entries,
@@ -672,6 +751,12 @@ export async function listTiqPlayerLeagueEntries(
         playerId: '',
         playerLocation: '',
         entryStatus: 'active',
+        eligibilityStatus: 'needs_confirmation',
+        eligibilityReviewNote: '',
+        eligibility: assessPlayerEligibility(
+          buildPlayerEligibilityRequirement(fallbackLeague?.leagueName, fallbackLeague?.flight, fallbackLeague?.notes),
+          {},
+        ),
       })),
       source: 'local',
       warning:
@@ -916,6 +1001,7 @@ export async function updateTiqLeagueEntryStatus(input: {
   leagueFormat: 'team' | 'individual'
   entryName: string
   entryStatus: Extract<TiqLeagueEntryStatus, 'active' | 'rejected' | 'removed'>
+  eligibilityReview?: { status: PlayerEligibilityStatus; note: string } | null
 }): Promise<{ record: TiqLeagueRecord | null; source: TiqLeagueStorageSource; warning: string | null }> {
   const normalizedLeagueId = cleanText(input.leagueId)
   const normalizedEntryName = cleanText(input.entryName)
@@ -936,12 +1022,22 @@ export async function updateTiqLeagueEntryStatus(input: {
       }
     }
 
+    const updatePayload = {
+      entry_status: input.entryStatus,
+      updated_by_user_id: userId,
+      ...(input.leagueFormat === 'individual' && input.eligibilityReview
+        ? {
+            eligibility_status: normalizePlayerEligibilityStatus(input.eligibilityReview.status),
+            eligibility_review_note: cleanText(input.eligibilityReview.note),
+            eligibility_reviewed_at: new Date().toISOString(),
+            eligibility_reviewed_by: userId,
+          }
+        : {}),
+    }
+
     const { error } = await supabase
       .from(table)
-      .update({
-        entry_status: input.entryStatus,
-        updated_by_user_id: userId,
-      })
+      .update(updatePayload)
       .eq('league_id', normalizedLeagueId)
       .eq(nameColumn, normalizedEntryName)
 
