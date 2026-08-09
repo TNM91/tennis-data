@@ -112,7 +112,7 @@ describe('club workspace', () => {
     const groups = [clinic, team, unlinkedTeam]
 
     expect(getClubWeeklyBriefTargets(groups, ['coach'], 'coach-1').map((group) => group.id)).toEqual(['clinic-1', 'team-1'])
-    expect(getClubWeeklyBriefTargets(groups, ['player'], 'player-1')).toEqual([team])
+    expect(getClubWeeklyBriefTargets(groups, ['player'], 'player-1')).toEqual([])
 
     const brief = buildClubWeeklyBrief({
       clubName: 'Vetta West',

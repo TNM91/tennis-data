@@ -254,6 +254,10 @@
 .clubAnnouncementHeading h2, .clubAnnouncementHeading p { margin: 0; }
 .clubAnnouncementHeading h2 { font-size: clamp(21px, 4vw, 28px); }
 .clubAnnouncementHeading p:not(.eyebrow) { color: var(--shell-copy-muted); font-size: 13px; line-height: 1.45; }
+.clubAnnouncementTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; border: 1px solid var(--shell-panel-border); border-radius: 11px; background: var(--shell-chip-bg); padding: 4px; }
+.clubAnnouncementTabs button { min-height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--shell-copy-muted); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.clubAnnouncementTabs button[aria-selected="true"] { background: color-mix(in srgb, var(--club-color, var(--brand-green)) 16%, #0a1a30); color: var(--foreground-strong); }
+.clubAnnouncementCompose { display: grid; gap: 14px; }
 .clubAnnouncementTargets { display: grid; gap: 9px; min-width: 0; margin: 0; border: 0; padding: 0; }
 .clubAnnouncementTargets > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .clubAnnouncementTargets > div:first-child > strong { color: var(--foreground-strong); font-size: 12px; font-weight: 900; }
@@ -268,7 +272,16 @@
 .clubAnnouncementPreview > strong { font-size: 12px; }
 .clubAnnouncementPreview p { min-height: 42px; margin: 0; color: var(--foreground-strong); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .clubAnnouncementError { margin: 0; border: 1px solid rgba(255, 111, 145, .45); border-radius: 10px; background: rgba(255, 61, 111, .1); color: #ffc3d0; padding: 10px; font-size: 12px; font-weight: 750; line-height: 1.4; }
+.clubAnnouncementError > button { margin-top: 8px; }
 .clubAnnouncementFooter { display: flex; justify-content: flex-end; gap: 8px; }
+.clubAnnouncementHistory { display: grid; gap: 8px; }
+.clubAnnouncementHistory > article { display: grid; gap: 9px; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-chip-bg); padding: 12px; }
+.clubAnnouncementHistory > article > div:first-child { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.clubAnnouncementHistory > article > div:first-child > div { display: grid; gap: 2px; min-width: 0; }
+.clubAnnouncementHistory time { color: var(--shell-copy-muted); font-size: 10px; font-weight: 750; }
+.clubAnnouncementHistory article > p { margin: 0; color: var(--foreground-strong); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clubAnnouncementHistory article > div:last-child { display: flex; flex-wrap: wrap; gap: 5px; }
+.clubAnnouncementHistory article > div:last-child a { border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 25%, var(--shell-panel-border)); border-radius: 999px; color: var(--club-color, var(--brand-green)); padding: 4px 7px; font-size: 10px; font-weight: 850; text-decoration: none; }
 
 .setupCard {
   display: grid;
@@ -445,6 +458,7 @@
   .clubAnnouncementHeading { gap: 9px; }
   .clubAnnouncementTargets > div:last-child { grid-template-columns: 1fr; }
   .clubAnnouncementFooter > button { flex: 1; }
+  .clubAnnouncementHistory > article > div:first-child > button { flex: 0 0 auto; }
   .clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .clubPulseList > a, .clubPulseList > button { grid-template-columns: 76px minmax(0, 1fr) auto; padding: 9px; }
   .inviteAccountCheck { grid-template-columns: 1fr; }

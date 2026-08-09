@@ -288,6 +288,7 @@ export function getClubWeeklyBriefTargets(
   roles: ClubRole[],
   userId: string,
 ) {
+  if (!canRunClubPrograms(roles)) return []
   const manager = isClubManager(roles)
   return groups.filter((group) => {
     if (!group.isActive) return false
