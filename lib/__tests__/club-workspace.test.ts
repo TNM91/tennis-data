@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildClubCompetitionLaunchHref,
+  buildClubWeeklyBrief,
   buildClubToolHref,
   canRunClubPrograms,
   createClubSlug,
@@ -78,6 +79,26 @@ describe('club workspace', () => {
 
     expect(getVisibleClubCalendarEvents(events, groups, { id: 'member-1', userId: 'user-1' }, ['coach', 'player']).map((item) => item.id)).toEqual(['own-player-event', 'led-clinic'])
     expect(getVisibleClubCalendarEvents(events, groups, { id: 'member-1', userId: 'user-1' }, ['director']).map((item) => item.id)).toEqual(events.map((item) => item.id))
+  })
+
+  it('builds a concise seven-day Club brief without exposing roster names', () => {
+    const brief = buildClubWeeklyBrief({
+      clubName: 'Vetta West',
+      timeZone: 'America/Chicago',
+      today: '2026-08-10',
+      events: [{ id: 'clinic-1', type: 'clinic', title: '3.5 Clinic', startsAt: '2026-08-11T18:00:00', endsAt: '2026-08-11T19:30:00', allDay: false, locationLabel: 'Vetta West', courtLabel: 'Court 2', groupId: 'group-1', groupName: 'Clinic', membershipIds: [], href: '/clubs' }],
+      conflictCount: 1,
+      resultCount: 2,
+      pendingRenewalCount: 3,
+      openSpotCount: 1,
+      publicUrl: 'https://tenaceiq.com/clubs/vetta-west',
+    })
+
+    expect(brief).toContain('Vetta West | Weekly tennis brief')
+    expect(brief).toContain('Tue, Aug 11 at 6:00 PM: 3.5 Clinic — Vetta West · Court 2')
+    expect(brief).toContain('- 3 returning players waiting')
+    expect(brief).toContain('- 1 open roster spot')
+    expect(brief).toContain('Club page: https://tenaceiq.com/clubs/vetta-west')
   })
 
   it('launches club competition defaults in the existing desks', () => {

@@ -230,6 +230,80 @@ export function getVisibleClubCalendarEvents(
   })
 }
 
+export function buildClubWeeklyBrief(input: {
+  clubName: string
+  timeZone: string
+  events: ClubCalendarEvent[]
+  conflictCount: number
+  resultCount: number
+  pendingRenewalCount: number
+  openSpotCount: number
+  publicUrl?: string
+  today?: string
+}) {
+  const today = input.today || getClubDateForTimeZone(input.timeZone)
+  const weekEnd = addClubDateDays(today, 6)
+  const weekEvents = input.events
+    .filter((event) => !event.needsResult && event.startsAt.slice(0, 10) >= today && event.startsAt.slice(0, 10) <= weekEnd)
+    .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
+  const eventLines = weekEvents.slice(0, 8).map((event) => {
+    const date = formatClubBriefDate(event.startsAt.slice(0, 10))
+    const time = event.allDay ? '' : ` at ${formatClubBriefTime(event.startsAt, input.timeZone)}`
+    const place = [event.locationLabel, event.courtLabel].filter(Boolean).join(' · ')
+    return `- ${date}${time}: ${event.title}${place ? ` — ${place}` : ''}`
+  })
+  if (weekEvents.length > eventLines.length) eventLines.push(`- +${weekEvents.length - eventLines.length} more in TIQ`)
+
+  const attentionLines = [
+    input.conflictCount ? `- ${input.conflictCount} schedule ${input.conflictCount === 1 ? 'check' : 'checks'}` : '',
+    input.resultCount ? `- ${input.resultCount} ${input.resultCount === 1 ? 'result' : 'results'} to add` : '',
+    input.pendingRenewalCount ? `- ${input.pendingRenewalCount} returning ${input.pendingRenewalCount === 1 ? 'player' : 'players'} waiting` : '',
+    input.openSpotCount ? `- ${input.openSpotCount} open roster ${input.openSpotCount === 1 ? 'spot' : 'spots'}` : '',
+  ].filter(Boolean)
+
+  return [
+    `${cleanClubText(input.clubName, 120) || 'Club'} | Weekly tennis brief`,
+    `${formatClubBriefDate(today)}–${formatClubBriefDate(weekEnd)}`,
+    '',
+    'Schedule',
+    ...(eventLines.length ? eventLines : ['- No events scheduled this week']),
+    '',
+    'Needs attention',
+    ...(attentionLines.length ? attentionLines : ['- No follow-ups right now']),
+    cleanClubText(input.publicUrl, 800) ? '' : null,
+    cleanClubText(input.publicUrl, 800) ? `Club page: ${cleanClubText(input.publicUrl, 800)}` : null,
+  ].filter((line): line is string => line !== null).join('\n')
+}
+
+function getClubDateForTimeZone(timeZone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: timeZone || 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+    const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+    return `${value('year')}-${value('month')}-${value('day')}`
+  } catch {
+    return new Date().toISOString().slice(0, 10)
+  }
+}
+
+function addClubDateDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+function formatClubBriefDate(date: string) {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
+}
+
+function formatClubBriefTime(startsAt: string, timeZone: string) {
+  if (startsAt.endsWith('Z')) return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timeZone || 'America/Chicago' }).format(new Date(startsAt))
+  const [hourValue, minute = '00'] = startsAt.slice(11, 16).split(':')
+  const hour = Number(hourValue)
+  if (!Number.isFinite(hour)) return 'time TBD'
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  return `${hour % 12 || 12}:${minute} ${suffix}`
+}
+
 export type ClubCompetitionReadiness = {
   ready: boolean
   label: string

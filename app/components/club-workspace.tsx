@@ -9,6 +9,7 @@ import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
+  buildClubWeeklyBrief,
   buildClubToolHref,
   canRunClubPrograms,
   getClubCompetitionRosterHandoff,
@@ -829,6 +830,7 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
 }
 
 function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
+  const [shareStatus, setShareStatus] = useState('')
   const manager = isClubManager(roles)
   const today = getClubTodayForTimeZone(workspace.club.timeZone)
   const visibleEvents = getVisibleClubCalendarEvents(workspace.calendarEvents ?? [], workspace.groups, workspace.currentMembership, roles)
@@ -843,11 +845,42 @@ function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDa
   const nextEvent = upcomingEvents[0]
   const pulseClear = !conflicts.length && !resultsNeeded.length && !pendingRenewals && !openSpots
 
+  async function shareWeeklyBrief() {
+    const text = buildClubWeeklyBrief({
+      clubName: workspace.club.name,
+      timeZone: workspace.club.timeZone,
+      events: visibleEvents,
+      conflictCount: conflicts.length,
+      resultCount: resultsNeeded.length,
+      pendingRenewalCount: pendingRenewals,
+      openSpotCount: openSpots,
+      publicUrl: `${window.location.origin}/clubs/${workspace.club.slug}`,
+      today,
+    })
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${workspace.club.name} weekly tennis brief`, text })
+        setShareStatus('Weekly brief shared.')
+      } else {
+        await navigator.clipboard.writeText(text)
+        setShareStatus('Weekly brief copied.')
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      try {
+        await navigator.clipboard.writeText(text)
+        setShareStatus('Weekly brief copied.')
+      } catch {
+        setShareStatus('The weekly brief could not be shared. Try again.')
+      }
+    }
+  }
+
   return (
     <section className={styles.clubPulse} aria-labelledby="club-pulse-title">
       <div className={styles.clubPulseHeading}>
         <div><p className={styles.eyebrow}>Club pulse</p><h3 id="club-pulse-title">{pulseClear ? 'Everything is moving.' : 'See what needs attention.'}</h3></div>
-        <button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button>
+        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
       </div>
       <div className={styles.clubPulseStats}>
         <button type="button" onClick={() => onOpenTab('calendar')}><strong>{todayEvents.length}</strong><span>Today</span></button>
@@ -861,6 +894,7 @@ function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDa
         {nextEvent ? <Link href={nextEvent.href}><span>{todayEvents.length ? 'Next today' : 'Next up'}</span><strong>{nextEvent.title}</strong><small>{nextEvent.allDay ? formatClubCalendarDate(nextEvent.startsAt.slice(0, 10)) : `${formatClubCalendarDate(nextEvent.startsAt.slice(0, 10))} · ${formatClubCalendarTime(nextEvent.startsAt, workspace.club.timeZone)}`}</small><b>Open</b></Link> : null}
         {!nextEvent && pulseClear ? <div className={styles.clubPulseClear}><strong>No immediate Club work.</strong><span>New schedules and follow-ups will appear here automatically.</span></div> : null}
       </div>
+      {shareStatus ? <p className={styles.clubPulseShareStatus} role="status">{shareStatus}</p> : null}
     </section>
   )
 }
