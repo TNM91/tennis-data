@@ -3003,7 +3003,7 @@ function StatChip({
       <div
         style={{
           ...chipStatLabel,
-          ...(accent ? { color: 'rgba(255,255,255,0.82)' } : {}),
+          ...(accent ? { color: 'var(--brand-lime)' } : {}),
         }}
       >
         {label}
@@ -3011,7 +3011,7 @@ function StatChip({
       <div
         style={{
           ...chipStatValue,
-          ...(accent ? { color: '#07111d' } : {}),
+          ...(accent ? { color: 'var(--foreground-strong)' } : {}),
         }}
       >
         {value}
@@ -4115,10 +4115,10 @@ const segmentButton: CSSProperties = {
 }
 
 const segmentButtonActive: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: '0 10px 24px rgba(2,10,24,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const focusMetrics: CSSProperties = {
@@ -4213,8 +4213,9 @@ const chipStat: CSSProperties = {
 }
 
 const chipStatAccent: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: '0 10px 24px rgba(2,10,24,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const chipStatLabel: CSSProperties = {
