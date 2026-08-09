@@ -7,6 +7,7 @@ import {
   isPlayerEligibleForCaptainRating,
   isTriLevelFormat,
 } from '../captain-lineup-format'
+import { TEAM_MATCH_FORMATS } from '../competition-format-registry'
 
 describe('captain lineup formats', () => {
   it('builds the 3.5 / 4.0 / 4.5 Tri-Level flight as three doubles courts', () => {
@@ -35,17 +36,34 @@ describe('captain lineup formats', () => {
     expect(slots.map((slot) => slot.id)).toEqual(['otl-d-4', 'otl-d-4-5', 'otl-d-5'])
   })
 
-  it('keeps non-Tri-Level leagues on the standard format', () => {
-    expect(getTriLevelRatings('2026 Adult 18 & Over', 'Men 4.0')).toEqual([])
-    const slots = buildCaptainLineupSlots('2026 Adult 18 & Over', 'Men 4.0', 'team')
-    expect(slots).toHaveLength(5)
-    expect(slots.map((slot) => slot.label)).toEqual([
-      'Singles 1',
-      'Singles 2',
-      'Doubles 1',
-      'Doubles 2',
-      'Doubles 3',
-    ])
+  it.each([
+    ['Adult 18 & Over', 'Men 4.0', 2, 3],
+    ['Adult 18 & Over 3-Line', 'Women 3.5', 1, 2],
+    ['Adult 40 & Over', 'Men 4.0', 1, 4],
+    ['Adult 40 & Over 4-Line', 'Women 4.0', 1, 3],
+    ['Adult 55 & Over', 'Women 8.0', 0, 3],
+    ['Mixed 18 & Over', '8.0', 0, 3],
+    ['Combo Doubles', 'Women 7.5', 0, 3],
+    ['ONE Doubles', 'Women 3.5', 0, 1],
+    ['Club Singles League', 'Flight A', 1, 0],
+    ['Dominant Duo', 'Open', 2, 1],
+    ['Local League 3 Singles + 2 Doubles', 'Open', 3, 2],
+  ])('builds Captain courts for %s / %s', (league, flight, singles, doubles) => {
+    const slots = buildCaptainLineupSlots(league, flight, 'team')
+    expect(slots.filter((slot) => slot.slotType === 'singles')).toHaveLength(singles)
+    expect(slots.filter((slot) => slot.slotType === 'doubles')).toHaveLength(doubles)
+    expect(slots).toHaveLength(singles + doubles)
+  })
+
+  it('builds every explicit TIQ team scorecard in Captain without a separate format branch', () => {
+    for (const format of TEAM_MATCH_FORMATS.filter((item) => item.id !== 'custom')) {
+      const slots = buildCaptainLineupSlots('TIQ Club League', 'Open', 'team', format.id)
+      expect(slots, format.id).toHaveLength(format.slots.length)
+      expect(slots.map((slot) => slot.slotType), format.id)
+        .toEqual(format.slots.map((slot) => slot.discipline))
+      expect(slots.every((slot) => slot.players.length === (slot.slotType === 'doubles' ? 2 : 1)), format.id)
+        .toBe(true)
+    }
   })
 
   it('converts a stale standard lineup back to three Tri-Level doubles courts', () => {
