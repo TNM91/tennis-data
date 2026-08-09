@@ -11,15 +11,27 @@ import { ChatCircleDotsIcon } from '@phosphor-icons/react/dist/csr/ChatCircleDot
 import { ClipboardTextIcon } from '@phosphor-icons/react/dist/csr/ClipboardText'
 import { FlaskIcon } from '@phosphor-icons/react/dist/csr/Flask'
 import { GaugeIcon } from '@phosphor-icons/react/dist/csr/Gauge'
+import { ListChecksIcon } from '@phosphor-icons/react/dist/csr/ListChecks'
 import { LockKeyIcon } from '@phosphor-icons/react/dist/csr/LockKey'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass'
 import { PresentationChartIcon } from '@phosphor-icons/react/dist/csr/PresentationChart'
 import { RankingIcon } from '@phosphor-icons/react/dist/csr/Ranking'
 import { ShieldCheckIcon } from '@phosphor-icons/react/dist/csr/ShieldCheck'
+import { TargetIcon } from '@phosphor-icons/react/dist/csr/Target'
 import { TennisBallIcon } from '@phosphor-icons/react/dist/csr/TennisBall'
+import { TreeStructureIcon } from '@phosphor-icons/react/dist/csr/TreeStructure'
+import { TrophyIcon } from '@phosphor-icons/react/dist/csr/Trophy'
 import { UsersThreeIcon } from '@phosphor-icons/react/dist/csr/UsersThree'
 import type { CSSProperties } from 'react'
 
 export type TiqFeatureIconName =
+  | 'exploreTennis'
+  | 'improveTennis'
+  | 'competeTennis'
+  | 'captainTennis'
+  | 'coachTennis'
+  | 'leagueTennis'
+  | 'clubTennis'
   | 'captainDashboard'
   | 'matchupAnalysis'
   | 'lineupBuilder'
@@ -57,6 +69,13 @@ const iconSizes: Record<TiqFeatureIconSize, number> = {
 }
 
 export const tiqFeatureIconNames: TiqFeatureIconName[] = [
+  'exploreTennis',
+  'improveTennis',
+  'competeTennis',
+  'captainTennis',
+  'coachTennis',
+  'leagueTennis',
+  'clubTennis',
   'captainDashboard',
   'matchupAnalysis',
   'lineupBuilder',
@@ -76,6 +95,13 @@ export const tiqFeatureIconNames: TiqFeatureIconName[] = [
 ]
 
 export const tiqFeatureIconLabels: Record<TiqFeatureIconName, string> = {
+  exploreTennis: 'Explore tennis',
+  improveTennis: 'Improve your tennis',
+  competeTennis: 'Compete',
+  captainTennis: 'Captain your team',
+  coachTennis: 'Coach players',
+  leagueTennis: 'Run leagues and tournaments',
+  clubTennis: 'Run your club',
   captainDashboard: 'Captain dashboard',
   matchupAnalysis: 'Matchup analysis',
   lineupBuilder: 'Lineup builder',
@@ -95,6 +121,13 @@ export const tiqFeatureIconLabels: Record<TiqFeatureIconName, string> = {
 }
 
 const iconRegistry: Record<TiqFeatureIconName, Icon> = {
+  exploreTennis: MagnifyingGlassIcon,
+  improveTennis: TargetIcon,
+  competeTennis: TrophyIcon,
+  captainTennis: ListChecksIcon,
+  coachTennis: ChalkboardTeacherIcon,
+  leagueTennis: TreeStructureIcon,
+  clubTennis: BuildingsIcon,
   captainDashboard: GaugeIcon,
   matchupAnalysis: TennisBallIcon,
   lineupBuilder: UsersThreeIcon,

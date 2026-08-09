@@ -22,21 +22,21 @@ const toolCards: InfoActionCard[] = [
     text: 'Search players, teams, leagues, rankings, and tournaments for free.',
     href: '/explore',
     cta: 'Start free',
-    icon: 'opponentScouting',
+    icon: 'exploreTennis',
   },
   {
     title: 'Improve',
     text: 'Use My Lab for goals, practice, matchup prep, and your tennis profile.',
     href: '/mylab',
     cta: 'Open My Lab',
-    icon: 'myLab',
+    icon: 'improveTennis',
   },
   {
     title: 'Lead',
     text: 'Add Coach, Captain, or League tools when you support other players or competition.',
     href: '/pricing',
     cta: 'Choose a tier',
-    icon: 'teamRankings',
+    icon: 'leagueTennis',
   },
 ]
 

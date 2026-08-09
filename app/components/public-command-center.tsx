@@ -295,11 +295,11 @@ const homeModeCards: HomeModeCard[] = [
 ]
 
 const guestTierPreviews: Array<{ planId: PricingPlanId; icon: TiqFeatureIconName; label: string }> = [
-  { planId: 'free', icon: 'opponentScouting', label: 'Explore' },
-  { planId: 'player_plus', icon: 'myLab', label: 'Player' },
-  { planId: 'captain', icon: 'lineupBuilder', label: 'Captain' },
-  { planId: 'coach', icon: 'scenarioBuilder', label: 'Coach' },
-  { planId: 'league', icon: 'teamRankings', label: 'League' },
+  { planId: 'free', icon: 'exploreTennis', label: 'Explore' },
+  { planId: 'player_plus', icon: 'improveTennis', label: 'Player' },
+  { planId: 'captain', icon: 'captainTennis', label: 'Captain' },
+  { planId: 'coach', icon: 'coachTennis', label: 'Coach' },
+  { planId: 'league', icon: 'leagueTennis', label: 'League' },
   { planId: 'full_court', icon: 'captainDashboard', label: 'Full-Court' },
 ]
 
