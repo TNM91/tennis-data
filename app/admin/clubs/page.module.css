@@ -1,0 +1,32 @@
+.shell { display: grid; gap: 18px; }
+.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; }
+.search { display: grid; gap: 6px; min-width: 0; color: var(--shell-copy-muted); font-size: 12px; font-weight: 850; }
+.search input, .confirmInput { width: 100%; min-width: 0; min-height: 46px; border: 1px solid var(--shell-panel-border); border-radius: 13px; background: var(--shell-chip-bg); color: var(--foreground-strong); padding: 0 13px; font: inherit; box-sizing: border-box; }
+.count { color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.notice { margin: 0 0 14px; border: 1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border)); border-radius: 14px; background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg)); color: var(--foreground-strong); padding: 12px 14px; font-size: 13px; font-weight: 800; line-height: 1.4; }
+.notice[data-tone='danger'] { border-color: rgba(248, 113, 113, .3); background: rgba(127, 29, 29, .18); color: #fecaca; }
+.list { display: grid; gap: 10px; }
+.clubCard { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; border: 1px solid var(--shell-panel-border); border-radius: 16px; background: var(--shell-panel-bg); padding: 14px; min-width: 0; }
+.clubCopy { display: grid; gap: 6px; min-width: 0; }
+.clubTop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clubTop h2 { margin: 0; color: var(--foreground-strong); font-size: 17px; line-height: 1.18; overflow-wrap: anywhere; }
+.status { display: inline-flex; min-height: 26px; align-items: center; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); padding: 0 9px; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--shell-copy-muted); font-size: 12px; font-weight: 750; }
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.link, .deleteButton, .cancelButton, .confirmButton { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; border-radius: 12px; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; text-decoration: none; }
+.link, .cancelButton { border: 1px solid var(--shell-panel-border); background: var(--shell-chip-bg); color: var(--foreground-strong); }
+.deleteButton { border: 1px solid rgba(248, 113, 113, .3); background: rgba(127, 29, 29, .16); color: #fecaca; }
+.confirmPanel { grid-column: 1 / -1; display: grid; gap: 12px; border-top: 1px solid var(--shell-panel-border); padding-top: 14px; }
+.confirmPanel strong { color: #fecaca; }
+.confirmPanel p { margin: 0; color: var(--shell-copy-muted); font-size: 13px; line-height: 1.45; }
+.confirmActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.confirmButton { border: 1px solid rgba(248, 113, 113, .4); background: #7f1d1d; color: #fff; }
+.confirmButton:disabled, .deleteButton:disabled { cursor: not-allowed; opacity: .5; }
+.empty { margin-bottom: 14px; border: 1px dashed var(--shell-panel-border); border-radius: 16px; color: var(--shell-copy-muted); padding: 22px; text-align: center; }
+
+@media (max-width: 720px) {
+  .toolbar, .clubCard { grid-template-columns: 1fr; }
+  .actions { justify-content: stretch; }
+  .actions > *, .confirmActions > * { flex: 1 1 140px; }
+  .count { white-space: normal; }
+}

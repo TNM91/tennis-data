@@ -15,7 +15,6 @@ import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
@@ -34,10 +33,10 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
 }> = {
   free: {
     eyebrow: 'Create your account',
-    mobileTitle: 'Start free.',
-    desktopTitle: 'Start free. Pick the tennis tools later.',
-    mobileText: 'Create an account and search the tennis map.',
-    desktopText: 'Search players, teams, leagues, rankings, and tennis context first. Upgrade only when a specific tennis need calls for more support.',
+    mobileTitle: 'Create your free account.',
+    desktopTitle: 'Create your free account.',
+    mobileText: 'Search tennis now. Add tools only when they help.',
+    desktopText: 'Search tennis now. Add paid tools only when they help.',
     formCue: 'Create the free account first. Choose My Lab, Coach Hub, Team Hub, League Office, or Full-Court when you need the right tools.',
     success: 'Account created. Sign in, then explore the tennis map.',
   },
@@ -148,7 +147,7 @@ function JoinContent() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const hasRedirectedRef = useRef(false)
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const requestedEmail = searchParams.get('email')?.trim() ?? ''
   const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
@@ -161,9 +160,6 @@ function JoinContent() {
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
-  const formCue = selectedPlanId === 'free'
-    ? 'Create Free access now. Add paid tools when you need them.'
-    : `Create Free access now. Activate ${selectedTier.name} next.`
 
   useEffect(() => {
     if (!authResolved) return
@@ -247,25 +243,21 @@ function JoinContent() {
     ...heroShell,
     width: isMobile ? 'min(100% - 20px, 680px)' : 'min(720px, calc(100% - clamp(24px, 5vw, 40px)))',
     gridTemplateColumns: 'minmax(0, 1fr)',
-    padding: isMobile ? '18px' : '24px',
-    gap: isMobile ? '12px' : '14px',
+    padding: isMobile ? '12px' : '16px',
+    gap: '10px',
   }
 
   const loginPanelResponsive: CSSProperties = {
     ...loginPanel,
-    ...(isMobile
-      ? {
-          border: 'none',
-          background: 'transparent',
-          boxShadow: 'none',
-          borderRadius: 0,
-        }
-      : {}),
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    borderRadius: 0,
   }
 
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
-    padding: isMobile ? 0 : '22px',
+    padding: 0,
   }
 
   const selectedPlanActionRowResponsive: CSSProperties = {
@@ -305,27 +297,17 @@ function JoinContent() {
   return (
     <section style={heroShellResponsive}>
         <span aria-hidden="true" style={watermarkStyle} />
-        <div style={joinCopyRailStyle}>
-          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
-          </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
-          </p>
-
-        </div>
-
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
             <form onSubmit={handleSubmit} noValidate style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>Create Free access</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
-              <div style={identityCueStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
-                <span>{formCue}</span>
-              </div>
+              <div style={formLabel}>{selectedIntent.eyebrow}</div>
+              <h1 style={isMobile ? formTitleMobile : formTitle}>
+                {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
+              </h1>
+              <p style={formIntroStyle}>
+                {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
+              </p>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -452,7 +434,7 @@ function JoinContent() {
           </div>
         </div>
 
-        <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
+        {selectedPlanId !== 'free' || nextIntent ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
           <summary style={selectedPlanSummaryStyle}>
             <span style={selectedPlanSummaryTextStyle}>
               <span style={selectedPlanLabelStyle}>Selected start</span>
@@ -485,7 +467,7 @@ function JoinContent() {
               </Link>
             </div>
           </div>
-        </details>
+        </details> : null}
     </section>
   )
 }
@@ -514,52 +496,6 @@ const watermarkStyle: CSSProperties = {
   background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  maxWidth: '100%',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(125, 211, 252, 0.24)',
-  background: 'rgba(15, 23, 42, 0.66)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: '15px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '760px',
-  fontSize: '58px',
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: '0 0 16px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '18px',
-  lineHeight: 1.45,
-  maxWidth: '760px',
-  overflowWrap: 'anywhere',
-}
-
-const joinCopyRailStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minWidth: 0,
 }
 
 const selectedPlanCardStyle: CSSProperties = {
@@ -797,19 +733,11 @@ const formTitleMobile: CSSProperties = {
   fontSize: '24px',
 }
 
-const identityCueStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)',
-  gap: '10px',
-  minWidth: 0,
-  alignItems: 'center',
-  padding: '10px 12px',
-  borderRadius: '16px',
-  border: '1px solid rgba(155,225,29,0.2)',
-  background: 'rgba(155,225,29,0.08)',
+const formIntroStyle: CSSProperties = {
+  margin: '-2px 0 2px',
   color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  fontWeight: 800,
+  fontSize: 13,
+  fontWeight: 720,
   lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }

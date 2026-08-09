@@ -5,28 +5,26 @@ import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BO
 describe('site navigation language', () => {
   it('uses the community-centered platform navigation map', () => {
     expect(PRIMARY_NAV_ITEMS).toEqual([
-      { href: '/explore', label: 'Explore', description: 'Find players, teams, leagues, rankings, and public tennis context.' },
-      { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
-      { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
-      { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-      { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
-      { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
-      { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
-      { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
+      { href: '/explore', label: 'Explore', description: 'Players, teams, leagues, and rankings.' },
+      { href: '/player-development', label: 'Improve', description: 'Drills, Level Up, and video.' },
+      { href: '/compete', label: 'Compete', description: 'Matchups, schedules, and results.' },
+      { href: '/captain', label: 'Captain', description: 'Team week, lineups, and chat.' },
+      { href: '/coaches', label: 'Coaches', description: 'Players, plans, and progress.' },
+      { href: '/leagues-and-tournaments', label: 'Leagues', description: 'Seasons, tournaments, and scores.' },
+      { href: '/clubs', label: 'Club', description: 'Programs, staff, and competition.' },
     ])
 
     expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
       'Explore',
       'Improve',
-      'Video Review',
       'Compete',
       'Captain',
       'Coaches',
-      'Leagues & Tournaments',
-      'My Lab',
+      'Leagues',
+      'Club',
     ])
-    expect(PRIMARY_NAV_ITEMS.every((item) => item.description && item.description.length > 20)).toBe(true)
-    expect(PRIMARY_NAV_ITEMS.map((item) => item.description)).toContain('Choose what to work on, find drills, and level up faster.')
+    expect(PRIMARY_NAV_ITEMS.every((item) => item.description && item.description.length < 42)).toBe(true)
+    expect(PRIMARY_NAV_ITEMS.map((item) => item.description)).toContain('Drills, Level Up, and video.')
     expect(PRIMARY_NAV_ITEMS).not.toContainEqual({ href: '/manage', label: 'Manage' })
   })
 

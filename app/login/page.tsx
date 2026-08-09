@@ -28,8 +28,8 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
 }> = {
   free: {
     eyebrow: 'TenAceIQ access',
-    title: 'Open the tennis map.',
-    body: 'Sign in, search the tennis map, and choose the right tools when your tennis needs more support.',
+    title: 'Sign in to TenAceIQ.',
+    body: 'Open your saved tennis work.',
     destination: 'Find',
   },
   player_plus: {
@@ -283,26 +283,22 @@ function canUseBrowserStorage() {
     ...heroShell,
     width: isMobile ? 'min(620px, calc(100% - 20px))' : 'min(620px, calc(100% - clamp(24px, 5vw, 40px)))',
     gridTemplateColumns: 'minmax(0, 1fr)',
-    padding: isMobile ? '18px' : '24px',
-    gap: isMobile ? '12px' : '14px',
+    padding: isMobile ? '12px' : '16px',
+    gap: '10px',
     margin: isMobile ? '10px auto 22px' : heroShell.margin,
   }
 
   const loginPanelResponsive: CSSProperties = {
     ...loginPanel,
-    ...(isMobile
-      ? {
-          border: 'none',
-          background: 'transparent',
-          boxShadow: 'none',
-          borderRadius: 0,
-        }
-      : {}),
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    borderRadius: 0,
   }
 
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
-    padding: isMobile ? 0 : '22px',
+    padding: 0,
   }
 
   const helperRowResponsive: CSSProperties = {
@@ -338,19 +334,13 @@ function canUseBrowserStorage() {
   return (
     <section style={heroShellResponsive}>
         <span aria-hidden="true" style={watermarkStyle} />
-        <div style={loginCopyRailStyle}>
-          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            {selectedIntent.title}
-          </h1>
-        </div>
-
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>More Tennis. Less Chaos.</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Sign in</h2>
+              <div style={formLabel}>{selectedIntent.eyebrow}</div>
+              <h1 style={isMobile ? formTitleMobile : formTitle}>{selectedIntent.title}</h1>
+              <p style={formIntroStyle}>{selectedIntent.body}</p>
               {switchingAccount ? (
                 <div role="status" aria-live="polite" style={successBanner}>
                   {coachSetupNote}
@@ -441,15 +431,14 @@ function canUseBrowserStorage() {
             </form>
 
             <div style={footerPromptResponsive}>
-              Need the public experience first?{' '}
               <Link href="/explore" style={isMobile ? mobileInlineExploreLink : inlineLink}>
-                Explore TenAceIQ
+                Explore without signing in
               </Link>
             </div>
           </div>
         </div>
 
-        <details className="authReturnDetailsSection" style={loginContextStyle}>
+        {selectedPlanId !== 'free' || nextIntent ? <details className="authReturnDetailsSection" style={loginContextStyle}>
           <summary style={loginContextSummaryStyle}>
             <span>Show return path</span>
           </summary>
@@ -466,7 +455,7 @@ function canUseBrowserStorage() {
               </div>
             ) : null}
           </div>
-        </details>
+        </details> : null}
     </section>
   )
 }
@@ -505,37 +494,6 @@ const watermarkStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  maxWidth: '100%',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid var(--home-eyebrow-border)',
-  background: 'var(--home-eyebrow-bg)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: '15px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '760px',
-  fontSize: '58px',
-  overflowWrap: 'anywhere',
-}
-
 const heroText: CSSProperties = {
   margin: '0 0 16px',
   color: 'var(--shell-copy-muted)',
@@ -543,14 +501,6 @@ const heroText: CSSProperties = {
   lineHeight: 1.45,
   maxWidth: '760px',
   overflowWrap: 'anywhere',
-}
-
-const loginCopyRailStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'grid',
-  gap: 8,
-  minWidth: 0,
 }
 
 const loginContextStyle: CSSProperties = {
@@ -711,6 +661,15 @@ const formTitle: CSSProperties = {
 const formTitleMobile: CSSProperties = {
   ...formTitle,
   fontSize: '24px',
+}
+
+const formIntroStyle: CSSProperties = {
+  margin: '-2px 0 2px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 720,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const inputLabel: CSSProperties = {

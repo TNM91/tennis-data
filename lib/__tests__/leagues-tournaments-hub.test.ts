@@ -11,8 +11,8 @@ const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8
 
 describe('Leagues and tournaments hub', () => {
   it('gives the combined organizer nav item a real public hub', () => {
-    expect(navigationSource).toContain("href: '/leagues-and-tournaments', label: 'Leagues & Tournaments'")
-    expect(navigationSource).toContain('Organize seasons, events, players, teams, scores, and results.')
+    expect(navigationSource).toContain("href: '/leagues-and-tournaments', label: 'Leagues'")
+    expect(navigationSource).toContain('Seasons, tournaments, and scores.')
     expect(portalSource).toContain("route: '/leagues-and-tournaments'")
     expect(productStorySource).toContain("href: '/leagues-and-tournaments'")
     expect(commandCenterSource).toContain("href: '/leagues-and-tournaments'")

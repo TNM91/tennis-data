@@ -78,8 +78,8 @@ describe('auth entry mobile layout guards', () => {
 
   it('keeps Login return-path copy tied to the selected tennis tool', () => {
     const source = sources.get('app/login/page.tsx')!
-    expect(source).toContain('Open the tennis map.')
-    expect(source).toContain('Sign in, search the tennis map, and choose the right tools when your tennis needs more support.')
+    expect(source).toContain('Sign in to TenAceIQ.')
+    expect(source).toContain('Open your saved tennis work.')
     expect(source).toContain('Continue to My Lab.')
     expect(source).toContain('Sign in to pick up your player home, matchup prep, follows, and messages.')
     expect(source).toContain('Continue to Coach Hub.')
@@ -255,9 +255,9 @@ describe('auth entry mobile layout guards', () => {
     expect(sources.get('app/globals.css')!).toContain(
       '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',
     )
-    expect(source).toContain("const formCue = selectedPlanId === 'free'")
-    expect(source).toContain('Create Free access now. Add paid tools when you need them.')
-    expect(source).toContain('Create Free access</div>')
+    expect(source).toContain('Create your free account.')
+    expect(source).toContain('Search tennis now. Add paid tools only when they help.')
+    expect(source).toContain('<div style={formLabel}>{selectedIntent.eyebrow}</div>')
   })
 
   it('keeps Login sign-in before optional return-path details', () => {
@@ -295,14 +295,21 @@ describe('auth entry mobile layout guards', () => {
   })
 
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
-    for (const file of authPageFiles) {
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const source = sources.get(file)!
       for (const styleName of ['heroTitle', 'heroText', 'formTitle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
       }
     }
 
-    for (const file of ['app/login/page.tsx', 'app/join/page.tsx', 'app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+    for (const file of ['app/login/page.tsx', 'app/join/page.tsx']) {
+      const source = sources.get(file)!
+      for (const styleName of ['formTitle', 'formIntroStyle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
+        expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
+      }
+    }
+
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const eyebrowBlock = styleBlock(sources.get(file)!, 'eyebrow')
       expect(eyebrowBlock).toContain("maxWidth: '100%'")
       expect(eyebrowBlock).toContain("whiteSpace: 'normal'")
@@ -334,11 +341,8 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'authLoadingIconStyle')).not.toContain(
       'boxShadow',
     )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'formIntroStyle')).toContain(
       "overflowWrap: 'anywhere'",
-    )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
-      "gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)'",
     )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'togglePasswordButton')).toContain(
       "overflowWrap: 'anywhere'",

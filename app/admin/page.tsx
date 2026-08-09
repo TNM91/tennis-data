@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import {
   AdminReviewFrame,
   AdminReviewHero,
-  AdminReviewPanel,
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -30,8 +29,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Admin Import Center',
     href: '/admin/import',
-    description:
-      'Admin-only fallback for reviewed schedule, roster, and scorecard files when Data Assist needs a manual correction path.',
+    description: 'Fix a schedule, roster, or scorecard import after review.',
     badge: 'Fallback',
     accent: 'green',
     icon: 'reports',
@@ -42,8 +40,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Upload Review Queue',
     href: '/admin/import-queue',
-    description:
-      'Review captured payloads that need human confirmation before they can become trusted TenAceIQ records.',
+    description: 'Approve or reject uploads that need a person.',
     badge: 'Review',
     accent: 'blue',
     icon: 'accountSecurity',
@@ -54,8 +51,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Data Assist Review',
     href: '/admin/data-assist',
-    description:
-      'Review player, captain, and coordinator TennisLink uploads, confirm confidence, and keep imports locked behind verification before anything can affect trusted data.',
+    description: 'Review community uploads before they change trusted data.',
     badge: 'Data Assist',
     accent: 'green',
     icon: 'reports',
@@ -66,8 +62,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Match Accuracy Reports',
     href: '/admin/match-reports',
-    description:
-      'Review player-reported match inaccuracies, action data corrections, and pause scorecard uploads for linked contributors when trust issues repeat.',
+    description: 'Resolve reported match errors and uploader trust issues.',
     badge: 'Data Quality',
     accent: 'blue',
     icon: 'matchupAnalysis',
@@ -78,8 +73,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Missing Scorecards',
     href: '/admin/missing-scorecards',
-    description:
-      'Track which scheduled matches still need scorecard uploads, filter by league and team, and jump directly into Data Assist or match review.',
+    description: 'Find scheduled matches that still need a scorecard.',
     badge: 'Operations',
     accent: 'green',
     icon: 'schedule',
@@ -90,8 +84,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Lineup Availability',
     href: '/admin/lineup-availability',
-    description:
-      'Review player availability snapshots and lineup readiness so admin support stays aligned with the captain workflow.',
+    description: 'Check saved availability when captains need support.',
     badge: 'Support',
     accent: 'slate',
     icon: 'reliabilityIndex',
@@ -102,8 +95,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Add Match',
     href: '/admin/add-match',
-    description:
-      'Create a single match manually when you need a precise entry, correction, or one-off administrative adjustment.',
+    description: 'Create or correct one match.',
     badge: 'Manual',
     accent: 'blue',
     icon: 'reports',
@@ -114,8 +106,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Manage Matches',
     href: '/admin/manage-matches',
-    description:
-      'Review, inspect, and clean up match records from one operational surface built for ongoing data quality control.',
+    description: 'Find, edit, or remove match records.',
     badge: 'Control',
     accent: 'green',
     icon: 'matchupAnalysis',
@@ -124,10 +115,20 @@ const adminTools: AdminTool[] = [
     statValue: 'Match hygiene',
   },
   {
+    title: 'Club Accounts',
+    href: '/admin/clubs',
+    description: 'Find, review, or permanently remove club workspaces.',
+    badge: 'Clubs',
+    accent: 'green',
+    icon: 'clubTennis',
+    highlights: ['Club search', 'Membership count', 'Safe deletion'],
+    statLabel: 'Best for',
+    statValue: 'Club upkeep',
+  },
+  {
     title: 'Access Control',
     href: '/admin/access',
-    description:
-      'Manage Player, Coach, Captain, and League Office entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
+    description: 'Update Player, Coach, Captain, and League access.',
     badge: 'Access',
     accent: 'blue',
     icon: 'accountSecurity',
@@ -138,8 +139,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Upgrade Requests',
     href: '/admin/upgrade-requests',
-    description:
-      'Review paid-plan requests, open internal support follow-up, and activate Player, Captain, or TIQ League access once an account is linked.',
+    description: 'Review plan requests and activate approved access.',
     badge: 'Leads',
     accent: 'green',
     icon: 'myLab',
@@ -150,8 +150,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Product Events',
     href: '/admin/product-events',
-    description:
-      'Review paid usage signals, profile linking, and cloud sync repair events that need admin follow-up.',
+    description: 'Find activation, sync, and usage events needing follow-up.',
     badge: 'Analytics',
     accent: 'blue',
     icon: 'playerRatings',
@@ -162,8 +161,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Manage Players',
     href: '/admin/manage-players',
-    description:
-      'Update player records, ratings, metadata, and notes so your player graph stays trustworthy and usable.',
+    description: 'Update player records, ratings, and metadata.',
     badge: 'Roster',
     accent: 'slate',
     icon: 'playerRatings',
@@ -174,8 +172,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'TIQ Team Matches',
     href: '/admin/tiq-team-matches',
-    description:
-      'Create team match events, enter line-by-line results, and watch completed lines feed the TIQ rating engine automatically.',
+    description: 'Create team events and enter line-by-line results.',
     badge: 'TIQ',
     accent: 'green',
     icon: 'teamRankings',
@@ -186,8 +183,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Duplicate Players',
     href: '/admin/deduplicate',
-    description:
-      'Detect players whose names are within two edits of each other, confirm which record to keep, and merge match history automatically before deleting the duplicate.',
+    description: 'Merge duplicate players without losing match history.',
     badge: 'Data quality',
     accent: 'slate',
     icon: 'playerRatings',
@@ -198,8 +194,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Anomaly Scanner',
     href: '/admin/anomalies',
-    description:
-      'Scan all matches for suspicious data: extreme rating gaps, missing scores, and possible duplicate entries before bad records corrupt ratings.',
+    description: 'Find suspicious scores, gaps, and duplicate matches.',
     badge: 'Data quality',
     accent: 'slate',
     icon: 'opponentScouting',
@@ -209,13 +204,20 @@ const adminTools: AdminTool[] = [
   },
 ]
 
-const importTools = adminTools.filter((tool) =>
-  ['/admin/import', '/admin/import-queue', '/admin/data-assist', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
-)
+const priorityToolHrefs = [
+  '/admin/data-assist',
+  '/admin/missing-scorecards',
+  '/admin/match-reports',
+  '/admin/clubs',
+  '/admin/access',
+  '/admin/upgrade-requests',
+]
 
-const managementTools = adminTools.filter((tool) =>
-  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/upgrade-requests', '/admin/product-events', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
-)
+const priorityTools = priorityToolHrefs
+  .map((href) => adminTools.find((tool) => tool.href === href))
+  .filter((tool): tool is AdminTool => Boolean(tool))
+
+const moreAdminTools = adminTools.filter((tool) => !priorityToolHrefs.includes(tool.href))
 
 function accentStyles(accent: Accent) {
   if (accent === 'green') {
@@ -259,83 +261,38 @@ export default function AdminDashboardPage() {
       <AdminGate>
         <AdminReviewFrame>
         <AdminReviewHero
-          kicker="Admin Command"
-          title="Admin Control Center"
+          kicker="Admin"
+          title="What needs attention?"
           actions={
             <>
-              <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
-                Start with Data Assist
-              </a>
-              <a href="#management" className="button-secondary" style={{ textDecoration: 'none' }}>
-                Open Management Tools
-              </a>
+              <Link href="/admin/data-assist" className="button-primary">Review uploads</Link>
+              <Link href="/admin/clubs" className="button-secondary">Manage clubs</Link>
             </>
           }
         >
-          Centralize imports, manual entry, match cleanup, and player maintenance in one reviewed
-          control surface for safer tennis data operations.
+          Review tennis data, account access, and club workspaces from one place.
         </AdminReviewHero>
         <DataQualityPanel />
 
-        <AdminReviewPanel style={{ marginTop: 18 }}>
-          <div>
-            <div className="metric-grid">
-              <MetricCard label="Admin Tools" value={String(adminTools.length)} helper="Includes access control and upgrade requests" />
-              <MetricCard label="Upload Review Path" value="1" helper="Use Data Assist first" />
-              <MetricCard label="Data Control" value="6" helper="Uploads, availability, match, player, access, and lead ops" />
-              <MetricCard label="Recommended Flow" value="Upload -> Review" helper="Confirm before writing" />
-            </div>
-
-            <div className="card-grid three" style={{ marginTop: 18 }}>
-              <MiniPanel
-                title="Data Assist First"
-                text="Use reviewed uploads for scorecards, schedules, and rosters before falling back to admin-only correction tools."
-                tone="green"
-              />
-              <MiniPanel
-                title="Missing Scorecards"
-                text="Use the scorecard queue to see which scheduled matches are still missing results after match day."
-                tone="green"
-              />
-              <MiniPanel
-                title="Data Stewardship"
-                text="Use the management tools when you need to clean records, fix metadata, or refine ratings inputs."
-                tone="blue"
-              />
-              <MiniPanel
-                title="Access + Monetization"
-                text="Use Access Control when Coach, Captain, and League Office permissions need explicit profile-level updates."
-                tone="slate"
-              />
-            </div>
-          </div>
-        </AdminReviewPanel>
-
-        <section id="imports" style={{ marginTop: 26 }}>
+        <section style={{ marginTop: 24 }}>
           <SectionHeader
-            kicker="Imports"
-            title="Bring data into the system and manage weekly result flow"
-            subtitle="Start with Data Assist uploads, use missing scorecards to track what is still outstanding, and use lineup availability when weekly readiness needs admin support."
+            kicker="Start here"
+            title="Common admin work"
+            subtitle="Open the job you need."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
-            {importTools.map((tool) => (
+            {priorityTools.map((tool) => (
               <AdminToolCard key={tool.href} tool={tool} />
             ))}
           </div>
         </section>
 
-        <section id="management" style={{ marginTop: 30 }}>
-          <SectionHeader
-            kicker="Management"
-            title="Control records and maintain quality"
-            subtitle="These routes are for precise edits, cleanup, one-off corrections, and ongoing stewardship of your data."
-          />
+        <details style={moreToolsStyle}>
+          <summary style={moreToolsSummaryStyle}>More admin tools <span>{moreAdminTools.length}</span></summary>
           <div className="card-grid three" style={{ marginTop: 14 }}>
-            {managementTools.map((tool) => (
-              <AdminToolCard key={tool.href} tool={tool} />
-            ))}
+            {moreAdminTools.map((tool) => <AdminToolCard key={tool.href} tool={tool} />)}
           </div>
-        </section>
+        </details>
 
         </AdminReviewFrame>
       </AdminGate>
@@ -490,136 +447,31 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         position: 'relative',
-        display: 'block',
-        overflow: 'hidden',
-        minHeight: 290,
-        padding: 18,
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        gap: 14,
+        alignItems: 'start',
+        minHeight: 0,
+        padding: 16,
         textDecoration: 'none',
-        background:
-          hovered
-            ? 'var(--shell-panel-bg-strong)'
-            : 'var(--shell-panel-bg)',
+        background: hovered ? 'var(--shell-panel-bg-strong)' : 'var(--shell-panel-bg)',
         border: `1px solid ${hovered ? accent.border : accent.softBorder}`,
-        transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
-        transition:
-          'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease',
-        boxShadow: hovered ? accent.shadow : '0 18px 44px rgba(2, 6, 23, 0.20)',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        transition: 'transform 180ms ease, border-color 180ms ease, background 180ms ease',
+        boxShadow: hovered ? accent.shadow : '0 14px 30px rgba(2, 6, 23, 0.16)',
       }}
     >
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 10,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span className={accent.badgeClass}>{tool.badge}</span>
-          <div
-            style={{
-              display: 'grid',
-              placeItems: 'center',
-              opacity: hovered ? 1 : 0.72,
-              transition: 'opacity 180ms ease',
-            }}
-          >
-            <TiqFeatureIcon name={tool.icon} size="sm" variant={hovered ? 'surface' : 'ghost'} />
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: 16,
-            color: 'var(--foreground)',
-            fontWeight: 800,
-            fontSize: '1.08rem',
-            lineHeight: 1.2,
-            letterSpacing: 0,
-          }}
-        >
+      <div style={{ minWidth: 0 }}>
+        <span className={accent.badgeClass}>{tool.badge}</span>
+        <div style={{ marginTop: 12, color: 'var(--foreground)', fontWeight: 900, fontSize: '1.08rem', lineHeight: 1.2 }}>
           {tool.title}
         </div>
-
-        <p
-          className="subtle-text"
-          style={{
-            marginTop: 10,
-            minHeight: 78,
-          }}
-        >
+        <p className="subtle-text" style={{ margin: '7px 0 0', lineHeight: 1.4 }}>
           {tool.description}
         </p>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: `1px solid ${accent.softBorder}`,
-          }}
-        >
-          <div className="subtle-text" style={{ fontSize: '0.78rem' }}>
-            {tool.statLabel}
-          </div>
-          <div
-            style={{
-              color: 'var(--foreground)',
-              fontWeight: 800,
-              fontSize: '0.88rem',
-            }}
-          >
-            {tool.statValue}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginTop: 14,
-          }}
-        >
-          {tool.highlights.map((item) => (
-            <span
-              key={item}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                minHeight: 30,
-                padding: '6px 10px',
-                borderRadius: 999,
-                background: accent.chipBg,
-                border: `1px solid ${accent.chipBorder}`,
-                color: accent.chipText,
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                letterSpacing: 0,
-              }}
-            >
-              {item}
-            </span>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 18,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            color: '#9BE11D',
-            fontWeight: 800,
-            fontSize: '0.92rem',
-          }}
-        >
-          Open tool <span aria-hidden="true">{hovered ? 'up' : '->'}</span>
-        </div>
+      </div>
+      <div style={{ display: 'grid', placeItems: 'center', opacity: hovered ? 1 : 0.72 }}>
+        <TiqFeatureIcon name={tool.icon} size="sm" variant={hovered ? 'surface' : 'ghost'} />
       </div>
     </Link>
   )
@@ -647,73 +499,23 @@ function SectionHeader({
   )
 }
 
-function MiniPanel({
-  title,
-  text,
-  tone,
-}: {
-  title: string
-  text: string
-  tone: Accent
-}) {
-  const toneStyles =
-    tone === 'green'
-      ? {
-          border: '1px solid rgba(155,225,29,0.14)',
-          background: 'var(--shell-panel-bg)',
-        }
-      : tone === 'slate'
-        ? {
-            border: '1px solid rgba(148,163,184,0.14)',
-            background: 'var(--shell-panel-bg)',
-          }
-        : {
-            border: '1px solid rgba(116,190,255,0.14)',
-            background: 'var(--shell-panel-bg)',
-          }
+const moreToolsStyle = {
+  marginTop: 24,
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 18,
+  background: 'var(--shell-panel-bg)',
+  padding: 14,
+} as const
 
-  return (
-    <div
-      className="surface-card"
-        style={{
-          padding: 18,
-          ...toneStyles,
-        }}
-      >
-        <div
-          style={{
-          color: 'var(--foreground)',
-          fontWeight: 800,
-          fontSize: '1rem',
-          marginBottom: 8,
-        }}
-      >
-        {title}
-      </div>
-      <div className="subtle-text">{text}</div>
-    </div>
-  )
-}
-
-function MetricCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string
-  value: string
-  helper: string
-}) {
-  return (
-    <div className="metric-card">
-      <div className="metric-label">{label}</div>
-      <div className="metric-value" style={{ fontSize: '1.22rem', lineHeight: 1.15 }}>
-        {value}
-      </div>
-      <div className="subtle-text" style={{ marginTop: 8, fontSize: '0.82rem' }}>
-        {helper}
-      </div>
-    </div>
-  )
-}
+const moreToolsSummaryStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minHeight: 42,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  fontWeight: 900,
+  cursor: 'pointer',
+} as const
 

@@ -12,14 +12,13 @@ export type NavSection = {
 }
 
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { href: '/explore', label: 'Explore', description: 'Find players, teams, leagues, rankings, and public tennis context.' },
-  { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
-  { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
-  { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-  { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
-  { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
-  { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
-  { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
+  { href: '/explore', label: 'Explore', description: 'Players, teams, leagues, and rankings.' },
+  { href: '/player-development', label: 'Improve', description: 'Drills, Level Up, and video.' },
+  { href: '/compete', label: 'Compete', description: 'Matchups, schedules, and results.' },
+  { href: '/captain', label: 'Captain', description: 'Team week, lineups, and chat.' },
+  { href: '/coaches', label: 'Coaches', description: 'Players, plans, and progress.' },
+  { href: '/leagues-and-tournaments', label: 'Leagues', description: 'Seasons, tournaments, and scores.' },
+  { href: '/clubs', label: 'Club', description: 'Programs, staff, and competition.' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [

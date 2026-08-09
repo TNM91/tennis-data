@@ -9,6 +9,7 @@ import PortalToolBar from '@/app/components/portal-tool-bar'
 import TeamConnectionInvite from '@/app/components/team-connection-invite'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
+import { shouldUseFocusedSiteShell } from '@/lib/site-shell-focus'
 
 type SiteShellProps = {
   children: ReactNode
@@ -28,6 +29,7 @@ export default function SiteShell({ children, active, showPortalToolBar = true, 
 function SiteShellContent({ children, active, showPortalToolBar, appMode = false }: SiteShellProps) {
   const pathname = usePathname() || '/'
   const compactAppMode = appMode || pathname === '/team-room'
+  const focusedShell = shouldUseFocusedSiteShell(pathname)
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
@@ -115,10 +117,10 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
             onCompactMenuOpenChange={setCompactSiteMenuOpen}
           />
         ) : null}
-        {!compactAppMode && showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
-        {!compactAppMode ? <TeamConnectionInvite /> : null}
+        {!compactAppMode && !focusedShell && showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
+        {!compactAppMode && !focusedShell ? <TeamConnectionInvite /> : null}
         <div id="main-content" className="page-reveal">{children}</div>
-        {!compactAppMode ? <SiteFooter railLayout={false} railWidth={0} /> : null}
+        {!compactAppMode && !focusedShell ? <SiteFooter railLayout={false} railWidth={0} /> : null}
       </main>
   )
 }
