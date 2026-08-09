@@ -385,7 +385,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               maxWidth: '100%',
             }}
           >
-            {authenticated && resumePrimary ? (
+            {authenticated && resumePrimary && !isMobile ? (
               <Link
                 href={resumePrimary.href}
                 aria-label={`${resumePrimary.actionLabel}: ${getPlatformResumeDetail(resumePrimary) || resumePrimary.label}`}
