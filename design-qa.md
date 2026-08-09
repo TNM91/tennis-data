@@ -36,4 +36,30 @@ Intentional differences preserve the existing product shell and real application
 
 The page is personal, actionable, and consistent with the wider TenAceIQ portal. The first screen answers who the player is, where the rating stands, what is missing, and what to do next without exposing a wall of tools. Remaining deeper analytics stay available below the story without weakening the primary path.
 
+Player profile result: passed
+
+# Home icon and watermark design QA
+
+- Icon reference: `C:\Users\nmein\.codex\codex-remote-attachments\019fba12-8fbb-75b0-bc9c-95ecca0a3945\B63F1A52-216C-41DA-88B0-A08C44E4DC30\1-Pasted-Image-1.jpg`
+- Approved icon source: `public/brand/logos/tenaceiq-iq-navy.jpg`
+- Installed icon comparison: `artifacts/brand-icon-watermark/comparison-home-icon.png`
+- Watermark comparison: `artifacts/brand-icon-watermark/comparison-home-watermark.png`
+- Mobile implementation: `artifacts/brand-icon-watermark/home-watermark-mobile.png`
+
+## Comparison
+
+The source iPhone capture showed the transparent white-and-lime IQ mark disappearing against the light home-screen surface. The rebuilt Apple, PWA, and favicon assets use the approved navy logo as a full-bleed background, preserving the refreshed IQ artwork while restoring immediate contrast.
+
+The original home treatment enlarged the 1552-pixel compact raster twice: once inside the hero and again as a page atmosphere mark. The combined screenshot showed visible edge artifacts and competing oversized marks. The implementation uses one restrained watermark derived from the 6118-pixel approved full lockup and removes the duplicate home-page atmosphere layer.
+
+## Verification
+
+- The Apple touch icon is 180 x 180, RGB, and fully opaque.
+- PWA icons are present at 192 x 192 and 512 x 512.
+- The favicon contains 16, 32, 48, 64, 128, and 256 pixel RGBA PNG frames and is accepted by Next.js.
+- Desktop was checked at 1280 x 720 and mobile at 390 x 844.
+- The home page has no horizontal overflow at either viewport.
+- Browser metadata resolves to the approved brand icon paths.
+- The high-resolution watermark remains subtle, readable, and does not compete with the primary action.
+
 final result: passed

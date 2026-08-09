@@ -389,6 +389,10 @@ footer {
   bottom: clamp(54px, 7vh, 112px);
 }
 
+.brand-atmosphere-mark--home {
+  display: none;
+}
+
 .brand-atmosphere-mark--quiet {
   opacity: 0.12;
   width: min(68vw, 860px);
