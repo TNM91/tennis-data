@@ -73,6 +73,8 @@ describe('Team Room', () => {
     expect(roomPage).toContain('Automatic follow-up')
     expect(roomPage).toContain('Mark seen')
     expect(roomPage).toContain('MatchRecap')
+    expect(roomPage).toContain('/brand/icons/pwa-192.png')
+    expect(roomPage).not.toContain('/tenaceiq-icon-192.png')
     expect(roomApi).toContain("action === 'create_invite'")
     expect(roomApi).toContain("action === 'post_match_card'")
     expect(roomApi).toContain("action === 'respond'")
