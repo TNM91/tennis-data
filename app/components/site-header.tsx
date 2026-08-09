@@ -562,7 +562,6 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               </>
             ) : (
               <>
-                <p style={desktopMenuCueStyle}>Search public tennis context first, then open the tool that fits your next match, team, or season.</p>
                 <Link href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Sign in
                 </Link>
@@ -604,10 +603,6 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               <div style={mobileSearchWrapStyle}>
                 <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
-              <p style={mobileMenuCueStyle}>
-                Pick the tennis support you need next.
-              </p>
-
               {authPending ? null : authenticated ? (
                 <>
                   {resumeItems.length ? (
@@ -674,7 +669,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                     </Link>
                   ))}
                   <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <MobileItemLabel label="Sign in" description="Open your saved tennis work." />
+                    <MobileItemLabel label="Sign in" description="Open saved work." />
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
@@ -687,7 +682,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                       justifyContent: 'space-between',
                     }}
                   >
-                    <MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />
+                    <MobileItemLabel label="Start Free" description="Create your account." />
                     <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                   </Link>
                 </>
@@ -1073,19 +1068,6 @@ const resumeItemContextStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const desktopMenuCueStyle: CSSProperties = {
-  margin: 0,
-  borderRadius: 10,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
-  color: 'var(--foreground-strong)',
-  padding: '10px 12px',
-  fontSize: 12,
-  fontWeight: 850,
-  lineHeight: 1.35,
-  overflowWrap: 'anywhere',
-}
-
 const menuButtonStyle = {
   width: '44px',
   height: '44px',
@@ -1185,19 +1167,6 @@ const mobileItemDescriptionStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 720,
-  lineHeight: 1.35,
-  overflowWrap: 'anywhere',
-} as const
-
-const mobileMenuCueStyle = {
-  margin: '0',
-  borderRadius: '14px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
-  color: 'var(--foreground-strong)',
-  padding: '10px 12px',
-  fontSize: '12px',
-  fontWeight: 850,
   lineHeight: 1.35,
   overflowWrap: 'anywhere',
 } as const
