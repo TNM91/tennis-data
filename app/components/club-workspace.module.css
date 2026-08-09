@@ -247,6 +247,28 @@
 .clubPulseClear span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
 .clubPulseShareStatus { margin: 0; color: var(--club-color, var(--brand-green)); font-size: 11px; font-weight: 850; }
 .clubPulseShareStatus a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.clubAnnouncementBackdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; overflow-y: auto; background: rgba(2, 8, 18, .78); padding: 18px; backdrop-filter: blur(8px); }
+.clubAnnouncementSheet { display: grid; gap: 14px; width: min(100%, 590px); max-height: min(90vh, 760px); overflow-y: auto; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 42%, var(--shell-panel-border)); border-radius: 18px; background: #08172b; box-shadow: 0 24px 80px rgba(0, 0, 0, .45); padding: 18px; }
+.clubAnnouncementHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.clubAnnouncementHeading > div { display: grid; gap: 4px; min-width: 0; }
+.clubAnnouncementHeading h2, .clubAnnouncementHeading p { margin: 0; }
+.clubAnnouncementHeading h2 { font-size: clamp(21px, 4vw, 28px); }
+.clubAnnouncementHeading p:not(.eyebrow) { color: var(--shell-copy-muted); font-size: 13px; line-height: 1.45; }
+.clubAnnouncementTargets { display: grid; gap: 9px; min-width: 0; margin: 0; border: 0; padding: 0; }
+.clubAnnouncementTargets > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.clubAnnouncementTargets > div:first-child > strong { color: var(--foreground-strong); font-size: 12px; font-weight: 900; }
+.clubAnnouncementTargets > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.clubAnnouncementTargets label { display: flex; align-items: center; gap: 9px; min-width: 0; border: 1px solid var(--shell-panel-border); border-radius: 11px; background: var(--shell-chip-bg); padding: 10px; cursor: pointer; }
+.clubAnnouncementTargets input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--club-color, var(--brand-green)); }
+.clubAnnouncementTargets label span { display: grid; gap: 2px; min-width: 0; }
+.clubAnnouncementTargets label strong { overflow-wrap: anywhere; font-size: 12px; }
+.clubAnnouncementTargets label small { color: var(--shell-copy-muted); font-size: 10px; font-weight: 750; }
+.clubAnnouncementPreview { display: grid; gap: 5px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 30%, var(--shell-panel-border)); border-radius: 12px; background: color-mix(in srgb, var(--club-color, var(--brand-green)) 5%, var(--shell-chip-bg)); padding: 12px; }
+.clubAnnouncementPreview > div { display: flex; justify-content: space-between; gap: 10px; color: var(--club-color, var(--brand-green)); font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.clubAnnouncementPreview > strong { font-size: 12px; }
+.clubAnnouncementPreview p { min-height: 42px; margin: 0; color: var(--foreground-strong); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clubAnnouncementError { margin: 0; border: 1px solid rgba(255, 111, 145, .45); border-radius: 10px; background: rgba(255, 61, 111, .1); color: #ffc3d0; padding: 10px; font-size: 12px; font-weight: 750; line-height: 1.4; }
+.clubAnnouncementFooter { display: flex; justify-content: flex-end; gap: 8px; }
 
 .setupCard {
   display: grid;
@@ -418,6 +440,11 @@
   .clubPulseActions > button { flex: 1 1 132px; }
   .clubPulsePost { grid-template-columns: 1fr; }
   .clubPulsePost > div > button { flex: 1; }
+  .clubAnnouncementBackdrop { align-items: end; padding: 8px; }
+  .clubAnnouncementSheet { width: 100%; max-height: 92vh; border-radius: 18px 18px 10px 10px; padding: 14px; }
+  .clubAnnouncementHeading { gap: 9px; }
+  .clubAnnouncementTargets > div:last-child { grid-template-columns: 1fr; }
+  .clubAnnouncementFooter > button { flex: 1; }
   .clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .clubPulseList > a, .clubPulseList > button { grid-template-columns: 76px minmax(0, 1fr) auto; padding: 9px; }
   .inviteAccountCheck { grid-template-columns: 1fr; }

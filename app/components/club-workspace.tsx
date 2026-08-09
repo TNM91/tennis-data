@@ -179,7 +179,7 @@ export default function ClubWorkspace() {
     return response.contacts ?? []
   }, [request, selectedClubId])
 
-  const postWeeklyBrief = useCallback(async (group: ClubGroup, text: string) => {
+  const postClubMessage = useCallback(async (group: ClubGroup, text: string) => {
     if (group.groupType === 'team') {
       if (!group.teamChatScope) throw new Error('Link this team to your Captain profile before posting to Team Chat.')
       await request('/api/team-rooms', {
@@ -549,7 +549,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostWeeklyBrief={postWeeklyBrief} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostMessage={postClubMessage} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'calendar' ? <ClubCalendarPanel workspace={workspace} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
@@ -851,9 +851,10 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
   return 'Clinic'
 }
 
-function ClubPulse({ workspace, roles, onPostWeeklyBrief, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostWeeklyBrief: (group: ClubGroup, text: string) => Promise<string>; onOpenTab: (tab: WorkspaceTab) => void }) {
+function ClubPulse({ workspace, roles, onPostMessage, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onOpenTab: (tab: WorkspaceTab) => void }) {
   const [shareStatus, setShareStatus] = useState('')
   const [showChatTargets, setShowChatTargets] = useState(false)
+  const [showAnnouncementCenter, setShowAnnouncementCenter] = useState(false)
   const [selectedTargetId, setSelectedTargetId] = useState('')
   const [postingTargetId, setPostingTargetId] = useState('')
   const [postedHref, setPostedHref] = useState('')
@@ -919,7 +920,7 @@ function ClubPulse({ workspace, roles, onPostWeeklyBrief, onOpenTab }: { workspa
     setShareStatus('')
     setPostedHref('')
     try {
-      const href = await onPostWeeklyBrief(group, weeklyBrief(group))
+      const href = await onPostMessage(group, weeklyBrief(group))
       setShareStatus(`Weekly brief posted to ${group.name}.`)
       setPostedHref(href)
       setShowChatTargets(false)
@@ -943,7 +944,7 @@ function ClubPulse({ workspace, roles, onPostWeeklyBrief, onOpenTab }: { workspa
     <section className={styles.clubPulse} aria-labelledby="club-pulse-title">
       <div className={styles.clubPulseHeading}>
         <div><p className={styles.eyebrow}>Club pulse</p><h3 id="club-pulse-title">{pulseClear ? 'Everything is moving.' : 'See what needs attention.'}</h3></div>
-        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button>{chatTargets.length ? <button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={openChatPost}>{postingTargetId ? 'Posting...' : 'Post to chat'}</button> : null}<button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
+        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button>{chatTargets.length ? <><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={openChatPost}>{postingTargetId ? 'Posting...' : 'Post to chat'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => { setShareStatus(''); setPostedHref(''); setShowAnnouncementCenter(true) }}>New announcement</button></> : null}<button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
       </div>
       {showChatTargets && selectedTarget ? <div className={styles.clubPulsePost}><label className={styles.field}><span>Post weekly brief to</span><select value={selectedTarget.id} onChange={(event) => setSelectedTargetId(event.target.value)}>{chatTargets.map((group) => <option key={group.id} value={group.id}>{group.name} — {group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</option>)}</select></label><div><button className={styles.primary} disabled={Boolean(postingTargetId)} type="button" onClick={() => void postWeeklyBrief(selectedTarget)}>{postingTargetId ? 'Posting...' : 'Post brief'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => setShowChatTargets(false)}>Cancel</button></div></div> : null}
       <div className={styles.clubPulseStats}>
@@ -959,8 +960,58 @@ function ClubPulse({ workspace, roles, onPostWeeklyBrief, onOpenTab }: { workspa
         {!nextEvent && pulseClear ? <div className={styles.clubPulseClear}><strong>No immediate Club work.</strong><span>New schedules and follow-ups will appear here automatically.</span></div> : null}
       </div>
       {shareStatus ? <p className={styles.clubPulseShareStatus} role="status">{shareStatus}{postedHref ? <> <Link href={postedHref}>Open chat</Link></> : null}</p> : null}
+      {showAnnouncementCenter ? <ClubAnnouncementCenter clubName={workspace.club.name} targets={chatTargets} onClose={() => setShowAnnouncementCenter(false)} onPost={onPostMessage} onPublished={(count, href) => { setShareStatus(`Announcement posted to ${count} ${count === 1 ? 'chat' : 'chats'}.`); setPostedHref(href); setShowAnnouncementCenter(false) }} /> : null}
     </section>
   )
+}
+
+function ClubAnnouncementCenter({ clubName, targets, onClose, onPost, onPublished }: { clubName: string; targets: ClubGroup[]; onClose: () => void; onPost: (group: ClubGroup, text: string) => Promise<string>; onPublished: (count: number, href: string) => void }) {
+  const [body, setBody] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>(targets.length === 1 ? [targets[0].id] : [])
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState('')
+  const selectedTargets = targets.filter((group) => selectedIds.includes(group.id))
+  const message = body.trim().slice(0, 2000)
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !working) onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose, working])
+
+  function toggleTarget(groupId: string) {
+    setSelectedIds((current) => current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId])
+    setError('')
+  }
+
+  async function publishAnnouncement() {
+    if (!message) {
+      setError('Write the announcement first.')
+      return
+    }
+    if (!selectedTargets.length) {
+      setError('Choose at least one team or clinic.')
+      return
+    }
+    setWorking(true)
+    setError('')
+    const results = await Promise.allSettled(selectedTargets.map(async (group) => ({ group, href: await onPost(group, message) })))
+    const posted = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
+    const failed = results.flatMap((result, index) => result.status === 'rejected' ? [{ group: selectedTargets[index], reason: result.reason }] : [])
+    if (!failed.length) {
+      setWorking(false)
+      onPublished(posted.length, posted.length === 1 ? posted[0].href : '')
+      return
+    }
+    setSelectedIds(failed.map((item) => item.group.id))
+    const firstReason = failed[0].reason instanceof Error ? failed[0].reason.message : ''
+    setError(`${posted.length ? `Posted to ${posted.length}. ` : ''}Could not post to ${failed.map((item) => item.group.name).join(', ')}.${firstReason ? ` ${firstReason}` : ''}`)
+    setWorking(false)
+  }
+
+  return <div className={styles.clubAnnouncementBackdrop} onMouseDown={() => { if (!working) onClose() }}><section className={styles.clubAnnouncementSheet} role="dialog" aria-modal="true" aria-labelledby="club-announcement-title" onMouseDown={(event) => event.stopPropagation()}><div className={styles.clubAnnouncementHeading}><div><p className={styles.eyebrow}>Club announcement</p><h2 id="club-announcement-title">Send one clear update.</h2><p>Choose the conversations that need it. TIQ posts the announcement separately in each chat.</p></div><button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Close</button></div><label className={styles.field}><span>Message</span><textarea autoFocus maxLength={2000} value={body} onChange={(event) => { setBody(event.target.value); setError('') }} placeholder="Practice moved to Court 4 at 6:30 PM." /><small>{body.length}/2000</small></label><div className={styles.clubAnnouncementTargets} role="group" aria-labelledby="club-announcement-targets"><div><strong id="club-announcement-targets">Choose conversations</strong><button className={styles.quietButton} disabled={working} type="button" onClick={() => setSelectedIds(selectedIds.length === targets.length ? [] : targets.map((group) => group.id))}>{selectedIds.length === targets.length ? 'Clear all' : 'Select all'}</button></div><div>{targets.map((group) => <label key={group.id}><input checked={selectedIds.includes(group.id)} disabled={working} type="checkbox" onChange={() => toggleTarget(group.id)} /><span><strong>{group.name}</strong><small>{group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</small></span></label>)}</div></div><div className={styles.clubAnnouncementPreview}><div><span>Preview</span><small>{selectedTargets.length ? `${selectedTargets.length} selected` : 'Choose chats'}</small></div><strong>{clubName}</strong><p>{message || 'Your announcement will appear here.'}</p></div>{error ? <p className={styles.clubAnnouncementError} role="alert">{error}</p> : null}<div className={styles.clubAnnouncementFooter}><button className={styles.primary} disabled={working || !message || !selectedTargets.length} type="button" onClick={() => void publishAnnouncement()}>{working ? 'Publishing...' : `Publish to ${selectedTargets.length || 0} ${selectedTargets.length === 1 ? 'chat' : 'chats'}`}</button><button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Cancel</button></div></section></div>
 }
 
 function getClubTodayForTimeZone(timeZone: string) {
@@ -973,7 +1024,7 @@ function getClubTodayForTimeZone(timeZone: string) {
   }
 }
 
-function ClubHome({ workspace, roles, working, onPostWeeklyBrief, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostWeeklyBrief: (group: ClubGroup, text: string) => Promise<string>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onPostMessage, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -1054,7 +1105,7 @@ function ClubHome({ workspace, roles, working, onPostWeeklyBrief, onCopyPendingR
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
-      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onPostWeeklyBrief={onPostWeeklyBrief} onOpenTab={onOpenTab} /> : null}
+      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onPostMessage={onPostMessage} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
