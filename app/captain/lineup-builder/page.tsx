@@ -50,6 +50,13 @@ import {
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
 import {
+  getCompetitionPairRatingIssues,
+  isCompetitionPairRatingEligible,
+  isCompetitionPlayerRatingEligible,
+  resolveTeamCompetitionRules,
+  type TeamCompetitionRules,
+} from '@/lib/competition-rules'
+import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
@@ -530,7 +537,10 @@ function getPlayerBaseRating(player: PlayerRow) {
   return player.overall_rating ?? player.doubles_rating ?? null
 }
 
-function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot) {
+function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot, rules?: TeamCompetitionRules) {
+  if (rules) {
+    return isCompetitionPlayerRatingEligible(rules, getPlayerBaseRating(player), slot.ratingLevel)
+  }
   return isPlayerEligibleForCaptainRating(getPlayerBaseRating(player), slot.ratingLevel)
 }
 
@@ -651,7 +661,8 @@ function scorePoolPlayerForSlot(player: PoolPlayer, slotType: 'singles' | 'doubl
 function recommendLineupFromPool(
   baseSlots: LineupSlot[],
   playerPool: PoolPlayer[],
-  mode: 'balanced' | 'ceiling' = 'balanced'
+  mode: 'balanced' | 'ceiling' = 'balanced',
+  rules?: TeamCompetitionRules,
 ) {
   const nextSlots = cloneSlots(baseSlots)
   const available = [...playerPool]
@@ -660,7 +671,7 @@ function recommendLineupFromPool(
   const pickBest = (slot: LineupSlot) => {
     const ranked = available
       .filter((player) => !used.has(player.id))
-      .filter((player) => isPlayerEligibleForSlot(player, slot))
+      .filter((player) => isPlayerEligibleForSlot(player, slot, rules))
       .map((player) => ({
         player,
         score:
@@ -682,8 +693,31 @@ function recommendLineupFromPool(
       continue
     }
 
-    const first = pickBest(slot)
-    const second = pickBest(slot)
+    const eligible = available
+      .filter((player) => !used.has(player.id))
+      .filter((player) => isPlayerEligibleForSlot(player, slot, rules))
+    const pairCandidates: Array<{ first: PoolPlayer; second: PoolPlayer; score: number }> = []
+    for (let left = 0; left < eligible.length; left += 1) {
+      for (let right = left + 1; right < eligible.length; right += 1) {
+        const first = eligible[left]
+        const second = eligible[right]
+        if (rules && !isCompetitionPairRatingEligible(
+          rules,
+          [getPlayerBaseRating(first), getPlayerBaseRating(second)],
+          slot.ratingLevel,
+        )) continue
+        pairCandidates.push({
+          first,
+          second,
+          score: scorePoolPlayerForSlot(first, 'doubles') + scorePoolPlayerForSlot(second, 'doubles'),
+        })
+      }
+    }
+    const pair = pairCandidates.sort((left, right) => right.score - left.score)[0]
+    const first = pair?.first ?? null
+    const second = pair?.second ?? null
+    if (first) used.add(first.id)
+    if (second) used.add(second.id)
     slot.players = [
       { playerId: first?.id ?? '', playerName: first?.name ?? '' },
       { playerId: second?.id ?? '', playerName: second?.name ?? '' },
@@ -756,7 +790,8 @@ function optimizeLineupFromPool(
   playerPool: PoolPlayer[],
   opponentSlots: LineupSlot[],
   players: PlayerRow[],
-  mode: OptimizerMode
+  mode: OptimizerMode,
+  rules?: TeamCompetitionRules,
 ): OptimizedLineupPlan {
   const teamSlots = cloneSlots(baseSlots)
   const used = new Set<string>()
@@ -862,13 +897,18 @@ function optimizeLineupFromPool(
     const slot = teamSlots[slotIndex]
     const eligiblePlayers = topPool
       .filter((player) => !used.has(player.id))
-      .filter((player) => isPlayerEligibleForSlot(player, slot))
+      .filter((player) => isPlayerEligibleForSlot(player, slot, rules))
     const pairCandidates: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
 
     for (let i = 0; i < eligiblePlayers.length; i += 1) {
       for (let j = i + 1; j < eligiblePlayers.length; j += 1) {
         const a = eligiblePlayers[i]
         const b = eligiblePlayers[j]
+        if (rules && !isCompetitionPairRatingEligible(
+          rules,
+          [getPlayerBaseRating(a), getPlayerBaseRating(b)],
+          slot.ratingLevel,
+        )) continue
         pairCandidates.push({ a, b, score: rankDoubles(a, b) })
       }
     }
@@ -923,7 +963,8 @@ function rebuildCandidateWithLocks(
   currentSlots: LineupSlot[],
   lockedSlotIds: Set<string>,
   lockedPlayerIds: Set<string>,
-  playerPool: PoolPlayer[]
+  playerPool: PoolPlayer[],
+  rules?: TeamCompetitionRules,
 ) {
   const next = cloneSlots(candidateSlots)
   const currentMap = new Map(currentSlots.map((slot) => [slot.id, cloneSlots([slot])[0]]))
@@ -973,7 +1014,7 @@ function rebuildCandidateWithLocks(
   const pickBest = (slot: LineupSlot) => {
     const ranked = playerPool
       .filter((player) => !used.has(player.id))
-      .filter((player) => isPlayerEligibleForSlot(player, slot))
+      .filter((player) => isPlayerEligibleForSlot(player, slot, rules))
       .map((player) => ({ player, score: scoreForFill(player, slot.slotType) }))
       .sort((a, b) => b.score - a.score)
 
@@ -999,7 +1040,8 @@ function rebuildCandidateWithLocks(
 function getLineupWarnings(
   teamSlots: LineupSlot[],
   opponentSlots: LineupSlot[],
-  players: PlayerRow[]
+  players: PlayerRow[],
+  rules?: TeamCompetitionRules,
 ) {
   const warnings: string[] = []
 
@@ -1012,13 +1054,34 @@ function getLineupWarnings(
       const ids = filled.map((player) => player.playerId)
       if (new Set(ids).size !== ids.length) warnings.push(`${sideLabel} ${slot.label} contains the same player twice.`)
 
-      if (typeof slot.ratingLevel === 'number') {
-        for (const selected of filled) {
-          const player = players.find((candidate) => candidate.id === selected.playerId)
-          if (player && !isPlayerEligibleForSlot(player, slot)) {
-            warnings.push(`${selected.playerName || 'Selected player'} is not rated ${slot.ratingLevel.toFixed(1)} for ${slot.label}.`)
-          }
+      for (const selected of filled) {
+        const player = players.find((candidate) => candidate.id === selected.playerId)
+        if (
+          player &&
+          rules &&
+          rules.ratingRule !== 'open' &&
+          rules.ratingRule !== 'local_rules' &&
+          typeof getPlayerBaseRating(player) !== 'number'
+        ) {
+          warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TIQ can confirm eligibility.`)
         }
+        if (player && !isPlayerEligibleForSlot(player, slot, rules)) {
+          warnings.push(
+            typeof slot.ratingLevel === 'number'
+              ? `${selected.playerName || 'Selected player'} is not eligible for ${slot.label}.`
+              : `${selected.playerName || 'Selected player'} is outside this league’s saved rating level.`,
+          )
+        }
+      }
+
+      if (rules && slot.slotType === 'doubles' && filled.length === 2) {
+        const selectedPlayers = filled.map((selected) => players.find((candidate) => candidate.id === selected.playerId))
+        const pairIssues = getCompetitionPairRatingIssues(
+          rules,
+          selectedPlayers.map((player) => player ? getPlayerBaseRating(player) : null),
+          slot.ratingLevel,
+        )
+        pairIssues.forEach((issue) => warnings.push(`${sideLabel} ${slot.label}: ${issue}`))
       }
     }
   }
@@ -1200,6 +1263,15 @@ function LineupBuilderContent() {
   const resolvedMatchFormat = useMemo(
     () => resolveTeamMatchFormat({ leagueName, flight, explicitFormatId: effectiveMatchFormatId }),
     [effectiveMatchFormatId, flight, leagueName]
+  )
+  const competitionRules = useMemo(
+    () => resolveTeamCompetitionRules({
+      leagueName,
+      flight,
+      explicitFormatId: effectiveMatchFormatId,
+      competitionLayer,
+    }),
+    [competitionLayer, effectiveMatchFormatId, flight, leagueName],
   )
   const matchFormatSummary = useMemo(() => getTeamMatchFormatSummary(resolvedMatchFormat), [resolvedMatchFormat])
   const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
@@ -1775,7 +1847,7 @@ function LineupBuilderContent() {
         playerId: suggestedSwapPlayer.id,
         playerName: suggestedSwapPlayer.name,
         availabilityStatus: suggestedSwapPlayer.availabilityStatus,
-        eligibleForCourt: suggestedSwapCourt ? isPlayerEligibleForSlot(suggestedSwapPlayer, suggestedSwapCourt) : false,
+        eligibleForCourt: suggestedSwapCourt ? isPlayerEligibleForSlot(suggestedSwapPlayer, suggestedSwapCourt, competitionRules) : false,
       },
     })
 
@@ -1978,7 +2050,7 @@ function LineupBuilderContent() {
                 playerId: replacement.id,
                 playerName: replacement.name,
                 availabilityStatus: replacement.availabilityStatus,
-                eligibleForCourt: isPlayerEligibleForSlot(replacement, sourceSlot),
+                eligibleForCourt: isPlayerEligibleForSlot(replacement, sourceSlot, competitionRules),
               },
             })
           : null
@@ -2919,8 +2991,8 @@ function LineupBuilderContent() {
   }, [prefillApplied, prefillScenarioId, prefillSingleId, prefillPairIds, savedScenarios, players])
 
   const lineupWarnings = useMemo(
-    () => getLineupWarnings(teamSlots, opponentSlots, builderPlayers),
-    [builderPlayers, opponentSlots, teamSlots]
+    () => getLineupWarnings(teamSlots, opponentSlots, builderPlayers, competitionRules),
+    [builderPlayers, competitionRules, opponentSlots, teamSlots]
   )
 
   const optimizerTeamSlots = useMemo(
@@ -2933,21 +3005,21 @@ function LineupBuilderContent() {
   )
 
   const eliteRecommendation = useMemo(() => {
-    const balanced = recommendLineupFromPool(optimizerTeamSlots, myPlayerPool, 'balanced')
+    const balanced = recommendLineupFromPool(optimizerTeamSlots, myPlayerPool, 'balanced', competitionRules)
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
       analysis: compareLineupStrength(balanced.slots, optimizerOpponentSlots, builderPlayers),
     }
-  }, [builderPlayers, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
+  }, [builderPlayers, competitionRules, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
 
   const optimizedPlans = useMemo(() => {
     return [
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'best'),
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'safe'),
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'upside'),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'best', competitionRules),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'safe', competitionRules),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'upside', competitionRules),
     ]
-  }, [builderPlayers, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
+  }, [builderPlayers, competitionRules, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
@@ -2980,7 +3052,8 @@ function LineupBuilderContent() {
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      myPlayerPool
+      myPlayerPool,
+      competitionRules,
     )
 
     const formatSafeSlots = fitCaptainLineupSlotsToFormat(
@@ -3003,13 +3076,14 @@ function LineupBuilderContent() {
   }
 
   function applyRecommendedTeamLineup() {
-    const next = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced')
+    const next = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced', competitionRules)
     const rebuilt = rebuildCandidateWithLocks(
       next.slots,
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      myPlayerPool
+      myPlayerPool,
+      competitionRules,
     )
     const formatSafeSlots = fitCaptainLineupSlotsToFormat(
       rebuilt,
@@ -3030,7 +3104,8 @@ function LineupBuilderContent() {
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      myPlayerPool
+      myPlayerPool,
+      competitionRules,
     )
     setTeamSlots(rebuilt)
     setMessage('Lineup rebuilt around your locked lines and players.')
@@ -3038,7 +3113,7 @@ function LineupBuilderContent() {
   }
 
   function applyRecommendedOpponentLineup() {
-    const next = recommendLineupFromPool(opponentSlots, opponentPlayerPool, 'ceiling')
+    const next = recommendLineupFromPool(opponentSlots, opponentPlayerPool, 'ceiling', competitionRules)
     setOpponentSlots(next.slots)
     setMessage('Projected opponent lineup applied.')
     setError('')
@@ -3741,6 +3816,7 @@ function LineupBuilderContent() {
                         : 'Three doubles courts, one for each level. Add the three levels to the league or flight name to enforce player ratings.'
                       : `${resolvedMatchFormat.description} ${matchFormatSummary.players} players fill the scorecard.`}
                   </span>
+                  <span><strong>{competitionRules.eligibilityTitle}.</strong> {competitionRules.eligibilityDetail}</span>
                 </div>
               ) : null}
 
@@ -3760,6 +3836,7 @@ function LineupBuilderContent() {
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
                     fixedFormat={isFixedLineupFormat}
+                    competitionRules={competitionRules}
                     focused={backupFocusSlot?.id === slot.id}
                   />
                 ))}
@@ -3805,6 +3882,7 @@ function LineupBuilderContent() {
                     lockedSlotIds={new Set()}
                     lockedPlayerIds={new Set()}
                     fixedFormat={isFixedLineupFormat}
+                    competitionRules={competitionRules}
                   />
                 ))}
               </div>
@@ -4320,6 +4398,7 @@ function SlotEditor({
   lockedSlotIds,
   lockedPlayerIds,
   fixedFormat,
+  competitionRules,
   focused = false,
 }: {
   side: 'team' | 'opponent'
@@ -4334,10 +4413,11 @@ function SlotEditor({
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
   fixedFormat: boolean
+  competitionRules: TeamCompetitionRules
   focused?: boolean
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
-    isPlayerEligibleForSlot(player, slot) || slot.players.some((selected) => selected.playerId === player.id)
+    isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
   )
 
   return (

@@ -32,6 +32,7 @@ import {
   resolveTeamMatchFormat,
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
+import { resolveTeamCompetitionRules } from '@/lib/competition-rules'
 import {
   getTiqIndividualCompetitionFormatDescription,
   getTiqIndividualCompetitionFormatLabel,
@@ -764,6 +765,17 @@ export function LeagueCoordinatorWorkspace() {
   const draftTeamMatchFormatSummary = useMemo(
     () => getTeamMatchFormatSummary(draftTeamMatchFormat),
     [draftTeamMatchFormat],
+  )
+  const draftTeamCompetitionRules = useMemo(
+    () => resolveTeamCompetitionRules({
+      leagueName: draft.leagueName,
+      flight: draft.flight,
+      explicitFormatId: draft.teamMatchFormatId,
+      competitionLayer: 'tiq',
+      scoringSystem: draft.scoringSystem,
+      thirdSetRule: draft.thirdSetRule,
+    }),
+    [draft.flight, draft.leagueName, draft.scoringSystem, draft.teamMatchFormatId, draft.thirdSetRule],
   )
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
@@ -2223,6 +2235,10 @@ export function LeagueCoordinatorWorkspace() {
                       ? draftTeamMatchFormat.description
                       : `${draftTeamMatchFormatSummary.courts} courts · ${draftTeamMatchFormatSummary.players} players. ${draftTeamMatchFormat.description}`}
                   </span>
+                  <span style={fieldHelpText}>
+                    <strong>{draftTeamCompetitionRules.eligibilityTitle}.</strong>{' '}
+                    {draftTeamCompetitionRules.eligibilityDetail}
+                  </span>
                 </label>
               ) : null}
 
@@ -2331,7 +2347,7 @@ export function LeagueCoordinatorWorkspace() {
                 </strong>
                 <p style={infoCardText}>
                   {draft.leagueFormat === 'team'
-                    ? 'Record a team-vs-team event, then each singles or doubles line with winner and score. Standings come from team wins, line wins, and dynamic points when enabled.'
+                    ? `${draftTeamCompetitionRules.teamResultDetail} ${draftTeamCompetitionRules.standingsDetail}`
                     : 'Record Player A, Player B, result date, winner, and score. Completed results sync into the rating engine and league standings.'}
                 </p>
               </div>

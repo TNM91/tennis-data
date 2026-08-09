@@ -24,6 +24,7 @@ import {
   TOURNAMENT_DRAW_FORMATS,
   getTournamentDrawFormatDefinition,
 } from '@/lib/competition-format-registry'
+import { getTournamentOperationsSummary } from '@/lib/competition-rules'
 import {
   buildTournamentPreview,
   buildRoundRobinStandings,
@@ -1581,7 +1582,10 @@ export default function TournamentBuilderWorkspace() {
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}
             </select>
-            <span style={helperTextStyle}>{getTournamentDrawFormatDefinition(format).description}</span>
+            <span style={helperTextStyle}>
+              {getTournamentDrawFormatDefinition(format).description}{' '}
+              {getTournamentOperationsSummary(format)}
+            </span>
           </label>
 
           <div style={segmentedStyle} aria-label="Entrant type">
