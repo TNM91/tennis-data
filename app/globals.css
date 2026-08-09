@@ -344,8 +344,8 @@ footer {
 
 @media (max-width: 819px) {
   .site-header-brand-picture {
-    width: 35px;
-    height: 36px;
+    width: 150px;
+    height: 48px;
   }
 }
 

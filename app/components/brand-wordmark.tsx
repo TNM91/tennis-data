@@ -1,6 +1,6 @@
 'use client'
 
-import Image, { getImageProps } from 'next/image'
+import Image from 'next/image'
 
 type BrandWordmarkProps = {
   compact?: boolean
@@ -104,36 +104,16 @@ export default function BrandWordmark({
 }
 
 function ResponsiveHeaderBrand() {
-  const common = {
-    alt: 'TenAceIQ',
-    fetchPriority: 'high' as const,
-  }
-  const {
-    props: { srcSet: desktopSrcSet },
-  } = getImageProps({
-    ...common,
-    src: BRAND_ASSETS.header.src,
-    width: BRAND_ASSETS.header.width,
-    height: BRAND_ASSETS.header.height,
-    sizes: '168px',
-  })
-  const {
-    props: { srcSet: mobileSrcSet, ...mobileImageProps },
-  } = getImageProps({
-    ...common,
-    src: BRAND_ASSETS.compact.src,
-    width: BRAND_ASSETS.compact.width,
-    height: BRAND_ASSETS.compact.height,
-    sizes: '35px',
-  })
-
   return (
-    <picture className="site-header-brand-picture">
-      <source media="(min-width: 820px)" srcSet={desktopSrcSet} />
-      <source media="(max-width: 819px)" srcSet={mobileSrcSet} />
-      <img
-        {...mobileImageProps}
+    <span className="site-header-brand-picture">
+      <Image
+        src={BRAND_ASSETS.header.src}
         alt="TenAceIQ"
+        width={BRAND_ASSETS.header.width}
+        height={BRAND_ASSETS.header.height}
+        loading="eager"
+        fetchPriority="high"
+        sizes="(max-width: 819px) 150px, 168px"
         style={{
           display: 'block',
           width: '100%',
@@ -142,6 +122,6 @@ function ResponsiveHeaderBrand() {
           objectPosition: 'left center',
         }}
       />
-    </picture>
+    </span>
   )
 }

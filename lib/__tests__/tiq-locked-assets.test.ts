@@ -106,9 +106,10 @@ describe('TenAceIQ locked brand assets', () => {
     expect(tacticalSources).not.toContain('tenaceiq-app-icon.svg')
   })
 
-  it('uses the approved header, mobile, footer, and light-background variants', () => {
+  it('uses the approved full header at every breakpoint plus compact, footer, and light variants', () => {
     const brandSource = readFileSync(join(root, 'app/components/brand-wordmark.tsx'), 'utf8')
     const headerSource = readFileSync(join(root, 'app/components/site-header.tsx'), 'utf8')
+    const globalsSource = readFileSync(join(root, 'app/globals.css'), 'utf8')
 
     expect(brandSource).toContain('/brand/web/header-logo-transparent.png')
     expect(brandSource).toContain('/brand/web/header-iq-compact.png')
@@ -118,9 +119,10 @@ describe('TenAceIQ locked brand assets', () => {
     expect(brandSource).toContain('/brand/logos/tenaceiq-iq-for-light-bg.png')
     expect(brandSource).toContain("objectFit: 'contain'")
     expect(brandSource).not.toMatch(/filter|rotate|skew|boxShadow|borderRadius/)
-    expect(brandSource).toContain('getImageProps')
-    expect(brandSource).toContain('media="(min-width: 820px)"')
-    expect(brandSource).toContain('media="(max-width: 819px)"')
+    expect(brandSource).toContain('src={BRAND_ASSETS.header.src}')
+    expect(brandSource).toContain('sizes="(max-width: 819px) 150px, 168px"')
+    expect(brandSource).not.toContain('getImageProps')
+    expect(globalsSource).toMatch(/@media \(max-width: 819px\)[\s\S]*?\.site-header-brand-picture \{[\s\S]*?width: 150px;[\s\S]*?height: 48px;/)
     expect(headerSource).toContain('<BrandWordmark responsiveHeader />')
   })
 })
