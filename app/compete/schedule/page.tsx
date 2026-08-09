@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import QuickMessageComposer from '@/app/components/quick-message-composer'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
@@ -10,22 +9,14 @@ import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
 } from '@/app/compete/_components/compete-page-frame'
-import { buildCaptainScopedHref } from '@/lib/captain-memory'
-import { cleanText, formatWeekdayDate } from '@/lib/captain-formatters'
+import { formatWeekdayDate } from '@/lib/captain-formatters'
+import {
+  loadPlayerCompetitionSchedule,
+  type PlayerCompetitionScheduleEvent,
+} from '@/lib/player-competition-schedule'
 import { supabase } from '@/lib/supabase'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-
-type ScheduleMatch = {
-  id: string
-  match_date: string | null
-  match_time: string | null
-  facility: string | null
-  league_name: string | null
-  flight: string | null
-  home_team: string | null
-  away_team: string | null
-}
 
 const dataAssistScheduleHref = '/data-assist?intent=upload-source&context=League%20Office%20schedule'
 
@@ -123,17 +114,15 @@ export default function CompeteSchedulePage() {
 
 function CompeteScheduleContent() {
   const { role, userId, entitlements, authResolved } = useAuth()
-  const [matches, setMatches] = useState<ScheduleMatch[]>([])
+  const [matches, setMatches] = useState<PlayerCompetitionScheduleEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const postedDateCount = matches.filter((match) => match.match_date).length
-  const facilityCount = matches.filter((match) => cleanText(match.facility)).length
-  const teamContextCount = matches.filter((match) => cleanText(match.home_team) || cleanText(match.away_team)).length
-  const scheduleReadyCount = matches.filter((match) =>
-    match.match_date && (cleanText(match.home_team) || cleanText(match.away_team)),
-  ).length
+  const postedDateCount = matches.filter((match) => match.date).length
+  const facilityCount = matches.filter((match) => match.location).length
+  const opponentCount = matches.filter((match) => match.opponent).length
+  const scheduleReadyCount = matches.filter((match) => match.date && match.eventType === 'match').length
   const schedulerStatusItems = [
     {
       label: 'Dates',
@@ -146,39 +135,39 @@ function CompeteScheduleContent() {
       ready: matches.length > 0 && facilityCount === matches.length,
     },
     {
-      label: 'Teams',
-      value: matches.length ? `${teamContextCount}/${matches.length}` : 'Waiting',
-      ready: matches.length > 0 && teamContextCount === matches.length,
+      label: 'Opponents',
+      value: matches.length ? `${opponentCount}/${matches.length}` : 'Waiting',
+      ready: matches.length > 0 && opponentCount === matches.length,
     },
   ]
   const calendarLayerItems = [
     {
       label: 'My calendar',
       value: scheduleReadyCount ? `${scheduleReadyCount} visible` : 'Empty',
-      detail: 'Your private tennis view for matches, practices, lessons, and RSVPs.',
-      action: 'Open Messages',
-      href: '/messages#alerts',
+      detail: 'Approved league and tournament dates now join your private tennis week.',
+      action: 'Open My Calendar',
+      href: '/mylab#my-calendar',
     },
     {
       label: 'Shared league',
       value: matches.length ? `${matches.length} events` : 'Waiting',
-      detail: 'League Office dates everyone can trust before team prep starts.',
-      action: 'Upload dates',
-      href: dataAssistScheduleHref,
+      detail: 'Director-approved dates flow here without another player setup step.',
+      action: 'View entries',
+      href: '/compete#my-entries',
     },
     {
       label: 'Team overlays',
-      value: teamContextCount ? `${teamContextCount} ready` : 'Needs teams',
-      detail: 'Captain views can layer team matches, availability, and lineup work.',
-      action: 'Open week',
-      href: '/captain/weekly-brief',
+      value: opponentCount ? `${opponentCount} ready` : 'Waiting',
+      detail: 'Opponent and court details appear as soon as a schedule is confirmed.',
+      action: 'Open schedule',
+      href: '#up-next-schedule',
     },
     {
       label: 'External sync',
-      value: 'Planned',
-      detail: 'Google, Outlook, and iCal should subscribe to the same TIQ calendar feed.',
-      action: 'Coordinate',
-      href: '/messages?compose=support&category=league&subject=Calendar%20sync',
+      value: 'Ready',
+      detail: 'Apple, Google, and Outlook can subscribe to the same TIQ calendar feed.',
+      action: 'Subscribe',
+      href: '/mylab#my-calendar',
     },
   ] as const
 
@@ -189,25 +178,29 @@ function CompeteScheduleContent() {
       setLoading(true)
       setError('')
 
-      const today = new Date().toISOString().slice(0, 10)
-      const { data, error: scheduleError } = await supabase
-        .from('matches')
-        .select('id, match_date, match_time, facility, league_name, flight, home_team, away_team')
-        .is('line_number', null)
-        .gte('match_date', today)
-        .order('match_date', { ascending: true })
-        .limit(12)
-
-      if (!active) return
-
-      if (scheduleError) {
-        setError(scheduleError.message)
-        setMatches([])
-      } else {
-        setMatches((data ?? []) as ScheduleMatch[])
+      if (!userId) {
+        if (active) {
+          setMatches([])
+          setLoading(false)
+        }
+        return
       }
 
-      setLoading(false)
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const schedule = (await loadPlayerCompetitionSchedule(supabase, userId))
+          .filter((item) => item.date >= today)
+          .slice(0, 12)
+
+        if (!active) return
+        setMatches(schedule)
+      } catch (scheduleError) {
+        if (!active) return
+        setError(scheduleError instanceof Error ? scheduleError.message : 'Your competition schedule could not be loaded.')
+        setMatches([])
+      }
+
+      if (active) setLoading(false)
     }
 
     void loadUpcomingMatches()
@@ -215,7 +208,7 @@ function CompeteScheduleContent() {
     return () => {
       active = false
     }
-  }, [])
+  }, [userId])
 
   return (
     <>
@@ -224,12 +217,12 @@ function CompeteScheduleContent() {
       <section id="up-next-schedule" style={panelStyle}>
         <div style={sectionEyebrowStyle}>Up Next</div>
         <div style={sectionTextStyle}>
-          Confirmed matches stay visible before they become team prep or scorebook work.
+          Approved entries and confirmed matches stay together in one personal schedule.
         </div>
-        <div style={schedulerStripStyle} aria-label="League scheduler status">
+        <div style={schedulerStripStyle} aria-label="Approved competition schedule status">
           <div style={schedulerStripCopyStyle}>
-            <strong>Shared scheduler</strong>
-            <span>Confirmed dates become prep, messages, and result entry.</span>
+            <strong>Approved schedule</strong>
+            <span>Directors set the date once. TIQ carries it into your week and calendar feed.</span>
           </div>
           <div style={schedulerStatusGridStyle}>
             {schedulerStatusItems.map((item) => (
@@ -276,7 +269,7 @@ function CompeteScheduleContent() {
         ) : (
           <div style={listStyle}>
             {matches.map((match) => (
-              <ScheduleMatchRow key={match.id} match={match} />
+              <CompetitionScheduleRow key={match.id} match={match} />
             ))}
           </div>
         )}
@@ -465,10 +458,14 @@ function SchedulePathPanel() {
 function EmptyScheduleState() {
   return (
     <div style={emptySchedulerStyle}>
-      <strong>Start the shared calendar.</strong>
-      <span>Build the league schedule, upload reviewed dates, or coordinate match times before results are ready.</span>
+      <strong>Your approved schedule will land here.</strong>
+      <span>Join a TIQ league or tournament. Once your entry is approved, the start date and confirmed matches appear automatically.</span>
       <div style={emptyActionGridStyle}>
-        {emptyScheduleActions.map((action) => (
+        {[
+          { href: '/compete#my-entries', label: 'Check my entries' },
+          { href: '/tournaments', label: 'Find a tournament' },
+          ...emptyScheduleActions.slice(0, 1),
+        ].map((action) => (
           <Link key={action.href} href={action.href} style={emptyActionStyle}>
             {action.label}
           </Link>
@@ -478,56 +475,25 @@ function EmptyScheduleState() {
   )
 }
 
-function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
-  const homeTeam = cleanText(match.home_team)
-  const awayTeam = cleanText(match.away_team)
-  const league = cleanText(match.league_name)
-  const flight = cleanText(match.flight)
-  const facility = cleanText(match.facility)
-  const teams = [homeTeam, awayTeam].filter(Boolean)
+function CompetitionScheduleRow({ match }: { match: PlayerCompetitionScheduleEvent }) {
   const rowReadinessItems = [
-    { label: 'Date', value: match.match_date ? 'Set' : 'Missing', ready: Boolean(match.match_date) },
-    { label: 'Site', value: facility || 'Missing', ready: Boolean(facility) },
-    { label: 'Teams', value: teams.length >= 2 ? 'Ready' : 'Needs team', ready: teams.length >= 2 },
+    { label: 'Entry', value: 'Approved', ready: true },
+    { label: 'Time', value: match.time || 'Pending', ready: Boolean(match.time) },
+    { label: 'Site', value: match.location || 'Pending', ready: Boolean(match.location) },
   ]
-  const primaryTeam = homeTeam || awayTeam
-  const primaryOpponent = primaryTeam === homeTeam ? awayTeam : homeTeam
-  const rowScope = {
-    competitionLayer: 'usta',
-    team: primaryTeam,
-    league,
-    flight,
-    date: match.match_date || '',
-    opponent: primaryOpponent,
-  }
-  const scheduleIsReady = rowReadinessItems.every((item) => item.ready)
-  const rowNextHref = scheduleIsReady && primaryTeam
-    ? buildCaptainScopedHref('/captain/weekly-brief', rowScope)
-    : dataAssistScheduleHref
-  const rowNextLabel = scheduleIsReady ? 'Open prep' : 'Fill schedule'
-  const supportSubject = `Question about ${homeTeam || 'home team'} vs ${awayTeam || 'away team'}`
-  const supportBody = [
-    `Match: ${homeTeam || 'Home team TBD'} vs ${awayTeam || 'Away team TBD'}`,
-    league ? `League: ${league}` : '',
-    flight ? `Flight: ${flight}` : '',
-    match.match_date ? `Date: ${match.match_date}` : '',
-    facility ? `Facility: ${facility}` : '',
-    '',
-    'What I need help with:',
-  ].filter(Boolean).join('\n')
 
   return (
     <div style={rowStyle}>
       <div style={matchInfoStyle}>
         <div style={rowDateStyle}>
-          {formatWeekdayDate(match.match_date, 'Date TBD')}
-          {match.match_time ? ` at ${match.match_time}` : ''}
+          {formatWeekdayDate(match.date, 'Date pending')}
+          {match.time ? ` at ${match.time}` : ''}
         </div>
-        <div style={rowTitleStyle}>
-          {homeTeam || 'Home team TBD'} vs {awayTeam || 'Away team TBD'}
-        </div>
+        <div style={rowTitleStyle}>{match.title}</div>
         <div style={rowMetaStyle}>
-          {[league, flight, facility].filter(Boolean).join(' | ') || 'League context pending'}
+          {[match.kind === 'tournament' ? 'Tournament' : 'League', match.detail, match.location]
+            .filter(Boolean)
+            .join(' · ')}
         </div>
         <div style={rowReadinessGridStyle}>
           {rowReadinessItems.map((item) => (
@@ -537,65 +503,23 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
               <strong>{item.value}</strong>
             </div>
           ))}
-          <Link href={rowNextHref} style={rowNextActionStyle}>
-            {rowNextLabel}
+          <Link href={match.href} style={rowNextActionStyle}>
+            Open {match.kind}
           </Link>
-        </div>
-        <div style={supportActionRowStyle}>
-          <QuickMessageComposer
-            mode="support"
-            triggerLabel="Ask support"
-            category="league"
-            subject={supportSubject}
-            body={supportBody}
-            entityType="schedule_match"
-            entityId={match.id}
-          />
         </div>
       </div>
 
       <div style={teamPrepStackStyle}>
-        {teams.length > 0 ? (
-          teams.map((team) => {
-            const opponent = team === homeTeam ? awayTeam : homeTeam
-            const scope = {
-              competitionLayer: 'usta',
-              team,
-              league,
-              flight,
-              date: match.match_date || '',
-              opponent,
-            }
-
-            return (
-              <div key={team} style={teamPrepRowStyle}>
-                <div style={teamPrepNameStyle}>{team}</div>
-                <div style={prepActionRowStyle}>
-                  <PrepLink href={buildCaptainScopedHref('/captain/weekly-brief', scope)}>Brief</PrepLink>
-                  <PrepLink href={buildCaptainScopedHref('/captain/availability', scope)}>Availability</PrepLink>
-                  <PrepLink href={buildCaptainScopedHref('/captain/lineup-builder', scope)}>Lineup</PrepLink>
-                  {opponent ? (
-                    <QuickMessageComposer
-                      mode="direct"
-                      triggerLabel="Message opponent"
-                      recipientName={opponent}
-                      subject={`${team} vs ${opponent}`}
-                      body={[
-                        `Hi ${opponent},`,
-                        '',
-                        `Checking in about ${team} vs ${opponent}${match.match_date ? ` on ${match.match_date}` : ''}.`,
-                      ].join('\n')}
-                      entityType="schedule_match"
-                      entityId={match.id}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            )
-          })
-        ) : (
-          <PrepLink href="/captain">Open Captain</PrepLink>
-        )}
+        <div style={teamPrepRowStyle}>
+          <div style={teamPrepNameStyle}>
+            {match.opponent ? `Opponent: ${match.opponent}` : 'Your entry is confirmed. Match details are next.'}
+          </div>
+          <div style={{ ...supportActionRowStyle, ...prepActionRowStyle }}>
+            <PrepLink href="/mylab#my-calendar">My Calendar</PrepLink>
+            <PrepLink href="/matchup">Matchup prep</PrepLink>
+            <PrepLink href={match.href}>Competition room</PrepLink>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -1227,7 +1151,6 @@ const supportActionRowStyle = {
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
-  marginTop: '10px',
   minWidth: 0,
 } as const
 
