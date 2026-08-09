@@ -9,8 +9,8 @@ describe('player profile next actions', () => {
     expect(source).toContain("import { DATA_ASSIST_STORY } from '@/lib/product-story'")
     expect(source).toContain('Turn this rating into action.')
     expect(source).not.toContain('PRODUCT_MOTTO')
-    expect(source).toContain('Use this player ID to decide what to work on')
-    expect(source).toContain('what drill or resource should come next')
+    expect(source).toContain('Choose one practical move: build the game, prepare the matchup, or track proof in My Lab.')
+    expect(source).toContain('Open the complete Player ID read')
   })
 
   it('answers player questions with practical CTAs', () => {

@@ -242,7 +242,7 @@ function PlayerProfileContent() {
   const [detailReady, setDetailReady] = useState(false)
 
   const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const useSplitProfileHero = screenWidth >= 1460
+  const useSplitProfileHero = screenWidth >= 1180
   const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !currentUserId ? role : 'member'
 
@@ -588,6 +588,7 @@ function PlayerProfileContent() {
   )
 
   const totalMatches = filteredMatches.length
+  const hasTrackedMatches = totalMatches > 0
   const winPct = totalMatches > 0 ? String(Math.round((wins / totalMatches) * 100)) : '0'
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
@@ -989,11 +990,45 @@ function PlayerProfileContent() {
     { label: 'Save in My Lab', href: '/mylab' },
     { label: 'Message coach', href: playerPathMessageHref },
   ] as const
+  const profilePrimaryActions = [
+    {
+      eyebrow: 'Build the game',
+      label: 'Open Level Up plan',
+      body: playerPathIdentityRead.trainingPriority,
+      href: playerPathLevelUpHref,
+    },
+    {
+      eyebrow: 'Prepare to play',
+      label: isOwnProfile ? 'Find a matchup' : primaryActionLabel,
+      body: isOwnProfile
+        ? 'Choose an opponent and turn the next match into a focused plan.'
+        : 'Compare this player against your profile or choose the other side.',
+      href: isOwnProfile ? secondaryActionHref : primaryActionHref,
+    },
+    {
+      eyebrow: 'Track the proof',
+      label: 'Open My Lab',
+      body: playerPathIdentityRead.proofTarget,
+      href: '/mylab',
+    },
+  ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
     ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
     : null
   const isRosterOnlyProfile = totalMatches === 0 && ustaTeamMemberships.length > 0
+  const ratingViewLabel = getRatingViewLabel(ratingView)
+  const trackedRecordLabel = hasTrackedMatches ? `${wins}-${losses}` : '--'
+  const trackedWinRateLabel = hasTrackedMatches ? `${winPct}%` : '--'
+  const trackedFormLabel = hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'
+  const profileReadTitle = hasTrackedMatches
+    ? `${ratingStatus}. ${trackedRecordLabel} across ${totalMatches} tracked match${totalMatches === 1 ? '' : 'es'}.`
+    : isRosterOnlyProfile
+      ? 'Roster verified. The competitive story starts with the first reviewed scorecard.'
+      : 'Baseline ready. Add match evidence to unlock form and opponent insight.'
+  const profileReadBody = hasTrackedMatches
+    ? `TIQ ${ratingViewLabel.toLowerCase()} is ${formatPublicRating(selectedDynamicRating, player)} with ${confidence.toLowerCase()} confidence. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
+    : 'Ratings and team context are visible now. Win rate, current form, rating movement, and opponent patterns appear after reviewed results connect to this player.'
 
   const scoreBreakdown = useMemo(() => {
     const wins = filteredMatches.filter((m) => m.result === 'W')
@@ -1108,12 +1143,6 @@ function PlayerProfileContent() {
     wordBreak: 'normal',
   }
 
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '560px',
-  }
-
   const dynamicRightColumn: CSSProperties = {
     ...heroRight,
     display: 'grid',
@@ -1152,6 +1181,27 @@ function PlayerProfileContent() {
     ...followRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicProfileContextGridStyle: CSSProperties = {
+    ...profileContextGridStyle,
+    gridTemplateColumns: isSmallMobile
+      ? 'minmax(0, 1fr)'
+      : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicScorecardPanelStyle: CSSProperties = {
+    ...scorecardPanelStyle,
+    gridTemplateColumns: screenWidth >= 1180
+      ? 'minmax(0, 0.88fr) minmax(0, 1.12fr)'
+      : 'minmax(0, 1fr)',
+  }
+
+  const dynamicProfilePrimaryActionGridStyle: CSSProperties = {
+    ...profilePrimaryActionGridStyle,
+    gridTemplateColumns: isMobile
+      ? 'minmax(0, 1fr)'
+      : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicPlayerPathListStyle: CSSProperties = {
@@ -1198,9 +1248,8 @@ function PlayerProfileContent() {
     border: `1px solid ${meterTheme.trendBorder}`,
   }
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const ratingViewLabel = getRatingViewLabel(ratingView)
   const tiqParticipationCount = tiqParticipations.length
-  const featuredPlayerAwards = playerAwards.slice(0, 3)
+  const featuredPlayerAwards = playerAwards.slice(0, 1)
   const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
   const hasPlayerDetailPanels =
     careerHighs.peakRating !== null ||
@@ -1298,7 +1347,25 @@ function PlayerProfileContent() {
                 <TiqFeatureIcon name="playerRatings" size="lg" variant="surface" />
                 <div style={playerHeroIdentityCopyStyle}>
                   <h1 style={dynamicHeroTitle}>{player.name}</h1>
-                  <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
+                  <div style={playerHeroMetaRowStyle}>
+                    <span>{player.location || 'Location not added'}</span>
+                    <span>{isSelfRatedProfile ? 'Self-rated profile' : 'Verified player record'}</span>
+                    {primaryUstaMembership && primaryTeamHref ? (
+                      <Link href={primaryTeamHref} style={playerHeroTeamLinkStyle}>
+                        {primaryUstaMembership.teamName}
+                      </Link>
+                    ) : null}
+                    {featuredPlayerAwards.map((award) => (
+                      <Link
+                        key={award.id}
+                        href={award.sourceType === 'tournament' ? `/tournaments/${encodeURIComponent(award.sourceId)}` : '#profile-trophy-case'}
+                        style={heroAwardPill}
+                      >
+                        <span>{award.badgeCode}</span>
+                        <strong>{award.badgeLabel}</strong>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1311,15 +1378,24 @@ function PlayerProfileContent() {
                 <div style={dynamicPlayerScoreboardMetricsStyle}>
                   <div style={playerScoreboardMetricStyle}>
                     <span>Record</span>
-                    <strong style={playerScoreboardMetricValueStyle}>{wins}-{losses}</strong>
+                    <strong style={playerScoreboardMetricValueStyle}>{trackedRecordLabel}</strong>
+                    <small style={playerScoreboardMetricHintStyle}>
+                      {hasTrackedMatches ? `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}` : 'No reviewed results'}
+                    </small>
                   </div>
                   <div style={playerScoreboardMetricStyle}>
                     <span>Win rate</span>
-                    <strong style={playerScoreboardMetricValueStyle}>{winPct}%</strong>
+                    <strong style={playerScoreboardMetricValueStyle}>{trackedWinRateLabel}</strong>
+                    <small style={playerScoreboardMetricHintStyle}>
+                      {hasTrackedMatches ? `${wins} win${wins === 1 ? '' : 's'}` : 'Starts after first result'}
+                    </small>
                   </div>
                   <div style={playerScoreboardMetricStyle}>
                     <span>Current form</span>
-                    <strong style={playerScoreboardMetricValueStyle}>{getTrendShortLabel(trendDirection)}</strong>
+                    <strong style={playerScoreboardMetricValueStyle}>{trackedFormLabel}</strong>
+                    <small style={playerScoreboardMetricHintStyle}>
+                      {hasTrackedMatches ? `${confidence} confidence` : 'Building match history'}
+                    </small>
                   </div>
                 </div>
               </div>
@@ -1336,84 +1412,67 @@ function PlayerProfileContent() {
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
 
-              <div style={{ ...heroHintRow, display: isMobile ? 'none' : 'flex' }}>
-                <span style={heroHintPill}>{totalMatches} matches</span>
-                <span style={heroHintPill}>{winPct}% win rate</span>
-                <span style={heroHintPill}>{ratingViewLabel} view</span>
-                {ustaTeamMemberships.length > 0 ? (
-                  <span style={heroHintPill}>{ustaTeamMemberships.length} USTA team{ustaTeamMemberships.length === 1 ? '' : 's'}</span>
-                ) : null}
-                {percentile !== null ? (
-                  <span style={{ ...heroHintPill, background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)', border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)', color: 'var(--foreground-strong)' }}>
-                    top {percentile}% of {totalPlayers} players
-                  </span>
-                ) : null}
-                {tiqParticipationCount > 0 ? (
-                  <span style={heroHintPill}>{tiqParticipationCount} TIQ individual leagues</span>
-                ) : null}
-                {featuredPlayerAwards.map((award) => (
-                  <Link
-                    key={award.id}
-                    href={award.sourceType === 'tournament' ? `/tournaments/${encodeURIComponent(award.sourceId)}` : '#profile-trophy-case'}
-                    style={heroAwardPill}
-                  >
-                    <span>{award.badgeCode}</span>
-                    <strong>{award.badgeLabel}</strong>
-                  </Link>
-                ))}
-                {winStreak.count >= 2 ? (
-                  <span
-                    style={{
-                      ...heroHintPill,
-                      background: winStreak.type === 'W' ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)' : 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)',
-                      border: `1px solid ${winStreak.type === 'W' ? 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)' : 'color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)'}`,
-                      color: winStreak.type === 'W' ? 'var(--brand-lime)' : '#fca5a5',
-                    }}
-                  >
-                    {winStreak.count} {winStreak.type === 'W' ? 'win' : 'loss'} streak
-                  </span>
-                ) : null}
-                {longestWinStreak >= 3 ? (
-                  <span style={heroHintPill}>Best streak: {longestWinStreak}W</span>
-                ) : null}
-                {stalenessLabel ? (
-                  <span style={stalenessPill}>{stalenessLabel}</span>
-                ) : null}
+              <div style={dynamicProfileContextGridStyle} aria-label="Player profile context">
+                <div style={profileContextItemStyle}>
+                  <span style={profileContextLabelStyle}>Rating focus</span>
+                  <strong style={profileContextValueStyle}>{ratingViewLabel}</strong>
+                </div>
+                <div style={profileContextItemStyle}>
+                  <span style={profileContextLabelStyle}>Team context</span>
+                  <strong style={profileContextValueStyle}>{primaryUstaMembership?.teamName || 'Independent profile'}</strong>
+                </div>
+                <div style={profileContextItemStyle}>
+                  <span style={profileContextLabelStyle}>Profile depth</span>
+                  <strong style={profileContextValueStyle}>
+                    {hasTrackedMatches
+                      ? `${confidence} confidence`
+                      : isRosterOnlyProfile
+                        ? 'Roster verified'
+                        : 'Baseline only'}
+                  </strong>
+                </div>
               </div>
 
               <div style={meterCard}>
                 <div style={meterHeader}>
                   <div style={meterLeftGroup}>
-                    <div style={meterLabel}>Level-up meter</div>
+                    <div style={meterLabel}>Rating journey</div>
 
                     <div style={meterStatusRow}>
-                      <span style={dynamicStatusPill}>{ratingStatus}</span>
-                      <span style={confidencePill}>{confidence} confidence</span>
+                      <span style={dynamicStatusPill}>{hasTrackedMatches ? ratingStatus : 'Baseline'}</span>
+                      <span style={confidencePill}>{hasTrackedMatches ? `${confidence} confidence` : 'Awaiting match evidence'}</span>
                       {statusStreakMatches >= 3 ? (
                         <span style={confidencePill}>{statusStreakMatches} match streak</span>
                       ) : null}
                     </div>
 
                     <div style={meterSubtext}>
-                      USTA {isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ {ratingViewLabel.toLowerCase()} rating{' '}
-                      {formatPublicRating(selectedDynamicRating, player)}
+                      {hasTrackedMatches
+                        ? `USTA ${isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatPublicRating(selectedDynamicRating, player)}`
+                        : `Official baseline: ${isSelfRatedPlayer(player) ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatPublicRating(selectedDynamicRating, player)} and gains confidence from reviewed results.`}
                     </div>
 
-                    <div style={dynamicTrendPill}>
-                      <span>{getTrendIcon(trendDirection)}</span>
-                      <span>{getTrendLabel(trendDirection)}</span>
-                      <span style={trendDeltaText}>
-                        {recentTrendDelta >= 0 ? '+' : ''}
-                        {recentTrendDelta.toFixed(2)} recent
-                      </span>
-                    </div>
+                    {hasTrackedMatches ? (
+                      <div style={dynamicTrendPill}>
+                        <span>{getTrendIcon(trendDirection)}</span>
+                        <span>{getTrendLabel(trendDirection)}</span>
+                        <span style={trendDeltaText}>
+                          {recentTrendDelta >= 0 ? '+' : ''}
+                          {recentTrendDelta.toFixed(2)} recent
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={profileEmptySignalStyle}>The first reviewed scorecard starts form tracking.</div>
+                    )}
                   </div>
 
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{formatPublicRating(selectedDynamicRating, player)}</div>
                     <div style={meterTarget}>USTA {isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
                     <div style={meterDelta}>
-                      {isSelfRatedProfile
+                      {!hasTrackedMatches
+                        ? 'Match movement not available yet'
+                        : isSelfRatedProfile
                         ? 'TIQ vs USTA Pending'
                         : `TIQ vs USTA ${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
                     </div>
@@ -1482,12 +1541,48 @@ function PlayerProfileContent() {
                   <StatChip label="TIQ" value={formatPublicRating(selectedDynamicRating, player)} accent />
                   <StatChip label="USTA Dynamic" value={isSelfRatedProfile ? 'Pending' : ustaDynamicRating.toFixed(2)} />
                   <StatChip label="USTA Base" value={isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)} />
-                  <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
-                  <StatChip label="Confidence" value={confidence} />
+                  <StatChip label="Trend" value={hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'} />
+                  <StatChip label="Confidence" value={hasTrackedMatches ? confidence : 'Baseline'} />
                   <StatChip
                     label="Form last 5"
-                    value={formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '--'}
+                    value={hasTrackedMatches && formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : 'Awaiting results'}
                   />
+                </div>
+              </div>
+
+              <div style={profileCompetitiveReadStyle}>
+                <div style={profileCompetitiveReadHeadStyle}>
+                  <div style={panelHeadCopyStyle}>
+                    <div style={sectionKicker}>Competitive read</div>
+                    <h2 style={profileCompetitiveReadTitleStyle}>{profileReadTitle}</h2>
+                  </div>
+                  <span style={hasTrackedMatches ? dynamicStatusPill : confidencePill}>
+                    {hasTrackedMatches ? ratingStatus : 'Ready to track'}
+                  </span>
+                </div>
+                <p style={profileCompetitiveReadBodyStyle}>{profileReadBody}</p>
+                <div style={profileCompetitiveSignalGridStyle}>
+                  <div style={profileCompetitiveSignalStyle}>
+                    <span style={profileCompetitiveSignalLabelStyle}>Official base</span>
+                    <strong style={profileCompetitiveSignalValueStyle}>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong>
+                  </div>
+                  <div style={profileCompetitiveSignalStyle}>
+                    <span style={profileCompetitiveSignalLabelStyle}>Next level</span>
+                    <strong style={profileCompetitiveSignalValueStyle}>{nextThreshold.toFixed(1)}</strong>
+                  </div>
+                  <div style={profileCompetitiveSignalStyle}>
+                    <span style={profileCompetitiveSignalLabelStyle}>Team</span>
+                    <strong style={profileCompetitiveSignalValueStyle}>{primaryUstaMembership?.teamName || 'Not connected'}</strong>
+                  </div>
+                </div>
+                <div style={dynamicFollowRow}>
+                  <Link
+                    href={hasTrackedMatches ? primaryActionHref : DATA_ASSIST_STORY.href}
+                    style={playerPrimaryActionStyle}
+                  >
+                    {hasTrackedMatches ? primaryActionLabel : 'Add reviewed scorecard'}
+                  </Link>
+                  {primaryTeamHref ? <MiniLink href={primaryTeamHref}>Open team</MiniLink> : null}
                 </div>
               </div>
 
@@ -1519,120 +1614,121 @@ function PlayerProfileContent() {
           </div>
         </details>
 
-        <article style={scorecardPanelStyle} id="profile-scorecard">
+        <article style={dynamicScorecardPanelStyle} id="profile-scorecard">
           <div style={scorecardMainStyle}>
             <div style={scorecardHeaderStyle}>
               <TiqFeatureIcon name={isOwnProfile ? 'myLab' : 'opponentScouting'} size="md" variant="surface" />
               <div style={panelHeadCopyStyle}>
-                <div style={sectionKicker}>{isOwnProfile ? 'Your read' : 'Quick read'}</div>
-                <h2 style={scorecardTitleStyle}>
-                  {isOwnProfile ? 'Your scorecard is ready.' : 'Scout, compare, then play.'}
-                </h2>
+                <div style={sectionKicker}>Playing identity</div>
+                <h2 style={scorecardTitleStyle}>{playerPathIdentityRead.label}</h2>
               </div>
             </div>
-
-            <div style={scorecardMetricGridStyle}>
-              <div style={scorecardMetricStyle}>
-                <span style={scorecardMetricLabelStyle}>TIQ {ratingViewLabel}</span>
-                <strong style={scorecardMetricValueStyle}>{formatPublicRating(selectedDynamicRating, player)}</strong>
-              </div>
-              <div style={scorecardMetricStyle}>
-                <span style={scorecardMetricLabelStyle}>Record</span>
-                <strong style={scorecardMetricValueStyle}>{wins}-{losses}</strong>
-              </div>
-              <div style={scorecardMetricStyle}>
-                <span style={scorecardMetricLabelStyle}>Win rate</span>
-                <strong style={scorecardMetricValueStyle}>{winPct}%</strong>
-              </div>
-              <div style={scorecardMetricStyle}>
-                <span style={scorecardMetricLabelStyle}>Trend</span>
-                <strong style={scorecardMetricValueStyle}>{getTrendShortLabel(trendDirection)}</strong>
-              </div>
+            <p style={profileGamePlanIntroStyle}>{playerPathIdentityRead.title}</p>
+            <div style={profileGamePlanReadGridStyle} aria-label="Player development read">
+              {playerPathReadItems.map((item) => (
+                <div key={item.label} style={profileGamePlanReadItemStyle}>
+                  <span style={profileGamePlanReadLabelStyle}>{item.label}</span>
+                  <strong style={profileGamePlanReadValueStyle}>{item.value}</strong>
+                </div>
+              ))}
             </div>
+            <Link
+              href={playerPathDevelopmentHref}
+              style={profileGamePlanLinkStyle}
+              aria-label={`Open ${playerPathIdentityRead.label} development read`}
+            >
+              Open full development plan
+            </Link>
           </div>
 
           <div style={scorecardActionRailStyle}>
             <div style={scorecardRailLabelStyle}>Next move</div>
             <div style={scorecardRailValueStyle}>Turn this rating into action.</div>
-            {!isMobile ? (
             <p style={scorecardRailTextStyle}>
-              {isOwnProfile
-                ? 'Use this player ID to decide what to work on, how progress is moving, which matchup to prep, and what drill or resource should come next.'
-                : linkedPlayerId
-                  ? 'Your profile is loaded, so this player ID can become a direct comparison, a My Lab follow, or a training cue.'
-                  : 'Start with this player ID, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
+              Choose one practical move: build the game, prepare the matchup, or track proof in My Lab.
             </p>
-            ) : null}
-            {!isMobile ? (
-            <div style={playerPathIdentityGridStyle} aria-label="Player identity signals">
-              {playerPathIdentitySignals.map((signal) => (
-                <div key={signal.label} style={playerPathIdentityChipStyle}>
-                  <span>{signal.label}</span>
-                  <strong>{signal.value}</strong>
-                </div>
-              ))}
-            </div>
-            ) : null}
-            <Link
-              href={playerPathDevelopmentHref}
-              style={playerPathReadStyle}
-              aria-label={`Open ${playerPathIdentityRead.label} development read`}
-            >
-              <span style={playerPathQuestionStyle}>Player ID first read</span>
-              <strong style={playerPathLabelStyle}>{playerPathIdentityRead.label}</strong>
-              <span style={playerPathBodyStyle}>{playerPathIdentityRead.title}</span>
-              <span style={playerPathReadGridStyle}>
-                {playerPathReadItems.map((item) => (
-                  <span key={item.label} style={playerPathReadItemStyle}>
-                    <em>{item.label}</em>
-                    <b>{item.value}</b>
-                  </span>
-                ))}
-              </span>
-            </Link>
-            {!isMobile ? (
-            <div style={playerPathHandoffStyle} aria-label="Player profile Player ID handoff">
-              <div style={playerPathHandoffCopyStyle}>
-                <span style={playerPathQuestionStyle}>Profile ID handoff</span>
-                <strong style={playerPathLabelStyle}>Turn this read into the next rep.</strong>
-                <span style={playerPathBodyStyle}>Use the same proof target across Level Up, My Lab, and a coach message.</span>
-              </div>
-              <div style={playerPathHandoffGridStyle} aria-label="Player profile Player ID handoff read">
-                {playerPathHandoffItems.map((item) => (
-                  <span key={item.label} style={playerPathHandoffItemStyle}>
-                    <em>{item.label}</em>
-                    <b>{item.value}</b>
-                  </span>
-                ))}
-              </div>
-              <div style={playerPathHandoffActionsStyle}>
-                {playerPathHandoffActions.map((action) => (
-                  <Link key={action.label} href={action.href} style={playerPathHandoffActionStyle}>
-                    {action.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            ) : null}
-            <div style={dynamicPlayerPathListStyle} aria-label="Player path actions">
-              {playerPathActions.map((action) => (
-                <Link
-                  key={action.question}
-                  href={action.href}
-                  style={playerPathActionStyle}
-                  aria-label={`${action.label}: ${action.question}`}
-                  data-player-path-job={action.job}
-                >
-                  <span style={playerPathQuestionStyle}>{action.question}</span>
-                  <strong style={playerPathLabelStyle}>{action.label}</strong>
-                  <span style={playerPathBodyStyle}>{action.body}</span>
+            <div style={dynamicProfilePrimaryActionGridStyle} aria-label="Primary player actions">
+              {profilePrimaryActions.map((action) => (
+                <Link key={action.eyebrow} href={action.href} style={profilePrimaryActionStyle}>
+                  <span style={profilePrimaryActionEyebrowStyle}>{action.eyebrow}</span>
+                  <strong style={profilePrimaryActionTitleStyle}>{action.label}</strong>
+                  <small style={profilePrimaryActionBodyStyle}>{action.body}</small>
                 </Link>
               ))}
             </div>
-            <div style={dynamicFollowRow}>
-              <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
-              <MiniLink href="/rankings">Rankings</MiniLink>
-            </div>
+            <details style={profileDevelopmentDetailsStyle}>
+              <summary style={profileDevelopmentSummaryStyle}>
+                <span style={profileDevelopmentSummaryCopyStyle}>
+                  <small style={profileDevelopmentSummaryEyebrowStyle}>More ways to use this profile</small>
+                  <strong style={profileDevelopmentSummaryTitleStyle}>Open the complete Player ID read</strong>
+                </span>
+                <b style={profileDevelopmentSummaryCountStyle}>5 actions</b>
+              </summary>
+              <div style={profileDevelopmentBodyStyle}>
+                <div style={playerPathIdentityGridStyle} aria-label="Player identity signals">
+                  {playerPathIdentitySignals.map((signal) => (
+                    <div key={signal.label} style={playerPathIdentityChipStyle}>
+                      <span>{signal.label}</span>
+                      <strong>{signal.value}</strong>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href={playerPathDevelopmentHref}
+                  style={playerPathReadStyle}
+                  aria-label={`Open ${playerPathIdentityRead.label} development read`}
+                >
+                  <span style={playerPathQuestionStyle}>Player ID first read</span>
+                  <strong style={playerPathLabelStyle}>{playerPathIdentityRead.label}</strong>
+                  <span style={playerPathBodyStyle}>{playerPathIdentityRead.title}</span>
+                  <span style={playerPathReadGridStyle}>
+                    {playerPathReadItems.map((item) => (
+                      <span key={item.label} style={playerPathReadItemStyle}>
+                        <em>{item.label}</em>
+                        <b>{item.value}</b>
+                      </span>
+                    ))}
+                  </span>
+                </Link>
+                <div style={playerPathHandoffStyle} aria-label="Player profile Player ID handoff">
+                  <div style={playerPathHandoffCopyStyle}>
+                    <span style={playerPathQuestionStyle}>Profile ID handoff</span>
+                    <strong style={playerPathLabelStyle}>Turn this read into the next rep.</strong>
+                    <span style={playerPathBodyStyle}>Use the same proof target across Level Up, My Lab, and a coach message.</span>
+                  </div>
+                  <div style={playerPathHandoffGridStyle} aria-label="Player profile Player ID handoff read">
+                    {playerPathHandoffItems.map((item) => (
+                      <span key={item.label} style={playerPathHandoffItemStyle}>
+                        <em>{item.label}</em>
+                        <b>{item.value}</b>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={playerPathHandoffActionsStyle}>
+                    {playerPathHandoffActions.map((action) => (
+                      <Link key={action.label} href={action.href} style={playerPathHandoffActionStyle}>
+                        {action.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                <div style={dynamicPlayerPathListStyle} aria-label="Player path actions">
+                  {playerPathActions.map((action) => (
+                    <Link
+                      key={action.question}
+                      href={action.href}
+                      style={playerPathActionStyle}
+                      aria-label={`${action.label}: ${action.question}`}
+                      data-player-path-job={action.job}
+                    >
+                      <span style={playerPathQuestionStyle}>{action.question}</span>
+                      <strong style={playerPathLabelStyle}>{action.label}</strong>
+                      <span style={playerPathBodyStyle}>{action.body}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </details>
           </div>
         </article>
 
@@ -3472,12 +3568,13 @@ const heroShell: CSSProperties = {
   margin: '0 auto',
   minWidth: 0,
   borderRadius: '30px',
-  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 7%, var(--portal-surface-bg) 93%), var(--portal-surface-bg) 48%, color-mix(in srgb, var(--brand-green) 5%, var(--portal-surface-bg) 95%))',
+  background: 'linear-gradient(145deg, #0b2038 0%, #07162a 48%, #0a1c2e 100%)',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
   boxShadow:
     '0 26px 80px rgba(2,10,24,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
   overflow: 'hidden',
   position: 'relative',
+  isolation: 'isolate',
 }
 
 const heroNoise: CSSProperties = {
@@ -3528,6 +3625,35 @@ const playerHeroIdentityCopyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const playerHeroMetaRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const playerHeroTeamLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const heroRight: CSSProperties = {
   display: 'grid',
   gap: '14px',
@@ -3561,40 +3687,12 @@ const heroTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
 const followRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '12px',
   marginTop: '-4px',
   minWidth: 0,
-}
-
-const heroHintRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '4px',
-  minWidth: 0,
-}
-
-const heroHintPill: CSSProperties = {
-  maxWidth: '100%',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(7,17,33,0.72)',
-  color: 'var(--foreground-strong)',
-  borderRadius: '999px',
-  padding: '10px 14px',
-  fontSize: '13px',
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
 }
 
 const playerHeroScoreboardStyle: CSSProperties = {
@@ -3683,6 +3781,17 @@ const playerScoreboardMetricValueStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
+const playerScoreboardMetricHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 750,
+  letterSpacing: 0,
+  textTransform: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const playerPrimaryActionStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -3703,11 +3812,57 @@ const playerPrimaryActionStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const stalenessPill: CSSProperties = {
-  ...heroHintPill,
-  background: 'color-mix(in srgb, #fb923c 10%, var(--shell-chip-bg) 90%)',
-  border: '1px solid color-mix(in srgb, #fb923c 24%, var(--shell-panel-border) 76%)',
-  color: '#fed7aa',
+const profileContextGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profileContextItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(5,15,29,0.7)',
+  overflowWrap: 'anywhere',
+}
+
+const profileContextLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 850,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const profileContextValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const profileEmptySignalStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: 34,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const meterCard: CSSProperties = {
@@ -3971,6 +4126,84 @@ const focusMetrics: CSSProperties = {
   gap: '10px',
 }
 
+const profileCompetitiveReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(145deg, rgba(13,39,44,0.96), rgba(7,22,42,0.98))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18)',
+}
+
+const profileCompetitiveReadHeadStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const profileCompetitiveReadTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  maxWidth: 520,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 2vw, 1.65rem)',
+  lineHeight: 1.12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const profileCompetitiveReadBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const profileCompetitiveSignalGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profileCompetitiveSignalStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(4,15,29,0.68)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const profileCompetitiveSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+}
+
+const profileCompetitiveSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
@@ -4161,7 +4394,7 @@ const scorecardPanelStyle: CSSProperties = {
   marginBottom: '18px',
   padding: '18px',
   borderRadius: '28px',
-  background: 'var(--portal-surface-bg)',
+  background: 'linear-gradient(145deg, rgba(8,25,45,0.98), rgba(5,17,33,0.98))',
   border: '1px solid rgba(116,190,255,0.13)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
@@ -4174,31 +4407,183 @@ const scorecardMainStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const profileGamePlanIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const profileGamePlanReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 126px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profileGamePlanReadItemStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 104,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(5,16,31,0.72)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.4,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const profileGamePlanReadLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+}
+
+const profileGamePlanReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const profileGamePlanLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: 42,
+  padding: '0 15px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.1)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const profilePrimaryActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profilePrimaryActionStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 126,
+  padding: 13,
+  borderRadius: 17,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.1), rgba(7,24,39,0.9))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const profilePrimaryActionEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+}
+
+const profilePrimaryActionTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const profilePrimaryActionBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const profileDevelopmentDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  overflow: 'hidden',
+  borderRadius: 17,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(4,15,29,0.56)',
+}
+
+const profileDevelopmentSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: '13px 14px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const profileDevelopmentSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const profileDevelopmentSummaryEyebrowStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 9,
+  fontWeight: 850,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const profileDevelopmentSummaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const profileDevelopmentSummaryCountStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
+const profileDevelopmentBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
 const trophyCasePanelStyle: CSSProperties = {
   ...scorecardPanelStyle,
   gridTemplateColumns: 'minmax(0, 1fr)',
   border: '1px solid rgba(155,225,29,0.16)',
   background:
     'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.05)), var(--portal-surface-bg)',
-}
-
-const heroAwardPill: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 7,
-  maxWidth: '100%',
-  minHeight: 32,
-  padding: '0 10px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontSize: 12,
-  lineHeight: 1.2,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-  whiteSpace: 'normal',
 }
 
 const trophyGridStyle: CSSProperties = {
@@ -4300,49 +4685,6 @@ const scorecardTitleStyle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 950,
   letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const scorecardMetricGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const scorecardMetricStyle: CSSProperties = {
-  display: 'grid',
-  gap: '7px',
-  minHeight: '92px',
-  padding: '14px 16px',
-  borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(6,16,32,0.58)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const scorecardMetricLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 950,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const scorecardMetricValueStyle: CSSProperties = {
-  color: 'var(--brand-lime)',
-  fontSize: 'clamp(1.7rem, 3vw, 2.45rem)',
-  lineHeight: 1,
-  fontWeight: 950,
-  letterSpacing: 0,
-  textTransform: 'none',
   overflowWrap: 'anywhere',
 }
 
@@ -4457,6 +4799,25 @@ const playerPathHandoffStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
   color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
+}
+
+const heroAwardPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  maxWidth: '100%',
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const playerPathHandoffCopyStyle: CSSProperties = {

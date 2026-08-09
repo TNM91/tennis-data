@@ -324,7 +324,7 @@ describe('Explore responsive surfaces', () => {
     expect(leagueDetailSource).toContain('DATA_ASSIST_STORY.cta')
     expect(teamDetailSource).toContain('reviewed Data Assist scorecards')
     expect(teamDetailSource).toContain('DATA_ASSIST_STORY.cta')
-    expect(playerDetailSource).toContain('scorecardMetricGridStyle')
+    expect(playerDetailSource).toContain('profileGamePlanReadGridStyle')
     expect(playerDetailSource).toContain('scorecardActionRailStyle')
 
     for (const sourceText of [leaguesSource, leagueDetailSource, teamDetailSource, playerDetailSource]) {
@@ -343,7 +343,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(playerDetailSource, 'mobileMatchCardStyle')).toContain('minWidth: 0')
     expect(styleBlock(playerDetailSource, 'mobileMatchMetaGridStyle')).toContain("minmax(min(100%, 110px), 1fr)")
     expect(functionBlock(playerDetailSource, 'signalGridStyle')).toContain('minWidth: 0')
-    expect(styleBlock(playerDetailSource, 'scorecardMetricGridStyle')).toContain('minWidth: 0')
+    expect(styleBlock(playerDetailSource, 'profileGamePlanReadGridStyle')).toContain('minWidth: 0')
     expect(styleBlock(playerDetailSource, 'scorecardActionRailStyle')).toContain("overflowWrap: 'anywhere'")
     expect(functionBlock(playerDetailSource, 'reportStatusPillStyle')).toContain('minWidth: 0')
     expect(playerDetailSource).toContain('aria-label="Search latest match history"')
