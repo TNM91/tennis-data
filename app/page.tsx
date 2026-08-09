@@ -6,6 +6,7 @@ import {
 } from '@/app/components/public-command-center'
 import GuestTierPreviewGate from '@/app/components/guest-tier-preview-gate'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
+import ClubCommunicationAttentionCard from '@/app/components/club-communication-attention-card'
 import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
@@ -43,6 +44,7 @@ export default function HomePage() {
   return (
     <PublicPageShell active="home">
       <main style={pageWrapStyle}>
+        <ClubCommunicationAttentionCard />
         <ActiveTeamChallengeCard />
         <CommandHero
           title={`${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`}

@@ -1,3 +1,5 @@
+import { canRunClubPrograms, type Club, type ClubMembership } from './club-workspace'
+
 export type ClubCommunicationItem = {
   id: string
   channelId: string
@@ -28,4 +30,10 @@ export function getClubCommunicationAttentionItems(items: ClubCommunicationItem[
 
 export function sortClubCommunicationItems(left: ClubCommunicationItem, right: ClubCommunicationItem) {
   return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+}
+
+export function getPreferredClubCommunicationStaffClub(clubs: Club[], memberships: ClubMembership[], preferredClubId = '') {
+  const staffMemberships = memberships.filter((membership) => canRunClubPrograms(membership.roles))
+  const membership = staffMemberships.find((item) => item.clubId === preferredClubId) ?? staffMemberships[0]
+  return membership ? clubs.find((club) => club.id === membership.clubId) ?? null : null
 }
