@@ -269,11 +269,7 @@ export default function TournamentBuilderWorkspace() {
   )
   const entryEligibilityById = useMemo(() => new Map(entryRecords.map((entry) => [
     entry.id,
-    assessPlayerEligibility(tournamentEligibilityRequirement, {
-      playerId: entry.linkedPlayerId,
-      rating: entry.selfRating,
-      ratingSource: 'self',
-    }),
+    assessPlayerEligibility(tournamentEligibilityRequirement, entry.eligibilityEvidence),
   ])), [entryRecords, tournamentEligibilityRequirement])
   void awardRefresh
   const [cloudAwardRecords, setCloudAwardRecords] = useState<TiqAwardRecord[]>([])
@@ -1208,8 +1204,8 @@ export default function TournamentBuilderWorkspace() {
   async function approveTournamentEntry(entry: TiqTournamentEntryRecord) {
     if (!selectedRecord || entrySyncingId) return
     const eligibility = entryEligibilityById.get(entry.id) || assessPlayerEligibility(tournamentEligibilityRequirement, {
-      rating: entry.selfRating,
-      ratingSource: 'self',
+      ...entry.eligibilityEvidence,
+      rating: entry.eligibilityEvidence.rating ?? entry.selfRating,
     })
     if (eligibility.status === 'ineligible') {
       setNotice(`${entry.playerName} does not match this division. ${eligibility.detail}`)
@@ -1933,7 +1929,7 @@ export default function TournamentBuilderWorkspace() {
                     <div>
                       <strong>{entry.playerName}</strong>
                       <div style={smallNoteStyle}>
-                        Self-rated {entry.selfRating.toFixed(1)} S{entry.smsOptIn ? ' - SMS opt-in' : ''}
+                        {entry.linkedPlayerId ? 'TIQ profile' : 'Self-rated'} {Number(entry.eligibilityEvidence.rating ?? entry.selfRating).toFixed(1)}{entry.smsOptIn ? ' - SMS opt-in' : ''}
                       </div>
                     </div>
                     <span style={eligibilityStatusStyle(eligibility)}>{eligibility?.label || 'Review eligibility'}</span>

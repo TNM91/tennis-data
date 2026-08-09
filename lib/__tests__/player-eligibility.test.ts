@@ -49,25 +49,32 @@ describe('player eligibility evidence', () => {
       rating: 4,
       ratingSource: 'verified',
       mixedPairRole: 'woman',
+      mixedPairRoleSource: 'verified',
       ageDivisions: ['40 & Over'],
+      ageDivisionSource: 'verified',
     }).status).toBe('verified')
     expect(assessPlayerEligibility(requirement, {
       rating: 4,
       ratingSource: 'self',
       mixedPairRole: 'woman',
+      mixedPairRoleSource: 'self',
       ageDivisions: [],
     }).status).toBe('needs_confirmation')
     expect(assessPlayerEligibility(requirement, {
       rating: 4.5,
       ratingSource: 'verified',
       mixedPairRole: 'woman',
+      mixedPairRoleSource: 'verified',
       ageDivisions: ['40 & Over'],
+      ageDivisionSource: 'verified',
     }).status).toBe('ineligible')
     expect(assessPlayerEligibility(requirement, {
       rating: 4.5,
       ratingSource: 'self',
       mixedPairRole: 'woman',
+      mixedPairRoleSource: 'self',
       ageDivisions: ['40 & Over'],
+      ageDivisionSource: 'self',
     }).status).toBe('needs_confirmation')
   })
 
@@ -95,5 +102,26 @@ describe('player eligibility evidence', () => {
     expect(leagueOffice).toContain('does not match this division')
     expect(leagueService).toContain('attachPlayerEligibilityAssessments')
     expect(leagueService).toContain('eligibility_reviewed_by: userId')
+  })
+
+  it('collects missing evidence before tournament and individual-league registration', () => {
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260809000600_add_registration_eligibility_evidence.sql'),
+      'utf8',
+    )
+    const tournamentEntry = readFileSync(join(process.cwd(), 'app/tournaments/[id]/page.tsx'), 'utf8')
+    const leagueEntry = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
+    const evidenceLoader = readFileSync(join(process.cwd(), 'lib/registration-player-evidence.ts'), 'utf8')
+
+    expect(migration).toContain('eligibility_rating_source')
+    expect(migration).toContain('eligibility_age_division_source')
+    expect(migration).toContain('submitted_by_user_id = auth.uid()')
+    expect(migration).toContain('p.linked_player_id::text = player_id')
+    expect(tournamentEntry).toContain('TIQ profile connected')
+    expect(tournamentEntry).toContain('Complete the highlighted eligibility check')
+    expect(leagueEntry).toContain('Your TIQ player is connected')
+    expect(leagueEntry).not.toContain('Choose an existing TenAceIQ player')
+    expect(evidenceLoader).toContain('loadUserProfileLink')
+    expect(evidenceLoader).toContain("rating_source) === 'verified'")
   })
 })

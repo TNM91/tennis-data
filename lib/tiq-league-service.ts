@@ -33,7 +33,10 @@ import { normalizeSeasonLabel } from '@/lib/season-labels'
 import {
   assessPlayerEligibility,
   buildPlayerEligibilityRequirement,
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
   type PlayerEligibilityAssessment,
+  type PlayerEligibilityEvidence,
   type PlayerEligibilityStatus,
 } from '@/lib/player-eligibility'
 
@@ -91,6 +94,7 @@ export type TiqPlayerLeagueEntryRecord = {
   eligibilityStatus: PlayerEligibilityStatus
   eligibilityReviewNote: string
   eligibility: PlayerEligibilityAssessment
+  eligibilityEvidence: PlayerEligibilityEvidence
 }
 
 type TiqLeagueRow = {
@@ -148,6 +152,12 @@ type TiqPlayerEntryRow = {
   entry_status?: string | null
   eligibility_status?: string | null
   eligibility_review_note?: string | null
+  eligibility_rating?: number | null
+  eligibility_rating_source?: string | null
+  eligibility_mixed_pair_role?: string | null
+  eligibility_mixed_pair_role_source?: string | null
+  eligibility_age_division?: string | null
+  eligibility_age_division_source?: string | null
 }
 
 type TiqLeagueRemotePayload = {
@@ -205,6 +215,15 @@ type TiqPlayerEntryPayload = {
   player_id: string
   player_location: string
   entry_status: TiqLeagueEntryStatus
+  eligibility_status: PlayerEligibilityStatus
+  eligibility_review_note: string
+  eligibility_rating: number | null
+  eligibility_rating_source: string
+  eligibility_mixed_pair_role: string
+  eligibility_mixed_pair_role_source: string
+  eligibility_age_division: string | null
+  eligibility_age_division_source: string
+  eligibility_submitted_at: string
   created_by_user_id: string
   updated_by_user_id: string
 }
@@ -321,6 +340,15 @@ function normalizePlayerEntryRow(row: TiqPlayerEntryRow): TiqPlayerLeagueEntryRe
   if (!leagueId || !playerName) return null
 
   const eligibilityStatus = normalizePlayerEligibilityStatus(row.eligibility_status)
+  const eligibilityEvidence: PlayerEligibilityEvidence = {
+    playerId: cleanText(row.player_id),
+    rating: typeof row.eligibility_rating === 'number' ? row.eligibility_rating : null,
+    ratingSource: normalizePlayerRatingSource(row.eligibility_rating_source),
+    mixedPairRole: normalizeMixedPairRole(row.eligibility_mixed_pair_role),
+    mixedPairRoleSource: normalizePlayerRatingSource(row.eligibility_mixed_pair_role_source),
+    ageDivisions: [cleanText(row.eligibility_age_division)].filter(Boolean),
+    ageDivisionSource: normalizePlayerRatingSource(row.eligibility_age_division_source),
+  }
   return {
     leagueId,
     playerName,
@@ -329,6 +357,7 @@ function normalizePlayerEntryRow(row: TiqPlayerEntryRow): TiqPlayerLeagueEntryRe
     entryStatus: normalizeEntryStatus(row.entry_status),
     eligibilityStatus,
     eligibilityReviewNote: cleanText(row.eligibility_review_note),
+    eligibilityEvidence,
     eligibility: {
       status: eligibilityStatus,
       label: eligibilityStatus === 'verified' ? 'Eligibility verified' : eligibilityStatus === 'ineligible' ? 'Does not match' : 'Confirm eligibility',
@@ -350,12 +379,10 @@ async function attachPlayerEligibilityAssessments(
 ) {
   if (!entries.length) return entries
   const playerIds = Array.from(new Set(entries.map((entry) => entry.playerId).filter(Boolean)))
-  const playerNames = Array.from(new Set(entries.map((entry) => entry.playerName).filter(Boolean)))
   const select = 'id,name,overall_rating,doubles_rating,singles_rating,rating_source,mixed_pair_role'
-  const [byIdResult, byNameResult] = await Promise.all([
-    playerIds.length ? supabase.from('players').select(select).in('id', playerIds) : Promise.resolve({ data: [], error: null }),
-    playerNames.length ? supabase.from('players').select(select).in('name', playerNames) : Promise.resolve({ data: [], error: null }),
-  ])
+  const byIdResult = playerIds.length
+    ? await supabase.from('players').select(select).in('id', playerIds)
+    : { data: [], error: null }
   type EligibilityPlayerRow = {
     id?: string | null
     name?: string | null
@@ -365,33 +392,42 @@ async function attachPlayerEligibilityAssessments(
     rating_source?: string | null
     mixed_pair_role?: string | null
   }
-  const playerRows = [...((byIdResult.data || []) as EligibilityPlayerRow[]), ...((byNameResult.data || []) as EligibilityPlayerRow[])]
+  const playerRows = (byIdResult.data || []) as EligibilityPlayerRow[]
   const playerById = new Map(playerRows.map((row) => [cleanText(row.id), row]))
-  const playerByName = new Map(playerRows.map((row) => [cleanText(row.name).toLowerCase(), row]))
   const evidencePlayerIds = Array.from(new Set(playerRows.map((row) => cleanText(row.id)).filter(Boolean)))
   const rosterResult = evidencePlayerIds.length
-    ? await supabase.from('team_roster_members').select('player_id,age_division').in('player_id', evidencePlayerIds)
+    ? await supabase.from('team_roster_members').select('player_id,age_division,rating_source,mixed_pair_role').in('player_id', evidencePlayerIds)
     : { data: [], error: null }
-  const ageDivisionsByPlayerId = new Map<string, string[]>()
-  for (const row of (rosterResult.data || []) as Array<{ player_id?: string | null; age_division?: string | null }>) {
+  type RosterEvidenceRow = { player_id?: string | null; age_division?: string | null; rating_source?: string | null; mixed_pair_role?: string | null }
+  const rosterEvidenceByPlayerId = new Map<string, RosterEvidenceRow[]>()
+  for (const row of (rosterResult.data || []) as RosterEvidenceRow[]) {
     const playerId = cleanText(row.player_id)
-    const ageDivision = cleanText(row.age_division)
-    if (!playerId || !ageDivision) continue
-    ageDivisionsByPlayerId.set(playerId, [...(ageDivisionsByPlayerId.get(playerId) || []), ageDivision])
+    if (!playerId) continue
+    rosterEvidenceByPlayerId.set(playerId, [...(rosterEvidenceByPlayerId.get(playerId) || []), row])
   }
   const requirement = buildPlayerEligibilityRequirement(league?.leagueName, league?.flight, league?.notes)
 
   return entries.map((entry) => {
-    const player = playerById.get(entry.playerId) || playerByName.get(entry.playerName.toLowerCase())
+    const player = playerById.get(entry.playerId)
     const playerId = cleanText(player?.id) || entry.playerId
-    const eligibility = assessPlayerEligibility(requirement, {
+    const verifiedRosterRows = (rosterEvidenceByPlayerId.get(playerId) || [])
+      .filter((row) => normalizePlayerRatingSource(row.rating_source) === 'verified')
+    const verifiedRosterRole = verifiedRosterRows
+      .map((row) => normalizeMixedPairRole(row.mixed_pair_role))
+      .find((role) => role !== 'unknown') || 'unknown'
+    const verifiedAgeDivisions = verifiedRosterRows.map((row) => cleanText(row.age_division)).filter(Boolean)
+    const playerRole = normalizeMixedPairRole(player?.mixed_pair_role)
+    const submittedRole = normalizeMixedPairRole(entry.eligibilityEvidence.mixedPairRole)
+    const evidence: PlayerEligibilityEvidence = {
       playerId,
-      rating: player?.overall_rating ?? player?.doubles_rating ?? player?.singles_rating ?? null,
-      ratingSource: player?.rating_source,
-      mixedPairRole: player?.mixed_pair_role,
-      ageDivisions: ageDivisionsByPlayerId.get(playerId) || [],
-    })
-    return { ...entry, eligibility }
+      rating: player?.overall_rating ?? player?.doubles_rating ?? player?.singles_rating ?? entry.eligibilityEvidence.rating ?? null,
+      ratingSource: player ? player.rating_source : entry.eligibilityEvidence.ratingSource,
+      mixedPairRole: verifiedRosterRole !== 'unknown' ? verifiedRosterRole : playerRole !== 'unknown' ? playerRole : submittedRole,
+      mixedPairRoleSource: verifiedRosterRole !== 'unknown' ? 'verified' : playerRole !== 'unknown' ? 'self' : entry.eligibilityEvidence.mixedPairRoleSource,
+      ageDivisions: verifiedAgeDivisions.length ? verifiedAgeDivisions : entry.eligibilityEvidence.ageDivisions,
+      ageDivisionSource: verifiedAgeDivisions.length ? 'verified' : entry.eligibilityEvidence.ageDivisionSource,
+    }
+    return { ...entry, eligibilityEvidence: evidence, eligibility: assessPlayerEligibility(requirement, evidence) }
   })
 }
 
@@ -724,7 +760,7 @@ export async function listTiqPlayerLeagueEntries(
   try {
     const { data, error } = await supabase
       .from(TIQ_PLAYER_ENTRIES_TABLE)
-      .select('league_id, player_name, player_id, player_location, entry_status, eligibility_status, eligibility_review_note')
+      .select('league_id, player_name, player_id, player_location, entry_status, eligibility_status, eligibility_review_note, eligibility_rating, eligibility_rating_source, eligibility_mixed_pair_role, eligibility_mixed_pair_role_source, eligibility_age_division, eligibility_age_division_source')
       .eq('league_id', normalizedLeagueId)
 
     if (error) throw error
@@ -753,6 +789,7 @@ export async function listTiqPlayerLeagueEntries(
         entryStatus: 'active',
         eligibilityStatus: 'needs_confirmation',
         eligibilityReviewNote: '',
+        eligibilityEvidence: {},
         eligibility: assessPlayerEligibility(
           buildPlayerEligibilityRequirement(fallbackLeague?.leagueName, fallbackLeague?.flight, fallbackLeague?.notes),
           {},
@@ -948,6 +985,7 @@ export async function addTiqPlayerLeagueEntry(
     playerName: string
     playerId?: string | null
     playerLocation?: string | null
+    eligibilityEvidence?: PlayerEligibilityEvidence
   },
 ): Promise<{ record: TiqLeagueRecord | null; source: TiqLeagueStorageSource; warning: string | null }> {
   const normalizedLeagueId = cleanText(input.leagueId)
@@ -963,12 +1001,27 @@ export async function addTiqPlayerLeagueEntry(
       }
     }
 
+    const leagueResult = await getTiqLeagueById(normalizedLeagueId)
+    const eligibilityEvidence = input.eligibilityEvidence || {}
+    const eligibility = assessPlayerEligibility(
+      buildPlayerEligibilityRequirement(leagueResult.record?.leagueName, leagueResult.record?.flight, leagueResult.record?.notes),
+      eligibilityEvidence,
+    )
     const payload: TiqPlayerEntryPayload = {
       league_id: normalizedLeagueId,
       player_name: normalizedPlayerName,
       player_id: cleanText(input.playerId),
       player_location: cleanText(input.playerLocation),
       entry_status: 'pending',
+      eligibility_status: eligibility.status,
+      eligibility_review_note: eligibility.detail,
+      eligibility_rating: typeof eligibilityEvidence.rating === 'number' ? eligibilityEvidence.rating : null,
+      eligibility_rating_source: normalizePlayerRatingSource(eligibilityEvidence.ratingSource),
+      eligibility_mixed_pair_role: normalizeMixedPairRole(eligibilityEvidence.mixedPairRole),
+      eligibility_mixed_pair_role_source: normalizePlayerRatingSource(eligibilityEvidence.mixedPairRoleSource),
+      eligibility_age_division: cleanText(eligibilityEvidence.ageDivisions?.[0]) || null,
+      eligibility_age_division_source: normalizePlayerRatingSource(eligibilityEvidence.ageDivisionSource),
+      eligibility_submitted_at: new Date().toISOString(),
       created_by_user_id: userId,
       updated_by_user_id: userId,
     }

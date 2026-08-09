@@ -728,6 +728,7 @@ function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeag
     entryStatus: 'active' as const,
     eligibilityStatus: 'needs_confirmation' as const,
     eligibilityReviewNote: '',
+    eligibilityEvidence: {},
     eligibility: {
       status: 'needs_confirmation' as const,
       label: 'Confirm eligibility',

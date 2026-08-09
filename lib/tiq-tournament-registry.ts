@@ -5,7 +5,12 @@ import {
   normalizeTournamentDrawFormatId,
   type TournamentDrawFormatId,
 } from './competition-format-registry'
-import type { PlayerEligibilityStatus } from './player-eligibility'
+import {
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
+  type PlayerEligibilityEvidence,
+  type PlayerEligibilityStatus,
+} from './player-eligibility'
 
 export const TIQ_TOURNAMENT_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_tournament_registry'
 
@@ -109,6 +114,7 @@ export type TiqTournamentEntryRecord = {
   linkedPlayerId: string
   eligibilityStatus: PlayerEligibilityStatus
   eligibilityReviewNote: string
+  eligibilityEvidence: PlayerEligibilityEvidence
   createdAt: string
   updatedAt: string
 }
@@ -121,6 +127,8 @@ export type TiqTournamentEntryDraft = {
   selfRating?: number
   smsOptIn?: boolean
   consentNote?: string
+  linkedPlayerId?: string | null
+  eligibilityEvidence?: PlayerEligibilityEvidence
 }
 
 export type TiqTournamentAlertRecord = {
@@ -194,6 +202,12 @@ type TiqTournamentEntryCloudRow = {
   linked_player_id: string | null
   eligibility_status: string | null
   eligibility_review_note: string | null
+  eligibility_rating: number | null
+  eligibility_rating_source: string | null
+  eligibility_mixed_pair_role: string | null
+  eligibility_mixed_pair_role_source: string | null
+  eligibility_age_division: string | null
+  eligibility_age_division_source: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -406,6 +420,15 @@ function mapTournamentEntryRow(row: TiqTournamentEntryCloudRow): TiqTournamentEn
     linkedPlayerId: cleanText(row.linked_player_id),
     eligibilityStatus: normalizeEligibilityStatus(row.eligibility_status),
     eligibilityReviewNote: cleanText(row.eligibility_review_note),
+    eligibilityEvidence: {
+      playerId: cleanText(row.linked_player_id),
+      rating: typeof row.eligibility_rating === 'number' ? row.eligibility_rating : normalizeSelfRating(row.self_rating),
+      ratingSource: normalizePlayerRatingSource(row.eligibility_rating_source),
+      mixedPairRole: normalizeMixedPairRole(row.eligibility_mixed_pair_role),
+      mixedPairRoleSource: normalizePlayerRatingSource(row.eligibility_mixed_pair_role_source),
+      ageDivisions: [cleanText(row.eligibility_age_division)].filter(Boolean),
+      ageDivisionSource: normalizePlayerRatingSource(row.eligibility_age_division_source),
+    },
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
@@ -414,6 +437,66 @@ function mapTournamentEntryRow(row: TiqTournamentEntryCloudRow): TiqTournamentEn
 function normalizeEligibilityStatus(value: unknown): PlayerEligibilityStatus {
   if (value === 'verified' || value === 'ineligible') return value
   return 'needs_confirmation'
+}
+
+async function attachTournamentEntryPlayerEvidence(entries: TiqTournamentEntryRecord[]) {
+  const playerIds = Array.from(new Set(entries.map((entry) => entry.linkedPlayerId).filter(Boolean)))
+  if (!playerIds.length) return entries
+  const [playerResult, rosterResult] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id,overall_rating,doubles_rating,singles_rating,rating_source,mixed_pair_role')
+      .in('id', playerIds),
+    supabase
+      .from('team_roster_members')
+      .select('player_id,age_division,rating_source,mixed_pair_role')
+      .in('player_id', playerIds),
+  ])
+  type EvidencePlayerRow = {
+    id?: string | null
+    overall_rating?: number | null
+    doubles_rating?: number | null
+    singles_rating?: number | null
+    rating_source?: string | null
+    mixed_pair_role?: string | null
+  }
+  type EvidenceRosterRow = {
+    player_id?: string | null
+    age_division?: string | null
+    rating_source?: string | null
+    mixed_pair_role?: string | null
+  }
+  const playerById = new Map(((playerResult.data || []) as EvidencePlayerRow[]).map((row) => [cleanText(row.id), row]))
+  const rosterByPlayerId = new Map<string, EvidenceRosterRow[]>()
+  for (const row of (rosterResult.data || []) as EvidenceRosterRow[]) {
+    const playerId = cleanText(row.player_id)
+    if (!playerId) continue
+    rosterByPlayerId.set(playerId, [...(rosterByPlayerId.get(playerId) || []), row])
+  }
+
+  return entries.map((entry) => {
+    const player = playerById.get(entry.linkedPlayerId)
+    if (!player) return entry
+    const verifiedRoster = (rosterByPlayerId.get(entry.linkedPlayerId) || [])
+      .filter((row) => normalizePlayerRatingSource(row.rating_source) === 'verified')
+    const verifiedRole = verifiedRoster
+      .map((row) => normalizeMixedPairRole(row.mixed_pair_role))
+      .find((role) => role !== 'unknown') || 'unknown'
+    const playerRole = normalizeMixedPairRole(player.mixed_pair_role)
+    const verifiedAgeDivisions = verifiedRoster.map((row) => cleanText(row.age_division)).filter(Boolean)
+    return {
+      ...entry,
+      eligibilityEvidence: {
+        playerId: entry.linkedPlayerId,
+        rating: player.overall_rating ?? player.doubles_rating ?? player.singles_rating ?? entry.eligibilityEvidence.rating,
+        ratingSource: normalizePlayerRatingSource(player.rating_source),
+        mixedPairRole: verifiedRole !== 'unknown' ? verifiedRole : playerRole !== 'unknown' ? playerRole : entry.eligibilityEvidence.mixedPairRole,
+        mixedPairRoleSource: verifiedRole !== 'unknown' ? 'verified' : playerRole !== 'unknown' ? 'self' : entry.eligibilityEvidence.mixedPairRoleSource,
+        ageDivisions: verifiedAgeDivisions.length ? verifiedAgeDivisions : entry.eligibilityEvidence.ageDivisions,
+        ageDivisionSource: verifiedAgeDivisions.length ? 'verified' : entry.eligibilityEvidence.ageDivisionSource,
+      },
+    }
+  })
 }
 
 function mapTournamentAlertRow(row: TiqTournamentAlertCloudRow): TiqTournamentAlertRecord {
@@ -601,6 +684,7 @@ export async function upsertTiqTournamentRecordForUser(
 }
 
 export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
+  const eligibilityEvidence = draft.eligibilityEvidence || {}
   const payload = {
     tournament_id: cleanText(draft.tournamentId),
     player_name: cleanText(draft.playerName),
@@ -609,6 +693,14 @@ export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
     self_rating: normalizeSelfRating(draft.selfRating),
     sms_opt_in: Boolean(draft.smsOptIn),
     consent_note: cleanText(draft.consentNote),
+    linked_player_id: cleanText(draft.linkedPlayerId) || null,
+    eligibility_rating: typeof eligibilityEvidence.rating === 'number' ? eligibilityEvidence.rating : normalizeSelfRating(draft.selfRating),
+    eligibility_rating_source: normalizePlayerRatingSource(eligibilityEvidence.ratingSource || 'self'),
+    eligibility_mixed_pair_role: normalizeMixedPairRole(eligibilityEvidence.mixedPairRole),
+    eligibility_mixed_pair_role_source: normalizePlayerRatingSource(eligibilityEvidence.mixedPairRoleSource),
+    eligibility_age_division: cleanText(eligibilityEvidence.ageDivisions?.[0]) || null,
+    eligibility_age_division_source: normalizePlayerRatingSource(eligibilityEvidence.ageDivisionSource),
+    eligibility_submitted_at: new Date().toISOString(),
     status: 'pending',
   }
 
@@ -619,14 +711,12 @@ export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
   const result = await supabase
     .from('tiq_tournament_entries')
     .insert(payload)
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
-    .maybeSingle()
 
   if (result.error) {
     return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
   }
 
-  return { data: mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow), error: null, source: 'cloud' as const }
+  return { data: null, error: null, source: 'cloud' as const }
 }
 
 export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
@@ -635,7 +725,7 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
 
   const result = await supabase
     .from('tiq_tournament_entries')
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,created_at,updated_at')
     .eq('tournament_id', cleanId)
     .order('created_at', { ascending: false })
 
@@ -643,7 +733,8 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
     return { data: [], error: new Error(result.error.message), source: 'cloud' as const }
   }
 
-  return { data: ((result.data || []) as TiqTournamentEntryCloudRow[]).map(mapTournamentEntryRow), error: null, source: 'cloud' as const }
+  const entries = ((result.data || []) as TiqTournamentEntryCloudRow[]).map(mapTournamentEntryRow)
+  return { data: await attachTournamentEntryPlayerEvidence(entries), error: null, source: 'cloud' as const }
 }
 
 export async function updateTiqTournamentEntryStatus(
@@ -671,7 +762,7 @@ export async function updateTiqTournamentEntryStatus(
     .from('tiq_tournament_entries')
     .update(payload)
     .eq('id', cleanText(entryId))
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {

@@ -42,7 +42,6 @@ import {
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
-import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/player-directory'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
@@ -92,6 +91,15 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityEvidence,
+} from '@/lib/player-eligibility'
+import {
+  loadRegistrationPlayerEvidence,
+  type RegistrationPlayerEvidence,
+} from '@/lib/registration-player-evidence'
 
 function formatDateTime(value: string | null | undefined) {
   const parsed = value ? new Date(value) : null
@@ -411,7 +419,6 @@ function TiqLeagueDetailContent() {
   const [entryValue, setEntryValue] = useState('')
   const [selectedTeamKey, setSelectedTeamKey] = useState('')
   const [teamOptions, setTeamOptions] = useState<TeamDirectoryOption[]>([])
-  const [playerOptions, setPlayerOptions] = useState<PlayerDirectoryOption[]>([])
   const [teamEntries, setTeamEntries] = useState<TiqTeamLeagueEntryRecord[]>([])
   const [playerEntries, setPlayerEntries] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [individualStandings, setIndividualStandings] = useState<IndividualStanding[]>([])
@@ -420,7 +427,11 @@ function TiqLeagueDetailContent() {
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [savedSuggestions, setSavedSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
   const [suggestionStorageSource, setSuggestionStorageSource] = useState<TiqSuggestionStorageSource>('local')
-  const [selectedPlayerId, setSelectedPlayerId] = useState('')
+  const [registrationPlayer, setRegistrationPlayer] = useState<RegistrationPlayerEvidence | null>(null)
+  const [registrationPlayerLoading, setRegistrationPlayerLoading] = useState(false)
+  const [entryRating, setEntryRating] = useState('3.5')
+  const [entryAgeAttested, setEntryAgeAttested] = useState(false)
+  const [entryDivisionAttested, setEntryDivisionAttested] = useState(false)
   const [resultPlayerA, setResultPlayerA] = useState('')
   const [resultPlayerB, setResultPlayerB] = useState('')
   const [resultWinner, setResultWinner] = useState('')
@@ -462,16 +473,14 @@ function TiqLeagueDetailContent() {
       setError('')
 
       try {
-        const [leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
+        const [leagueResult, loadedTeamOptions] = await Promise.all([
           getTiqLeagueById(leagueIdParam || routeSlug),
           listTeamDirectoryOptions().catch(() => []),
-          listPlayerDirectoryOptions().catch(() => []),
         ])
 
         if (!active) return
 
         setTeamOptions(loadedTeamOptions)
-        setPlayerOptions(loadedPlayerOptions)
         setStorageSource(leagueResult.source)
         setStorageWarning(leagueResult.warning || '')
 
@@ -492,7 +501,8 @@ function TiqLeagueDetailContent() {
             : '',
         )
         setSelectedTeamKey('')
-        setSelectedPlayerId('')
+        setEntryAgeAttested(false)
+        setEntryDivisionAttested(false)
       } catch (err) {
         if (!active) return
         setError(err instanceof Error ? err.message : 'Failed to load this TIQ league.')
@@ -507,6 +517,47 @@ function TiqLeagueDetailContent() {
       active = false
     }
   }, [leagueIdParam, routeSlug])
+
+  useEffect(() => {
+    if (!authResolved) return
+    let active = true
+    if (!userId) {
+      const timeoutId = window.setTimeout(() => {
+        if (!active) return
+        setRegistrationPlayer(null)
+        setRegistrationPlayerLoading(false)
+      }, 0)
+      return () => {
+        active = false
+        window.clearTimeout(timeoutId)
+      }
+    }
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return
+      setRegistrationPlayerLoading(true)
+      void loadRegistrationPlayerEvidence(userId)
+        .then((player) => {
+          if (!active) return
+          setRegistrationPlayer(player)
+          if (player && typeof player.evidence.rating === 'number') {
+            setEntryRating(player.evidence.rating.toFixed(1))
+          }
+        })
+        .finally(() => {
+          if (active) setRegistrationPlayerLoading(false)
+        })
+    }, 0)
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+    }
+  }, [authResolved, userId])
+
+  useEffect(() => {
+    if (league?.leagueFormat !== 'individual' || !registrationPlayer) return
+    const timeoutId = window.setTimeout(() => setEntryValue(registrationPlayer.name), 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [league?.leagueFormat, registrationPlayer])
 
   useEffect(() => {
     if (!league || league.leagueFormat === 'team' || entryValue.trim()) return
@@ -664,6 +715,44 @@ function TiqLeagueDetailContent() {
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
     league?.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
+  const entryRequirement = useMemo(
+    () => buildPlayerEligibilityRequirement(league?.leagueName, league?.flight, league?.notes),
+    [league?.flight, league?.leagueName, league?.notes],
+  )
+  const entryEvidence = useMemo<PlayerEligibilityEvidence>(() => {
+    const profileEvidence = registrationPlayer?.evidence || {}
+    const profileAgeDivisions = profileEvidence.ageDivisions || []
+    const profileRoleMatches = entryRequirement.mixedPairRole === 'unknown'
+      || profileEvidence.mixedPairRole === entryRequirement.mixedPairRole
+    return {
+      ...profileEvidence,
+      playerId: registrationPlayer?.id || null,
+      rating: typeof profileEvidence.rating === 'number' ? profileEvidence.rating : Number.parseFloat(entryRating),
+      ratingSource: registrationPlayer && typeof profileEvidence.rating === 'number' ? profileEvidence.ratingSource : 'self',
+      mixedPairRole: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? entryRequirement.mixedPairRole
+        : profileEvidence.mixedPairRole,
+      mixedPairRoleSource: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? 'self'
+        : profileEvidence.mixedPairRoleSource,
+      ageDivisions: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? [...profileAgeDivisions, entryRequirement.ageDivision]
+        : profileAgeDivisions,
+      ageDivisionSource: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? 'self'
+        : profileEvidence.ageDivisionSource,
+    }
+  }, [entryAgeAttested, entryDivisionAttested, entryRating, entryRequirement, registrationPlayer])
+  const entryEligibility = useMemo(
+    () => assessPlayerEligibility(entryRequirement, entryEvidence),
+    [entryEvidence, entryRequirement],
+  )
+  const entryHasAgeEvidence = !entryRequirement.ageDivision
+    || Boolean(entryEvidence.ageDivisions?.includes(entryRequirement.ageDivision))
+  const entryHasDivisionEvidence = entryRequirement.mixedPairRole === 'unknown'
+    || entryEvidence.mixedPairRole === entryRequirement.mixedPairRole
+  const individualEntryBlocked = league?.leagueFormat === 'individual'
+    && (entryEligibility.status === 'ineligible' || !entryHasAgeEvidence || !entryHasDivisionEvidence)
   const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const seasonWindowText =
@@ -711,16 +800,6 @@ function TiqLeagueDetailContent() {
       entryStatus: 'active' as const,
     }))
   }, [league, playerEntries])
-  const availablePlayerOptions = useMemo(() => {
-    if (!league || league.leagueFormat !== 'individual') return []
-
-    return playerOptions.filter((option) => {
-      if (visiblePlayerEntries.some((entry) => entry.playerName.toLowerCase() === option.name.toLowerCase())) {
-        return false
-      }
-      return true
-    })
-  }, [league, playerOptions, visiblePlayerEntries])
   const scheduleParticipantOptions = useMemo<ResultParticipantOption[]>(() => {
     if (!league) return []
 
@@ -801,7 +880,6 @@ function TiqLeagueDetailContent() {
         ]
       : []
   const selectedTeamOption = teamOptions.find((item) => item.key === selectedTeamKey) || null
-  const selectedPlayerOption = playerOptions.find((item) => item.id === selectedPlayerId) || null
   const resultPlayerAOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
@@ -1613,13 +1691,6 @@ function TiqLeagueDetailContent() {
     setEntryValue(option.team)
   }
 
-  function handleSelectExistingPlayer(nextId: string) {
-    setSelectedPlayerId(nextId)
-    const option = playerOptions.find((item) => item.id === nextId)
-    if (!option) return
-    setEntryValue(option.name)
-  }
-
   async function refreshScheduleItems(leagueId: string) {
     const latest = await listTiqLeagueScheduleItems(leagueId)
     setScheduleItems(latest.items)
@@ -1959,6 +2030,11 @@ function TiqLeagueDetailContent() {
       return
     }
 
+    if (individualEntryBlocked) {
+      setStatus('Complete the eligibility check before sending this request to League Office.')
+      return
+    }
+
     const currentList = league.leagueFormat === 'team' ? league.teams : league.players
     if (currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
       setStatus(
@@ -2006,8 +2082,9 @@ function TiqLeagueDetailContent() {
           : await addTiqPlayerLeagueEntry({
               leagueId: league.id,
               playerName: normalizedEntry,
-              playerId: selectedPlayerOption?.id || '',
-              playerLocation: selectedPlayerOption?.location || '',
+              playerId: registrationPlayer?.id || '',
+              playerLocation: registrationPlayer?.location || '',
+              eligibilityEvidence: entryEvidence,
             })
 
       if (result.record) {
@@ -2719,6 +2796,14 @@ function TiqLeagueDetailContent() {
                     : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
+                {league.leagueFormat === 'individual' ? (
+                  <div style={entryRequirementRailStyle} aria-label="Entry requirements">
+                    <span style={entryRequirementItemStyle}>{entryRequirement.ratingLevel ? `${entryRequirement.ratingLevel.toFixed(1)} division` : 'Open rating or format review'}</span>
+                    <span style={entryRequirementItemStyle}>{entryRequirement.ageDivision || 'No age restriction detected'}</span>
+                    <span style={entryRequirementItemStyle}>{entryRequirement.mixedPairRole === 'unknown' ? 'Open division' : `${entryRequirement.mixedPairRole === 'man' ? "Men's" : "Women's"} division`}</span>
+                  </div>
+                ) : null}
+
                 <label style={fieldLabel}>
                   <span>{league.leagueFormat === 'team' ? 'Team name' : 'Player name'}</span>
                   <input
@@ -2726,7 +2811,7 @@ function TiqLeagueDetailContent() {
                     onChange={(event) => setEntryValue(event.target.value)}
                     placeholder={entryPlaceholder}
                     style={inputStyle}
-                    disabled={saving}
+                    disabled={saving || Boolean(league.leagueFormat === 'individual' && registrationPlayer)}
                   />
                 </label>
 
@@ -2755,22 +2840,71 @@ function TiqLeagueDetailContent() {
                     </select>
                   </label>
                 ) : (
-                  <label style={fieldLabel}>
-                    <span>Choose an existing TenAceIQ player</span>
-                    <select
-                      value={selectedPlayerId}
-                      onChange={(event) => handleSelectExistingPlayer(event.target.value)}
-                      style={inputStyle}
-                      disabled={saving}
-                    >
-                      <option value="">Use a custom player name</option>
-                      {availablePlayerOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div style={entryEvidenceStackStyle}>
+                    <div style={entryProfileCardStyle}>
+                      <div>
+                        <span style={entryProfileEyebrowStyle}>{registrationPlayer ? 'Your TIQ player is connected' : 'Player profile'}</span>
+                        <strong style={entryProfileTitleStyle}>
+                          {registrationPlayerLoading
+                            ? 'Checking your player profile...'
+                            : registrationPlayer
+                              ? registrationPlayer.name
+                              : 'Link your player profile for faster approval.'}
+                        </strong>
+                        <small style={entryProfileMetaStyle}>
+                          {registrationPlayer
+                            ? [registrationPlayer.location, typeof registrationPlayer.evidence.rating === 'number' ? `${registrationPlayer.evidence.rating.toFixed(1)} ${registrationPlayer.evidence.ratingSource === 'verified' ? 'verified' : 'self-rated'}` : 'Rating not saved'].filter(Boolean).join(' | ')
+                            : 'A self-rating can be submitted now. League Office will confirm it.'}
+                        </small>
+                      </div>
+                      {!registrationPlayer && !registrationPlayerLoading ? (
+                        <GhostLink href={`/profile?next=${encodeURIComponent(`/explore/leagues/tiq/${league.id}#league-requests`)}`}>
+                          Set up profile
+                        </GhostLink>
+                      ) : null}
+                    </div>
+
+                    <label style={fieldLabel}>
+                      <span>{registrationPlayer && typeof registrationPlayer.evidence.rating === 'number' ? 'Profile rating' : 'Self-rating'}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="7"
+                        step="0.1"
+                        value={entryRating}
+                        onChange={(event) => setEntryRating(event.target.value)}
+                        style={inputStyle}
+                        disabled={saving || Boolean(registrationPlayer && typeof registrationPlayer.evidence.rating === 'number')}
+                      />
+                    </label>
+
+                    {entryRequirement.ageDivision && !registrationPlayer?.evidence.ageDivisions?.includes(entryRequirement.ageDivision) ? (
+                      <label style={entryEvidenceToggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={entryAgeAttested}
+                          onChange={(event) => setEntryAgeAttested(event.target.checked)}
+                        />
+                        <span>I meet the {entryRequirement.ageDivision} requirement.</span>
+                      </label>
+                    ) : null}
+
+                    {entryRequirement.mixedPairRole !== 'unknown' && registrationPlayer?.evidence.mixedPairRole !== entryRequirement.mixedPairRole ? (
+                      <label style={entryEvidenceToggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={entryDivisionAttested}
+                          onChange={(event) => setEntryDivisionAttested(event.target.checked)}
+                        />
+                        <span>I am eligible for the {entryRequirement.mixedPairRole === 'man' ? "men's" : "women's"} division.</span>
+                      </label>
+                    ) : null}
+
+                    <div style={entryEligibilityStatusStyle} data-status={entryEligibility.status}>
+                      <strong>{entryEligibility.label}</strong>
+                      <span>{entryEligibility.detail}</span>
+                    </div>
+                  </div>
                 )}
 
                 {status ? <div style={statusBanner}>{status}</div> : null}
@@ -2793,10 +2927,10 @@ function TiqLeagueDetailContent() {
                   <button
                     type="button"
                     onClick={handleEntrySubmit}
-                    disabled={!entryEnabled || saving}
+                    disabled={!entryEnabled || saving || registrationPlayerLoading || Boolean(individualEntryBlocked)}
                     style={{
                       ...primaryButton,
-                      ...(!entryEnabled || saving ? disabledButton : {}),
+                      ...(!entryEnabled || saving || registrationPlayerLoading || individualEntryBlocked ? disabledButton : {}),
                     }}
                   >
                     {saving ? 'Saving...' : entryLabel}
@@ -4552,6 +4686,102 @@ const formatCalloutText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
+}
+
+const entryRequirementRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const entryRequirementItemStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(7,17,33,0.46)',
+  color: 'rgba(229,238,251,0.82)',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const entryEvidenceStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const entryProfileCardStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.07)',
+}
+
+const entryProfileEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: '#8bc9ff',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const entryProfileTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: '#f8fbff',
+  fontSize: 15,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const entryProfileMetaStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'rgba(214,228,246,0.72)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const entryEvidenceToggleStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'min-content minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,206,116,0.24)',
+  background: 'rgba(255,206,116,0.07)',
+  color: '#f8fbff',
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.4,
+}
+
+const entryEligibilityStatusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: '#f8fbff',
+  fontSize: 12,
+  lineHeight: 1.45,
   overflowWrap: 'anywhere',
 }
 

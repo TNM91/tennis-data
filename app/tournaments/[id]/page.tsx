@@ -22,6 +22,16 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getTournamentDrawFormatDefinition } from '@/lib/competition-format-registry'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
+import { useAuth } from '@/app/components/auth-provider'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityEvidence,
+} from '@/lib/player-eligibility'
+import {
+  loadRegistrationPlayerEvidence,
+  type RegistrationPlayerEvidence,
+} from '@/lib/registration-player-evidence'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,6 +62,7 @@ function TournamentPublicInner() {
   const params = useParams<{ id: string }>()
   const tournamentId = decodeURIComponent(params?.id || '')
   const { isMobile } = useViewportBreakpoints()
+  const { userId, authResolved } = useAuth()
   const [record, setRecord] = useState<TiqTournamentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,6 +76,10 @@ function TournamentPublicInner() {
   const [entryNotice, setEntryNotice] = useState('')
   const [entrySubmitting, setEntrySubmitting] = useState(false)
   const [entryFocusedField, setEntryFocusedField] = useState<string | null>(null)
+  const [registrationPlayer, setRegistrationPlayer] = useState<RegistrationPlayerEvidence | null>(null)
+  const [registrationPlayerLoading, setRegistrationPlayerLoading] = useState(false)
+  const [entryAgeAttested, setEntryAgeAttested] = useState(false)
+  const [entryDivisionAttested, setEntryDivisionAttested] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -85,6 +100,53 @@ function TournamentPublicInner() {
     return () => {
       active = false
     }
+  }, [tournamentId])
+
+  useEffect(() => {
+    if (!authResolved) return
+    let active = true
+    if (!userId) {
+      const timeoutId = window.setTimeout(() => {
+        if (!active) return
+        setRegistrationPlayer(null)
+        setRegistrationPlayerLoading(false)
+      }, 0)
+      return () => {
+        active = false
+        window.clearTimeout(timeoutId)
+      }
+    }
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return
+      setRegistrationPlayerLoading(true)
+      void loadRegistrationPlayerEvidence(userId)
+        .then((player) => {
+          if (!active) return
+          setRegistrationPlayer(player)
+          if (player) {
+            setEntryName((current) => current || player.name)
+            if (typeof player.evidence.rating === 'number') {
+              setEntryRating(player.evidence.rating.toFixed(1))
+            }
+          }
+        })
+        .finally(() => {
+          if (active) setRegistrationPlayerLoading(false)
+        })
+    }, 0)
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+    }
+  }, [authResolved, userId])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setEntryAgeAttested(false)
+      setEntryDivisionAttested(false)
+      setEntryNotice('')
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [tournamentId])
 
   useEffect(() => {
@@ -119,6 +181,43 @@ function TournamentPublicInner() {
   }, [matches])
   const tournamentStatus = record ? getPublicTournamentStatus(record, summary?.completedMatches ?? 0, summary?.totalMatches ?? 0) : null
   const podiumSummary = useMemo(() => buildTournamentPodiumSummary(awards), [awards])
+  const entryRequirement = useMemo(
+    () => buildPlayerEligibilityRequirement(record?.name, record?.directorNotes),
+    [record?.directorNotes, record?.name],
+  )
+  const entryEvidence = useMemo<PlayerEligibilityEvidence>(() => {
+    const profileEvidence = registrationPlayer?.evidence || {}
+    const profileAgeDivisions = profileEvidence.ageDivisions || []
+    const profileRoleMatches = entryRequirement.mixedPairRole === 'unknown'
+      || profileEvidence.mixedPairRole === entryRequirement.mixedPairRole
+    return {
+      ...profileEvidence,
+      playerId: registrationPlayer?.id || null,
+      rating: typeof profileEvidence.rating === 'number' ? profileEvidence.rating : Number.parseFloat(entryRating),
+      ratingSource: registrationPlayer && typeof profileEvidence.rating === 'number' ? profileEvidence.ratingSource : 'self',
+      mixedPairRole: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? entryRequirement.mixedPairRole
+        : profileEvidence.mixedPairRole,
+      mixedPairRoleSource: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? 'self'
+        : profileEvidence.mixedPairRoleSource,
+      ageDivisions: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? [...profileAgeDivisions, entryRequirement.ageDivision]
+        : profileAgeDivisions,
+      ageDivisionSource: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? 'self'
+        : profileEvidence.ageDivisionSource,
+    }
+  }, [entryAgeAttested, entryDivisionAttested, entryRating, entryRequirement, registrationPlayer])
+  const entryEligibility = useMemo(
+    () => assessPlayerEligibility(entryRequirement, entryEvidence),
+    [entryEvidence, entryRequirement],
+  )
+  const entryHasAgeEvidence = !entryRequirement.ageDivision
+    || Boolean(entryEvidence.ageDivisions?.includes(entryRequirement.ageDivision))
+  const entryHasDivisionEvidence = entryRequirement.mixedPairRole === 'unknown'
+    || entryEvidence.mixedPairRole === entryRequirement.mixedPairRole
+  const entryCannotSubmit = entryEligibility.status === 'ineligible' || !entryHasAgeEvidence || !entryHasDivisionEvidence
   const publicReadinessItems = record ? [
     {
       label: 'Field',
@@ -170,6 +269,10 @@ function TournamentPublicInner() {
   async function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setEntryNotice('')
+    if (entryCannotSubmit) {
+      setEntryNotice('Complete the highlighted eligibility check before submitting your entry.')
+      return
+    }
     setEntrySubmitting(true)
 
     const result = await submitTiqTournamentEntry({
@@ -180,6 +283,8 @@ function TournamentPublicInner() {
       selfRating: Number.parseFloat(entryRating),
       smsOptIn: entrySmsOptIn,
       consentNote: entrySmsOptIn ? 'Public tournament entry opt-in' : '',
+      linkedPlayerId: registrationPlayer?.id || null,
+      eligibilityEvidence: entryEvidence,
     })
 
     setEntrySubmitting(false)
@@ -194,6 +299,8 @@ function TournamentPublicInner() {
     setEntryPhone('')
     setEntryRating('3.5')
     setEntrySmsOptIn(false)
+    setEntryAgeAttested(false)
+    setEntryDivisionAttested(false)
     setEntryNotice('Entry submitted. The director will approve players into the draw.')
   }
 
@@ -287,11 +394,40 @@ function TournamentPublicInner() {
             <span style={pillStyle}>Director approval</span>
           </div>
           <div style={entryCueGridStyle}>
-            <span>Self-rated TIQ profile starts here</span>
-            <span>Text alerts require consent</span>
-            <span>Director approves the draw</span>
+            <span style={entryRequirementItemStyle}>{entryRequirement.ratingLevel ? `${entryRequirement.ratingLevel.toFixed(1)} division` : 'Open rating or format review'}</span>
+            <span style={entryRequirementItemStyle}>{entryRequirement.ageDivision || 'No age restriction detected'}</span>
+            <span style={entryRequirementItemStyle}>{entryRequirement.mixedPairRole === 'unknown' ? 'Open division' : `${entryRequirement.mixedPairRole === 'man' ? "Men's" : "Women's"} division`}</span>
           </div>
           <form style={entryGridStyle} onSubmit={submitEntry}>
+            <div style={entryProfileCardStyle}>
+              <div>
+                <span style={entryProfileEyebrowStyle}>{registrationPlayer ? 'TIQ profile connected' : 'Player evidence'}</span>
+                <strong style={entryProfileTitleStyle}>
+                  {registrationPlayerLoading
+                    ? 'Checking your player profile...'
+                    : registrationPlayer
+                      ? registrationPlayer.name
+                      : userId
+                        ? 'Link your player profile for faster approval.'
+                        : 'Sign in to use your saved player evidence.'}
+                </strong>
+                <small style={entryProfileMetaStyle}>
+                  {registrationPlayer
+                    ? [registrationPlayer.location, typeof registrationPlayer.evidence.rating === 'number' ? `${registrationPlayer.evidence.rating.toFixed(1)} ${registrationPlayer.evidence.ratingSource === 'verified' ? 'verified' : 'self-rated'}` : 'Rating not saved'].filter(Boolean).join(' | ')
+                    : 'You can still enter with a self-rating. The director will confirm it.'}
+                </small>
+              </div>
+              {!registrationPlayer && !registrationPlayerLoading ? (
+                <Link
+                  href={userId
+                    ? `/profile?next=${encodeURIComponent(`/tournaments/${record.id}#enter-tournament`)}`
+                    : `/login?next=${encodeURIComponent(`/tournaments/${record.id}#enter-tournament`)}`}
+                  style={secondaryButtonStyle}
+                >
+                  {userId ? 'Set up profile' : 'Sign in'}
+                </Link>
+              ) : null}
+            </div>
             <label style={entryFieldStyle}>
               Name
               <input
@@ -333,7 +469,7 @@ function TournamentPublicInner() {
               />
             </label>
             <label style={entryFieldStyle}>
-              Self-rating
+              {registrationPlayer && typeof registrationPlayer.evidence.rating === 'number' ? 'Profile rating' : 'Self-rating'}
               <input
                 type="number"
                 min="1"
@@ -347,13 +483,42 @@ function TournamentPublicInner() {
                   ...entryInputStyle,
                   ...(entryFocusedField === 'rating' ? entryInputFocusStyle : null),
                 }}
+                disabled={Boolean(registrationPlayer && typeof registrationPlayer.evidence.rating === 'number')}
               />
             </label>
+            {entryRequirement.ageDivision && !registrationPlayer?.evidence.ageDivisions?.includes(entryRequirement.ageDivision) ? (
+              <label style={entryEvidenceToggleStyle}>
+                <input
+                  type="checkbox"
+                  checked={entryAgeAttested}
+                  onChange={(event) => setEntryAgeAttested(event.target.checked)}
+                />
+                <span>I meet the {entryRequirement.ageDivision} requirement.</span>
+              </label>
+            ) : null}
+            {entryRequirement.mixedPairRole !== 'unknown' && registrationPlayer?.evidence.mixedPairRole !== entryRequirement.mixedPairRole ? (
+              <label style={entryEvidenceToggleStyle}>
+                <input
+                  type="checkbox"
+                  checked={entryDivisionAttested}
+                  onChange={(event) => setEntryDivisionAttested(event.target.checked)}
+                />
+                <span>I am eligible for the {entryRequirement.mixedPairRole === 'man' ? "men's" : "women's"} division.</span>
+              </label>
+            ) : null}
+            <div style={entryEligibilityStyle} data-status={entryEligibility.status}>
+              <strong>{entryEligibility.label}</strong>
+              <span>{entryEligibility.detail}</span>
+            </div>
             <label style={entryToggleStyle}>
               <input type="checkbox" checked={entrySmsOptIn} onChange={(event) => setEntrySmsOptIn(event.target.checked)} />
               <span>Text me tournament alerts. Messages include TenAceIQ links and opt-out instructions.</span>
             </label>
-            <button type="submit" disabled={entrySubmitting} style={primaryButtonStyle}>
+            <button
+              type="submit"
+              disabled={entrySubmitting || entryCannotSubmit}
+              style={{ ...primaryButtonStyle, ...(entrySubmitting || entryCannotSubmit ? entryDisabledButtonStyle : null) }}
+            >
               {entrySubmitting ? 'Submitting...' : 'Submit entry'}
             </button>
             {entryNotice ? <div style={entryNoticeStyle}>{entryNotice}</div> : null}
@@ -1451,6 +1616,93 @@ const entryGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const entryRequirementItemStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(7,17,33,0.46)',
+  overflowWrap: 'anywhere',
+}
+
+const entryProfileCardStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.07)',
+}
+
+const entryProfileEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const entryProfileTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const entryProfileMetaStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const entryEvidenceToggleStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gridTemplateColumns: 'min-content minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,206,116,0.24)',
+  background: 'rgba(255,206,116,0.07)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.4,
+}
+
+const entryEligibilityStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const entryDisabledButtonStyle: CSSProperties = {
+  opacity: 0.56,
+  cursor: 'not-allowed',
 }
 
 const entryFieldStyle: CSSProperties = {

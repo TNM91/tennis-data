@@ -13,7 +13,9 @@ export type PlayerEligibilityEvidence = {
   rating?: number | null
   ratingSource?: PlayerRatingSource | string | null
   mixedPairRole?: MixedPairRole | string | null
+  mixedPairRoleSource?: PlayerRatingSource | string | null
   ageDivisions?: Array<string | null | undefined>
+  ageDivisionSource?: PlayerRatingSource | string | null
 }
 
 export type PlayerEligibilityAssessment = {
@@ -79,7 +81,9 @@ export function assessPlayerEligibility(
   const rating = typeof evidence.rating === 'number' && Number.isFinite(evidence.rating) ? evidence.rating : null
   const ratingSource = normalizePlayerRatingSource(evidence.ratingSource)
   const mixedPairRole = normalizeMixedPairRole(evidence.mixedPairRole)
+  const mixedPairRoleSource = normalizePlayerRatingSource(evidence.mixedPairRoleSource)
   const ageDivisions = Array.from(new Set((evidence.ageDivisions || []).map(normalizeLeagueAgeDivision).filter(Boolean))) as string[]
+  const ageDivisionSource = normalizePlayerRatingSource(evidence.ageDivisionSource)
 
   if (typeof requirement.ratingLevel === 'number') {
     if (rating === null) {
@@ -93,8 +97,12 @@ export function assessPlayerEligibility(
     }
   }
 
-  if (requirement.ageDivision && !ageDivisions.includes(requirement.ageDivision)) {
-    issues.push(`Confirm ${requirement.ageDivision} eligibility.`)
+  if (requirement.ageDivision) {
+    if (!ageDivisions.includes(requirement.ageDivision)) {
+      issues.push(`Confirm ${requirement.ageDivision} eligibility.`)
+    } else if (ageDivisionSource !== 'verified') {
+      issues.push(`Director confirms the ${requirement.ageDivision} self-attestation.`)
+    }
   }
 
   if (requirement.mixedPairRole !== 'unknown') {
@@ -102,7 +110,10 @@ export function assessPlayerEligibility(
       issues.push(`Confirm ${requirement.mixedPairRole === 'man' ? "men's" : "women's"} division eligibility.`)
     } else if (mixedPairRole !== requirement.mixedPairRole) {
       issues.push(`Player eligibility is saved for the ${mixedPairRole === 'man' ? "men's" : "women's"} division.`)
-      ineligible = true
+      if (mixedPairRoleSource === 'verified') ineligible = true
+      else issues.push('Confirm the correct division before deciding.')
+    } else if (mixedPairRoleSource !== 'verified') {
+      issues.push(`Director confirms the ${requirement.mixedPairRole === 'man' ? "men's" : "women's"} division self-attestation.`)
     }
   }
 
