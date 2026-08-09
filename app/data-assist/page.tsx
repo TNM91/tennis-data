@@ -176,6 +176,8 @@ const importTypes: Array<{
 ]
 
 type BulkScorecardResult = {
+  batchId: string
+  draftId: string
   fileName: string
   status: 'pending' | 'imported' | 'duplicate' | 'review' | 'failed'
   detail: string
@@ -271,6 +273,7 @@ function DataAssistWorkspace() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [bulkScorecardResults, setBulkScorecardResults] = useState<BulkScorecardResult[]>([])
+  const [focusedSubmissionId, setFocusedSubmissionId] = useState('')
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
   const [importingSubmissionId, setImportingSubmissionId] = useState('')
   const [deletingSubmissionId, setDeletingSubmissionId] = useState('')
@@ -337,6 +340,7 @@ function DataAssistWorkspace() {
     setMessage('')
     setError('')
     setBulkScorecardResults([])
+    setFocusedSubmissionId('')
   }
 
   function updateImportType(nextType: DataAssistImportType) {
@@ -354,6 +358,7 @@ function DataAssistWorkspace() {
     setMessage('')
     setError('')
     setBulkScorecardResults([])
+    setFocusedSubmissionId('')
   }
 
   async function refreshSubmissions() {
@@ -525,6 +530,8 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setError('')
     const pendingResults = files.map((file): BulkScorecardResult => ({
+      batchId: '',
+      draftId: '',
       fileName: file.name,
       status: 'pending',
       detail: 'Waiting to import',
@@ -550,6 +557,8 @@ function DataAssistWorkspace() {
           if (nextSummary.status === 'rejected') {
             failedCount += 1
             updateBulkScorecardResult(index, {
+              batchId: '',
+              draftId: '',
               fileName: file.name,
               status: 'failed',
               detail: nextSummary.rejectionReason || 'TenAceIQ could not read this export.',
@@ -578,6 +587,8 @@ function DataAssistWorkspace() {
             importedCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'imported',
               detail: ocrResult.autoImport.message || 'Imported',
@@ -588,6 +599,8 @@ function DataAssistWorkspace() {
             duplicateCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'duplicate',
               detail: ocrResult.autoImport.message || 'Already imported',
@@ -597,15 +610,19 @@ function DataAssistWorkspace() {
             reviewCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'review',
-              detail: 'Saved for review',
+              detail: 'Check the highlighted names and scores, then confirm. League stats update only after confirmation.',
               ...matchMeta,
             })
           }
         } catch (err) {
           failedCount += 1
           updateBulkScorecardResult(index, {
+            batchId: '',
+            draftId: '',
             fileName: file.name,
             status: 'failed',
             detail: err instanceof Error ? err.message : 'Import failed',
@@ -637,6 +654,14 @@ function DataAssistWorkspace() {
     setBulkScorecardResults((current) => current.map((item, itemIndex) => (
       itemIndex === index ? result : item
     )))
+  }
+
+  function openBulkScorecardReview(submissionId: string) {
+    setFocusedSubmissionId(submissionId)
+    window.setTimeout(() => {
+      const target = document.getElementById(submissionId ? `data-assist-submission-${submissionId}` : 'history')
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
   }
 
   function moveScreenshot(fromIndex: number, direction: -1 | 1) {
@@ -908,6 +933,7 @@ function DataAssistWorkspace() {
         <BulkScorecardResultsPanel
           results={bulkScorecardResults}
           onStartOver={resetUploadFlow}
+          onReviewNow={openBulkScorecardReview}
         />
       ) : null}
 
@@ -1214,6 +1240,7 @@ function DataAssistWorkspace() {
 
       {showHistoryStep ? (
       <MySubmissionsPanel
+        key={focusedSubmissionId || 'data-assist-history'}
         authResolved={authResolved}
         userId={userId}
         submissions={submissions}
@@ -1230,6 +1257,7 @@ function DataAssistWorkspace() {
         onRunImport={(submission, action) => void runSubmissionImport(submission, action)}
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
+        focusedSubmissionId={focusedSubmissionId}
         isMobile={isMobile}
         returnTo={returnTo}
       />
@@ -1642,7 +1670,7 @@ function buildBulkScorecardMessage({
   const parts = [
     importedCount ? `${importedCount} imported` : '',
     duplicateCount ? `${duplicateCount} already in TenAceIQ` : '',
-    reviewCount ? `${reviewCount} saved for review` : '',
+    reviewCount ? `${reviewCount} need your confirmation` : '',
     failedCount ? `${failedCount} need another try` : '',
   ].filter(Boolean)
   return `Scorecard batch complete: ${parts.join(', ') || `${total} processed`}.`
@@ -1652,7 +1680,7 @@ function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
   if (status === 'pending') return 'Pending'
   if (status === 'imported') return 'Imported'
   if (status === 'duplicate') return 'Already in'
-  if (status === 'review') return 'Review'
+  if (status === 'review') return 'Confirm to import'
   return 'Retry'
 }
 
@@ -1804,9 +1832,11 @@ function ScorecardUploadPausedPanel({ message }: { message: string }) {
 function BulkScorecardResultsPanel({
   results,
   onStartOver,
+  onReviewNow,
 }: {
   results: BulkScorecardResult[]
   onStartOver: () => void
+  onReviewNow: (submissionId: string) => void
 }) {
   const importedCount = results.filter((result) => result.status === 'imported').length
   const duplicateCount = results.filter((result) => result.status === 'duplicate').length
@@ -1819,26 +1849,59 @@ function BulkScorecardResultsPanel({
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
           <StepBadge step={4} label="Batch results" />
-          <h2 style={sectionTitleStyle}>Scorecards processed.</h2>
-          <p style={copyStyle}>{pendingCount ? 'Each export is being saved and read as its own match.' : 'Each export was saved and read as its own match.'}</p>
+          <h2 style={sectionTitleStyle}>
+            {reviewCount ? `${reviewCount} scorecard${reviewCount === 1 ? '' : 's'} need your confirmation.` : 'Scorecards processed.'}
+          </h2>
+          <p style={copyStyle}>
+            {pendingCount
+              ? 'Each export is being saved and read as its own match.'
+              : reviewCount
+                ? 'Open each review, check the highlighted names and scores, then confirm. Until then, the result will not appear in league stats.'
+                : 'Each export was saved and read as its own match.'}
+          </p>
         </div>
-        <span style={pendingCount || failedCount ? pillAmberStyle : pillGreenStyle}>{pendingCount ? 'Working' : failedCount ? 'Needs attention' : 'Complete'}</span>
+        <span style={pendingCount || failedCount || reviewCount ? pillAmberStyle : pillGreenStyle}>
+          {pendingCount ? 'Working' : failedCount || reviewCount ? 'Action needed' : 'Complete'}
+        </span>
       </div>
+      {reviewCount ? (
+        <div role="alert" style={bulkResultReviewCalloutStyle}>
+          <div style={headerCopyStyle}>
+            <strong>One last step before the scoreboard moves</strong>
+            <span>Confirmation imports the scorecard and updates player, team, and league records.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onReviewNow(results.find((result) => result.status === 'review')?.batchId || '')}
+            style={primaryButtonStyle}
+          >
+            Review scorecards now
+          </button>
+        </div>
+      ) : null}
       <div style={scorecardHeaderGridStyle}>
         <ReviewFact label="Pending" value={String(pendingCount)} />
         <ReviewFact label="Imported" value={String(importedCount)} />
         <ReviewFact label="Already in" value={String(duplicateCount)} />
-        <ReviewFact label="Review" value={String(reviewCount)} />
+        <ReviewFact label="Needs confirmation" value={String(reviewCount)} />
         <ReviewFact label="Retry" value={String(failedCount)} />
       </div>
       <div style={bulkResultListStyle}>
         {results.map((result) => (
-          <div key={`${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
-            <div style={headerCopyStyle}>
+          <div key={`${result.batchId}-${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
+            <div style={bulkResultContentStyle}>
               <strong>{getBulkScorecardResultTitle(result)}</strong>
-              <p>{getBulkScorecardResultDetail(result)}</p>
+              <span>{getBulkScorecardResultDetail(result)}</span>
+              {result.status === 'review' ? <small>{result.detail}</small> : null}
             </div>
-            <span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>
+            <div style={bulkResultActionStyle}>
+              <span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>
+              {result.status === 'review' ? (
+                <button type="button" onClick={() => onReviewNow(result.batchId)} style={smallButtonStyle}>
+                  Review now
+                </button>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
@@ -1990,6 +2053,7 @@ function MySubmissionsPanel({
   onRunImport,
   onDeleteSubmission,
   onDeleteAllDrafts,
+  focusedSubmissionId,
   isMobile,
   returnTo,
 }: {
@@ -2009,16 +2073,28 @@ function MySubmissionsPanel({
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
+  focusedSubmissionId: string
   isMobile: boolean
   returnTo: string
 }) {
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
+  const [historyOpen, setHistoryOpen] = useState(Boolean(focusedSubmissionId))
+  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>(focusedSubmissionId ? 'needs_review' : 'all')
   const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
+
+  useEffect(() => {
+    if (!focusedSubmissionId || !historyOpen) return
+    const timeout = window.setTimeout(() => {
+      document.getElementById(`data-assist-submission-${focusedSubmissionId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 80)
+    return () => window.clearTimeout(timeout)
+  }, [focusedSubmissionId, historyOpen, submissions])
 
   if ((!authResolved || !userId) && isMobile) {
     return (
@@ -2283,7 +2359,7 @@ function SubmissionCard({
   const canDelete = !isImported
 
   return (
-    <article style={submissionCardStyle}>
+    <article id={`data-assist-submission-${submission.id}`} style={submissionCardStyle}>
       <div style={submissionCardTopStyle}>
         <div style={headerCopyStyle}>
           <strong>{getDataAssistImportTypeLabel(submission.requestedImportType)}</strong>
@@ -3038,6 +3114,7 @@ function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): D
   if (!Array.isArray(draft.lines) || !draft.lines.length) return null
   return {
     externalMatchId: typeof draft.externalMatchId === 'string' ? draft.externalMatchId : '',
+    leagueName: typeof draft.leagueName === 'string' ? draft.leagueName : '',
     homeTeam: typeof draft.homeTeam === 'string' ? draft.homeTeam : '',
     awayTeam: typeof draft.awayTeam === 'string' ? draft.awayTeam : '',
     matchDate: typeof draft.matchDate === 'string' ? draft.matchDate : '',
@@ -4110,6 +4187,7 @@ const submissionListStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
   gap: 12,
+  alignItems: 'start',
   minWidth: 0,
 }
 
@@ -4120,6 +4198,7 @@ const submissionCardStyle: CSSProperties = {
   padding: 14,
   display: 'grid',
   gap: 10,
+  alignSelf: 'start',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -4414,6 +4493,37 @@ const bulkResultListStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const bulkResultReviewCalloutStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, #fbbf24 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, #fbbf24 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const bulkResultContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const bulkResultActionStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
 const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSProperties => ({
   borderRadius: 14,
   border: status === 'failed'
@@ -4430,10 +4540,10 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
       : status === 'pending'
         ? 'var(--shell-chip-bg)'
         : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
-  padding: 11,
+  padding: 12,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 8rem)',
-  gap: 10,
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: 12,
   alignItems: 'center',
   color: 'var(--foreground-strong)',
   fontSize: 12,

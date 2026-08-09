@@ -58,6 +58,7 @@ export function buildDataAssistScorecardImportRow(
   return {
     row: {
       externalMatchId: draft.externalMatchId,
+      leagueName: draft.leagueName || null,
       matchDate: draft.matchDate,
       homeTeam: draft.homeTeam,
       awayTeam: draft.awayTeam,

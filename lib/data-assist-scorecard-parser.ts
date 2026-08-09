@@ -18,6 +18,7 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
   const parserWarnings: string[] = []
   const matchId = extractMatchId(text)
+  const leagueName = extractScorecardLeagueName(text)
   const matchDate = extractMatchDate(text)
   const teams = extractTeams(lines)
   const parsedLines = extractScorecardLines(lines)
@@ -36,6 +37,7 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
 
   return {
     externalMatchId: matchId,
+    leagueName,
     homeTeam: teams.homeTeam,
     awayTeam: teams.awayTeam,
     matchDate,
@@ -53,6 +55,24 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
       parsedLines: fallbackLines,
     }),
   }
+}
+
+export function extractScorecardLeagueName(value: string | null | undefined) {
+  const source = (value || '').replace(/\r/g, '\n').trim()
+  if (!source) return ''
+
+  const labeled = source.match(/\bLeague\s*:\s*(.+?)(?=\n|\s+(?:Status|Today's Date|Date Match Played|Home Team)\s*:|$)/i)?.[1]
+  const embedded = source.match(/\bfor\s+Match\s*#\s*[A-Z0-9-]+\s+in\s+(.+?)(?=\n|\s+(?:Status|Today's Date|Date Match Played|Home Team)\s*:|$)/i)?.[1]
+  const candidate = cleanText(labeled || embedded || source)
+    .replace(/\s*[|/•·]\s*$/, '')
+    .trim()
+
+  if (!candidate) return ''
+  if (/^(singles|doubles)$/i.test(candidate)) return ''
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(candidate)) return ''
+  if (candidate.length > 160) return ''
+  if (/\b(?:Scorecard for Match|Date Match Played|Home Team|Visiting Team|winner marker)\b/i.test(candidate)) return ''
+  return candidate
 }
 
 export function normalizeOcrText(rawText: string) {
@@ -346,12 +366,15 @@ function withExtensionScoreMetadata(line: DataAssistScorecardParsedLine): DataAs
   const sets = extractSetPairsFromText(line.score)
   const score = formatSetsAsScore(sets) || line.score
   const setWinnerSide = determineWinnerSideFromSets(sets)
+  const winner = line.winner === 'unknown' && setWinnerSide ? setWinnerSide : line.winner
   const scoreEventType = classifyScoreEventType(score, sets)
   const parseNotes = buildLineParseNotes(line, sets, scoreEventType)
 
   return {
     ...line,
     score,
+    winner,
+    winnerSource: winner !== line.winner ? 'set_math' : line.winnerSource,
     sets,
     setWinnerSide,
     scoreEventType,

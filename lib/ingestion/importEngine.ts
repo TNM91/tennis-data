@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { extractScorecardLeagueName } from '../data-assist-scorecard-parser'
 import { buildLeagueEntityId, buildTeamEntityId } from '../entity-ids'
 
 export type MatchSide = 'A' | 'B'
@@ -711,7 +712,7 @@ function mergeScorecardRowWithExistingMatch(
     matchDate: normalizeDateInput(row.matchDate) || normalizeDateInput(existingMatch.match_date ?? ''),
     matchTime: nullableString(row.matchTime) ?? nullableString(existingMatch.match_time),
     facility: nullableString(row.facility) ?? nullableString(existingMatch.facility),
-    leagueName: normalizeScorecardLeagueName(row.leagueName) ?? nullableString(existingMatch.league_name),
+    leagueName: normalizeScorecardLeagueName(row.leagueName) ?? normalizeScorecardLeagueName(existingMatch.league_name),
     flight: nullableString(row.flight) ?? nullableString(existingMatch.flight),
     ustaSection: nullableString(row.ustaSection) ?? nullableString(existingMatch.usta_section),
     districtArea: nullableString(row.districtArea) ?? nullableString(existingMatch.district_area),
@@ -720,11 +721,7 @@ function mergeScorecardRowWithExistingMatch(
 }
 
 function normalizeScorecardLeagueName(value: string | null | undefined): string | null {
-  const cleaned = nullableString(value)
-  if (!cleaned) return null
-  if (/^(singles|doubles)$/i.test(cleaned)) return null
-  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return null
-  return cleaned
+  return nullableString(extractScorecardLeagueName(value))
 }
 
 function buildLinePlayerNames(line: ScorecardLineImportRow): { side: MatchSide; seat: number; name: string }[] {
