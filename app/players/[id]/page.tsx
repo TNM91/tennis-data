@@ -1077,6 +1077,8 @@ function PlayerProfileContent() {
     fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
     lineHeight: isMobile ? 1.04 : 0.98,
     maxWidth: '560px',
+    overflowWrap: 'normal',
+    wordBreak: 'normal',
   }
 
   const dynamicHeroText: CSSProperties = {
@@ -1085,20 +1087,28 @@ function PlayerProfileContent() {
     maxWidth: '560px',
   }
 
-  const dynamicHeroScoreGrid: CSSProperties = {
-    ...heroScoreGrid,
-    gridTemplateColumns: isSmallMobile
-      ? 'repeat(2, minmax(0, 1fr))'
-      : isMobile
-        ? 'repeat(4, minmax(0, 1fr))'
-        : 'repeat(4, minmax(0, 1fr))',
-  }
-
   const dynamicRightColumn: CSSProperties = {
     ...heroRight,
     display: isMobile ? 'none' : 'grid',
     position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
+  }
+
+  const dynamicPlayerScoreboardStyle: CSSProperties = {
+    ...playerHeroScoreboardStyle,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(min(100%, 200px), 0.48fr) minmax(0, 1fr)',
+  }
+
+  const dynamicPlayerHeroIdentityStyle: CSSProperties = {
+    ...playerHeroIdentityStyle,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : playerHeroIdentityStyle.gridTemplateColumns,
+    justifyItems: isSmallMobile ? 'center' : 'stretch',
+    textAlign: isSmallMobile ? 'center' : 'left',
+  }
+
+  const dynamicPlayerScoreboardMetricsStyle: CSSProperties = {
+    ...playerScoreboardMetricsStyle,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicSegmentWrap: CSSProperties = {
@@ -1236,19 +1246,39 @@ function PlayerProfileContent() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
-              <BreadcrumbLink href="/players" label="Back to players" />
-              <TiqFeatureIcon name="playerRatings" size="lg" variant="surface" />
-              <div style={eyebrow}>{isOwnProfile ? 'Your player scorecard' : 'Player scorecard'}</div>
+              <div style={playerHeroToplineStyle}>
+                <BreadcrumbLink href="/players" label="Back to players" />
+                <div style={eyebrow}>{isOwnProfile ? 'Your player scorecard' : 'Player scorecard'}</div>
+              </div>
 
-              <h1 style={dynamicHeroTitle}>{player.name}</h1>
+              <div style={dynamicPlayerHeroIdentityStyle}>
+                <TiqFeatureIcon name="playerRatings" size="lg" variant="surface" />
+                <div style={playerHeroIdentityCopyStyle}>
+                  <h1 style={dynamicHeroTitle}>{player.name}</h1>
+                  <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
+                </div>
+              </div>
 
-              <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
-
-              <div style={dynamicHeroScoreGrid} aria-label="Player score summary">
-                <StatChip label={`TIQ ${ratingViewLabel}`} value={formatPublicRating(selectedDynamicRating, player)} accent />
-                <StatChip label="Record" value={`${wins}-${losses}`} />
-                <StatChip label="Win rate" value={`${winPct}%`} />
-                <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
+              <div style={dynamicPlayerScoreboardStyle} aria-label="Player score summary">
+                <div style={playerPrimaryRatingStyle}>
+                  <span>TIQ {ratingViewLabel}</span>
+                  <strong style={playerPrimaryRatingValueStyle}>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                  <small style={playerPrimaryRatingStatusStyle}>{ratingStatus}</small>
+                </div>
+                <div style={dynamicPlayerScoreboardMetricsStyle}>
+                  <div style={playerScoreboardMetricStyle}>
+                    <span>Record</span>
+                    <strong style={playerScoreboardMetricValueStyle}>{wins}-{losses}</strong>
+                  </div>
+                  <div style={playerScoreboardMetricStyle}>
+                    <span>Win rate</span>
+                    <strong style={playerScoreboardMetricValueStyle}>{winPct}%</strong>
+                  </div>
+                  <div style={playerScoreboardMetricStyle}>
+                    <span>Current form</span>
+                    <strong style={playerScoreboardMetricValueStyle}>{getTrendShortLabel(trendDirection)}</strong>
+                  </div>
+                </div>
               </div>
 
               <div style={dynamicFollowRow}>
@@ -1258,7 +1288,7 @@ function PlayerProfileContent() {
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
-                <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
+                <Link href={primaryActionHref} style={playerPrimaryActionStyle}>{primaryActionLabel}</Link>
                 <MiniLink href={secondaryActionHref}>{secondaryActionLabel}</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
@@ -3410,8 +3440,8 @@ const heroShell: CSSProperties = {
   margin: '0 auto',
   minWidth: 0,
   borderRadius: '30px',
-  background: 'var(--portal-surface-bg)',
-  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 7%, var(--portal-surface-bg) 93%), var(--portal-surface-bg) 48%, color-mix(in srgb, var(--brand-green) 5%, var(--portal-surface-bg) 95%))',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
   boxShadow:
     '0 26px 80px rgba(2,10,24,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
   overflow: 'hidden',
@@ -3440,6 +3470,30 @@ const heroLeft: CSSProperties = {
   justifyContent: 'center',
   gap: '16px',
   minWidth: 0,
+}
+
+const playerHeroToplineStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerHeroIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '72px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 16,
+  minWidth: 0,
+}
+
+const playerHeroIdentityCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroRight: CSSProperties = {
@@ -3511,11 +3565,110 @@ const heroHintPill: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const heroScoreGrid: CSSProperties = {
+const playerHeroScoreboardStyle: CSSProperties = {
   display: 'grid',
-  gap: '10px',
-  maxWidth: '640px',
+  alignItems: 'stretch',
+  gap: 10,
   minWidth: 0,
+  padding: 10,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, rgba(6,16,32,0.78) 93%)',
+  boxShadow: '0 18px 44px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
+}
+
+const playerPrimaryRatingStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 132,
+  padding: '16px 18px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%))',
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const playerPrimaryRatingValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2.65rem, 5vw, 4.25rem)',
+  lineHeight: 0.92,
+  fontWeight: 950,
+  letterSpacing: '-0.05em',
+  textTransform: 'none',
+  overflowWrap: 'normal',
+  whiteSpace: 'nowrap',
+}
+
+const playerPrimaryRatingStatusStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const playerScoreboardMetricsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerScoreboardMetricStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 88,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(6,16,32,0.64)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const playerScoreboardMetricValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.2vw, 1.75rem)',
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'none',
+  overflowWrap: 'normal',
+  whiteSpace: 'nowrap',
+}
+
+const playerPrimaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 25%, var(--shell-chip-bg) 75%), color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%))',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const stalenessPill: CSSProperties = {
@@ -3531,7 +3684,7 @@ const meterCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(6,16,32,0.58)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
-  maxWidth: '560px',
+  maxWidth: 'none',
   minWidth: 0,
 }
 
@@ -3693,7 +3846,7 @@ const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(6,16,32,0.58)',
+  background: 'linear-gradient(145deg, rgba(6,16,32,0.78), color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%))',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }

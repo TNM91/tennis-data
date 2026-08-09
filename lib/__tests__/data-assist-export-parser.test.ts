@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseTennisLinkExportFiles } from '../data-assist-export-parser'
 import { buildScorecardOcrDraftFromText } from '../data-assist-ocr'
+import { buildDataAssistScorecardImportRow } from '../data-assist-import'
 import { buildScheduleOcrDraftFromText } from '../data-assist-schedule-parser'
 import { buildTeamSummaryOcrDraftFromText } from '../data-assist-team-summary-parser'
 
@@ -41,6 +42,30 @@ describe('parseTennisLinkExportFiles', () => {
     expect(draft.lines[0]?.winner).toBe('home')
     expect(draft.lines[2]?.awayPlayers.join(' ')).toContain('Paul Gontarz')
     expect(draft.lines[2]?.winner).toBe('away')
+  })
+
+  it('keeps every tri-level court, player pair, and league identity from the export', () => {
+    const html = `
+      <table>
+        <tr><td>Scorecard for Match # 1012101422 in 2026 STL Tri-Level 18 & Over</td></tr>
+        <tr><td></td><td>Suddarth Team ID: *****</td><td></td><td>Vs.</td><td>SuperSmash Bros/Pottebaum-Meinart Team ID: *****</td></tr>
+        <tr><td>Date Match Played: 8/3/2026</td></tr>
+        <tr><td>4.5 Doubles #16:00 pm</td><td>John Schaefer<br />Sean Baldwin<br />Completed</td><td></td><td><font>Vs.<br></font></td><td>Brendan Czaicki<br />CHRISTOPHER KRIEGER</td><td><img id="ctl00_imgVisitorPlayer" /></td><td>6-2<br />7-5</td></tr>
+        <tr><td>4.0 Doubles #26:00 pm</td><td>Matthew Suddarth<br />Max Trachtenberg<br />Completed</td><td><img id="ctl01_imgHomePlayer" /></td><td>Vs.</td><td>Joel Pottebaum<br />Diego Mateluna</td><td></td><td>6-3<br />6-2</td></tr>
+        <tr><td>3.5 Doubles #36:00 pm</td><td>Anthony Trent<br />Kollin Kolb<br />Completed</td><td></td><td>Vs.</td><td>Miles Yetter<br />Sean Bracken</td><td><img id="ctl02_imgVisitorPlayer" /></td><td>7-5<br />7-5</td></tr>
+      </table>
+    `
+    const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
+    const draft = buildScorecardOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
+    const preview = buildDataAssistScorecardImportRow(draft)
+
+    expect(draft.leagueName).toBe('2026 STL Tri-Level 18 & Over')
+    expect(draft.lines.map((line) => line.lineLabel)).toEqual(['1 Doubles', '2 Doubles', '3 Doubles'])
+    expect(draft.lines[0]?.homePlayers).toEqual(['John Schaefer', 'Sean Baldwin'])
+    expect(draft.lines[1]?.winner).toBe('home')
+    expect(draft.lines[2]?.awayPlayers).toEqual(['Miles Yetter', 'Sean Bracken'])
+    expect(preview.row.leagueName).toBe('2026 STL Tri-Level 18 & Over')
+    expect(preview.row.lines).toHaveLength(3)
   })
 
   it('turns match schedule export rows into schedule matches', () => {

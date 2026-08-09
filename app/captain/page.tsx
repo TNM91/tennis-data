@@ -25,6 +25,7 @@ import {
   type CaptainTeamScope,
 } from '@/lib/captain-team-scope'
 import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { buildExploreLeagueHref, type CompetitionLayer } from '@/lib/competition-layers'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
   buildCaptainWeekNotesScopeKey,
@@ -2361,6 +2362,17 @@ function CaptainHubContent() {
         flight: selectedFlight,
       }).toString()}`
     : '/explore/teams'
+
+  const currentLeagueStatsHref = selectedLeague
+    ? buildExploreLeagueHref({
+        competitionLayer: selectedCompetitionLayer === 'usta' || selectedCompetitionLayer === 'tiq'
+          ? selectedCompetitionLayer as CompetitionLayer
+          : undefined,
+        leagueName: selectedLeague,
+        flight: selectedFlight,
+        teamCount: 2,
+      })
+    : '/leagues'
 
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
     competitionLayer: selectedCompetitionLayer,
@@ -15741,13 +15753,29 @@ function CaptainHubContent() {
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroLeft}>
             <div style={scopeHeaderStyle}>
-              <div>
-                <div style={sectionKicker}>Team scope</div>
-                <h1 style={scopeTitleStyle}>Choose the week.</h1>
+              <div style={captainScopeIdentityStyle}>
+                <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
+                <div>
+                  <div style={sectionKicker}>Team scope</div>
+                  <h1 style={scopeTitleStyle}>Choose the week.</h1>
+                </div>
               </div>
-              <span style={hasTeamScope ? badgeGreen : badgeBlue}>
-                {hasTeamScope ? 'Ready' : 'Choose team'}
-              </span>
+              <div style={captainScopeHeaderActionsStyle}>
+                <Link
+                  href={currentLeagueStatsHref}
+                  style={captainLeagueStatsLinkStyle}
+                  aria-label={selectedLeague ? `Open league stats for ${selectedLeague}` : 'Browse league stats'}
+                >
+                  <TiqFeatureIcon name="teamRankings" size="sm" variant="ghost" />
+                  <span style={captainLeagueStatsCopyStyle}>
+                    <small>Ultimate scoreboard</small>
+                    <strong>{selectedLeague ? 'League stats' : 'Find league stats'}</strong>
+                  </span>
+                </Link>
+                <span style={hasTeamScope ? badgeGreen : badgeBlue}>
+                  {hasTeamScope ? 'Ready' : 'Choose team'}
+                </span>
+              </div>
             </div>
 
             <div id="captain-team-scope" style={dynamicHeroControlRow}>
@@ -17228,10 +17256,52 @@ const lockedPreviewPanelStyle: CSSProperties = {
 const scopeHeaderStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   justifyContent: 'space-between',
+  gap: 16,
+  minWidth: 0,
+}
+
+const captainScopeIdentityStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
   gap: 12,
   minWidth: 0,
+  flex: '1 1 260px',
+}
+
+const captainScopeHeaderActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainLeagueStatsLinkStyle: CSSProperties = {
+  display: 'inline-grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 9,
+  minHeight: 52,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '8px 13px 8px 9px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%), color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%))',
+  color: 'var(--foreground-strong)',
+  boxShadow: '0 12px 28px rgba(2,8,23,0.24), inset 0 1px 0 rgba(255,255,255,0.08)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const captainLeagueStatsCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  lineHeight: 1.1,
 }
 
 const scopeTitleStyle: CSSProperties = {
