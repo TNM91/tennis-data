@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getClubCommunicationAttentionItems, getClubCommunicationSummary, type ClubCommunicationItem } from '../club-communication'
+import { getClubCommunicationAttentionItems, getClubCommunicationSummary, getPreferredClubCommunicationStaffClub, type ClubCommunicationItem } from '../club-communication'
+import type { Club, ClubMembership } from '../club-workspace'
 
 const item = (overrides: Partial<ClubCommunicationItem>): ClubCommunicationItem => ({
   id: 'team:one',
@@ -35,5 +36,22 @@ describe('Club communication follow-up', () => {
     ])
 
     expect(attention.map((entry) => entry.id)).toEqual(['team:newer', 'clinic:older'])
+  })
+
+  it('uses the preferred staff club and ignores player-only memberships', () => {
+    const clubs = [
+      { id: 'player-club', name: 'Player Club' },
+      { id: 'staff-club', name: 'Staff Club' },
+      { id: 'other-staff-club', name: 'Other Staff Club' },
+    ] as Club[]
+    const memberships = [
+      { clubId: 'player-club', roles: ['player'] },
+      { clubId: 'staff-club', roles: ['coach'] },
+      { clubId: 'other-staff-club', roles: ['director'] },
+    ] as ClubMembership[]
+
+    expect(getPreferredClubCommunicationStaffClub(clubs, memberships, 'other-staff-club')?.id).toBe('other-staff-club')
+    expect(getPreferredClubCommunicationStaffClub(clubs, memberships, 'player-club')?.id).toBe('staff-club')
+    expect(getPreferredClubCommunicationStaffClub(clubs, memberships.filter((item) => item.roles.includes('player')))).toBeNull()
   })
 })

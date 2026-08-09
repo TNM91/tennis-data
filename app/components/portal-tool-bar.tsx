@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type UIEvent } from 'react'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
+import { useClubCommunicationAttention } from '@/app/components/use-club-communication-attention'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
@@ -223,6 +224,11 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const activeLane = getActiveLane(pathname)
   const metadataFirstName = getMetadataFirstName(session)
   const firstName = metadataFirstName || profileName.split(' ')[0] || ''
+  const { attention: clubCommunicationAttention } = useClubCommunicationAttention({
+    accessToken: session?.access_token,
+    userId,
+  })
+  const clubAttentionCount = clubCommunicationAttention?.attentionCount ?? 0
 
   useEffect(() => {
     let active = true
@@ -392,6 +398,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                   profileLinked={profileLinked}
                   compact
                   dense
+                  attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
                 />
                 {laneActive ? (
                   <div
@@ -530,6 +537,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                 expanded={mobilePortalLaneId === lane.id}
                 controlsId={portalActionMenuId}
                 onSelect={handleMobilePortalLaneSelect}
+                attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
               />
             ))}
           </nav>
@@ -605,6 +613,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                       compact={useCompactPortalControls}
                       mobileCompact={false}
                       dense={useDenseDesktopPortalRail}
+                      attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
                       />
                     ))}
                   </nav>
@@ -697,6 +706,7 @@ function PortalLaneCard({
   compact,
   mobileCompact,
   dense,
+  attentionCount = 0,
 }: {
   lane: PortalLane
   active: boolean
@@ -707,6 +717,7 @@ function PortalLaneCard({
   compact?: boolean
   mobileCompact?: boolean
   dense?: boolean
+  attentionCount?: number
 }) {
   const target = getPortalLaneTarget({
     laneId: lane.id,
@@ -737,6 +748,7 @@ function PortalLaneCard({
       <span style={laneCopyStyle}>
         <span style={laneTopStyle}>
           <strong style={laneLabelStyle}>{lane.label}</strong>
+          {attentionCount > 0 ? <ClubAttentionBadge count={attentionCount} /> : null}
           {target.locked && !mobileCompact ? (
             <span style={lockBubbleStyle} title={`${lane.label} unlock`}>
               <NavLockIcon size={13} />
@@ -916,12 +928,14 @@ function MobilePortalLaneButton({
   expanded,
   controlsId,
   onSelect,
+  attentionCount = 0,
 }: {
   lane: PortalLane
   active: boolean
   expanded: boolean
   controlsId: string
   onSelect: (event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) => void
+  attentionCount?: number
 }) {
   const label = getMobileLaneLabel(lane.id)
 
@@ -943,9 +957,37 @@ function MobilePortalLaneButton({
       <span style={mobilePortalTileIconStyle}>
         <TiqFeatureIcon name={lane.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
       </span>
-      <span style={mobilePortalTileLabelStyle}>{label}</span>
+      <span style={mobilePortalTileLabelStyle}>{label}{attentionCount > 0 ? <ClubAttentionBadge count={attentionCount} compact /> : null}</span>
     </button>
   )
+}
+
+function ClubAttentionBadge({ count, compact = false }: { count: number; compact?: boolean }) {
+  const label = `${count} Club ${count === 1 ? 'conversation needs' : 'conversations need'} attention`
+  return <span aria-label={label} title={label} style={{ ...clubAttentionBadgeStyle, ...(compact ? compactClubAttentionBadgeStyle : null) }}>{count > 9 ? '9+' : count}</span>
+}
+
+const clubAttentionBadgeStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  minWidth: 20,
+  height: 20,
+  padding: '0 5px',
+  borderRadius: 999,
+  background: '#7dd3fc',
+  color: '#061321',
+  fontSize: 11,
+  fontWeight: 950,
+  lineHeight: 1,
+  boxShadow: '0 0 0 2px rgba(6,19,33,0.72)',
+}
+
+const compactClubAttentionBadgeStyle: CSSProperties = {
+  minWidth: 16,
+  height: 16,
+  padding: '0 4px',
+  fontSize: 9,
+  boxShadow: 'none',
 }
 
 function MobilePortalHubTile({

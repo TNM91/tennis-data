@@ -7,6 +7,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import { getClubCommunicationSummary, type ClubCommunicationItem } from '@/lib/club-communication'
+import { notifyClubCommunicationUpdated } from '@/lib/club-communication-events'
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
@@ -151,6 +152,7 @@ export default function ClubWorkspace() {
   const [requestedRosterOpen, setRequestedRosterOpen] = useState(false)
   const [requestedRosterTeam, setRequestedRosterTeam] = useState('')
   const [inviteDestination, setInviteDestination] = useState('club:')
+  const [openCommunicationOnLoad] = useState(() => readRequestedCommunicationOpen())
 
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const response = await fetch(path, {
@@ -246,6 +248,7 @@ export default function ClubWorkspace() {
       method: 'PATCH',
       body: JSON.stringify(channelId ? { channelId } : {}),
     })
+    notifyClubCommunicationUpdated()
     return response.channelIds ?? []
   }, [request, selectedClubId])
 
@@ -598,7 +601,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostMessage={postClubMessage} onLoadAnnouncements={loadClubAnnouncements} onRecordAnnouncement={recordClubAnnouncement} onLoadCommunication={loadClubCommunication} onMarkCommunicationRead={markClubCommunicationRead} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} openCommunicationOnLoad={openCommunicationOnLoad} onPostMessage={postClubMessage} onLoadAnnouncements={loadClubAnnouncements} onRecordAnnouncement={recordClubAnnouncement} onLoadCommunication={loadClubCommunication} onMarkCommunicationRead={markClubCommunicationRead} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'calendar' ? <ClubCalendarPanel workspace={workspace} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
@@ -900,7 +903,7 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
   return 'Clinic'
 }
 
-function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onOpenTab: (tab: WorkspaceTab) => void }) {
+function ClubPulse({ workspace, roles, openCommunicationOnLoad, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; openCommunicationOnLoad: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onOpenTab: (tab: WorkspaceTab) => void }) {
   const [shareStatus, setShareStatus] = useState('')
   const [showChatTargets, setShowChatTargets] = useState(false)
   const [showAnnouncementCenter, setShowAnnouncementCenter] = useState(false)
@@ -925,6 +928,30 @@ function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRec
   const pulseClear = !conflicts.length && !resultsNeeded.length && !pendingRenewals && !openSpots
   const chatTargets = getClubWeeklyBriefTargets(workspace.groups, roles, workspace.currentMembership.userId)
   const selectedTarget = chatTargets.find((group) => group.id === selectedTargetId) ?? chatTargets[0]
+
+  useEffect(() => {
+    if (!openCommunicationOnLoad) return
+    let active = true
+    const timeout = window.setTimeout(async () => {
+      setShareStatus('')
+      setPostedHref('')
+      setShowAnnouncementCenter(true)
+      setCommunicationLoading(true)
+      setCommunicationError('')
+      try {
+        const items = await onLoadCommunication()
+        if (active) setCommunicationItems(items)
+      } catch (loadError) {
+        if (active) setCommunicationError(loadError instanceof Error ? loadError.message : 'Club communication could not load.')
+      } finally {
+        if (active) setCommunicationLoading(false)
+      }
+    }, 0)
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+    }
+  }, [onLoadCommunication, openCommunicationOnLoad])
 
   async function openCommunication() {
     setShareStatus('')
@@ -1228,7 +1255,7 @@ function getClubTodayForTimeZone(timeZone: string) {
   }
 }
 
-function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, openCommunicationOnLoad, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; openCommunicationOnLoad: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -1240,7 +1267,7 @@ function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncement
   const [renewalReviewGroup, setRenewalReviewGroup] = useState<ClubGroup | null>(null)
   const [renewalReviewRows, setRenewalReviewRows] = useState<ClubGroupRenewal[]>([])
   const nextStep = setupSteps.find((step) => !step.completed) ?? setupSteps[setupSteps.length - 1]
-  const showEverydayWorkspace = !manager || setupComplete
+  const showEverydayWorkspace = !manager || setupComplete || openCommunicationOnLoad
   const pendingRenewalCount = workspace.groups
     .filter((group) => group.isActive)
     .reduce((total, group) => total + group.renewalPendingCount, 0)
@@ -1309,7 +1336,7 @@ function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncement
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
-      {showEverydayWorkspace ? <ClubPulse key={workspace.club.id} workspace={workspace} roles={roles} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onLoadCommunication={onLoadCommunication} onMarkCommunicationRead={onMarkCommunicationRead} onOpenTab={onOpenTab} /> : null}
+      {showEverydayWorkspace ? <ClubPulse key={workspace.club.id} workspace={workspace} roles={roles} openCommunicationOnLoad={openCommunicationOnLoad} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onLoadCommunication={onLoadCommunication} onMarkCommunicationRead={onMarkCommunicationRead} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
@@ -2003,6 +2030,7 @@ function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new UR
 function readRequestedGroupId() { return new URL(window.location.href).searchParams.get('groupId') || '' }
 function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }
 function readRequestedRosterTeam() { return new URL(window.location.href).searchParams.get('team') || '' }
+function readRequestedCommunicationOpen() { return typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('communication') === '1' }
 
 function formatClubProgramDate(value: string, timeZone: string) {
   const date = new Date(value)
