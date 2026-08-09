@@ -66,6 +66,8 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
     expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
     expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')
+    expect(siteHeaderSource).toContain('{authenticated && resumePrimary && !isMobile ? (')
+    expect(siteHeaderSource).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
       'top ? (siteHeaderCompact ? 42 : 64)',
     )
