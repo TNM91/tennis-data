@@ -254,10 +254,32 @@
 .clubAnnouncementHeading h2, .clubAnnouncementHeading p { margin: 0; }
 .clubAnnouncementHeading h2 { font-size: clamp(21px, 4vw, 28px); }
 .clubAnnouncementHeading p:not(.eyebrow) { color: var(--shell-copy-muted); font-size: 13px; line-height: 1.45; }
-.clubAnnouncementTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; border: 1px solid var(--shell-panel-border); border-radius: 11px; background: var(--shell-chip-bg); padding: 4px; }
+.clubAnnouncementTabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; border: 1px solid var(--shell-panel-border); border-radius: 11px; background: var(--shell-chip-bg); padding: 4px; }
 .clubAnnouncementTabs button { min-height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--shell-copy-muted); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
 .clubAnnouncementTabs button[aria-selected="true"] { background: color-mix(in srgb, var(--club-color, var(--brand-green)) 16%, #0a1a30); color: var(--foreground-strong); }
 .clubAnnouncementCompose { display: grid; gap: 14px; }
+.clubCommunicationFollowup { display: grid; gap: 10px; }
+.clubCommunicationSummary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.clubCommunicationSummary > span { display: inline-flex; align-items: baseline; gap: 4px; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); padding: 6px 9px; font-size: 10px; font-weight: 850; }
+.clubCommunicationSummary > span strong { color: var(--foreground-strong); font-size: 14px; }
+.clubCommunicationSummary > button { margin-left: auto; }
+.clubCommunicationViews { display: flex; align-items: center; gap: 6px; }
+.clubCommunicationViews > button { min-height: 32px; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: transparent; color: var(--shell-copy-muted); padding: 6px 10px; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+.clubCommunicationViews > button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 48%, var(--shell-panel-border)); background: color-mix(in srgb, var(--club-color, var(--brand-green)) 10%, var(--shell-chip-bg)); color: var(--club-color, var(--brand-green)); }
+.clubCommunicationViews > span { margin-left: auto; color: var(--shell-copy-muted); font-size: 10px; font-weight: 800; }
+.clubCommunicationList { display: grid; gap: 8px; }
+.clubCommunicationList > article { display: grid; gap: 9px; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-chip-bg); padding: 12px; }
+.clubCommunicationList > article[data-needs-reply="true"] { border-color: color-mix(in srgb, #ffbd59 55%, var(--shell-panel-border)); }
+.clubCommunicationCardHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.clubCommunicationCardHeading > div { display: grid; gap: 2px; min-width: 0; }
+.clubCommunicationCardHeading span { color: var(--club-color, var(--brand-green)); font-size: 9px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.clubCommunicationCardHeading strong { overflow-wrap: anywhere; font-size: 13px; }
+.clubCommunicationCardHeading time { flex: 0 0 auto; color: var(--shell-copy-muted); font-size: 9px; font-weight: 750; }
+.clubCommunicationList article > p { margin: 0; color: var(--foreground-strong); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.clubCommunicationBadges, .clubCommunicationActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.clubCommunicationBadges span { border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 25%, var(--shell-panel-border)); border-radius: 999px; color: var(--shell-copy-muted); padding: 4px 7px; font-size: 9px; font-weight: 850; }
+.clubCommunicationList article[data-needs-reply="true"] .clubCommunicationBadges span:first-child { border-color: rgba(255, 189, 89, .5); color: #ffd89b; }
+.clubCommunicationActions > a, .clubCommunicationActions > button { flex: 1 1 145px; text-align: center; }
 .clubAnnouncementTargets { display: grid; gap: 9px; min-width: 0; margin: 0; border: 0; padding: 0; }
 .clubAnnouncementTargets > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .clubAnnouncementTargets > div:first-child > strong { color: var(--foreground-strong); font-size: 12px; font-weight: 900; }

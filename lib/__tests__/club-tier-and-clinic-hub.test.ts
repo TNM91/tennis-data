@@ -39,8 +39,8 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain("action: 'send'")
     expect(club).toContain("kind: 'announcement'")
     expect(club).toContain('Open chat')
-    expect(club).toContain('Announcements')
-    expect(club).toContain('Send and reuse clear updates.')
+    expect(club).toContain('Communication')
+    expect(club).toContain('Follow up without chasing threads.')
     expect(club).toContain('Promise.allSettled')
     expect(club).toContain('Publish to ${selectedTargets.length || 0}')
     expect(club).toContain('setSelectedIds(failed.map')
@@ -72,6 +72,24 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(migration).toContain('Club staff can read announcement history')
     expect(migration).not.toContain('for update')
     expect(migration).not.toContain('for delete')
+  })
+
+  it('brings Team Chat and clinic follow-up into one staff view', () => {
+    const club = source('app/components/club-workspace.tsx')
+    const route = source('app/api/clubs/[clubId]/communication/route.ts')
+    const migration = source('supabase/migrations/20260808000800_create_club_communication_reads.sql')
+
+    expect(club).toContain('Club communication')
+    expect(club).toContain('Needs attention')
+    expect(club).toContain('Recent')
+    expect(club).toContain('Mark all read')
+    expect(club).toContain('Availability reply')
+    expect(route).toContain("from('club_group_messages')")
+    expect(route).toContain("from('internal_messages')")
+    expect(route).toContain("from('team_room_message_responses')")
+    expect(route).toContain('canRunClubPrograms')
+    expect(migration).toContain('create table if not exists public.club_communication_reads')
+    expect(migration).toContain('Club staff can update own communication markers')
   })
 
   it('defines Club as a separate offering without claiming club operations', () => {
