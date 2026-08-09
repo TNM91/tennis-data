@@ -35,9 +35,9 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('league')).toMatchObject({
-      priceLabel: '$14.99/season',
+      priceLabel: '$25/season',
       billing: {
-        amountCents: 1499,
+        amountCents: 2500,
         interval: 'season',
         checkoutMode: 'one_time',
         quantityMode: 'league',

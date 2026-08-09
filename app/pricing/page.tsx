@@ -471,7 +471,7 @@ function PricingContent() {
         </summary>
         <div className="pricingDetailsBody" style={billingDetailsBodyStyle}>
           <p style={heroTextStyle}>
-            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season for one bounded league, ladder, or tournament.
+            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $25 per season for one bounded league, ladder, or tournament.
           </p>
           <p style={heroTextStyle}>
             Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.

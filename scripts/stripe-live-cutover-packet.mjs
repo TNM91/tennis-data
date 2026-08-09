@@ -53,7 +53,7 @@ const expectedCatalog = [
     plan: 'League',
     planId: 'league',
     priceEnvName: 'STRIPE_LEAGUE_PRICE_ID',
-    amountCents: 1499,
+    amountCents: 2500,
     currency: 'usd',
     checkoutMode: 'one_time',
     interval: 'season',

@@ -22,8 +22,8 @@ describe('upgrade request pricing snapshots', () => {
     })).toMatchObject({
       plan_id: 'league',
       plan_name: 'League',
-      price_label: '$14.99/season',
-      billing_amount_cents: 1499,
+      price_label: '$25/season',
+      billing_amount_cents: 2500,
       billing_currency: 'usd',
       billing_interval: 'season',
       checkout_mode: 'one_time',
