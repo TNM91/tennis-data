@@ -8,6 +8,7 @@ import {
   getClubSetupSteps,
   getClubCalendarConflicts,
   getVisibleClubCalendarEvents,
+  getClubWeeklyBriefTargets,
   getClubInviteLanding,
   hasClubTeamProgram,
   isClubManager,
@@ -99,6 +100,33 @@ describe('club workspace', () => {
     expect(brief).toContain('- 3 returning players waiting')
     expect(brief).toContain('- 1 open roster spot')
     expect(brief).toContain('Club page: https://tenaceiq.com/clubs/vetta-west')
+  })
+
+  it('builds program briefs and only offers chats the staff member can manage', () => {
+    const clinic = mapClubGroupRow({ id: 'clinic-1', club_id: 'club-1', name: '3.5 Clinic', group_type: 'clinic', lead_user_id: 'coach-1' })
+    const team = {
+      ...mapClubGroupRow({ id: 'team-1', club_id: 'club-1', name: 'Vetta 4.0', group_type: 'team', lead_user_id: 'captain-1' }),
+      teamChatScope: { teamName: 'Vetta 4.0', leagueName: 'USTA', flight: 'A' },
+    }
+    const unlinkedTeam = mapClubGroupRow({ id: 'team-2', club_id: 'club-1', name: 'Vetta 3.5', group_type: 'team' })
+    const groups = [clinic, team, unlinkedTeam]
+
+    expect(getClubWeeklyBriefTargets(groups, ['coach'], 'coach-1').map((group) => group.id)).toEqual(['clinic-1', 'team-1'])
+    expect(getClubWeeklyBriefTargets(groups, ['player'], 'player-1')).toEqual([team])
+
+    const brief = buildClubWeeklyBrief({
+      clubName: 'Vetta West',
+      programName: team.name,
+      timeZone: 'America/Chicago',
+      today: '2026-08-10',
+      events: [],
+      conflictCount: 0,
+      resultCount: 0,
+      pendingRenewalCount: 0,
+      openSpotCount: 0,
+    })
+    expect(brief).toContain('Vetta 4.0 | Weekly tennis brief')
+    expect(brief).toContain('Vetta West · Mon, Aug 10–Sun, Aug 16')
   })
 
   it('launches club competition defaults in the existing desks', () => {

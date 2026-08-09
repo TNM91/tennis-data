@@ -92,6 +92,11 @@ export type ClubGroup = {
   competitionEntryCount: number
   competitionScheduleCount: number
   nextCompetitionEventAt: string
+  teamChatScope: {
+    teamName: string
+    leagueName: string
+    flight: string
+  } | null
   updatedAt: string
 }
 
@@ -232,6 +237,7 @@ export function getVisibleClubCalendarEvents(
 
 export function buildClubWeeklyBrief(input: {
   clubName: string
+  programName?: string
   timeZone: string
   events: ClubCalendarEvent[]
   conflictCount: number
@@ -262,8 +268,10 @@ export function buildClubWeeklyBrief(input: {
   ].filter(Boolean)
 
   return [
-    `${cleanClubText(input.clubName, 120) || 'Club'} | Weekly tennis brief`,
-    `${formatClubBriefDate(today)}–${formatClubBriefDate(weekEnd)}`,
+    `${cleanClubText(input.programName, 120) || cleanClubText(input.clubName, 120) || 'Club'} | Weekly tennis brief`,
+    cleanClubText(input.programName, 120)
+      ? `${cleanClubText(input.clubName, 120) || 'Club'} · ${formatClubBriefDate(today)}–${formatClubBriefDate(weekEnd)}`
+      : `${formatClubBriefDate(today)}–${formatClubBriefDate(weekEnd)}`,
     '',
     'Schedule',
     ...(eventLines.length ? eventLines : ['- No events scheduled this week']),
@@ -273,6 +281,21 @@ export function buildClubWeeklyBrief(input: {
     cleanClubText(input.publicUrl, 800) ? '' : null,
     cleanClubText(input.publicUrl, 800) ? `Club page: ${cleanClubText(input.publicUrl, 800)}` : null,
   ].filter((line): line is string => line !== null).join('\n')
+}
+
+export function getClubWeeklyBriefTargets(
+  groups: ClubGroup[],
+  roles: ClubRole[],
+  userId: string,
+) {
+  const manager = isClubManager(roles)
+  return groups.filter((group) => {
+    if (!group.isActive) return false
+    if (group.groupType === 'clinic') {
+      return manager || roles.includes('coach') && group.leadUserId === userId
+    }
+    return group.groupType === 'team' && Boolean(group.teamChatScope)
+  })
 }
 
 function getClubDateForTimeZone(timeZone: string) {
@@ -919,6 +942,7 @@ export function mapClubGroupRow(row: Row, memberIds: string[] = [], reviewMember
     competitionEntryCount: Math.max(0, Number(row.competition_entry_count) || 0),
     competitionScheduleCount: Math.max(0, Number(row.competition_schedule_count) || 0),
     nextCompetitionEventAt: cleanClubText(row.next_competition_event_at, 80),
+    teamChatScope: null,
     updatedAt: cleanClubText(row.updated_at, 80),
   }
 }

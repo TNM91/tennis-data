@@ -230,6 +230,8 @@
 .clubPulseHeading > div:first-child { display: grid; gap: 3px; min-width: 0; }
 .clubPulseHeading h3 { margin: 0; font-size: clamp(19px, 3vw, 23px); }
 .clubPulseActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.clubPulsePost { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: #0a1a30; padding: 11px; }
+.clubPulsePost > div { display: flex; gap: 7px; }
 .clubPulseStats { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-panel-border); }
 .clubPulseStats > div, .clubPulseStats > button { display: grid; gap: 2px; min-width: 0; border: 0; border-radius: 0; background: #0a1a30; color: inherit; padding: 11px; text-align: left; font: inherit; }
 .clubPulseStats > button { cursor: pointer; }
@@ -244,6 +246,7 @@
 .clubPulseClear { display: grid; gap: 3px; border: 1px dashed var(--shell-panel-border); border-radius: 11px; padding: 11px; }
 .clubPulseClear span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; }
 .clubPulseShareStatus { margin: 0; color: var(--club-color, var(--brand-green)); font-size: 11px; font-weight: 850; }
+.clubPulseShareStatus a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 .setupCard {
   display: grid;
@@ -413,6 +416,8 @@
   .clubPulseHeading { align-items: flex-start; }
   .clubPulseActions { justify-content: flex-start; }
   .clubPulseActions > button { flex: 1 1 132px; }
+  .clubPulsePost { grid-template-columns: 1fr; }
+  .clubPulsePost > div > button { flex: 1; }
   .clubPulseStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .clubPulseList > a, .clubPulseList > button { grid-template-columns: 76px minmax(0, 1fr) auto; padding: 9px; }
   .inviteAccountCheck { grid-template-columns: 1fr; }

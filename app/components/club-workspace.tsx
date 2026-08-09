@@ -16,6 +16,7 @@ import {
   getClubCompetitionTeamHandoff,
   getClubCalendarConflicts,
   getVisibleClubCalendarEvents,
+  getClubWeeklyBriefTargets,
   getClubCompetitionReadiness,
   getClubGroupTypeLabel,
   getLinkableClubCompetitions,
@@ -177,6 +178,27 @@ export default function ClubWorkspace() {
     const response = await request<{ contacts?: ClubRosterContact[] }>(`/api/clubs/${selectedClubId}/roster-contacts`)
     return response.contacts ?? []
   }, [request, selectedClubId])
+
+  const postWeeklyBrief = useCallback(async (group: ClubGroup, text: string) => {
+    if (group.groupType === 'team') {
+      if (!group.teamChatScope) throw new Error('Link this team to your Captain profile before posting to Team Chat.')
+      await request('/api/team-rooms', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'send', ...group.teamChatScope, body: text, announcement: true }),
+      })
+      const params = new URLSearchParams({
+        team: group.teamChatScope.teamName,
+        league: group.teamChatScope.leagueName,
+        flight: group.teamChatScope.flight,
+      })
+      return `/team-room?${params.toString()}`
+    }
+    await request(`/api/clubs/${group.clubId}/clinics/${group.id}`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'message', body: text, kind: 'announcement' }),
+    })
+    return `/clubs/clinics/${group.id}?tab=messages`
+  }, [request])
 
   const setRosterSharing = useCallback(async (contactIds: string[], share: boolean) => {
     if (!selectedClubId) return ''
@@ -527,7 +549,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostWeeklyBrief={postWeeklyBrief} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'calendar' ? <ClubCalendarPanel workspace={workspace} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
@@ -829,8 +851,12 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
   return 'Clinic'
 }
 
-function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
+function ClubPulse({ workspace, roles, onPostWeeklyBrief, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostWeeklyBrief: (group: ClubGroup, text: string) => Promise<string>; onOpenTab: (tab: WorkspaceTab) => void }) {
   const [shareStatus, setShareStatus] = useState('')
+  const [showChatTargets, setShowChatTargets] = useState(false)
+  const [selectedTargetId, setSelectedTargetId] = useState('')
+  const [postingTargetId, setPostingTargetId] = useState('')
+  const [postedHref, setPostedHref] = useState('')
   const manager = isClubManager(roles)
   const today = getClubTodayForTimeZone(workspace.club.timeZone)
   const visibleEvents = getVisibleClubCalendarEvents(workspace.calendarEvents ?? [], workspace.groups, workspace.currentMembership, roles)
@@ -844,19 +870,31 @@ function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDa
     .reduce((total, group) => total + Math.max(0, group.renewalTargetRosterSize - group.memberIds.length), 0) : 0
   const nextEvent = upcomingEvents[0]
   const pulseClear = !conflicts.length && !resultsNeeded.length && !pendingRenewals && !openSpots
+  const chatTargets = getClubWeeklyBriefTargets(workspace.groups, roles, workspace.currentMembership.userId)
+  const selectedTarget = chatTargets.find((group) => group.id === selectedTargetId) ?? chatTargets[0]
 
-  async function shareWeeklyBrief() {
-    const text = buildClubWeeklyBrief({
+  function weeklyBrief(group?: ClubGroup) {
+    const events = group ? visibleEvents.filter((event) => event.groupId === group.id) : visibleEvents
+    const eventIds = new Set(events.map((event) => event.id))
+    const groupOpenSpots = group && manager && group.renewalsFinalizedAt && !group.renewalFillCompletedAt
+      ? Math.max(0, group.renewalTargetRosterSize - group.memberIds.length)
+      : 0
+    return buildClubWeeklyBrief({
       clubName: workspace.club.name,
+      programName: group?.name,
       timeZone: workspace.club.timeZone,
-      events: visibleEvents,
-      conflictCount: conflicts.length,
-      resultCount: resultsNeeded.length,
-      pendingRenewalCount: pendingRenewals,
-      openSpotCount: openSpots,
+      events,
+      conflictCount: group ? conflicts.filter((conflict) => conflict.eventIds.some((eventId) => eventIds.has(eventId))).length : conflicts.length,
+      resultCount: group ? events.filter((event) => event.needsResult).length : resultsNeeded.length,
+      pendingRenewalCount: group && manager ? group.renewalPendingCount : pendingRenewals,
+      openSpotCount: group ? groupOpenSpots : openSpots,
       publicUrl: `${window.location.origin}/clubs/${workspace.club.slug}`,
       today,
     })
+  }
+
+  async function shareWeeklyBrief() {
+    const text = weeklyBrief()
     try {
       if (navigator.share) {
         await navigator.share({ title: `${workspace.club.name} weekly tennis brief`, text })
@@ -876,12 +914,38 @@ function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDa
     }
   }
 
+  async function postWeeklyBrief(group: ClubGroup) {
+    setPostingTargetId(group.id)
+    setShareStatus('')
+    setPostedHref('')
+    try {
+      const href = await onPostWeeklyBrief(group, weeklyBrief(group))
+      setShareStatus(`Weekly brief posted to ${group.name}.`)
+      setPostedHref(href)
+      setShowChatTargets(false)
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : 'The weekly brief could not be posted. Try again.')
+    } finally {
+      setPostingTargetId('')
+    }
+  }
+
+  function openChatPost() {
+    if (chatTargets.length === 1) {
+      void postWeeklyBrief(chatTargets[0])
+      return
+    }
+    setSelectedTargetId(selectedTarget?.id ?? '')
+    setShowChatTargets(true)
+  }
+
   return (
     <section className={styles.clubPulse} aria-labelledby="club-pulse-title">
       <div className={styles.clubPulseHeading}>
         <div><p className={styles.eyebrow}>Club pulse</p><h3 id="club-pulse-title">{pulseClear ? 'Everything is moving.' : 'See what needs attention.'}</h3></div>
-        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button><button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
+        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button>{chatTargets.length ? <button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={openChatPost}>{postingTargetId ? 'Posting...' : 'Post to chat'}</button> : null}<button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
       </div>
+      {showChatTargets && selectedTarget ? <div className={styles.clubPulsePost}><label className={styles.field}><span>Post weekly brief to</span><select value={selectedTarget.id} onChange={(event) => setSelectedTargetId(event.target.value)}>{chatTargets.map((group) => <option key={group.id} value={group.id}>{group.name} — {group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</option>)}</select></label><div><button className={styles.primary} disabled={Boolean(postingTargetId)} type="button" onClick={() => void postWeeklyBrief(selectedTarget)}>{postingTargetId ? 'Posting...' : 'Post brief'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => setShowChatTargets(false)}>Cancel</button></div></div> : null}
       <div className={styles.clubPulseStats}>
         <button type="button" onClick={() => onOpenTab('calendar')}><strong>{todayEvents.length}</strong><span>Today</span></button>
         <button type="button" onClick={() => onOpenTab('calendar')}><strong>{conflicts.length}</strong><span>Schedule checks</span></button>
@@ -894,7 +958,7 @@ function ClubPulse({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceDa
         {nextEvent ? <Link href={nextEvent.href}><span>{todayEvents.length ? 'Next today' : 'Next up'}</span><strong>{nextEvent.title}</strong><small>{nextEvent.allDay ? formatClubCalendarDate(nextEvent.startsAt.slice(0, 10)) : `${formatClubCalendarDate(nextEvent.startsAt.slice(0, 10))} · ${formatClubCalendarTime(nextEvent.startsAt, workspace.club.timeZone)}`}</small><b>Open</b></Link> : null}
         {!nextEvent && pulseClear ? <div className={styles.clubPulseClear}><strong>No immediate Club work.</strong><span>New schedules and follow-ups will appear here automatically.</span></div> : null}
       </div>
-      {shareStatus ? <p className={styles.clubPulseShareStatus} role="status">{shareStatus}</p> : null}
+      {shareStatus ? <p className={styles.clubPulseShareStatus} role="status">{shareStatus}{postedHref ? <> <Link href={postedHref}>Open chat</Link></> : null}</p> : null}
     </section>
   )
 }
@@ -909,7 +973,7 @@ function getClubTodayForTimeZone(timeZone: string) {
   }
 }
 
-function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onPostWeeklyBrief, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostWeeklyBrief: (group: ClubGroup, text: string) => Promise<string>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -990,7 +1054,7 @@ function ClubHome({ workspace, roles, working, onCopyPendingRenewals, onPrepareR
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
-      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onOpenTab={onOpenTab} /> : null}
+      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onPostWeeklyBrief={onPostWeeklyBrief} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
