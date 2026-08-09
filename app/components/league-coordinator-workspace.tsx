@@ -32,7 +32,14 @@ import {
   resolveTeamMatchFormat,
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
-import { resolveTeamCompetitionRules } from '@/lib/competition-rules'
+import {
+  DEFAULT_TEAM_COMPETITION_RULES_OVERRIDE,
+  hasTeamCompetitionRulesOverride,
+  resolveTeamCompetitionRules,
+  type CompetitionEligibilityOverride,
+  type CompetitionMixedPairOverride,
+  type CompetitionStandingsRule,
+} from '@/lib/competition-rules'
 import {
   getTiqIndividualCompetitionFormatDescription,
   getTiqIndividualCompetitionFormatLabel,
@@ -178,6 +185,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   teamMatchFormatId: 'standard_2s_3d',
   scoringSystem: 'standard',
   thirdSetRule: 'either',
+  competitionRules: { ...DEFAULT_TEAM_COMPETITION_RULES_OVERRIDE },
   leagueName: '',
   seasonLabel: '',
   seasonStatus: 'draft',
@@ -774,8 +782,9 @@ export function LeagueCoordinatorWorkspace() {
       competitionLayer: 'tiq',
       scoringSystem: draft.scoringSystem,
       thirdSetRule: draft.thirdSetRule,
+      rulesOverride: draft.competitionRules,
     }),
-    [draft.flight, draft.leagueName, draft.scoringSystem, draft.teamMatchFormatId, draft.thirdSetRule],
+    [draft.competitionRules, draft.flight, draft.leagueName, draft.scoringSystem, draft.teamMatchFormatId, draft.thirdSetRule],
   )
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
@@ -1255,6 +1264,7 @@ export function LeagueCoordinatorWorkspace() {
       teamMatchFormatId: record.teamMatchFormatId,
       scoringSystem: record.scoringSystem,
       thirdSetRule: record.thirdSetRule,
+      competitionRules: record.competitionRules,
       leagueName: record.leagueName,
       seasonLabel: normalizedSeason,
       seasonStatus: record.seasonStatus,
@@ -2320,6 +2330,148 @@ export function LeagueCoordinatorWorkspace() {
                 </span>
               </label>
             </div>
+
+            {draft.leagueFormat === 'team' ? (
+              <details
+                style={rulesDetailsStyle}
+                open={hasTeamCompetitionRulesOverride(draft.competitionRules) ? true : undefined}
+              >
+                <summary style={rulesSummaryStyle}>
+                  Local competition rules
+                  <span style={pillSlate}>
+                    {hasTeamCompetitionRulesOverride(draft.competitionRules) ? 'Saved overrides' : 'Automatic defaults'}
+                  </span>
+                </summary>
+                <p style={setupAssistTextStyle}>
+                  Automatic defaults cover common Adult, Mixed, Combo, rated-line, and club formats. Change only what this league publishes differently.
+                </p>
+                <div style={responsiveFieldGrid}>
+                  <label style={fieldLabel}>
+                    <span>Eligibility</span>
+                    <select
+                      value={draft.competitionRules.eligibilityRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          eligibilityRule: event.target.value as CompetitionEligibilityOverride,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="open">Open roster</option>
+                      <option value="straight_level">Straight NTRP level</option>
+                      <option value="combined_level">Combined NTRP level</option>
+                      <option value="rated_lines">NTRP level by line</option>
+                      <option value="combined_rated_lines">Combined NTRP by line</option>
+                      <option value="local_rules">Published local rules</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Saved NTRP level</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={0.5}
+                      value={draft.competitionRules.competitionLevel ?? ''}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          competitionLevel: event.target.value ? Number(event.target.value) : null,
+                        },
+                      }))}
+                      placeholder="Auto from flight"
+                      style={inputStyle}
+                    />
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Doubles pair</span>
+                    <select
+                      value={draft.competitionRules.mixedPairRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          mixedPairRule: event.target.value as CompetitionMixedPairOverride,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="required">One man + one woman</option>
+                      <option value="not_required">No mixed-pair requirement</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Partner rating gap</span>
+                    <select
+                      value={String(draft.competitionRules.maxPartnerRatingGap)}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          maxPartnerRatingGap: event.target.value === 'auto' || event.target.value === 'none'
+                            ? event.target.value
+                            : Number(event.target.value),
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="none">No saved maximum</option>
+                      <option value="0.5">0.5 maximum</option>
+                      <option value="1">1.0 maximum</option>
+                      <option value="1.5">1.5 maximum</option>
+                      <option value="2">2.0 maximum</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Standings priority</span>
+                    <select
+                      value={draft.competitionRules.standingsRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          standingsRule: event.target.value as CompetitionStandingsRule,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use scoring default</option>
+                      <option value="match_wins">Team-match wins first</option>
+                      <option value="line_wins">Line wins first</option>
+                      <option value="points">Points first</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label style={fieldLabel}>
+                  <span>Published rule note</span>
+                  <textarea
+                    value={draft.competitionRules.notes}
+                    onChange={(event) => setDraft((current) => ({
+                      ...current,
+                      competitionRules: { ...current.competitionRules, notes: event.target.value },
+                    }))}
+                    placeholder="Only add the local rule captains and players need to know."
+                    style={textareaStyle}
+                  />
+                </label>
+
+                <p style={fieldHelpText}>
+                  <strong>Applied now:</strong> {draftTeamCompetitionRules.eligibilityDetail}{' '}
+                  {draftTeamCompetitionRules.standingsDetail}
+                </p>
+              </details>
+            ) : null}
 
                 <div style={responsiveOutcomeInfoGrid}>
               <div style={infoCard}>
@@ -4581,6 +4733,29 @@ const compactDetailsPanelStyle: CSSProperties = {
   padding: '12px',
   borderRadius: '18px',
   gap: '10px',
+}
+
+const rulesDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: '14px 16px',
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const rulesSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
 }
 
 const mobileScrollablePanelStyle: CSSProperties = {

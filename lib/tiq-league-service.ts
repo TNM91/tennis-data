@@ -18,6 +18,10 @@ import {
 import { normalizeTiqIndividualCompetitionFormat } from '@/lib/tiq-individual-format'
 import { normalizeTeamMatchFormatId, type TeamMatchFormatId } from '@/lib/competition-format-registry'
 import {
+  normalizeTeamCompetitionRulesOverride,
+  type TeamCompetitionRulesOverride,
+} from '@/lib/competition-rules'
+import {
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   normalizeTiqLeagueMaxMatchEvents,
@@ -90,6 +94,7 @@ type TiqLeagueRow = {
   team_match_format_id?: string | null
   scoring_system?: string | null
   third_set_rule?: string | null
+  competition_rules?: unknown
   league_name?: string | null
   season_label?: string | null
   season_status?: string | null
@@ -144,6 +149,7 @@ type TiqLeagueRemotePayload = {
   team_match_format_id: TeamMatchFormatId
   scoring_system: 'standard' | 'dynamic_points'
   third_set_rule: 'either' | 'full_set' | 'match_tiebreak_10'
+  competition_rules: TeamCompetitionRulesOverride
   league_name: string
   season_label: string
   season_status: TiqLeagueSeasonStatus
@@ -225,6 +231,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     teamMatchFormatId: normalizeTeamMatchFormatId(row.team_match_format_id),
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     thirdSetRule: normalizeTiqLeagueThirdSetRule(row.third_set_rule),
+    competitionRules: normalizeTeamCompetitionRulesOverride(row.competition_rules),
     leagueName: cleanText(row.league_name),
     seasonLabel: normalizeSeasonLabel(row.season_label),
     seasonStatus: normalizeTiqLeagueSeasonStatus(row.season_status),
@@ -327,6 +334,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     team_match_format_id: normalizeTeamMatchFormatId(record.teamMatchFormatId),
     scoring_system: normalizeTiqLeagueScoringSystem(record.scoringSystem),
     third_set_rule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
+    competition_rules: normalizeTeamCompetitionRulesOverride(record.competitionRules),
     league_name: record.leagueName,
     season_label: record.seasonLabel,
     season_status: record.seasonStatus,

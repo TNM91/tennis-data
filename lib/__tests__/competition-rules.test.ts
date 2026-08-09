@@ -3,8 +3,10 @@ import {
   extractCompetitionLevel,
   getCompetitionPairRatingIssues,
   getTournamentOperationsSummary,
+  hasTeamCompetitionRulesOverride,
   isCompetitionPairRatingEligible,
   isCompetitionPlayerRatingEligible,
+  normalizeTeamCompetitionRulesOverride,
   resolveTeamCompetitionRules,
 } from '../competition-rules'
 
@@ -71,5 +73,55 @@ describe('competition rules', () => {
     expect(rules.standingsDetail).toContain('total points first')
     expect(getTournamentOperationsSummary('round_robin')).toContain('Standings use wins')
     expect(getTournamentOperationsSummary('team_tournament')).toContain('team scorecard')
+  })
+
+  it('normalizes durable local overrides without trusting malformed values', () => {
+    expect(normalizeTeamCompetitionRulesOverride(null)).toMatchObject({
+      eligibilityRule: 'auto',
+      competitionLevel: null,
+      mixedPairRule: 'auto',
+      maxPartnerRatingGap: 'auto',
+      standingsRule: 'auto',
+      notes: '',
+    })
+    expect(normalizeTeamCompetitionRulesOverride({
+      eligibilityRule: 'combined_level',
+      competitionLevel: 7.4,
+      mixedPairRule: 'required',
+      maxPartnerRatingGap: 1.1,
+      standingsRule: 'line_wins',
+      notes: '  Local championship rule  ',
+    })).toEqual({
+      eligibilityRule: 'combined_level',
+      competitionLevel: 7.5,
+      mixedPairRule: 'required',
+      maxPartnerRatingGap: 1,
+      standingsRule: 'line_wins',
+      notes: 'Local championship rule',
+    })
+  })
+
+  it('applies saved eligibility, pair, level, and standings overrides', () => {
+    const rules = resolveTeamCompetitionRules({
+      leagueName: 'Club Doubles',
+      flight: 'Open',
+      rulesOverride: {
+        eligibilityRule: 'combined_level',
+        competitionLevel: 7.5,
+        mixedPairRule: 'required',
+        maxPartnerRatingGap: 'none',
+        standingsRule: 'line_wins',
+        notes: 'Club director verifies age eligibility.',
+      },
+    })
+
+    expect(rules.ratingRule).toBe('combined_level')
+    expect(rules.competitionLevel).toBe(7.5)
+    expect(rules.requiresMixedPair).toBe(true)
+    expect(rules.maxPartnerRatingGap).toBeNull()
+    expect(rules.standingsRule).toBe('line_wins')
+    expect(rules.standingsDetail).toContain('line wins first')
+    expect(rules.rulesNotes).toBe('Club director verifies age eligibility.')
+    expect(hasTeamCompetitionRulesOverride(normalizeTeamCompetitionRulesOverride({ standingsRule: 'line_wins' }))).toBe(true)
   })
 })

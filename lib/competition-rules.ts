@@ -13,6 +13,28 @@ export type CompetitionRatingRule =
   | 'combined_rated_lines'
   | 'local_rules'
 
+export type CompetitionEligibilityOverride = 'auto' | CompetitionRatingRule
+export type CompetitionMixedPairOverride = 'auto' | 'required' | 'not_required'
+export type CompetitionStandingsRule = 'auto' | 'match_wins' | 'line_wins' | 'points'
+
+export type TeamCompetitionRulesOverride = {
+  eligibilityRule: CompetitionEligibilityOverride
+  competitionLevel: number | null
+  mixedPairRule: CompetitionMixedPairOverride
+  maxPartnerRatingGap: 'auto' | 'none' | number
+  standingsRule: CompetitionStandingsRule
+  notes: string
+}
+
+export const DEFAULT_TEAM_COMPETITION_RULES_OVERRIDE: TeamCompetitionRulesOverride = {
+  eligibilityRule: 'auto',
+  competitionLevel: null,
+  mixedPairRule: 'auto',
+  maxPartnerRatingGap: 'auto',
+  standingsRule: 'auto',
+  notes: '',
+}
+
 export type TeamCompetitionRules = {
   formatId: TeamMatchFormatId
   formatLabel: string
@@ -29,6 +51,8 @@ export type TeamCompetitionRules = {
   scoringDetail: string
   teamResultDetail: string
   standingsDetail: string
+  standingsRule: Exclude<CompetitionStandingsRule, 'auto'>
+  rulesNotes: string
   localRulesApply: boolean
 }
 
@@ -36,6 +60,54 @@ const LEVEL_PATTERN = /\b((?:10|[2-9])\.[05])\b/
 
 function cleanText(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim()
+}
+
+function normalizeHalfPoint(value: unknown, minimum: number, maximum: number) {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''))
+  if (!Number.isFinite(parsed)) return null
+  return Math.min(maximum, Math.max(minimum, Math.round(parsed * 2) / 2))
+}
+
+export function normalizeTeamCompetitionRulesOverride(value: unknown): TeamCompetitionRulesOverride {
+  const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const eligibilityRule = [
+    'open',
+    'straight_level',
+    'combined_level',
+    'rated_lines',
+    'combined_rated_lines',
+    'local_rules',
+  ].includes(String(input.eligibilityRule))
+    ? input.eligibilityRule as CompetitionRatingRule
+    : 'auto'
+  const mixedPairRule = input.mixedPairRule === 'required' || input.mixedPairRule === 'not_required'
+    ? input.mixedPairRule
+    : 'auto'
+  const standingsRule = input.standingsRule === 'match_wins' || input.standingsRule === 'line_wins' || input.standingsRule === 'points'
+    ? input.standingsRule
+    : 'auto'
+  const rawGap = input.maxPartnerRatingGap
+  const maxPartnerRatingGap = rawGap === 'none'
+    ? 'none'
+    : normalizeHalfPoint(rawGap, 0.5, 3) ?? 'auto'
+
+  return {
+    eligibilityRule,
+    competitionLevel: normalizeHalfPoint(input.competitionLevel, 1, 10),
+    mixedPairRule,
+    maxPartnerRatingGap,
+    standingsRule,
+    notes: cleanText(typeof input.notes === 'string' ? input.notes : '').slice(0, 1000),
+  }
+}
+
+export function hasTeamCompetitionRulesOverride(value: TeamCompetitionRulesOverride) {
+  return value.eligibilityRule !== 'auto' ||
+    value.competitionLevel !== null ||
+    value.mixedPairRule !== 'auto' ||
+    value.maxPartnerRatingGap !== 'auto' ||
+    value.standingsRule !== 'auto' ||
+    Boolean(value.notes)
 }
 
 export function extractCompetitionLevel(leagueName: string | null | undefined, flight: string | null | undefined) {
@@ -86,13 +158,15 @@ export function resolveTeamCompetitionRules(input: {
   competitionLayer?: 'usta' | 'tiq' | string | null
   scoringSystem?: string | null
   thirdSetRule?: string | null
+  rulesOverride?: Partial<TeamCompetitionRulesOverride> | null
 }): TeamCompetitionRules {
   const leagueName = cleanText(input.leagueName)
   const flight = cleanText(input.flight)
   const context = `${leagueName} ${flight}`.trim()
   const format = resolveTeamMatchFormat({ leagueName, flight, explicitFormatId: input.explicitFormatId })
   const summary = getTeamMatchFormatSummary(format)
-  const competitionLevel = extractCompetitionLevel(leagueName, flight)
+  const rulesOverride = normalizeTeamCompetitionRulesOverride(input.rulesOverride)
+  const competitionLevel = rulesOverride.competitionLevel ?? extractCompetitionLevel(leagueName, flight)
   const mixed = /\bmixed\b/i.test(context) || format.id === 'mixed_tri_level'
   const combo = /\bcombo\b/i.test(context)
   const combinedAdult = /\badult\s*(?:55|65|70|75)\s*(?:&|and)?\s*over\b/i.test(context)
@@ -145,14 +219,59 @@ export function resolveTeamCompetitionRules(input: {
     eligibilityDetail = `Players must be eligible for the ${formatLevel(competitionLevel)} team level. Local and championship rules can differ, so published league rules remain the final check.`
   }
 
+  if (rulesOverride.eligibilityRule !== 'auto') {
+    ratingRule = rulesOverride.eligibilityRule
+    minimumPlayerRating = ratingRule === 'straight_level' && typeof competitionLevel === 'number'
+      ? competitionLevel - 0.5
+      : minimumPlayerRating
+    if (ratingRule === 'open') {
+      eligibilityTitle = 'Open roster'
+      eligibilityDetail = 'Any saved roster player may be selected. Age, membership, or local restrictions remain in the published rules.'
+    } else if (ratingRule === 'straight_level') {
+      eligibilityTitle = `${formatLevel(competitionLevel)} level play`
+      eligibilityDetail = `Players must be eligible for the saved ${formatLevel(competitionLevel)} level.`
+    } else if (ratingRule === 'combined_level') {
+      eligibilityTitle = `${formatLevel(competitionLevel)} combined doubles`
+      eligibilityDetail = `Each pair's ratings may not exceed the saved ${formatLevel(competitionLevel)} combined level.`
+    } else if (ratingRule === 'rated_lines') {
+      eligibilityTitle = 'Rated lines'
+      eligibilityDetail = 'Each player must be eligible for the rating assigned to that court.'
+    } else if (ratingRule === 'combined_rated_lines') {
+      eligibilityTitle = 'Combined rating at each line'
+      eligibilityDetail = `Each pair's combined rating may not exceed the level assigned to that court.`
+    } else {
+      eligibilityTitle = 'Published local eligibility'
+      eligibilityDetail = 'League Office uses the saved local rules as the final eligibility check.'
+    }
+  }
+
+  const requiresMixedPair = rulesOverride.mixedPairRule === 'required'
+    ? true
+    : rulesOverride.mixedPairRule === 'not_required'
+      ? false
+      : mixed
+  if (rulesOverride.maxPartnerRatingGap === 'none') maxPartnerRatingGap = null
+  else if (typeof rulesOverride.maxPartnerRatingGap === 'number') maxPartnerRatingGap = rulesOverride.maxPartnerRatingGap
+  if (requiresMixedPair && !eligibilityDetail.toLowerCase().includes('one man')) {
+    eligibilityDetail = `${eligibilityDetail} Each doubles court needs one man and one woman.`
+  }
+  if (typeof maxPartnerRatingGap === 'number' && !eligibilityDetail.toLowerCase().includes('differ')) {
+    eligibilityDetail = `${eligibilityDetail} Partners may differ by no more than ${maxPartnerRatingGap.toFixed(1)}.`
+  }
+
   const scoring = buildScoringDetail(input.scoringSystem, input.thirdSetRule)
   const majority = Math.floor(summary.courts / 2) + 1
   const teamResultDetail = summary.courts % 2 === 0
     ? `Each court is one line result. The team with more line wins takes the match; a ${summary.courts / 2}-${summary.courts / 2} tie is possible unless the league defines another rule.`
     : `Each court is one line result. First to ${majority} line wins takes the team match.`
-  const standingsDetail = input.scoringSystem === 'dynamic_points'
+  const standingsRule = rulesOverride.standingsRule === 'auto'
+    ? input.scoringSystem === 'dynamic_points' ? 'points' : 'match_wins'
+    : rulesOverride.standingsRule
+  const standingsDetail = standingsRule === 'points'
     ? 'Standings rank total points first, then team-match wins and line wins.'
-    : 'Standings rank team-match wins first, then line wins. League Office can publish local tiebreak rules with the season.'
+    : standingsRule === 'line_wins'
+      ? 'Standings rank line wins first, then team-match wins and points.'
+      : 'Standings rank team-match wins first, then line wins and points.'
 
   return {
     formatId: format.id,
@@ -162,7 +281,7 @@ export function resolveTeamCompetitionRules(input: {
     competitionLevel,
     minimumPlayerRating,
     ratingRule,
-    requiresMixedPair: mixed,
+    requiresMixedPair,
     maxPartnerRatingGap,
     eligibilityTitle,
     eligibilityDetail,
@@ -170,7 +289,9 @@ export function resolveTeamCompetitionRules(input: {
     scoringDetail: scoring.detail,
     teamResultDetail,
     standingsDetail,
-    localRulesApply: input.competitionLayer === 'usta' || ratingRule === 'local_rules',
+    standingsRule,
+    rulesNotes: rulesOverride.notes,
+    localRulesApply: input.competitionLayer === 'usta' || ratingRule === 'local_rules' || hasTeamCompetitionRulesOverride(rulesOverride),
   }
 }
 

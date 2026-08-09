@@ -53,6 +53,7 @@ import {
   getCompetitionPairRatingIssues,
   isCompetitionPairRatingEligible,
   isCompetitionPlayerRatingEligible,
+  normalizeTeamCompetitionRulesOverride,
   resolveTeamCompetitionRules,
   type TeamCompetitionRules,
 } from '@/lib/competition-rules'
@@ -125,6 +126,7 @@ type TiqTeamLeagueFormatRow = {
   league_name: string | null
   flight: string | null
   team_match_format_id: string | null
+  competition_rules: unknown
 }
 
 type SlotPlayer = {
@@ -1249,14 +1251,15 @@ function LineupBuilderContent() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
-  const storedTiqMatchFormatId = useMemo(() => {
+  const storedTiqLeagueFormat = useMemo(() => {
     const normalizedLeague = normalizeTeamName(leagueName)
     const normalizedFlight = normalizeTeamName(flight)
     return tiqTeamLeagueFormats.find((record) =>
       normalizeTeamName(record.league_name || '') === normalizedLeague &&
       (!normalizedFlight || !record.flight || normalizeTeamName(record.flight) === normalizedFlight)
-    )?.team_match_format_id || ''
+    ) || null
   }, [flight, leagueName, tiqTeamLeagueFormats])
+  const storedTiqMatchFormatId = storedTiqLeagueFormat?.team_match_format_id || ''
   const effectiveMatchFormatId = selectedMatchFormatId === 'auto'
     ? storedTiqMatchFormatId || 'auto'
     : selectedMatchFormatId
@@ -1270,8 +1273,9 @@ function LineupBuilderContent() {
       flight,
       explicitFormatId: effectiveMatchFormatId,
       competitionLayer,
+      rulesOverride: normalizeTeamCompetitionRulesOverride(storedTiqLeagueFormat?.competition_rules),
     }),
-    [competitionLayer, effectiveMatchFormatId, flight, leagueName],
+    [competitionLayer, effectiveMatchFormatId, flight, leagueName, storedTiqLeagueFormat?.competition_rules],
   )
   const matchFormatSummary = useMemo(() => getTeamMatchFormatSummary(resolvedMatchFormat), [resolvedMatchFormat])
   const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
@@ -1537,7 +1541,7 @@ function LineupBuilderContent() {
         .order('scenario_name', { ascending: true }),
       supabase
         .from('tiq_leagues')
-        .select('league_name, flight, team_match_format_id')
+        .select('league_name, flight, team_match_format_id, competition_rules')
         .eq('league_format', 'team'),
     ])
 
