@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useAuth } from '@/app/components/auth-provider'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
+import { getClubCommunicationSummary, type ClubCommunicationItem } from '@/lib/club-communication'
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
@@ -231,6 +232,21 @@ export default function ClubWorkspace() {
     })
     if (!response.announcement) throw new Error('The announcement posted, but its history could not be saved.')
     return response.announcement
+  }, [request, selectedClubId])
+
+  const loadClubCommunication = useCallback(async () => {
+    if (!selectedClubId) return []
+    const response = await request<{ items?: ClubCommunicationItem[] }>(`/api/clubs/${selectedClubId}/communication`)
+    return response.items ?? []
+  }, [request, selectedClubId])
+
+  const markClubCommunicationRead = useCallback(async (channelId = '') => {
+    if (!selectedClubId) throw new Error('Choose a club before updating communication.')
+    const response = await request<{ channelIds?: string[] }>(`/api/clubs/${selectedClubId}/communication`, {
+      method: 'PATCH',
+      body: JSON.stringify(channelId ? { channelId } : {}),
+    })
+    return response.channelIds ?? []
   }, [request, selectedClubId])
 
   const setRosterSharing = useCallback(async (contactIds: string[], share: boolean) => {
@@ -582,7 +598,7 @@ export default function ClubWorkspace() {
         </section>
       ) : null}
 
-      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostMessage={postClubMessage} onLoadAnnouncements={loadClubAnnouncements} onRecordAnnouncement={recordClubAnnouncement} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
+      {tab === 'home' ? <ClubHome workspace={workspace} roles={clubRoles} working={working} onPostMessage={postClubMessage} onLoadAnnouncements={loadClubAnnouncements} onRecordAnnouncement={recordClubAnnouncement} onLoadCommunication={loadClubCommunication} onMarkCommunicationRead={markClubCommunicationRead} onCopyPendingRenewals={copyPendingRenewalReminders} onPrepareRenewals={prepareRenewals} onFinalizeRenewals={finalizeRenewals} onFillOpenSpots={(groupId) => openPeople(`group:${groupId}`, true)} onCompleteRenewalFill={completeRenewalFill} onLaunchProgram={launchProgram} onSyncCompetitionRoster={syncCompetitionRoster} onOpenProgram={(groupId) => { setRequestedGroupId(groupId); setTab('groups') }} onOpenTab={(nextTab) => nextTab === 'people' ? openPeople() : setTab(nextTab)} onRunSetupStep={openGuidedStep} /> : null}
       {tab === 'calendar' ? <ClubCalendarPanel workspace={workspace} /> : null}
       {tab === 'people' ? (
         <PeoplePanel
@@ -884,10 +900,13 @@ function getClubCalendarTypeLabel(type: ClubCalendarEventType) {
   return 'Clinic'
 }
 
-function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onOpenTab: (tab: WorkspaceTab) => void }) {
+function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onOpenTab: (tab: WorkspaceTab) => void }) {
   const [shareStatus, setShareStatus] = useState('')
   const [showChatTargets, setShowChatTargets] = useState(false)
   const [showAnnouncementCenter, setShowAnnouncementCenter] = useState(false)
+  const [communicationItems, setCommunicationItems] = useState<ClubCommunicationItem[]>([])
+  const [communicationLoading, setCommunicationLoading] = useState(false)
+  const [communicationError, setCommunicationError] = useState('')
   const [selectedTargetId, setSelectedTargetId] = useState('')
   const [postingTargetId, setPostingTargetId] = useState('')
   const [postedHref, setPostedHref] = useState('')
@@ -906,6 +925,33 @@ function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRec
   const pulseClear = !conflicts.length && !resultsNeeded.length && !pendingRenewals && !openSpots
   const chatTargets = getClubWeeklyBriefTargets(workspace.groups, roles, workspace.currentMembership.userId)
   const selectedTarget = chatTargets.find((group) => group.id === selectedTargetId) ?? chatTargets[0]
+
+  async function openCommunication() {
+    setShareStatus('')
+    setPostedHref('')
+    setShowAnnouncementCenter(true)
+    if (communicationLoading) return
+    setCommunicationLoading(true)
+    setCommunicationError('')
+    try {
+      setCommunicationItems(await onLoadCommunication())
+    } catch (loadError) {
+      setCommunicationError(loadError instanceof Error ? loadError.message : 'Club communication could not load.')
+    } finally {
+      setCommunicationLoading(false)
+    }
+  }
+
+  async function markCommunicationRead(channelId = '') {
+    try {
+      const channelIds = await onMarkCommunicationRead(channelId)
+      const reviewedIds = new Set(channelIds)
+      setCommunicationError('')
+      setCommunicationItems((current) => current.map((item) => reviewedIds.has(item.channelId) ? { ...item, unreadCount: 0 } : item))
+    } catch (reviewError) {
+      setCommunicationError(reviewError instanceof Error ? reviewError.message : 'Communication could not be marked read.')
+    }
+  }
 
   function weeklyBrief(group?: ClubGroup) {
     const events = group ? visibleEvents.filter((event) => event.groupId === group.id) : visibleEvents
@@ -977,7 +1023,7 @@ function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRec
     <section className={styles.clubPulse} aria-labelledby="club-pulse-title">
       <div className={styles.clubPulseHeading}>
         <div><p className={styles.eyebrow}>Club pulse</p><h3 id="club-pulse-title">{pulseClear ? 'Everything is moving.' : 'See what needs attention.'}</h3></div>
-        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button>{chatTargets.length ? <><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={openChatPost}>{postingTargetId ? 'Posting...' : 'Post to chat'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => { setShareStatus(''); setPostedHref(''); setShowAnnouncementCenter(true) }}>Announcements</button></> : null}<button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
+        <div className={styles.clubPulseActions}><button className={styles.quietButton} type="button" onClick={() => void shareWeeklyBrief()}>Share weekly brief</button>{chatTargets.length ? <><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={openChatPost}>{postingTargetId ? 'Posting...' : 'Post to chat'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => void openCommunication()}>Communication</button></> : null}<button className={styles.quietButton} type="button" onClick={() => onOpenTab('calendar')}>Open schedule</button></div>
       </div>
       {showChatTargets && selectedTarget ? <div className={styles.clubPulsePost}><label className={styles.field}><span>Post weekly brief to</span><select value={selectedTarget.id} onChange={(event) => setSelectedTargetId(event.target.value)}>{chatTargets.map((group) => <option key={group.id} value={group.id}>{group.name} — {group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</option>)}</select></label><div><button className={styles.primary} disabled={Boolean(postingTargetId)} type="button" onClick={() => void postWeeklyBrief(selectedTarget)}>{postingTargetId ? 'Posting...' : 'Post brief'}</button><button className={styles.quietButton} disabled={Boolean(postingTargetId)} type="button" onClick={() => setShowChatTargets(false)}>Cancel</button></div></div> : null}
       <div className={styles.clubPulseStats}>
@@ -993,13 +1039,14 @@ function ClubPulse({ workspace, roles, onPostMessage, onLoadAnnouncements, onRec
         {!nextEvent && pulseClear ? <div className={styles.clubPulseClear}><strong>No immediate Club work.</strong><span>New schedules and follow-ups will appear here automatically.</span></div> : null}
       </div>
       {shareStatus ? <p className={styles.clubPulseShareStatus} role="status">{shareStatus}{postedHref ? <> <Link href={postedHref}>Open chat</Link></> : null}</p> : null}
-      {showAnnouncementCenter ? <ClubAnnouncementCenter clubName={workspace.club.name} targets={chatTargets} onClose={() => setShowAnnouncementCenter(false)} onPost={onPostMessage} onLoadHistory={onLoadAnnouncements} onRecordHistory={onRecordAnnouncement} onPublished={(count, href, warning) => { setShareStatus(`Announcement posted to ${count} ${count === 1 ? 'chat' : 'chats'}.${warning ? ` ${warning}` : ''}`); setPostedHref(href); setShowAnnouncementCenter(false) }} /> : null}
+      {showAnnouncementCenter ? <ClubAnnouncementCenter clubName={workspace.club.name} targets={chatTargets} communicationItems={communicationItems} communicationLoading={communicationLoading} communicationError={communicationError} onClose={() => setShowAnnouncementCenter(false)} onPost={onPostMessage} onLoadHistory={onLoadAnnouncements} onRecordHistory={onRecordAnnouncement} onReloadCommunication={openCommunication} onMarkCommunicationRead={markCommunicationRead} onPublished={(count, href, warning) => { setShareStatus(`Announcement posted to ${count} ${count === 1 ? 'chat' : 'chats'}.${warning ? ` ${warning}` : ''}`); setPostedHref(href); setShowAnnouncementCenter(false) }} /> : null}
     </section>
   )
 }
 
-function ClubAnnouncementCenter({ clubName, targets, onClose, onPost, onLoadHistory, onRecordHistory, onPublished }: { clubName: string; targets: ClubGroup[]; onClose: () => void; onPost: (group: ClubGroup, text: string) => Promise<string>; onLoadHistory: () => Promise<ClubAnnouncementHistory[]>; onRecordHistory: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onPublished: (count: number, href: string, warning: string) => void }) {
-  const [mode, setMode] = useState<'compose' | 'history'>('compose')
+function ClubAnnouncementCenter({ clubName, targets, communicationItems, communicationLoading, communicationError, onClose, onPost, onLoadHistory, onRecordHistory, onReloadCommunication, onMarkCommunicationRead, onPublished }: { clubName: string; targets: ClubGroup[]; communicationItems: ClubCommunicationItem[]; communicationLoading: boolean; communicationError: string; onClose: () => void; onPost: (group: ClubGroup, text: string) => Promise<string>; onLoadHistory: () => Promise<ClubAnnouncementHistory[]>; onRecordHistory: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onReloadCommunication: () => Promise<void>; onMarkCommunicationRead: (channelId?: string) => Promise<void>; onPublished: (count: number, href: string, warning: string) => void }) {
+  const [mode, setMode] = useState<'followup' | 'compose' | 'history'>('followup')
+  const [followupView, setFollowupView] = useState<'attention' | 'recent'>('attention')
   const [body, setBody] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>(targets.length === 1 ? [targets[0].id] : [])
   const [working, setWorking] = useState(false)
@@ -1011,6 +1058,10 @@ function ClubAnnouncementCenter({ clubName, targets, onClose, onPost, onLoadHist
   const historyRequestId = useRef(0)
   const selectedTargets = targets.filter((group) => selectedIds.includes(group.id))
   const message = body.trim().slice(0, 2000)
+  const communicationSummary = getClubCommunicationSummary(communicationItems)
+  const visibleCommunication = followupView === 'attention'
+    ? communicationItems.filter((item) => item.needsReply || item.unreadCount > 0)
+    : communicationItems
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -1091,7 +1142,74 @@ function ClubAnnouncementCenter({ clubName, targets, onClose, onPost, onLoadHist
     setMode('compose')
   }
 
-  return <div className={styles.clubAnnouncementBackdrop} onMouseDown={() => { if (!working) onClose() }}><section className={styles.clubAnnouncementSheet} role="dialog" aria-modal="true" aria-labelledby="club-announcement-title" onMouseDown={(event) => event.stopPropagation()}><div className={styles.clubAnnouncementHeading}><div><p className={styles.eyebrow}>Club announcements</p><h2 id="club-announcement-title">Send and reuse clear updates.</h2><p>Write once, choose the conversations, and keep a shared Club record.</p></div><button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Close</button></div><div className={styles.clubAnnouncementTabs} role="tablist" aria-label="Club announcements"><button id="club-announcement-compose-tab" aria-controls="club-announcement-compose-panel" aria-selected={mode === 'compose'} disabled={working} role="tab" type="button" onClick={() => setMode('compose')}>New</button><button id="club-announcement-history-tab" aria-controls="club-announcement-history-panel" aria-selected={mode === 'history'} disabled={working} role="tab" type="button" onClick={() => void openHistory()}>History</button></div>{mode === 'compose' ? <div className={styles.clubAnnouncementCompose} id="club-announcement-compose-panel" role="tabpanel" aria-labelledby="club-announcement-compose-tab"><label className={styles.field}><span>Message</span><textarea autoFocus maxLength={2000} value={body} onChange={(event) => { setBody(event.target.value); setError('') }} placeholder="Practice moved to Court 4 at 6:30 PM." /><small>{body.length}/2000</small></label><div className={styles.clubAnnouncementTargets} role="group" aria-labelledby="club-announcement-targets"><div><strong id="club-announcement-targets">Choose conversations</strong><button className={styles.quietButton} disabled={working} type="button" onClick={() => setSelectedIds(selectedIds.length === targets.length ? [] : targets.map((group) => group.id))}>{selectedIds.length === targets.length ? 'Clear all' : 'Select all'}</button></div><div>{targets.map((group) => <label key={group.id}><input checked={selectedIds.includes(group.id)} disabled={working} type="checkbox" onChange={() => toggleTarget(group.id)} /><span><strong>{group.name}</strong><small>{group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</small></span></label>)}</div></div><div className={styles.clubAnnouncementPreview}><div><span>Preview</span><small>{selectedTargets.length ? `${selectedTargets.length} selected` : 'Choose chats'}</small></div><strong>{clubName}</strong><p>{message || 'Your announcement will appear here.'}</p></div>{error ? <p className={styles.clubAnnouncementError} role="alert">{error}</p> : null}<div className={styles.clubAnnouncementFooter}><button className={styles.primary} disabled={working || !message || !selectedTargets.length} type="button" onClick={() => void publishAnnouncement()}>{working ? 'Publishing...' : `Publish to ${selectedTargets.length || 0} ${selectedTargets.length === 1 ? 'chat' : 'chats'}`}</button><button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Cancel</button></div></div> : <div className={styles.clubAnnouncementHistory} id="club-announcement-history-panel" role="tabpanel" aria-labelledby="club-announcement-history-tab">{historyLoading ? <div className={styles.emptyState}><strong>Loading announcement history...</strong></div> : historyError ? <div className={styles.clubAnnouncementError} role="alert">{historyError}<button className={styles.quietButton} type="button" onClick={() => void openHistory(true)}>Try again</button></div> : history.length ? history.map((item) => <article key={item.id}><div><div><strong>{item.authorName}</strong><time dateTime={item.createdAt}>{formatClubAnnouncementDate(item.createdAt)}</time></div><button className={styles.quietButton} type="button" onClick={() => reuseAnnouncement(item)}>Use again</button></div><p>{item.body}</p><div>{item.destinations.map((destination) => <Link href={destination.href} key={`${item.id}-${destination.groupId}`}>{destination.name}</Link>)}</div></article>) : <div className={styles.emptyState}><strong>No Club announcements yet.</strong><span>Your first published announcement will appear here for the staff team.</span><button className={styles.primary} type="button" onClick={() => setMode('compose')}>Write announcement</button></div>}</div>}</section></div>
+  return (
+    <div className={styles.clubAnnouncementBackdrop} onMouseDown={() => { if (!working) onClose() }}>
+      <section className={styles.clubAnnouncementSheet} role="dialog" aria-modal="true" aria-labelledby="club-announcement-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className={styles.clubAnnouncementHeading}>
+          <div><p className={styles.eyebrow}>Club communication</p><h2 id="club-announcement-title">Follow up without chasing threads.</h2><p>See what needs a response, then send the right update.</p></div>
+          <button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Close</button>
+        </div>
+        <div className={styles.clubAnnouncementTabs} role="tablist" aria-label="Club communication">
+          <button id="club-communication-followup-tab" aria-controls="club-communication-followup-panel" aria-selected={mode === 'followup'} disabled={working} role="tab" type="button" onClick={() => setMode('followup')}>Follow-up</button>
+          <button id="club-announcement-compose-tab" aria-controls="club-announcement-compose-panel" aria-selected={mode === 'compose'} disabled={working} role="tab" type="button" onClick={() => setMode('compose')}>New</button>
+          <button id="club-announcement-history-tab" aria-controls="club-announcement-history-panel" aria-selected={mode === 'history'} disabled={working} role="tab" type="button" onClick={() => void openHistory()}>History</button>
+        </div>
+        {mode === 'followup' ? (
+          <div className={styles.clubCommunicationFollowup} id="club-communication-followup-panel" role="tabpanel" aria-labelledby="club-communication-followup-tab">
+            <div className={styles.clubCommunicationSummary}>
+              <span><strong>{communicationSummary.needsReplyCount}</strong> need reply</span>
+              <span><strong>{communicationSummary.unreadCount}</strong> unread</span>
+              {communicationSummary.unreadCount ? <button className={styles.quietButton} type="button" onClick={() => void onMarkCommunicationRead()}>Mark all read</button> : null}
+            </div>
+            <div className={styles.clubCommunicationViews} aria-label="Communication view">
+              <button aria-pressed={followupView === 'attention'} type="button" onClick={() => setFollowupView('attention')}>Needs attention</button>
+              <button aria-pressed={followupView === 'recent'} type="button" onClick={() => setFollowupView('recent')}>Recent</button>
+              {communicationLoading ? <span role="status">Refreshing...</span> : null}
+            </div>
+            {communicationError ? <div className={styles.clubAnnouncementError} role="alert">{communicationError}<button className={styles.quietButton} type="button" onClick={() => void onReloadCommunication()}>Try again</button></div> : null}
+            {communicationLoading && !communicationItems.length ? <div className={styles.emptyState}><strong>Checking Club conversations...</strong></div> : visibleCommunication.length ? (
+              <div className={styles.clubCommunicationList}>
+                {visibleCommunication.map((item) => (
+                  <article key={item.id} data-needs-reply={item.needsReply || undefined}>
+                    <div className={styles.clubCommunicationCardHeading}>
+                      <div><span>{item.channelType === 'team' ? 'Team Chat' : 'Clinic'}</span><strong>{item.channelName}</strong></div>
+                      <time dateTime={item.createdAt}>{formatClubAnnouncementDate(item.createdAt)}</time>
+                    </div>
+                    <p><strong>{item.authorName}:</strong> {item.body}</p>
+                    <div className={styles.clubCommunicationBadges}>
+                      {item.needsReply ? <span>Needs reply</span> : null}
+                      {item.unreadCount ? <span>{item.unreadCount} unread</span> : null}
+                      {item.activityType === 'availability_reply' ? <span>Availability reply</span> : null}
+                    </div>
+                    <div className={styles.clubCommunicationActions}>
+                      <Link className={styles.primary} href={item.href}>{item.needsReply ? 'Open and reply' : 'Open conversation'}</Link>
+                      {item.unreadCount ? <button className={styles.quietButton} type="button" onClick={() => void onMarkCommunicationRead(item.channelId)}>Mark read</button> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>
+                <strong>{followupView === 'attention' ? "You're caught up." : 'No recent Club conversations.'}</strong>
+                <span>{followupView === 'attention' ? 'New replies and unread updates will appear here.' : 'Linked Team Chat and clinic activity will appear here.'}</span>
+                {followupView === 'attention' && communicationItems.length ? <button className={styles.quietButton} type="button" onClick={() => setFollowupView('recent')}>See recent</button> : null}
+              </div>
+            )}
+          </div>
+        ) : mode === 'compose' ? (
+          <div className={styles.clubAnnouncementCompose} id="club-announcement-compose-panel" role="tabpanel" aria-labelledby="club-announcement-compose-tab">
+            <label className={styles.field}><span>Message</span><textarea autoFocus maxLength={2000} value={body} onChange={(event) => { setBody(event.target.value); setError('') }} placeholder="Practice moved to Court 4 at 6:30 PM." /><small>{body.length}/2000</small></label>
+            <div className={styles.clubAnnouncementTargets} role="group" aria-labelledby="club-announcement-targets"><div><strong id="club-announcement-targets">Choose conversations</strong><button className={styles.quietButton} disabled={working} type="button" onClick={() => setSelectedIds(selectedIds.length === targets.length ? [] : targets.map((group) => group.id))}>{selectedIds.length === targets.length ? 'Clear all' : 'Select all'}</button></div><div>{targets.map((group) => <label key={group.id}><input checked={selectedIds.includes(group.id)} disabled={working} type="checkbox" onChange={() => toggleTarget(group.id)} /><span><strong>{group.name}</strong><small>{group.groupType === 'team' ? 'Team Chat' : 'Clinic updates'}</small></span></label>)}</div></div>
+            <div className={styles.clubAnnouncementPreview}><div><span>Preview</span><small>{selectedTargets.length ? `${selectedTargets.length} selected` : 'Choose chats'}</small></div><strong>{clubName}</strong><p>{message || 'Your announcement will appear here.'}</p></div>
+            {error ? <p className={styles.clubAnnouncementError} role="alert">{error}</p> : null}
+            <div className={styles.clubAnnouncementFooter}><button className={styles.primary} disabled={working || !message || !selectedTargets.length} type="button" onClick={() => void publishAnnouncement()}>{working ? 'Publishing...' : `Publish to ${selectedTargets.length || 0} ${selectedTargets.length === 1 ? 'chat' : 'chats'}`}</button><button className={styles.quietButton} disabled={working} type="button" onClick={onClose}>Cancel</button></div>
+          </div>
+        ) : (
+          <div className={styles.clubAnnouncementHistory} id="club-announcement-history-panel" role="tabpanel" aria-labelledby="club-announcement-history-tab">{historyLoading ? <div className={styles.emptyState}><strong>Loading announcement history...</strong></div> : historyError ? <div className={styles.clubAnnouncementError} role="alert">{historyError}<button className={styles.quietButton} type="button" onClick={() => void openHistory(true)}>Try again</button></div> : history.length ? history.map((item) => <article key={item.id}><div><div><strong>{item.authorName}</strong><time dateTime={item.createdAt}>{formatClubAnnouncementDate(item.createdAt)}</time></div><button className={styles.quietButton} type="button" onClick={() => reuseAnnouncement(item)}>Use again</button></div><p>{item.body}</p><div>{item.destinations.map((destination) => <Link href={destination.href} key={`${item.id}-${destination.groupId}`}>{destination.name}</Link>)}</div></article>) : <div className={styles.emptyState}><strong>No Club announcements yet.</strong><span>Your first published announcement will appear here for the staff team.</span><button className={styles.primary} type="button" onClick={() => setMode('compose')}>Write announcement</button></div>}</div>
+        )}
+      </section>
+    </div>
+  )
 }
 
 function formatClubAnnouncementDate(value: string) {
@@ -1110,7 +1228,7 @@ function getClubTodayForTimeZone(timeZone: string) {
   }
 }
 
-function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
+function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncements, onRecordAnnouncement, onLoadCommunication, onMarkCommunicationRead, onCopyPendingRenewals, onPrepareRenewals, onFinalizeRenewals, onFillOpenSpots, onCompleteRenewalFill, onLaunchProgram, onSyncCompetitionRoster, onOpenProgram, onOpenTab, onRunSetupStep }: { workspace: ClubWorkspaceData; roles: ClubRole[]; working: boolean; onPostMessage: (group: ClubGroup, text: string) => Promise<string>; onLoadAnnouncements: () => Promise<ClubAnnouncementHistory[]>; onRecordAnnouncement: (body: string, destinations: ClubAnnouncementDestination[]) => Promise<ClubAnnouncementHistory>; onLoadCommunication: () => Promise<ClubCommunicationItem[]>; onMarkCommunicationRead: (channelId?: string) => Promise<string[]>; onCopyPendingRenewals: () => Promise<void>; onPrepareRenewals: (groupId: string) => Promise<ClubGroupRenewal[]>; onFinalizeRenewals: (groupId: string) => Promise<void>; onFillOpenSpots: (groupId: string) => void; onCompleteRenewalFill: (groupId: string) => Promise<void>; onLaunchProgram: (group: ClubGroup) => Promise<void>; onSyncCompetitionRoster: (competition: ClubLinkedCompetition, membershipIds: string[]) => Promise<void>; onOpenProgram: (groupId: string) => void; onOpenTab: (tab: WorkspaceTab) => void; onRunSetupStep: (step: ClubSetupStep) => void }) {
   const staff = canRunClubPrograms(roles)
   const manager = isClubManager(roles)
   const actions = getRoleActions(roles, workspace)
@@ -1191,7 +1309,7 @@ function ClubHome({ workspace, roles, working, onPostMessage, onLoadAnnouncement
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
-      {showEverydayWorkspace ? <ClubPulse workspace={workspace} roles={roles} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onOpenTab={onOpenTab} /> : null}
+      {showEverydayWorkspace ? <ClubPulse key={workspace.club.id} workspace={workspace} roles={roles} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onLoadCommunication={onLoadCommunication} onMarkCommunicationRead={onMarkCommunicationRead} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>
