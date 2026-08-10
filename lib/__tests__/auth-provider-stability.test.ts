@@ -36,7 +36,17 @@ describe('auth provider stability', () => {
     expect(source).toContain("if (!mountedRef.current || sessionRef.current?.user?.id !== nextUserId) return null")
     expect(source).toContain('!isAuthEntitlementTimeout(entitlementResult) && entitlementResult !== null')
     expect(source).toContain('? entitlementsRef.current')
-    expect(source).toContain('if (!hasCurrentAccess) setAuthResolved(false)')
+    expect(source).toContain('if (previousUserId !== nextUserId) setAuthResolved(false)')
+    expect(source).toContain('if (nextEntitlements !== null) {')
+    expect(source).toContain('    setAuthResolved(true)\n\n    return {')
+  })
+
+  it('recovers unresolved sessions and missing entitlement snapshots in the background', () => {
+    expect(source).toContain('const AUTH_RETRY_INTERVAL_MS = 15000')
+    expect(source).toContain('if (authResolved) return')
+    expect(source).toContain('if (!authResolved || !session?.user?.id || entitlements !== null) return')
+    expect(source.match(/window\.setInterval\(\(\) => void loadAuth\(\), AUTH_RETRY_INTERVAL_MS\)/g)).toHaveLength(2)
+    expect(source.match(/window\.clearInterval\(retryInterval\)/g)).toHaveLength(2)
   })
 
   it('refreshes auth when a mobile browser restores or reconnects the page', () => {

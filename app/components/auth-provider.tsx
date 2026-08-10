@@ -33,6 +33,7 @@ type AuthRefreshState = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const AUTH_PROVIDER_TIMEOUT_MS = 8000
+const AUTH_RETRY_INTERVAL_MS = 15000
 const AUTH_SESSION_TIMEOUT = { timedOut: true } as const
 const AUTH_ENTITLEMENT_TIMEOUT = { timedOut: true } as const
 
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     sessionRef.current = nextSession
     setSession(nextSession)
-    if (!hasCurrentAccess) setAuthResolved(false)
+    if (previousUserId !== nextUserId) setAuthResolved(false)
 
     const [nextRole, entitlementResult] = await Promise.all([
       withTimeout(
@@ -126,8 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (nextEntitlements !== null) {
       entitlementsRef.current = nextEntitlements
       setEntitlements(nextEntitlements)
-      setAuthResolved(true)
     }
+    setAuthResolved(true)
 
     return {
       session: nextSession,
@@ -211,6 +212,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe()
     }
   }, [loadAuth, resolveSignedInSession])
+
+  useEffect(() => {
+    if (authResolved) return
+    const retryInterval = window.setInterval(() => void loadAuth(), AUTH_RETRY_INTERVAL_MS)
+    return () => window.clearInterval(retryInterval)
+  }, [authResolved, loadAuth])
+
+  useEffect(() => {
+    if (!authResolved || !session?.user?.id || entitlements !== null) return
+    const retryInterval = window.setInterval(() => void loadAuth(), AUTH_RETRY_INTERVAL_MS)
+    return () => window.clearInterval(retryInterval)
+  }, [authResolved, entitlements, loadAuth, session?.user?.id])
 
   useEffect(() => {
     function refreshVisiblePage() {

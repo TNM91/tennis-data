@@ -136,14 +136,20 @@ const clubPeopleFilters: Array<{ id: ClubPeopleFilter; label: string }> = [
   { id: 'competition', label: 'Competition' },
 ]
 
+const CLUB_REQUEST_TIMEOUT_MS = 12000
+const CLUB_AUTH_RECOVERY_MS = 9000
+
 export default function ClubWorkspace() {
-  const { authResolved, session, userId } = useAuth()
+  const { authResolved, refreshAuth, session, userId } = useAuth()
   const accessToken = session?.access_token ?? ''
   const [clubs, setClubs] = useState<Club[]>([])
   const [workspace, setWorkspace] = useState<ClubWorkspaceData | null>(null)
   const [selectedClubId, setSelectedClubId] = useState('')
   const [tab, setTab] = useState<WorkspaceTab>('home')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [authRecoveryVisible, setAuthRecoveryVisible] = useState(false)
+  const [authRetryCount, setAuthRetryCount] = useState(0)
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<'success' | 'danger'>('success')
@@ -155,22 +161,35 @@ export default function ClubWorkspace() {
   const [openCommunicationOnLoad] = useState(() => readRequestedCommunicationOpen())
 
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const response = await fetch(path, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        ...(init?.headers ?? {}),
-      },
-    })
-    const payload = await response.json() as T & { message?: string }
-    if (!response.ok) throw new Error(payload.message || 'Club could not complete that action.')
-    return payload
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), CLUB_REQUEST_TIMEOUT_MS)
+    try {
+      const response = await fetch(path, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...(init?.headers ?? {}),
+        },
+      })
+      const payload = await response.json() as T & { message?: string }
+      if (!response.ok) throw new Error(payload.message || 'Club could not complete that action.')
+      return payload
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Club took too long to open. Check your connection and try again.')
+      }
+      throw error
+    } finally {
+      window.clearTimeout(timeout)
+    }
   }, [accessToken])
 
   const loadClubs = useCallback(async (preferredClubId?: string) => {
     if (!accessToken) return
     setLoading(true)
+    setLoadError('')
     try {
       const list = await request<ClubListResponse>('/api/clubs')
       const nextClubs = list.clubs ?? []
@@ -187,7 +206,9 @@ export default function ClubWorkspace() {
         setWorkspace(null)
       }
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'Club could not load.', 'danger')
+      const nextMessage = error instanceof Error ? error.message : 'Club could not load.'
+      setLoadError(nextMessage)
+      showMessage(nextMessage, 'danger')
     } finally {
       setLoading(false)
     }
@@ -262,6 +283,14 @@ export default function ClubWorkspace() {
   }, [request, selectedClubId])
 
   useEffect(() => {
+    const timer = window.setTimeout(
+      () => setAuthRecoveryVisible(!authResolved),
+      authResolved ? 0 : CLUB_AUTH_RECOVERY_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [authResolved, authRetryCount])
+
+  useEffect(() => {
     if (!authResolved) return
     if (!userId || !accessToken) {
       setLoading(false)
@@ -284,12 +313,15 @@ export default function ClubWorkspace() {
     setInviteDestination('club:')
     setTab('home')
     setLoading(true)
+    setLoadError('')
     try {
       const detail = await request<ClubListResponse>(`/api/clubs?clubId=${encodeURIComponent(clubId)}`)
       setWorkspace(detail.workspace ?? null)
       rememberClubId(clubId)
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'This club could not load.', 'danger')
+      const nextMessage = error instanceof Error ? error.message : 'This club could not load.'
+      setLoadError(nextMessage)
+      showMessage(nextMessage, 'danger')
     } finally {
       setLoading(false)
     }
@@ -526,8 +558,41 @@ export default function ClubWorkspace() {
     }
   }
 
-  if (!authResolved || loading) {
-    return <main className={styles.page}><div className={styles.loading}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Opening your club...</h1></div></main>
+  if (!authResolved) {
+    if (authRecoveryVisible) {
+      return (
+        <ClubLoadRecovery
+          title="Club is taking longer than expected."
+          detail="Your account did not finish connecting. Try again, or sign in again if this browser dropped your session."
+          primaryLabel="Try again"
+          onPrimary={() => {
+            setAuthRecoveryVisible(false)
+            setAuthRetryCount((current) => current + 1)
+            void refreshAuth()
+          }}
+          secondaryHref="/login?next=%2Fclubs"
+          secondaryLabel="Sign in again"
+        />
+      )
+    }
+    return <ClubOpeningState />
+  }
+
+  if (loading) {
+    return <ClubOpeningState />
+  }
+
+  if (loadError && !workspace) {
+    return (
+      <ClubLoadRecovery
+        title="Your club did not open."
+        detail={loadError}
+        primaryLabel="Try again"
+        onPrimary={() => void loadClubs(selectedClubId)}
+        secondaryHref="/messages?compose=support&context=Club%20loading"
+        secondaryLabel="Get help"
+      />
+    )
   }
 
   if (!userId || !accessToken) {
@@ -817,6 +882,48 @@ export default function ClubWorkspace() {
           }}
         />
       ) : null}
+    </main>
+  )
+}
+
+function ClubOpeningState() {
+  return (
+    <main className={styles.page}>
+      <div className={styles.loading} role="status" aria-live="polite">
+        <p className={styles.eyebrow}>Club</p>
+        <h1 className={styles.title}>Opening your club...</h1>
+        <p className={styles.copy}>Checking your account and club access.</p>
+      </div>
+    </main>
+  )
+}
+
+function ClubLoadRecovery({
+  title,
+  detail,
+  primaryLabel,
+  onPrimary,
+  secondaryHref,
+  secondaryLabel,
+}: {
+  title: string
+  detail: string
+  primaryLabel: string
+  onPrimary: () => void
+  secondaryHref: string
+  secondaryLabel: string
+}) {
+  return (
+    <main className={styles.page}>
+      <section className={styles.empty} role="alert">
+        <p className={styles.eyebrow}>Club</p>
+        <h1 className={styles.title}>{title}</h1>
+        <p className={styles.copy}>{detail}</p>
+        <div className={styles.row}>
+          <button className={styles.primary} type="button" onClick={onPrimary}>{primaryLabel}</button>
+          <Link className={styles.secondary} href={secondaryHref}>{secondaryLabel}</Link>
+        </div>
+      </section>
     </main>
   )
 }
