@@ -29,6 +29,11 @@ export type CompetitionScheduleResponseSummary = {
   needsAction: boolean
 }
 
+export type CompetitionScheduleReminderResult = {
+  sentCount: number
+  message: string
+}
+
 type ResponseRow = {
   player_user_id?: string | null
   event_id?: string | null
@@ -165,4 +170,40 @@ export async function loadCompetitionScheduleResponses(input: {
   })
 
   return { authorized, responses }
+}
+
+export async function sendCompetitionScheduleReminders(input: {
+  accessToken: string
+  competitionKind: 'league' | 'tournament'
+  competitionId: string
+  eventId: string
+  expectedPlayerNames: string[]
+}): Promise<CompetitionScheduleReminderResult> {
+  const accessToken = cleanText(input.accessToken)
+  if (!accessToken) throw new Error('Sign in to send reminders.')
+
+  const response = await fetch('/api/competition-schedule-reminders', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      competitionKind: input.competitionKind,
+      competitionId: input.competitionId,
+      eventId: input.eventId,
+      expectedPlayerNames: input.expectedPlayerNames,
+    }),
+  })
+  const body = (await response.json()) as {
+    ok?: boolean
+    sentCount?: number
+    message?: string
+  }
+  if (!response.ok || !body.ok) throw new Error(body.message || 'Reminders could not be sent.')
+
+  return {
+    sentCount: Math.max(0, Number(body.sentCount) || 0),
+    message: cleanText(body.message) || 'Reminder sent.',
+  }
 }

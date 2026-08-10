@@ -1,4 +1,7 @@
+'use client'
+
 import type { CSSProperties } from 'react'
+import { useState } from 'react'
 import type {
   CompetitionScheduleResponseState,
   CompetitionScheduleResponseSummary,
@@ -8,6 +11,7 @@ type CompetitionResponseSummaryProps = {
   summary: CompetitionScheduleResponseSummary
   adjustHref?: string
   onAdjust?: () => void
+  onRemind?: () => Promise<{ sentCount: number; message: string }>
   rosterHref: string
   compact?: boolean
 }
@@ -30,9 +34,35 @@ export default function CompetitionResponseSummary({
   summary,
   adjustHref,
   onAdjust,
+  onRemind,
   rosterHref,
   compact = false,
 }: CompetitionResponseSummaryProps) {
+  const [reminderState, setReminderState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [reminderMessage, setReminderMessage] = useState('')
+  const [reminderSentCount, setReminderSentCount] = useState(0)
+  const reminderCount = summary.waitingCount + summary.changedCount
+  const reminderButtonLabel = reminderState === 'sending'
+    ? 'Sending...'
+    : reminderState === 'sent'
+      ? reminderSentCount > 0 ? 'Reminder sent' : 'Replies checked'
+      : `Remind ${reminderCount}`
+
+  async function handleRemind() {
+    if (!onRemind || reminderState === 'sending') return
+    setReminderState('sending')
+    setReminderMessage('')
+    try {
+      const result = await onRemind()
+      setReminderSentCount(result.sentCount)
+      setReminderState('sent')
+      setReminderMessage(result.message)
+    } catch (error) {
+      setReminderState('error')
+      setReminderMessage(error instanceof Error ? error.message : 'Reminders could not be sent.')
+    }
+  }
+
   return (
     <div style={compact ? compactWrapStyle : wrapStyle} aria-label="Player availability replies">
       <div style={headerStyle}>
@@ -64,6 +94,23 @@ export default function CompetitionResponseSummary({
             <a href={adjustHref} style={primaryActionStyle}>Adjust time</a>
           ) : null}
           <a href={rosterHref} style={secondaryActionStyle}>Review roster</a>
+        </div>
+      ) : null}
+      {onRemind && reminderCount > 0 ? (
+        <div style={reminderRowStyle}>
+          <button
+            type="button"
+            onClick={() => void handleRemind()}
+            disabled={reminderState === 'sending'}
+            style={reminderButtonStyle}
+          >
+            {reminderButtonLabel}
+          </button>
+          {reminderMessage ? (
+            <span style={reminderState === 'error' ? reminderErrorStyle : reminderStatusStyle} aria-live="polite">
+              {reminderMessage}
+            </span>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -180,4 +227,29 @@ const secondaryActionStyle: CSSProperties = {
   color: '#f8fafc',
   background: 'rgba(30, 41, 59, 0.9)',
   border: '1px solid rgba(148, 163, 184, 0.28)',
+}
+
+const reminderRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const reminderButtonStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  color: '#dbeafe',
+  background: 'rgba(30, 64, 175, 0.28)',
+  border: '1px solid rgba(96, 165, 250, 0.36)',
+}
+
+const reminderStatusStyle: CSSProperties = {
+  color: '#bbf7d0',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const reminderErrorStyle: CSSProperties = {
+  ...reminderStatusStyle,
+  color: '#fecaca',
 }

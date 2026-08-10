@@ -59,6 +59,7 @@ import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
 import {
   buildCompetitionScheduleResponseSummary,
   loadCompetitionScheduleResponses,
+  sendCompetitionScheduleReminders,
   type CompetitionScheduleResponse,
 } from '@/lib/competition-schedule-responses'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -2270,6 +2271,13 @@ function TiqLeagueDetailContent() {
             <CompetitionResponseSummary
               summary={responseSummary}
               onAdjust={() => handleAdjustScheduleItem(item)}
+              onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
+                accessToken: session.access_token,
+                competitionKind: 'league',
+                competitionId: league.id,
+                eventId: `league:${league.id}:${item.id}`,
+                expectedPlayerNames: [item.participantAName, item.participantBName],
+              }) : undefined}
               rosterHref="#league-participants"
               compact={isCompact}
             />

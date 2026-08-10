@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase'
 import {
   buildCompetitionScheduleResponseSummary,
   loadCompetitionScheduleResponses,
+  sendCompetitionScheduleReminders,
   type CompetitionScheduleResponse,
 } from '@/lib/competition-schedule-responses'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
@@ -2229,6 +2230,13 @@ export default function TournamentBuilderWorkspace() {
                     <CompetitionResponseSummary
                       summary={responseSummary}
                       adjustHref={`#tournament-schedule-${match.id}`}
+                      onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
+                        accessToken: session.access_token,
+                        competitionKind: 'tournament',
+                        competitionId: selectedRecord.id,
+                        eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                        expectedPlayerNames: [match.sideA, match.sideB],
+                      }) : undefined}
                       rosterHref="#tournament-entries"
                     />
                   ) : null}
