@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import WeeklyPlanCoachResponse from '@/app/player-development/_components/weekly-plan-coach-response'
 import {
   LEVEL_UP_QUEST_HANDOFF_KEY,
   buildLevelUpQuestHandoffFromSessions,
@@ -20,6 +21,7 @@ import {
   getWeeklyLevelUpPlanStorageKey,
   getWeeklyLevelUpPlanWeekStart,
   parseWeeklyLevelUpPlan,
+  selectWeeklyLevelUpPlanForMyQuest,
   type WeeklyLevelUpPlan,
 } from '@/lib/level-up/weekly-plan'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
@@ -270,11 +272,20 @@ export default function MyQuestClient() {
         ? 'Check'
         : 'Ready'
   const levelUpWeeklyPlanProgress = getWeeklyLevelUpPlanProgress(levelUpWeeklyPlan)
+  const levelUpCoachUpdate = levelUpWeeklyPlan?.coachResponse ?? null
+  const showLevelUpCoachUpdate = Boolean(levelUpCoachUpdate && !levelUpCoachUpdate.playerReply)
   const today = useMemo(() => getTodayKey(), [])
   const repairDate = useMemo(() => getDateOffsetKey(today, -1), [today])
   const weekStart = useMemo(() => getWeekStartKey(), [])
   const weekEnd = useMemo(() => getWeekEndKey(weekStart), [weekStart])
   const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
+
+  const persistMyQuestWeeklyPlan = useCallback((plan: WeeklyLevelUpPlan) => {
+    setLevelUpWeeklyPlan(plan)
+    const ownerId = authUser?.id ?? userId ?? ''
+    const storageKey = getWeeklyLevelUpPlanStorageKey(plan.identitySlug, plan.weekStart, ownerId)
+    window.localStorage.setItem(storageKey, JSON.stringify(plan))
+  }, [authUser?.id, userId])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setCurrentHour(new Date().getHours()), 60_000)
@@ -1211,36 +1222,55 @@ export default function MyQuestClient() {
 
   useEffect(() => {
     const identitySlug = levelUpHandoff?.identitySlug
-    if (!identitySlug) return
     const planWeekStart = getWeeklyLevelUpPlanWeekStart()
-    const storageKey = getWeeklyLevelUpPlanStorageKey(identitySlug, planWeekStart, userId || '')
-    const localPlan = parseWeeklyLevelUpPlan(window.localStorage.getItem(storageKey))
+    const ownerId = authUser?.id ?? userId ?? ''
+    const storageKey = identitySlug ? getWeeklyLevelUpPlanStorageKey(identitySlug, planWeekStart, ownerId) : ''
+    const localPlan = storageKey ? parseWeeklyLevelUpPlan(window.localStorage.getItem(storageKey)) : null
     const localTimer = window.setTimeout(() => {
-      setLevelUpWeeklyPlan(localPlan)
+      if (localPlan) setLevelUpWeeklyPlan(localPlan)
     }, 0)
 
     const accessToken = session?.access_token
     if (!accessToken) return () => window.clearTimeout(localTimer)
     const controller = new AbortController()
-    const params = new URLSearchParams({ identitySlug, weekStart: planWeekStart })
-    void fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: controller.signal,
-    })
-      .then(async (response) => response.ok ? response.json() as Promise<{ plans?: WeeklyLevelUpPlan[] }> : null)
-      .then((payload) => {
-        const remotePlan = payload?.plans?.[0]
+    const params = new URLSearchParams()
+    if (identitySlug) params.set('identitySlug', identitySlug)
+    let loadingRemotePlan = false
+    const loadRemotePlan = async () => {
+      if (loadingRemotePlan) return
+      loadingRemotePlan = true
+      try {
+        const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+        const payload = await response.json() as { plans?: WeeklyLevelUpPlan[] }
+        const remotePlan = selectWeeklyLevelUpPlanForMyQuest(payload.plans ?? [], planWeekStart)
         if (!remotePlan) return
-        setLevelUpWeeklyPlan(remotePlan)
-        window.localStorage.setItem(storageKey, JSON.stringify(remotePlan))
-      })
-      .catch(() => undefined)
+        persistMyQuestWeeklyPlan(remotePlan)
+      } catch (fetchError) {
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') return
+      } finally {
+        loadingRemotePlan = false
+      }
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadRemotePlan()
+    }
+    void loadRemotePlan()
+    const refreshInterval = window.setInterval(() => void loadRemotePlan(), 60_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       window.clearTimeout(localTimer)
+      window.clearInterval(refreshInterval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
       controller.abort()
     }
-  }, [levelUpHandoff?.identitySlug, session?.access_token, userId])
+  }, [authUser?.id, levelUpHandoff?.identitySlug, persistMyQuestWeeklyPlan, session?.access_token, userId])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1936,6 +1966,29 @@ export default function MyQuestClient() {
           </div>
         </div>
       </section>
+
+      {levelUpWeeklyPlan && showLevelUpCoachUpdate ? (
+        <section className={styles.coachReplyCommand} data-action={levelUpCoachUpdate?.action} aria-label="New Level Up coach update">
+          <div className={styles.coachReplyCommandHeader}>
+            <div>
+              <span>{levelUpCoachUpdate?.action === 'answered' ? 'Coach replied' : 'Coach update'}</span>
+              <strong>{levelUpCoachUpdate?.action === 'answered' ? 'Your answer is ready.' : 'Your weekly plan changed.'}</strong>
+              <small>Read it, reply if needed, then get back on court.</small>
+            </div>
+            {levelUpWeeklyPlanProgress.nextRep ? (
+              <Link href={levelUpWeeklyPlanProgress.nextRep.href}>Start next rep</Link>
+            ) : (
+              <Link href={`/level-up/${encodeURIComponent(levelUpWeeklyPlan.identitySlug)}`}>Open Level Up</Link>
+            )}
+          </div>
+          <WeeklyPlanCoachResponse
+            key={levelUpCoachUpdate?.updatedAt ?? levelUpWeeklyPlan.id}
+            plan={levelUpWeeklyPlan}
+            accessToken={session?.access_token ?? ''}
+            onSaved={persistMyQuestWeeklyPlan}
+          />
+        </section>
+      ) : null}
 
       <section className={styles.mobileTodayFocus} aria-label="My Quest iPhone today focus">
         <div>

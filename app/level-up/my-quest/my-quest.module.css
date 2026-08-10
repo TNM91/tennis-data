@@ -151,6 +151,70 @@
   gap: 9px;
 }
 
+.coachReplyCommand {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 38%, transparent);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 38%),
+    linear-gradient(135deg, rgba(11, 31, 52, 0.98), rgba(4, 14, 30, 0.98));
+  box-shadow: 0 20px 52px rgba(2, 8, 20, 0.28);
+  overflow-wrap: anywhere;
+}
+
+.coachReplyCommandHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.coachReplyCommandHeader > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.coachReplyCommandHeader span {
+  color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.coachReplyCommandHeader strong {
+  color: var(--foreground-strong);
+  font-size: clamp(1.1rem, 3vw, 1.35rem);
+  line-height: 1.12;
+}
+
+.coachReplyCommandHeader small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.coachReplyCommandHeader > a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--brand-green);
+  color: #07111f;
+  padding: 0 16px;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
+}
+
 .questWeeklyDrawer {
   display: grid;
   gap: 0;
@@ -2375,6 +2439,21 @@
 
   .pageShell[data-phone-mode='pocket'] {
     padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .coachReplyCommand {
+    margin-top: 0;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .coachReplyCommandHeader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coachReplyCommandHeader > a {
+    width: 100%;
   }
 
   .hero,
