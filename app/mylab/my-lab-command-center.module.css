@@ -1,0 +1,463 @@
+.commandCenter {
+  width: min(100%, 1180px);
+  margin: 0 auto 20px;
+  padding: clamp(22px, 4vw, 44px);
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 32px;
+  background: #071426;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
+  color: #f8fbff;
+}
+
+.intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.eyebrow,
+.cardEyebrow,
+.supportEyebrow {
+  margin: 0;
+  color: #74beff;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  max-width: 760px;
+  margin: 8px 0 0;
+  font-size: clamp(2rem, 5vw, 4.35rem);
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.introCopy {
+  margin: 12px 0 0;
+  color: #9fb2c9;
+  font-size: clamp(0.92rem, 2vw, 1.02rem);
+}
+
+.playerLink {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 3px;
+  min-width: 174px;
+  padding: 13px 16px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 16px;
+  background: #0b1a2f;
+  color: #f8fbff;
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.playerLink:hover,
+.playerLink:focus-visible {
+  border-color: rgba(155, 225, 29, 0.7);
+  transform: translateY(-2px);
+}
+
+.playerLink span {
+  color: #7f96af;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.playerLink strong {
+  color: #baf33e;
+  font-size: 0.94rem;
+}
+
+.primaryGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.8fr);
+  gap: 18px;
+}
+
+.repCard {
+  position: relative;
+  min-height: 510px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.26);
+  border-radius: 28px;
+  background: #0c203c;
+  isolation: isolate;
+}
+
+.repCard::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(5, 16, 31, 0.72);
+  content: '';
+}
+
+.courtImage {
+  z-index: -2;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.27;
+}
+
+.ballImage {
+  position: absolute;
+  right: -42px;
+  bottom: 105px;
+  width: clamp(150px, 27vw, 220px);
+  height: auto;
+  opacity: 0.72;
+  filter: saturate(0.9) brightness(0.76);
+}
+
+.repContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 510px;
+  flex-direction: column;
+  padding: clamp(25px, 5vw, 52px);
+}
+
+.repTopline,
+.cardHeadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cardEyebrow {
+  color: #b6ef27;
+}
+
+.duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #82c5ff;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.repContent h2 {
+  max-width: 660px;
+  margin: auto 0 12px;
+  padding-right: clamp(40px, 11vw, 100px);
+  font-size: clamp(2.55rem, 6.6vw, 5.7rem);
+  font-weight: 950;
+  line-height: 0.91;
+  letter-spacing: -0.065em;
+  text-wrap: balance;
+}
+
+.repNote {
+  max-width: 500px;
+  margin: 0 0 24px;
+  padding-right: 70px;
+  color: #b1c1d4;
+  font-size: clamp(0.9rem, 1.7vw, 1rem);
+  line-height: 1.55;
+}
+
+.primaryAction {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  border: 1px solid #b9ef32;
+  border-radius: 18px;
+  background: #a9eb08;
+  box-shadow: 0 18px 42px rgba(113, 174, 0, 0.22);
+  color: #071426;
+  font-size: 1rem;
+  font-weight: 950;
+  text-decoration: none;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.primaryAction:hover,
+.primaryAction:focus-visible {
+  background: #c2f63d;
+  transform: translateY(-2px);
+}
+
+.primaryAction span:last-child {
+  font-size: 1.55rem;
+}
+
+.supportStack {
+  display: grid;
+  align-content: stretch;
+  gap: 18px;
+}
+
+.momentumCard,
+.matchCard {
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 24px;
+  background: #0a192d;
+}
+
+.momentumCard {
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 24px;
+}
+
+.cardHeadingRow h2 {
+  margin: 7px 0 0;
+  font-size: clamp(1.25rem, 2.5vw, 1.72rem);
+  letter-spacing: -0.035em;
+}
+
+.cardHeadingRow a,
+.matchAction {
+  color: #80c5ff;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-decoration-color: rgba(128, 197, 255, 0.48);
+  text-underline-offset: 4px;
+}
+
+.sessionRail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: 12px;
+}
+
+.sessionComplete,
+.sessionOpen {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  font-size: 0.86rem;
+  font-weight: 950;
+}
+
+.sessionComplete {
+  border: 1px solid #b9ef32;
+  background: #a9eb08;
+  color: #071426;
+}
+
+.sessionOpen {
+  border: 1px solid rgba(116, 190, 255, 0.34);
+  background: #0d223e;
+  color: #82c5ff;
+}
+
+.matchCard {
+  display: grid;
+  min-height: 300px;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 18px 15px;
+  padding: 24px;
+}
+
+.matchIcon {
+  grid-row: 1;
+}
+
+.matchCopy {
+  min-width: 0;
+}
+
+.entityLink,
+.emptyMatchTitle {
+  display: inline-block;
+  margin-top: 9px;
+  color: #f8fbff;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+  text-decoration-color: #74beff;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.entityLink:hover,
+.entityLink:focus-visible {
+  color: #baf33e;
+  text-decoration-color: #baf33e;
+}
+
+.matchCopy p:not(.supportEyebrow) {
+  margin: 8px 0 0;
+  color: #8fa5be;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.matchRead {
+  display: inline-flex;
+  margin-top: 13px;
+  padding: 6px 9px;
+  border: 1px solid rgba(155, 225, 29, 0.28);
+  border-radius: 999px;
+  color: #baf33e;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.matchAction {
+  grid-column: 1 / -1;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-top: 1px solid rgba(116, 190, 255, 0.14);
+  text-decoration: none;
+}
+
+.matchAction:hover,
+.matchAction:focus-visible,
+.cardHeadingRow a:hover,
+.cardHeadingRow a:focus-visible {
+  color: #baf33e;
+}
+
+@media (max-width: 900px) {
+  .primaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .supportStack {
+    grid-template-columns: 0.9fr 1.1fr;
+  }
+
+  .matchCard {
+    min-height: 230px;
+  }
+}
+
+@media (max-width: 680px) {
+  .commandCenter {
+    margin-bottom: 14px;
+    padding: 20px 14px 14px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 24px;
+  }
+
+  .intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .intro h1 {
+    font-size: clamp(2.1rem, 11vw, 3.15rem);
+  }
+
+  .introCopy {
+    display: none;
+  }
+
+  .playerLink {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 11px;
+  }
+
+  .playerLink strong {
+    overflow: hidden;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .repCard,
+  .repContent {
+    min-height: 390px;
+  }
+
+  .repCard {
+    border-radius: 23px;
+  }
+
+  .repContent {
+    padding: 20px 18px 18px;
+  }
+
+  .repContent h2 {
+    padding-right: 42px;
+    font-size: clamp(2.4rem, 13.6vw, 3.7rem);
+  }
+
+  .repNote {
+    margin-bottom: 17px;
+    padding-right: 45px;
+    font-size: 0.86rem;
+  }
+
+  .ballImage {
+    right: -44px;
+    bottom: 90px;
+    width: 152px;
+  }
+
+  .supportStack {
+    grid-template-columns: 1fr;
+  }
+
+  .momentumCard,
+  .matchCard {
+    border-radius: 20px;
+  }
+
+  .momentumCard {
+    min-height: 142px;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .matchCard {
+    min-height: 0;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .matchIcon {
+    display: none;
+  }
+
+  .matchCard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .matchAction {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playerLink,
+  .primaryAction {
+    transition: none;
+  }
+}
