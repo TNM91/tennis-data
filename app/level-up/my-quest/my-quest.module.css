@@ -145,6 +145,91 @@
   display: none;
 }
 
+.mobilePocketSettings {
+  display: grid;
+  gap: 9px;
+}
+
+.questWeeklyDrawer {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  margin-top: 14px;
+  border: 1px solid rgba(var(--brand-green-rgb), 0.2);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--brand-green-rgb), 0.1), transparent 38%),
+    rgba(8, 19, 38, 0.86);
+  box-shadow: 0 18px 46px rgba(2, 8, 20, 0.22);
+  overflow: clip;
+}
+
+.questWeeklyDrawer > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 82px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.questWeeklyDrawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+.questWeeklyDrawer > summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.questWeeklyDrawer > summary span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.questWeeklyDrawer > summary strong {
+  color: var(--foreground-strong);
+  font-size: 1.08rem;
+  line-height: 1.14;
+}
+
+.questWeeklyDrawer > summary small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.questWeeklyDrawer > summary em {
+  border-radius: 999px;
+  background: rgba(var(--brand-green-rgb), 0.12);
+  color: var(--foreground-strong);
+  padding: 7px 10px;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.questWeeklyDrawer[open] > summary {
+  border-bottom: 1px solid rgba(116, 190, 255, 0.14);
+}
+
+.questWeeklyDrawer[open] > summary em {
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+}
+
+.questWeeklyBody {
+  display: grid;
+  gap: 0;
+  padding: 0 12px 12px;
+}
+
 .mobileIntelDrawer,
 .mobileSupportDrawer {
   display: grid;
@@ -2288,7 +2373,7 @@
   }
 
   .pageShell[data-phone-mode='pocket'] {
-    padding-bottom: calc(222px + env(safe-area-inset-bottom));
+    padding-bottom: calc(154px + env(safe-area-inset-bottom));
   }
 
   .hero,
@@ -2321,11 +2406,19 @@
   }
 
   .pageShell[data-phone-mode='pocket'] .todayCommand,
+  .pageShell[data-phone-mode='pocket'] .quickAddPanel,
+  .pageShell[data-phone-mode='pocket'] .questWeeklyDrawer,
   .pageShell[data-phone-mode='pocket'] .trendStrip,
+  .pageShell[data-phone-mode='pocket'] .mobileIntelDrawer,
+  .pageShell[data-phone-mode='pocket'] .repairPanel,
+  .pageShell[data-phone-mode='pocket'] .sectionGrid,
+  .pageShell[data-phone-mode='pocket'] .mobileSupportDrawer,
   .pageShell[data-phone-mode='pocket'] .questPanel,
   .pageShell[data-phone-mode='pocket'] .bossPanel,
   .pageShell[data-phone-mode='pocket'] .photoPanel,
-  .pageShell[data-phone-mode='pocket'] .achievementPanel {
+  .pageShell[data-phone-mode='pocket'] .achievementPanel,
+  .pageShell[data-phone-mode='pocket'] .mobileDayComplete,
+  .pageShell[data-phone-mode='pocket'] .mobileMissionControl {
     display: none;
   }
 
@@ -3125,6 +3218,19 @@
     padding: 0 8px 8px;
   }
 
+  .mobilePocketMore > .mobilePocketToggle {
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.46fr);
+    margin: 0 8px 8px;
+    padding: 8px;
+  }
+
+  .mobilePocketMore > .mobilePocketSettings {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    border-top: 1px solid rgba(116, 190, 255, 0.12);
+    padding: 8px;
+  }
+
   .mobilePocketMore button {
     min-height: 40px;
     display: grid;
@@ -3302,7 +3408,7 @@
   .pageShell[data-phone-mode='pocket'] .mobilePocketStateLabel {
     position: fixed;
     right: max(12px, env(safe-area-inset-right));
-    bottom: calc(142px + env(safe-area-inset-bottom));
+    bottom: calc(74px + env(safe-area-inset-bottom));
     left: max(12px, env(safe-area-inset-left));
     z-index: 73;
     display: grid;
@@ -3365,7 +3471,7 @@
   .pageShell[data-phone-mode='pocket'] .mobileCommandBar {
     position: fixed;
     right: max(9px, env(safe-area-inset-right));
-    bottom: calc(78px + env(safe-area-inset-bottom));
+    bottom: calc(8px + env(safe-area-inset-bottom));
     left: max(9px, env(safe-area-inset-left));
     z-index: 72;
     display: grid;

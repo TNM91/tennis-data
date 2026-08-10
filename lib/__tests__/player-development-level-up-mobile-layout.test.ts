@@ -29,4 +29,10 @@ describe('Player Development Level Up mobile layout', () => {
     expect(stylesSource).toContain('.levelUpFocusTraining:not([open]) .levelUpRailSummary strong {\n    display: none;')
     expect(stylesSource).toContain('.levelUpRail:not([open]) .levelUpRailSummary span {\n    display: none;')
   })
+
+  it('keeps Level Up focus choices readable in a two-column phone grid', () => {
+    expect(stylesSource).toContain('.liveFocusRail {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(stylesSource).toContain('.liveFocusButton strong {\n    overflow-wrap: normal;\n    word-break: normal;')
+    expect(stylesSource).toContain('.levelUpToolboxBody,\n  .levelUpToolboxLinks {\n    grid-template-columns: 1fr;')
+  })
 })

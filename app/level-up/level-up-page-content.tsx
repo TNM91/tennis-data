@@ -157,14 +157,14 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const primaryHabitPath = habitPaths[0]
   const iphoneQuickActions = [
     {
-      label: 'Drill',
-      title: 'Start the next rep',
+      label: 'Today',
+      title: 'Start today\'s rep',
       href: primaryHabitPath?.drillHref ?? '#level-up-flow',
     },
     {
-      label: 'Board',
-      title: 'Build the court plan',
-      href: improveBoardHref,
+      label: 'Quest',
+      title: 'Build a scored habit',
+      href: '#quest-builder',
     },
     {
       label: 'Proof',
@@ -238,16 +238,14 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       <main className={`${styles.shell} ${styles.levelUpShell}`}>
         <section className={styles.levelUpRouteHeader} aria-labelledby="level-up-page-title">
           <div className={styles.levelUpRouteCopy}>
-            <span>On-court player tool</span>
+            <span>Your training path</span>
             <h1 id="level-up-page-title">Level Up</h1>
-            <p>Pick the thing you want to improve right now, choose how you are training, run the drill, rate it, and save the signal.</p>
+            <p>Pick one focus, run one rep, and save what changed.</p>
           </div>
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
-            <Link className="button-primary" href="#level-up-flow">Start now</Link>
-            <Link className="button-secondary" href="#today-quest-stack-title">Today</Link>
-            <Link className="button-secondary" href="#quest-builder">Quest Builder</Link>
+            <Link className="button-primary" href="#level-up-flow">Start today</Link>
+            <Link className="button-secondary" href="#quest-builder">Build a quest</Link>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
-            <Link className="button-secondary" href={improveBoardHref}>Tactics Tools</Link>
           </div>
         </section>
 
@@ -265,21 +263,6 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 data-active={item.slug === identity.slug ? 'true' : 'false'}
               >
                 {item.title.replace(/^The /, '')}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className={styles.levelUpIphoneCommandCenter} aria-label="Level Up iPhone command center">
-          <div>
-            <span>iPhone quick start</span>
-            <strong>Today&apos;s court commands</strong>
-          </div>
-          <div>
-            {iphoneQuickActions.map((action) => (
-              <Link key={action.label} href={action.href}>
-                <span>{action.label}</span>
-                <strong>{action.title}</strong>
               </Link>
             ))}
           </div>
@@ -348,12 +331,8 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </details>
         </details>
 
-        <LevelUpMorePanel label="Path finder" title="Find a path">
-          <HabitPathWizardClient paths={habitPathWizardOptions} />
-        </LevelUpMorePanel>
-
-        <LevelUpMorePanel label="Quest Builder" title="Build a quest">
-          <section id="quest-builder" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
+        <LevelUpMorePanel id="quest-builder" label="Quest Builder" title="Build a scored habit">
+          <section id="quest-builder-content" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
             <div className={styles.levelUpQuestBuilderHeader}>
               <div>
                 <span>Quest Builder</span>
@@ -426,6 +405,19 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
               />
             </LevelUpMorePanel>
           </section>
+        </LevelUpMorePanel>
+
+        <details id="level-up-tools" className={styles.levelUpToolbox}>
+          <summary className={styles.levelUpToolboxSummary}>
+            <div>
+              <span>More Level Up tools</span>
+              <strong>Paths, cards, Player ID, and team options</strong>
+            </div>
+            <small>Open</small>
+          </summary>
+          <div className={styles.levelUpToolboxBody}>
+        <LevelUpMorePanel label="Path finder" title="Find a path">
+          <HabitPathWizardClient paths={habitPathWizardOptions} />
         </LevelUpMorePanel>
 
         <LevelUpMorePanel label="Player ID" title="Player ID proof">
@@ -668,6 +660,14 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
         </section>
         </LevelUpMorePanel>
 
+          <div className={styles.levelUpToolboxLinks} aria-label="Level Up connected tools">
+            <Link href={improveBoardHref}>Build a court plan</Link>
+            <Link href="/mylab#level-up-proof">Open saved proof</Link>
+            <Link href="/mylab#coach-assignments">Open coach work</Link>
+          </div>
+          </div>
+        </details>
+
       </main>
     </SiteShell>
   )
@@ -701,9 +701,9 @@ function LevelUpTrainingCard({ card }: { card: LevelUpCard }) {
   )
 }
 
-function LevelUpMorePanel({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+function LevelUpMorePanel({ id, label, title, children }: { id?: string; label: string; title: string; children: ReactNode }) {
   return (
-    <details className={styles.levelUpMorePanel}>
+    <details id={id} className={styles.levelUpMorePanel}>
       <summary className={styles.levelUpMoreSummary}>
         <span>{label}</span>
         <strong>{title}</strong>
