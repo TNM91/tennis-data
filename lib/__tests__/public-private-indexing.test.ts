@@ -11,6 +11,7 @@ const myQuestPageSource = readFileSync(join(process.cwd(), 'app/level-up/my-ques
 const myQuestClientSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest-client.tsx'), 'utf8')
 const myQuestStylesSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest.module.css'), 'utf8')
 const levelUpIdentityPageSource = readFileSync(join(process.cwd(), 'app/level-up/[identity]/page.tsx'), 'utf8')
+const levelUpWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const myLabPageSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const previewHomePage = readFileSync(join(process.cwd(), 'app/preview-home/page.tsx'), 'utf8')
 const noindexRouteFiles = [
@@ -92,6 +93,9 @@ describe('public and private indexing boundaries', () => {
     expect(myLabPageSource).toContain('canOpenPersonalQuest')
     expect(myLabPageSource).toContain('isPersonalQuestOwner')
     expect(myLabPageSource).toContain("href: '/level-up/my-quest'")
+    expect(levelUpWorkbenchSource).toContain('isPersonalQuestOwner')
+    expect(levelUpWorkbenchSource).toContain('canOpenPersonalQuest ? (')
+    expect(levelUpWorkbenchSource).toContain('href="/level-up/my-quest#tennis-proof"')
   })
 
   it('shows Not Found instead of private quest content to unauthorized visitors', () => {
@@ -201,9 +205,13 @@ describe('public and private indexing boundaries', () => {
     expect(myQuestClientSource).toContain('mobileIntelDrawer')
     expect(myQuestClientSource).toContain('mobileSupportDrawer')
     expect(myQuestClientSource).toContain('recordQuestClientIssue')
+    expect(myQuestClientSource).toContain('Level Up tennis proof handoff')
+    expect(myQuestClientSource).toContain('LEVEL_UP_QUEST_HANDOFF_KEY')
+    expect(myQuestClientSource).toContain("fetch('/api/player/level-up-sessions'")
     expect(myQuestStylesSource).toContain('.mobileMissionControl')
     expect(myQuestStylesSource).toContain('.mobileTodayFocus')
     expect(myQuestStylesSource).toContain('.mobileHeroStats')
+    expect(myQuestStylesSource).toContain('.mobileTennisHandoff')
     expect(myQuestStylesSource).toContain('.mobileQuestRail')
     expect(myQuestStylesSource).toContain('.mobileTapPlan')
     expect(myQuestStylesSource).toContain('.mobilePocketToggle')

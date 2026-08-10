@@ -12684,6 +12684,83 @@
   padding-inline: 11px;
 }
 
+.liveQuestHandoff {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(320px, 1.2fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.28);
+  border-radius: 16px;
+  background:
+    linear-gradient(120deg, rgba(155, 225, 29, 0.11), transparent 42%),
+    rgba(4, 16, 29, 0.9);
+  padding: 12px;
+}
+
+.liveQuestHandoffCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.liveQuestHandoffCopy > span,
+.liveQuestHandoffStats span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveQuestHandoffCopy > strong {
+  color: var(--foreground-strong);
+  font-size: 0.96rem;
+  line-height: 1.16;
+}
+
+.liveQuestHandoffCopy > small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.liveQuestHandoffStats {
+  display: grid;
+  grid-template-columns: 0.55fr 0.8fr minmax(120px, 1.4fr);
+  gap: 7px;
+}
+
+.liveQuestHandoffStats article {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 11px;
+  background: rgba(2, 10, 24, 0.34);
+  padding: 8px;
+}
+
+.liveQuestHandoffStats strong {
+  overflow: hidden;
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liveQuestHandoffActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.liveQuestHandoffActions a {
+  min-height: 38px;
+  padding-inline: 11px;
+  font-size: 0.78rem;
+}
+
 .liveFinishSummary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr) auto;
@@ -19437,6 +19514,30 @@
     min-width: 0;
     padding-inline: 8px;
     font-size: 0.78rem;
+  }
+
+  .liveQuestHandoff {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .liveQuestHandoffStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveQuestHandoffStats strong {
+    font-size: 0.72rem;
+  }
+
+  .liveQuestHandoffActions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  }
+
+  .liveQuestHandoffActions a {
+    min-width: 0;
+    padding-inline: 8px;
+    text-align: center;
   }
 
   .liveFinishSummary {
