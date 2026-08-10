@@ -1,6 +1,6 @@
 import type { PricingPlanId } from '@/lib/pricing-plans'
 
-export type UpgradeActivationPayload = Record<string, boolean | string>
+export type UpgradeActivationPayload = Record<string, boolean | string | null>
 export type UpgradeActivationRequestStatus = 'pending' | 'contacted' | 'converted' | 'closed'
 
 export type UpgradeActivationRequestSource = {
@@ -54,27 +54,32 @@ export function buildProfileActivationPayload(planId: PricingPlanId): UpgradeAct
     return {
       tiq_team_league_entry_enabled: true,
       tiq_individual_league_creator_enabled: true,
+      league_access_expires_at: null,
     }
   }
 
   const payload: UpgradeActivationPayload = {
     player_plus_subscription_active: true,
     player_plus_subscription_status: 'active',
+    player_plus_access_expires_at: null,
   }
 
   if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = true
     payload.captain_subscription_status = 'active'
+    payload.captain_access_expires_at = null
   }
 
   if (planId === 'coach' || planId === 'full_court') {
     payload.coach_subscription_active = true
     payload.coach_subscription_status = 'active'
+    payload.coach_access_expires_at = null
   }
 
   if (planId === 'full_court') {
     payload.tiq_team_league_entry_enabled = true
     payload.tiq_individual_league_creator_enabled = true
+    payload.league_access_expires_at = null
   }
 
   return payload

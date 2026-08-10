@@ -61,7 +61,7 @@ export type StripeSubscriptionProfileUpdate = {
   subscriptionId: string
   customerId: string
   planId: SubscriptionPricingPlanId
-  payload: Record<string, boolean | string>
+  payload: Record<string, boolean | string | null>
 }
 
 export const STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS = [
@@ -264,24 +264,28 @@ function buildSubscriptionEntitlementPayload(
   status: SubscriptionEntitlementStatus,
 ) {
   const active = status === 'active' || status === 'trial'
-  const payload: Record<string, boolean | string> = {
+  const payload: Record<string, boolean | string | null> = {
     player_plus_subscription_active: active,
     player_plus_subscription_status: status,
+    player_plus_access_expires_at: null,
   }
 
   if (planId === 'coach' || planId === 'full_court') {
     payload.coach_subscription_active = active
     payload.coach_subscription_status = status
+    payload.coach_access_expires_at = null
   }
 
   if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = active
     payload.captain_subscription_status = status
+    payload.captain_access_expires_at = null
   }
 
   if (planId === 'full_court') {
     payload.tiq_team_league_entry_enabled = active
     payload.tiq_individual_league_creator_enabled = active
+    payload.league_access_expires_at = null
   }
 
   return payload

@@ -7,7 +7,7 @@ import { createTacticalTemplate } from '../tactical/templates'
 const gateSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudioGate.tsx'), 'utf8')
 const tacticsPageSource = readFileSync(join(process.cwd(), 'app/tactics/page.tsx'), 'utf8')
 const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.tsx'), 'utf8')
-const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8').replaceAll('\r\n', '\n')
+const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8').replace(/\r\n/g, '\n')
 const markerIconsSource = readFileSync(join(process.cwd(), 'components/tactical/icons/TiqIcons.tsx'), 'utf8')
 const courtOverlaySource = readFileSync(join(process.cwd(), 'components/tactical/TiqCourtOverlay.tsx'), 'utf8')
 const tokenSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTokens.tsx'), 'utf8')

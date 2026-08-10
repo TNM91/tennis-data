@@ -5,6 +5,7 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { PUBLIC_EMAIL_CONTACTS } from '@/lib/contact-details'
 import { SUPPORT_THREAD_ASSURANCE, buildSupportMessageHref } from '@/lib/message-links'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -97,6 +98,28 @@ export default function ContactPage() {
           ))}
         </div>
 
+        <section aria-labelledby="contact-email-heading" style={emailSectionStyle}>
+          <div style={emailSectionHeadingStyle}>
+            <span style={contactSummaryKickerStyle}>Email TenAceIQ</span>
+            <h2 id="contact-email-heading" className="section-title" style={emailSectionTitleStyle}>
+              Prefer email? Choose the right inbox.
+            </h2>
+            <p style={emailSectionIntroStyle}>
+              Send your message directly and we will route it to the right person.
+            </p>
+          </div>
+
+          <div style={emailGridStyle}>
+            {PUBLIC_EMAIL_CONTACTS.map((contact) => (
+              <a key={contact.key} href={contact.href} style={emailCardStyle}>
+                <strong>{contact.title}</strong>
+                <span style={emailDescriptionStyle}>{contact.description}</span>
+                <span style={emailAddressStyle}>{contact.address}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+
         <ContactDetails title="What to include" summary="Show support tips">
           <ContactHelpItem title="General support">
             Open a <Link href={generalSupportHref}>TenAceIQ support thread</Link> for
@@ -155,6 +178,63 @@ const contactGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
+}
+
+const emailSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.055)',
+}
+
+const emailSectionHeadingStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const emailSectionTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: '1.2rem',
+}
+
+const emailSectionIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-muted)',
+}
+
+const emailGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 10,
+}
+
+const emailCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(7,17,33,0.48)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const emailDescriptionStyle: CSSProperties = {
+  color: 'var(--foreground-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const emailAddressStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 14,
+  fontWeight: 900,
 }
 
 const contactCardStyle: CSSProperties = {

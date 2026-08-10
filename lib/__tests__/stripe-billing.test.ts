@@ -100,8 +100,10 @@ describe('Stripe billing helpers', () => {
       payload: {
         player_plus_subscription_active: true,
         player_plus_subscription_status: 'active',
+        player_plus_access_expires_at: null,
         captain_subscription_active: true,
         captain_subscription_status: 'active',
+        captain_access_expires_at: null,
         stripe_customer_id: 'cus_123',
         stripe_subscription_id: 'sub_captain',
       },
@@ -133,8 +135,10 @@ describe('Stripe billing helpers', () => {
       payload: {
         player_plus_subscription_active: true,
         player_plus_subscription_status: 'active',
+        player_plus_access_expires_at: null,
         coach_subscription_active: true,
         coach_subscription_status: 'active',
+        coach_access_expires_at: null,
         stripe_customer_id: 'cus_coach',
         stripe_subscription_id: 'sub_coach',
       },
@@ -159,6 +163,7 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'canceled',
+      player_plus_access_expires_at: null,
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_player',
     })
@@ -185,8 +190,10 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'past_due',
+      player_plus_access_expires_at: null,
       captain_subscription_active: false,
       captain_subscription_status: 'past_due',
+      captain_access_expires_at: null,
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_captain',
     })
@@ -213,8 +220,10 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'past_due',
+      player_plus_access_expires_at: null,
       coach_subscription_active: false,
       coach_subscription_status: 'past_due',
+      coach_access_expires_at: null,
       stripe_customer_id: 'cus_coach',
       stripe_subscription_id: 'sub_coach',
     })

@@ -259,7 +259,7 @@ function toActivationRequestSource(row: UpgradeRequestActivationRow | null) {
 async function updateProfileWithBillingFallback(
   supabase: SupabaseProfileUpdater,
   userId: string,
-  payload: Record<string, boolean | string>,
+  payload: Record<string, boolean | string | null>,
 ) {
   const { error } = await supabase
     .from('profiles')
@@ -284,7 +284,7 @@ async function updateProfileForStripeSubscription(
     userId: string
     subscriptionId: string
     customerId: string
-    payload: Record<string, boolean | string>
+    payload: Record<string, boolean | string | null>
   },
 ) {
   if (lifecycleUpdate.userId) {
@@ -312,7 +312,7 @@ async function updateProfileByStripeField(
   supabase: SupabaseProfileUpdater,
   column: 'stripe_subscription_id' | 'stripe_customer_id',
   value: string,
-  payload: Record<string, boolean | string>,
+  payload: Record<string, boolean | string | null>,
 ) {
   const { error } = await supabase
     .from('profiles')
