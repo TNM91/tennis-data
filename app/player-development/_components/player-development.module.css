@@ -10868,6 +10868,92 @@
   line-height: 1.35;
 }
 
+.liveWeeklyPlayerReply {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 3px;
+  padding-top: 8px;
+}
+
+.liveWeeklyPlayerReply[data-reply='acknowledged'] span {
+  color: var(--brand-green-3);
+}
+
+.liveWeeklyPlayerReply[data-reply='question'] span {
+  color: var(--brand-blue-2);
+}
+
+.liveWeeklyReplyActions,
+.liveWeeklyReplyComposer > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.liveWeeklyReplyActions button,
+.liveWeeklyReplyComposer button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground-strong);
+  padding: 8px 13px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.liveWeeklyReplyActions button:first-child,
+.liveWeeklyReplyComposer button:first-child {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--brand-green-3);
+}
+
+.liveWeeklyReplyActions button:disabled,
+.liveWeeklyReplyComposer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.liveWeeklyReplyComposer {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 3px;
+  padding-top: 8px;
+}
+
+.liveWeeklyReplyComposer label {
+  color: var(--brand-blue-2);
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.liveWeeklyReplyComposer textarea {
+  width: 100%;
+  min-height: 76px;
+  border: 1px solid rgba(116, 190, 255, 0.28);
+  border-radius: 11px;
+  background: rgba(3, 12, 24, 0.62);
+  color: var(--foreground-strong);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.liveWeeklyReplyStatus {
+  color: var(--brand-green-3) !important;
+  font-weight: 850 !important;
+}
+
 .liveWeeklyPlanMessage {
   margin: 0;
   color: var(--muted-strong);

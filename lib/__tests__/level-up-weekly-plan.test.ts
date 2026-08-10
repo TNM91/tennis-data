@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildWeeklyLevelUpCoachResponse,
   buildWeeklyLevelUpPlan,
+  buildWeeklyLevelUpPlayerReply,
   completeWeeklyLevelUpPlanFocus,
   getWeeklyLevelUpPlanProgress,
   getWeeklyLevelUpPlanReps,
@@ -106,7 +107,7 @@ describe('saved weekly Level Up plan', () => {
       new Date(2026, 7, 12, 15).toISOString(),
     )
 
-    expect(coachResponse).toMatchObject({ action: 'replaced', coachUserId: 'coach-1' })
+    expect(coachResponse).toMatchObject({ action: 'replaced', coachUserId: 'coach-1', playerReply: null })
     expect(effectiveReps[0]).toMatchObject({ id: plan.reps[0].id, title: 'Coach serve target rep' })
     expect(completed.reps[0].completedAt).not.toBeNull()
     expect(buildWeeklyLevelUpCoachResponse(completed, {
@@ -114,5 +115,35 @@ describe('saved weekly Level Up plan', () => {
       targetRepId: completed.reps[0].id,
       replacementRep,
     }, 'coach-1', now)).toBeNull()
+  })
+
+  it('lets the player acknowledge or question the latest coach update', () => {
+    const plan = buildWeeklyLevelUpPlan(recap, 'competitor', now)!
+    const coachResponse = buildWeeklyLevelUpCoachResponse(plan, {
+      action: 'adjusted',
+      targetRepId: plan.reps[0].id,
+      note: 'Start at 70 percent pace.',
+    }, 'coach-1', now)!
+    const coachedPlan = { ...plan, coachResponse }
+    const question = buildWeeklyLevelUpPlayerReply(
+      coachedPlan,
+      { action: 'question', message: 'Should I use the deuce target for every rep?' },
+      'player-1',
+      now,
+    )
+    const repliedPlan = { ...coachedPlan, coachResponse: { ...coachResponse, playerReply: question } }
+    const parsed = parseWeeklyLevelUpPlan(JSON.stringify(repliedPlan))
+
+    expect(question).toMatchObject({ action: 'question', playerUserId: 'player-1' })
+    expect(parsed?.coachResponse?.playerReply?.message).toBe('Should I use the deuce target for every rep?')
+    expect(buildWeeklyLevelUpPlayerReply(coachedPlan, { action: 'question', message: ' ' }, 'player-1', now)).toBeNull()
+    expect(buildWeeklyLevelUpPlayerReply(plan, { action: 'acknowledged' }, 'player-1', now)).toBeNull()
+    expect(buildWeeklyLevelUpPlayerReply(coachedPlan, { action: 'acknowledged' }, 'player-1', now)).toMatchObject({
+      action: 'acknowledged',
+      message: '',
+    })
+
+    const nextCoachResponse = buildWeeklyLevelUpCoachResponse(repliedPlan, { action: 'acknowledged' }, 'coach-1', now)
+    expect(nextCoachResponse?.playerReply).toBeNull()
   })
 })

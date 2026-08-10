@@ -2043,7 +2043,14 @@ export default function PlayerLiveWorkbench({
             <button type="button" onClick={saveThisWeek}>Save this week</button>
           </div>
         ) : null}
-        {weeklyPlan ? <WeeklyPlanCoachResponse plan={weeklyPlan} /> : null}
+        {weeklyPlan ? (
+          <WeeklyPlanCoachResponse
+            key={weeklyPlan.coachResponse?.updatedAt ?? weeklyPlan.id}
+            plan={weeklyPlan}
+            accessToken={session?.access_token ?? ''}
+            onSaved={persistWeeklyPlan}
+          />
+        ) : null}
         {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).length ? (
           <div className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
             {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).map((rep, index) => {
