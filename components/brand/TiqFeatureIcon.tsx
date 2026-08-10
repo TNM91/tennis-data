@@ -26,6 +26,7 @@ type TiqFeatureIconProps = {
   name: TiqFeatureIconName
   size?: TiqFeatureIconSize
   variant?: TiqFeatureIconVariant
+  signature?: boolean
   title?: string
   className?: string
   style?: CSSProperties
@@ -102,6 +103,7 @@ export default function TiqFeatureIcon({
   name,
   size = 'md',
   variant = 'default',
+  signature = name === 'myLab',
   title,
   className,
   style,
@@ -117,7 +119,12 @@ export default function TiqFeatureIcon({
 
   return (
     <span
-      className={['tiq-feature-icon', className].filter(Boolean).join(' ')}
+      className={[
+        'tiq-feature-icon',
+        signature ? 'tiq-feature-icon--signature' : null,
+        className,
+      ].filter(Boolean).join(' ')}
+      data-icon-treatment={signature ? 'signature' : undefined}
       style={{
         ...shellStyle(pixelSize, variant),
         ...style,
@@ -168,6 +175,41 @@ export default function TiqFeatureIcon({
           --tiq-icon-plate-hot: color-mix(in srgb, var(--brand-blue-2, #74beff) 16%, transparent);
           --tiq-icon-plate-mid: color-mix(in srgb, var(--brand-green, #9be11d) 5%, transparent);
           --tiq-icon-plate-cool: transparent;
+        }
+
+        .tiq-feature-icon--signature {
+          position: relative;
+          isolation: isolate;
+          border-color: color-mix(in srgb, var(--brand-green, #9be11d) 54%, var(--brand-blue-2, #74beff) 18%) !important;
+          background:
+            radial-gradient(circle at 72% 24%, rgba(155, 225, 29, 0.2), transparent 28%),
+            linear-gradient(145deg, rgba(13, 38, 64, 0.96), rgba(7, 20, 38, 0.98)) !important;
+          box-shadow:
+            0 14px 34px rgba(70, 158, 255, 0.14),
+            0 0 0 1px rgba(155, 225, 29, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .tiq-feature-icon--signature::after {
+          position: absolute;
+          inset: 10%;
+          z-index: 0;
+          border: 1px solid rgba(155, 225, 29, 0.16);
+          border-radius: 28%;
+          pointer-events: none;
+          content: '';
+        }
+
+        .tiq-feature-icon--signature > svg {
+          position: relative;
+          z-index: 1;
+        }
+
+        .tiq-feature-icon--signature:hover {
+          box-shadow:
+            0 16px 38px rgba(155, 225, 29, 0.2),
+            0 0 0 1px rgba(155, 225, 29, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
         }
 
         .tiq-feature-icon:hover {
