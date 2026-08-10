@@ -1581,6 +1581,98 @@
   box-shadow: none;
 }
 
+.levelUpToolbox {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 36%),
+    rgba(5, 15, 30, 0.76);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  overflow: clip;
+}
+
+.levelUpToolboxSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 66px;
+  cursor: pointer;
+  list-style: none;
+  padding: 13px 15px;
+}
+
+.levelUpToolboxSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpToolboxSummary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpToolboxSummary span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpToolboxSummary strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.levelUpToolboxSummary small {
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 6px 9px;
+  font-weight: 900;
+}
+
+.levelUpToolbox[open] .levelUpToolboxSummary {
+  border-bottom: 1px solid rgba(116, 190, 255, 0.14);
+}
+
+.levelUpToolbox[open] .levelUpToolboxSummary small {
+  background: rgba(155, 225, 29, 0.12);
+  color: #d8f7a4;
+}
+
+.levelUpToolboxBody {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+}
+
+.levelUpToolboxLinks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpToolboxLinks a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.08);
+  color: var(--foreground-strong);
+  padding: 9px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+
 .levelUpQuestPackPreview {
   display: grid;
   gap: 12px;
@@ -18849,11 +18941,12 @@
   }
 
   .liveFocusRail {
-    display: flex;
-    margin: 0 -2px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scroll-snap-type: x proximity;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .liveCoachChallengeEntry {
@@ -18870,7 +18963,31 @@
   .liveFocusButton {
     min-width: 0;
     min-height: 66px;
-    scroll-snap-align: start;
+    padding: 9px;
+  }
+
+  .liveFocusButton strong {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .levelUpToolbox {
+    border-radius: 13px;
+    box-shadow: none;
+  }
+
+  .levelUpToolboxSummary {
+    min-height: 54px;
+    padding: 9px 10px;
+  }
+
+  .levelUpToolboxSummary strong {
+    font-size: 0.88rem;
+  }
+
+  .levelUpToolboxBody,
+  .levelUpToolboxLinks {
+    grid-template-columns: 1fr;
   }
 
   .liveFocusButton span,

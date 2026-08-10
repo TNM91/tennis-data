@@ -1765,7 +1765,13 @@ export default function MyQuestClient() {
     setPhoneCompact(false)
 
     window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      const section = document.getElementById(sectionId)
+      let parentDrawer = section?.closest('details')
+      while (parentDrawer) {
+        parentDrawer.open = true
+        parentDrawer = parentDrawer.parentElement?.closest('details') ?? null
+      }
+      section?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     }, 0)
   }
 
@@ -1797,22 +1803,13 @@ export default function MyQuestClient() {
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>Level Up: My Quest</p>
           <h1>Operation Visible Abs</h1>
-          <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
+          <p className={styles.heroText}>Your private daily plan. Complete today&apos;s habits, protect the week, and review progress when you need it.</p>
           <div className={styles.heroActions}>
-            <a href="#lock-screen">Lock</a>
             <a href="#today-quests">Today</a>
-            <a href="#boss-warnings">Boss</a>
-            <a href="#month-view">Month</a>
-            <a href="#repair-day">Repair</a>
-            <a href="#season-timeline">Timeline</a>
-            <a href="#season-map">Season</a>
-            <a href="#momentum">Momentum</a>
+            <a href="#weekly-plan">This week</a>
             <a href="#trend-strip">Trends</a>
-            <a href="#private-coach">Coach</a>
-            <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
-            <a href="#phone-mode">Phone</a>
-            <a href="#private-ops">Sync</a>
+            <a href="#quest-history">History</a>
           </div>
         </div>
         <div className={styles.levelPanel}>
@@ -1889,32 +1886,6 @@ export default function MyQuestClient() {
               </button>
             )
           })}
-        </div>
-        <div id="phone-mode-control" className={styles.mobilePocketToggle} aria-label="My Quest iPhone pocket mode">
-          <div>
-            <span>Phone mode</span>
-            <strong>{phoneCompact ? 'Pocket dashboard' : 'Full dashboard'}</strong>
-          </div>
-          <div>
-            <button
-              type="button"
-              data-active={phoneCompact ? 'true' : 'false'}
-              onClick={() => {
-                writePhoneModePreference('pocket')
-                setPhoneCompact(true)
-                setIntelOpen(false)
-                setSupportOpen(false)
-              }}
-            >
-              Pocket
-            </button>
-            <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => {
-              writePhoneModePreference('full')
-              setPhoneCompact(false)
-            }}>
-              Full
-            </button>
-          </div>
         </div>
         <div className={styles.mobilePocketPulse} data-tone={mobilePocketPulse.tone} aria-label="My Quest iPhone coach pulse">
           <div>
@@ -2038,8 +2009,34 @@ export default function MyQuestClient() {
               </button>
             ))}
           </div>
-        </details>
-        <div className={styles.mobileModeRail} aria-label="Today focus mode">
+          <div id="phone-mode-control" className={styles.mobilePocketToggle} aria-label="My Quest iPhone pocket mode">
+            <div>
+              <span>Phone view</span>
+              <strong>{phoneCompact ? 'Today only' : 'Full dashboard'}</strong>
+            </div>
+            <div>
+              <button
+                type="button"
+                data-active={phoneCompact ? 'true' : 'false'}
+                onClick={() => {
+                  writePhoneModePreference('pocket')
+                  setPhoneCompact(true)
+                  setIntelOpen(false)
+                  setSupportOpen(false)
+                }}
+              >
+                Today
+              </button>
+              <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => {
+                writePhoneModePreference('full')
+                setPhoneCompact(false)
+              }}>
+                Full
+              </button>
+            </div>
+          </div>
+          <div className={styles.mobilePocketSettings}>
+          <div className={styles.mobileModeRail} aria-label="Today focus mode">
           <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
             Morning
           </button>
@@ -2089,6 +2086,8 @@ export default function MyQuestClient() {
             <strong>{mobileOfflineConfidence.detail}</strong>
           </div>
         ) : null}
+          </div>
+        </details>
         <div className={styles.mobilePocketStateLabel} data-tone={mobilePocketStateLabel.tone} aria-label="My Quest iPhone pocket state label">
           <span>{mobilePocketStateLabel.label}</span>
           <strong>{mobilePocketStateLabel.detail}</strong>
@@ -2405,6 +2404,16 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <details id="weekly-plan" className={styles.questWeeklyDrawer}>
+        <summary>
+          <div>
+            <span>This week</span>
+            <strong>{weeklyPlan.focusHabit}</strong>
+            <small>{weeklyGrade.grade} grade | {stats.weeklyXp.toLocaleString()} XP</small>
+          </div>
+          <em>Open plan</em>
+        </summary>
+        <div className={styles.questWeeklyBody}>
       <section className={styles.gamePlanPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -2526,8 +2535,11 @@ export default function MyQuestClient() {
           ))}
         </div>
       </section>
+        </div>
+      </details>
 
       <details
+        id="quest-history"
         className={styles.mobileIntelDrawer}
         open={intelOpen}
         onToggle={(event) => {
