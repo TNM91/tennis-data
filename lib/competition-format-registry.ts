@@ -220,7 +220,33 @@ export function getTournamentDrawFormatDefinition(value: string | null | undefin
 }
 
 export function normalizeTournamentDrawFormatId(value: string | null | undefined): TournamentDrawFormatId {
-  const normalized = (value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  const normalized = (value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  const aliases: Partial<Record<string, TournamentDrawFormatId>> = {
+    se: 'single_elimination',
+    single_elim: 'single_elimination',
+    rr: 'round_robin',
+    rr_fmc: 'round_robin_first_match_consolation',
+    rr_fmlc: 'round_robin_first_match_consolation',
+    round_robin_fmc: 'round_robin_first_match_consolation',
+    round_robin_fmlc: 'round_robin_first_match_consolation',
+    round_robin_first_match_losers_consolation: 'round_robin_first_match_consolation',
+    mfic: 'modified_feed_in_consolation',
+    compass: 'compass_draw',
+    vc: 'voluntary_consolation',
+    fmc: 'first_match_consolation',
+    fmlc: 'first_match_consolation',
+    first_match_losers_consolation: 'first_match_consolation',
+    team: 'team_tournament',
+    fic: 'feed_in_consolation',
+    feed_in: 'feed_in_consolation',
+    curtis: 'curtis_consolation',
+    flighted: 'flighted_draw',
+  }
+  if (aliases[normalized]) return aliases[normalized]
   if (TOURNAMENT_DRAW_FORMAT_MAP.has(normalized as TournamentDrawFormatId)) return normalized as TournamentDrawFormatId
   return 'single_elimination'
 }
@@ -320,8 +346,11 @@ export function resolveTeamMatchFormat(input: {
 
   let inferredId: TeamMatchFormatId | null = null
   if (/\bdominant\s+duo\b/i.test(context)) inferredId = 'dominant_duo'
-  else if (/\b(mixed|combo|55\s*&?\s*over|65\s*&?\s*over)\b/i.test(context)) inferredId = 'three_doubles'
+  else if (/\b(?:one|flex)\b[^\n]{0,40}\b(?:mixed\s+)?doubles\b/i.test(context)) inferredId = 'one_doubles'
+  else if (/\b(mixed|combo|55\s*&?\s*over|65\s*&?\s*over|70\s*&?\s*over|75\s*&?\s*over)\b/i.test(context)) inferredId = 'three_doubles'
+  else if (/\b(adult\s*)?40\s*&?\s*over\b/i.test(context) && /\b4[\s-]*line\b/i.test(context)) inferredId = 'adult_40_1s_3d'
   else if (/\b(adult\s*)?40\s*&?\s*over\b/i.test(context)) inferredId = 'adult_40_1s_4d'
+  else if (/\b(adult\s*)?18\s*&?\s*over\b/i.test(context) && /\b3[\s-]*line\b/i.test(context)) inferredId = 'adult_18_1s_2d'
   else if (/\b(adult\s*)?18\s*&?\s*over\b/i.test(context) && /\b(2\.5|5\.0)\b/.test(flight)) inferredId = 'adult_18_1s_2d'
   else if (/\b(adult\s*)?18\s*&?\s*over\b/i.test(context)) inferredId = 'standard_2s_3d'
   else if (/\bsingles(?:\s+league)?\b/i.test(context)) inferredId = 'one_singles'

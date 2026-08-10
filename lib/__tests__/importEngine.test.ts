@@ -78,8 +78,63 @@ describe('importTeamSummary', () => {
         league_name: '2026 Adult 18 & Over Spring',
         flight: '4.5 Men',
         ntrp: null,
+        age_division: null,
+        rating_source: 'unknown',
+        mixed_pair_role: 'unknown',
       },
     ])
+  })
+
+  it('persists official roster eligibility evidence', async () => {
+    const players: Array<Record<string, unknown>> = []
+    const rosterMemberships: Array<Record<string, unknown>> = []
+    const supabase = {
+      from(table: string) {
+        if (table === 'players') return {
+          select() {
+            return {
+              in(column: string, values: string[]) {
+                return { data: players.filter((player) => values.includes(String(player[column]))), error: null }
+              },
+            }
+          },
+          insert(payload: Array<Record<string, unknown>>) {
+            payload.forEach((row) => players.push({ id: `player-${players.length + 1}`, ...row }))
+            return { error: null }
+          },
+        }
+        if (table === 'team_roster_members') return {
+          upsert(payload: Array<Record<string, unknown>>) {
+            rosterMemberships.push(...payload)
+            return { error: null }
+          },
+        }
+        if (table === 'team_summary_teams') return { upsert() { return { error: null } } }
+        throw new Error(`Unexpected table ${table}`)
+      },
+    }
+    const engine = createImportEngine(supabase as never, { hasNormalizedPlayerNameColumn: true })
+    await engine.importTeamSummary([{
+      leagueName: '2026 Adult 40 & Over',
+      flight: 'Women 4.0',
+      rosterTeamName: 'Example Aces',
+      teams: [],
+      players: [{
+        name: 'Alex Player',
+        ntrp: 4,
+        teamName: 'Example Aces',
+        ratingSource: 'verified',
+        mixedPairRole: 'woman',
+        ageDivision: '40 & Over',
+      }],
+    }], 'commit')
+
+    expect(players[0]).toMatchObject({ rating_source: 'verified', mixed_pair_role: 'woman' })
+    expect(rosterMemberships[0]).toMatchObject({
+      rating_source: 'verified',
+      mixed_pair_role: 'woman',
+      age_division: '40 & Over',
+    })
   })
 
   it('links roster memberships for existing players missing normalized names', async () => {

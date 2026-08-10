@@ -24,6 +24,7 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 
@@ -45,6 +46,7 @@ type PlayerRow = {
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
   rating_source?: string | null
+  mixed_pair_role?: MixedPairRole | string | null
 }
 
 type ProfileLinkApiResponse = {
@@ -110,7 +112,8 @@ const PROFILE_PLAYER_SELECT_BASE = `
 
 const PROFILE_PLAYER_SELECT_WITH_SOURCE = `
   ${PROFILE_PLAYER_SELECT_BASE},
-  rating_source
+  rating_source,
+  mixed_pair_role
 `
 
 function readProfilePrefs(): ProfilePrefs {
@@ -167,7 +170,7 @@ async function loadProfilePlayers(): Promise<PlayerRow[]> {
   return ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
 }
 
-async function createSelfRatedPlayer(name: string, rating: number): Promise<PlayerRow | null> {
+async function createSelfRatedPlayer(name: string, rating: number, mixedPairRole: MixedPairRole): Promise<PlayerRow | null> {
   const basePayload = {
     name,
     singles_rating: rating,
@@ -180,12 +183,13 @@ async function createSelfRatedPlayer(name: string, rating: number): Promise<Play
   const selfRatedPayload = {
     ...basePayload,
     rating_source: 'self',
+    mixed_pair_role: mixedPairRole,
   }
 
   const insertWithSource = await supabase
     .from('players')
     .insert(selfRatedPayload)
-    .select('id,name,location,flight,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,rating_source')
+    .select('id,name,location,flight,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,rating_source,mixed_pair_role')
     .maybeSingle()
 
   if (!insertWithSource.error) return insertWithSource.data as PlayerRow
@@ -223,6 +227,7 @@ async function saveProfileIdentityViaApi(input: {
   linkedPlayerId?: string
   playerName?: string
   selfRating?: number
+  mixedPairRole?: MixedPairRole
 }) {
   const {
     data: { session },
@@ -271,6 +276,7 @@ function ProfilePageInner() {
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [typedPlayerName, setTypedPlayerName] = useState('')
   const [selfRating, setSelfRating] = useState('3.5')
+  const [mixedPairRole, setMixedPairRole] = useState<MixedPairRole>('unknown')
   const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -324,6 +330,7 @@ function ProfilePageInner() {
       setProfileSource(profileRes.source)
       setSelectedPlayerId(nextProfile?.linked_player_id || '')
       setTypedPlayerName(nextProfile?.linked_player_id ? '' : nextProfile?.linked_player_name || '')
+      setMixedPairRole(normalizeMixedPairRole(playersRes.find((player) => player.id === nextProfile?.linked_player_id)?.mixed_pair_role))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your profile.')
     } finally {
@@ -472,8 +479,8 @@ function ProfilePageInner() {
       try {
         apiResult = await saveProfileIdentityViaApi(
           nextPlayer
-            ? { linkedPlayerId: nextPlayer.id }
-            : { playerName: typedPlayerNameClean, selfRating: selfRatingNumber },
+            ? { linkedPlayerId: nextPlayer.id, mixedPairRole }
+            : { playerName: typedPlayerNameClean, selfRating: selfRatingNumber, mixedPairRole },
         )
       } catch (err) {
         apiSaveError = err instanceof Error ? err : new Error('Cloud profile sync failed.')
@@ -487,7 +494,7 @@ function ProfilePageInner() {
       }
 
       if (!nextPlayer && typedPlayerNameClean) {
-        const created = await createSelfRatedPlayer(typedPlayerNameClean, selfRatingNumber)
+        const created = await createSelfRatedPlayer(typedPlayerNameClean, selfRatingNumber, mixedPairRole)
         nextPlayer = created
       }
 
@@ -865,7 +872,10 @@ function ProfilePageInner() {
                     value={selectedPlayerId}
                     onChange={(event) => {
                       setSelectedPlayerId(event.target.value)
-                      if (event.target.value) setTypedPlayerName('')
+                      if (event.target.value) {
+                        setTypedPlayerName('')
+                        setMixedPairRole(normalizeMixedPairRole(playerMap.get(event.target.value)?.mixed_pair_role))
+                      }
                       setMessage('')
                       setError('')
                     }}
@@ -1092,6 +1102,23 @@ function ProfilePageInner() {
                     <option value="usually-available">Usually available</option>
                     <option value="limited">Limited</option>
                   </select>
+                </label>
+
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Mixed team eligibility</span>
+                  <select
+                    value={mixedPairRole}
+                    onChange={(event) => {
+                      setMixedPairRole(normalizeMixedPairRole(event.target.value))
+                      setMessage('')
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="unknown">Not set</option>
+                    <option value="man">Man</option>
+                    <option value="woman">Woman</option>
+                  </select>
+                  <span style={hintStyle}>Only used to check Mixed doubles lineups. TIQ never guesses this from your name.</span>
                 </label>
               </div>
 

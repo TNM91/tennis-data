@@ -3,6 +3,12 @@
 @keyframes tenaceiq-spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 760px) {
+  body:has(#profile-overview) [aria-label='TenAceIQ platform navigation'] {
+    display: none !important;
+  }
+}
 @keyframes tenaceiq-pulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
@@ -381,6 +387,10 @@ footer {
   width: min(80vw, 1060px);
   right: clamp(20px, 3.6vw, 64px);
   bottom: clamp(54px, 7vh, 112px);
+}
+
+.brand-atmosphere-mark--home {
+  display: none;
 }
 
 .brand-atmosphere-mark--quiet {

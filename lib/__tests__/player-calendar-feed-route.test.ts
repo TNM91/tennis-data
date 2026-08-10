@@ -164,6 +164,34 @@ vi.mock('@/lib/player-calendar-items', async () => {
   return await import('../player-calendar-items')
 })
 
+vi.mock('@/lib/player-competition-schedule', () => ({
+  loadPlayerCompetitionSchedule: vi.fn(async () => [{
+    id: 'league:league-1:match-1',
+    kind: 'league',
+    eventType: 'match',
+    competitionId: 'league-1',
+    competitionName: 'Monday Singles',
+    title: 'Monday Singles: vs Jordan Player',
+    date: '2026-06-15',
+    time: '18:00',
+    location: 'Court 7',
+    opponent: 'Jordan Player',
+    detail: 'Week 2',
+    href: '/explore/leagues/tiq/league-1',
+    status: 'Confirmed',
+  }]),
+  buildPlayerCompetitionCalendarEvent: vi.fn((item, absoluteUrl) => ({
+    id: `player-${item.id}`,
+    title: item.title,
+    date: item.date,
+    time: item.time,
+    location: item.location,
+    description: `${item.status}\n${item.detail}`,
+    url: absoluteUrl(item.href),
+    durationMinutes: 90,
+  })),
+}))
+
 vi.mock('@/lib/tiq-league-schedule-calendar', async () => {
   return await import('../tiq-league-schedule-calendar')
 })
@@ -201,6 +229,9 @@ describe('player calendar feed route', () => {
     expect(body).toContain('SUMMARY:Lesson: Taylor Player')
     expect(body).toContain('LOCATION:Indoor Court 2')
     expect(body).toContain('SUMMARY:Coach assignment due: Return plan')
+    expect(body).toContain('SUMMARY:Monday Singles: vs Jordan Player')
+    expect(body).toContain('LOCATION:Court 7')
+    expect(body).toContain('URL:https://tenaceiq.com/explore/leagues/tiq/league-1')
     expect(body).toContain('URL:https://tenaceiq.com/mylab#coach-assignments')
     expect(tokenQueryFilters).toEqual(expect.arrayContaining([
       ['scope_type', 'player_calendar'],

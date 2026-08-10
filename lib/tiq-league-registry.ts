@@ -20,6 +20,10 @@ import {
   normalizeTeamMatchFormatId,
   type TeamMatchFormatId,
 } from './competition-format-registry'
+import {
+  normalizeTeamCompetitionRulesOverride,
+  type TeamCompetitionRulesOverride,
+} from './competition-rules'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
@@ -38,6 +42,7 @@ export type TiqLeagueRecord = {
   teamMatchFormatId: TeamMatchFormatId
   scoringSystem: TiqLeagueScoringSystem
   thirdSetRule: TiqLeagueThirdSetRule
+  competitionRules: TeamCompetitionRulesOverride
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -71,6 +76,7 @@ export type TiqLeagueDraft = {
   teamMatchFormatId: TeamMatchFormatId
   scoringSystem: TiqLeagueScoringSystem
   thirdSetRule: TiqLeagueThirdSetRule
+  competitionRules: TeamCompetitionRulesOverride
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -227,6 +233,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     teamMatchFormatId: normalizeTeamMatchFormatId(input.teamMatchFormatId),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     thirdSetRule: normalizeTiqLeagueThirdSetRule(input.thirdSetRule),
+    competitionRules: normalizeTeamCompetitionRulesOverride(input.competitionRules),
     leagueName: cleanText(input.leagueName),
     seasonLabel: normalizeSeasonLabel(input.seasonLabel),
     seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
@@ -272,6 +279,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       teamMatchFormatId: normalizeTeamMatchFormatId(record.teamMatchFormatId),
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       thirdSetRule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
+      competitionRules: normalizeTeamCompetitionRulesOverride(record.competitionRules),
       leagueName: cleanText(record.leagueName),
       seasonLabel: normalizeSeasonLabel(record.seasonLabel),
       seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
@@ -333,6 +341,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     teamMatchFormatId: normalized.teamMatchFormatId,
     scoringSystem: normalized.scoringSystem,
     thirdSetRule: normalized.thirdSetRule,
+    competitionRules: normalized.competitionRules,
     leagueName: normalized.leagueName,
     seasonLabel: normalized.seasonLabel,
     seasonStatus: normalized.seasonStatus,

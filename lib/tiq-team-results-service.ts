@@ -401,6 +401,7 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
 
     const leagueResult = await getTiqLeagueById(leagueId)
     const useDynamicPoints = leagueResult.record?.scoringSystem === 'dynamic_points'
+    const standingsRule = leagueResult.record?.competitionRules.standingsRule || 'auto'
 
     const lineCountsByEvent: Record<string, { a: number; b: number; aPoints: number; bPoints: number }> = {}
     for (const line of (lines || []) as Array<{ event_id: string; winner_side: string; score: string | null }>) {
@@ -449,7 +450,7 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
     }
 
     const standings = Object.values(records).sort((a, b) =>
-      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard'),
+      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard', standingsRule),
     )
 
     return { standings, warning: null }

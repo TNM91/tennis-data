@@ -144,6 +144,10 @@ function getBrandAtmosphereClassName(pathname: string) {
     return 'brand-atmosphere-mark brand-atmosphere-mark--auth'
   }
 
+  if (pathname === '/') {
+    return 'brand-atmosphere-mark brand-atmosphere-mark--home'
+  }
+
   if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
     return 'brand-atmosphere-mark brand-atmosphere-mark--quiet'
   }

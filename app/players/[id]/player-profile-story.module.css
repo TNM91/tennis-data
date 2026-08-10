@@ -1,0 +1,860 @@
+.profileExperience {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 18px 18px 0;
+  color: #f8fbff;
+}
+
+.profileNav {
+  position: sticky;
+  top: 8px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 12px;
+  padding: 6px;
+  overflow-x: auto;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(6, 19, 36, 0.94);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  scrollbar-width: none;
+}
+
+.profileNav::-webkit-scrollbar {
+  display: none;
+}
+
+.profileNav a {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: rgba(228, 238, 251, 0.74);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.profileNav a:first-child,
+.profileNav a:hover,
+.profileNav a:focus-visible {
+  color: #ffffff;
+  background: rgba(116, 190, 255, 0.13);
+  outline: none;
+}
+
+.storyHero {
+  position: relative;
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.22);
+  border-radius: 30px;
+  background-color: #061324;
+  background-image: url('/player-profile/journey-hero.png');
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+  scroll-margin-top: 82px;
+}
+
+.storyContent {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: space-between;
+  width: min(68%, 930px);
+  min-height: 520px;
+  padding: 34px 38px 32px;
+}
+
+.identityTopline,
+.identityMeta,
+.ratingMeta,
+.heroActions,
+.ratingViews,
+.journeySignals,
+.matchStrip,
+.playerCardFooter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.identityTopline {
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.backLink {
+  color: rgba(228, 238, 251, 0.7);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  color: #ffffff;
+  outline: none;
+}
+
+.profileLabel {
+  color: #8ec5ff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.identityBlock h1 {
+  max-width: 760px;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(42px, 5.3vw, 74px);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 0.96;
+}
+
+.identityMeta {
+  gap: 10px 16px;
+  margin-top: 15px;
+  color: rgba(228, 238, 251, 0.78);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.identityMeta a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.verified {
+  color: #d9f84a;
+}
+
+.heroMain {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.34fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: stretch;
+  margin-top: 32px;
+}
+
+.ratingBlock {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding-right: 26px;
+  border-right: 1px solid rgba(116, 190, 255, 0.2);
+}
+
+.ratingBlock span,
+.journeyCopy > span,
+.journeyPanelTitle,
+.playerIdEyebrow,
+.playerCardEyebrow {
+  color: #8ec5ff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ratingBlock strong {
+  color: #ffffff;
+  font-size: clamp(58px, 7vw, 88px);
+  font-weight: 950;
+  letter-spacing: -0.065em;
+  line-height: 0.94;
+}
+
+.ratingBlock small {
+  color: #d9f84a;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.journeyCopy {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.journeyCopy h2 {
+  max-width: 620px;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(30px, 3.4vw, 48px);
+  font-weight: 930;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.journeyCopy p {
+  max-width: 600px;
+  margin: 0;
+  color: rgba(228, 238, 251, 0.78);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.heroActions {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.primaryAction,
+.quietAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 19px;
+  border-radius: 15px;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+
+.primaryAction {
+  color: #061324;
+  background: #b8f20d;
+  box-shadow: 0 12px 28px rgba(155, 225, 29, 0.18);
+}
+
+.primaryAction:hover,
+.primaryAction:focus-visible {
+  background: #d9f84a;
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.quietAction {
+  color: #ffffff;
+  border: 1px solid rgba(116, 190, 255, 0.3);
+  background: rgba(6, 19, 36, 0.62);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.quietAction:hover,
+.quietAction:focus-visible {
+  border-color: rgba(155, 225, 29, 0.55);
+  outline: none;
+}
+
+.storyFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(116, 190, 255, 0.18);
+}
+
+.ratingMeta {
+  gap: 10px 18px;
+}
+
+.ratingMeta div {
+  display: grid;
+  gap: 3px;
+}
+
+.ratingMeta span {
+  color: rgba(228, 238, 251, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ratingMeta strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.ratingViews {
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(6, 19, 36, 0.76);
+}
+
+.ratingViews button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(228, 238, 251, 0.64);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ratingViews button[data-active='true'] {
+  color: #ffffff;
+  background: #203c31;
+  box-shadow: inset 0 0 0 1px rgba(155, 225, 29, 0.48);
+}
+
+.journeyPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.75fr);
+  gap: 0;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 26px;
+  background: #09192d;
+  scroll-margin-top: 82px;
+}
+
+.journeyMain,
+.journeyAside {
+  padding: 24px 26px;
+}
+
+.journeyAside {
+  border-left: 1px solid rgba(116, 190, 255, 0.18);
+  background: #0b1d34;
+}
+
+.journeyHeadingRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.journeyHeadingRow h2,
+.journeyAside h3,
+.playerIdCopy h2,
+.playerCardPreview h3 {
+  margin: 6px 0 0;
+  color: #ffffff;
+  font-weight: 920;
+  letter-spacing: -0.025em;
+}
+
+.journeyHeadingRow h2 {
+  font-size: 28px;
+}
+
+.matchCount {
+  flex: 0 0 auto;
+  color: #d9f84a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.journeyEmpty {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 24px;
+  border-top: 1px solid rgba(116, 190, 255, 0.18);
+  border-bottom: 1px solid rgba(116, 190, 255, 0.18);
+}
+
+.journeyStep {
+  display: grid;
+  gap: 7px;
+  min-height: 116px;
+  padding: 20px;
+}
+
+.journeyStep + .journeyStep {
+  border-left: 1px solid rgba(116, 190, 255, 0.18);
+}
+
+.journeyStep span {
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.journeyStep strong {
+  color: #ffffff;
+  font-size: 17px;
+}
+
+.journeyStep small {
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.matchStrip {
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.matchResult,
+.matchEmpty {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  min-height: 52px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 15px;
+  color: rgba(228, 238, 251, 0.52);
+  background: #061324;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.matchResult[data-result='W'] {
+  color: #d9f84a;
+  border-color: rgba(155, 225, 29, 0.35);
+}
+
+.matchResult[data-result='L'] {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.journeyAside h3 {
+  font-size: 24px;
+}
+
+.journeyAside p {
+  margin: 10px 0 18px;
+  color: rgba(228, 238, 251, 0.7);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.levelProgress {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.levelValues {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  color: #ffffff;
+}
+
+.levelValues strong {
+  font-size: 27px;
+}
+
+.levelValues span {
+  color: rgba(228, 238, 251, 0.56);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.levelTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #14263f;
+}
+
+.levelTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #9be11d;
+}
+
+.playerIdentityPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: 14px;
+  margin-top: 14px;
+  scroll-margin-top: 82px;
+}
+
+.playerIdStory,
+.playerCardPreview {
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 26px;
+  background: #09192d;
+}
+
+.playerIdStory {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
+  min-height: 350px;
+}
+
+.courtImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-right: 1px solid rgba(116, 190, 255, 0.18);
+}
+
+.playerIdCopy,
+.playerCardPreview {
+  padding: 24px;
+}
+
+.playerIdCopy h2 {
+  font-size: 30px;
+}
+
+.playerIdCopy > p {
+  margin: 10px 0 18px;
+  color: rgba(228, 238, 251, 0.7);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.traitList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.traitList li {
+  display: grid;
+  gap: 4px;
+  padding: 13px 0;
+  border-top: 1px solid rgba(116, 190, 255, 0.15);
+}
+
+.traitList strong {
+  color: #d9f84a;
+  font-size: 13px;
+}
+
+.traitList span {
+  color: rgba(228, 238, 251, 0.68);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.playerCardPreview h3 {
+  font-size: 24px;
+}
+
+.playerCard {
+  display: grid;
+  gap: 22px;
+  min-height: 230px;
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 22px;
+  background-color: #061324;
+  background-image: url('/player-profile/journey-hero.png');
+  background-position: 64% center;
+  background-size: auto 100%;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+}
+
+.playerCardName {
+  display: grid;
+  gap: 6px;
+}
+
+.playerCardName strong {
+  color: #ffffff;
+  font-size: 25px;
+  letter-spacing: -0.025em;
+}
+
+.playerCardName span {
+  max-width: 72%;
+  color: rgba(228, 238, 251, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playerCardRating {
+  align-self: end;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 950;
+  letter-spacing: -0.055em;
+}
+
+.playerCardRating small {
+  margin-left: 8px;
+  color: #d9f84a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.playerCardFooter {
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 12px;
+}
+
+.anchorSection {
+  scroll-margin-top: 82px;
+}
+
+.milestoneStrip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 18px 22px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 22px;
+  background: #09192d;
+}
+
+.milestoneCopy {
+  display: grid;
+  gap: 4px;
+}
+
+.milestoneCopy span {
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.milestoneCopy strong {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.milestoneCopy small {
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.awardLinks {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.awardLinks a {
+  padding: 9px 12px;
+  border: 1px solid rgba(155, 225, 29, 0.28);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+@media (max-width: 1080px) {
+  .storyContent {
+    width: 76%;
+  }
+
+  .journeyPanel,
+  .playerIdentityPanel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .journeyAside {
+    border-top: 1px solid rgba(116, 190, 255, 0.18);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .profileExperience {
+    padding: 10px 10px 0;
+  }
+
+  .profileNav {
+    position: relative;
+    top: auto;
+    justify-content: flex-start;
+    width: 100%;
+    margin-bottom: 8px;
+    border-radius: 18px;
+  }
+
+  .profileNav a {
+    min-height: 38px;
+    padding: 9px 13px;
+  }
+
+  .storyHero {
+    min-height: 0;
+    border-radius: 23px;
+    background-position: 70% bottom;
+    background-size: auto 46%;
+    background-repeat: no-repeat;
+  }
+
+  .storyContent {
+    width: 100%;
+    min-height: 0;
+    padding: 21px 18px 220px;
+  }
+
+  .identityTopline {
+    margin-bottom: 18px;
+  }
+
+  .identityBlock h1 {
+    font-size: clamp(38px, 13vw, 52px);
+  }
+
+  .heroMain {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+  }
+
+  .ratingBlock {
+    grid-template-columns: auto 1fr;
+    align-items: end;
+    gap: 4px 12px;
+    padding: 0 0 16px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(116, 190, 255, 0.18);
+  }
+
+  .ratingBlock span,
+  .ratingBlock small {
+    grid-column: 2;
+  }
+
+  .ratingBlock strong {
+    grid-row: 1 / span 2;
+    font-size: 62px;
+  }
+
+  .journeyCopy h2 {
+    font-size: 31px;
+  }
+
+  .heroActions > * {
+    flex: 1 1 150px;
+  }
+
+  .storyFooter {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .ratingViews {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .journeyPanel,
+  .playerIdStory,
+  .playerIdentityPanel {
+    border-radius: 22px;
+  }
+
+  .journeyMain,
+  .journeyAside,
+  .playerIdCopy,
+  .playerCardPreview {
+    padding: 20px 18px;
+  }
+
+  .journeyHeadingRow {
+    display: grid;
+  }
+
+  .journeyEmpty {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .journeyStep {
+    min-height: 0;
+    padding: 16px 0;
+  }
+
+  .journeyStep + .journeyStep {
+    border-top: 1px solid rgba(116, 190, 255, 0.18);
+    border-left: 0;
+  }
+
+  .playerIdStory {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .milestoneStrip {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 17px 18px;
+  }
+
+  .awardLinks {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .courtImage {
+    height: auto;
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(116, 190, 255, 0.18);
+  }
+}
+
+@media (max-width: 390px) {
+  .storyContent {
+    padding: 18px 15px 205px;
+  }
+
+  .identityMeta,
+  .ratingMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .heroActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .heroActions > * {
+    flex: 0 0 auto;
+  }
+
+  .matchResult,
+  .matchEmpty {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profileNav,
+  .storyHero,
+  .journeyPanel,
+  .playerIdentityPanel {
+    scroll-behavior: auto;
+  }
+}

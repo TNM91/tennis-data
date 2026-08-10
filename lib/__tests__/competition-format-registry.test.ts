@@ -11,12 +11,23 @@ describe('competition format registry', () => {
   it.each([
     ['2026 Adult 18 & Over', 'Women 3.5', 'standard_2s_3d', 2, 3],
     ['2026 Adult 18 & Over', 'Women 2.5', 'adult_18_1s_2d', 1, 2],
+    ['2026 Adult 18 & Over 3-Line', 'Women 3.5', 'adult_18_1s_2d', 1, 2],
     ['2026 Adult 40 & Over', 'Men 4.0', 'adult_40_1s_4d', 1, 4],
+    ['2026 Adult 40 & Over 4-Line', 'Men 4.0', 'adult_40_1s_3d', 1, 3],
     ['2026 Adult 40 & Over - 4 Line (1S/3D)', 'Women 4.0', 'adult_40_1s_3d', 1, 3],
     ['2026 Adult 55 & Over', 'Women 7.0', 'three_doubles', 0, 3],
+    ['2026 Adult 65 & Over', 'Men 8.0', 'three_doubles', 0, 3],
+    ['2026 Adult 70 & Over', 'Women 7.0', 'three_doubles', 0, 3],
     ['2026 Mixed 18 & Over', '8.0', 'three_doubles', 0, 3],
+    ['2026 Mixed 40 & Over', '7.0', 'three_doubles', 0, 3],
+    ['2026 Mixed 55 & Over', '8.0', 'three_doubles', 0, 3],
     ['2026 Combo Doubles', 'Women 7.5', 'three_doubles', 0, 3],
+    ['2026 ONE Doubles', 'Women 3.5', 'one_doubles', 0, 1],
+    ['2026 ONE Doubles Mixed', '8.0', 'one_doubles', 0, 1],
+    ['Spring Flex Doubles League', 'Open', 'one_doubles', 0, 1],
     ['Club Singles League', 'Flight A', 'one_singles', 1, 0],
+    ['Club Doubles League - 2 Doubles', 'Flight A', 'two_doubles', 0, 2],
+    ['Local Team League - 4 Doubles', 'Flight A', 'four_doubles', 0, 4],
     ['Dominant Duo Team Tournament', 'Open', 'dominant_duo', 2, 1],
   ])('resolves %s / %s', (leagueName, flight, id, singles, doubles) => {
     const format = resolveTeamMatchFormat({ leagueName, flight })
@@ -77,5 +88,21 @@ describe('competition format registry', () => {
     for (const format of TOURNAMENT_DRAW_FORMATS) {
       expect(normalizeTournamentDrawFormatId(format.id)).toBe(format.id)
     }
+  })
+
+  it.each([
+    ['SE', 'single_elimination'],
+    ['RR', 'round_robin'],
+    ['RR + FMLC', 'round_robin_first_match_consolation'],
+    ['MFIC', 'modified_feed_in_consolation'],
+    ['Compass', 'compass_draw'],
+    ['VC', 'voluntary_consolation'],
+    ['FMLC', 'first_match_consolation'],
+    ['Team', 'team_tournament'],
+    ['FIC', 'feed_in_consolation'],
+    ['Curtis', 'curtis_consolation'],
+    ['Flighted', 'flighted_draw'],
+  ])('normalizes imported USTA draw label %s', (value, expected) => {
+    expect(normalizeTournamentDrawFormatId(value)).toBe(expected)
   })
 })

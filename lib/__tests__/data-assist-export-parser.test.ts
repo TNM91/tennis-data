@@ -157,8 +157,8 @@ describe('parseTennisLinkExportFiles', () => {
       contactCount: 2,
     })
     expect(draft.players).toEqual([
-      expect.objectContaining({ name: 'Alex Captain', ntrp: 4.5, phone: '314-555-0100', email: 'alex@example.com' }),
-      expect.objectContaining({ name: 'Casey Partner', ntrp: 3.5, phone: '314-555-0101', email: 'casey@example.com' }),
+      expect.objectContaining({ name: 'Alex Captain', ntrp: 4.5, phone: '314-555-0100', email: 'alex@example.com', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' }),
+      expect.objectContaining({ name: 'Casey Partner', ntrp: 3.5, phone: '314-555-0101', email: 'casey@example.com', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' }),
     ])
     expect(draft.contacts).toEqual([
       expect.objectContaining({ name: 'Alex Captain', role: 'Captain', isCaptain: true }),

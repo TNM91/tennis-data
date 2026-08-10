@@ -74,6 +74,7 @@ describe('Team Room', () => {
     expect(roomPage).toContain('Mark seen')
     expect(roomPage).toContain('MatchRecap')
     expect(roomPage).toContain('/brand/icons/pwa-192.png')
+    expect(roomPage).toContain("aria-label={room.canManage ? 'Back to Captain' : 'Back to My Lab'}")
     expect(roomPage).not.toContain('/tenaceiq-icon-192.png')
     expect(roomApi).toContain("action === 'create_invite'")
     expect(roomApi).toContain("action === 'post_match_card'")

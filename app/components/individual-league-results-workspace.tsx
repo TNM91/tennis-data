@@ -732,6 +732,16 @@ function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeag
     playerId: '',
     playerLocation: '',
     entryStatus: 'active' as const,
+    eligibilityStatus: 'needs_confirmation' as const,
+    eligibilityReviewNote: '',
+    eligibilityEvidence: {},
+    eligibility: {
+      status: 'needs_confirmation' as const,
+      label: 'Confirm eligibility',
+      detail: 'Player evidence has not been checked against this division yet.',
+      issues: [],
+      requirement: { ratingLevel: null, ageDivision: null, mixedPairRole: 'unknown' as const },
+    },
   }))
 }
 

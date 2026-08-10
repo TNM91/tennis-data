@@ -1,4 +1,10 @@
 import type { DataAssistOcrProvider, DataAssistOcrScreenshotInput } from './data-assist-ocr'
+import {
+  inferLeagueAgeDivision,
+  inferMixedPairRole,
+  type MixedPairRole,
+  type PlayerRatingSource,
+} from './player-eligibility'
 
 export type DataAssistTeamSummaryParsedTeam = {
   name: string
@@ -13,6 +19,9 @@ export type DataAssistTeamSummaryParsedPlayer = {
   phone?: string
   email?: string
   ustaNumber?: string
+  ratingSource?: PlayerRatingSource
+  mixedPairRole?: MixedPairRole
+  ageDivision?: string | null
 }
 
 export type DataAssistTeamSummaryParsedContact = {
@@ -105,7 +114,14 @@ export function buildTeamSummaryOcrDraftFromText(
   const teams = parseTeams(rawText)
   const parsedPlayers = applyKnownRosterRepair(parsePlayers(rawText, rosterTeamName), rosterTeamName, rawText)
   const namedContacts = parseContacts(rawText)
-  const players = mergePlayerContacts(parsedPlayers, namedContacts)
+  const rosterMixedPairRole = inferMixedPairRole(leagueName, flight)
+  const rosterAgeDivision = inferLeagueAgeDivision(leagueName, flight)
+  const players = mergePlayerContacts(parsedPlayers, namedContacts).map((player) => ({
+    ...player,
+    ratingSource: player.ntrp === null ? 'unknown' as const : 'verified' as const,
+    mixedPairRole: rosterMixedPairRole,
+    ageDivision: rosterAgeDivision,
+  }))
   const contacts = buildRosterContacts(players, namedContacts)
   const parserWarnings: string[] = []
 

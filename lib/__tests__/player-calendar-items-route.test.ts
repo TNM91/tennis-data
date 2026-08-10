@@ -72,12 +72,34 @@ vi.mock('@/lib/player-calendar-items', async () => {
   return await import('../player-calendar-items')
 })
 
+vi.mock('@/lib/player-competition-schedule', () => ({
+  loadPlayerCompetitionSchedule: vi.fn(async () => [{
+    id: 'tournament:open-1:start',
+    kind: 'tournament',
+    eventType: 'competition',
+    competitionId: 'open-1',
+    competitionName: 'Summer Open',
+    title: 'Summer Open',
+    date: '2026-06-20',
+    time: '',
+    location: 'Center Court',
+    opponent: '',
+    detail: 'Entry approved · Match time pending',
+    href: '/tournaments/open-1',
+    status: 'Approved',
+  }]),
+}))
+
 describe('player calendar items route', () => {
   it('lists signed-in player calendar items', async () => {
     deletedCalendarItemFilters = []
     const route = await import('../../app/api/player/calendar-items/route')
     const response = await route.GET(new Request('https://tenaceiq.com/api/player/calendar-items'))
-    const body = (await response.json()) as { ok?: boolean; items?: Array<Record<string, unknown>> }
+    const body = (await response.json()) as {
+      ok?: boolean
+      items?: Array<Record<string, unknown>>
+      competitionItems?: Array<Record<string, unknown>>
+    }
 
     expect(response.status).toBe(200)
     expect(body.items?.[0]).toMatchObject({
@@ -86,6 +108,10 @@ describe('player calendar items route', () => {
       date: '2026-06-12',
       time: '16:30',
       kind: 'practice',
+    })
+    expect(body.competitionItems?.[0]).toMatchObject({
+      competitionName: 'Summer Open',
+      status: 'Approved',
     })
   })
 

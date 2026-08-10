@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import ClubContextBanner from '@/app/components/club-context-banner'
+import CompetitionResponseSummary from '@/app/components/competition-response-summary'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -19,11 +20,23 @@ import {
   type LeagueCoordinatorResumeState,
 } from '@/lib/league-coordinator-memory'
 import { supabase } from '@/lib/supabase'
+import {
+  buildCompetitionScheduleResponseSummary,
+  loadCompetitionScheduleResponses,
+  sendCompetitionScheduleReminders,
+  type CompetitionScheduleResponse,
+} from '@/lib/competition-schedule-responses'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
 import {
   TOURNAMENT_DRAW_FORMATS,
   getTournamentDrawFormatDefinition,
 } from '@/lib/competition-format-registry'
+import { getTournamentOperationsSummary } from '@/lib/competition-rules'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityAssessment,
+} from '@/lib/player-eligibility'
 import {
   buildTournamentPreview,
   buildRoundRobinStandings,
@@ -39,6 +52,7 @@ import {
   parseTournamentEntrantsInput,
   queueTiqTournamentAlertRecordForUser,
   readTiqTournamentRegistry,
+  requestTiqTournamentEntryInformation,
   saveTiqTournamentAlertRecordForUser,
   saveTiqTournamentRecord,
   summarizeTournamentResults,
@@ -178,10 +192,14 @@ export default function TournamentBuilderWorkspace() {
   const [highlightedContact, setHighlightedContact] = useState('')
   const [profileSyncing, setProfileSyncing] = useState(false)
   const [entryRecords, setEntryRecords] = useState<TiqTournamentEntryRecord[]>([])
+  const [scheduleResponses, setScheduleResponses] = useState<CompetitionScheduleResponse[]>([])
+  const [canReviewScheduleResponses, setCanReviewScheduleResponses] = useState(false)
   const [entryCounts, setEntryCounts] = useState<Record<string, number>>({})
   const [awardCounts, setAwardCounts] = useState<Record<string, number>>({})
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({})
   const [entrySyncingId, setEntrySyncingId] = useState('')
+  const [entryInfoRequestId, setEntryInfoRequestId] = useState('')
+  const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [awardRecipients, setAwardRecipients] = useState<Record<TiqAwardPlacement, string>>({
     first: '',
     second: '',
@@ -257,6 +275,14 @@ export default function TournamentBuilderWorkspace() {
   const awardCandidates = selectedRecord ? buildTiqTournamentAwardCandidates(selectedRecord) : []
   const pendingEntries = entryRecords.filter((entry) => entry.status === 'pending')
   const recentEntries = entryRecords.filter((entry) => entry.status !== 'pending').slice(0, 4)
+  const tournamentEligibilityRequirement = useMemo(
+    () => buildPlayerEligibilityRequirement(selectedRecord?.name, selectedRecord?.directorNotes),
+    [selectedRecord?.directorNotes, selectedRecord?.name],
+  )
+  const entryEligibilityById = useMemo(() => new Map(entryRecords.map((entry) => [
+    entry.id,
+    assessPlayerEligibility(tournamentEligibilityRequirement, entry.eligibilityEvidence),
+  ])), [entryRecords, tournamentEligibilityRequirement])
   void awardRefresh
   const [cloudAwardRecords, setCloudAwardRecords] = useState<TiqAwardRecord[]>([])
   const awardRecords = selectedRecordId
@@ -700,6 +726,33 @@ export default function TournamentBuilderWorkspace() {
   useEffect(() => {
     let active = true
 
+    async function loadScheduleResponses() {
+      if (!selectedRecordId || !userId) {
+        if (active) setScheduleResponses([])
+        if (active) setCanReviewScheduleResponses(false)
+        return
+      }
+
+      const result = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: selectedRecordId,
+        userId,
+      })
+      if (!active) return
+      setScheduleResponses(result.responses)
+      setCanReviewScheduleResponses(result.authorized)
+    }
+
+    void loadScheduleResponses()
+
+    return () => {
+      active = false
+    }
+  }, [selectedRecordId, userId])
+
+  useEffect(() => {
+    let active = true
+
     async function loadAlerts() {
       if (!selectedRecordId || !userId) {
         if (active) setAlertRecords([])
@@ -915,6 +968,15 @@ export default function TournamentBuilderWorkspace() {
 
     refreshRecords(updated.id)
     setScheduleInputs(buildScheduleInputState(updated))
+    if (userId) {
+      const responseResult = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: updated.id,
+        userId,
+      })
+      setScheduleResponses(responseResult.responses)
+      setCanReviewScheduleResponses(responseResult.authorized)
+    }
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
     setNotice('Match schedule saved.')
   }
@@ -1189,6 +1251,14 @@ export default function TournamentBuilderWorkspace() {
 
   async function approveTournamentEntry(entry: TiqTournamentEntryRecord) {
     if (!selectedRecord || entrySyncingId) return
+    const eligibility = entryEligibilityById.get(entry.id) || assessPlayerEligibility(tournamentEligibilityRequirement, {
+      ...entry.eligibilityEvidence,
+      rating: entry.eligibilityEvidence.rating ?? entry.selfRating,
+    })
+    if (eligibility.status === 'ineligible') {
+      setNotice(`${entry.playerName} does not match this division. ${eligibility.detail}`)
+      return
+    }
     setEntrySyncingId(entry.id)
     setNotice('')
 
@@ -1255,7 +1325,10 @@ export default function TournamentBuilderWorkspace() {
         profileWarning = 'Sign in again to create the linked TIQ profile.'
       }
 
-      const statusResult = await updateTiqTournamentEntryStatus(entry.id, 'approved', linkedPlayerId || null)
+      const statusResult = await updateTiqTournamentEntryStatus(entry.id, 'approved', linkedPlayerId || null, {
+        status: eligibility.status,
+        note: eligibility.detail,
+      })
       if (statusResult.error) throw statusResult.error
 
       refreshRecords(saved.data.id)
@@ -1283,6 +1356,29 @@ export default function TournamentBuilderWorkspace() {
       setNotice(`${entry.playerName} was declined from the entry queue.`)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'That entry could not be declined.')
+    } finally {
+      setEntrySyncingId('')
+    }
+  }
+
+  async function requestTournamentEntryInfo(entry: TiqTournamentEntryRecord) {
+    if (entrySyncingId) return
+    const requestNote = entryInfoRequestNote.trim()
+    if (!requestNote) {
+      setNotice('Tell the player what information is missing.')
+      return
+    }
+    setEntrySyncingId(entry.id)
+    setNotice('')
+    try {
+      const result = await requestTiqTournamentEntryInformation(entry.id, requestNote)
+      if (result.error) throw result.error
+      await refreshTournamentEntries(entry.tournamentId)
+      setEntryInfoRequestId('')
+      setEntryInfoRequestNote('')
+      setNotice(`${entry.playerName} was notified and can respond from Compete.`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'That information request could not be sent.')
     } finally {
       setEntrySyncingId('')
     }
@@ -1581,7 +1677,10 @@ export default function TournamentBuilderWorkspace() {
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}
             </select>
-            <span style={helperTextStyle}>{getTournamentDrawFormatDefinition(format).description}</span>
+            <span style={helperTextStyle}>
+              {getTournamentDrawFormatDefinition(format).description}{' '}
+              {getTournamentOperationsSummary(format)}
+            </span>
           </label>
 
           <div style={segmentedStyle} aria-label="Entrant type">
@@ -1893,17 +1992,20 @@ export default function TournamentBuilderWorkspace() {
 
           {selectedRecord.isPublic ? (
             <div style={entryQueueGridStyle}>
-              {pendingEntries.length ? pendingEntries.map((entry) => (
-                <div key={entry.id} style={entryQueueCardStyle}>
+              {pendingEntries.length ? pendingEntries.map((entry) => {
+                const eligibility = entryEligibilityById.get(entry.id)
+                const cannotApprove = eligibility?.status === 'ineligible'
+                return <div key={entry.id} style={entryQueueCardStyle}>
                   <div style={entryQueueTopStyle}>
                     <div>
                       <strong>{entry.playerName}</strong>
                       <div style={smallNoteStyle}>
-                        Self-rated {entry.selfRating.toFixed(1)} S{entry.smsOptIn ? ' - SMS opt-in' : ''}
+                        {entry.linkedPlayerId ? 'TIQ profile' : 'Self-rated'} {Number(entry.eligibilityEvidence.rating ?? entry.selfRating).toFixed(1)}{entry.smsOptIn ? ' - SMS opt-in' : ''}
                       </div>
                     </div>
-                    <span style={pillStyle}>Pending</span>
+                    <span style={eligibilityStatusStyle(eligibility)}>{eligibility?.label || 'Review eligibility'}</span>
                   </div>
+                  {eligibility?.detail ? <div style={smallNoteStyle}>{eligibility.detail}</div> : null}
                   <div style={entryContactLineStyle}>
                     <span>{entry.email || 'No email'}</span>
                     <span>{entry.phone || 'No phone'}</span>
@@ -1912,10 +2014,10 @@ export default function TournamentBuilderWorkspace() {
                     <button
                       type="button"
                       onClick={() => approveTournamentEntry(entry)}
-                      disabled={Boolean(entrySyncingId)}
-                      style={{ ...secondaryButtonStyle, ...(entrySyncingId ? disabledButtonStyle : null) }}
+                      disabled={Boolean(entrySyncingId) || cannotApprove}
+                      style={{ ...secondaryButtonStyle, ...(entrySyncingId || cannotApprove ? disabledButtonStyle : null) }}
                     >
-                      {entrySyncingId === entry.id ? 'Approving...' : 'Approve'}
+                      {entrySyncingId === entry.id ? 'Approving...' : cannotApprove ? 'Does not match' : eligibility?.status === 'needs_confirmation' ? 'Confirm & approve' : 'Approve'}
                     </button>
                     <button
                       type="button"
@@ -1925,9 +2027,42 @@ export default function TournamentBuilderWorkspace() {
                     >
                       Decline
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntryInfoRequestId(entry.id)
+                        setEntryInfoRequestNote(entry.playerRequestNote || eligibility?.detail || '')
+                      }}
+                      disabled={Boolean(entrySyncingId)}
+                      style={{ ...ghostButtonStyle, ...(entrySyncingId ? disabledButtonStyle : null) }}
+                    >
+                      Request info
+                    </button>
                   </div>
+                  {entryInfoRequestId === entry.id ? (
+                    <div style={entryInfoRequestStyle}>
+                      <label style={scoreFieldStyle}>
+                        <span>What does the player need to confirm?</span>
+                        <textarea
+                          value={entryInfoRequestNote}
+                          onChange={(event) => setEntryInfoRequestNote(event.target.value)}
+                          placeholder="Confirm your age division or current rating."
+                          rows={3}
+                          style={{ ...textareaStyle, minHeight: 76 }}
+                        />
+                      </label>
+                      <div style={actionRowStyle}>
+                        <button type="button" onClick={() => void requestTournamentEntryInfo(entry)} disabled={Boolean(entrySyncingId)} style={secondaryButtonStyle}>
+                          {entrySyncingId === entry.id ? 'Sending...' : 'Send request'}
+                        </button>
+                        <button type="button" onClick={() => { setEntryInfoRequestId(''); setEntryInfoRequestNote('') }} disabled={Boolean(entrySyncingId)} style={ghostButtonStyle}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              )) : (
+              }) : (
                 <div style={tournamentActionEmptyStyle}>
                   <div style={emptySavedRoomCopyStyle}>
                     <strong>Entry queue is clear.</strong>
@@ -2052,6 +2187,24 @@ export default function TournamentBuilderWorkspace() {
                   : canRecord
                     ? 'Record winner'
                     : 'Await players'
+              const responseSummary = selectedRecord.entrantType === 'players'
+                && canReviewScheduleResponses
+                && canRecord
+                && matchScheduleReady
+                ? buildCompetitionScheduleResponseSummary({
+                    eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                    expectedPlayerNames: [match.sideA, match.sideB],
+                    responses: scheduleResponses,
+                    currentSnapshot: {
+                      date: match.schedule?.date || '',
+                      time: match.schedule?.time || '',
+                      location: [
+                        selectedRecord.locationLabel,
+                        match.schedule?.court ? `Court ${match.schedule.court}` : '',
+                      ].filter(Boolean).join(' · '),
+                    },
+                  })
+                : null
               return (
                 <div key={match.id} style={scorebookMatchStyle}>
                   <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
@@ -2073,7 +2226,21 @@ export default function TournamentBuilderWorkspace() {
                     ))}
                     <span style={matchPrimaryActionStyle}>{matchPrimaryLabel}</span>
                   </div>
-                  <div style={scheduleGridStyle}>
+                  {responseSummary ? (
+                    <CompetitionResponseSummary
+                      summary={responseSummary}
+                      adjustHref={`#tournament-schedule-${match.id}`}
+                      onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
+                        accessToken: session.access_token,
+                        competitionKind: 'tournament',
+                        competitionId: selectedRecord.id,
+                        eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                        expectedPlayerNames: [match.sideA, match.sideB],
+                      }) : undefined}
+                      rosterHref="#tournament-entries"
+                    />
+                  ) : null}
+                  <div id={`tournament-schedule-${match.id}`} style={scheduleGridStyle}>
                     <label style={compactFieldStyle}>
                       Date
                       <input
@@ -4331,6 +4498,16 @@ const entryQueueGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+function eligibilityStatusStyle(assessment?: PlayerEligibilityAssessment): CSSProperties {
+  if (assessment?.status === 'verified') {
+    return { ...pillStyle, color: '#d9ff8f', borderColor: 'rgba(151, 225, 48, 0.52)', background: 'rgba(91, 128, 32, 0.22)' }
+  }
+  if (assessment?.status === 'ineligible') {
+    return { ...pillStyle, color: '#ffd6d6', borderColor: 'rgba(235, 87, 87, 0.52)', background: 'rgba(120, 28, 42, 0.28)' }
+  }
+  return { ...pillStyle, color: '#ffe4a6', borderColor: 'rgba(225, 176, 71, 0.5)', background: 'rgba(111, 78, 22, 0.24)' }
+}
+
 const entryQueueCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -4341,6 +4518,15 @@ const entryQueueCardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
+}
+
+const entryInfoRequestStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,36,0.72)',
 }
 
 const entryQueueTopStyle: CSSProperties = {

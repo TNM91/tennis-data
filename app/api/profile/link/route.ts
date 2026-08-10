@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { isMissingProfileLinkSchemaError } from '@/lib/profile-link-storage'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 
 export const runtime = 'nodejs'
 
@@ -8,6 +9,7 @@ type ProfileLinkBody = {
   linkedPlayerId?: unknown
   playerName?: unknown
   selfRating?: unknown
+  mixedPairRole?: unknown
 }
 
 type PlayerRow = {
@@ -25,6 +27,7 @@ type PlayerRow = {
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
   rating_source?: string | null
+  mixed_pair_role?: MixedPairRole | string | null
 }
 
 type ProfileLinkRow = {
@@ -51,7 +54,8 @@ const PLAYER_SELECT_WITH_SOURCE = `
   overall_usta_dynamic_rating,
   singles_usta_dynamic_rating,
   doubles_usta_dynamic_rating,
-  rating_source
+  rating_source,
+  mixed_pair_role
 `
 
 const PLAYER_SELECT_BASE = `
@@ -142,15 +146,32 @@ export async function POST(request: Request) {
   try {
     const linkedPlayerId = cleanString(body.linkedPlayerId)
     const playerName = cleanPlayerName(body.playerName)
-    const player = linkedPlayerId
+    let player = linkedPlayerId
       ? await loadPlayer(supabase, linkedPlayerId)
-      : await createSelfRatedPlayer(supabase, playerName, normalizeSelfRating(body.selfRating))
+      : await createSelfRatedPlayer(
+          supabase,
+          playerName,
+          normalizeSelfRating(body.selfRating),
+          normalizeMixedPairRole(body.mixedPairRole),
+        )
 
     if (!player) {
       return Response.json(
         { ok: false, message: linkedPlayerId ? 'That player record could not be found.' : 'Type your tennis name to create a self-rated player.' },
         { status: 400 },
       )
+    }
+
+    const mixedPairRole = normalizeMixedPairRole(body.mixedPairRole)
+    if (body.mixedPairRole !== undefined && normalizeMixedPairRole(player.mixed_pair_role) !== mixedPairRole) {
+      const mixedRoleUpdate = await supabase
+        .from('players')
+        .update({ mixed_pair_role: mixedPairRole })
+        .eq('id', player.id)
+        .select(PLAYER_SELECT_WITH_SOURCE)
+        .maybeSingle()
+      if (mixedRoleUpdate.error) throw new Error(mixedRoleUpdate.error.message)
+      if (mixedRoleUpdate.data) player = mixedRoleUpdate.data as PlayerRow
     }
 
     const existingProfile = await loadProfileLink(supabase, requester.userId)
@@ -297,7 +318,12 @@ async function loadPlayer(supabase: SupabaseClient, playerId: string) {
   return base.data ? ({ ...(base.data as PlayerRow), rating_source: null }) : null
 }
 
-async function createSelfRatedPlayer(supabase: SupabaseClient, name: string, rating: number) {
+async function createSelfRatedPlayer(
+  supabase: SupabaseClient,
+  name: string,
+  rating: number,
+  mixedPairRole: MixedPairRole,
+) {
   if (!name) return null
 
   const basePayload = {
@@ -312,7 +338,7 @@ async function createSelfRatedPlayer(supabase: SupabaseClient, name: string, rat
 
   const withSource = await supabase
     .from('players')
-    .insert({ ...basePayload, rating_source: 'self' })
+    .insert({ ...basePayload, rating_source: 'self', mixed_pair_role: mixedPairRole })
     .select(PLAYER_SELECT_WITH_SOURCE)
     .maybeSingle()
 

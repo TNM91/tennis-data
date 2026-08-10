@@ -13,6 +13,10 @@ import {
   type PlayerCalendarItem,
   type PlayerCalendarItemRow,
 } from '@/lib/player-calendar-items'
+import {
+  buildPlayerCompetitionCalendarEvent,
+  loadPlayerCompetitionSchedule,
+} from '@/lib/player-competition-schedule'
 import { buildTennisCalendarFeed, type TennisCalendarEvent } from '@/lib/tiq-league-schedule-calendar'
 import { supabaseUrl } from '@/lib/supabase'
 
@@ -168,7 +172,13 @@ export async function GET(
       ),
     )
 
-    const feed = buildTennisCalendarFeed([...personalEvents, ...coachEvents], {
+    const competitionEvents = (await loadPlayerCompetitionSchedule(supabase, userId))
+      .map((item) => buildPlayerCompetitionCalendarEvent(
+        item,
+        (href) => new URL(href || '/compete/schedule', request.url).toString(),
+      ))
+
+    const feed = buildTennisCalendarFeed([...personalEvents, ...coachEvents, ...competitionEvents], {
       calendarName: 'TenAceIQ My Calendar',
       productUrl: new URL('/mylab#my-calendar', request.url).toString(),
       timeZone: 'America/Chicago',

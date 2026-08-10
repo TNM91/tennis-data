@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extractScorecardLeagueName } from '../data-assist-scorecard-parser'
 import { buildLeagueEntityId, buildTeamEntityId } from '../entity-ids'
+import {
+  normalizeLeagueAgeDivision,
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
+  type MixedPairRole,
+  type PlayerRatingSource,
+} from '../player-eligibility'
 
 export type MatchSide = 'A' | 'B'
 export type MatchType = 'singles' | 'doubles'
@@ -23,6 +30,9 @@ export type TeamSummaryPlayerRow = {
   name: string
   ntrp?: number | null
   teamName?: string | null
+  ratingSource?: PlayerRatingSource | string | null
+  mixedPairRole?: MixedPairRole | string | null
+  ageDivision?: string | null
 }
 
 export type TeamSummaryImportRow = {
@@ -49,6 +59,9 @@ type TeamRosterMembership = {
   districtArea: string | null
   source: string | null
   ntrp: number | null
+  ratingSource: PlayerRatingSource
+  mixedPairRole: MixedPairRole
+  ageDivision: string | null
 }
 
 type TeamSummaryTeamRecord = {
@@ -2079,7 +2092,12 @@ export class ImportEngine {
     // Collect all roster players (deduplicated by normalised name). Some team
     // summary captures list roster members without an NTRP; those players still
     // need player records so captain roster tools can show them.
-    const playerMap = new Map<string, { name: string; ntrp: number | null }>()
+    const playerMap = new Map<string, {
+      name: string
+      ntrp: number | null
+      ratingSource: PlayerRatingSource
+      mixedPairRole: MixedPairRole
+    }>()
     const teamSummaryTeams = new Map<string, TeamSummaryTeamRecord>()
     const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
     for (const row of rows) {
@@ -2113,11 +2131,19 @@ export class ImportEngine {
         const name = cleanString(player.name)
         if (!name) continue
         const ntrp = typeof player.ntrp === 'number' && Number.isFinite(player.ntrp) ? player.ntrp : null
+        const ratingSource = normalizePlayerRatingSource(player.ratingSource ?? (ntrp === null ? 'unknown' : 'verified'))
+        const mixedPairRole = normalizeMixedPairRole(player.mixedPairRole)
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
-          playerMap.set(key, { name, ntrp })
-        } else if (ntrp !== null && playerMap.get(key)?.ntrp === null) {
-          playerMap.set(key, { name, ntrp })
+          playerMap.set(key, { name, ntrp, ratingSource, mixedPairRole })
+        } else {
+          const current = playerMap.get(key)!
+          playerMap.set(key, {
+            name,
+            ntrp: current.ntrp ?? ntrp,
+            ratingSource: current.ratingSource === 'verified' ? current.ratingSource : ratingSource,
+            mixedPairRole: current.mixedPairRole === 'unknown' ? mixedPairRole : current.mixedPairRole,
+          })
         }
 
         const teamName = cleanString(player.teamName) || cleanString(row.rosterTeamName) || inferSingleTeamSummaryTeam(row)
@@ -2138,6 +2164,9 @@ export class ImportEngine {
               districtArea: cleanString(row.districtArea) || null,
               source: cleanString(row.source) || null,
               ntrp,
+              ratingSource,
+              mixedPairRole,
+              ageDivision: normalizeLeagueAgeDivision(player.ageDivision),
             })
           }
         }
@@ -2149,7 +2178,7 @@ export class ImportEngine {
         if (typeof ntrp !== 'number' || !Number.isFinite(ntrp)) continue
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
-          playerMap.set(key, { name, ntrp })
+          playerMap.set(key, { name, ntrp, ratingSource: 'verified', mixedPairRole: 'unknown' })
         }
       }
     }
@@ -2169,6 +2198,8 @@ export class ImportEngine {
       singles_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
       overall_dynamic_rating: number | null
+      rating_source: string | null
+      mixed_pair_role: string | null
     }
 
     const fetchExistingPlayers = async (): Promise<Map<string, ExistingPlayerRow>> => {
@@ -2177,7 +2208,7 @@ export class ImportEngine {
       if (this.options.hasNormalizedPlayerNameColumn) {
         const { data, error } = await this.supabase
             .from('players')
-            .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+            .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating, rating_source, mixed_pair_role')
             .in('normalized_name', allNormalizedNames)
 
         if (!error) {
@@ -2194,7 +2225,7 @@ export class ImportEngine {
       if (unresolvedNames.length > 0) {
         const { data, error } = await this.supabase
           .from('players')
-          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating, rating_source, mixed_pair_role')
           .in('name', unresolvedNames)
 
         if (!error) {
@@ -2235,21 +2266,21 @@ export class ImportEngine {
     // Commit mode: batch lookup → batch insert for new → targeted updates for existing
     const existingByNorm = await fetchExistingPlayers()
 
-    const toInsert: Array<{ name: string; ntrp: number | null }> = []
-    const toUpdate: Array<{ name: string; ntrp: number | null; existing: ExistingPlayerRow }> = []
+    const toInsert: Array<{ name: string; ntrp: number | null; ratingSource: PlayerRatingSource; mixedPairRole: MixedPairRole }> = []
+    const toUpdate: Array<{ name: string; ntrp: number | null; ratingSource: PlayerRatingSource; mixedPairRole: MixedPairRole; existing: ExistingPlayerRow }> = []
 
-    for (const { name, ntrp } of allEntries) {
+    for (const { name, ntrp, ratingSource, mixedPairRole } of allEntries) {
       const existing = existingByNorm.get(normalizeName(name))
       if (existing) {
-        toUpdate.push({ name, ntrp, existing })
+        toUpdate.push({ name, ntrp, ratingSource, mixedPairRole, existing })
       } else {
-        toInsert.push({ name, ntrp })
+        toInsert.push({ name, ntrp, ratingSource, mixedPairRole })
       }
     }
 
     // Batch insert all new players in one query
     if (toInsert.length > 0) {
-      const insertPayload = toInsert.map(({ name, ntrp }) => {
+      const insertPayload = toInsert.map(({ name, ntrp, ratingSource, mixedPairRole }) => {
         const ratingSeed = ntrp ?? DEFAULT_PLAYER_BASELINE
         const roundedNtrp = Math.round(ratingSeed * 1000) / 1000
         return {
@@ -2261,7 +2292,8 @@ export class ImportEngine {
           singles_dynamic_rating: roundedNtrp,
           doubles_dynamic_rating: roundedNtrp,
           overall_dynamic_rating: roundedNtrp,
-          rating_source: 'verified',
+          rating_source: ratingSource === 'unknown' ? (ntrp === null ? 'self' : 'verified') : ratingSource,
+          mixed_pair_role: mixedPairRole,
         }
       })
 
@@ -2271,6 +2303,7 @@ export class ImportEngine {
         const fallbackPayload = insertPayload.map((payload) => {
           const next: Record<string, unknown> = { ...payload }
           delete next.rating_source
+          delete next.mixed_pair_role
           return next
         })
         const fallback = await this.supabase.from('players').insert(fallbackPayload)
@@ -2310,9 +2343,18 @@ export class ImportEngine {
 
     // Individual updates — must stay serial because each player's conditional
     // logic reads their current dynamic ratings from the batch fetch result.
-    for (const { name, ntrp, existing } of toUpdate) {
+    for (const { name, ntrp, ratingSource, mixedPairRole, existing } of toUpdate) {
       try {
         if (ntrp === null) {
+          if (mixedPairRole !== 'unknown') {
+            const mixedRoleUpdate = await this.supabase
+              .from('players')
+              .update({ mixed_pair_role: mixedPairRole })
+              .eq('id', existing.id)
+            if (mixedRoleUpdate.error && !isMissingRatingSourceError(mixedRoleUpdate.error.message)) {
+              throw new Error(mixedRoleUpdate.error.message)
+            }
+          }
           result.updatedCount += 1
           result.players.push({
             name,
@@ -2336,8 +2378,9 @@ export class ImportEngine {
           singles_rating: roundedNtrp,
           doubles_rating: roundedNtrp,
           overall_rating: roundedNtrp,
-          rating_source: 'verified',
+          rating_source: ratingSource === 'unknown' ? 'verified' : ratingSource,
         }
+        if (mixedPairRole !== 'unknown') update.mixed_pair_role = mixedPairRole
         if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
         if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
         if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
@@ -2350,6 +2393,7 @@ export class ImportEngine {
         if (updateError && isMissingRatingSourceError(updateError.message)) {
           const fallbackUpdate: Record<string, unknown> = { ...update }
           delete fallbackUpdate.rating_source
+          delete fallbackUpdate.mixed_pair_role
           const fallback = await this.supabase
             .from('players')
             .update(fallbackUpdate)
@@ -2399,6 +2443,12 @@ export class ImportEngine {
       district_area: row.districtArea,
       source: row.source,
       ntrp: row.ntrp,
+      rating_source: row.ratingSource,
+      mixed_pair_role: row.mixedPairRole,
+      age_division: row.ageDivision,
+      eligibility_verified_at: row.ratingSource === 'verified' || row.mixedPairRole !== 'unknown' || row.ageDivision
+        ? new Date().toISOString()
+        : null,
     }))
 
     const { error } = await this.supabase

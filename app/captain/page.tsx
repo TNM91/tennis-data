@@ -1995,18 +1995,24 @@ function CaptainHubContent() {
     setError('')
 
     try {
-      const { data, error: matchesError } = await supabase
-        .from('matches')
-        .select('home_team, away_team, league_name, flight, match_date, line_number')
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
-        .limit(600)
+      const scopedMember = isMember(role) && role !== 'admin'
+      let matchRows: TeamOptionMatchRow[] = []
 
-      if (matchesError) throw new Error(matchesError.message)
+      if (!scopedMember) {
+        const { data, error: matchesError } = await supabase
+          .from('matches')
+          .select('home_team, away_team, league_name, flight, match_date, line_number')
+          .is('line_number', null)
+          .order('match_date', { ascending: false })
+          .limit(600)
+
+        if (matchesError) throw new Error(matchesError.message)
+        matchRows = (data || []) as TeamOptionMatchRow[]
+      }
 
       const map = new Map<string, TeamOption>()
 
-      for (const row of (data || []) as TeamOptionMatchRow[]) {
+      for (const row of matchRows) {
         const league = safeText(row.league_name, 'Unknown League')
         const flight = safeText(row.flight, 'Unknown Flight')
 
@@ -2048,7 +2054,7 @@ function CaptainHubContent() {
 
       const allOptions = [...map.values()]
       const next =
-        isMember(role) && role !== 'admin'
+        scopedMember
           ? allOptions.filter((option) => captainTeamOptionMatchesScopes(option, captainTeamScopes))
           : allOptions
 

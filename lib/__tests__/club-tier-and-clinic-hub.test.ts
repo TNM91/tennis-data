@@ -239,6 +239,7 @@ describe('Club tier and Clinic Hub integration', () => {
     const groupRoute = source('app/api/clubs/[clubId]/groups/route.ts')
     const migration = source('supabase/migrations/20260807000900_add_club_program_rollover_lineage.sql')
     const draftMigration = source('supabase/migrations/20260808000600_allow_empty_competition_drafts.sql')
+    const rulesMigration = source('supabase/migrations/20260809000300_add_tiq_league_competition_rules.sql')
     expect(club).toContain('Start next season')
     expect(club).toContain('Bring current players over for review')
     expect(club).toContain('Review returning players')
@@ -251,6 +252,7 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(club).toContain('fresh competition drafts')
     expect(club).toContain('entries, dates, schedules, and results start fresh')
     expect(groupRoute).toContain('copyCompetitionSetup')
+    expect(groupRoute).toContain('competition_rules: league.competition_rules')
     expect(groupRoute).toContain('teams: []')
     expect(groupRoute).toContain('entrants: []')
     expect(groupRoute).toContain('competitionCount')
@@ -259,6 +261,8 @@ describe('Club tier and Clinic Hub integration', () => {
     expect(migration).toContain('club_groups_rollover_once_per_season_idx')
     expect(draftMigration).toContain("season_status = 'draft'")
     expect(draftMigration).toContain("status = 'draft' or cardinality(entrants) >= 2")
+    expect(rulesMigration).toContain('competition_rules jsonb')
+    expect(rulesMigration).toContain("jsonb_typeof(competition_rules) = 'object'")
   })
 
   it('closes finished Club seasons into read-only history without deleting rosters', () => {

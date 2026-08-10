@@ -65,6 +65,7 @@ import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } fr
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   getPlayerDevelopmentIdentity,
@@ -900,6 +901,7 @@ function MyLabPageInner() {
   const [coachCalendarFeedStatusByStudentId, setCoachCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
   const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
+  const [competitionCalendarItems, setCompetitionCalendarItems] = useState<PlayerCompetitionScheduleEvent[]>([])
   const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
   const [personalCalendarFeedUrl, setPersonalCalendarFeedUrl] = useState('')
   const [personalCalendarFeedLoading, setPersonalCalendarFeedLoading] = useState(false)
@@ -986,6 +988,7 @@ function MyLabPageInner() {
     const localItems = readLocalPersonalCalendarItems(userId, profileLink?.linked_player_id)
     if (!session?.access_token) {
       setPersonalCalendarItems(localItems)
+      setCompetitionCalendarItems([])
       setPersonalCalendarSyncLabel('Browser calendar')
       return
     }
@@ -998,7 +1001,12 @@ function MyLabPageInner() {
         const response = await fetch('/api/player/calendar-items', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         })
-        const json = (await response.json()) as { ok?: boolean; items?: PersonalCalendarItem[]; message?: string }
+        const json = (await response.json()) as {
+          ok?: boolean
+          items?: PersonalCalendarItem[]
+          competitionItems?: PlayerCompetitionScheduleEvent[]
+          message?: string
+        }
         if (!response.ok || !json.ok) {
           throw new Error(json.message || 'Could not load calendar items.')
         }
@@ -1006,11 +1014,13 @@ function MyLabPageInner() {
         if (!active) return
         const items = (json.items ?? []).sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
         setPersonalCalendarItems(items.length ? items : localItems)
+        setCompetitionCalendarItems(json.competitionItems ?? [])
         writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, items.length ? items : localItems)
         setPersonalCalendarSyncLabel('Account calendar')
       } catch {
         if (!active) return
         setPersonalCalendarItems(localItems)
+        setCompetitionCalendarItems([])
         setPersonalCalendarSyncLabel('Browser calendar')
       }
     })()
@@ -1630,6 +1640,33 @@ function MyLabPageInner() {
       })
     },
     [profileLink?.linked_player_id, session?.access_token, userId],
+  )
+
+  const respondToCompetitionSchedule = useCallback(
+    async (eventId: string, response: 'available' | 'unavailable') => {
+      if (!session?.access_token) throw new Error('Sign in to send your availability.')
+
+      const result = await fetch('/api/player/competition-schedule-response', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId, response }),
+      })
+      const body = (await result.json()) as { ok?: boolean; message?: string }
+      if (!result.ok || !body.ok) throw new Error(body.message || 'Availability could not be sent.')
+
+      setCompetitionCalendarItems((current) => current.map((item) => item.id === eventId
+        ? {
+            ...item,
+            responseStatus: response,
+            responseUpdatedAt: new Date().toISOString(),
+            responseIsStale: false,
+          }
+        : item))
+    },
+    [session?.access_token],
   )
 
   const coachLinkMapForCalendar = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
@@ -3541,6 +3578,7 @@ function MyLabPageInner() {
                   <MyLabCalendarPanel
                     personalItems={personalCalendarItems}
                     sharedCoachEvents={sharedCoachCalendarEvents}
+                    competitionItems={competitionCalendarItems}
                     syncLabel={personalCalendarSyncLabel}
                     calendarFeedUrl={personalCalendarFeedUrl}
                     calendarFeedActive={personalCalendarFeedStatus.active}
@@ -3552,6 +3590,7 @@ function MyLabPageInner() {
                     onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
                     onAddPersonalItem={addPersonalCalendarItem}
                     onRemovePersonalItem={removePersonalCalendarItem}
+                    onRespondToCompetition={respondToCompetitionSchedule}
                   />
 
                   <PlayerCoachAssignmentsPanel
@@ -3587,6 +3626,7 @@ function MyLabPageInner() {
               <MyLabCalendarPanel
                 personalItems={personalCalendarItems}
                 sharedCoachEvents={sharedCoachCalendarEvents}
+                competitionItems={competitionCalendarItems}
                 syncLabel={personalCalendarSyncLabel}
                 calendarFeedUrl={personalCalendarFeedUrl}
                 calendarFeedActive={personalCalendarFeedStatus.active}
@@ -3598,6 +3638,7 @@ function MyLabPageInner() {
                 onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
                 onAddPersonalItem={addPersonalCalendarItem}
                 onRemovePersonalItem={removePersonalCalendarItem}
+                onRespondToCompetition={respondToCompetitionSchedule}
               />
 
               <PlayerCoachAssignmentsPanel
@@ -5017,6 +5058,7 @@ function LevelUpReturnStatePanel({
 function MyLabCalendarPanel({
   personalItems,
   sharedCoachEvents,
+  competitionItems,
   syncLabel,
   calendarFeedUrl,
   calendarFeedActive,
@@ -5028,9 +5070,11 @@ function MyLabCalendarPanel({
   onRevokeCalendarFeed,
   onAddPersonalItem,
   onRemovePersonalItem,
+  onRespondToCompetition,
 }: {
   personalItems: PersonalCalendarItem[]
   sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
+  competitionItems: PlayerCompetitionScheduleEvent[]
   syncLabel: string
   calendarFeedUrl: string
   calendarFeedActive: boolean
@@ -5042,6 +5086,7 @@ function MyLabCalendarPanel({
   onRevokeCalendarFeed: () => Promise<void>
   onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind' | 'recurrenceRule' | 'availabilityStatus'> & { id?: string }) => Promise<boolean>
   onRemovePersonalItem: (itemId: string) => Promise<void>
+  onRespondToCompetition: (eventId: string, response: 'available' | 'unavailable') => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
@@ -5054,6 +5099,7 @@ function MyLabCalendarPanel({
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [responseSavingId, setResponseSavingId] = useState('')
   const conflictKeys = useMemo(() => {
     const counts = new Map<string, number>()
     for (const item of personalItems) {
@@ -5066,8 +5112,13 @@ function MyLabCalendarPanel({
       const key = `${item.date}T${item.time}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
+    for (const item of competitionItems) {
+      if (!item.date || !item.time) continue
+      const key = `${item.date}T${item.time}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
-  }, [personalItems, sharedCoachEvents])
+  }, [competitionItems, personalItems, sharedCoachEvents])
   const conflictCount = conflictKeys.size
   const availabilityItems = useMemo(
     () => personalItems.filter((item) => item.kind === 'availability').slice(0, 4),
@@ -5075,6 +5126,22 @@ function MyLabCalendarPanel({
   )
   const mergedItems = useMemo(
     () => [
+      ...competitionItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        date: item.date,
+        time: item.time,
+        dateLabel: [safeDate(item.date), item.time].filter(Boolean).join(' · '),
+        sortKey: `${item.date || '9999-12-31'}T${item.time || '23:59'}`,
+        source: 'competition' as const,
+        location: item.location,
+        detail: item.detail,
+        href: item.href,
+        kind: item.kind,
+        responseStatus: item.responseStatus || '',
+        responseIsStale: Boolean(item.responseIsStale),
+        hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
+      })),
       ...sharedCoachEvents.map((item) => ({
         ...item,
         hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
@@ -5094,7 +5161,7 @@ function MyLabCalendarPanel({
         hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
       })),
     ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
-    [conflictKeys, personalItems, sharedCoachEvents],
+    [competitionItems, conflictKeys, personalItems, sharedCoachEvents],
   )
   const webcalFeedUrl = calendarFeedUrl ? toWebcalUrl(calendarFeedUrl) : ''
   const feedStatusLabel = calendarFeedUrl
@@ -5165,8 +5232,8 @@ function MyLabCalendarPanel({
           <TiqFeatureIcon name="schedule" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>My calendar</p>
-            <h3 style={compactSectionTitleStyle}>Your tennis week, plus shared coach dates.</h3>
-            <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
+            <h3 style={compactSectionTitleStyle}>Your tennis week, connected.</h3>
+            <p style={sectionTextStyle}>Approved league and tournament dates flow in with coach dates and your own reminders.</p>
             <span style={metricNoteStyle}>{syncLabel}</span>
             <span style={metricNoteStyle}>{feedStatusLabel}</span>
           </div>
@@ -5323,11 +5390,54 @@ function MyLabCalendarPanel({
         <div style={myCalendarGridStyle}>
           {mergedItems.map((item) => (
             <div key={`${item.source}:${item.id}`} style={myCalendarItemStyle(item.source)}>
-              <div style={metricLabelStyle}>{item.source === 'shared' ? 'Shared' : item.kind}</div>
+              <div style={metricLabelStyle}>
+                {item.source === 'competition' ? 'Competition' : item.source === 'shared' ? 'Coach' : item.kind}
+              </div>
               <strong>{item.title}</strong>
               <span>{item.dateLabel}</span>
               {item.hasConflict ? <span style={calendarConflictPillStyle}>Conflict</span> : null}
               {'location' in item && item.location ? <span>{item.location}</span> : null}
+              {item.source === 'competition' ? (
+                <>
+                  {item.detail ? <span>{item.detail}</span> : null}
+                  {item.responseIsStale ? <span style={calendarConflictPillStyle}>Schedule changed — answer again</span> : null}
+                  <div style={calendarCompetitionResponseStyle}>
+                    <button
+                      type="button"
+                      disabled={responseSavingId === item.id}
+                      aria-pressed={item.responseStatus === 'available'}
+                      onClick={() => {
+                        setResponseSavingId(item.id)
+                        setMessage('')
+                        void onRespondToCompetition(item.id, 'available')
+                          .then(() => setMessage('Available sent to the organizer.'))
+                          .catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Availability could not be sent.'))
+                          .finally(() => setResponseSavingId(''))
+                      }}
+                      style={calendarResponseButtonStyle(item.responseStatus === 'available')}
+                    >
+                      Available
+                    </button>
+                    <button
+                      type="button"
+                      disabled={responseSavingId === item.id}
+                      aria-pressed={item.responseStatus === 'unavailable'}
+                      onClick={() => {
+                        setResponseSavingId(item.id)
+                        setMessage('')
+                        void onRespondToCompetition(item.id, 'unavailable')
+                          .then(() => setMessage('Can’t play sent to the organizer.'))
+                          .catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Availability could not be sent.'))
+                          .finally(() => setResponseSavingId(''))
+                      }}
+                      style={calendarResponseButtonStyle(item.responseStatus === 'unavailable')}
+                    >
+                      Can’t play
+                    </button>
+                  </div>
+                  <Link href={item.href} style={smallInlineLinkStyle}>Open competition</Link>
+                </>
+              ) : null}
               {item.source === 'personal' ? (
                 <>
                   {item.recurrenceRule ? <span>{formatCalendarRecurrence(item.recurrenceRule)}</span> : null}
@@ -5359,7 +5469,7 @@ function MyLabCalendarPanel({
           ))}
         </div>
       ) : (
-        <div style={emptyStateStyle}>No calendar items yet. Add one tennis reminder or connect a coach lesson.</div>
+        <div style={emptyStateStyle}>No dates yet. Approved competitions, coach dates, and your reminders will appear here.</div>
       )}
       {message ? <div style={coachCheckInMessageStyle}>{message}</div> : null}
     </section>
@@ -7139,8 +7249,8 @@ const myCalendarGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
-function myCalendarItemStyle(source: 'shared' | 'personal'): CSSProperties {
-  const shared = source === 'shared'
+function myCalendarItemStyle(source: 'competition' | 'shared' | 'personal'): CSSProperties {
+  const shared = source !== 'personal'
   return {
     display: 'grid',
     gap: 5,
@@ -7169,6 +7279,36 @@ const calendarConflictPillStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
+}
+
+const calendarCompetitionResponseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+  marginTop: 3,
+}
+
+function calendarResponseButtonStyle(active: boolean): CSSProperties {
+  return {
+    appearance: 'none',
+    minWidth: 0,
+    minHeight: 34,
+    cursor: 'pointer',
+    borderRadius: 10,
+    border: active
+      ? '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)'
+      : '1px solid var(--shell-panel-border)',
+    background: active
+      ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
+      : 'var(--shell-chip-bg)',
+    color: 'var(--foreground-strong)',
+    padding: '6px 8px',
+    font: 'inherit',
+    fontSize: 11,
+    fontWeight: 900,
+    overflowWrap: 'anywhere',
+  }
 }
 
 const calendarItemActionRowStyle: CSSProperties = {
