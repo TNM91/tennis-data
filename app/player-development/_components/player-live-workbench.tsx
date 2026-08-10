@@ -19,6 +19,7 @@ import {
   buildWeeklyLevelUpPlan,
   completeWeeklyLevelUpPlanFocus,
   getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanReps,
   getWeeklyLevelUpPlanStorageKey,
   getWeeklyLevelUpPlanWeekStart,
   parseWeeklyLevelUpPlan,
@@ -40,6 +41,7 @@ import type { PlayerDevelopmentIdentityCourtsideRead } from '@/lib/player-develo
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
+import WeeklyPlanCoachResponse from './weekly-plan-coach-response'
 
 type TrainingRow = string[]
 
@@ -479,6 +481,7 @@ export default function PlayerLiveWorkbench({
     })),
   }), [identitySlug, playableFocuses, sessions])
   const weeklyPlanProgress = getWeeklyLevelUpPlanProgress(weeklyPlan)
+  const weeklyPlanReps = weeklyPlan ? getWeeklyLevelUpPlanReps(weeklyPlan) : []
   const activeAccess = accessModes[accessMode]
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
   const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness, todaySessions) : null
@@ -888,8 +891,9 @@ export default function PlayerLiveWorkbench({
     const token = session?.access_token
     if (!token) return () => { active = false }
 
-    void (async () => {
+    const loadRemotePlan = async () => {
       try {
+        const currentLocalPlan = parseWeeklyLevelUpPlan(window.localStorage.getItem(weeklyPlanStorageKey)) ?? localPlan
         const params = new URLSearchParams({ identitySlug, weekStart: weeklyPlanWeekStart })
         const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -898,21 +902,31 @@ export default function PlayerLiveWorkbench({
         const remotePlan = json.plans?.[0] ?? null
         if (!active || !response.ok || !json.ok) return
         if (!remotePlan) {
-          if (localPlan) void syncWeeklyPlan(localPlan, 'Your saved week is synced.')
+          if (currentLocalPlan) void syncWeeklyPlan(currentLocalPlan, 'Your saved week is synced.')
           return
         }
-        const latestPlan = !localPlan || new Date(remotePlan.updatedAt).getTime() >= new Date(localPlan.updatedAt).getTime()
+        const latestPlan = !currentLocalPlan || new Date(remotePlan.updatedAt).getTime() >= new Date(currentLocalPlan.updatedAt).getTime()
           ? remotePlan
-          : localPlan
+          : currentLocalPlan
         setWeeklyPlan(latestPlan)
         window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(latestPlan))
-        if (latestPlan === localPlan) void syncWeeklyPlan(latestPlan, 'Your saved week is synced.')
+        if (latestPlan === currentLocalPlan) void syncWeeklyPlan(latestPlan, 'Your saved week is synced.')
       } catch {
         if (active && localPlan) setWeeklyPlanMessage('Your week is saved on this device.')
       }
-    })()
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadRemotePlan()
+    }
+    void loadRemotePlan()
+    window.addEventListener('focus', loadRemotePlan)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
-    return () => { active = false }
+    return () => {
+      active = false
+      window.removeEventListener('focus', loadRemotePlan)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
   // syncWeeklyPlan intentionally reads the current auth token and storage key.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identitySlug, session?.access_token, weeklyPlanStorageKey, weeklyPlanWeekStart])
@@ -2029,9 +2043,10 @@ export default function PlayerLiveWorkbench({
             <button type="button" onClick={saveThisWeek}>Save this week</button>
           </div>
         ) : null}
-        {(weeklyPlan?.reps ?? weeklyRecap.nextReps).length ? (
+        {weeklyPlan ? <WeeklyPlanCoachResponse plan={weeklyPlan} /> : null}
+        {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).length ? (
           <div className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
-            {(weeklyPlan?.reps ?? weeklyRecap.nextReps).map((rep, index) => {
+            {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).map((rep, index) => {
               const completed = 'completedAt' in rep && Boolean(rep.completedAt)
               return (
                 <article key={rep.id} data-kind={rep.kind} data-primary={index === 0 ? 'true' : 'false'} data-complete={completed ? 'true' : 'false'}>

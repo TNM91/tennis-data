@@ -59,7 +59,7 @@ import {
   type CoachResumeSurface,
 } from '@/lib/coach-memory'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
-import { getWeeklyLevelUpPlanProgress, type WeeklyLevelUpPlan } from '@/lib/level-up/weekly-plan'
+import type { WeeklyLevelUpPlan } from '@/lib/level-up/weekly-plan'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
@@ -70,6 +70,7 @@ import {
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
+import CoachSharedWeek from './coach-shared-week'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
@@ -1862,7 +1863,6 @@ function CoachContent() {
     const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
     const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
     const sharedWeek = sharedWeeklyPlans.find((plan) => plan.studentLinkId === card.student.id) ?? null
-    const sharedWeekProgress = getWeeklyLevelUpPlanProgress(sharedWeek)
 
     return (
       <article
@@ -1894,24 +1894,12 @@ function CoachContent() {
           {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
         </div>
         {sharedWeek ? (
-          <div style={coachSharedWeekStyle} aria-label={`${card.student.playerName} shared Level Up week`}>
-            <div style={coachSharedWeekHeaderStyle}>
-              <span>Shared Level Up week</span>
-              <strong>{sharedWeekProgress.completed}/{sharedWeekProgress.total} reps</strong>
-            </div>
-            <p style={coachSharedWeekNextStyle}>
-              {sharedWeekProgress.complete
-                ? 'Week complete. Use the proof trail for the next lesson.'
-                : `Next: ${sharedWeekProgress.nextRep?.title ?? sharedWeek.strongestFocus}`}
-            </p>
-            <div style={coachSharedWeekRepsStyle}>
-              {sharedWeek.reps.map((rep) => (
-                <span key={rep.id} style={rep.completedAt ? coachSharedWeekRepDoneStyle : coachSharedWeekRepStyle}>
-                  {rep.completedAt ? '✓' : '○'} {rep.title}
-                </span>
-              ))}
-            </div>
-          </div>
+          <CoachSharedWeek
+            plan={sharedWeek}
+            playerName={card.student.playerName}
+            accessToken={session?.access_token ?? ''}
+            onSaved={(nextPlan) => setSharedWeeklyPlans((current) => current.map((plan) => plan.id === nextPlan.id ? nextPlan : plan))}
+          />
         ) : null}
         <p style={studentNextStyle}>
           {card.latestAssignment
@@ -7206,58 +7194,4 @@ const coachToolsBodyStyle: CSSProperties = {
   gap: 16,
   minWidth: 0,
   padding: '0 16px 16px',
-}
-
-const coachSharedWeekStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  border: '1px solid rgba(155,225,29,0.24)',
-  borderRadius: 14,
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(4,17,28,0.72))',
-  padding: 10,
-}
-
-const coachSharedWeekHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 8,
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  fontWeight: 950,
-}
-
-const coachSharedWeekNextStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 780,
-  lineHeight: 1.3,
-}
-
-const coachSharedWeekRepsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
-  gap: 6,
-}
-
-const coachSharedWeekRepStyle: CSSProperties = {
-  minWidth: 0,
-  overflow: 'hidden',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 9,
-  background: 'rgba(3,12,24,0.46)',
-  color: 'var(--shell-copy-muted)',
-  padding: '7px 8px',
-  fontSize: 11,
-  fontWeight: 820,
-  lineHeight: 1.25,
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-}
-
-const coachSharedWeekRepDoneStyle: CSSProperties = {
-  ...coachSharedWeekRepStyle,
-  borderColor: 'rgba(155,225,29,0.28)',
-  color: 'var(--brand-green-3)',
 }

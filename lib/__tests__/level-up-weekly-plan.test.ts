@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildWeeklyLevelUpCoachResponse,
   buildWeeklyLevelUpPlan,
   completeWeeklyLevelUpPlanFocus,
   getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanReps,
   getWeeklyLevelUpPlanStorageKey,
   getWeeklyLevelUpPlanWeekStart,
   parseWeeklyLevelUpPlan,
@@ -78,5 +80,39 @@ describe('saved weekly Level Up plan', () => {
       studentLinkId: null,
     })
     expect(parseWeeklyLevelUpPlan('{"version":99}')).toBeNull()
+  })
+
+  it('layers a coach adjustment or replacement over the saved plan and credits replacement proof', () => {
+    const plan = buildWeeklyLevelUpPlan(recap, 'competitor', now)!
+    const replacementRep = {
+      ...recap.nextReps[0],
+      focusId: 'coach-serve',
+      label: 'Coach pick',
+      title: 'Coach serve target rep',
+      href: '/level-up/competitor?focus=coach-serve&card=serve-target#level-up-flow',
+    }
+    const coachResponse = buildWeeklyLevelUpCoachResponse(plan, {
+      action: 'replaced',
+      targetRepId: plan.reps[0].id,
+      replacementRep,
+      note: 'Use the deuce target before adding pace.',
+    }, 'coach-1', now)
+    const coachedPlan = { ...plan, coachResponse }
+    const effectiveReps = getWeeklyLevelUpPlanReps(coachedPlan)
+    const completed = completeWeeklyLevelUpPlanFocus(
+      coachedPlan,
+      'competitor',
+      'coach-serve',
+      new Date(2026, 7, 12, 15).toISOString(),
+    )
+
+    expect(coachResponse).toMatchObject({ action: 'replaced', coachUserId: 'coach-1' })
+    expect(effectiveReps[0]).toMatchObject({ id: plan.reps[0].id, title: 'Coach serve target rep' })
+    expect(completed.reps[0].completedAt).not.toBeNull()
+    expect(buildWeeklyLevelUpCoachResponse(completed, {
+      action: 'replaced',
+      targetRepId: completed.reps[0].id,
+      replacementRep,
+    }, 'coach-1', now)).toBeNull()
   })
 })

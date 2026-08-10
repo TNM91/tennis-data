@@ -5,11 +5,14 @@ import { describe, expect, it } from 'vitest'
 const readSource = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 
 const playerWorkbenchSource = readSource('app/player-development/_components/player-live-workbench.tsx')
+const playerCoachResponseSource = readSource('app/player-development/_components/weekly-plan-coach-response.tsx')
 const playerRouteSource = readSource('app/api/player/level-up-weekly-plan/route.ts')
 const coachRouteSource = readSource('app/api/coach/level-up-weekly-plans/route.ts')
 const coachPageSource = readSource('app/coach/page.tsx')
+const coachSharedWeekSource = readSource('app/coach/coach-shared-week.tsx')
 const myQuestSource = readSource('app/level-up/my-quest/my-quest-client.tsx')
 const migrationSource = readSource('supabase/migrations/20260810000100_create_level_up_weekly_plans.sql')
+const responseMigrationSource = readSource('supabase/migrations/20260810000200_add_level_up_weekly_plan_coach_response.sql')
 
 describe('Level Up weekly plan flow', () => {
   it('lets a player save, complete, sync, and explicitly share the current week', () => {
@@ -26,8 +29,24 @@ describe('Level Up weekly plan flow', () => {
     expect(coachRouteSource).toContain(".eq('shared_with_coach', true)")
     expect(coachRouteSource).toContain(".eq('coach_user_id', auth.userId)")
     expect(coachPageSource).toContain('/api/coach/level-up-weekly-plans')
-    expect(coachPageSource).toContain('Shared Level Up week')
-    expect(coachPageSource).toContain('Week complete. Use the proof trail for the next lesson.')
+    expect(coachPageSource).toContain('<CoachSharedWeek')
+    expect(coachSharedWeekSource).toContain('Shared Level Up week')
+    expect(coachSharedWeekSource).toContain('Week complete. Use the proof trail for the next lesson.')
+  })
+
+  it('lets the linked coach acknowledge, adjust, or replace a rep without rewriting player-owned fields', () => {
+    expect(coachSharedWeekSource).toContain('Looks good')
+    expect(coachSharedWeekSource).toContain('Add cue')
+    expect(coachSharedWeekSource).toContain('Swap rep')
+    expect(coachRouteSource).toContain(".rpc('respond_to_level_up_weekly_plan'")
+    expect(responseMigrationSource).toContain('security definer')
+    expect(responseMigrationSource).toContain("plan.coach_user_id = auth.uid()")
+    expect(responseMigrationSource).toContain("jsonb_set(v_plan_json, '{coachResponse}'")
+    expect(responseMigrationSource).toContain('grant execute on function public.respond_to_level_up_weekly_plan')
+    expect(playerRouteSource).toContain('coachResponse: existingPlan?.coachResponse ?? null')
+    expect(playerWorkbenchSource).toContain('<WeeklyPlanCoachResponse')
+    expect(playerCoachResponseSource).toContain('Coach update')
+    expect(myQuestSource).toContain('Coach updated')
   })
 
   it('keeps the current plan visible in My Quest and protects it with row-level security', () => {

@@ -6,6 +6,15 @@ export type WeeklyLevelUpPlanRep = WeeklyLevelUpRep & {
   completedAt: string | null
 }
 
+export type WeeklyLevelUpCoachResponse = {
+  action: 'acknowledged' | 'adjusted' | 'replaced'
+  note: string
+  targetRepId: string | null
+  replacementRep: WeeklyLevelUpRep | null
+  coachUserId: string
+  updatedAt: string
+}
+
 export type WeeklyLevelUpPlan = {
   version: typeof LEVEL_UP_WEEKLY_PLAN_VERSION
   id: string
@@ -17,6 +26,7 @@ export type WeeklyLevelUpPlan = {
   sharedWithCoach: boolean
   coachUserId: string | null
   studentLinkId: string | null
+  coachResponse: WeeklyLevelUpCoachResponse | null
   createdAt: string
   updatedAt: string
 }
@@ -66,6 +76,7 @@ export function buildWeeklyLevelUpPlan(
     sharedWithCoach: false,
     coachUserId: null,
     studentLinkId: null,
+    coachResponse: null,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -87,8 +98,10 @@ export function completeWeeklyLevelUpPlanFocus(
   completedAt = new Date().toISOString(),
 ) {
   let matched = false
-  const reps = plan.reps.map((rep) => {
-    if (matched || rep.completedAt || rep.identitySlug !== identitySlug || rep.focusId !== focusId) return rep
+  const effectiveReps = getWeeklyLevelUpPlanReps(plan)
+  const reps = plan.reps.map((rep, index) => {
+    const effectiveRep = effectiveReps[index] ?? rep
+    if (matched || rep.completedAt || effectiveRep.identitySlug !== identitySlug || effectiveRep.focusId !== focusId) return rep
     matched = true
     return { ...rep, completedAt }
   })
@@ -111,14 +124,56 @@ export function setWeeklyLevelUpPlanShared(
 }
 
 export function getWeeklyLevelUpPlanProgress(plan: WeeklyLevelUpPlan | null) {
-  const total = plan?.reps.length ?? 0
-  const completed = plan?.reps.filter((rep) => Boolean(rep.completedAt)).length ?? 0
+  const reps = plan ? getWeeklyLevelUpPlanReps(plan) : []
+  const total = reps.length
+  const completed = reps.filter((rep) => Boolean(rep.completedAt)).length
   return {
     completed,
     total,
     percent: total ? Math.round((completed / total) * 100) : 0,
-    nextRep: plan?.reps.find((rep) => !rep.completedAt) ?? null,
+    nextRep: reps.find((rep) => !rep.completedAt) ?? null,
     complete: total > 0 && completed === total,
+  }
+}
+
+export function getWeeklyLevelUpPlanReps(plan: WeeklyLevelUpPlan): WeeklyLevelUpPlanRep[] {
+  const response = plan.coachResponse
+  if (response?.action !== 'replaced' || !response.targetRepId || !response.replacementRep) return plan.reps
+  const replacementRep = response.replacementRep
+  return plan.reps.map((rep) => rep.id === response.targetRepId
+    ? { ...replacementRep, id: rep.id, completedAt: rep.completedAt }
+    : rep)
+}
+
+export function buildWeeklyLevelUpCoachResponse(
+  plan: WeeklyLevelUpPlan,
+  input: {
+    action: WeeklyLevelUpCoachResponse['action']
+    note?: string
+    targetRepId?: string | null
+    replacementRep?: WeeklyLevelUpRep | null
+  },
+  coachUserId: string,
+  now = new Date(),
+): WeeklyLevelUpCoachResponse | null {
+  const targetRepId = input.action === 'acknowledged' ? null : cleanText(input.targetRepId)
+  const targetRep = targetRepId ? plan.reps.find((rep) => rep.id === targetRepId) : null
+  if (input.action !== 'acknowledged' && !targetRep) return null
+  if (input.action === 'replaced' && (!input.replacementRep || targetRep?.completedAt)) return null
+  const replacementRep = input.action === 'replaced' && input.replacementRep
+    ? parseRep({ ...input.replacementRep, completedAt: null })
+    : null
+  if (input.action === 'replaced' && !replacementRep) return null
+  const note = cleanText(input.note).slice(0, 500)
+  if (input.action === 'adjusted' && !note) return null
+
+  return {
+    action: input.action,
+    note,
+    targetRepId: targetRepId || null,
+    replacementRep: replacementRep ? stripCompletion(replacementRep) : null,
+    coachUserId: cleanText(coachUserId),
+    updatedAt: now.toISOString(),
   }
 }
 
@@ -151,6 +206,7 @@ export function parseWeeklyLevelUpPlan(value: unknown): WeeklyLevelUpPlan | null
     sharedWithCoach: Boolean(value.sharedWithCoach),
     coachUserId: nullableText(value.coachUserId),
     studentLinkId: nullableText(value.studentLinkId),
+    coachResponse: parseCoachResponse(value.coachResponse),
     createdAt,
     updatedAt,
   }
@@ -190,6 +246,43 @@ function parseRep(value: unknown): WeeklyLevelUpPlanRep | null {
     detail: cleanText(value.detail).slice(0, 360),
     href,
     completedAt: normalizeIso(value.completedAt) || null,
+  }
+}
+
+function parseCoachResponse(value: unknown): WeeklyLevelUpCoachResponse | null {
+  if (!isRecord(value)) return null
+  const action = value.action === 'acknowledged' || value.action === 'adjusted' || value.action === 'replaced'
+    ? value.action
+    : null
+  const coachUserId = cleanText(value.coachUserId)
+  const updatedAt = normalizeIso(value.updatedAt)
+  if (!action || !coachUserId || !updatedAt) return null
+  const targetRepId = action === 'acknowledged' ? null : nullableText(value.targetRepId)
+  if (action !== 'acknowledged' && !targetRepId) return null
+  const replacement = action === 'replaced'
+    ? parseRep({ ...(isRecord(value.replacementRep) ? value.replacementRep : {}), completedAt: null })
+    : null
+  if (action === 'replaced' && !replacement) return null
+  return {
+    action,
+    note: cleanText(value.note).slice(0, 500),
+    targetRepId,
+    replacementRep: replacement ? stripCompletion(replacement) : null,
+    coachUserId,
+    updatedAt,
+  }
+}
+
+function stripCompletion(rep: WeeklyLevelUpPlanRep): WeeklyLevelUpRep {
+  return {
+    id: rep.id,
+    kind: rep.kind,
+    focusId: rep.focusId,
+    identitySlug: rep.identitySlug,
+    label: rep.label,
+    title: rep.title,
+    detail: rep.detail,
+    href: rep.href,
   }
 }
 

@@ -10831,6 +10831,43 @@
   flex: 0 0 auto;
 }
 
+.liveWeeklyCoachResponse {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.28);
+  border-radius: 13px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.12), rgba(155, 225, 29, 0.06)),
+    rgba(2, 10, 23, 0.4);
+  padding: 10px 11px;
+}
+
+.liveWeeklyCoachResponse[data-action='replaced'] {
+  border-color: rgba(155, 225, 29, 0.34);
+}
+
+.liveWeeklyCoachResponse span {
+  color: var(--brand-blue-2);
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveWeeklyCoachResponse strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.liveWeeklyCoachResponse p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.73rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
 .liveWeeklyPlanMessage {
   margin: 0;
   color: var(--muted-strong);

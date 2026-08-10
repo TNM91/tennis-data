@@ -56,10 +56,18 @@ export async function POST(request: Request) {
   const input = parseWeeklyLevelUpPlan(body.plan)
   if (!input) return Response.json({ ok: false, message: 'Add three valid reps before saving this week.' }, { status: 400 })
 
-  const [access, link] = await Promise.all([
+  const [access, link, existingResult] = await Promise.all([
     loadPlayerAccess(auth.supabase, auth.userId),
     resolveActiveCoachLink(auth.supabase, auth.userId, input.studentLinkId),
+    auth.supabase
+      .from('level_up_weekly_plans')
+      .select(planSelect)
+      .eq('player_user_id', auth.userId)
+      .eq('week_start', input.weekStart)
+      .eq('identity_slug', input.identitySlug)
+      .maybeSingle(),
   ])
+  if (existingResult.error) return Response.json({ ok: false, message: existingResult.error.message }, { status: 500 })
   if (!access.canUseAdvancedPlayerInsights && !link) {
     return Response.json(
       { ok: false, message: 'Saved locally. Player access or an active coach connection is required to sync across devices.' },
@@ -73,7 +81,11 @@ export async function POST(request: Request) {
     )
   }
 
-  const linkedPlan = setWeeklyLevelUpPlanShared(input, input.sharedWithCoach, {
+  const existingPlan = existingResult.data
+    ? mapWeeklyLevelUpPlanRow(existingResult.data as WeeklyLevelUpPlanRow)
+    : null
+  const trustedInput = { ...input, coachResponse: existingPlan?.coachResponse ?? null }
+  const linkedPlan = setWeeklyLevelUpPlanShared(trustedInput, input.sharedWithCoach, {
     coachUserId: link?.coach_user_id ?? null,
     studentLinkId: link?.id ?? null,
   })
