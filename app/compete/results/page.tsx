@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
@@ -18,6 +19,7 @@ import {
 } from '@/lib/tiq-individual-results-service'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
+import { buildPlayerDetailHref, buildTiqLeagueDetailHref } from '@/lib/entity-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const emptyResultActions = [
@@ -437,12 +439,19 @@ function ResultRow({
     <div style={rowStyle}>
       <div>
         <div style={rowTitleStyle}>
-          {result.winnerPlayerName} def. {loserName}
+          <EntityDetailLink href={buildPlayerDetailHref(result.winnerPlayerId, result.winnerPlayerName)}>
+            {result.winnerPlayerName}
+          </EntityDetailLink>{' '}
+          def.{' '}
+          <EntityDetailLink href={buildPlayerDetailHref(loserId, loserName)}>
+            {loserName}
+          </EntityDetailLink>
         </div>
         <div style={rowMetaStyle}>
-          {[leagueName, result.score, formatDate(result.resultDate, 'Recently'), result.notes]
+          <EntityDetailLink href={buildTiqLeagueDetailHref(result.leagueId)}>{leagueName}</EntityDetailLink>
+          {[result.score, formatDate(result.resultDate, 'Recently'), result.notes]
             .filter(Boolean)
-            .join(' | ')}
+            .map((part) => <span key={part}> | {part}</span>)}
         </div>
         <div style={resultFollowThroughGridStyle}>
           {resultFollowThroughItems.map((item) => (
@@ -463,7 +472,7 @@ function ResultRow({
         </div>
       </div>
       <div style={rowActionStackStyle}>
-        <RowLink href={`/explore/leagues/tiq/${encodeURIComponent(result.leagueId)}?league_id=${encodeURIComponent(result.leagueId)}`}>
+        <RowLink href={buildTiqLeagueDetailHref(result.leagueId)}>
           Open league
         </RowLink>
         <QuickMessageComposer

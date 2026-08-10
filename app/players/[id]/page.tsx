@@ -6,6 +6,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
@@ -2628,7 +2629,9 @@ function PlayerProfileContent() {
                   <div key={opp.name} style={rivalryRowStyle}>
                     <div style={rivalryCopyStyle}>
                       {opp.id ? (
-                        <Link href="/mylab" style={rivalryNameLinkStyle}>{opp.name}</Link>
+                        <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} style={rivalryNameLinkStyle}>
+                          {opp.name}
+                        </EntityDetailLink>
                       ) : (
                         <div style={rivalryNameTextStyle}>{opp.name}</div>
                       )}

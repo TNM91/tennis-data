@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
@@ -34,6 +35,7 @@ import {
 } from '@/lib/tiq-individual-format'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 import { formatDate } from '@/lib/captain-formatters'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
 
 type ResultParticipantOption = {
   value: string
@@ -547,6 +549,10 @@ function EmptyIndividualResultsPanel() {
 
 function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+}
+
+function resultOpponentId(result: TiqIndividualLeagueResultRecord) {
+  return result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
 }
 
 function buildCurrentLoginNextHref(fallbackHref: string) {
@@ -1578,7 +1584,12 @@ function IndividualLeagueResultsWorkspaceInner({
                   <div key={`${entry.playerName}-${entry.playerId || entry.rank}`} style={standingRow}>
                     <div style={standingRank}>{entry.rank}</div>
                     <div style={standingCopy}>
-                      <div style={standingName}>{entry.playerName}</div>
+                      <EntityDetailLink
+                        href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                        style={standingName}
+                      >
+                        {entry.playerName}
+                      </EntityDetailLink>
                       <div style={standingSubtext}>
                         {entry.uniqueOpponents}/{entry.possibleOpponents} opponents
                         {entry.recentForm.length ? ` - ${entry.recentForm.join('')}` : ''}
@@ -1599,7 +1610,13 @@ function IndividualLeagueResultsWorkspaceInner({
             {nextPairing ? (
               <>
                 <div style={resultTitle}>
-                  {nextPairing[0].playerName} vs {nextPairing[1].playerName}
+                  <EntityDetailLink href={buildPlayerDetailHref(nextPairing[0].playerId, nextPairing[0].playerName)}>
+                    {nextPairing[0].playerName}
+                  </EntityDetailLink>{' '}
+                  vs{' '}
+                  <EntityDetailLink href={buildPlayerDetailHref(nextPairing[1].playerId, nextPairing[1].playerName)}>
+                    {nextPairing[1].playerName}
+                  </EntityDetailLink>
                 </div>
                 <div style={resultMeta}>
                   Prioritizes players with fewer logged results and missing head-to-head coverage.
@@ -1747,7 +1764,13 @@ function IndividualLeagueResultsWorkspaceInner({
                 <div key={result.id} style={resultCard}>
                   <div style={resultCopy}>
                     <div style={resultTitle}>
-                      {result.winnerPlayerName} def. {resultOpponentName(result)}
+                      <EntityDetailLink href={buildPlayerDetailHref(result.winnerPlayerId, result.winnerPlayerName)}>
+                        {result.winnerPlayerName}
+                      </EntityDetailLink>{' '}
+                      def.{' '}
+                      <EntityDetailLink href={buildPlayerDetailHref(resultOpponentId(result), resultOpponentName(result))}>
+                        {resultOpponentName(result)}
+                      </EntityDetailLink>
                     </div>
                     <div style={resultMeta}>
                       {metaParts.join(' - ')}
@@ -1818,7 +1841,17 @@ function IndividualLeagueResultsWorkspaceInner({
                 <div style={tileLabel}>Latest</div>
                 <div style={tileValue}>{latestResult ? formatDate(latestResult.resultDate) : '-'}</div>
                 <div style={tileText}>
-                  {latestResult ? `${latestResult.winnerPlayerName} def. ${resultOpponentName(latestResult)}` : 'Log the first result'}
+                  {latestResult ? (
+                    <>
+                      <EntityDetailLink href={buildPlayerDetailHref(latestResult.winnerPlayerId, latestResult.winnerPlayerName)}>
+                        {latestResult.winnerPlayerName}
+                      </EntityDetailLink>{' '}
+                      def.{' '}
+                      <EntityDetailLink href={buildPlayerDetailHref(resultOpponentId(latestResult), resultOpponentName(latestResult))}>
+                        {resultOpponentName(latestResult)}
+                      </EntityDetailLink>
+                    </>
+                  ) : 'Log the first result'}
                 </div>
               </div>
               <div style={scorekeeperTile}>

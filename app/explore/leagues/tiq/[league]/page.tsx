@@ -9,6 +9,7 @@ import FollowButton from '@/app/components/follow-button'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -44,8 +45,10 @@ import {
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/player-directory'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import {
   getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
@@ -2828,14 +2831,27 @@ function TiqLeagueDetailContent() {
                       ? visibleTeamEntries.map((entry, index) => (
                           <div key={`${entry.teamName}-${index}`} style={dynamicListCard}>
                             <div>
-                              <div style={listTitle}>{entry.teamName}</div>
+                              <EntityDetailLink
+                                href={buildTeamProfileHref(entry.teamName, {
+                                  layer: 'tiq',
+                                  league: entry.sourceLeagueName || league.leagueName,
+                                  flight: entry.sourceFlight || league.flight,
+                                })}
+                                style={listTitle}
+                              >
+                                {entry.teamName}
+                              </EntityDetailLink>
                               <div style={listMeta}>
                                 {[entry.sourceLeagueName, entry.sourceFlight, 'Team participant']
                                   .filter(Boolean)
                                   .join(' | ')}
                               </div>
                             </div>
-                            <GhostLink href={`/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(entry.sourceLeagueName || league.leagueName)}${entry.sourceFlight || league.flight ? `&flight=${encodeURIComponent(entry.sourceFlight || league.flight || '')}` : ''}`}>
+                            <GhostLink href={buildTeamProfileHref(entry.teamName, {
+                              layer: 'tiq',
+                              league: entry.sourceLeagueName || league.leagueName,
+                              flight: entry.sourceFlight || league.flight,
+                            })}>
                               Team Page
                             </GhostLink>
                           </div>
@@ -2843,7 +2859,12 @@ function TiqLeagueDetailContent() {
                       : visiblePlayerEntries.map((entry, index) => (
                       <div key={`${entry.playerName}-${index}`} style={dynamicListCard}>
                         <div>
-                          <div style={listTitle}>{entry.playerName}</div>
+                          <EntityDetailLink
+                            href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                            style={listTitle}
+                          >
+                            {entry.playerName}
+                          </EntityDetailLink>
                           <div style={listMeta}>
                             {[entry.playerLocation, 'Individual participant'].filter(Boolean).join(' | ')}
                           </div>
@@ -2910,7 +2931,12 @@ function TiqLeagueDetailContent() {
                             <div style={standingHeader}>
                               <div>
                                 <div style={standingNameRowStyle}>
-                                  <div style={listTitle}>{entry.playerName}</div>
+                                  <EntityDetailLink
+                                    href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                                    style={listTitle}
+                                  >
+                                    {entry.playerName}
+                                  </EntityDetailLink>
                                   {(() => {
                                     const status = getLeagueRatingStatus(entry.ratingGap)
                                     if (!status) return null
@@ -3410,8 +3436,13 @@ function TiqLeagueDetailContent() {
                       <div key={result.id} style={dynamicListCard}>
                         <div>
                           <div style={listTitle}>
-                            {result.winnerPlayerName} def.{' '}
-                            {opponentName}
+                            <EntityDetailLink href={buildPlayerDetailHref(result.winnerPlayerId, result.winnerPlayerName)}>
+                              {result.winnerPlayerName}
+                            </EntityDetailLink>{' '}
+                            def.{' '}
+                            <EntityDetailLink href={buildPlayerDetailHref(opponentId, opponentName)}>
+                              {opponentName}
+                            </EntityDetailLink>
                           </div>
                           <div style={listMeta}>
                             {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' | ')}
@@ -3497,7 +3528,17 @@ function TiqLeagueDetailContent() {
                         return (
                           <tr key={row.teamName} style={{ background: isLeader ? 'rgba(155,225,29,0.04)' : undefined }}>
                             <td style={teamStandingsRankCellStyle}>{i + 1}</td>
-                            <td style={isLeader ? teamStandingsLeaderNameCellStyle : teamStandingsTeamNameCellStyle}>{row.teamName}</td>
+                            <td style={isLeader ? teamStandingsLeaderNameCellStyle : teamStandingsTeamNameCellStyle}>
+                              <EntityDetailLink
+                                href={buildTeamProfileHref(row.teamName, {
+                                  layer: 'tiq',
+                                  league: league.leagueName,
+                                  flight: league.flight,
+                                })}
+                              >
+                                {row.teamName}
+                              </EntityDetailLink>
+                            </td>
                             {league.scoringSystem === 'dynamic_points' ? (
                               <td style={teamStandingsAccentCellStyle}>{row.points}</td>
                             ) : null}
@@ -3592,7 +3633,25 @@ function TiqLeagueDetailContent() {
                             <div style={teamResultHeaderRowStyle}>
                               <div style={teamResultHeaderCopyStyle}>
                                 <div style={listTitle}>
-                                  {event.teamAName} <span style={versusTextStyle}>vs</span> {event.teamBName}
+                                  <EntityDetailLink
+                                    href={buildTeamProfileHref(event.teamAName, {
+                                      layer: 'tiq',
+                                      league: league.leagueName,
+                                      flight: league.flight,
+                                    })}
+                                  >
+                                    {event.teamAName}
+                                  </EntityDetailLink>{' '}
+                                  <span style={versusTextStyle}>vs</span>{' '}
+                                  <EntityDetailLink
+                                    href={buildTeamProfileHref(event.teamBName, {
+                                      layer: 'tiq',
+                                      league: league.leagueName,
+                                      flight: league.flight,
+                                    })}
+                                  >
+                                    {event.teamBName}
+                                  </EntityDetailLink>
                                 </div>
                                 <div style={listMeta}>
                                   {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' | ')}
