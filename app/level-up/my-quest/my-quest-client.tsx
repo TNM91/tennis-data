@@ -15,6 +15,13 @@ import {
   type WeeklyLevelUpRecap,
   type WeeklyLevelUpSessionRead,
 } from '@/lib/level-up/weekly-recap'
+import {
+  getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanStorageKey,
+  getWeeklyLevelUpPlanWeekStart,
+  parseWeeklyLevelUpPlan,
+  type WeeklyLevelUpPlan,
+} from '@/lib/level-up/weekly-plan'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
 import {
   PERSONAL_DAILY_QUESTS,
@@ -250,6 +257,7 @@ export default function MyQuestClient() {
   const [error, setError] = useState('')
   const [levelUpHandoff, setLevelUpHandoff] = useState<LevelUpQuestHandoff | null>(null)
   const [levelUpWeeklyRecap, setLevelUpWeeklyRecap] = useState<WeeklyLevelUpRecap | null>(null)
+  const [levelUpWeeklyPlan, setLevelUpWeeklyPlan] = useState<WeeklyLevelUpPlan | null>(null)
 
   const authUser = session?.user ?? null
   const ownerAllowed = isPersonalQuestOwner({ id: authUser?.id ?? userId, email: authUser?.email })
@@ -261,6 +269,7 @@ export default function MyQuestClient() {
       : levelUpHandoff?.questState === 'sync_issue'
         ? 'Check'
         : 'Ready'
+  const levelUpWeeklyPlanProgress = getWeeklyLevelUpPlanProgress(levelUpWeeklyPlan)
   const today = useMemo(() => getTodayKey(), [])
   const repairDate = useMemo(() => getDateOffsetKey(today, -1), [today])
   const weekStart = useMemo(() => getWeekStartKey(), [])
@@ -1201,6 +1210,39 @@ export default function MyQuestClient() {
   }, [authResolved, authUser?.id, ownerAllowed, session?.access_token, userId])
 
   useEffect(() => {
+    const identitySlug = levelUpHandoff?.identitySlug
+    if (!identitySlug) return
+    const planWeekStart = getWeeklyLevelUpPlanWeekStart()
+    const storageKey = getWeeklyLevelUpPlanStorageKey(identitySlug, planWeekStart, userId || '')
+    const localPlan = parseWeeklyLevelUpPlan(window.localStorage.getItem(storageKey))
+    const localTimer = window.setTimeout(() => {
+      setLevelUpWeeklyPlan(localPlan)
+    }, 0)
+
+    const accessToken = session?.access_token
+    if (!accessToken) return () => window.clearTimeout(localTimer)
+    const controller = new AbortController()
+    const params = new URLSearchParams({ identitySlug, weekStart: planWeekStart })
+    void fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ plans?: WeeklyLevelUpPlan[] }> : null)
+      .then((payload) => {
+        const remotePlan = payload?.plans?.[0]
+        if (!remotePlan) return
+        setLevelUpWeeklyPlan(remotePlan)
+        window.localStorage.setItem(storageKey, JSON.stringify(remotePlan))
+      })
+      .catch(() => undefined)
+
+    return () => {
+      window.clearTimeout(localTimer)
+      controller.abort()
+    }
+  }, [levelUpHandoff?.identitySlug, session?.access_token, userId])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
 
     const media = window.matchMedia('(max-width: 640px)')
@@ -1949,6 +1991,13 @@ export default function MyQuestClient() {
                   <strong>{levelUpWeeklyRecap.strongestFocus}</strong>
                   <small>{levelUpWeeklyRecap.strongestFocusRead}</small>
                 </article>
+                {levelUpWeeklyPlan ? (
+                  <article>
+                    <span>Weekly plan</span>
+                    <strong>{levelUpWeeklyPlanProgress.completed}/{levelUpWeeklyPlanProgress.total}</strong>
+                    <small>{levelUpWeeklyPlanProgress.complete ? 'Week complete' : `Next: ${levelUpWeeklyPlanProgress.nextRep?.title ?? 'Open Level Up'}`}</small>
+                  </article>
+                ) : null}
               </div>
             ) : null}
           </section>

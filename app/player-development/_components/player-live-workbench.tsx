@@ -15,6 +15,17 @@ import {
   type LevelUpQuestHandoff,
 } from '@/lib/level-up/quest-handoff'
 import { buildWeeklyLevelUpRecap } from '@/lib/level-up/weekly-recap'
+import {
+  buildWeeklyLevelUpPlan,
+  completeWeeklyLevelUpPlanFocus,
+  getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanStorageKey,
+  getWeeklyLevelUpPlanWeekStart,
+  parseWeeklyLevelUpPlan,
+  setWeeklyLevelUpPlanShared,
+  toggleWeeklyLevelUpPlanRep,
+  type WeeklyLevelUpPlan,
+} from '@/lib/level-up/weekly-plan'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import {
   buildPlayerImproveLevelUpHref,
@@ -410,7 +421,12 @@ export default function PlayerLiveWorkbench({
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const sentProofRecapStorageKey = `tenaceiq:level-up-recap-sent:${identitySlug}`
   const tomorrowStarterStorageKey = `tenaceiq:level-up-tomorrow:${identitySlug}`
+  const weeklyPlanWeekStart = getWeeklyLevelUpPlanWeekStart()
+  const weeklyPlanStorageKey = getWeeklyLevelUpPlanStorageKey(identitySlug, weeklyPlanWeekStart, userId || '')
   const [sessions, setSessions] = useState<SavedSession[]>([])
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyLevelUpPlan | null>(null)
+  const [weeklyPlanMessage, setWeeklyPlanMessage] = useState('')
+  const [weeklyPlanSyncing, setWeeklyPlanSyncing] = useState(false)
   const [sentProofRecapIds, setSentProofRecapIds] = useState<string[]>([])
   const [tomorrowStarterPlan, setTomorrowStarterPlan] = useState<TomorrowStarterPlan | null>(null)
   const [tomorrowStarterCheck, setTomorrowStarterCheck] = useState<TomorrowStarterCheck | null>(null)
@@ -462,6 +478,7 @@ export default function PlayerLiveWorkbench({
       identitySlug,
     })),
   }), [identitySlug, playableFocuses, sessions])
+  const weeklyPlanProgress = getWeeklyLevelUpPlanProgress(weeklyPlan)
   const activeAccess = accessModes[accessMode]
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
   const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness, todaySessions) : null
@@ -858,6 +875,68 @@ export default function PlayerLiveWorkbench({
   }, [identitySlug, storageKey])
 
   useEffect(() => {
+    let active = true
+    const deviceKey = getWeeklyLevelUpPlanStorageKey(identitySlug, weeklyPlanWeekStart)
+    const localPlan = parseWeeklyLevelUpPlan(
+      window.localStorage.getItem(weeklyPlanStorageKey) || window.localStorage.getItem(deviceKey),
+    )
+    setWeeklyPlan(localPlan)
+    if (localPlan) {
+      window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(localPlan))
+    }
+
+    const token = session?.access_token
+    if (!token) return () => { active = false }
+
+    void (async () => {
+      try {
+        const params = new URLSearchParams({ identitySlug, weekStart: weeklyPlanWeekStart })
+        const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; plans?: WeeklyLevelUpPlan[] }
+        const remotePlan = json.plans?.[0] ?? null
+        if (!active || !response.ok || !json.ok) return
+        if (!remotePlan) {
+          if (localPlan) void syncWeeklyPlan(localPlan, 'Your saved week is synced.')
+          return
+        }
+        const latestPlan = !localPlan || new Date(remotePlan.updatedAt).getTime() >= new Date(localPlan.updatedAt).getTime()
+          ? remotePlan
+          : localPlan
+        setWeeklyPlan(latestPlan)
+        window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(latestPlan))
+        if (latestPlan === localPlan) void syncWeeklyPlan(latestPlan, 'Your saved week is synced.')
+      } catch {
+        if (active && localPlan) setWeeklyPlanMessage('Your week is saved on this device.')
+      }
+    })()
+
+    return () => { active = false }
+  // syncWeeklyPlan intentionally reads the current auth token and storage key.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identitySlug, session?.access_token, weeklyPlanStorageKey, weeklyPlanWeekStart])
+
+  useEffect(() => {
+    if (!weeklyPlan || !sessions.length) return
+    const createdAt = new Date(weeklyPlan.createdAt).getTime()
+    let nextPlan = weeklyPlan
+    const eligibleSessions = sessions
+      .filter((savedSession) => new Date(savedSession.completedAt).getTime() >= createdAt)
+      .slice()
+      .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime())
+
+    for (const savedSession of eligibleSessions) {
+      nextPlan = completeWeeklyLevelUpPlanFocus(nextPlan, identitySlug, savedSession.focusId, savedSession.completedAt)
+    }
+    if (nextPlan === weeklyPlan) return
+    persistWeeklyPlan(nextPlan)
+    void syncWeeklyPlan(nextPlan, 'Your latest proof updated this week.')
+  // Persist helpers are stable component functions; this effect is driven by plan and proof changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identitySlug, sessions, weeklyPlan])
+
+  useEffect(() => {
     const timers = queuedSyncTimersRef.current
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId))
@@ -1047,6 +1126,13 @@ export default function PlayerLiveWorkbench({
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
     window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(nextQuestHandoff))
     setQuestHandoff(nextQuestHandoff)
+    if (weeklyPlan) {
+      const completedPlan = completeWeeklyLevelUpPlanFocus(weeklyPlan, identitySlug, nextSession.focusId, nextSession.completedAt)
+      if (completedPlan !== weeklyPlan) {
+        persistWeeklyPlan(completedPlan)
+        void syncWeeklyPlan(completedPlan, 'Proof saved. Weekly plan updated.')
+      }
+    }
     if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
     if (customQuestId && savedSourceCard) setQuestCreditMessage('Quest XP queued.')
     setLastSavedSession(nextSession)
@@ -1096,6 +1182,66 @@ export default function PlayerLiveWorkbench({
       void syncLevelUpSession(nextSession)
     }, LEVEL_UP_UNDO_WINDOW_MS)
     queuedSyncTimersRef.current.set(nextSession.id, syncTimerId)
+  }
+
+  function persistWeeklyPlan(nextPlan: WeeklyLevelUpPlan) {
+    setWeeklyPlan(nextPlan)
+    window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(nextPlan))
+  }
+
+  async function syncWeeklyPlan(nextPlan: WeeklyLevelUpPlan, successMessage: string) {
+    const token = session?.access_token
+    if (!token) {
+      setWeeklyPlanMessage('Saved on this device. Sign in to sync it across devices.')
+      return false
+    }
+
+    setWeeklyPlanSyncing(true)
+    try {
+      const response = await fetch('/api/player/level-up-weekly-plan', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: nextPlan }),
+      })
+      const json = (await response.json()) as { ok?: boolean; plan?: WeeklyLevelUpPlan; message?: string; code?: string }
+      if (!response.ok || !json.ok || !json.plan) {
+        setWeeklyPlanMessage(json.message || 'Saved on this device. Cloud sync is not available yet.')
+        return false
+      }
+      persistWeeklyPlan(json.plan)
+      setWeeklyPlanMessage(successMessage)
+      return true
+    } catch {
+      setWeeklyPlanMessage('Saved on this device. Cloud sync will be available when you reconnect.')
+      return false
+    } finally {
+      setWeeklyPlanSyncing(false)
+    }
+  }
+
+  function saveThisWeek() {
+    const nextPlan = buildWeeklyLevelUpPlan(weeklyRecap, identitySlug)
+    if (!nextPlan) return
+    persistWeeklyPlan(nextPlan)
+    setWeeklyPlanMessage('Week saved. Start with rep one.')
+    void syncWeeklyPlan(nextPlan, 'Week saved and synced.')
+  }
+
+  function toggleWeeklyRep(repId: string) {
+    if (!weeklyPlan) return
+    const nextPlan = toggleWeeklyLevelUpPlanRep(weeklyPlan, repId)
+    persistWeeklyPlan(nextPlan)
+    void syncWeeklyPlan(nextPlan, 'Weekly progress synced.')
+  }
+
+  function toggleWeeklyCoachShare() {
+    if (!weeklyPlan) return
+    if (!session?.access_token) {
+      setWeeklyPlanMessage('Sign in and connect a coach before sharing this week.')
+      return
+    }
+    const nextPlan = setWeeklyLevelUpPlanShared(weeklyPlan, !weeklyPlan.sharedWithCoach)
+    void syncWeeklyPlan(nextPlan, nextPlan.sharedWithCoach ? 'Your linked coach can now see this week.' : 'This week is private again.')
   }
 
   function goToScore() {
@@ -1839,8 +1985,8 @@ export default function PlayerLiveWorkbench({
             <p>{weeklyRecap.summary}</p>
           </div>
           <div className={styles.liveWeeklyRecapScore} data-trend={weeklyRecap.proofTrend}>
-            <span>Average</span>
-            <strong>{weeklyRecap.proofCount ? `${weeklyRecap.averageRating.toFixed(1)}/5` : '—'}</strong>
+            <span>{weeklyPlan ? 'Plan' : 'Average'}</span>
+            <strong>{weeklyPlan ? `${weeklyPlanProgress.completed}/${weeklyPlanProgress.total}` : weeklyRecap.proofCount ? `${weeklyRecap.averageRating.toFixed(1)}/5` : '—'}</strong>
           </div>
         </div>
         <div className={styles.liveWeeklyRecapReads} aria-label="Weekly proof, activity, streak, and strongest focus">
@@ -1865,17 +2011,53 @@ export default function PlayerLiveWorkbench({
             <small>{weeklyRecap.strongestFocusRead}</small>
           </article>
         </div>
-        {weeklyRecap.nextReps.length ? (
-          <nav className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
-            {weeklyRecap.nextReps.map((rep, index) => (
-              <Link key={rep.id} href={rep.href} data-kind={rep.kind} data-primary={index === 0 ? 'true' : 'false'}>
-                <span>{index + 1} · {rep.label}</span>
-                <strong>{rep.title}</strong>
-                <small>{rep.detail}</small>
-                <em>{index === 0 ? 'Start rep' : 'Open rep'}</em>
-              </Link>
-            ))}
-          </nav>
+        {weeklyPlan ? (
+          <div className={styles.liveWeeklyPlanStatus}>
+            <div>
+              <strong>{weeklyPlanProgress.complete ? 'Week complete.' : `Next: ${weeklyPlanProgress.nextRep?.title ?? 'Keep building'}`}</strong>
+              <span>{weeklyPlanProgress.completed} of {weeklyPlanProgress.total} reps complete</span>
+            </div>
+            <div className={styles.liveWeeklyPlanActions}>
+              <button type="button" disabled={weeklyPlanSyncing} onClick={toggleWeeklyCoachShare}>
+                {weeklyPlan.sharedWithCoach ? 'Shared with coach' : 'Share with coach'}
+              </button>
+            </div>
+          </div>
+        ) : weeklyRecap.nextReps.length ? (
+          <div className={styles.liveWeeklySavePrompt}>
+            <span>Three reps. One clear week.</span>
+            <button type="button" onClick={saveThisWeek}>Save this week</button>
+          </div>
+        ) : null}
+        {(weeklyPlan?.reps ?? weeklyRecap.nextReps).length ? (
+          <div className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
+            {(weeklyPlan?.reps ?? weeklyRecap.nextReps).map((rep, index) => {
+              const completed = 'completedAt' in rep && Boolean(rep.completedAt)
+              return (
+                <article key={rep.id} data-kind={rep.kind} data-primary={index === 0 ? 'true' : 'false'} data-complete={completed ? 'true' : 'false'}>
+                  <span>{completed ? 'Done' : `${index + 1} · ${rep.label}`}</span>
+                  <strong>{rep.title}</strong>
+                  <small>{rep.detail}</small>
+                  <div>
+                    <Link href={rep.href}>{completed ? 'Open again' : index === 0 ? 'Start rep' : 'Open rep'}</Link>
+                    {weeklyPlan ? (
+                      <button type="button" onClick={() => toggleWeeklyRep(rep.id)}>
+                        {completed ? 'Undo' : 'Mark done'}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : null}
+        {weeklyPlanMessage ? (
+          <p className={styles.liveWeeklyPlanMessage} role="status">
+            {weeklyPlanMessage}
+            {weeklyPlanMessage.toLowerCase().includes('connect a coach') ? (
+              <> <Link href="/mylab#coach-assignments">Open My Lab</Link></>
+            ) : null}
+          </p>
         ) : null}
       </section>
 

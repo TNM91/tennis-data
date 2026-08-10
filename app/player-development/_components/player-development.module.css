@@ -10716,7 +10716,7 @@
   gap: 8px;
 }
 
-.liveWeeklyRepPlan a {
+.liveWeeklyRepPlan article {
   min-width: 0;
   display: grid;
   grid-template-rows: auto auto minmax(32px, auto) auto;
@@ -10724,22 +10724,25 @@
   border: 1px solid rgba(116, 190, 255, 0.17);
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.045);
-  color: inherit;
   padding: 10px;
-  text-decoration: none;
 }
 
-.liveWeeklyRepPlan a[data-kind='repeat'] {
+.liveWeeklyRepPlan article[data-kind='repeat'] {
   border-color: rgba(155, 225, 29, 0.3);
   background: rgba(155, 225, 29, 0.08);
 }
 
-.liveWeeklyRepPlan a[data-kind='repair'] {
+.liveWeeklyRepPlan article[data-kind='repair'] {
   border-color: rgba(255, 203, 112, 0.24);
 }
 
-.liveWeeklyRepPlan a:hover,
-.liveWeeklyRepPlan a:focus-visible {
+.liveWeeklyRepPlan article[data-complete='true'] {
+  border-color: rgba(155, 225, 29, 0.4);
+  background: rgba(155, 225, 29, 0.12);
+}
+
+.liveWeeklyRepPlan article:hover,
+.liveWeeklyRepPlan article:focus-within {
   border-color: rgba(155, 225, 29, 0.48);
   transform: translateY(-1px);
 }
@@ -10760,7 +10763,17 @@
   line-height: 1.25;
 }
 
-.liveWeeklyRepPlan em {
+.liveWeeklyRepPlan article > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.liveWeeklyRepPlan a,
+.liveWeeklyRepPlan button,
+.liveWeeklySavePrompt button,
+.liveWeeklyPlanActions button {
   width: fit-content;
   border-radius: 999px;
   border: 1px solid rgba(155, 225, 29, 0.24);
@@ -10768,13 +10781,66 @@
   color: var(--foreground-strong);
   padding: 6px 9px;
   font-size: 0.69rem;
-  font-style: normal;
   font-weight: 950;
+  line-height: 1.1;
+  text-decoration: none;
 }
 
-.liveWeeklyRepPlan a[data-primary='true'] em {
+.liveWeeklyRepPlan article[data-primary='true'] a,
+.liveWeeklySavePrompt button {
   background: var(--brand-green);
   color: #07111f;
+}
+
+.liveWeeklyRepPlan button,
+.liveWeeklyPlanActions button {
+  cursor: pointer;
+}
+
+.liveWeeklyPlanStatus,
+.liveWeeklySavePrompt {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 12px;
+  background: rgba(2, 10, 23, 0.34);
+  padding: 8px 10px;
+}
+
+.liveWeeklyPlanStatus > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.liveWeeklyPlanStatus strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+}
+
+.liveWeeklyPlanStatus span,
+.liveWeeklySavePrompt span {
+  color: var(--muted-strong);
+  font-size: 0.7rem;
+  font-weight: 780;
+}
+
+.liveWeeklyPlanActions {
+  flex: 0 0 auto;
+}
+
+.liveWeeklyPlanMessage {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.liveWeeklyPlanMessage a {
+  color: var(--brand-green-3);
+  font-weight: 900;
 }
 
 .liveSessionDock {
@@ -19142,10 +19208,15 @@
     display: none;
   }
 
-  .liveWeeklyRepPlan a {
+  .liveWeeklyRepPlan article {
     flex: 0 0 min(260px, 78vw);
     padding: 9px;
     scroll-snap-align: start;
+  }
+
+  .liveWeeklyPlanStatus,
+  .liveWeeklySavePrompt {
+    align-items: flex-start;
   }
 
   .liveSessionDock {
