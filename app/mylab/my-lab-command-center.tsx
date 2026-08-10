@@ -49,7 +49,13 @@ export default function MyLabCommandCenter({
     <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
       <header className={styles.intro}>
         <div>
-          <p className={styles.eyebrow}>My Lab</p>
+          <div className={styles.labSignature}>
+            <TiqFeatureIcon name="myLab" size="md" variant="surface" signature />
+            <span>
+              <strong>My Lab</strong>
+              <small>Player workspace</small>
+            </span>
+          </div>
           <h1 id="my-lab-command-title">{greeting}</h1>
           <p className={styles.introCopy}>One useful tennis move, then the proof that it worked.</p>
         </div>

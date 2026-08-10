@@ -17,6 +17,35 @@
   margin-bottom: 26px;
 }
 
+.labSignature {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.labSignature > span {
+  display: grid;
+  gap: 2px;
+}
+
+.labSignature strong {
+  color: #f8fbff;
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.labSignature small {
+  color: #74beff;
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .eyebrow,
 .cardEyebrow,
 .supportEyebrow {
@@ -363,6 +392,10 @@
     align-items: flex-start;
     gap: 14px;
     margin-bottom: 18px;
+  }
+
+  .labSignature {
+    gap: 9px;
   }
 
   .intro h1 {
