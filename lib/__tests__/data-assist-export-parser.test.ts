@@ -150,6 +150,7 @@ describe('parseTennisLinkExportFiles', () => {
 
     expect(parsed.detectedImportType).toBe('team_summary')
     expect(draft).toMatchObject({
+      rosterSource: 'player_roster',
       rosterTeamName: 'Example Aces',
       leagueName: '2026 STL Tri-Level 18 & Over',
       flight: 'Men 3.5/4.0/4.5',

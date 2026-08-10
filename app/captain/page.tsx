@@ -72,6 +72,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
+  buildCaptainContactReviewHref,
   getCaptainRosterPhoneCoverage,
   normalizeCaptainRosterContactKey,
   type CaptainRosterContactRow,
@@ -4895,7 +4896,7 @@ function CaptainHubContent() {
     missingRatingCount: captainMissingRatingCount,
     scheduleCount: matches.length,
     appearanceCount: captainRosterAppearanceCount,
-  }), [
+  }).filter((improvement) => improvement.id !== 'contacts'), [
     captainMissingPhoneCount,
     captainMissingRatingCount,
     captainPhoneReadyCount,
@@ -4905,9 +4906,13 @@ function CaptainHubContent() {
   ])
   const captainPrimaryTeamImprovement = captainTeamImprovements[0] || null
   const captainAdditionalTeamImprovements = captainTeamImprovements.slice(1)
+  const captainContactReviewHref = buildCaptainContactReviewHref({
+    baseHref: messagingHref,
+    missingNames: captainPhoneCoverage.missingNames,
+  })
   const getCaptainTeamImprovementHref = (improvement: CaptainTeamImprovementId) => (
-    improvement === 'contacts' && captainPhoneReadyCount > 0
-      ? `${messagingHref}#captain-contact-manager`
+    improvement === 'contacts'
+      ? captainContactReviewHref
       : captainTeamImprovementHrefs[improvement]
   )
   const captainSmsContactByNameKey = useMemo(() => {
@@ -16579,7 +16584,15 @@ function CaptainHubContent() {
   ) : null
   const captainVisibleCourtReadinessCard = captainShowLineupSuccess || captainLateArrival || captainPostArrivalAction ? null : captainCourtReadinessCard
 
-  const captainMobileAttention = captainPrimaryTeamImprovement
+  const captainMobileAttention = captainMissingPhoneCount > 0
+    ? {
+        title: `${captainMissingPhoneCount} player${captainMissingPhoneCount === 1 ? '' : 's'} need${captainMissingPhoneCount === 1 ? 's' : ''} a phone number`,
+        detail: captainPhoneCoverage.missingNames.join(', '),
+        cta: captainMissingPhoneCount === 1 ? 'Add number' : 'Review contacts',
+        href: captainContactReviewHref,
+        stage: 'team' as CaptainResumeStage,
+      }
+    : captainPrimaryTeamImprovement
     ? {
         title: captainPrimaryTeamImprovement.title,
         detail: captainPrimaryTeamImprovement.detail,
@@ -18228,18 +18241,24 @@ function CaptainHubContent() {
               </div>
             ) : null}
 
-            {!loadingTeam && roster.length > 0 && captainPhoneReadyCount > 0 ? (
+            {!loadingTeam && roster.length > 0 ? (
               <div style={captainRosterContactCoverageStyle} aria-label="Player Roster contact coverage">
                 <div style={captainRosterContactCoverageCopyStyle}>
-                  <span style={sectionKicker}>Player Roster contacts</span>
-                  <strong>{captainPhoneReadyCount} of {roster.length} phone numbers ready</strong>
+                  <span style={sectionKicker}>Team contacts</span>
+                  <strong>
+                    {captainMissingPhoneCount > 0
+                      ? `${captainMissingPhoneCount} player${captainMissingPhoneCount === 1 ? '' : 's'} need${captainMissingPhoneCount === 1 ? 's' : ''} a phone number`
+                      : `${captainPhoneReadyCount} player phone number${captainPhoneReadyCount === 1 ? '' : 's'} ready`}
+                  </strong>
                   <span>
                     {captainMissingPhoneCount > 0
-                      ? `${captainMissingPhoneCount} still need a number before you can text the full team.`
-                      : 'Ready for availability and lineup messages.'}
+                      ? captainPhoneCoverage.missingNames.join(', ')
+                      : 'Your current Player Roster is ready for team texts.'}
                   </span>
                 </div>
-                <Link href={`${messagingHref}#captain-contact-manager`} style={secondaryButtonSmall}>Review contacts</Link>
+                <Link href={captainContactReviewHref} style={secondaryButtonSmall}>
+                  {captainMissingPhoneCount === 1 ? 'Add phone number' : 'View contacts'}
+                </Link>
               </div>
             ) : null}
 

@@ -34,6 +34,7 @@ export type DataAssistTeamSummaryParsedContact = {
 
 export type DataAssistTeamSummaryParsedDraft = {
   draftKind: 'team_summary'
+  rosterSource?: 'team_summary' | 'player_roster'
   rosterTeamName: string
   leagueName: string
   flight: string
@@ -96,6 +97,9 @@ export function buildTeamSummaryOcrDraftFromText(
   screenshots: DataAssistOcrScreenshotInput[],
   provider: DataAssistOcrProvider,
 ): DataAssistTeamSummaryParsedDraft {
+  const rosterSource = /Usta#?[\s\S]*\bExpiry Date\b[\s\S]*\bPhone no\b/i.test(rawText)
+    ? 'player_roster' as const
+    : 'team_summary' as const
   const normalizedText = normalizeWhitespace(rawText)
   const rosterTeamName = cleanTeamName(
     extractFirst(rawText, /\bTeam:\s*([^\n]+)/i) ||
@@ -142,6 +146,7 @@ export function buildTeamSummaryOcrDraftFromText(
 
   return {
     draftKind: 'team_summary',
+    rosterSource,
     rosterTeamName,
     leagueName,
     flight,

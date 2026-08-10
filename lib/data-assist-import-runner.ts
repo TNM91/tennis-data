@@ -10,7 +10,7 @@ import {
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
-import { upsertCaptainRosterContacts } from './captain-roster-contacts'
+import { syncAuthoritativeCaptainRoster, upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
 import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
@@ -236,6 +236,11 @@ export async function runDataAssistTeamSummaryImportAction(input: {
         captainUserId: input.reviewedBy,
         batchId: input.batchId,
       })
+      await syncAuthoritativeCaptainRoster({
+        supabase: input.supabase,
+        parsedDraft: input.parsedDraft,
+        captainUserId: input.reviewedBy,
+      })
     } catch (error) {
       contactWarning = error instanceof Error ? error.message : 'Roster contacts could not be saved.'
     }
@@ -306,7 +311,9 @@ function buildDataAssistTeamSummaryPayload(parsedDraft: DataAssistTeamSummaryPar
       teams: parsedDraft.teams,
       players: parsedDraft.players,
       sourceBatchId: batchId,
-      source: 'tennislink_team_summary',
+      source: parsedDraft.rosterSource === 'player_roster'
+        ? 'tennislink_player_roster'
+        : 'tennislink_team_summary',
     },
   }
 }
