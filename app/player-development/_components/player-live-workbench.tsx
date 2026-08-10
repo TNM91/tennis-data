@@ -14,6 +14,7 @@ import {
   updateLevelUpQuestHandoffMessage,
   type LevelUpQuestHandoff,
 } from '@/lib/level-up/quest-handoff'
+import { buildWeeklyLevelUpRecap } from '@/lib/level-up/weekly-recap'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import {
   buildPlayerImproveLevelUpHref,
@@ -452,6 +453,15 @@ export default function PlayerLiveWorkbench({
   const drillDayStreak = getDrillDayStreak(sessions, activeDrill?.title ?? '')
   const activeTimerSeconds = activeTimerSnapshot?.drillId === activeDrill?.id ? activeTimerSnapshot.elapsedSeconds : 0
   const progress = getProgressSummary(sessions, playableFocuses)
+  const weeklyRecap = useMemo(() => buildWeeklyLevelUpRecap({
+    identitySlug,
+    sessions: sessions.map((savedSession) => ({ ...savedSession, identitySlug })),
+    focuses: playableFocuses.map((focus) => ({
+      id: focus.id,
+      title: focus.title,
+      identitySlug,
+    })),
+  }), [identitySlug, playableFocuses, sessions])
   const activeAccess = accessModes[accessMode]
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
   const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness, todaySessions) : null
@@ -1820,6 +1830,54 @@ export default function PlayerLiveWorkbench({
           </div>
         ) : null}
       </div>
+
+      <section className={styles.liveWeeklyRecap} aria-label="Weekly Level Up progress recap">
+        <div className={styles.liveWeeklyRecapHeader}>
+          <div>
+            <span>Last 7 days</span>
+            <strong>{weeklyRecap.proofCount ? 'Your tennis week, simplified.' : 'Start this tennis week.'}</strong>
+            <p>{weeklyRecap.summary}</p>
+          </div>
+          <div className={styles.liveWeeklyRecapScore} data-trend={weeklyRecap.proofTrend}>
+            <span>Average</span>
+            <strong>{weeklyRecap.proofCount ? `${weeklyRecap.averageRating.toFixed(1)}/5` : '—'}</strong>
+          </div>
+        </div>
+        <div className={styles.liveWeeklyRecapReads} aria-label="Weekly proof, activity, streak, and strongest focus">
+          <article data-trend={weeklyRecap.proofTrend}>
+            <span>Proof</span>
+            <strong>{weeklyRecap.proofCount}</strong>
+            <small>{weeklyRecap.proofTrendLabel}</small>
+          </article>
+          <article data-trend={weeklyRecap.activeDayTrend}>
+            <span>Active days</span>
+            <strong>{weeklyRecap.activeDays}</strong>
+            <small>{weeklyRecap.activeDayTrendLabel}</small>
+          </article>
+          <article data-trend={weeklyRecap.tennisStreakDays ? 'up' : 'steady'}>
+            <span>Tennis streak</span>
+            <strong>{weeklyRecap.tennisStreakDays} day{weeklyRecap.tennisStreakDays === 1 ? '' : 's'}</strong>
+            <small>{weeklyRecap.tennisStreakDays ? 'Keep one clean rep alive.' : 'One proof starts it.'}</small>
+          </article>
+          <article data-trend="focus">
+            <span>Strongest focus</span>
+            <strong>{weeklyRecap.strongestFocus}</strong>
+            <small>{weeklyRecap.strongestFocusRead}</small>
+          </article>
+        </div>
+        {weeklyRecap.nextReps.length ? (
+          <nav className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
+            {weeklyRecap.nextReps.map((rep, index) => (
+              <Link key={rep.id} href={rep.href} data-kind={rep.kind} data-primary={index === 0 ? 'true' : 'false'}>
+                <span>{index + 1} · {rep.label}</span>
+                <strong>{rep.title}</strong>
+                <small>{rep.detail}</small>
+                <em>{index === 0 ? 'Start rep' : 'Open rep'}</em>
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+      </section>
 
       <nav className={styles.liveSessionDock} data-active={sessionDockActive ? 'true' : 'false'} aria-label="Level Up bottom session dock">
         <a href="#level-up-flow">Today</a>

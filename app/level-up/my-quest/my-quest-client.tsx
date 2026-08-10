@@ -10,6 +10,11 @@ import {
   parseLevelUpQuestHandoff,
   type LevelUpQuestHandoff,
 } from '@/lib/level-up/quest-handoff'
+import {
+  buildWeeklyLevelUpRecap,
+  type WeeklyLevelUpRecap,
+  type WeeklyLevelUpSessionRead,
+} from '@/lib/level-up/weekly-recap'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
 import {
   PERSONAL_DAILY_QUESTS,
@@ -244,6 +249,7 @@ export default function MyQuestClient() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [levelUpHandoff, setLevelUpHandoff] = useState<LevelUpQuestHandoff | null>(null)
+  const [levelUpWeeklyRecap, setLevelUpWeeklyRecap] = useState<WeeklyLevelUpRecap | null>(null)
 
   const authUser = session?.user ?? null
   const ownerAllowed = isPersonalQuestOwner({ id: authUser?.id ?? userId, email: authUser?.email })
@@ -1152,7 +1158,15 @@ export default function MyQuestClient() {
     if (!authResolved || !ownerId || !ownerAllowed) return
 
     const localHandoff = parseLevelUpQuestHandoff(window.localStorage.getItem(LEVEL_UP_QUEST_HANDOFF_KEY))
-    const localTimer = window.setTimeout(() => setLevelUpHandoff(localHandoff), 0)
+    const localSessions = readLocalLevelUpWeeklySessions()
+    const localWeeklyRecap = buildWeeklyLevelUpRecap({
+      sessions: localSessions,
+      identitySlug: localHandoff?.identitySlug,
+    })
+    const localTimer = window.setTimeout(() => {
+      setLevelUpHandoff(localHandoff)
+      setLevelUpWeeklyRecap(localWeeklyRecap)
+    }, 0)
 
     const accessToken = session?.access_token ?? ''
     if (!accessToken) return () => window.clearTimeout(localTimer)
@@ -1165,9 +1179,15 @@ export default function MyQuestClient() {
       .then(async (response) => response.ok ? response.json() as Promise<{ sessions?: LevelUpSession[] }> : null)
       .then((payload) => {
         if (!payload) return
-        const remoteHandoff = buildLevelUpQuestHandoffFromSessions(Array.isArray(payload.sessions) ? payload.sessions : [])
+        const remoteSessions = Array.isArray(payload.sessions) ? payload.sessions : []
+        const remoteHandoff = buildLevelUpQuestHandoffFromSessions(remoteSessions)
         const latest = chooseLatestLevelUpQuestHandoff(localHandoff, remoteHandoff)
+        const mergedSessions = mergeLevelUpWeeklySessions(remoteSessions, localSessions)
         setLevelUpHandoff(latest)
+        setLevelUpWeeklyRecap(buildWeeklyLevelUpRecap({
+          sessions: mergedSessions,
+          identitySlug: latest?.identitySlug,
+        }))
         if (latest) window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(latest))
       })
       .catch((fetchError: unknown) => {
@@ -1912,6 +1932,25 @@ export default function MyQuestClient() {
               <Link href={levelUpHandoff.nextRepHref}>Next rep</Link>
               <Link href={levelUpHandoff.questBuilderHref}>Quest builder</Link>
             </div>
+            {levelUpWeeklyRecap ? (
+              <div className={styles.mobileTennisWeek} aria-label="My Quest tennis week recap">
+                <article>
+                  <span>7-day proof</span>
+                  <strong>{levelUpWeeklyRecap.proofCount}</strong>
+                  <small>{levelUpWeeklyRecap.proofTrendLabel}</small>
+                </article>
+                <article>
+                  <span>Active days</span>
+                  <strong>{levelUpWeeklyRecap.activeDays}</strong>
+                  <small>{levelUpWeeklyRecap.activeDayTrendLabel}</small>
+                </article>
+                <article>
+                  <span>Strongest</span>
+                  <strong>{levelUpWeeklyRecap.strongestFocus}</strong>
+                  <small>{levelUpWeeklyRecap.strongestFocusRead}</small>
+                </article>
+              </div>
+            ) : null}
           </section>
         ) : null}
         <div className={styles.mobileQuestRail} aria-label="My Quest iPhone quick quest rail">
@@ -3425,6 +3464,52 @@ function readPhoneModePreference() {
   } catch {
     return null
   }
+}
+
+function readLocalLevelUpWeeklySessions(): WeeklyLevelUpSessionRead[] {
+  if (typeof window === 'undefined') return []
+
+  const sessions: WeeklyLevelUpSessionRead[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (!key?.startsWith('tenaceiq:level-up:')) continue
+
+    try {
+      const parsed: unknown = JSON.parse(window.localStorage.getItem(key) || '[]')
+      if (!Array.isArray(parsed)) continue
+      const identitySlug = key.slice('tenaceiq:level-up:'.length)
+      for (const value of parsed) {
+        if (!isWeeklyLevelUpSessionRead(value)) continue
+        sessions.push({ ...value, identitySlug: value.identitySlug || identitySlug })
+      }
+    } catch {
+      // One malformed identity history should not hide the rest of the tennis week.
+    }
+  }
+
+  return sessions
+}
+
+function mergeLevelUpWeeklySessions(
+  remoteSessions: WeeklyLevelUpSessionRead[],
+  localSessions: WeeklyLevelUpSessionRead[],
+) {
+  const merged = new Map<string, WeeklyLevelUpSessionRead>()
+  for (const savedSession of [...localSessions, ...remoteSessions]) merged.set(savedSession.id, savedSession)
+  return [...merged.values()]
+}
+
+function isWeeklyLevelUpSessionRead(value: unknown): value is WeeklyLevelUpSessionRead {
+  if (!value || typeof value !== 'object') return false
+  const savedSession = value as Partial<WeeklyLevelUpSessionRead>
+  return Boolean(
+    typeof savedSession.id === 'string' &&
+    typeof savedSession.focusId === 'string' &&
+    typeof savedSession.focusTitle === 'string' &&
+    typeof savedSession.drillTitle === 'string' &&
+    typeof savedSession.rating === 'number' &&
+    typeof savedSession.completedAt === 'string',
+  )
 }
 
 function writePhoneModePreference(preference: 'pocket' | 'full') {
