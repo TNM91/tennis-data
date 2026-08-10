@@ -81,6 +81,10 @@ type SavedCoachBriefLine = {
   state: 'strong' | 'watch' | 'next'
 }
 
+function formatFocusTitle(title: string) {
+  return title.replace(' Development', '').replace(' Section', '')
+}
+
 type SmartNextAction = {
   title: string
   copy: string
@@ -967,7 +971,7 @@ export default function PlayerLiveWorkbench({
     const nextSession: SavedSession = {
       id: `${Date.now()}-${activeFocus.id}-${activeDrill.id}`,
       focusId: activeFocus.id,
-      focusTitle: activeFocus.title.replace(' Development', ''),
+      focusTitle: formatFocusTitle(activeFocus.title),
       workType,
       context,
       drillTitle: activeDrill.title,
@@ -1540,7 +1544,7 @@ export default function PlayerLiveWorkbench({
 
       <div className={styles.liveCompactSummary} aria-label="Current Level Up path">
         <span>{hasCoachAssignment ? 'Coach challenge' : 'Ready now'}</span>
-        <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : activeFocus.title.replace(' Development', '')}</strong>
+        <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : formatFocusTitle(activeFocus.title)}</strong>
         <p>{workTypeLabels[workType]} / {contextLabels[context]}</p>
         <div className={styles.liveCompactEdits} aria-label="Change Level Up choices">
           <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => setEditingStep('focus')}>
@@ -1894,7 +1898,7 @@ export default function PlayerLiveWorkbench({
                 data-active={focus.id === activeFocus.id ? 'true' : 'false'}
                 onClick={() => chooseFocus(focus.id)}
               >
-                <strong>{focus.title.replace(' Development', '')}</strong>
+                <strong>{formatFocusTitle(focus.title)}</strong>
                 <span>{focus.cue}</span>
               </button>
             ))}
@@ -4197,12 +4201,12 @@ function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {
   const top = [...focusCounts.entries()].sort((a, b) => b[1] - a[1])[0]
   const low = focuses
     .filter((focus) => focus.id !== 'accountability')
-    .map((focus) => [focus.id, focus.title.replace(' Development', ''), focusCounts.get(focus.id) ?? 0] as const)
+    .map((focus) => [focus.id, formatFocusTitle(focus.title), focusCounts.get(focus.id) ?? 0] as const)
     .sort((a, b) => a[2] - b[2])[0]
 
   return {
     average,
-    topFocus: top ? focuses.find((focus) => focus.id === top[0])?.title.replace(' Development', '') : '',
+    topFocus: top ? formatFocusTitle(focuses.find((focus) => focus.id === top[0])?.title ?? '') : '',
     lowFocus: low?.[2] === 0 || sessions.length > 2 ? low?.[1] : '',
     sharedCount: sessions.filter((session) => session.sharedWithCoach).length,
     nextMove: low?.[1] ? `Level up ${low[1]}` : 'Calendar-ready later',

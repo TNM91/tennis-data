@@ -32,6 +32,8 @@ describe('Player Development Level Up mobile layout', () => {
 
   it('keeps Level Up focus choices readable in a two-column phone grid', () => {
     expect(stylesSource).toContain('.liveFocusRail {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+    const narrowPhoneRules = stylesSource.slice(stylesSource.indexOf('@media (max-width: 620px)'))
+    expect(narrowPhoneRules).not.toContain('.liveFocusRail,\n  .liveContextGrid')
     expect(stylesSource).toContain('.liveFocusButton strong {\n    overflow-wrap: normal;\n    word-break: normal;')
     expect(stylesSource).toContain('.levelUpToolboxBody,\n  .levelUpToolboxLinks {\n    grid-template-columns: 1fr;')
   })

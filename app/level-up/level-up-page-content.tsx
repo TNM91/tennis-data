@@ -16,6 +16,7 @@ import {
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import HabitPathWizardClient from './habit-path-wizard-client'
+import LevelUpHashController, { LevelUpDisclosureLink } from './level-up-hash-controller'
 import QuestBuilderClient from './quest-builder-client'
 
 function buildImproveTacticsHref(identity: PlayerDevelopmentIdentity, card?: LevelUpCard) {
@@ -244,7 +245,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
             <Link className="button-primary" href="#level-up-flow">Start today</Link>
-            <Link className="button-secondary" href="#quest-builder">Build a quest</Link>
+            <LevelUpDisclosureLink className="button-secondary" targetId="quest-builder">Build a quest</LevelUpDisclosureLink>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
           </div>
         </section>
@@ -270,11 +271,19 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
 
         <nav className={styles.levelUpIphoneDock} aria-label="Level Up mobile dock">
           {iphoneQuickActions.map((action) => (
-            <Link key={action.label} href={action.href}>
-              <span>{action.label}</span>
-            </Link>
+            action.href === '#quest-builder' ? (
+              <LevelUpDisclosureLink key={action.label} targetId="quest-builder">
+                <span>{action.label}</span>
+              </LevelUpDisclosureLink>
+            ) : (
+              <Link key={action.label} href={action.href}>
+                <span>{action.label}</span>
+              </Link>
+            )
           ))}
         </nav>
+
+        <LevelUpHashController />
 
         <Suspense fallback={<div className={styles.liveAccessPanel}>Loading Level Up.</div>}>
           <PlayerLiveWorkbench
