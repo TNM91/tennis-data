@@ -37,6 +37,7 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
     return (identityCards.length ? identityCards : LEVEL_UP_CARDS.filter((card) => card.assignable)).slice(0, 18)
   }, [plan.identitySlug])
   const response = plan.coachResponse
+  const playerReply = response?.playerReply ?? null
   const targetRep = response?.targetRepId ? plan.reps.find((rep) => rep.id === response.targetRepId) : null
   const responseLabel = response?.action === 'acknowledged'
     ? 'Plan reviewed'
@@ -98,7 +99,9 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
           <span style={eyebrowStyle}>Shared Level Up week</span>
           <strong style={titleStyle}>{progress.completed}/{progress.total} reps</strong>
         </div>
-        <span style={statusStyle}>{progress.complete ? 'Complete' : 'Coach review'}</span>
+        <span style={playerReply?.action === 'question' ? questionStatusStyle : statusStyle}>
+          {playerReply?.action === 'question' ? 'Player question' : progress.complete ? 'Complete' : 'Coach review'}
+        </span>
       </div>
       <p style={nextStyle}>
         {progress.complete ? 'Week complete. Use the proof trail for the next lesson.' : `Next: ${progress.nextRep?.title ?? plan.strongestFocus}`}
@@ -110,6 +113,13 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
           </span>
         ))}
       </div>
+      {playerReply ? (
+        <div style={playerReply.action === 'question' ? questionStyle : acknowledgedStyle} aria-live="polite">
+          <span>{playerReply.action === 'question' ? 'Player question' : 'Player got it'}</span>
+          {playerReply.message ? <strong>{playerReply.message}</strong> : <strong>Coach update received.</strong>}
+          {playerReply.action === 'question' ? <small>Send a new cue or rep update to answer.</small> : null}
+        </div>
+      ) : null}
       {response ? (
         <div style={sentStyle}>
           <span>Sent to player</span>
@@ -184,11 +194,14 @@ const headerStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', 
 const eyebrowStyle: CSSProperties = { display: 'block', color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase' }
 const titleStyle: CSSProperties = { display: 'block', marginTop: 2, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 950 }
 const statusStyle: CSSProperties = { border: '1px solid rgba(155,225,29,0.28)', borderRadius: 999, color: 'var(--brand-green)', padding: '4px 8px', fontSize: 10, fontWeight: 950 }
+const questionStatusStyle: CSSProperties = { ...statusStyle, borderColor: 'rgba(255,196,87,0.38)', background: 'rgba(255,196,87,0.1)', color: '#ffd27a' }
 const nextStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 780, lineHeight: 1.35 }
 const repGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 6 }
 const repStyle: CSSProperties = { minWidth: 0, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, background: 'rgba(3,12,24,0.46)', color: 'var(--shell-copy-muted)', padding: '7px 8px', fontSize: 11, fontWeight: 820, lineHeight: 1.25, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 const repDoneStyle: CSSProperties = { ...repStyle, borderColor: 'rgba(155,225,29,0.28)', color: 'var(--brand-green-3)' }
 const sentStyle: CSSProperties = { display: 'grid', gap: 3, border: '1px solid rgba(116,190,255,0.2)', borderRadius: 11, background: 'rgba(116,190,255,0.08)', color: 'var(--shell-copy-muted)', padding: 9, fontSize: 11, lineHeight: 1.35 }
+const acknowledgedStyle: CSSProperties = { display: 'grid', gap: 3, border: '1px solid rgba(155,225,29,0.3)', borderRadius: 11, background: 'rgba(155,225,29,0.09)', color: 'var(--brand-green-3)', padding: 9, fontSize: 11, lineHeight: 1.35 }
+const questionStyle: CSSProperties = { ...acknowledgedStyle, borderColor: 'rgba(255,196,87,0.38)', background: 'rgba(255,196,87,0.1)', color: '#ffd27a' }
 const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }
 const actionStyle: CSSProperties = { minWidth: 0, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, background: 'rgba(255,255,255,0.055)', color: 'var(--foreground-strong)', padding: '8px 6px', fontSize: 11, fontWeight: 900, cursor: 'pointer' }
 const activeActionStyle: CSSProperties = { ...actionStyle, borderColor: 'rgba(155,225,29,0.4)', background: 'rgba(155,225,29,0.14)', color: 'var(--brand-green)' }

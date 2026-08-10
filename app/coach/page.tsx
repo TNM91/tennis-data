@@ -1459,8 +1459,16 @@ function CoachContent() {
   const sortedAssignments = useMemo(() => sortCoachAssignmentsForReview(assignments), [assignments])
   const selectedSessionPreset = useMemo(() => getCoachSessionPreset(sessionPresetId), [sessionPresetId])
   const linkedPlayerCards = useMemo(
-    () => buildLinkedPlayerCards(savedStudents, assignments, invites),
-    [assignments, invites, savedStudents],
+    () => {
+      const questionStudentIds = new Set(
+        sharedWeeklyPlans
+          .filter((plan) => plan.coachResponse?.playerReply?.action === 'question')
+          .map((plan) => plan.studentLinkId),
+      )
+      return buildLinkedPlayerCards(savedStudents, assignments, invites)
+        .sort((a, b) => Number(!questionStudentIds.has(a.student.id)) - Number(!questionStudentIds.has(b.student.id)))
+    },
+    [assignments, invites, savedStudents, sharedWeeklyPlans],
   )
   const activeMobileBenchCard = useMemo(
     () =>
@@ -2121,6 +2129,7 @@ function CoachContent() {
     const mobileTextLabel = card.pendingInvite ? 'Text setup link' : 'Text'
     const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
     const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
+    const sharedWeek = sharedWeeklyPlans.find((plan) => plan.studentLinkId === card.student.id) ?? null
     const mobileCoachLoop = [
       {
         label: 'Reply',
@@ -2150,6 +2159,14 @@ function CoachContent() {
           <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
           {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
         </div>
+        {sharedWeek ? (
+          <CoachSharedWeek
+            plan={sharedWeek}
+            playerName={card.student.playerName}
+            accessToken={session?.access_token ?? ''}
+            onSaved={(nextPlan) => setSharedWeeklyPlans((current) => current.map((plan) => plan.id === nextPlan.id ? nextPlan : plan))}
+          />
+        ) : null}
         <p style={mobileBenchCommandCopyStyle}>
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
@@ -3351,7 +3368,9 @@ function CoachContent() {
                   >
                     <strong style={mobileBenchPlayerNameStyle}>{card.student.playerName}</strong>
                     <span style={mobileBenchPlayerMetaStyle}>
-                      {card.needsReview ? 'Review' : card.activeAssignments ? `${card.activeAssignments} active` : card.connectionLabel}
+                      {sharedWeeklyPlans.some((plan) => plan.studentLinkId === card.student.id && plan.coachResponse?.playerReply?.action === 'question')
+                        ? 'Question'
+                        : card.needsReview ? 'Review' : card.activeAssignments ? `${card.activeAssignments} active` : card.connectionLabel}
                     </span>
                   </button>
                 )

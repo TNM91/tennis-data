@@ -6,6 +6,13 @@ export type WeeklyLevelUpPlanRep = WeeklyLevelUpRep & {
   completedAt: string | null
 }
 
+export type WeeklyLevelUpPlayerReply = {
+  action: 'acknowledged' | 'question'
+  message: string
+  playerUserId: string
+  updatedAt: string
+}
+
 export type WeeklyLevelUpCoachResponse = {
   action: 'acknowledged' | 'adjusted' | 'replaced'
   note: string
@@ -13,6 +20,7 @@ export type WeeklyLevelUpCoachResponse = {
   replacementRep: WeeklyLevelUpRep | null
   coachUserId: string
   updatedAt: string
+  playerReply: WeeklyLevelUpPlayerReply | null
 }
 
 export type WeeklyLevelUpPlan = {
@@ -174,6 +182,27 @@ export function buildWeeklyLevelUpCoachResponse(
     replacementRep: replacementRep ? stripCompletion(replacementRep) : null,
     coachUserId: cleanText(coachUserId),
     updatedAt: now.toISOString(),
+    playerReply: null,
+  }
+}
+
+export function buildWeeklyLevelUpPlayerReply(
+  plan: WeeklyLevelUpPlan,
+  input: { action: WeeklyLevelUpPlayerReply['action']; message?: string },
+  playerUserId: string,
+  now = new Date(),
+): WeeklyLevelUpPlayerReply | null {
+  if (!plan.coachResponse) return null
+  const playerId = cleanText(playerUserId)
+  if (!playerId) return null
+  const message = cleanText(input.message).slice(0, 500)
+  if (input.action === 'question' && !message) return null
+
+  return {
+    action: input.action,
+    message: input.action === 'question' ? message : '',
+    playerUserId: playerId,
+    updatedAt: now.toISOString(),
   }
 }
 
@@ -270,7 +299,18 @@ function parseCoachResponse(value: unknown): WeeklyLevelUpCoachResponse | null {
     replacementRep: replacement ? stripCompletion(replacement) : null,
     coachUserId,
     updatedAt,
+    playerReply: parsePlayerReply(value.playerReply),
   }
+}
+
+function parsePlayerReply(value: unknown): WeeklyLevelUpPlayerReply | null {
+  if (!isRecord(value)) return null
+  const action = value.action === 'acknowledged' || value.action === 'question' ? value.action : null
+  const playerUserId = cleanText(value.playerUserId)
+  const updatedAt = normalizeIso(value.updatedAt)
+  const message = cleanText(value.message).slice(0, 500)
+  if (!action || !playerUserId || !updatedAt || (action === 'question' && !message)) return null
+  return { action, message: action === 'question' ? message : '', playerUserId, updatedAt }
 }
 
 function stripCompletion(rep: WeeklyLevelUpPlanRep): WeeklyLevelUpRep {

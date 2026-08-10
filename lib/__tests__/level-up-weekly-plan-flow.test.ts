@@ -13,6 +13,7 @@ const coachSharedWeekSource = readSource('app/coach/coach-shared-week.tsx')
 const myQuestSource = readSource('app/level-up/my-quest/my-quest-client.tsx')
 const migrationSource = readSource('supabase/migrations/20260810000100_create_level_up_weekly_plans.sql')
 const responseMigrationSource = readSource('supabase/migrations/20260810000200_add_level_up_weekly_plan_coach_response.sql')
+const playerReplyMigrationSource = readSource('supabase/migrations/20260810000300_add_level_up_weekly_plan_player_reply.sql')
 
 describe('Level Up weekly plan flow', () => {
   it('lets a player save, complete, sync, and explicitly share the current week', () => {
@@ -56,5 +57,20 @@ describe('Level Up weekly plan flow', () => {
     expect(migrationSource).toContain('Players can update own Level Up weekly plans')
     expect(migrationSource).toContain('Coaches can read shared Level Up weekly plans')
     expect(migrationSource).toContain('shared_with_coach')
+  })
+
+  it('closes the weekly loop with a protected player reply and a visible coach question queue', () => {
+    expect(playerCoachResponseSource).toContain('Got it')
+    expect(playerCoachResponseSource).toContain('Ask coach')
+    expect(playerCoachResponseSource).toContain("method: 'PATCH'")
+    expect(playerRouteSource).toContain(".rpc('reply_to_level_up_weekly_plan'")
+    expect(playerReplyMigrationSource).toContain('security definer')
+    expect(playerReplyMigrationSource).toContain('plan.player_user_id = auth.uid()')
+    expect(playerReplyMigrationSource).toContain("jsonb_set(v_plan_json, '{coachResponse,playerReply}'")
+    expect(playerReplyMigrationSource).toContain('grant execute on function public.reply_to_level_up_weekly_plan')
+    expect(coachSharedWeekSource).toContain('Player question')
+    expect(coachPageSource).toContain("plan.coachResponse?.playerReply?.action === 'question'")
+    expect(myQuestSource).toContain('Question sent')
+    expect(myQuestSource).toContain('Coach notified')
   })
 })

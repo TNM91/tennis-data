@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
 import {
+  buildWeeklyLevelUpPlayerReply,
   mapWeeklyLevelUpPlanRow,
   parseWeeklyLevelUpPlan,
   setWeeklyLevelUpPlanShared,
@@ -111,6 +112,51 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
+}
+
+export async function PATCH(request: Request) {
+  const auth = await getSignedInPlayerApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  let body: { planId?: unknown; action?: unknown; message?: unknown }
+  try {
+    body = (await request.json()) as { planId?: unknown; action?: unknown; message?: unknown }
+  } catch {
+    return Response.json({ ok: false, message: 'Choose a reply first.' }, { status: 400 })
+  }
+
+  const planId = typeof body.planId === 'string' ? body.planId.trim() : ''
+  const action = body.action === 'acknowledged' || body.action === 'question' ? body.action : null
+  if (!planId || !action) return Response.json({ ok: false, message: 'Choose a reply first.' }, { status: 400 })
+
+  const { data: row, error: findError } = await auth.supabase
+    .from('level_up_weekly_plans')
+    .select(planSelect)
+    .eq('id', planId)
+    .eq('player_user_id', auth.userId)
+    .eq('shared_with_coach', true)
+    .maybeSingle()
+  if (findError) return Response.json({ ok: false, message: findError.message }, { status: 500 })
+
+  const plan = row ? mapWeeklyLevelUpPlanRow(row as WeeklyLevelUpPlanRow) : null
+  if (!plan?.coachResponse) {
+    return Response.json({ ok: false, message: 'This coach update is no longer available.' }, { status: 404 })
+  }
+
+  const reply = buildWeeklyLevelUpPlayerReply(plan, {
+    action,
+    message: typeof body.message === 'string' ? body.message : '',
+  }, auth.userId)
+  if (!reply) {
+    return Response.json({ ok: false, message: action === 'question' ? 'Add your question before sending.' : 'Choose a reply first.' }, { status: 400 })
+  }
+
+  const { data, error } = await auth.supabase
+    .rpc('reply_to_level_up_weekly_plan', { p_plan_id: plan.id, p_reply: reply })
+    .select(planSelect)
+    .single()
+  if (error) return Response.json({ ok: false, message: error.message }, { status: 400 })
   return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
 }
 
