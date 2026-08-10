@@ -18,9 +18,26 @@ describe('My Lab command center', () => {
     expect(commandCenterIndex).toBeGreaterThanOrEqual(0)
     expect(legacyWorkspaceIndex).toBeGreaterThan(commandCenterIndex)
     expect(pageSource).toContain('latestLevelUpProofCard?.title')
-    expect(pageSource).toContain('latestLevelUpProofCard?.durationMinutes || 10')
-    expect(pageSource).toContain("latestLevelUpProof ? 'Repeat this rep' : 'Start today\\'s rep'")
+    expect(pageSource).toContain('isProfileConfirmed && hasMyLabFocus ? latestLevelUpProofCard?.durationMinutes || 10 : null')
+    expect(pageSource).toContain("? 'Repeat this rep'")
     expect(pageSource).toContain('completedSessions={commandCenterCompletedSessions}')
+    expect(pageSource).toContain('firstServeSteps={firstServeSteps}')
+  })
+
+  it('guides first use with real setup progress and retires the path after the first rep', () => {
+    expect(pageSource).toContain('const hasMyLabFocus = Boolean(activeGoal.goal.trim())')
+    expect(pageSource).toContain('isProfileConfirmed && hasMyLabFocus && latestLevelUpProof')
+    expect(pageSource).toContain("title: 'Connect your player'")
+    expect(pageSource).toContain("title: 'Choose one focus'")
+    expect(pageSource).toContain("title: 'Finish your first rep'")
+    expect(pageSource).toContain("href: !linkedPlayer ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF")
+    expect(pageSource).toContain('open={!hasMyLabFocus}')
+    expect(pageSource).toContain("? 'Find your player record'")
+    expect(pageSource).toContain("? 'Choose one tennis focus'")
+    expect(componentSource).toContain('Build your player loop.')
+    expect(componentSource).toContain("aria-current={isCurrent ? 'step' : undefined}")
+    expect(componentSource).toContain('href={step.href}')
+    expect(pageSource).not.toContain('First My Lab read')
   })
 
   it('keeps player and opponent details navigable', () => {
@@ -39,6 +56,8 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('grid-template-columns: 1fr;')
     expect(styleSource).toContain('min-height: 58px;')
     expect(styleSource).toContain('overflow-wrap: anywhere;')
+    expect(styleSource).toContain('.firstServeGrid')
+    expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
   })
 
   it('uses one signature My Lab mark across the workspace, navigation, and Player entry points', () => {

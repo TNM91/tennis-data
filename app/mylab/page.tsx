@@ -283,79 +283,6 @@ const EMPTY_LAB_GOAL: LabGoalState = {
   updatedAt: null,
 }
 
-const MY_LAB_ONBOARDING_GOALS: Array<{ label: string; template: GoalTemplate }> = [
-  {
-    label: 'Win more singles',
-    template: {
-      goal: 'Win more singles',
-      progressUpdate: 'Track one pattern from each singles match.',
-      doingWell: 'Name the point pattern that is already holding up.',
-      improveNext: 'Choose one serve plus first-ball pattern to test.',
-      notes: 'Next singles test:\nPattern to repeat:\nPattern to clean up:',
-    },
-  },
-  {
-    label: 'Improve doubles',
-    template: {
-      goal: 'Improve doubles',
-      progressUpdate: 'Track positioning, return pressure, and partner patterns.',
-      doingWell: 'Name one team pattern that creates easy balls.',
-      improveNext: 'Choose one poach, lob, or return target to practice.',
-      notes: 'Doubles partner:\nBest pattern:\nNext court habit:',
-    },
-  },
-  {
-    label: 'Get ready for 4.0 / 4.5',
-    template: {
-      goal: 'Get ready for 4.0 / 4.5',
-      progressUpdate: 'Use match evidence to test whether the next rating band is getting closer.',
-      doingWell: 'Name the level-up skill that already travels under pressure.',
-      improveNext: 'Pick one pressure pattern to repeat for two weeks.',
-      notes: 'Target level:\nPressure skill:\nEvidence to upload:',
-    },
-  },
-  {
-    label: 'Prepare for playoffs',
-    template: {
-      goal: 'Prepare for playoffs',
-      progressUpdate: 'Scout likely opponents and choose one reliable match plan.',
-      doingWell: 'Name what you can trust late in sets.',
-      improveNext: 'Choose one matchup risk to practice before playoffs.',
-      notes: 'Likely opponent:\nCourt plan:\nWatch item:',
-    },
-  },
-  {
-    label: 'Captain a team',
-    template: {
-      goal: 'Captain a team',
-      progressUpdate: 'Use team context to reduce availability, lineup, and scouting friction.',
-      doingWell: 'Name the part of match week that is already organized.',
-      improveNext: 'Choose one captain job to move into Team Hub.',
-      notes: 'Team:\nAvailability gap:\nLineup question:',
-    },
-  },
-  {
-    label: 'Find a coach',
-    template: {
-      goal: 'Find a coach',
-      progressUpdate: 'Bring one match pattern and one question into the next lesson.',
-      doingWell: 'Name what you want a coach to keep.',
-      improveNext: 'Choose the first measurable assignment to ask for.',
-      notes: 'Coach question:\nMatch evidence:\nAssignment idea:',
-    },
-  },
-  {
-    label: 'Build a practice routine',
-    template: {
-      goal: 'Build a practice routine',
-      progressUpdate: 'Turn match evidence into one repeatable weekly practice block.',
-      doingWell: 'Name one skill that responds well to repetition.',
-      improveNext: 'Choose a practice routine you can repeat twice this week.',
-      notes: 'Routine:\nFrequency:\nEvidence after practice:',
-    },
-  },
-]
-
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'
   const d = new Date(value)
@@ -3113,16 +3040,66 @@ function MyLabPageInner() {
       note: bestLeague ? `${bestLeague.wins}W-${bestLeague.losses}L - ${bestLeague.winRate}% win rate` : 'League finishes appear from match history',
     },
   ]
-  const commandCenterRepTitle = latestLevelUpProofCard?.title
-    || activeGoal.goal.trim()
-    || (topMatchupCandidate ? 'Sharpen the first four shots' : 'Choose one focused court rep')
-  const commandCenterRepNote = latestLevelUpProofCard?.cue
-    || activeGoal.improveNext.trim()
-    || (topMatchupCandidate
-      ? `Build one repeatable pattern before you play ${topMatchupCandidate.player.name}.`
-      : 'Turn one clear intention into evidence you can use next time.')
   const commandCenterPlayerName = linkedPlayer?.name || profileLink?.linked_player_name || ''
   const commandCenterCompletedSessions = Math.min(4, levelUpProofs.length)
+  const hasMyLabFocus = Boolean(activeGoal.goal.trim())
+  const commandCenterRepTitle = !isProfileConfirmed
+    ? 'Find your player record'
+    : !hasMyLabFocus
+      ? 'Choose one tennis focus'
+      : latestLevelUpProofCard?.title
+        || activeGoal.goal.trim()
+        || (topMatchupCandidate ? 'Sharpen the first four shots' : 'Choose one focused court rep')
+  const commandCenterRepNote = !isProfileConfirmed
+    ? 'Connect your tennis so every read, matchup, and rep belongs to you.'
+    : !hasMyLabFocus
+      ? 'Name the one thing you want to improve before you step on court.'
+      : latestLevelUpProofCard?.cue
+        || activeGoal.improveNext.trim()
+        || (topMatchupCandidate
+          ? `Build one repeatable pattern before you play ${topMatchupCandidate.player.name}.`
+          : 'Turn one clear intention into evidence you can use next time.')
+  const commandCenterRepHref = !isProfileConfirmed
+    ? '/profile'
+    : !hasMyLabFocus
+      ? MY_LAB_GOAL_PROGRESS_HREF
+      : courtModeHref
+  const commandCenterRepCta = !isProfileConfirmed
+    ? 'Find yourself'
+    : !hasMyLabFocus
+      ? 'Choose my focus'
+      : latestLevelUpProof
+        ? 'Repeat this rep'
+        : 'Start today\'s rep'
+  const firstServeSteps = isProfileConfirmed && hasMyLabFocus && latestLevelUpProof
+    ? []
+    : [
+        {
+          title: 'Connect your player',
+          description: isProfileConfirmed
+            ? commandCenterPlayerName || 'Your player record is connected.'
+            : 'Find your record or create a self-rated profile.',
+          href: '/profile',
+          action: 'Find yourself',
+          complete: isProfileConfirmed,
+        },
+        {
+          title: 'Choose one focus',
+          description: hasMyLabFocus ? activeGoal.goal : 'Name the one thing you want to improve next.',
+          href: !linkedPlayer ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
+          action: linkedPlayer ? 'Set my focus' : 'Connect player first',
+          complete: hasMyLabFocus,
+        },
+        {
+          title: 'Finish your first rep',
+          description: latestLevelUpProof
+            ? `${latestLevelUpProof.cardTitle}: ${latestLevelUpProof.proofLabel}`
+            : 'Take one short court card and leave proof behind.',
+          href: isProfileConfirmed ? courtModeHref : '/profile',
+          action: 'Start my rep',
+          complete: Boolean(latestLevelUpProof),
+        },
+      ]
   return (
     <section style={pageStyle}>
       {!accessPending && !access.canUseAdvancedPlayerInsights ? (
@@ -3144,12 +3121,13 @@ function MyLabPageInner() {
         playerName={commandCenterPlayerName}
         repTitle={commandCenterRepTitle}
         repNote={commandCenterRepNote}
-        repDuration={latestLevelUpProofCard?.durationMinutes || 10}
-        repHref={isProfileConfirmed ? courtModeHref : '/profile'}
-        repCta={isProfileConfirmed ? (latestLevelUpProof ? 'Repeat this rep' : 'Start today\'s rep') : 'Find yourself'}
+        repDuration={isProfileConfirmed && hasMyLabFocus ? latestLevelUpProofCard?.durationMinutes || 10 : null}
+        repHref={commandCenterRepHref}
+        repCta={commandCenterRepCta}
         completedSessions={commandCenterCompletedSessions}
         sessionTarget={4}
         progressHref={MY_LAB_GOAL_PROGRESS_HREF}
+        firstServeSteps={firstServeSteps}
         matchup={topMatchupCandidate ? {
           opponentId: topMatchupCandidate.player.id,
           opponentName: topMatchupCandidate.player.name,
@@ -3256,66 +3234,6 @@ function MyLabPageInner() {
                         <span style={miniActionLinkStyle}>{card.cta}</span>
                       </Link>
                     ))}
-                  </div>
-                </section>
-
-                <section style={onboardingPanelStyle}>
-                  <div style={sectionHeaderStyle}>
-                    <div style={sectionHeaderCopyStyle}>
-                      <p style={sectionKickerStyle}>First My Lab read</p>
-                      <h2 style={compactSectionTitleStyle}>Find yourself, choose one focus, open the next useful card.</h2>
-                      <p style={sectionTextStyle}>
-                        My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.
-                      </p>
-                    </div>
-                    <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
-                      {isProfileConfirmed ? 'Open first read' : 'Find yourself'}
-                    </Link>
-                  </div>
-
-                  <div style={onboardingStepGridStyle(isTablet)}>
-                    <div style={onboardingStepCardStyle}>
-                      <span style={setupStepNumberStyle}>1</span>
-                      <strong>Find yourself</strong>
-                      <p>{isProfileConfirmed ? profileLink?.linked_player_name || linkedPlayer?.name || 'Player profile linked.' : 'Search for your player record or create a self-rated profile.'}</p>
-                      <Link href="/profile" style={smallInlineLinkStyle}>{isProfileConfirmed ? 'Review profile' : 'Set profile'}</Link>
-                    </div>
-
-                    <div style={onboardingStepCardStyle}>
-                      <span style={setupStepNumberStyle}>2</span>
-                      <strong>Choose your tennis goal</strong>
-                      <p>{activeGoal.goal.trim() || 'Pick one focus for the next two weeks.'}</p>
-                      <div style={onboardingGoalGridStyle}>
-                        {MY_LAB_ONBOARDING_GOALS.map((option) => (
-                          <button
-                            key={option.label}
-                            type="button"
-                            onClick={() => applyGoalTemplate(option.template)}
-                            style={activeGoal.goal === option.template.goal ? onboardingGoalButtonActiveStyle : onboardingGoalButtonStyle}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={onboardingStepCardStyle}>
-                      <span style={setupStepNumberStyle}>3</span>
-                      <strong>Open your first read</strong>
-                      <p>
-                        {topMatchupCandidate
-                          ? `Try the matchup read vs ${topMatchupCandidate.player.name}.`
-                          : isProfileConfirmed
-                            ? 'Upload data, follow a team, or build a matchup to sharpen the read.'
-                            : 'Set your profile first, then My Lab can suggest the next card.'}
-                      </p>
-                      <div style={onboardingReadListStyle}>
-                        <Link href={courtModeHref} style={miniActionPillStyle}>Open court mode</Link>
-                        <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
-                        <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
-                        <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
-                      </div>
-                    </div>
                   </div>
                 </section>
 
@@ -3839,7 +3757,7 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle} open={!hasMyLabFocus}>
           <summary style={labDrawerSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>Notebook and match history</strong>
@@ -7880,79 +7798,6 @@ const personalReadPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
-  minWidth: 0,
-}
-
-const onboardingPanelStyle: CSSProperties = {
-  borderRadius: 22,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.07), rgba(8,13,28,0.62))',
-  padding: 16,
-  display: 'grid',
-  gap: 14,
-  boxShadow: '0 18px 45px rgba(2,8,23,0.26)',
-  minWidth: 0,
-  overflow: 'hidden',
-}
-
-const onboardingStepGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 12,
-  minWidth: 0,
-})
-
-const onboardingStepCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 9,
-  alignContent: 'start',
-  minHeight: 210,
-  padding: 14,
-  borderRadius: 18,
-  border: '1px solid rgba(125,211,252,0.14)',
-  background: 'rgba(7,17,33,0.62)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 750,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const onboardingGoalGridStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 7,
-  minWidth: 0,
-}
-
-const onboardingGoalButtonStyle: CSSProperties = {
-  minHeight: 34,
-  borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'var(--foreground-strong)',
-  padding: '0 10px',
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: 'pointer',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const onboardingGoalButtonActiveStyle: CSSProperties = {
-  ...onboardingGoalButtonStyle,
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'rgba(155,225,29,0.14)',
-}
-
-const onboardingReadListStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 9,
-  alignItems: 'center',
-  marginTop: 'auto',
   minWidth: 0,
 }
 

@@ -5,23 +5,21 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
 describe('My Lab onboarding flow', () => {
-  it('guides first-time users through identity, goal, and first read', () => {
-    expect(source).toContain('First My Lab read')
-    expect(source).toContain('Find yourself, choose one focus, open the next useful card.')
-    expect(source).toContain('Search for your player record or create a self-rated profile.')
-    expect(source).toContain('Open your first read')
-    expect(source).toContain('My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.')
+  it('guides first-time users through identity, focus, and a first rep', () => {
+    expect(source).toContain("title: 'Connect your player'")
+    expect(source).toContain("title: 'Choose one focus'")
+    expect(source).toContain("title: 'Finish your first rep'")
+    expect(source).toContain('Find your record or create a self-rated profile.')
+    expect(source).toContain('Take one short court card and leave proof behind.')
+    expect(source).toContain('isProfileConfirmed && hasMyLabFocus && latestLevelUpProof')
+    expect(source).toContain('open={!hasMyLabFocus}')
   })
 
   it('offers tennis-specific goal templates without exposing empty counters first', () => {
     for (const label of [
-      'Win more singles',
-      'Improve doubles',
-      'Get ready for 4.0 / 4.5',
-      'Prepare for playoffs',
-      'Captain a team',
-      'Find a coach',
-      'Build a practice routine',
+      'Next match plan',
+      'Clean up losses',
+      'Two-week focus',
     ]) {
       expect(source).toContain(label)
     }

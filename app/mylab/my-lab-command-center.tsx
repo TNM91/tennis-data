@@ -13,19 +13,28 @@ type MatchupPreview = {
   href: string
 }
 
+type FirstServeStep = {
+  title: string
+  description: string
+  href: string
+  action: string
+  complete: boolean
+}
+
 type MyLabCommandCenterProps = {
   firstName: string
   playerId: string
   playerName: string
   repTitle: string
   repNote: string
-  repDuration: number
+  repDuration: number | null
   repHref: string
   repCta: string
   completedSessions: number
   sessionTarget: number
   progressHref: string
   matchup: MatchupPreview | null
+  firstServeSteps: FirstServeStep[]
 }
 
 export default function MyLabCommandCenter({
@@ -41,9 +50,12 @@ export default function MyLabCommandCenter({
   sessionTarget,
   progressHref,
   matchup,
+  firstServeSteps,
 }: MyLabCommandCenterProps) {
   const greeting = firstName ? `Good afternoon, ${firstName}.` : 'Your next move starts here.'
   const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
+  const completedFirstServeSteps = firstServeSteps.filter((step) => step.complete).length
+  const nextFirstServeStep = firstServeSteps.findIndex((step) => !step.complete)
 
   return (
     <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
@@ -72,6 +84,42 @@ export default function MyLabCommandCenter({
         )}
       </header>
 
+      {firstServeSteps.length ? (
+        <section className={styles.firstServe} aria-labelledby="first-serve-title">
+          <div className={styles.firstServeHeading}>
+            <div>
+              <p className={styles.cardEyebrow}>First serve</p>
+              <h2 id="first-serve-title">Build your player loop.</h2>
+              <p>Connect your tennis, choose the work, then record one useful rep.</p>
+            </div>
+            <span className={styles.firstServeProgress}>{completedFirstServeSteps} of {firstServeSteps.length} ready</span>
+          </div>
+          <div className={styles.firstServeGrid}>
+            {firstServeSteps.map((step, index) => {
+              const isCurrent = index === nextFirstServeStep
+
+              return (
+                <Link
+                  key={step.title}
+                  className={`${styles.firstServeStep} ${step.complete ? styles.firstServeStepComplete : ''} ${isCurrent ? styles.firstServeStepCurrent : ''}`}
+                  href={step.href}
+                  aria-current={isCurrent ? 'step' : undefined}
+                >
+                  <span className={styles.firstServeNumber} aria-hidden="true">
+                    {step.complete ? '✓' : index + 1}
+                  </span>
+                  <span className={styles.firstServeCopy}>
+                    <strong>{step.title}</strong>
+                    <small>{step.description}</small>
+                  </span>
+                  <span className={styles.firstServeAction}>{step.complete ? 'Review' : step.action} <span aria-hidden="true">→</span></span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
       <div className={styles.primaryGrid}>
         <article className={styles.repCard}>
           <Image
@@ -93,10 +141,12 @@ export default function MyLabCommandCenter({
           <div className={styles.repContent}>
             <div className={styles.repTopline}>
               <p className={styles.cardEyebrow}>Today&apos;s rep</p>
-              <span className={styles.duration}>
-                <TiqFeatureIcon name="schedule" size="sm" variant="ghost" />
-                {repDuration} min
-              </span>
+              {repDuration ? (
+                <span className={styles.duration}>
+                  <TiqFeatureIcon name="schedule" size="sm" variant="ghost" />
+                  {repDuration} min
+                </span>
+              ) : null}
             </div>
             <h2>{repTitle}</h2>
             <p className={styles.repNote}>{repNote}</p>
