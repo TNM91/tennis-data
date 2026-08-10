@@ -6,6 +6,7 @@ import Link from 'next/link'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import MyLabCommandCenter from './my-lab-command-center'
 import { useAuth } from '@/app/components/auth-provider'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -3112,6 +3113,16 @@ function MyLabPageInner() {
       note: bestLeague ? `${bestLeague.wins}W-${bestLeague.losses}L - ${bestLeague.winRate}% win rate` : 'League finishes appear from match history',
     },
   ]
+  const commandCenterRepTitle = latestLevelUpProofCard?.title
+    || activeGoal.goal.trim()
+    || (topMatchupCandidate ? 'Sharpen the first four shots' : 'Choose one focused court rep')
+  const commandCenterRepNote = latestLevelUpProofCard?.cue
+    || activeGoal.improveNext.trim()
+    || (topMatchupCandidate
+      ? `Build one repeatable pattern before you play ${topMatchupCandidate.player.name}.`
+      : 'Turn one clear intention into evidence you can use next time.')
+  const commandCenterPlayerName = linkedPlayer?.name || profileLink?.linked_player_name || ''
+  const commandCenterCompletedSessions = Math.min(4, levelUpProofs.length)
   return (
     <section style={pageStyle}>
       {!accessPending && !access.canUseAdvancedPlayerInsights ? (
@@ -3126,6 +3137,27 @@ function MyLabPageInner() {
           summaryOnly={isMobile}
         />
       ) : null}
+
+      <MyLabCommandCenter
+        firstName={firstName}
+        playerId={linkedPlayer?.id || profileLink?.linked_player_id || ''}
+        playerName={commandCenterPlayerName}
+        repTitle={commandCenterRepTitle}
+        repNote={commandCenterRepNote}
+        repDuration={latestLevelUpProofCard?.durationMinutes || 10}
+        repHref={isProfileConfirmed ? courtModeHref : '/profile'}
+        repCta={isProfileConfirmed ? (latestLevelUpProof ? 'Repeat this rep' : 'Start today\'s rep') : 'Find yourself'}
+        completedSessions={commandCenterCompletedSessions}
+        sessionTarget={4}
+        progressHref={MY_LAB_GOAL_PROGRESS_HREF}
+        matchup={topMatchupCandidate ? {
+          opponentId: topMatchupCandidate.player.id,
+          opponentName: topMatchupCandidate.player.name,
+          opponentMeta: [topMatchupCandidate.player.location, `TIQ ${formatRating(topMatchupCandidate.rating)}`].filter(Boolean).join(' · '),
+          read: `${topMatchupCandidate.read} · ${topMatchupCandidate.gap.toFixed(2)} gap`,
+          href: matchupHref,
+        } : null}
+      />
 
       <section id="player-workshop" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
