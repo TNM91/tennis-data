@@ -86,6 +86,10 @@ export default function TermsPage() {
             tools, and proprietary analytics, is owned by TenAceIQ or its licensors
             and is protected by applicable law.
           </p>
+          <p>
+            Copyright notices, counter-notices, user-submitted content rules, and repeat-infringer
+            handling are described in the <Link href="/legal/copyright">Copyright Policy</Link>.
+          </p>
         </div>
 
         <div>

@@ -17,7 +17,7 @@ describe('admin access coach entitlement controls', () => {
     expect(source).toContain("const PLAYER_TIER = getMembershipTier('player_plus')")
     expect(source).toContain('Control who has {PLAYER_TIER.name}, Coach')
     expect(source).not.toContain('Control who has Player+, Coach')
-    expect(source).toContain('profile.coach_subscription_active ||')
+    expect(source).toContain('accessByProfileId[profile.id]?.canUseCoachWorkflow')
     expect(source).toContain("if (planId === 'coach') return 'Coach'")
     expect(source).toContain("if (planId === 'full_court') return 'Full-Court'")
   })

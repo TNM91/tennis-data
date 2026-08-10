@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildProductAccessState, normalizeSubscriptionStatus } from '../access-model'
+import { buildProductAccessState, isAccessGrantCurrent, normalizeSubscriptionStatus } from '../access-model'
 import { MEMBERSHIP_TIERS } from '../product-story'
 
 describe('buildProductAccessState', () => {
@@ -115,5 +115,48 @@ describe('buildProductAccessState', () => {
     expect(access.canUseCoachWorkflow).toBe(true)
     expect(access.canUseCaptainWorkflow).toBe(true)
     expect(access.canUseLeagueTools).toBe(true)
+  })
+
+  it('expires time-boxed manual promotional access', () => {
+    const access = buildProductAccessState('member', {
+      playerPlusSubscriptionActive: true,
+      playerPlusSubscriptionStatus: 'trial',
+      playerPlusAccessExpiresAt: '2020-01-01T23:59:59.999Z',
+      coachSubscriptionActive: true,
+      coachSubscriptionStatus: 'trial',
+      coachAccessExpiresAt: '2020-01-01T23:59:59.999Z',
+      captainSubscriptionActive: true,
+      captainSubscriptionStatus: 'trial',
+      captainAccessExpiresAt: '2020-01-01T23:59:59.999Z',
+      tiqTeamLeagueEntryEnabled: true,
+      tiqIndividualLeagueCreatorEnabled: true,
+      leagueAccessExpiresAt: '2020-01-01T23:59:59.999Z',
+    })
+
+    expect(access.currentPlanId).toBe('free')
+    expect(access.canUseAdvancedPlayerInsights).toBe(false)
+    expect(access.canUseCoachWorkflow).toBe(false)
+    expect(access.canUseCaptainWorkflow).toBe(false)
+    expect(access.canUseLeagueTools).toBe(false)
+  })
+
+  it('keeps future-dated promotional access active', () => {
+    const future = '2999-01-01T23:59:59.999Z'
+    const access = buildProductAccessState('member', {
+      playerPlusSubscriptionActive: true,
+      playerPlusSubscriptionStatus: 'trial',
+      playerPlusAccessExpiresAt: future,
+      captainSubscriptionActive: false,
+      captainSubscriptionStatus: 'inactive',
+      tiqTeamLeagueEntryEnabled: true,
+      tiqIndividualLeagueCreatorEnabled: false,
+      leagueAccessExpiresAt: future,
+    })
+
+    expect(access.currentPlanId).toBe('league')
+    expect(access.canUseAdvancedPlayerInsights).toBe(true)
+    expect(access.canUseLeagueTools).toBe(true)
+    expect(access.canCreateTiqTeamLeague).toBe(true)
+    expect(isAccessGrantCurrent(future)).toBe(true)
   })
 })
