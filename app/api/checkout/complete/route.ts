@@ -187,7 +187,7 @@ function stripeHeaders(stripeSecretKey: string) {
 async function updateProfileWithBillingFallback(
   supabase: SupabaseProfileUpdater,
   userId: string,
-  payload: Record<string, boolean | string>,
+  payload: Record<string, boolean | string | null>,
 ) {
   const { error } = await supabase
     .from('profiles')
