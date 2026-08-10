@@ -15,6 +15,7 @@ const myQuestSource = readSource('app/level-up/my-quest/my-quest-client.tsx')
 const migrationSource = readSource('supabase/migrations/20260810000100_create_level_up_weekly_plans.sql')
 const responseMigrationSource = readSource('supabase/migrations/20260810000200_add_level_up_weekly_plan_coach_response.sql')
 const playerReplyMigrationSource = readSource('supabase/migrations/20260810000300_add_level_up_weekly_plan_player_reply.sql')
+const coachAnswerMigrationSource = readSource('supabase/migrations/20260810000400_add_level_up_weekly_plan_coach_answer.sql')
 
 describe('Level Up weekly plan flow', () => {
   it('lets a player save, complete, sync, and explicitly share the current week', () => {
@@ -87,5 +88,19 @@ describe('Level Up weekly plan flow', () => {
     expect(coachPageSource).toContain('getCoachQuestionPreview')
     expect(coachPageSource).toContain("tone: 'question'")
     expect(coachPageSource).toContain('<CoachPriorityQueue')
+  })
+
+  it('lets the coach answer the player question in place and reopens the player reply loop', () => {
+    expect(coachSharedWeekSource).toContain('Your answer')
+    expect(coachSharedWeekSource).toContain('Answer player')
+    expect(coachSharedWeekSource).toContain("action: 'answered'")
+    expect(coachSharedWeekSource).toContain('Answer sent to player.')
+    expect(coachRouteSource).toContain("value === 'answered'")
+    expect(playerCoachResponseSource).toContain('Your coach answered.')
+    expect(myQuestSource).toContain('Coach answered')
+    expect(coachAnswerMigrationSource).toContain("v_action not in ('acknowledged', 'answered', 'adjusted', 'replaced')")
+    expect(coachAnswerMigrationSource).toContain("coalesce(v_plan_json #>> '{coachResponse,playerReply,action}', '') <> 'question'")
+    expect(coachAnswerMigrationSource).toContain("'playerReply', null")
+    expect(coachAnswerMigrationSource).toContain('grant execute on function public.respond_to_level_up_weekly_plan')
   })
 })

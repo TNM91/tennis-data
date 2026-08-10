@@ -48,6 +48,8 @@ export default function WeeklyPlanCoachResponse({ plan, accessToken, onSaved }: 
       <strong>
         {response.action === 'acknowledged'
           ? 'Your coach reviewed this week.'
+          : response.action === 'answered'
+            ? 'Your coach answered.'
           : response.action === 'adjusted'
             ? 'Your coach added a cue.'
             : `Your coach changed one rep to ${response.replacementRep?.title ?? 'a coach pick'}.`}

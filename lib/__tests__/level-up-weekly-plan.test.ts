@@ -145,5 +145,20 @@ describe('saved weekly Level Up plan', () => {
 
     const nextCoachResponse = buildWeeklyLevelUpCoachResponse(repliedPlan, { action: 'acknowledged' }, 'coach-1', now)
     expect(nextCoachResponse?.playerReply).toBeNull()
+
+    const answer = buildWeeklyLevelUpCoachResponse(repliedPlan, {
+      action: 'answered',
+      note: 'Use the deuce target for the first two reps, then switch sides.',
+    }, 'coach-1', now)
+    expect(answer).toMatchObject({
+      action: 'answered',
+      note: 'Use the deuce target for the first two reps, then switch sides.',
+      targetRepId: null,
+      replacementRep: null,
+      playerReply: null,
+    })
+    expect(parseWeeklyLevelUpPlan(JSON.stringify({ ...repliedPlan, coachResponse: answer }))?.coachResponse?.action).toBe('answered')
+    expect(buildWeeklyLevelUpCoachResponse(repliedPlan, { action: 'answered', note: ' ' }, 'coach-1', now)).toBeNull()
+    expect(buildWeeklyLevelUpCoachResponse(coachedPlan, { action: 'answered', note: 'Too late.' }, 'coach-1', now)).toBeNull()
   })
 })
