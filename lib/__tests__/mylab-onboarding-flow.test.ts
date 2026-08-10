@@ -27,15 +27,21 @@ describe('My Lab onboarding flow', () => {
     expect(source).not.toContain('open={!isMobile}')
   })
 
+  it('guides first-time users through identity, focus, and a first rep', () => {
+    expect(source).toContain("title: 'Connect your player'")
+    expect(source).toContain("title: 'Choose one focus'")
+    expect(source).toContain("title: 'Finish your first rep'")
+    expect(source).toContain('Find your record or create a self-rated profile.')
+    expect(source).toContain('Take one short court card and leave proof behind.')
+    expect(source).toContain('isProfileConfirmed && hasMyLabFocus && latestLevelUpProof')
+    expect(source).toContain('open={!hasMyLabFocus}')
+  })
+
   it('offers tennis-specific goal templates without exposing empty counters first', () => {
     for (const label of [
-      'Win more singles',
-      'Improve doubles',
-      'Get ready for 4.0 / 4.5',
-      'Prepare for playoffs',
-      'Captain a team',
-      'Find a coach',
-      'Build a practice routine',
+      'Next match plan',
+      'Clean up losses',
+      'Two-week focus',
     ]) {
       expect(source).toContain(label)
     }

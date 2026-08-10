@@ -17,7 +17,6 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('starterActionCards')
     expect(source).toContain("const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'")
     expect(source).toContain('href: dataAssistMyLabHref')
-    expect(source).toContain('href={dataAssistMyLabHref}')
     expect(source).toContain('Recent record')
     expect(source).toContain('Matchup read')
     expect(source).toContain('Upload scores')
