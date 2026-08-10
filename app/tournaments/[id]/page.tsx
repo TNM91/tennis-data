@@ -4,11 +4,14 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import { loadTiqAwardsForSource, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import {
   buildRoundRobinStandings,
@@ -517,7 +520,7 @@ function TournamentPublicInner() {
             {standings.map((row, index) => (
               <div key={row.entrant} style={standingsRowStyle}>
                 <span style={standingsRankStyle}>{index + 1}</span>
-                <strong>{row.entrant}</strong>
+                <strong><TournamentEntrantLink record={record} entrant={row.entrant} /></strong>
                 <span>{row.wins}-{row.losses}</span>
                 <span>{row.winPct}%</span>
                 <span>{formatGameDiff(row.gameDiff)}</span>
@@ -551,7 +554,13 @@ function TournamentPublicInner() {
               <article key={award.id} style={podiumCardStyle}>
                 <div style={podiumBadgeStyle}>{award.badgeCode}</div>
                 <div style={podiumCopyStyle}>
-                  <strong>{award.recipientName}</strong>
+                  <strong>
+                    <TournamentEntrantLink
+                      record={record}
+                      entrant={award.recipientName}
+                      playerId={award.recipientPlayerId}
+                    />
+                  </strong>
                   <span>{award.title}</span>
                   <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
                 </div>
@@ -589,7 +598,11 @@ function TournamentPublicInner() {
             {scheduledMatches.slice(0, 8).map((match) => (
               <article key={match.id} style={scheduleCardStyle}>
                 <strong>{formatMatchSchedule(match.schedule!)}</strong>
-                <span>{match.sideA} vs {match.sideB}</span>
+                <span>
+                  <TournamentEntrantLink record={record} entrant={match.sideA} />{' '}
+                  vs{' '}
+                  <TournamentEntrantLink record={record} entrant={match.sideB} />
+                </span>
                 <small>{match.label}</small>
               </article>
             ))}
@@ -618,11 +631,11 @@ function TournamentPublicInner() {
                   <article key={match.id} style={matchCardStyle}>
                     <span style={matchMetaStyle}>Court {match.court}</span>
                     <div style={sideRowStyle}>
-                      <strong>{match.sideA}</strong>
+                      <strong><TournamentEntrantLink record={record} entrant={match.sideA} /></strong>
                       {match.result?.winner === match.sideA ? <span style={winnerPillStyle}>W</span> : null}
                     </div>
                     <div style={sideRowStyle}>
-                      <strong>{match.sideB}</strong>
+                      <strong><TournamentEntrantLink record={record} entrant={match.sideB} /></strong>
                       {match.result?.winner === match.sideB ? <span style={winnerPillStyle}>W</span> : null}
                     </div>
                     {match.schedule?.date || match.schedule?.time || match.schedule?.court ? (
@@ -655,6 +668,24 @@ function TournamentPublicInner() {
       </section>
     </main>
   )
+}
+
+function TournamentEntrantLink({
+  record,
+  entrant,
+  playerId,
+}: {
+  record: TiqTournamentRecord
+  entrant: string
+  playerId?: string | null
+}) {
+  if (!record.entrants.includes(entrant) && !playerId) return <>{entrant}</>
+
+  const href = record.entrantType === 'teams'
+    ? buildTeamProfileHref(entrant)
+    : buildPlayerDetailHref(playerId || record.entrantPlayerIds[entrant], entrant)
+
+  return <EntityDetailLink href={href}>{entrant}</EntityDetailLink>
 }
 
 function Stat({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {

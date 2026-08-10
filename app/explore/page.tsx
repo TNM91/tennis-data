@@ -261,7 +261,7 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
   return (
     <section style={panelStyle} aria-label="Explore tennis search tools">
       <div style={headerStyle}>
-        <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+        <TiqFeatureIcon name="opponentScouting" size={mobile ? 'sm' : 'md'} variant="surface" />
         <div style={findCommandCopy}>
           <div style={findCommandEyebrow}>Explore</div>
           <h2 style={titleStyle}>Popular searches.</h2>

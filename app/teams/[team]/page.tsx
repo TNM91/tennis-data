@@ -13,13 +13,14 @@ import {
 } from '@/lib/competition-layers'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
-import { decodeTeamRouteSegment } from '@/lib/team-routes'
+import { buildTeamProfileHref, decodeTeamRouteSegment } from '@/lib/team-routes'
 import {
   listTiqTeamParticipations,
   type TiqLeagueStorageSource,
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
@@ -124,6 +125,7 @@ const ROSTER_PLAYER_DEVELOPMENT_HREF = `/player-development/${ROSTER_PLAYER_IDEN
 type PairingCard = {
   key: string
   names: string[]
+  players: Array<{ id: string; name: string }>
   appearances: number
   avgRating: number | null
   wins: number
@@ -1082,6 +1084,7 @@ function TeamPageContent() {
         pairMap.set(key, {
           key,
           names: sortedPlayers.map((player) => player.name),
+          players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
           appearances: 0,
           avgRating,
           wins: 0,
@@ -1675,7 +1678,10 @@ function TeamPageContent() {
                     <div key={player.id} style={listRow}>
                       <div style={listRowCopyStyle}>
                         <strong>
-                          {index + 1}. {player.name}
+                          {index + 1}.{' '}
+                          <EntityDetailLink href={`/players/${encodeURIComponent(player.id)}`}>
+                            {player.name}
+                          </EntityDetailLink>
                         </strong>
                         <div style={mutedText}>
                           {player.singlesAppearances} singles starts - {player.wins}-{player.losses} record
@@ -1710,7 +1716,16 @@ function TeamPageContent() {
                 {pairings.slice(0, 6).map((pair) => (
                   <div key={pair.key} style={listRow}>
                     <div style={listRowCopyStyle}>
-                      <strong>{pair.names.join(' / ')}</strong>
+                      <strong>
+                        {pair.players.map((player, index) => (
+                          <React.Fragment key={player.id}>
+                            {index > 0 ? ' / ' : null}
+                            <EntityDetailLink href={`/players/${encodeURIComponent(player.id)}`}>
+                              {player.name}
+                            </EntityDetailLink>
+                          </React.Fragment>
+                        ))}
+                      </strong>
                       <div style={mutedText}>
                         {pair.appearances} matches together - {pair.wins}-{pair.losses} record
                       </div>
@@ -1747,7 +1762,10 @@ function TeamPageContent() {
                     <div key={player.id} style={listRow}>
                       <div style={listRowCopyStyle}>
                         <strong>
-                          {index + 1}. {player.name}
+                          {index + 1}.{' '}
+                          <EntityDetailLink href={`/players/${encodeURIComponent(player.id)}`}>
+                            {player.name}
+                          </EntityDetailLink>
                         </strong>
                         <div style={mutedText}>
                           {player.doublesAppearances} doubles starts - {player.wins}-{player.losses} record
@@ -1804,7 +1822,11 @@ function TeamPageContent() {
                       const struggling = opp.winPct <= 30
                       return (
                         <tr key={opp.name} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
-                          <td style={{ ...tableCell, fontWeight: 800, color: 'var(--foreground)' }}>{opp.name}</td>
+                          <td style={{ ...tableCell, fontWeight: 800, color: 'var(--foreground)' }}>
+                            <EntityDetailLink href={buildTeamProfileHref(opp.name)}>
+                              {opp.name}
+                            </EntityDetailLink>
+                          </td>
                           <td style={{ ...tableCell, color: '#86efac', fontWeight: 800 }}>{opp.wins}</td>
                           <td style={{ ...tableCell, color: '#fca5a5', fontWeight: 800 }}>{opp.losses}</td>
                           <td style={tableCell}>
@@ -1858,7 +1880,19 @@ function TeamPageContent() {
                     return (
                     <tr key={match.id}>
                       <td style={tableCell}>{formatDate(match.match_date)}</td>
-                      <td style={tableCell}>{match.opponent ?? '--'}</td>
+                      <td style={tableCell}>
+                        {match.opponent ? (
+                          <EntityDetailLink
+                            href={buildTeamProfileHref(match.opponent, {
+                              layer: competitionLayer,
+                              league: match.league_name,
+                              flight: match.flight,
+                            })}
+                          >
+                            {match.opponent}
+                          </EntityDetailLink>
+                        ) : '--'}
+                      </td>
                       <td style={tableCell}>{match.venueLabel}</td>
                       <td style={tableCell}>
                         {match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '--'}

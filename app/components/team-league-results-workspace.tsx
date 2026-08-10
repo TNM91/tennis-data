@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
@@ -35,6 +36,8 @@ import {
 import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import {
   formatDynamicPointsForSides,
   getDynamicPointsRulesSummary,
@@ -893,7 +896,9 @@ function EventCard({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
         <div style={eventHeaderCopy}>
           <div style={eventTitleText}>
-            {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
+            <EntityDetailLink href={buildTeamProfileHref(event.teamAName)}>{event.teamAName}</EntityDetailLink>{' '}
+            <span style={{ color: '#64748b' }}>vs</span>{' '}
+            <EntityDetailLink href={buildTeamProfileHref(event.teamBName)}>{event.teamBName}</EntityDetailLink>
           </div>
           <div style={eventMetaText}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
@@ -994,8 +999,18 @@ function EventCard({
                       </div>
                     </div>
                     <div style={linePlayerText}>
-                      <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
-                      <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
+                      <div>
+                        A: <EntityDetailLink href={buildPlayerDetailHref(line.sideAPlayer1Id, line.sideAPlayer1Name)}>{line.sideAPlayer1Name}</EntityDetailLink>
+                        {line.sideAPlayer2Name ? (
+                          <> / <EntityDetailLink href={buildPlayerDetailHref(line.sideAPlayer2Id, line.sideAPlayer2Name)}>{line.sideAPlayer2Name}</EntityDetailLink></>
+                        ) : null}
+                      </div>
+                      <div>
+                        B: <EntityDetailLink href={buildPlayerDetailHref(line.sideBPlayer1Id, line.sideBPlayer1Name)}>{line.sideBPlayer1Name}</EntityDetailLink>
+                        {line.sideBPlayer2Name ? (
+                          <> / <EntityDetailLink href={buildPlayerDetailHref(line.sideBPlayer2Id, line.sideBPlayer2Name)}>{line.sideBPlayer2Name}</EntityDetailLink></>
+                        ) : null}
+                      </div>
                     </div>
                     {line.score && <div style={lineScoreText}>{line.score}</div>}
                     {showDynamicPoints && line.winnerSide && line.score && (
@@ -2073,7 +2088,15 @@ function TeamLeagueResultsWorkspaceInner({
               <div style={scorekeeperTile}>
                 <div style={tileLabel}>Latest</div>
                 <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
-                <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'Create the first match'}</div>
+                <div style={tileText}>
+                  {latestEvent ? (
+                    <>
+                      <EntityDetailLink href={buildTeamProfileHref(latestEvent.teamAName)}>{latestEvent.teamAName}</EntityDetailLink>{' '}
+                      vs{' '}
+                      <EntityDetailLink href={buildTeamProfileHref(latestEvent.teamBName)}>{latestEvent.teamBName}</EntityDetailLink>
+                    </>
+                  ) : 'Create the first match'}
+                </div>
               </div>
             </div>
           </div>
