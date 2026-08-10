@@ -5,6 +5,7 @@ import {
 } from '../../../lib/competition-schedule-attention'
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
 import { buildTournamentScheduleMatches } from '../../../lib/player-competition-schedule'
+import type { CompetitionReminderHistoryRow } from '../../../lib/competition-schedule-reminder-cooldown'
 
 export const runtime = 'nodejs'
 
@@ -51,6 +52,13 @@ type ResponseRow = {
   player_user_id?: string | null
   response?: string | null
   event_snapshot?: Record<string, unknown> | null
+}
+
+type ReminderRow = {
+  event_id?: string | null
+  player_user_id?: string | null
+  event_snapshot?: Record<string, unknown> | null
+  sent_at?: string | null
 }
 
 function cleanText(value: unknown) {
@@ -101,7 +109,15 @@ export async function GET(request: Request) {
   const leagueIds = leagues.map((row) => cleanText(row.id)).filter(Boolean)
   const tournamentIds = tournaments.map((row) => cleanText(row.id)).filter(Boolean)
 
-  const [leagueScheduleResult, leagueEntryResult, tournamentEntryResult, leagueResponseResult, tournamentResponseResult] = await Promise.all([
+  const [
+    leagueScheduleResult,
+    leagueEntryResult,
+    tournamentEntryResult,
+    leagueResponseResult,
+    tournamentResponseResult,
+    leagueReminderResult,
+    tournamentReminderResult,
+  ] = await Promise.all([
     leagueIds.length
       ? auth.supabase
           .from('tiq_league_schedule_items')
@@ -138,6 +154,22 @@ export async function GET(request: Request) {
           .eq('competition_kind', 'tournament')
           .in('competition_id', tournamentIds)
       : Promise.resolve({ data: [], error: null }),
+    leagueIds.length
+      ? auth.supabase
+          .from('competition_schedule_reminders')
+          .select('event_id,player_user_id,event_snapshot,sent_at')
+          .eq('organizer_user_id', auth.userId)
+          .eq('competition_kind', 'league')
+          .in('competition_id', leagueIds)
+      : Promise.resolve({ data: [], error: null }),
+    tournamentIds.length
+      ? auth.supabase
+          .from('competition_schedule_reminders')
+          .select('event_id,player_user_id,event_snapshot,sent_at')
+          .eq('organizer_user_id', auth.userId)
+          .eq('competition_kind', 'tournament')
+          .in('competition_id', tournamentIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   const loadError = [
@@ -146,6 +178,8 @@ export async function GET(request: Request) {
     tournamentEntryResult.error,
     leagueResponseResult.error,
     tournamentResponseResult.error,
+    leagueReminderResult.error,
+    tournamentReminderResult.error,
   ].find(Boolean)
   if (loadError) {
     return Response.json({ ok: false, message: 'Schedule replies could not load.' }, { status: 500 })
@@ -229,7 +263,27 @@ export async function GET(request: Request) {
       },
     }]
   })
-  const items = buildOrganizerScheduleAttentionItems({ events, responses, today })
+  const reminderHistory = [
+    ...((leagueReminderResult.data ?? []) as ReminderRow[]),
+    ...((tournamentReminderResult.data ?? []) as ReminderRow[]),
+  ].flatMap((row): CompetitionReminderHistoryRow[] => {
+    const historyEventId = cleanText(row.event_id)
+    const playerUserId = cleanText(row.player_user_id)
+    const sentAt = cleanText(row.sent_at)
+    if (!historyEventId || !playerUserId || !sentAt) return []
+    const snapshot = row.event_snapshot ?? {}
+    return [{
+      eventId: historyEventId,
+      playerUserId,
+      eventSnapshot: {
+        date: cleanText(snapshot.date),
+        time: cleanText(snapshot.time),
+        location: cleanText(snapshot.location),
+      },
+      sentAt,
+    }]
+  })
+  const items = buildOrganizerScheduleAttentionItems({ events, responses, reminderHistory, today })
 
   return Response.json({
     ok: true,

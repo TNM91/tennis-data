@@ -1,4 +1,9 @@
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
+import {
+  COMPETITION_REMINDER_COOLDOWN_HOURS,
+  splitCompetitionReminderTargetsByCooldown,
+  type CompetitionReminderHistoryRow,
+} from '../../../lib/competition-schedule-reminder-cooldown'
 
 export const runtime = 'nodejs'
 
@@ -37,6 +42,13 @@ type ResponseRow = {
   player_user_id?: string | null
   response?: string | null
   event_snapshot?: Record<string, unknown> | null
+}
+
+type ReminderRow = {
+  event_id?: string | null
+  player_user_id?: string | null
+  event_snapshot?: Record<string, unknown> | null
+  sent_at?: string | null
 }
 
 function cleanText(value: unknown) {
@@ -181,12 +193,57 @@ export async function POST(request: Request) {
   const responseByUserId = new Map(
     ((responseData ?? []) as ResponseRow[]).map((row) => [cleanText(row.player_user_id), row]),
   )
-  const reminderTargets = targets.filter((target) => {
+  const pendingReminderTargets = targets.filter((target) => {
     const response = responseByUserId.get(target.playerUserId)
     return !response || !sameSnapshot(response.event_snapshot, currentSnapshot)
   })
-  if (!reminderTargets.length) {
+  if (!pendingReminderTargets.length) {
     return Response.json({ ok: true, sentCount: 0, message: 'Everyone has replied to the current match time.' })
+  }
+
+  const { data: reminderData, error: reminderError } = await auth.supabase
+    .from('competition_schedule_reminders')
+    .select('event_id,player_user_id,event_snapshot,sent_at')
+    .eq('organizer_user_id', auth.userId)
+    .eq('competition_kind', competitionKind)
+    .eq('competition_id', competitionId)
+    .eq('event_id', eventId)
+    .in('player_user_id', pendingReminderTargets.map((target) => target.playerUserId))
+  if (reminderError) {
+    return Response.json({ ok: false, message: 'Reminder history could not be checked.' }, { status: 500 })
+  }
+
+  const reminderHistory = ((reminderData ?? []) as ReminderRow[]).flatMap((row): CompetitionReminderHistoryRow[] => {
+    const historyEventId = cleanText(row.event_id)
+    const playerUserId = cleanText(row.player_user_id)
+    const sentAt = cleanText(row.sent_at)
+    if (!historyEventId || !playerUserId || !sentAt) return []
+    const snapshot = row.event_snapshot ?? {}
+    return [{
+      eventId: historyEventId,
+      playerUserId,
+      eventSnapshot: {
+        date: cleanText(snapshot.date),
+        time: cleanText(snapshot.time),
+        location: cleanText(snapshot.location),
+      },
+      sentAt,
+    }]
+  })
+  const cooldown = splitCompetitionReminderTargetsByCooldown({
+    eventId,
+    targets: pendingReminderTargets,
+    history: reminderHistory,
+    currentSnapshot,
+  })
+  if (!cooldown.eligible.length) {
+    return Response.json({
+      ok: true,
+      sentCount: 0,
+      cooldownCount: cooldown.coolingDown.length,
+      nextReminderAt: cooldown.nextReminderAt,
+      message: `These players were reminded in the last ${COMPETITION_REMINDER_COOLDOWN_HOURS} hours.`,
+    })
   }
 
   const bodyText = [
@@ -196,7 +253,7 @@ export async function POST(request: Request) {
     currentSnapshot.location,
   ].filter(Boolean).join(' · ')
   const { error: notificationError } = await auth.supabase.from('internal_notifications').insert(
-    reminderTargets.map((target) => ({
+    cooldown.eligible.map((target) => ({
       recipient_profile_id: target.playerUserId,
       actor_user_id: auth.userId,
       notification_type: 'schedule',
@@ -209,10 +266,33 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Reminders could not be sent.' }, { status: 500 })
   }
 
-  const sentCount = reminderTargets.length
+
+  const sentAt = new Date().toISOString()
+  const { error: historyError } = await auth.supabase.from('competition_schedule_reminders').insert(
+    cooldown.eligible.map((target) => ({
+      organizer_user_id: auth.userId,
+      player_user_id: target.playerUserId,
+      competition_kind: competitionKind,
+      competition_id: competitionId,
+      event_id: eventId,
+      event_snapshot: currentSnapshot,
+      sent_at: sentAt,
+    })),
+  )
+
+  const sentCount = cooldown.eligible.length
+  const cooldownCount = cooldown.coolingDown.length
+  const sentMessage = sentCount === 1 ? 'Reminder sent to 1 player.' : `Reminders sent to ${sentCount} players.`
+  const cooldownMessage = cooldownCount
+    ? ` ${cooldownCount} already reminded in the last ${COMPETITION_REMINDER_COOLDOWN_HOURS} hours.`
+    : ''
   return Response.json({
     ok: true,
     sentCount,
-    message: sentCount === 1 ? 'Reminder sent to 1 player.' : `Reminders sent to ${sentCount} players.`,
+    cooldownCount,
+    nextReminderAt: cooldown.nextReminderAt,
+    sentAt,
+    trackingWarning: historyError ? 'Reminder sent, but history could not be saved.' : '',
+    message: historyError ? `${sentMessage} Reminder history could not be saved.` : `${sentMessage}${cooldownMessage}`,
   })
 }

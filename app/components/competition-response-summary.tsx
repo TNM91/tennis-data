@@ -11,7 +11,7 @@ type CompetitionResponseSummaryProps = {
   summary: CompetitionScheduleResponseSummary
   adjustHref?: string
   onAdjust?: () => void
-  onRemind?: () => Promise<{ sentCount: number; message: string }>
+  onRemind?: () => Promise<{ sentCount: number; cooldownCount: number; nextReminderAt: string; message: string }>
   rosterHref: string
   compact?: boolean
 }
@@ -41,11 +41,16 @@ export default function CompetitionResponseSummary({
   const [reminderState, setReminderState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [reminderMessage, setReminderMessage] = useState('')
   const [reminderSentCount, setReminderSentCount] = useState(0)
+  const [reminderCooldownCount, setReminderCooldownCount] = useState(0)
   const reminderCount = summary.waitingCount + summary.changedCount
   const reminderButtonLabel = reminderState === 'sending'
     ? 'Sending...'
     : reminderState === 'sent'
-      ? reminderSentCount > 0 ? 'Reminder sent' : 'Replies checked'
+      ? reminderSentCount > 0
+        ? 'Reminder sent'
+        : reminderCooldownCount > 0
+          ? 'Recently reminded'
+          : 'Replies checked'
       : `Remind ${reminderCount}`
 
   async function handleRemind() {
@@ -55,6 +60,7 @@ export default function CompetitionResponseSummary({
     try {
       const result = await onRemind()
       setReminderSentCount(result.sentCount)
+      setReminderCooldownCount(result.cooldownCount)
       setReminderState('sent')
       setReminderMessage(result.message)
     } catch (error) {
@@ -101,8 +107,8 @@ export default function CompetitionResponseSummary({
           <button
             type="button"
             onClick={() => void handleRemind()}
-            disabled={reminderState === 'sending'}
-            style={reminderButtonStyle}
+            disabled={reminderState === 'sending' || reminderState === 'sent'}
+            style={reminderState === 'sent' ? reminderButtonDoneStyle : reminderButtonStyle}
           >
             {reminderButtonLabel}
           </button>
@@ -241,6 +247,12 @@ const reminderButtonStyle: CSSProperties = {
   color: '#dbeafe',
   background: 'rgba(30, 64, 175, 0.28)',
   border: '1px solid rgba(96, 165, 250, 0.36)',
+}
+
+const reminderButtonDoneStyle: CSSProperties = {
+  ...reminderButtonStyle,
+  cursor: 'default',
+  opacity: 0.82,
 }
 
 const reminderStatusStyle: CSSProperties = {

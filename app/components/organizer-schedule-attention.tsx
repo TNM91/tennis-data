@@ -26,6 +26,17 @@ function formatMatchDate(value: string) {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function formatReminderAge(value: string) {
+  const sentAt = Date.parse(value)
+  if (!Number.isFinite(sentAt)) return ''
+  const minutes = Math.max(0, Math.floor((Date.now() - sentAt) / 60000))
+  if (minutes < 2) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 export default function OrganizerScheduleAttention() {
   const { session, userId, authResolved } = useAuth()
   const { isMobile } = useViewportBreakpoints()
@@ -130,6 +141,7 @@ function AttentionRow({ item, compact }: { item: OrganizerScheduleAttentionItem;
         <span style={metaStyle}>{item.competitionKind === 'league' ? 'League' : 'Tournament'} · {item.competitionName}</span>
         <strong>{item.matchLabel}</strong>
         <span>{formatMatchDate(item.date)}{item.time ? ` · ${item.time}` : ''}{item.location ? ` · ${item.location}` : ''}</span>
+        {item.lastReminderAt ? <em style={reminderMetaStyle}>Reminder sent {formatReminderAge(item.lastReminderAt)}</em> : null}
       </span>
       <span style={compact ? compactCountsStyle : countsStyle}>
         <span style={item.state === 'unavailable' ? urgentPillStyle : attentionPillStyle}>{copy.label}</span>
@@ -137,6 +149,7 @@ function AttentionRow({ item, compact }: { item: OrganizerScheduleAttentionItem;
         {item.unavailableCount ? <span>{item.unavailableCount} can’t</span> : null}
         {item.changedCount ? <span>{item.changedCount} changed</span> : null}
         {item.waitingCount ? <span>{item.waitingCount} waiting</span> : null}
+        {item.remindedCount ? <span style={remindedPillStyle}>{item.remindedCount} reminded</span> : null}
       </span>
       <span style={compact ? compactActionStyle : actionStyle}>{copy.action}</span>
     </Link>
@@ -202,6 +215,7 @@ const urgentMarkerStyle: CSSProperties = { ...markerStyle, background: '#fb7185'
 
 const rowCopyStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0 }
 const metaStyle: CSSProperties = { color: '#93c5fd', fontSize: 10, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
+const reminderMetaStyle: CSSProperties = { color: '#bfdbfe', fontSize: 11, fontStyle: 'normal', fontWeight: 800 }
 
 const countsStyle: CSSProperties = {
   display: 'flex',
@@ -216,6 +230,7 @@ const countsStyle: CSSProperties = {
 
 const attentionPillStyle: CSSProperties = { padding: '5px 8px', borderRadius: 999, color: '#fde68a', background: 'rgba(120, 53, 15, 0.42)' }
 const urgentPillStyle: CSSProperties = { ...attentionPillStyle, color: '#fecdd3', background: 'rgba(136, 19, 55, 0.42)' }
+const remindedPillStyle: CSSProperties = { ...attentionPillStyle, color: '#bfdbfe', background: 'rgba(30, 64, 175, 0.34)' }
 const actionStyle: CSSProperties = { color: '#d9f99d', fontSize: 12, fontWeight: 950, whiteSpace: 'nowrap' }
 const compactCountsStyle: CSSProperties = { ...countsStyle, gridColumn: '2', justifyContent: 'flex-start' }
 const compactActionStyle: CSSProperties = { ...actionStyle, gridColumn: '2' }

@@ -1,3 +1,9 @@
+import {
+  splitCompetitionReminderTargetsByCooldown,
+  type CompetitionReminderHistoryRow,
+  type CompetitionReminderTarget,
+} from './competition-schedule-reminder-cooldown'
+
 export type OrganizerScheduleAttentionState = 'unavailable' | 'changed' | 'waiting'
 
 export type OrganizerScheduleEvent = {
@@ -25,6 +31,9 @@ export type OrganizerScheduleAttentionItem = OrganizerScheduleEvent & {
   unavailableCount: number
   changedCount: number
   waitingCount: number
+  remindedCount: number
+  lastReminderAt: string
+  reminderCooldownUntil: string
   state: OrganizerScheduleAttentionState
 }
 
@@ -44,7 +53,9 @@ function sameSnapshot(
 export function buildOrganizerScheduleAttentionItems(input: {
   events: OrganizerScheduleEvent[]
   responses: OrganizerScheduleResponseRow[]
+  reminderHistory?: CompetitionReminderHistoryRow[]
   today?: string
+  now?: string
 }): OrganizerScheduleAttentionItem[] {
   const today = cleanText(input.today) || new Date().toISOString().slice(0, 10)
   const responseByEventAndPlayer = new Map(
@@ -58,13 +69,16 @@ export function buildOrganizerScheduleAttentionItems(input: {
       let unavailableCount = 0
       let changedCount = 0
       let waitingCount = 0
+      const reminderTargets: CompetitionReminderTarget[] = []
 
       for (const player of event.players) {
         const response = responseByEventAndPlayer.get(`${event.eventId}:${player.userId}`)
         if (!response) {
           waitingCount += 1
+          reminderTargets.push({ playerUserId: player.userId, playerName: player.playerName })
         } else if (!sameSnapshot(response, event)) {
           changedCount += 1
+          reminderTargets.push({ playerUserId: player.userId, playerName: player.playerName })
         } else if (response.response === 'unavailable') {
           unavailableCount += 1
         } else {
@@ -78,6 +92,13 @@ export function buildOrganizerScheduleAttentionItems(input: {
         : changedCount
           ? 'changed'
           : 'waiting'
+      const cooldown = splitCompetitionReminderTargetsByCooldown({
+        eventId: event.eventId,
+        targets: reminderTargets,
+        history: input.reminderHistory ?? [],
+        currentSnapshot: { date: event.date, time: event.time, location: event.location },
+        now: input.now,
+      })
 
       return [{
         ...event,
@@ -85,6 +106,9 @@ export function buildOrganizerScheduleAttentionItems(input: {
         unavailableCount,
         changedCount,
         waitingCount,
+        remindedCount: cooldown.coolingDown.length,
+        lastReminderAt: cooldown.lastReminderAt,
+        reminderCooldownUntil: cooldown.nextReminderAt,
         state,
       }]
     })

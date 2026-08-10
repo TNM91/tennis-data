@@ -52,6 +52,7 @@ const organizerSupabase = {
         event_snapshot: { date: '2099-09-03', time: '19:00', location: 'Court 5' },
       }])
     }
+    if (table === 'competition_schedule_reminders') return resolvedQuery([])
     throw new Error(`Unexpected table ${table}`)
   },
 }

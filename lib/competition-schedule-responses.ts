@@ -31,6 +31,8 @@ export type CompetitionScheduleResponseSummary = {
 
 export type CompetitionScheduleReminderResult = {
   sentCount: number
+  cooldownCount: number
+  nextReminderAt: string
   message: string
 }
 
@@ -198,12 +200,16 @@ export async function sendCompetitionScheduleReminders(input: {
   const body = (await response.json()) as {
     ok?: boolean
     sentCount?: number
+    cooldownCount?: number
+    nextReminderAt?: string
     message?: string
   }
   if (!response.ok || !body.ok) throw new Error(body.message || 'Reminders could not be sent.')
 
   return {
     sentCount: Math.max(0, Number(body.sentCount) || 0),
+    cooldownCount: Math.max(0, Number(body.cooldownCount) || 0),
+    nextReminderAt: cleanText(body.nextReminderAt),
     message: cleanText(body.message) || 'Reminder sent.',
   }
 }
