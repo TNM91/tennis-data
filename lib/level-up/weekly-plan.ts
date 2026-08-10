@@ -144,6 +144,13 @@ export function getWeeklyLevelUpPlanProgress(plan: WeeklyLevelUpPlan | null) {
   }
 }
 
+export function selectWeeklyLevelUpPlanForMyQuest(plans: WeeklyLevelUpPlan[], currentWeekStart: string) {
+  return plans.find((plan) => Boolean(plan.coachResponse && !plan.coachResponse.playerReply))
+    ?? plans.find((plan) => plan.weekStart === currentWeekStart)
+    ?? plans[0]
+    ?? null
+}
+
 export function getWeeklyLevelUpPlanReps(plan: WeeklyLevelUpPlan): WeeklyLevelUpPlanRep[] {
   const response = plan.coachResponse
   if (response?.action !== 'replaced' || !response.targetRepId || !response.replacementRep) return plan.reps

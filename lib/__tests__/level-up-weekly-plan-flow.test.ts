@@ -103,4 +103,16 @@ describe('Level Up weekly plan flow', () => {
     expect(coachAnswerMigrationSource).toContain("'playerReply', null")
     expect(coachAnswerMigrationSource).toContain('grant execute on function public.respond_to_level_up_weekly_plan')
   })
+
+  it('brings a new coach answer to the top of My Quest on phone and desktop', () => {
+    expect(myQuestSource).toContain("import WeeklyPlanCoachResponse from '@/app/player-development/_components/weekly-plan-coach-response'")
+    expect(myQuestSource).toContain('showLevelUpCoachUpdate')
+    expect(myQuestSource).toContain('aria-label="New Level Up coach update"')
+    expect(myQuestSource).toContain('Your answer is ready.')
+    expect(myQuestSource).toContain('Start next rep')
+    expect(myQuestSource).toContain('onSaved={persistMyQuestWeeklyPlan}')
+    expect(myQuestSource).toContain("window.addEventListener('focus', refreshWhenVisible)")
+    expect(myQuestSource).toContain("document.addEventListener('visibilitychange', refreshWhenVisible)")
+    expect(myQuestSource).toContain('window.setInterval(() => void loadRemotePlan(), 60_000)')
+  })
 })

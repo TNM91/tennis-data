@@ -9,6 +9,7 @@ import {
   getWeeklyLevelUpPlanStorageKey,
   getWeeklyLevelUpPlanWeekStart,
   parseWeeklyLevelUpPlan,
+  selectWeeklyLevelUpPlanForMyQuest,
   setWeeklyLevelUpPlanShared,
   toggleWeeklyLevelUpPlanRep,
 } from '../level-up/weekly-plan'
@@ -160,5 +161,32 @@ describe('saved weekly Level Up plan', () => {
     expect(parseWeeklyLevelUpPlan(JSON.stringify({ ...repliedPlan, coachResponse: answer }))?.coachResponse?.action).toBe('answered')
     expect(buildWeeklyLevelUpCoachResponse(repliedPlan, { action: 'answered', note: ' ' }, 'coach-1', now)).toBeNull()
     expect(buildWeeklyLevelUpCoachResponse(coachedPlan, { action: 'answered', note: 'Too late.' }, 'coach-1', now)).toBeNull()
+  })
+
+  it('puts an unanswered coach update ahead of the current week in My Quest', () => {
+    const currentPlan = buildWeeklyLevelUpPlan(recap, 'competitor', now)!
+    const previousPlan = {
+      ...currentPlan,
+      id: 'previous-week',
+      weekStart: '2026-08-03',
+      coachResponse: buildWeeklyLevelUpCoachResponse(currentPlan, {
+        action: 'adjusted',
+        targetRepId: currentPlan.reps[0].id,
+        note: 'Keep the first two reps crosscourt.',
+      }, 'coach-1', now),
+    }
+
+    expect(selectWeeklyLevelUpPlanForMyQuest([currentPlan, previousPlan], currentPlan.weekStart)?.id).toBe('previous-week')
+
+    const acknowledgedPreviousPlan = {
+      ...previousPlan,
+      coachResponse: previousPlan.coachResponse
+        ? {
+            ...previousPlan.coachResponse,
+            playerReply: buildWeeklyLevelUpPlayerReply(previousPlan, { action: 'acknowledged' }, 'player-1', now),
+          }
+        : null,
+    }
+    expect(selectWeeklyLevelUpPlanForMyQuest([acknowledgedPreviousPlan, currentPlan], currentPlan.weekStart)?.id).toBe(currentPlan.id)
   })
 })
