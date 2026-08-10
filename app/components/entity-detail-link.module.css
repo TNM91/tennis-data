@@ -1,0 +1,29 @@
+.link {
+  color: inherit;
+  font: inherit;
+  overflow-wrap: anywhere;
+  text-decoration-line: underline;
+  text-decoration-color: rgba(155, 225, 29, 0.48);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  touch-action: manipulation;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.link:hover {
+  color: var(--brand-green, #9be11d);
+  text-decoration-color: currentColor;
+}
+
+.link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--brand-blue-2, #74beff);
+  outline-offset: 3px;
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+}

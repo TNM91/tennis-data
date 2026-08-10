@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const commandStyles = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.module.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -17,7 +18,6 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('starterActionCards')
     expect(source).toContain("const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'")
     expect(source).toContain('href: dataAssistMyLabHref')
-    expect(source).toContain('href={dataAssistMyLabHref}')
     expect(source).toContain('Recent record')
     expect(source).toContain('Matchup read')
     expect(source).toContain('Upload scores')
@@ -125,16 +125,16 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('Scale down and chase one clean cue.')
   })
 
-  it('uses theme-safe setup step number contrast', () => {
-    expect(source).toContain('setupStepNumberStyle')
-    expect(source).toContain("color: 'var(--foreground-strong)'")
-    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)'")
-    expect(source).not.toContain("const setupStepNumberStyle: CSSProperties = {\n  width: 32,\n  height: 32,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  it('uses theme-safe First Serve number contrast', () => {
+    expect(commandStyles).toContain('.firstServeNumber')
+    expect(commandStyles).toContain('color: #83c8ff;')
+    expect(commandStyles).toContain('.firstServeStepCurrent .firstServeNumber')
+    expect(commandStyles).toContain('background: #a9eb08;')
+    expect(commandStyles).toContain('color: #071426;')
   })
 
   it('keeps My Lab numbered markers shell-aware instead of dark text on gradients', () => {
     for (const marker of [
-      'setupStepNumberStyle',
       'matchupQueueRankStyle',
       'readinessPillStyle',
     ]) {
