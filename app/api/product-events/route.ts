@@ -53,7 +53,12 @@ export async function POST(request: Request) {
     .insert(payload)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message ?? 'Product event could not be recorded.' }, { status: 500 })
+    console.warn('Product activity was not recorded.', {
+      eventName: payload.event_name,
+      surface: payload.surface,
+      reason: error.message ?? 'Unknown product event insert error.',
+    })
+    return Response.json({ ok: false, message: 'Product activity was skipped.' })
   }
 
   return Response.json({ ok: true })

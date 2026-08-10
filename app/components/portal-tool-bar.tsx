@@ -482,7 +482,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
             style={{
               ...(mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle),
               gridTemplateColumns: isMobile
-                ? 'repeat(3, minmax(0, 1fr))'
+                ? mobilePortalLane
+                  ? 'repeat(3, minmax(0, 1fr))'
+                  : 'repeat(4, minmax(0, 1fr))'
                 : 'repeat(7, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
@@ -1437,7 +1439,7 @@ const mobilePortalPaletteStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
   gap: 4,
   minWidth: 0,
   width: '100%',

@@ -3295,6 +3295,40 @@ function MyLabPageInner() {
             : 'Repeat this rep',
       }
     : null
+
+  if (!accessPending && !userId && !canUseAdvancedPlayerInsights) {
+    return (
+      <section style={pageStyle}>
+        <UpgradePrompt
+          planId="player_plus"
+          headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}
+          body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}
+          ctaLabel={MY_LAB_STORY.upgradeCta}
+          secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}
+          footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
+          compact
+          summaryOnly={isMobile}
+        />
+        <MyLabCommandCenter
+          firstName=""
+          playerId=""
+          playerName=""
+          repTitle="Connect your player record"
+          repNote="Create a free account, then connect your tennis before starting your first rep."
+          repDuration={null}
+          repHref="/join?next=%2Fmylab"
+          repCta="Create free account"
+          completedSessions={0}
+          sessionTarget={4}
+          progressHref="/join?next=%2Fmylab"
+          firstServeSteps={[]}
+          postRepReturn={null}
+          matchup={null}
+        />
+      </section>
+    )
+  }
+
   return (
     <section style={pageStyle}>
       {clubAccess.workspace ? (
