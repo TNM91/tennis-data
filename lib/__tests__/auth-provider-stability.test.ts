@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/components/auth-provider.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/components/auth-provider.tsx'), 'utf8').replaceAll('\r\n', '\n')
 
 describe('auth provider stability', () => {
   it('does not collapse unresolved session checks to public/free access', () => {

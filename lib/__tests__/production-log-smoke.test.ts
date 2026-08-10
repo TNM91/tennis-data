@@ -6,7 +6,7 @@ describe('production log smoke', () => {
   it('keeps a repeatable Vercel production log smoke in the launch checklist', () => {
     const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
     const checklist = readFileSync(join(process.cwd(), 'docs/deploy-checklist.md'), 'utf8')
-    const smokeScript = readFileSync(join(process.cwd(), 'scripts/vercel-production-log-smoke.mjs'), 'utf8')
+    const smokeScript = readFileSync(join(process.cwd(), 'scripts/vercel-production-log-smoke.mjs'), 'utf8').replaceAll('\r\n', '\n')
 
     expect(packageJson).toContain('"qa:prod-logs": "node scripts/vercel-production-log-smoke.mjs"')
     expect(checklist).toContain('npm run qa:prod-logs')

@@ -6,7 +6,7 @@ describe('Stripe live readiness command', () => {
   it('keeps a non-secret live-mode readiness guard in the launch flow', () => {
     const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
     const qaDoc = readFileSync(join(process.cwd(), 'docs/stripe-lifecycle-qa.md'), 'utf8')
-    const readinessScript = readFileSync(join(process.cwd(), 'scripts/stripe-live-readiness.mjs'), 'utf8')
+    const readinessScript = readFileSync(join(process.cwd(), 'scripts/stripe-live-readiness.mjs'), 'utf8').replaceAll('\r\n', '\n')
 
     expect(packageJson).toContain('"qa:stripe-live-readiness": "node scripts/stripe-live-readiness.mjs"')
     expect(qaDoc).toContain('npm run qa:stripe-live-readiness')
