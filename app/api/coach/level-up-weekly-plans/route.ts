@@ -1,6 +1,7 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import {
+  buildWeeklyLevelUpCoachNotification,
   buildWeeklyLevelUpCoachResponse,
   mapWeeklyLevelUpPlanRow,
   type WeeklyLevelUpCoachResponse,
@@ -116,7 +117,22 @@ export async function PATCH(request: Request) {
     .rpc('respond_to_level_up_weekly_plan', { p_plan_id: plan.id, p_response: coachResponse })
     .single()
   if (error) return Response.json({ ok: false, message: error.message }, { status: 400 })
-  return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
+
+  const notification = buildWeeklyLevelUpCoachNotification(plan, coachResponse)
+  const { error: notificationError } = await auth.supabase.from('internal_notifications').insert({
+    recipient_profile_id: (row as WeeklyLevelUpPlanRow).player_user_id,
+    actor_user_id: auth.userId,
+    notification_type: 'message',
+    title: notification.title,
+    body: notification.body,
+    href: notification.href,
+  })
+
+  return Response.json({
+    ok: true,
+    plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow),
+    notificationQueued: !notificationError,
+  })
 }
 
 function parseAction(value: unknown): WeeklyLevelUpCoachResponse['action'] | null {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildWeeklyLevelUpCoachResponse,
+  buildWeeklyLevelUpCoachNotification,
   buildWeeklyLevelUpPlan,
   buildWeeklyLevelUpPlayerReply,
   completeWeeklyLevelUpPlanFocus,
@@ -10,6 +11,7 @@ import {
   getWeeklyLevelUpPlanWeekStart,
   parseWeeklyLevelUpPlan,
   selectWeeklyLevelUpPlanForMyQuest,
+  isWeeklyLevelUpCoachNotification,
   setWeeklyLevelUpPlanShared,
   toggleWeeklyLevelUpPlanRep,
 } from '../level-up/weekly-plan'
@@ -188,5 +190,23 @@ describe('saved weekly Level Up plan', () => {
         : null,
     }
     expect(selectWeeklyLevelUpPlanForMyQuest([acknowledgedPreviousPlan, currentPlan], currentPlan.weekStart)?.id).toBe(currentPlan.id)
+  })
+
+  it('builds a direct player alert for every coach update', () => {
+    const plan = buildWeeklyLevelUpPlan(recap, 'competitor', now)!
+    const response = buildWeeklyLevelUpCoachResponse(plan, {
+      action: 'adjusted',
+      targetRepId: plan.reps[0].id,
+      note: 'Start at 70 percent pace.',
+    }, 'coach-1', now)!
+    const notification = buildWeeklyLevelUpCoachNotification(plan, response)
+
+    expect(notification).toEqual({
+      title: 'Your coach added a cue',
+      body: 'Start at 70 percent pace.',
+      href: `/level-up/my-quest?coachUpdate=${encodeURIComponent(plan.id)}#level-up-coach-update`,
+    })
+    expect(isWeeklyLevelUpCoachNotification(notification)).toBe(true)
+    expect(isWeeklyLevelUpCoachNotification({ href: '/messages' })).toBe(false)
   })
 })

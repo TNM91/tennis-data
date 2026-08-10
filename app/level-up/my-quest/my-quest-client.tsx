@@ -1968,7 +1968,7 @@ export default function MyQuestClient() {
       </section>
 
       {levelUpWeeklyPlan && showLevelUpCoachUpdate ? (
-        <section className={styles.coachReplyCommand} data-action={levelUpCoachUpdate?.action} aria-label="New Level Up coach update">
+        <section id="level-up-coach-update" className={styles.coachReplyCommand} data-action={levelUpCoachUpdate?.action} aria-label="New Level Up coach update">
           <div className={styles.coachReplyCommandHeader}>
             <div>
               <span>{levelUpCoachUpdate?.action === 'answered' ? 'Coach replied' : 'Coach update'}</span>

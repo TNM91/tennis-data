@@ -164,6 +164,7 @@
     linear-gradient(135deg, rgba(11, 31, 52, 0.98), rgba(4, 14, 30, 0.98));
   box-shadow: 0 20px 52px rgba(2, 8, 20, 0.28);
   overflow-wrap: anywhere;
+  scroll-margin-top: calc(var(--header-height) + 88px);
 }
 
 .coachReplyCommandHeader {
