@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
-const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('Player Development Level Up mobile layout', () => {
   it('keeps the phone-first portal focused before the full library', () => {

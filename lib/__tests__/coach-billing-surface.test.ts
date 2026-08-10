@@ -15,7 +15,7 @@ describe('Coach billing and setup surface', () => {
     expect(billingPolicy).toContain('Player, Coach, Captain, and Full-Court plans renew monthly')
     expect(termsPage).toContain('Paid Player, Coach, Captain, and Full-Court plans are monthly subscriptions')
     expect(pricingPage).toContain('Player, Coach, Captain, and Full-Court are monthly subscriptions')
-    expect(adminPage).toContain('Update Player, Coach, Captain, and League access.')
+    expect(adminPage).toContain('Manage Player, Coach, Captain, and League Office entitlement flags')
     expect(adminPage).not.toContain('Manage Player, Coach, Captain, and TIQ league entitlement flags')
     expect(adminPage).toContain('Coach subscription')
   })

@@ -26,7 +26,7 @@ describe('shared competition formats', () => {
     const messaging = read('app/captain/messaging/page.tsx')
     const results = read('app/components/team-league-results-workspace.tsx')
 
-    expect(builder).toContain(".select('league_name, flight, team_match_format_id')")
+    expect(builder).toContain(".select('league_name, flight, team_match_format_id, competition_rules')")
     expect(builder).toContain('Automatic · {resolvedMatchFormat.label}')
     expect(builder).toContain('effectiveMatchFormatId')
     expect(scenario).toContain('(raw as Record<string, unknown>).courts')
