@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
+const coachPriorityQueueSource = readFileSync(join(process.cwd(), 'app/coach/coach-priority-queue.tsx'), 'utf8')
 const shellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
 const lockedPlanSource = readFileSync(join(process.cwd(), 'app/components/locked-plan-page.tsx'), 'utf8')
 
@@ -225,7 +226,8 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))'")
     expect(coachSource).toContain('mobileCoachLoopItemStyle')
     expect(coachSource).toContain('Bench snapshot')
-    expect(coachSource).toContain('Today&apos;s coach queue')
+    expect(coachPriorityQueueSource).toContain('Today&apos;s coach queue')
+    expect(coachPriorityQueueSource).toContain('Answer player questions first.')
     expect(coachSource).toContain('{isMobile ? null : renderBenchMetrics()}')
     expect(coachSource).toContain('renderContent={renderBenchMetrics}')
     expect(coachSource).toContain('renderContent={renderCoachQueue}')

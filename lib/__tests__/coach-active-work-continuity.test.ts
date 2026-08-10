@@ -22,8 +22,9 @@ describe('Coach active-work continuity', () => {
     const roleHome = readFileSync(join(process.cwd(), 'app/components/role-action-home.tsx'), 'utf8')
 
     expect(coach).toContain("title: `Continue ${coachResumeState?.lastSurfaceLabel || 'coaching'}`")
-    expect(coach).toContain('primaryAction={coachContinueAction || coachHomeAction}')
-    expect(coach).toContain('preferPrimaryAction={Boolean(coachContinueAction)}')
+    expect(coach).toContain('primaryAction={firstPlayerQuestion ? coachHomeAction : coachContinueAction || coachHomeAction}')
+    expect(coach).toContain('preferPrimaryAction={Boolean(firstPlayerQuestion || coachContinueAction)}')
+    expect(coach).toContain('label: \'Player question\'')
     expect(roleHome).toContain('preferPrimaryAction ? primaryAction : resumeAction || primaryAction')
   })
 

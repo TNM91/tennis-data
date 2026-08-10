@@ -70,6 +70,7 @@ import {
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
+import CoachPriorityQueue, { type CoachPriorityAction } from './coach-priority-queue'
 import CoachSharedWeek from './coach-shared-week'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
@@ -826,6 +827,48 @@ function CoachContent() {
   }, [loadCoachWorkspace])
 
   useEffect(() => {
+    const accessToken = session?.access_token
+    if (!accessToken || !canUseCoachWorkflow) return
+
+    let active = true
+    let refreshing = false
+    let controller: AbortController | null = null
+
+    async function refreshSharedWeeklyPlans() {
+      if (!active || refreshing || document.visibilityState === 'hidden') return
+      refreshing = true
+      controller = new AbortController()
+      try {
+        const response = await fetch('/api/coach/level-up-weekly-plans', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        })
+        const json = (await response.json()) as { ok?: boolean; plans?: WeeklyLevelUpPlan[] }
+        if (active && response.ok && json.ok) setSharedWeeklyPlans(json.plans ?? [])
+      } catch {
+        // The next focus or interval refresh will retry without interrupting coach work.
+      } finally {
+        refreshing = false
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === 'visible') void refreshSharedWeeklyPlans()
+    }
+
+    const refreshInterval = window.setInterval(() => void refreshSharedWeeklyPlans(), 30_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      controller?.abort()
+      window.clearInterval(refreshInterval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [canUseCoachWorkflow, session?.access_token])
+
+  useEffect(() => {
     if (!authResolved) return
 
     if (!session?.access_token || !canUseCoachWorkflow) {
@@ -1458,17 +1501,20 @@ function CoachContent() {
 
   const sortedAssignments = useMemo(() => sortCoachAssignmentsForReview(assignments), [assignments])
   const selectedSessionPreset = useMemo(() => getCoachSessionPreset(sessionPresetId), [sessionPresetId])
+  const playerQuestionPlans = useMemo(
+    () => sharedWeeklyPlans
+      .filter((plan) => plan.coachResponse?.playerReply?.action === 'question')
+      .sort((a, b) => Date.parse(b.coachResponse?.playerReply?.updatedAt ?? '') - Date.parse(a.coachResponse?.playerReply?.updatedAt ?? '')),
+    [sharedWeeklyPlans],
+  )
+  const questionStudentIds = useMemo(
+    () => new Set(playerQuestionPlans.map((plan) => plan.studentLinkId)),
+    [playerQuestionPlans],
+  )
   const linkedPlayerCards = useMemo(
-    () => {
-      const questionStudentIds = new Set(
-        sharedWeeklyPlans
-          .filter((plan) => plan.coachResponse?.playerReply?.action === 'question')
-          .map((plan) => plan.studentLinkId),
-      )
-      return buildLinkedPlayerCards(savedStudents, assignments, invites)
-        .sort((a, b) => Number(!questionStudentIds.has(a.student.id)) - Number(!questionStudentIds.has(b.student.id)))
-    },
-    [assignments, invites, savedStudents, sharedWeeklyPlans],
+    () => buildLinkedPlayerCards(savedStudents, assignments, invites)
+      .sort((a, b) => Number(!questionStudentIds.has(a.student.id)) - Number(!questionStudentIds.has(b.student.id))),
+    [assignments, invites, questionStudentIds, savedStudents],
   )
   const activeMobileBenchCard = useMemo(
     () =>
@@ -1630,6 +1676,10 @@ function CoachContent() {
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
   const coachResumeHref = getCoachResumeHref(coachResumeState)
+  const firstPlayerQuestion = playerQuestionPlans[0] ?? null
+  const firstQuestionPlayer = firstPlayerQuestion
+    ? savedStudents.find((student) => student.id === firstPlayerQuestion.studentLinkId) ?? null
+    : null
   const coachResumeMatchesPlayer = Boolean(
     coachResumeHref &&
     (!coachResumeState?.studentLinkId || savedStudents.some((student) => student.id === coachResumeState.studentLinkId)),
@@ -1660,6 +1710,15 @@ function CoachContent() {
         href: '#coach-student-board',
         icon: 'playerRatings',
       }
+    : firstPlayerQuestion
+      ? {
+          label: 'Player question',
+          title: `Reply to ${firstQuestionPlayer?.playerName || 'your player'}`,
+          detail: getCoachQuestionPreview(firstPlayerQuestion.coachResponse?.playerReply?.message || 'Open the shared week and send one clear answer.'),
+          cta: 'Open question',
+          href: buildCoachWorkspaceHref('coach-linked-dashboard', firstPlayerQuestion.studentLinkId || ''),
+          icon: 'alerts',
+        }
     : pendingInviteCount > 0
       ? {
           label: 'Next up',
@@ -1707,8 +1766,8 @@ function CoachContent() {
   const assignmentReviewQueueHasPriority = assignmentsNeedingReview.length > 0
   const assignmentReviewQueueOpen = !isMobile || assignmentReviewQueueHasPriority || mobileReviewQueueOpen
   const coachQueueActions = useMemo(
-    () => buildCoachQueueActions(linkedPlayerCards, assignmentsNeedingReview, savedStudents.length),
-    [assignmentsNeedingReview, linkedPlayerCards, savedStudents.length],
+    () => buildCoachQueueActions(linkedPlayerCards, assignmentsNeedingReview, playerQuestionPlans, savedStudents.length),
+    [assignmentsNeedingReview, linkedPlayerCards, playerQuestionPlans, savedStudents.length],
   )
   const coachLoopItems = [
     {
@@ -1720,9 +1779,11 @@ function CoachContent() {
     },
     {
       label: 'Review',
-      value: String(assignmentsNeedingReview.length),
-      title: 'Proof back from players',
-      body: assignmentsNeedingReview.length ? 'Start with proof that needs a coach response.' : 'Player proof will land here when assigned work syncs back.',
+      value: String(assignmentsNeedingReview.length + playerQuestionPlans.length),
+      title: 'Player replies and proof',
+      body: playerQuestionPlans.length
+        ? 'Answer the newest player question first.'
+        : assignmentsNeedingReview.length ? 'Start with proof that needs a coach response.' : 'Player proof will land here when assigned work syncs back.',
       href: '#coach-linked-dashboard',
     },
     {
@@ -2320,28 +2381,21 @@ function CoachContent() {
         <DashboardMetric label="Waiting" value={pendingInviteCount} />
         <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
         <DashboardMetric label="Due now" value={overduePlayersCount} />
-        <DashboardMetric label="Level Up" value={levelUpSessions.length} />
+        <DashboardMetric label="Questions" value={playerQuestionPlans.length} />
       </div>
     )
   }
 
   function renderCoachQueue() {
     return (
-      <div style={coachQueueStyle} aria-label="Coach priority queue">
-        <div style={coachQueueIntroStyle}>
-          <div style={eyebrowStyle}>Today&apos;s coach queue</div>
-          <strong>Start with the player who needs action first.</strong>
-        </div>
-        <div style={coachQueueGridStyle}>
-          {coachQueueActions.map((action) => (
-            <a key={action.title} href={action.href} style={coachQueueCardStyle(action.tone)}>
-              <span style={coachQueueToneStyle(action.tone)}>{action.label}</span>
-              <strong>{action.title}</strong>
-              <em>{action.detail}</em>
-            </a>
-          ))}
-        </div>
-      </div>
+      <CoachPriorityQueue
+        actions={coachQueueActions}
+        questionCount={playerQuestionPlans.length}
+        onSelectStudent={(studentLinkId) => {
+          const card = linkedPlayerCards.find((candidate) => candidate.student.id === studentLinkId)
+          if (card) chooseMobileBenchPlayer(card)
+        }}
+      />
     )
   }
 
@@ -3203,13 +3257,13 @@ function CoachContent() {
         roleLabel="Coach"
         contextLabel="Working with"
         contextValue={activeMobileBenchCard?.student.playerName || (savedStudents.length ? `${savedStudents.length} players` : 'No player selected')}
-        primaryAction={coachContinueAction || coachHomeAction}
+        primaryAction={firstPlayerQuestion ? coachHomeAction : coachContinueAction || coachHomeAction}
         quickActions={COACH_HOME_QUICK_ACTIONS}
         helpTitle={savedStudents.length ? 'Need help with Coach setup?' : 'Set up Coach in three steps'}
         steps={COACH_HOME_STEPS}
         showSteps={!savedStudents.length}
         resumeKey={userId ? `coach:${userId}` : undefined}
-        preferPrimaryAction={Boolean(coachContinueAction)}
+        preferPrimaryAction={Boolean(firstPlayerQuestion || coachContinueAction)}
         onAction={handleCoachHomeAction}
       />
 
@@ -3352,6 +3406,7 @@ function CoachContent() {
           </div>
           {isMobile ? null : renderBenchMetrics()}
         </div>
+        {isMobile && playerQuestionPlans.length ? renderCoachQueue() : null}
         {isMobile && linkedPlayerCards.length ? (
           <div style={mobileBenchShellStyle}>
             <div style={mobileBenchPickerStyle} aria-label="Choose a player from your coach bench">
@@ -3368,7 +3423,7 @@ function CoachContent() {
                   >
                     <strong style={mobileBenchPlayerNameStyle}>{card.student.playerName}</strong>
                     <span style={mobileBenchPlayerMetaStyle}>
-                      {sharedWeeklyPlans.some((plan) => plan.studentLinkId === card.student.id && plan.coachResponse?.playerReply?.action === 'question')
+                      {questionStudentIds.has(card.student.id)
                         ? 'Question'
                         : card.needsReview ? 'Review' : card.activeAssignments ? `${card.activeAssignments} active` : card.connectionLabel}
                     </span>
@@ -3400,11 +3455,13 @@ function CoachContent() {
               value={`${linkedPlayersCount} linked`}
               renderContent={renderBenchMetrics}
             />
-            <MobileLazyDetails
-              label="Today's coach queue"
-              value={`${assignmentsNeedingReview.length + overduePlayersCount} priority`}
-              renderContent={renderCoachQueue}
-            />
+            {!playerQuestionPlans.length ? (
+              <MobileLazyDetails
+                label="Today's coach queue"
+                value={`${assignmentsNeedingReview.length + overduePlayersCount} priority`}
+                renderContent={renderCoachQueue}
+              />
+            ) : null}
           </>
         ) : renderCoachQueue()}
       </section>
@@ -4254,14 +4311,6 @@ type LinkedPlayerCard = {
   latestAssignment: CoachAssignment | null
 }
 
-type CoachQueueAction = {
-  label: string
-  title: string
-  detail: string
-  href: string
-  tone: 'review' | 'due' | 'setup' | 'assign' | 'steady'
-}
-
 type LevelUpProofReviewNextMove = {
   label: string
   title: string
@@ -4443,14 +4492,29 @@ function getCoachAssignmentShortcutCardId(text: string) {
 function buildCoachQueueActions(
   linkedPlayerCards: LinkedPlayerCard[],
   assignmentsNeedingReview: CoachAssignment[],
+  playerQuestionPlans: WeeklyLevelUpPlan[],
   studentCount: number,
-): CoachQueueAction[] {
-  const actions: CoachQueueAction[] = []
+): CoachPriorityAction[] {
+  const actions: CoachPriorityAction[] = []
   const firstReview = assignmentsNeedingReview[0]
   const dueCard = linkedPlayerCards.find((card) => card.dueTone === 'overdue' || card.dueTone === 'today')
   const pendingCard = linkedPlayerCards.find((card) => card.connection === 'pending' && card.pendingInvite)
   const assignmentReadyCard = linkedPlayerCards.find((card) => !card.activeAssignments && card.connection !== 'pending')
   const activeCard = linkedPlayerCards.find((card) => card.activeAssignments > 0)
+
+  for (const questionPlan of playerQuestionPlans.slice(0, 2)) {
+    const questionCard = linkedPlayerCards.find((card) => card.student.id === questionPlan.studentLinkId)
+    const question = questionPlan.coachResponse?.playerReply
+    if (!questionCard || question?.action !== 'question') continue
+    actions.push({
+      label: 'Player question',
+      title: `${questionCard.student.playerName} asked about this week`,
+      detail: getCoachQuestionPreview(question.message),
+      href: buildCoachWorkspaceHref('coach-linked-dashboard', questionCard.student.id),
+      tone: 'question',
+      studentLinkId: questionCard.student.id,
+    })
+  }
 
   if (firstReview) {
     const reviewCard = linkedPlayerCards.find((card) => card.student.id === firstReview.studentLinkId)
@@ -4522,6 +4586,11 @@ function buildCoachQueueActions(
   }
 
   return actions.slice(0, 3)
+}
+
+function getCoachQuestionPreview(message: string) {
+  const preview = cleanText(message)
+  return preview.length > 150 ? `${preview.slice(0, 147)}…` : preview
 }
 
 function buildAssignmentProofMap(levelUpSessions: LevelUpSession[]) {
@@ -5402,78 +5471,6 @@ const linkedMetricStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
-}
-
-const coachQueueStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  padding: 13,
-  borderRadius: 20,
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(5,11,22,0.30)',
-  minWidth: 0,
-}
-
-const coachQueueIntroStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: 10,
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  fontWeight: 950,
-  minWidth: 0,
-}
-
-const coachQueueGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
-  gap: 9,
-  minWidth: 0,
-}
-
-function coachQueueCardStyle(tone: CoachQueueAction['tone']): CSSProperties {
-  const urgent = tone === 'review' || tone === 'due'
-  const setup = tone === 'setup'
-  return {
-    display: 'grid',
-    gap: 6,
-    minWidth: 0,
-    padding: 12,
-    borderRadius: 16,
-    border: urgent
-      ? '1px solid rgba(155,225,29,0.30)'
-      : setup
-        ? '1px solid rgba(116,190,255,0.24)'
-        : '1px solid rgba(255,255,255,0.10)',
-    background: urgent
-      ? 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(255,255,255,0.045))'
-      : setup
-        ? 'linear-gradient(135deg, rgba(116,190,255,0.10), rgba(255,255,255,0.04))'
-        : 'rgba(255,255,255,0.045)',
-    color: 'var(--foreground-strong)',
-    textDecoration: 'none',
-    fontSize: 13,
-    lineHeight: 1.4,
-    boxShadow: urgent ? '0 14px 30px rgba(155,225,29,0.08)' : 'none',
-  }
-}
-
-function coachQueueToneStyle(tone: CoachQueueAction['tone']): CSSProperties {
-  const urgent = tone === 'review' || tone === 'due'
-  return {
-    width: 'fit-content',
-    borderRadius: 999,
-    border: urgent ? '1px solid rgba(155,225,29,0.32)' : '1px solid rgba(255,255,255,0.12)',
-    background: urgent ? 'rgba(155,225,29,0.14)' : 'rgba(255,255,255,0.055)',
-    color: urgent ? 'var(--brand-green)' : 'var(--shell-copy-muted)',
-    padding: '3px 8px',
-    fontSize: 10,
-    fontWeight: 950,
-    letterSpacing: '.06em',
-    textTransform: 'uppercase',
-  }
 }
 
 const linkedCardsGridStyle: CSSProperties = {
