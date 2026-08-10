@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -612,7 +612,14 @@ export default function CaptainMessagingPage() {
 
 function CaptainMessagingContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const initialContext = readInitialMessagingContext()
+  const contactReviewMode = searchParams.get('contactView') === 'missing'
+  const contactManagerRequested = Boolean(searchParams.get('contactView'))
+  const requestedMissingContactNames = useMemo(
+    () => (searchParams.get('missingContacts') || '').split('|').map((name) => name.trim()).filter(Boolean),
+    [searchParams],
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -647,6 +654,7 @@ function CaptainMessagingContent() {
   const [requestedAvailabilityRequestId] = useState(initialContext.availabilityRequestId)
   const [focusWaiting] = useState(initialContext.focusWaiting)
   const nudgeQueuePreparedRef = useRef(false)
+  const contactReviewAppliedRef = useRef(false)
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
@@ -950,6 +958,36 @@ function CaptainMessagingContent() {
       return seasonMatch && sessionMatch
     })
   }, [contacts, leagueFilter, flightFilter, seasonFilter, sessionFilter, teamFilter])
+
+  useEffect(() => {
+    if (!contactManagerRequested || loading || contactReviewAppliedRef.current) return
+
+    const requestedName = requestedMissingContactNames[0] || ''
+    const existingContact = requestedName
+      ? scopedContacts.find((contact) => normalizeText(contact.full_name) === normalizeText(requestedName))
+      : null
+    if (existingContact) {
+      setEditingId(existingContact.id)
+      setDraftContact({
+        full_name: existingContact.full_name,
+        phone: existingContact.phone,
+        email: existingContact.email || '',
+        role: existingContact.role || 'Player',
+        is_captain: !!existingContact.is_captain,
+        is_active: !!existingContact.is_active,
+        opt_in_text: !!existingContact.opt_in_text,
+        notes: existingContact.notes || '',
+      })
+    } else if (requestedName) {
+      setDraftContact((current) => ({ ...current, full_name: requestedName }))
+    }
+    contactReviewAppliedRef.current = true
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-contact-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.requestAnimationFrame(() => document.getElementById('draft-contact-phone')?.focus())
+    })
+  }, [contactManagerRequested, loading, requestedMissingContactNames, scopedContacts])
 
   const filteredMatches = useMemo(() => {
     return matches.filter((match) => {
@@ -4308,14 +4346,26 @@ function importScenarioToLineup() {
                 </div>
               </section>
 
-              <details id="captain-contact-setup" style={surfaceCard}>
+              <details id="captain-contact-setup" style={surfaceCard} open={contactManagerRequested || undefined}>
                 <summary style={detailsSummaryStyle}>
                   <div>
-                    <p style={sectionKicker}>Admin setup</p>
-                    <h3 style={sectionTitleSmall}>Contacts, replies, and templates</h3>
+                    <p style={sectionKicker}>{contactReviewMode ? 'Contact review' : 'Team setup'}</p>
+                    <h3 style={sectionTitleSmall}>
+                      {contactReviewMode
+                        ? `Add ${requestedMissingContactNames.length || 1} missing phone number${requestedMissingContactNames.length === 1 ? '' : 's'}`
+                        : 'Contacts, replies, and templates'}
+                    </h3>
                   </div>
                   <span style={miniPillSlate}>{scopedContacts.length} contacts</span>
                 </summary>
+
+              {contactReviewMode ? (
+                <div role="status" aria-live="polite" style={surfaceCard}>
+                  <p style={sectionKicker}>Needs an update</p>
+                  <h3 style={sectionTitleSmall}>{requestedMissingContactNames.join(', ') || 'Team contact'}</h3>
+                  <p style={mutedTextStyle}>Add the phone number below. After you save it, full-team texts will be ready.</p>
+                </div>
+              ) : null}
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>
@@ -4342,8 +4392,12 @@ function importScenarioToLineup() {
                 <section id="captain-contact-manager" style={surfaceCard}>
                   <div style={tableHeaderStyle}>
                     <div>
-                      <p style={sectionKicker}>Contact roster manager</p>
-                      <h3 style={sectionTitleSmall}>Add or edit team cell numbers</h3>
+                      <p style={sectionKicker}>{contactReviewMode ? 'Contact to update' : 'Team contacts'}</p>
+                      <h3 style={sectionTitleSmall}>
+                        {contactReviewMode && requestedMissingContactNames.length === 1
+                          ? `Add ${requestedMissingContactNames[0]}'s phone number`
+                          : 'Add or edit team cell numbers'}
+                      </h3>
                     </div>
                     {saving ? <span style={miniPillSlate}>Saving...</span> : null}
                   </div>

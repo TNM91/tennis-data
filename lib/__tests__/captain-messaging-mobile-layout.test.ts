@@ -21,6 +21,15 @@ function functionBlock(functionName: string) {
 }
 
 describe('Captain messaging mobile layout guards', () => {
+  it('opens a focused contact task instead of burying the requested player', () => {
+    expect(source).toContain("const contactReviewMode = searchParams.get('contactView') === 'missing'")
+    expect(source).toContain("searchParams.get('missingContacts')")
+    expect(source).toContain('open={contactManagerRequested || undefined}')
+    expect(source).toContain("document.getElementById('captain-contact-manager')?.scrollIntoView")
+    expect(source).toContain("document.getElementById('draft-contact-phone')?.focus()")
+    expect(source).toContain('Add the phone number below. After you save it, full-team texts will be ready.')
+  })
+
   it('keeps hero, workflow, and command surfaces mobile-safe', () => {
     for (const styleName of [
       'pageContentStyle',

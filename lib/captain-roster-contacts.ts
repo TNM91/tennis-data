@@ -78,6 +78,77 @@ export function getCaptainRosterPhoneCoverage(input: {
   }
 }
 
+export function buildCaptainContactReviewHref(input: {
+  baseHref: string
+  missingNames: string[]
+}) {
+  const [pathnameWithQuery, hash = ''] = input.baseHref.split('#', 2)
+  const [pathname, existingQuery = ''] = pathnameWithQuery.split('?', 2)
+  const params = new URLSearchParams(existingQuery)
+  params.set('contactView', input.missingNames.length ? 'missing' : 'all')
+  if (input.missingNames.length) params.set('missingContacts', input.missingNames.join('|'))
+  else params.delete('missingContacts')
+  const query = params.toString()
+  return `${pathname}${query ? `?${query}` : ''}#${hash || 'captain-contact-manager'}`
+}
+
+type RosterMembershipRow = { id: string; player_name: string | null }
+type StoredCaptainContactRow = { id: string; normalized_name: string | null }
+
+export async function syncAuthoritativeCaptainRoster(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  captainUserId: string
+}) {
+  if (input.parsedDraft.rosterSource !== 'player_roster') {
+    return { removedRosterCount: 0, removedContactCount: 0 }
+  }
+
+  const desiredRosterNames = new Set(
+    input.parsedDraft.players.map((player) => normalizeCaptainRosterContactKey(player.name)).filter(Boolean),
+  )
+  const rosterQuery = await input.supabase
+    .from('team_roster_members')
+    .select('id, player_name')
+    .eq('normalized_team_name', input.parsedDraft.rosterTeamName.trim().toLowerCase())
+    .eq('league_name', input.parsedDraft.leagueName.trim())
+    .eq('flight', input.parsedDraft.flight.trim())
+  if (rosterQuery.error) throw new Error(`Current roster could not be checked: ${rosterQuery.error.message}`)
+
+  const staleRosterIds = ((rosterQuery.data || []) as RosterMembershipRow[])
+    .filter((row) => !desiredRosterNames.has(normalizeCaptainRosterContactKey(row.player_name)))
+    .map((row) => row.id)
+  if (staleRosterIds.length) {
+    const { error } = await input.supabase.from('team_roster_members').delete().in('id', staleRosterIds)
+    if (error) throw new Error(`Old roster players could not be removed: ${error.message}`)
+  }
+
+  const desiredContactNames = new Set(
+    buildCaptainRosterContactRows(input).map((row) => row.normalized_name),
+  )
+  const contactQuery = await input.supabase
+    .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+    .select('id, normalized_name')
+    .eq('captain_user_id', input.captainUserId)
+    .eq('normalized_team_name', normalizeCaptainRosterContactKey(input.parsedDraft.rosterTeamName))
+    .eq('league_name', input.parsedDraft.leagueName.trim())
+    .eq('flight', input.parsedDraft.flight.trim())
+  if (contactQuery.error) throw new Error(`Current roster contacts could not be checked: ${contactQuery.error.message}`)
+
+  const staleContactIds = ((contactQuery.data || []) as StoredCaptainContactRow[])
+    .filter((row) => !desiredContactNames.has(normalizeCaptainRosterContactKey(row.normalized_name)))
+    .map((row) => row.id)
+  if (staleContactIds.length) {
+    const { error } = await input.supabase.from(CAPTAIN_ROSTER_CONTACTS_TABLE).delete().in('id', staleContactIds)
+    if (error) throw new Error(`Old roster contacts could not be removed: ${error.message}`)
+  }
+
+  return {
+    removedRosterCount: staleRosterIds.length,
+    removedContactCount: staleContactIds.length,
+  }
+}
+
 export function buildCaptainRosterContactRows(input: {
   parsedDraft: DataAssistTeamSummaryParsedDraft
   captainUserId: string
