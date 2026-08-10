@@ -128,6 +128,7 @@
 .mobileTodayFocus,
 .mobileDayComplete,
 .mobileHeroStats,
+.mobileTennisHandoff,
 .mobileQuestRail,
 .mobileTapPlan,
 .mobilePocketToggle,
@@ -2555,6 +2556,64 @@
     font-size: 0.84rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .mobileTennisHandoff {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+    scroll-margin-top: 12px;
+    border: 1px solid rgba(155, 225, 29, 0.28);
+    border-radius: 13px;
+    background:
+      linear-gradient(125deg, rgba(155, 225, 29, 0.12), transparent 48%),
+      rgba(2, 10, 24, 0.42);
+    padding: 10px;
+  }
+
+  .mobileTennisHandoffCopy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  .mobileTennisHandoffCopy strong {
+    overflow: hidden;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileTennisHandoffCopy small {
+    line-height: 1.25;
+  }
+
+  .mobileTennisHandoffActions {
+    display: grid;
+    gap: 6px;
+  }
+
+  .mobileTennisHandoffActions a {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(155, 225, 29, 0.28);
+    border-radius: 999px;
+    background: rgba(155, 225, 29, 0.12);
+    color: var(--foreground-strong);
+    padding: 0 10px;
+    font-size: 0.7rem;
+    font-weight: 950;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .mobileTennisHandoffActions a:first-child {
+    background: var(--brand-green);
+    color: #07111f;
   }
 
   .mobileQuestRail {

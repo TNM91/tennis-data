@@ -1,7 +1,16 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import {
+  LEVEL_UP_QUEST_HANDOFF_KEY,
+  buildLevelUpQuestHandoffFromSessions,
+  chooseLatestLevelUpQuestHandoff,
+  parseLevelUpQuestHandoff,
+  type LevelUpQuestHandoff,
+} from '@/lib/level-up/quest-handoff'
+import type { LevelUpSession } from '@/lib/level-up-sessions'
 import {
   PERSONAL_DAILY_QUESTS,
   PERSONAL_QUEST_PHOTO_BUCKET,
@@ -234,10 +243,18 @@ export default function MyQuestClient() {
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [levelUpHandoff, setLevelUpHandoff] = useState<LevelUpQuestHandoff | null>(null)
 
   const authUser = session?.user ?? null
   const ownerAllowed = isPersonalQuestOwner({ id: authUser?.id ?? userId, email: authUser?.email })
   const accessDenied = authResolved && (!(authUser?.id ?? userId) || !ownerAllowed)
+  const levelUpHandoffStatus = levelUpHandoff?.questState === 'credited'
+    ? 'Credited'
+    : levelUpHandoff?.questState === 'pending'
+      ? 'Queued'
+      : levelUpHandoff?.questState === 'sync_issue'
+        ? 'Check'
+        : 'Ready'
   const today = useMemo(() => getTodayKey(), [])
   const repairDate = useMemo(() => getDateOffsetKey(today, -1), [today])
   const weekStart = useMemo(() => getWeekStartKey(), [])
@@ -1131,6 +1148,39 @@ export default function MyQuestClient() {
   }, [authResolved, authUser?.id, loadDashboard, ownerAllowed, setQuestError, userId])
 
   useEffect(() => {
+    const ownerId = authUser?.id ?? userId
+    if (!authResolved || !ownerId || !ownerAllowed) return
+
+    const localHandoff = parseLevelUpQuestHandoff(window.localStorage.getItem(LEVEL_UP_QUEST_HANDOFF_KEY))
+    const localTimer = window.setTimeout(() => setLevelUpHandoff(localHandoff), 0)
+
+    const accessToken = session?.access_token ?? ''
+    if (!accessToken) return () => window.clearTimeout(localTimer)
+
+    const controller = new AbortController()
+    void fetch('/api/player/level-up-sessions', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ sessions?: LevelUpSession[] }> : null)
+      .then((payload) => {
+        if (!payload) return
+        const remoteHandoff = buildLevelUpQuestHandoffFromSessions(Array.isArray(payload.sessions) ? payload.sessions : [])
+        const latest = chooseLatestLevelUpQuestHandoff(localHandoff, remoteHandoff)
+        setLevelUpHandoff(latest)
+        if (latest) window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(latest))
+      })
+      .catch((fetchError: unknown) => {
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') return
+      })
+
+    return () => {
+      window.clearTimeout(localTimer)
+      controller.abort()
+    }
+  }, [authResolved, authUser?.id, ownerAllowed, session?.access_token, userId])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
 
     const media = window.matchMedia('(max-width: 640px)')
@@ -1850,6 +1900,20 @@ export default function MyQuestClient() {
             <strong>{weeklyGrade.grade}</strong>
           </div>
         </div>
+        {levelUpHandoff ? (
+          <section id="tennis-proof" className={styles.mobileTennisHandoff} aria-label="Level Up tennis proof handoff">
+            <div className={styles.mobileTennisHandoffCopy}>
+              <span>Tennis proof · {levelUpHandoffStatus}</span>
+              <strong>{levelUpHandoff.focusTitle}: {levelUpHandoff.drillTitle}</strong>
+              <small>{levelUpHandoff.rating}/5 banked · {levelUpHandoff.tennisStreakDays} day{levelUpHandoff.tennisStreakDays === 1 ? '' : 's'} tennis streak</small>
+              <small>{levelUpHandoff.questMessage}</small>
+            </div>
+            <div className={styles.mobileTennisHandoffActions}>
+              <Link href={levelUpHandoff.nextRepHref}>Next rep</Link>
+              <Link href={levelUpHandoff.questBuilderHref}>Quest builder</Link>
+            </div>
+          </section>
+        ) : null}
         <div className={styles.mobileQuestRail} aria-label="My Quest iPhone quick quest rail">
           {mobileFocusQuests.map((quest) => {
             const complete = completedToday.has(quest.id)

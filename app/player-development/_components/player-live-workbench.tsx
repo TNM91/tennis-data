@@ -1,10 +1,20 @@
 'use client'
 
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import {
+  LEVEL_UP_QUEST_HANDOFF_KEY,
+  buildLevelUpQuestHandoff,
+  buildLevelUpTennisStreak,
+  parseLevelUpQuestHandoff,
+  updateLevelUpQuestHandoffMessage,
+  type LevelUpQuestHandoff,
+} from '@/lib/level-up/quest-handoff'
+import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import {
   buildPlayerImproveLevelUpHref,
   chooseLatestPlayerImproveResumeState,
@@ -385,6 +395,7 @@ export default function PlayerLiveWorkbench({
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const [questCreditMessage, setQuestCreditMessage] = useState('')
+  const [questHandoff, setQuestHandoff] = useState<LevelUpQuestHandoff | null>(null)
   const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
   const [proofCounter, setProofCounter] = useState(0)
   const [resumeResolved, setResumeResolved] = useState(false)
@@ -404,6 +415,10 @@ export default function PlayerLiveWorkbench({
   const [tomorrowStarterCheck, setTomorrowStarterCheck] = useState<TomorrowStarterCheck | null>(null)
   const [tomorrowStarterCompletion, setTomorrowStarterCompletion] = useState<TomorrowStarterCompletion | null>(null)
   const [activeTomorrowStarterMode, setActiveTomorrowStarterMode] = useState<TomorrowStarterCheckMode | null>(null)
+  const canOpenPersonalQuest = isPersonalQuestOwner({
+    id: session?.user.id ?? userId,
+    email: session?.user.email,
+  })
 
   const activeFocus = playableFocuses.find((focus) => focus.id === activeFocusId) ?? playableFocuses[0]
   const drillOptions = useMemo(
@@ -953,6 +968,16 @@ export default function PlayerLiveWorkbench({
     saveReceiptLockRef.current = false
   }
 
+  function updateQuestCredit(sessionId: string, message: string) {
+    const current = parseLevelUpQuestHandoff(window.localStorage.getItem(LEVEL_UP_QUEST_HANDOFF_KEY))
+    if (current?.sessionId !== sessionId) return
+
+    const next = updateLevelUpQuestHandoffMessage(current, message)
+    window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(next))
+    setQuestHandoff(next)
+    setQuestCreditMessage(message)
+  }
+
   function saveSessionWithRating(rating: number) {
     if (!activeFocus || !activeDrill || hasActiveSaveReceipt || saveReceiptLockRef.current) return
     saveReceiptLockRef.current = true
@@ -993,8 +1018,26 @@ export default function PlayerLiveWorkbench({
       },
     }
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
+    const nextRep = getNextDrillAfterSession(nextSession, visibleDrills)
+    const nextQuestHandoff = buildLevelUpQuestHandoff({
+      sessionId: nextSession.id,
+      identitySlug,
+      focusId: nextSession.focusId,
+      focusTitle: nextSession.focusTitle,
+      drillTitle: nextSession.drillTitle,
+      rating: nextSession.rating,
+      completedAt: nextSession.completedAt,
+      tennisStreakDays: buildLevelUpTennisStreak(nextSessions.map((session) => session.completedAt)),
+      nextRepTitle: nextRep?.title ?? nextSession.drillTitle,
+      nextRepCardId: nextRep?.sourceCard?.id,
+      questCardId: savedSourceCard?.id,
+      customQuestId,
+    })
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
+    window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(nextQuestHandoff))
+    setQuestHandoff(nextQuestHandoff)
+    if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
     if (customQuestId && savedSourceCard) setQuestCreditMessage('Quest XP queued.')
     setLastSavedSession(nextSession)
     setUndoSession(nextSession)
@@ -1030,9 +1073,14 @@ export default function PlayerLiveWorkbench({
     const syncTimerId = window.setTimeout(() => {
       queuedSyncTimersRef.current.delete(nextSession.id)
       setUndoSession((current) => current?.id === nextSession.id ? null : current)
-      if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
       if (customQuestId && savedSourceCard) {
-        void syncCustomQuestCompletion(customQuestId, nextSession, savedSourceCard, identitySlug, setQuestCreditMessage)
+        void syncCustomQuestCompletion(
+          customQuestId,
+          nextSession,
+          savedSourceCard,
+          identitySlug,
+          (message) => updateQuestCredit(nextSession.id, message),
+        )
       }
       setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
       void syncLevelUpSession(nextSession)
@@ -1289,6 +1337,11 @@ export default function PlayerLiveWorkbench({
       return next
     })
     removePortalCompletion(sessionId)
+    setQuestHandoff((current) => {
+      if (current?.sessionId !== sessionId) return current
+      window.localStorage.removeItem(LEVEL_UP_QUEST_HANDOFF_KEY)
+      return null
+    })
     setSentProofRecapIds((current) => {
       const next = current.filter((id) => id !== sessionId)
       window.localStorage.setItem(sentProofRecapStorageKey, JSON.stringify(next))
@@ -2260,6 +2313,44 @@ export default function PlayerLiveWorkbench({
                 </button>
               </div>
             </div>
+          ) : null}
+          {questHandoff?.sessionId === lastSavedSession.id ? (
+            <section className={styles.liveQuestHandoff} aria-label="Level Up quest handoff">
+              <div className={styles.liveQuestHandoffCopy}>
+                <span>Quest handoff</span>
+                <strong>{canOpenPersonalQuest ? 'Proof is ready in My Quest.' : 'Proof is ready for your quest.'}</strong>
+                <small>{questHandoff.questMessage}</small>
+              </div>
+              <div className={styles.liveQuestHandoffStats} aria-label="Saved proof, tennis streak, and next rep">
+                <article>
+                  <span>Proof</span>
+                  <strong>{questHandoff.rating}/5</strong>
+                </article>
+                <article>
+                  <span>Tennis streak</span>
+                  <strong>{questHandoff.tennisStreakDays} day{questHandoff.tennisStreakDays === 1 ? '' : 's'}</strong>
+                </article>
+                <article>
+                  <span>Next</span>
+                  <strong>{questHandoff.nextRepTitle}</strong>
+                </article>
+              </div>
+              <div className={styles.liveQuestHandoffActions}>
+                {canOpenPersonalQuest ? (
+                  <Link className="button-primary" href="/level-up/my-quest#tennis-proof">
+                    Open My Quest
+                  </Link>
+                ) : null}
+                {!customQuestId ? (
+                  <Link className={canOpenPersonalQuest ? 'button-secondary' : 'button-primary'} href={questHandoff.questBuilderHref}>
+                    Add to quest
+                  </Link>
+                ) : null}
+                <Link className="button-secondary" href={questHandoff.nextRepHref}>
+                  Next rep
+                </Link>
+              </div>
+            </section>
           ) : null}
           <div ref={savedRef} className={styles.liveSavedBanner} role="status">
             <div>
