@@ -52,6 +52,12 @@ export type WeeklyLevelUpPlanRow = {
   updated_at: string
 }
 
+export type WeeklyLevelUpCoachNotification = {
+  title: string
+  body: string
+  href: string
+}
+
 export function getWeeklyLevelUpPlanWeekStart(now = new Date()) {
   const date = new Date(now)
   date.setHours(0, 0, 0, 0)
@@ -149,6 +155,36 @@ export function selectWeeklyLevelUpPlanForMyQuest(plans: WeeklyLevelUpPlan[], cu
     ?? plans.find((plan) => plan.weekStart === currentWeekStart)
     ?? plans[0]
     ?? null
+}
+
+export function buildWeeklyLevelUpCoachNotification(
+  plan: Pick<WeeklyLevelUpPlan, 'id'>,
+  response: WeeklyLevelUpCoachResponse,
+): WeeklyLevelUpCoachNotification {
+  const title = response.action === 'answered'
+    ? 'Your coach answered'
+    : response.action === 'adjusted'
+      ? 'Your coach added a cue'
+      : response.action === 'replaced'
+        ? 'Your coach changed a rep'
+        : 'Your coach reviewed your week'
+  const replacementTitle = response.action === 'replaced' ? cleanText(response.replacementRep?.title) : ''
+  const note = cleanText(response.note)
+  const body = [replacementTitle, note]
+    .filter((part, index, parts) => part && parts.indexOf(part) === index)
+    .join('. ')
+    .slice(0, 180)
+
+  return {
+    title,
+    body: body || 'Open My Quest to see the update and keep moving.',
+    href: `/level-up/my-quest?coachUpdate=${encodeURIComponent(plan.id)}#level-up-coach-update`,
+  }
+}
+
+export function isWeeklyLevelUpCoachNotification(value: { href?: string | null }) {
+  const href = cleanText(value.href)
+  return href.startsWith('/level-up/my-quest') && href.includes('#level-up-coach-update')
 }
 
 export function getWeeklyLevelUpPlanReps(plan: WeeklyLevelUpPlan): WeeklyLevelUpPlanRep[] {

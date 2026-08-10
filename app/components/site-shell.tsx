@@ -7,6 +7,7 @@ import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
 import PortalToolBar from '@/app/components/portal-tool-bar'
 import TeamConnectionInvite from '@/app/components/team-connection-invite'
+import LevelUpCoachAlert from '@/app/components/level-up-coach-alert'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 import { shouldUseFocusedSiteShell } from '@/lib/site-shell-focus'
@@ -118,6 +119,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
           />
         ) : null}
         {!compactAppMode && !focusedShell && showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
+        {!compactAppMode && !focusedShell ? <LevelUpCoachAlert /> : null}
         {!compactAppMode && !focusedShell ? <TeamConnectionInvite /> : null}
         <div id="main-content" className="page-reveal">{children}</div>
         {!compactAppMode && !focusedShell ? <SiteFooter railLayout={false} railWidth={0} /> : null}
