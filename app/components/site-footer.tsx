@@ -13,7 +13,7 @@ type SiteFooterProps = {
 const META_LINKS = [
   { href: '/about', label: 'About' },
   { href: '/faq', label: 'FAQ' },
-  { href: '/messages?compose=support', label: 'Support' },
+  { href: '/contact', label: 'Support' },
   { href: '/legal/privacy', label: 'Privacy' },
   { href: '/legal/terms', label: 'Terms' },
 ]

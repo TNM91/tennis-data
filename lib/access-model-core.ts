@@ -21,12 +21,16 @@ export type CaptainSubscriptionStatus = 'inactive' | 'trial' | 'active' | 'past_
 export type ProductEntitlementSnapshot = {
   playerPlusSubscriptionActive: boolean
   playerPlusSubscriptionStatus: CaptainSubscriptionStatus
+  playerPlusAccessExpiresAt?: string | null
   coachSubscriptionActive?: boolean
   coachSubscriptionStatus?: CaptainSubscriptionStatus
+  coachAccessExpiresAt?: string | null
   captainSubscriptionActive: boolean
   captainSubscriptionStatus: CaptainSubscriptionStatus
+  captainAccessExpiresAt?: string | null
   tiqTeamLeagueEntryEnabled: boolean
   tiqIndividualLeagueCreatorEnabled: boolean
+  leagueAccessExpiresAt?: string | null
 }
 
 export type ProductAccessState = {
@@ -64,23 +68,31 @@ export type ProductAccessState = {
 export type ProductEntitlementRow = {
   player_plus_subscription_active?: boolean | null
   player_plus_subscription_status?: string | null
+  player_plus_access_expires_at?: string | null
   coach_subscription_active?: boolean | null
   coach_subscription_status?: string | null
+  coach_access_expires_at?: string | null
   captain_subscription_active?: boolean | null
   captain_subscription_status?: string | null
+  captain_access_expires_at?: string | null
   tiq_team_league_entry_enabled?: boolean | null
   tiq_individual_league_creator_enabled?: boolean | null
+  league_access_expires_at?: string | null
 }
 
 export const DEFAULT_ENTITLEMENTS: ProductEntitlementSnapshot = {
   playerPlusSubscriptionActive: false,
   playerPlusSubscriptionStatus: 'inactive',
+  playerPlusAccessExpiresAt: null,
   coachSubscriptionActive: false,
   coachSubscriptionStatus: 'inactive',
+  coachAccessExpiresAt: null,
   captainSubscriptionActive: false,
   captainSubscriptionStatus: 'inactive',
+  captainAccessExpiresAt: null,
   tiqTeamLeagueEntryEnabled: false,
   tiqIndividualLeagueCreatorEnabled: false,
+  leagueAccessExpiresAt: null,
 }
 
 export function normalizeSubscriptionStatus(value: string | null | undefined): CaptainSubscriptionStatus {
@@ -89,6 +101,16 @@ export function normalizeSubscriptionStatus(value: string | null | undefined): C
   if (value === 'past_due') return 'past_due'
   if (value === 'canceled') return 'canceled'
   return 'inactive'
+}
+
+export function isAccessGrantCurrent(expiresAt: string | null | undefined, now = Date.now()) {
+  const trimmed = expiresAt?.trim()
+  if (!trimmed) return true
+
+  const expiresAtMs = Date.parse(trimmed)
+  if (!Number.isFinite(expiresAtMs)) return false
+
+  return expiresAtMs > now
 }
 
 function buildActivePlanIds({
@@ -157,10 +179,14 @@ export function getRoleBackedEntitlements(role: UserRole): ProductEntitlementSna
     captainSubscriptionStatus: captainSubscriptionActive ? 'active' : 'inactive',
     playerPlusSubscriptionActive: captainSubscriptionActive,
     playerPlusSubscriptionStatus: captainSubscriptionActive ? 'active' : 'inactive',
+    playerPlusAccessExpiresAt: null,
     coachSubscriptionActive: false,
     coachSubscriptionStatus: 'inactive',
+    coachAccessExpiresAt: null,
+    captainAccessExpiresAt: null,
     tiqTeamLeagueEntryEnabled: isPlatformAdmin,
     tiqIndividualLeagueCreatorEnabled: isPlatformAdmin,
+    leagueAccessExpiresAt: null,
   }
 }
 
@@ -185,12 +211,21 @@ export function buildProductAccessState(
   }
 
   const signedInMember = isMember(role)
-  const captainSubscriptionActive = role === 'admin' || snapshot.captainSubscriptionActive
-  const playerPlusActive = snapshot.playerPlusSubscriptionActive || snapshot.coachSubscriptionActive || captainSubscriptionActive
+  const playerGrantCurrent = isAccessGrantCurrent(snapshot.playerPlusAccessExpiresAt)
+  const coachGrantCurrent = isAccessGrantCurrent(snapshot.coachAccessExpiresAt)
+  const captainGrantCurrent = isAccessGrantCurrent(snapshot.captainAccessExpiresAt)
+  const leagueGrantCurrent = isAccessGrantCurrent(snapshot.leagueAccessExpiresAt)
+  const manualPlayerActive = snapshot.playerPlusSubscriptionActive && playerGrantCurrent
+  const manualCoachActive = Boolean(snapshot.coachSubscriptionActive) && coachGrantCurrent
+  const manualCaptainActive = snapshot.captainSubscriptionActive && captainGrantCurrent
+  const manualLeagueActive =
+    leagueGrantCurrent && (snapshot.tiqTeamLeagueEntryEnabled || snapshot.tiqIndividualLeagueCreatorEnabled)
+  const captainSubscriptionActive = role === 'admin' || manualCaptainActive
+  const playerPlusActive = manualPlayerActive || manualCoachActive || captainSubscriptionActive
   const leagueToolsActive =
-    role === 'admin' || snapshot.tiqTeamLeagueEntryEnabled || snapshot.tiqIndividualLeagueCreatorEnabled
+    role === 'admin' || manualLeagueActive
   const fullCourtByCoreWorkspaces = playerPlusActive && captainSubscriptionActive && leagueToolsActive
-  const coachSubscriptionActive = role === 'admin' || snapshot.coachSubscriptionActive || fullCourtByCoreWorkspaces
+  const coachSubscriptionActive = role === 'admin' || manualCoachActive || fullCourtByCoreWorkspaces
 
   const activePlanIds = buildActivePlanIds({
     playerPlusActive,
@@ -230,9 +265,9 @@ export function buildProductAccessState(
   const canUseCoachWorkflow = hasPlanAccess(activePlanIds, 'coach')
   const canUseCaptainWorkflow = hasPlanAccess(activePlanIds, 'captain')
   const canUseLeagueTools = hasPlanAccess(activePlanIds, 'league')
-  const canCreateTiqTeamLeague = canUseLeagueTools && snapshot.tiqTeamLeagueEntryEnabled
-  const canEnterTiqTeamLeague = canUseLeagueTools && snapshot.tiqTeamLeagueEntryEnabled
-  const canCreateTiqIndividualLeague = canUseLeagueTools && snapshot.tiqIndividualLeagueCreatorEnabled
+  const canCreateTiqTeamLeague = canUseLeagueTools && leagueGrantCurrent && snapshot.tiqTeamLeagueEntryEnabled
+  const canEnterTiqTeamLeague = canUseLeagueTools && leagueGrantCurrent && snapshot.tiqTeamLeagueEntryEnabled
+  const canCreateTiqIndividualLeague = canUseLeagueTools && leagueGrantCurrent && snapshot.tiqIndividualLeagueCreatorEnabled
   const canJoinTiqIndividualLeague = signedInMember
   const captainTierStatusLabel =
     snapshot.captainSubscriptionStatus === 'trial'

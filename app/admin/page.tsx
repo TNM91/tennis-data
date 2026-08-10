@@ -127,11 +127,11 @@ const adminTools: AdminTool[] = [
     title: 'Access Control',
     href: '/admin/access',
     description:
-      'Manage Player, Coach, Captain, and League Office entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
+      'Manage Player, Coach, Captain, and League Office entitlement flags, including temporary promotional access with end dates, so monetization and league access stay explicit.',
     badge: 'Access',
     accent: 'blue',
     icon: 'accountSecurity',
-    highlights: ['Coach subscription', 'Captain subscription', 'League access', 'Profile entitlements'],
+    highlights: ['Timed promos', 'Coach subscription', 'Captain subscription', 'League access'],
     statLabel: 'Best for',
     statValue: 'Access control',
   },
