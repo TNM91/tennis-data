@@ -10,6 +10,7 @@ import RoleActionHome, {
   type RoleHomeAction,
   type RoleHomeQuickAction,
 } from '@/app/components/role-action-home'
+import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
@@ -1792,6 +1793,8 @@ export function LeagueCoordinatorWorkspace() {
             onAction={handleLeagueHomeAction}
           />
         </div>
+
+        {canUseLeagueTools ? <OrganizerScheduleAttention /> : null}
 
         {canUseLeagueTools ? (
           <>

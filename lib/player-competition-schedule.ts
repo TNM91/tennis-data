@@ -93,6 +93,8 @@ type TournamentMatch = {
   schedule?: TournamentSchedule
 }
 
+export type TournamentScheduleMatch = TournamentMatch
+
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
 }
@@ -183,6 +185,15 @@ function buildRoundRobinMatches(row: TournamentRow): TournamentMatch[] {
 
 function buildTournamentMatches(row: TournamentRow) {
   return row.format === 'round_robin' ? buildRoundRobinMatches(row) : buildSingleEliminationMatches(row)
+}
+
+export function buildTournamentScheduleMatches(row: {
+  format?: string | null
+  entrants?: string[] | null
+  results?: Record<string, TournamentResult> | null
+  schedule?: Record<string, TournamentSchedule> | null
+}): TournamentScheduleMatch[] {
+  return buildTournamentMatches(row)
 }
 
 function isSameParticipant(entry: LeagueEntryRow, name: unknown, id: unknown) {
