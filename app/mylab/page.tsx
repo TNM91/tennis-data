@@ -3206,7 +3206,7 @@ function MyLabPageInner() {
       : latestLevelUpProof
         ? 'Repeat this rep'
         : 'Start today\'s rep'
-  const firstServeSteps = isProfileConfirmed && hasMyLabFocus && latestLevelUpProof
+  const firstServeSteps = !isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)
     ? []
     : [
         {
@@ -8162,21 +8162,6 @@ const quickProfileValueStyle: CSSProperties = {
   fontWeight: 950,
   lineHeight: 1,
   overflowWrap: 'anywhere',
-}
-
-const setupStepNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: '50%',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 950,
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const todayReadPanelStyle: CSSProperties = {

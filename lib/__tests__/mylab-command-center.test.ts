@@ -39,7 +39,7 @@ describe('My Lab command center', () => {
 
   it('guides first use with real setup progress and retires the path after the first rep', () => {
     expect(pageSource).toContain('const hasMyLabFocus = Boolean(activeGoal.goal.trim())')
-    expect(pageSource).toContain('isProfileConfirmed && hasMyLabFocus && latestLevelUpProof')
+    expect(pageSource).toContain('!isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)')
     expect(pageSource).toContain("title: 'Connect your player'")
     expect(pageSource).toContain("title: 'Choose one focus'")
     expect(pageSource).toContain("title: 'Finish your first rep'")

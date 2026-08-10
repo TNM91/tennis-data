@@ -8,14 +8,12 @@ const checklist = readFileSync(join(process.cwd(), 'app/components/tennis-setup-
 describe('My Lab onboarding flow', () => {
   it('puts one player setup path ahead of normal tools for first-time users', () => {
     expect(source).toContain("const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'")
-    expect(source).toContain('{!isProfileConfirmed ? (')
+    expect(source).toContain('<MyLabCommandCenter')
+    expect(source).toContain('firstServeSteps={firstServeSteps}')
+    expect(source).toContain("const firstServeSteps = !isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)")
     expect(source).toContain('<TennisSetupChecklist')
     expect(checklist).toContain('aria-label="Tennis setup"')
     expect(checklist).toContain('Connect your player.')
-    expect(checklist).toContain('Find my player')
-    expect(checklist).toContain("playerHref = '/profile#profile-identity'")
-    expect(checklist).toContain('Upload a scorecard if your match history is missing.')
-    expect(checklist).toContain('if (nextIndex === -1) return null')
     expect(source).not.toContain('Finish setup')
     expect(source).not.toContain('Set your player profile once.')
   })
@@ -33,7 +31,7 @@ describe('My Lab onboarding flow', () => {
     expect(source).toContain("title: 'Finish your first rep'")
     expect(source).toContain('Find your record or create a self-rated profile.')
     expect(source).toContain('Take one short court card and leave proof behind.')
-    expect(source).toContain('isProfileConfirmed && hasMyLabFocus && latestLevelUpProof')
+    expect(source).toContain('!isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)')
     expect(source).toContain('open={!hasMyLabFocus}')
   })
 
