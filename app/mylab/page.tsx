@@ -3235,6 +3235,29 @@ function MyLabPageInner() {
           complete: Boolean(latestLevelUpProof),
         },
       ]
+  const postRepReturn = latestLevelUpProof
+    ? {
+        cardTitle: latestLevelUpProof.cardTitle,
+        proofLabel: latestLevelUpProof.proofLabel,
+        timeLabel: latestLevelUpProof.timeLabel,
+        note: latestLevelUpProof.note,
+        nextAction: !isProfileConfirmed
+          ? 'Connect your player record so this proof stays with your tennis.'
+          : !hasMyLabFocus
+            ? 'Tie this proof to one focus for your next match or practice.'
+            : latestLevelUpProof.nextAction,
+        nextHref: !isProfileConfirmed
+          ? '/profile'
+          : !hasMyLabFocus
+            ? MY_LAB_GOAL_PROGRESS_HREF
+            : latestLevelUpProof.nextHref,
+        nextCta: !isProfileConfirmed
+          ? 'Connect player'
+          : !hasMyLabFocus
+            ? 'Choose focus'
+            : 'Repeat this rep',
+      }
+    : null
   return (
     <section style={pageStyle}>
       {clubAccess.workspace ? (
@@ -3270,6 +3293,7 @@ function MyLabPageInner() {
         sessionTarget={4}
         progressHref={MY_LAB_GOAL_PROGRESS_HREF}
         firstServeSteps={firstServeSteps}
+        postRepReturn={postRepReturn}
         matchup={topMatchupCandidate ? {
           opponentId: topMatchupCandidate.player.id,
           opponentName: topMatchupCandidate.player.name,

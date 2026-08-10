@@ -21,6 +21,16 @@ type FirstServeStep = {
   complete: boolean
 }
 
+type PostRepReturn = {
+  cardTitle: string
+  proofLabel: string
+  timeLabel: string
+  note: string
+  nextAction: string
+  nextHref: string
+  nextCta: string
+}
+
 type MyLabCommandCenterProps = {
   firstName: string
   playerId: string
@@ -35,6 +45,7 @@ type MyLabCommandCenterProps = {
   progressHref: string
   matchup: MatchupPreview | null
   firstServeSteps: FirstServeStep[]
+  postRepReturn: PostRepReturn | null
 }
 
 export default function MyLabCommandCenter({
@@ -51,6 +62,7 @@ export default function MyLabCommandCenter({
   progressHref,
   matchup,
   firstServeSteps,
+  postRepReturn,
 }: MyLabCommandCenterProps) {
   const greeting = firstName ? `Good afternoon, ${firstName}.` : 'Your next move starts here.'
   const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
@@ -116,6 +128,41 @@ export default function MyLabCommandCenter({
                 </Link>
               )
             })}
+          </div>
+        </section>
+      ) : null}
+
+      {postRepReturn ? (
+        <section className={styles.postRepReturn} aria-labelledby="post-rep-return-title">
+          <div className={styles.postRepProof}>
+            <span className={styles.postRepIcon} aria-hidden="true">✓</span>
+            <div>
+              <p className={styles.cardEyebrow}>Rep saved · {postRepReturn.timeLabel}</p>
+              <h2 id="post-rep-return-title">{postRepReturn.cardTitle} is in the books.</h2>
+              <div className={styles.postRepProofLine}>
+                <strong>{postRepReturn.proofLabel}</strong>
+                <span>{postRepReturn.note || 'Your proof is ready for the next cleaner rep.'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.postRepProgress}>
+            <div>
+              <p className={styles.supportEyebrow}>Weekly proof</p>
+              <strong>{safeCompletedSessions} of {sessionTarget}</strong>
+            </div>
+            <span className={styles.postRepTrack} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly reps complete`}>
+              <span style={{ width: `${sessionTarget ? Math.round((safeCompletedSessions / sessionTarget) * 100) : 0}%` }} />
+            </span>
+            <Link href={progressHref}>See progress</Link>
+          </div>
+
+          <div className={styles.postRepNext}>
+            <p className={styles.supportEyebrow}>Recommended next move</p>
+            <strong>{postRepReturn.nextAction}</strong>
+            <Link href={postRepReturn.nextHref}>
+              {postRepReturn.nextCta} <span aria-hidden="true">→</span>
+            </Link>
           </div>
         </section>
       ) : null}

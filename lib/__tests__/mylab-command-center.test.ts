@@ -22,6 +22,19 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("? 'Repeat this rep'")
     expect(pageSource).toContain('completedSessions={commandCenterCompletedSessions}')
     expect(pageSource).toContain('firstServeSteps={firstServeSteps}')
+    expect(pageSource).toContain('postRepReturn={postRepReturn}')
+  })
+
+  it('returns completed players to proof, progress, and one recommended next move', () => {
+    expect(pageSource).toContain('const postRepReturn = latestLevelUpProof')
+    expect(pageSource).toContain('latestLevelUpProof.nextAction')
+    expect(pageSource).toContain("? 'Connect your player record so this proof stays with your tennis.'")
+    expect(pageSource).toContain("? 'Tie this proof to one focus for your next match or practice.'")
+    expect(componentSource).toContain('Rep saved · {postRepReturn.timeLabel}')
+    expect(componentSource).toContain('Weekly proof')
+    expect(componentSource).toContain('Recommended next move')
+    expect(componentSource).toContain('href={postRepReturn.nextHref}')
+    expect(styleSource).toContain('.postRepReturn')
   })
 
   it('guides first use with real setup progress and retires the path after the first rep', () => {
