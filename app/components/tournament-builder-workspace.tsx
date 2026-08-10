@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import ClubContextBanner from '@/app/components/club-context-banner'
+import CompetitionResponseSummary from '@/app/components/competition-response-summary'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -19,6 +20,11 @@ import {
   type LeagueCoordinatorResumeState,
 } from '@/lib/league-coordinator-memory'
 import { supabase } from '@/lib/supabase'
+import {
+  buildCompetitionScheduleResponseSummary,
+  loadCompetitionScheduleResponses,
+  type CompetitionScheduleResponse,
+} from '@/lib/competition-schedule-responses'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
 import {
   TOURNAMENT_DRAW_FORMATS,
@@ -185,6 +191,8 @@ export default function TournamentBuilderWorkspace() {
   const [highlightedContact, setHighlightedContact] = useState('')
   const [profileSyncing, setProfileSyncing] = useState(false)
   const [entryRecords, setEntryRecords] = useState<TiqTournamentEntryRecord[]>([])
+  const [scheduleResponses, setScheduleResponses] = useState<CompetitionScheduleResponse[]>([])
+  const [canReviewScheduleResponses, setCanReviewScheduleResponses] = useState(false)
   const [entryCounts, setEntryCounts] = useState<Record<string, number>>({})
   const [awardCounts, setAwardCounts] = useState<Record<string, number>>({})
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({})
@@ -717,6 +725,33 @@ export default function TournamentBuilderWorkspace() {
   useEffect(() => {
     let active = true
 
+    async function loadScheduleResponses() {
+      if (!selectedRecordId || !userId) {
+        if (active) setScheduleResponses([])
+        if (active) setCanReviewScheduleResponses(false)
+        return
+      }
+
+      const result = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: selectedRecordId,
+        userId,
+      })
+      if (!active) return
+      setScheduleResponses(result.responses)
+      setCanReviewScheduleResponses(result.authorized)
+    }
+
+    void loadScheduleResponses()
+
+    return () => {
+      active = false
+    }
+  }, [selectedRecordId, userId])
+
+  useEffect(() => {
+    let active = true
+
     async function loadAlerts() {
       if (!selectedRecordId || !userId) {
         if (active) setAlertRecords([])
@@ -932,6 +967,15 @@ export default function TournamentBuilderWorkspace() {
 
     refreshRecords(updated.id)
     setScheduleInputs(buildScheduleInputState(updated))
+    if (userId) {
+      const responseResult = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: updated.id,
+        userId,
+      })
+      setScheduleResponses(responseResult.responses)
+      setCanReviewScheduleResponses(responseResult.authorized)
+    }
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
     setNotice('Match schedule saved.')
   }
@@ -2142,6 +2186,24 @@ export default function TournamentBuilderWorkspace() {
                   : canRecord
                     ? 'Record winner'
                     : 'Await players'
+              const responseSummary = selectedRecord.entrantType === 'players'
+                && canReviewScheduleResponses
+                && canRecord
+                && matchScheduleReady
+                ? buildCompetitionScheduleResponseSummary({
+                    eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                    expectedPlayerNames: [match.sideA, match.sideB],
+                    responses: scheduleResponses,
+                    currentSnapshot: {
+                      date: match.schedule?.date || '',
+                      time: match.schedule?.time || '',
+                      location: [
+                        selectedRecord.locationLabel,
+                        match.schedule?.court ? `Court ${match.schedule.court}` : '',
+                      ].filter(Boolean).join(' · '),
+                    },
+                  })
+                : null
               return (
                 <div key={match.id} style={scorebookMatchStyle}>
                   <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
@@ -2163,7 +2225,14 @@ export default function TournamentBuilderWorkspace() {
                     ))}
                     <span style={matchPrimaryActionStyle}>{matchPrimaryLabel}</span>
                   </div>
-                  <div style={scheduleGridStyle}>
+                  {responseSummary ? (
+                    <CompetitionResponseSummary
+                      summary={responseSummary}
+                      adjustHref={`#tournament-schedule-${match.id}`}
+                      rosterHref="#tournament-entries"
+                    />
+                  ) : null}
+                  <div id={`tournament-schedule-${match.id}`} style={scheduleGridStyle}>
                     <label style={compactFieldStyle}>
                       Date
                       <input
