@@ -59,6 +59,7 @@ import {
   type CoachResumeSurface,
 } from '@/lib/coach-memory'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
+import { getWeeklyLevelUpPlanProgress, type WeeklyLevelUpPlan } from '@/lib/level-up/weekly-plan'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
@@ -345,6 +346,7 @@ function CoachContent() {
   const [savedStudents, setSavedStudents] = useState<CoachStudentLink[]>([])
   const [assignments, setAssignments] = useState<CoachAssignment[]>([])
   const [levelUpSessions, setLevelUpSessions] = useState<LevelUpSession[]>([])
+  const [sharedWeeklyPlans, setSharedWeeklyPlans] = useState<WeeklyLevelUpPlan[]>([])
   const [studentName, setStudentName] = useState('')
   const [studentLevel, setStudentLevel] = useState('')
   const [studentIdentity, setStudentIdentity] = useState(DEFAULT_STUDENT_IDENTITY_ID)
@@ -758,7 +760,7 @@ function CoachContent() {
     setWorkspaceMessage('')
 
     try {
-      const [studentsResponse, assignmentsResponse, invitesResponse, levelUpResponse] = await Promise.all([
+      const [studentsResponse, assignmentsResponse, invitesResponse, levelUpResponse, weeklyPlansResponse] = await Promise.all([
         fetch('/api/coach/students', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }),
@@ -771,12 +773,16 @@ function CoachContent() {
         fetch('/api/coach/level-up-sessions', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }),
+        fetch('/api/coach/level-up-weekly-plans', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
       ])
 
       const studentsJson = (await studentsResponse.json()) as { ok?: boolean; students?: CoachStudentLink[]; message?: string }
       const assignmentsJson = (await assignmentsResponse.json()) as { ok?: boolean; assignments?: CoachAssignment[]; message?: string }
       const invitesJson = (await invitesResponse.json()) as { ok?: boolean; invites?: CoachStudentInvite[]; message?: string }
       const levelUpJson = (await levelUpResponse.json()) as { ok?: boolean; sessions?: LevelUpSession[]; message?: string }
+      const weeklyPlansJson = (await weeklyPlansResponse.json()) as { ok?: boolean; plans?: WeeklyLevelUpPlan[]; message?: string }
 
       if (!studentsResponse.ok || !studentsJson.ok) {
         throw new Error(studentsJson.message || 'Could not load coach students.')
@@ -798,6 +804,7 @@ function CoachContent() {
       setAssignments(nextAssignments)
       setInvites(nextInvites)
       setLevelUpSessions(levelUpResponse.ok && levelUpJson.ok ? levelUpJson.sessions ?? [] : [])
+      setSharedWeeklyPlans(weeklyPlansResponse.ok && weeklyPlansJson.ok ? weeklyPlansJson.plans ?? [] : [])
       setAssignmentStudentId((current) => current || nextStudents[0]?.id || '')
       setContactStudentId((current) => current || nextStudents[0]?.id || '')
       restoreLastStudentSetup(nextStudents, nextInvites, setLastCreatedStudentSetup)
@@ -1854,6 +1861,8 @@ function CoachContent() {
     const identityRead = getCoachStudentIdentityRead(card.student.identitySlug)
     const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
     const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
+    const sharedWeek = sharedWeeklyPlans.find((plan) => plan.studentLinkId === card.student.id) ?? null
+    const sharedWeekProgress = getWeeklyLevelUpPlanProgress(sharedWeek)
 
     return (
       <article
@@ -1884,6 +1893,26 @@ function CoachContent() {
           <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
           {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
         </div>
+        {sharedWeek ? (
+          <div style={coachSharedWeekStyle} aria-label={`${card.student.playerName} shared Level Up week`}>
+            <div style={coachSharedWeekHeaderStyle}>
+              <span>Shared Level Up week</span>
+              <strong>{sharedWeekProgress.completed}/{sharedWeekProgress.total} reps</strong>
+            </div>
+            <p style={coachSharedWeekNextStyle}>
+              {sharedWeekProgress.complete
+                ? 'Week complete. Use the proof trail for the next lesson.'
+                : `Next: ${sharedWeekProgress.nextRep?.title ?? sharedWeek.strongestFocus}`}
+            </p>
+            <div style={coachSharedWeekRepsStyle}>
+              {sharedWeek.reps.map((rep) => (
+                <span key={rep.id} style={rep.completedAt ? coachSharedWeekRepDoneStyle : coachSharedWeekRepStyle}>
+                  {rep.completedAt ? '✓' : '○'} {rep.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <p style={studentNextStyle}>
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
@@ -7177,4 +7206,58 @@ const coachToolsBodyStyle: CSSProperties = {
   gap: 16,
   minWidth: 0,
   padding: '0 16px 16px',
+}
+
+const coachSharedWeekStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  border: '1px solid rgba(155,225,29,0.24)',
+  borderRadius: 14,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(4,17,28,0.72))',
+  padding: 10,
+}
+
+const coachSharedWeekHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const coachSharedWeekNextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 780,
+  lineHeight: 1.3,
+}
+
+const coachSharedWeekRepsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 6,
+}
+
+const coachSharedWeekRepStyle: CSSProperties = {
+  minWidth: 0,
+  overflow: 'hidden',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 9,
+  background: 'rgba(3,12,24,0.46)',
+  color: 'var(--shell-copy-muted)',
+  padding: '7px 8px',
+  fontSize: 11,
+  fontWeight: 820,
+  lineHeight: 1.25,
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const coachSharedWeekRepDoneStyle: CSSProperties = {
+  ...coachSharedWeekRepStyle,
+  borderColor: 'rgba(155,225,29,0.28)',
+  color: 'var(--brand-green-3)',
 }

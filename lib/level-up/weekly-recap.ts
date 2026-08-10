@@ -19,6 +19,8 @@ export type WeeklyLevelUpFocusRead = {
 export type WeeklyLevelUpRep = {
   id: string
   kind: 'repeat' | 'repair' | 'balance'
+  focusId: string
+  identitySlug: string
   label: string
   title: string
   detail: string
@@ -146,6 +148,8 @@ function buildWeeklyReps({
     reps.push({
       id: `repeat-${strongestSession.id}`,
       kind: 'repeat',
+      focusId: strongestSession.focusId,
+      identitySlug: strongestSession.identitySlug || fallbackIdentitySlug,
       label: 'Keep the win',
       title: `Repeat ${strongestSession.drillTitle}`,
       detail: `Prove ${Math.max(4, strongestSession.rating)}/5 again before adding speed or pressure.`,
@@ -157,6 +161,8 @@ function buildWeeklyReps({
     reps.push({
       id: `repair-${weakestSession.id}`,
       kind: 'repair',
+      focusId: weakestSession.focusId,
+      identitySlug: weakestSession.identitySlug || fallbackIdentitySlug,
       label: 'Repair next',
       title: `Clean up ${weakestSession.drillTitle}`,
       detail: 'Slow the rep down, fix the first visible leak, then score it again.',
@@ -168,6 +174,8 @@ function buildWeeklyReps({
     reps.push({
       id: `balance-${balanceFocus.identitySlug || fallbackIdentitySlug}-${balanceFocus.id}`,
       kind: 'balance',
+      focusId: balanceFocus.id,
+      identitySlug: balanceFocus.identitySlug || fallbackIdentitySlug,
       label: 'Round out week',
       title: `${formatFocusTitle(balanceFocus.title)} proof`,
       detail: 'Bank one short block so this week is not built around only one tennis job.',
@@ -186,6 +194,8 @@ function buildWeeklyReps({
     reps.push({
       id: `starter-${slot}-${seedFocus.identitySlug || fallbackIdentitySlug}-${seedFocus.id}`,
       kind: slot === 0 ? 'repeat' : slot === 1 ? 'repair' : 'balance',
+      focusId: seedFocus.id,
+      identitySlug: seedFocus.identitySlug || fallbackIdentitySlug,
       label: slot === 0 ? 'Start here' : slot === 1 ? 'Add proof' : 'Match transfer',
       title: slot === 0 ? `${formatFocusTitle(seedFocus.title)} starter` : `${formatFocusTitle(seedFocus.title)} rep ${slot + 1}`,
       detail: slot === 0
@@ -215,6 +225,8 @@ function buildStarterWeek(focuses: WeeklyLevelUpFocusRead[], fallbackIdentitySlu
     return {
       id: `starter-${index}-${focus.identitySlug || fallbackIdentitySlug}-${focus.id}`,
       kind: index === 0 ? 'repeat' as const : index === 1 ? 'repair' as const : 'balance' as const,
+      focusId: focus.id,
+      identitySlug: focus.identitySlug || fallbackIdentitySlug,
       label,
       title: `${formatFocusTitle(focus.title)} ${index === 0 ? 'starter' : 'proof'}`,
       detail,
