@@ -2000,7 +2000,9 @@ export default function MyQuestClient() {
                         ? 'Question sent · '
                         : levelUpWeeklyPlan.coachResponse?.playerReply?.action === 'acknowledged'
                           ? 'Coach notified · '
-                          : levelUpWeeklyPlan.coachResponse ? 'Coach updated · ' : ''}
+                          : levelUpWeeklyPlan.coachResponse?.action === 'answered'
+                            ? 'Coach answered · '
+                            : levelUpWeeklyPlan.coachResponse ? 'Coach updated · ' : ''}
                       {levelUpWeeklyPlanProgress.complete ? 'Week complete' : `Next: ${levelUpWeeklyPlanProgress.nextRep?.title ?? 'Open Level Up'}`}
                     </small>
                   </article>

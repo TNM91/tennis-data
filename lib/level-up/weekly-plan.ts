@@ -14,7 +14,7 @@ export type WeeklyLevelUpPlayerReply = {
 }
 
 export type WeeklyLevelUpCoachResponse = {
-  action: 'acknowledged' | 'adjusted' | 'replaced'
+  action: 'acknowledged' | 'answered' | 'adjusted' | 'replaced'
   note: string
   targetRepId: string | null
   replacementRep: WeeklyLevelUpRep | null
@@ -164,16 +164,18 @@ export function buildWeeklyLevelUpCoachResponse(
   coachUserId: string,
   now = new Date(),
 ): WeeklyLevelUpCoachResponse | null {
-  const targetRepId = input.action === 'acknowledged' ? null : cleanText(input.targetRepId)
+  if (input.action === 'answered' && plan.coachResponse?.playerReply?.action !== 'question') return null
+  const needsTargetRep = input.action === 'adjusted' || input.action === 'replaced'
+  const targetRepId = needsTargetRep ? cleanText(input.targetRepId) : null
   const targetRep = targetRepId ? plan.reps.find((rep) => rep.id === targetRepId) : null
-  if (input.action !== 'acknowledged' && !targetRep) return null
+  if (needsTargetRep && !targetRep) return null
   if (input.action === 'replaced' && (!input.replacementRep || targetRep?.completedAt)) return null
   const replacementRep = input.action === 'replaced' && input.replacementRep
     ? parseRep({ ...input.replacementRep, completedAt: null })
     : null
   if (input.action === 'replaced' && !replacementRep) return null
   const note = cleanText(input.note).slice(0, 500)
-  if (input.action === 'adjusted' && !note) return null
+  if ((input.action === 'adjusted' || input.action === 'answered') && !note) return null
 
   return {
     action: input.action,
@@ -280,21 +282,24 @@ function parseRep(value: unknown): WeeklyLevelUpPlanRep | null {
 
 function parseCoachResponse(value: unknown): WeeklyLevelUpCoachResponse | null {
   if (!isRecord(value)) return null
-  const action = value.action === 'acknowledged' || value.action === 'adjusted' || value.action === 'replaced'
+  const action = value.action === 'acknowledged' || value.action === 'answered' || value.action === 'adjusted' || value.action === 'replaced'
     ? value.action
     : null
   const coachUserId = cleanText(value.coachUserId)
   const updatedAt = normalizeIso(value.updatedAt)
   if (!action || !coachUserId || !updatedAt) return null
-  const targetRepId = action === 'acknowledged' ? null : nullableText(value.targetRepId)
-  if (action !== 'acknowledged' && !targetRepId) return null
+  const needsTargetRep = action === 'adjusted' || action === 'replaced'
+  const targetRepId = needsTargetRep ? nullableText(value.targetRepId) : null
+  if (needsTargetRep && !targetRepId) return null
   const replacement = action === 'replaced'
     ? parseRep({ ...(isRecord(value.replacementRep) ? value.replacementRep : {}), completedAt: null })
     : null
   if (action === 'replaced' && !replacement) return null
+  const note = cleanText(value.note).slice(0, 500)
+  if ((action === 'adjusted' || action === 'answered') && !note) return null
   return {
     action,
-    note: cleanText(value.note).slice(0, 500),
+    note,
     targetRepId,
     replacementRep: replacement ? stripCompletion(replacement) : null,
     coachUserId,

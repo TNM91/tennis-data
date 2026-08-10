@@ -70,10 +70,14 @@ export async function PATCH(request: Request) {
 
   const targetRepId = cleanText(body.targetRepId)
   const targetRep = plan.reps.find((rep) => rep.id === targetRepId) ?? null
+  if (action === 'answered' && plan.coachResponse?.playerReply?.action !== 'question') {
+    return Response.json({ ok: false, message: 'That player question has already been answered.' }, { status: 409 })
+  }
   const replacementCard = action === 'replaced'
     ? LEVEL_UP_CARDS.find((card) => card.id === cleanText(body.replacementCardId) && card.assignable) ?? null
     : null
-  if (action !== 'acknowledged' && !targetRep) {
+  const needsTargetRep = action === 'adjusted' || action === 'replaced'
+  if (needsTargetRep && !targetRep) {
     return Response.json({ ok: false, message: 'Choose the rep you want to guide.' }, { status: 400 })
   }
   if (action === 'replaced' && targetRep?.completedAt) {
@@ -92,7 +96,7 @@ export async function PATCH(request: Request) {
   const coachResponse = buildWeeklyLevelUpCoachResponse(plan, {
     action,
     note,
-    targetRepId: targetRep?.id ?? null,
+    targetRepId: needsTargetRep ? targetRep?.id ?? null : null,
     replacementRep: targetRep && replacementCard ? {
       id: targetRep.id,
       kind: targetRep.kind,
@@ -116,7 +120,7 @@ export async function PATCH(request: Request) {
 }
 
 function parseAction(value: unknown): WeeklyLevelUpCoachResponse['action'] | null {
-  return value === 'acknowledged' || value === 'adjusted' || value === 'replaced' ? value : null
+  return value === 'acknowledged' || value === 'answered' || value === 'adjusted' || value === 'replaced' ? value : null
 }
 
 function cleanText(value: unknown) {

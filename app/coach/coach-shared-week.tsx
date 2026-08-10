@@ -16,7 +16,9 @@ type CoachSharedWeekProps = {
   onSaved: (plan: WeeklyLevelUpPlan) => void
 }
 
-const actionOptions: Array<{ action: WeeklyLevelUpCoachResponse['action']; label: string }> = [
+type CoachPlanAction = Exclude<WeeklyLevelUpCoachResponse['action'], 'answered'>
+
+const actionOptions: Array<{ action: CoachPlanAction; label: string }> = [
   { action: 'acknowledged', label: 'Looks good' },
   { action: 'adjusted', label: 'Add cue' },
   { action: 'replaced', label: 'Swap rep' },
@@ -26,10 +28,11 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
   const reps = getWeeklyLevelUpPlanReps(plan)
   const progress = getWeeklyLevelUpPlanProgress(plan)
   const firstOpenRep = reps.find((rep) => !rep.completedAt) ?? reps[0]
-  const [action, setAction] = useState<WeeklyLevelUpCoachResponse['action'] | null>(null)
+  const [action, setAction] = useState<CoachPlanAction | null>(null)
   const [targetRepId, setTargetRepId] = useState(firstOpenRep?.id ?? '')
   const [replacementCardId, setReplacementCardId] = useState('')
   const [note, setNote] = useState('')
+  const [answer, setAnswer] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const replacementCards = useMemo(() => {
@@ -41,6 +44,8 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
   const targetRep = response?.targetRepId ? plan.reps.find((rep) => rep.id === response.targetRepId) : null
   const responseLabel = response?.action === 'acknowledged'
     ? 'Plan reviewed'
+    : response?.action === 'answered'
+      ? 'Question answered'
     : response?.action === 'adjusted'
       ? `Cue added to ${targetRep?.title ?? 'one rep'}`
       : response?.action === 'replaced'
@@ -51,7 +56,7 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
     && (action !== 'adjusted' || Boolean(note.trim()))
     && (action !== 'replaced' || Boolean(replacementCardId))
 
-  function chooseAction(nextAction: WeeklyLevelUpCoachResponse['action']) {
+  function chooseAction(nextAction: CoachPlanAction) {
     setAction(nextAction)
     setMessage('')
     if (nextAction === 'acknowledged') {
@@ -64,32 +69,56 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
     if (nextAction === 'replaced') setReplacementCardId((current) => current || replacementCards[0]?.id || '')
   }
 
-  async function sendResponse() {
-    if (!action || !canSend) return
+  async function saveResponse(
+    payload: {
+      action: WeeklyLevelUpCoachResponse['action']
+      note: string
+      targetRepId: string | null
+      replacementCardId: string | null
+    },
+    successMessage: string,
+  ) {
     setSaving(true)
     setMessage('')
     try {
-      const response = await fetch('/api/coach/level-up-weekly-plans', {
+      const fetchResponse = await fetch('/api/coach/level-up-weekly-plans', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: plan.id,
-          action,
-          note,
-          targetRepId: action === 'acknowledged' ? null : targetRepId,
-          replacementCardId: action === 'replaced' ? replacementCardId : null,
-        }),
+        body: JSON.stringify({ planId: plan.id, ...payload }),
       })
-      const json = await response.json() as { ok?: boolean; plan?: WeeklyLevelUpPlan; message?: string }
-      if (!response.ok || !json.ok || !json.plan) throw new Error(json.message || 'Could not send this coach update.')
+      const json = await fetchResponse.json() as { ok?: boolean; plan?: WeeklyLevelUpPlan; message?: string }
+      if (!fetchResponse.ok || !json.ok || !json.plan) throw new Error(json.message || 'Could not send this coach update.')
       onSaved(json.plan)
-      setAction(null)
-      setMessage('Player plan updated.')
+      setMessage(successMessage)
+      return true
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not send this coach update.')
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  async function sendResponse() {
+    if (!action || !canSend) return
+    const saved = await saveResponse({
+      action,
+      note,
+      targetRepId: action === 'acknowledged' ? null : targetRepId,
+      replacementCardId: action === 'replaced' ? replacementCardId : null,
+    }, 'Player plan updated.')
+    if (saved) setAction(null)
+  }
+
+  async function answerQuestion() {
+    if (playerReply?.action !== 'question' || saving || !answer.trim()) return
+    const saved = await saveResponse({
+      action: 'answered',
+      note: answer,
+      targetRepId: null,
+      replacementCardId: null,
+    }, 'Answer sent to player.')
+    if (saved) setAnswer('')
   }
 
   return (
@@ -117,7 +146,28 @@ export default function CoachSharedWeek({ plan, playerName, accessToken, onSaved
         <div style={playerReply.action === 'question' ? questionStyle : acknowledgedStyle} aria-live="polite">
           <span>{playerReply.action === 'question' ? 'Player question' : 'Player got it'}</span>
           {playerReply.message ? <strong>{playerReply.message}</strong> : <strong>Coach update received.</strong>}
-          {playerReply.action === 'question' ? <small>Send a new cue or rep update to answer.</small> : null}
+          {playerReply.action === 'question' ? (
+            <div style={answerComposerStyle}>
+              <label htmlFor={`coach-answer-${plan.id}`}>Your answer</label>
+              <textarea
+                id={`coach-answer-${plan.id}`}
+                value={answer}
+                maxLength={500}
+                rows={3}
+                onChange={(event) => setAnswer(event.target.value)}
+                placeholder="Give one clear answer."
+                style={textareaStyle}
+              />
+              <button
+                type="button"
+                style={sendStyle}
+                disabled={!accessToken || saving || !answer.trim()}
+                onClick={() => void answerQuestion()}
+              >
+                {saving ? 'Sending…' : 'Answer player'}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {response ? (
@@ -202,6 +252,7 @@ const repDoneStyle: CSSProperties = { ...repStyle, borderColor: 'rgba(155,225,29
 const sentStyle: CSSProperties = { display: 'grid', gap: 3, border: '1px solid rgba(116,190,255,0.2)', borderRadius: 11, background: 'rgba(116,190,255,0.08)', color: 'var(--shell-copy-muted)', padding: 9, fontSize: 11, lineHeight: 1.35 }
 const acknowledgedStyle: CSSProperties = { display: 'grid', gap: 3, border: '1px solid rgba(155,225,29,0.3)', borderRadius: 11, background: 'rgba(155,225,29,0.09)', color: 'var(--brand-green-3)', padding: 9, fontSize: 11, lineHeight: 1.35 }
 const questionStyle: CSSProperties = { ...acknowledgedStyle, borderColor: 'rgba(255,196,87,0.38)', background: 'rgba(255,196,87,0.1)', color: '#ffd27a' }
+const answerComposerStyle: CSSProperties = { display: 'grid', gap: 7, marginTop: 4, color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase' }
 const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }
 const actionStyle: CSSProperties = { minWidth: 0, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, background: 'rgba(255,255,255,0.055)', color: 'var(--foreground-strong)', padding: '8px 6px', fontSize: 11, fontWeight: 900, cursor: 'pointer' }
 const activeActionStyle: CSSProperties = { ...actionStyle, borderColor: 'rgba(155,225,29,0.4)', background: 'rgba(155,225,29,0.14)', color: 'var(--brand-green)' }
