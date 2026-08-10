@@ -1543,7 +1543,11 @@ function TeamRoomContent() {
   return (
     <main className={styles.page}>
       <nav className={styles.appBar} aria-label="Team Chat navigation">
-        <Link className={styles.appBack} href={room.canManage ? captainHref : '/mylab'}>
+        <Link
+          className={styles.appBack}
+          href={room.canManage ? captainHref : '/mylab'}
+          aria-label={room.canManage ? 'Back to Captain' : 'Back to My Lab'}
+        >
           <Image src="/brand/icons/pwa-192.png" alt="" width={32} height={32} />
           <span>{room.canManage ? 'Captain' : 'My Lab'}</span>
         </Link>

@@ -3,6 +3,7 @@ import CompetePageFrame, {
   CompeteGrid,
 } from '@/app/compete/_components/compete-page-frame'
 import CompeteHome from '@/app/compete/_components/compete-home'
+import PlayerEntryTracker from '@/app/compete/_components/player-entry-tracker'
 import styles from './compete-home.module.css'
 
 export default function CompetePage() {
@@ -13,6 +14,7 @@ export default function CompetePage() {
       description="Prep a matchup, scout a player, build a lineup, or check results."
       compactHome
     >
+      <PlayerEntryTracker />
       <CompeteHome />
 
       <details className={styles.moreTools}>

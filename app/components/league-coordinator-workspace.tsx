@@ -10,6 +10,7 @@ import RoleActionHome, {
   type RoleHomeAction,
   type RoleHomeQuickAction,
 } from '@/app/components/role-action-home'
+import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
@@ -32,6 +33,14 @@ import {
   resolveTeamMatchFormat,
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
+import {
+  DEFAULT_TEAM_COMPETITION_RULES_OVERRIDE,
+  hasTeamCompetitionRulesOverride,
+  resolveTeamCompetitionRules,
+  type CompetitionEligibilityOverride,
+  type CompetitionMixedPairOverride,
+  type CompetitionStandingsRule,
+} from '@/lib/competition-rules'
 import {
   getTiqIndividualCompetitionFormatDescription,
   getTiqIndividualCompetitionFormatLabel,
@@ -89,6 +98,7 @@ import {
   listTiqPlayerLeagueEntries,
   listTiqTeamLeagueEntries,
   removeTiqLeague,
+  requestTiqPlayerLeagueEntryInformation,
   saveTiqLeague,
   updateTiqLeagueEntryStatus,
   type TiqPlayerLeagueEntryRecord,
@@ -177,6 +187,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   teamMatchFormatId: 'standard_2s_3d',
   scoringSystem: 'standard',
   thirdSetRule: 'either',
+  competitionRules: { ...DEFAULT_TEAM_COMPETITION_RULES_OVERRIDE },
   leagueName: '',
   seasonLabel: '',
   seasonStatus: 'draft',
@@ -402,6 +413,8 @@ export function LeagueCoordinatorWorkspace() {
   const [teamEntryRequests, setTeamEntryRequests] = useState<TiqTeamLeagueEntryRecord[]>([])
   const [playerEntryRequests, setPlayerEntryRequests] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [entryRequestStatus, setEntryRequestStatus] = useState('')
+  const [entryInfoRequestKey, setEntryInfoRequestKey] = useState('')
+  const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
   const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
   const [leagueAwardRefresh, setLeagueAwardRefresh] = useState(0)
@@ -764,6 +777,18 @@ export function LeagueCoordinatorWorkspace() {
   const draftTeamMatchFormatSummary = useMemo(
     () => getTeamMatchFormatSummary(draftTeamMatchFormat),
     [draftTeamMatchFormat],
+  )
+  const draftTeamCompetitionRules = useMemo(
+    () => resolveTeamCompetitionRules({
+      leagueName: draft.leagueName,
+      flight: draft.flight,
+      explicitFormatId: draft.teamMatchFormatId,
+      competitionLayer: 'tiq',
+      scoringSystem: draft.scoringSystem,
+      thirdSetRule: draft.thirdSetRule,
+      rulesOverride: draft.competitionRules,
+    }),
+    [draft.competitionRules, draft.flight, draft.leagueName, draft.scoringSystem, draft.teamMatchFormatId, draft.thirdSetRule],
   )
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
@@ -1243,6 +1268,7 @@ export function LeagueCoordinatorWorkspace() {
       teamMatchFormatId: record.teamMatchFormatId,
       scoringSystem: record.scoringSystem,
       thirdSetRule: record.thirdSetRule,
+      competitionRules: record.competitionRules,
       leagueName: record.leagueName,
       seasonLabel: normalizedSeason,
       seasonStatus: record.seasonStatus,
@@ -1352,12 +1378,22 @@ export function LeagueCoordinatorWorkspace() {
     entryName: string,
     entryStatus: 'active' | 'rejected',
   ) {
+    const playerEntry = league.leagueFormat === 'individual'
+      ? playerEntryRequests.find((entry) => entry.leagueId === league.id && entry.playerName === entryName)
+      : null
+    if (entryStatus === 'active' && playerEntry?.eligibility.status === 'ineligible') {
+      setEntryRequestStatus(`${entryName} does not match this division. ${playerEntry.eligibility.detail}`)
+      return
+    }
     setEntryRequestStatus(entryStatus === 'active' ? `Approving ${entryName}...` : `Declining ${entryName}...`)
     const result = await updateTiqLeagueEntryStatus({
       leagueId: league.id,
       leagueFormat: league.leagueFormat,
       entryName,
       entryStatus,
+      eligibilityReview: playerEntry
+        ? { status: playerEntry.eligibility.status, note: playerEntry.eligibility.detail }
+        : null,
     })
     await refreshRegistry()
     if (result.record) {
@@ -1370,6 +1406,30 @@ export function LeagueCoordinatorWorkspace() {
         ? `${entryName} was approved for ${league.leagueName}.`
         : `${entryName} was declined for ${league.leagueName}.`,
     )
+  }
+
+  async function handleEntryInformationRequest(league: TiqLeagueRecord, entryName: string) {
+    const note = entryInfoRequestNote.trim()
+    if (!note) {
+      setEntryRequestStatus('Tell the player what information is missing.')
+      return
+    }
+    setEntryRequestStatus(`Notifying ${entryName}...`)
+    const result = await requestTiqPlayerLeagueEntryInformation({
+      leagueId: league.id,
+      entryName,
+      note,
+    })
+    setStorageSource(result.source)
+    setStorageWarning(result.warning || '')
+    if (result.warning) {
+      setEntryRequestStatus(result.warning)
+      return
+    }
+    setEntryInfoRequestKey('')
+    setEntryInfoRequestNote('')
+    await refreshRegistry()
+    setEntryRequestStatus(`${entryName} was notified and can respond from Compete.`)
   }
 
   async function copyPublicLeagueLink(record: TiqLeagueRecord) {
@@ -1733,6 +1793,8 @@ export function LeagueCoordinatorWorkspace() {
             onAction={handleLeagueHomeAction}
           />
         </div>
+
+        {canUseLeagueTools ? <OrganizerScheduleAttention /> : null}
 
         {canUseLeagueTools ? (
           <>
@@ -2223,6 +2285,10 @@ export function LeagueCoordinatorWorkspace() {
                       ? draftTeamMatchFormat.description
                       : `${draftTeamMatchFormatSummary.courts} courts · ${draftTeamMatchFormatSummary.players} players. ${draftTeamMatchFormat.description}`}
                   </span>
+                  <span style={fieldHelpText}>
+                    <strong>{draftTeamCompetitionRules.eligibilityTitle}.</strong>{' '}
+                    {draftTeamCompetitionRules.eligibilityDetail}
+                  </span>
                 </label>
               ) : null}
 
@@ -2305,6 +2371,148 @@ export function LeagueCoordinatorWorkspace() {
               </label>
             </div>
 
+            {draft.leagueFormat === 'team' ? (
+              <details
+                style={rulesDetailsStyle}
+                open={hasTeamCompetitionRulesOverride(draft.competitionRules) ? true : undefined}
+              >
+                <summary style={rulesSummaryStyle}>
+                  Local competition rules
+                  <span style={pillSlate}>
+                    {hasTeamCompetitionRulesOverride(draft.competitionRules) ? 'Saved overrides' : 'Automatic defaults'}
+                  </span>
+                </summary>
+                <p style={setupAssistTextStyle}>
+                  Automatic defaults cover common Adult, Mixed, Combo, rated-line, and club formats. Change only what this league publishes differently.
+                </p>
+                <div style={responsiveFieldGrid}>
+                  <label style={fieldLabel}>
+                    <span>Eligibility</span>
+                    <select
+                      value={draft.competitionRules.eligibilityRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          eligibilityRule: event.target.value as CompetitionEligibilityOverride,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="open">Open roster</option>
+                      <option value="straight_level">Straight NTRP level</option>
+                      <option value="combined_level">Combined NTRP level</option>
+                      <option value="rated_lines">NTRP level by line</option>
+                      <option value="combined_rated_lines">Combined NTRP by line</option>
+                      <option value="local_rules">Published local rules</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Saved NTRP level</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={0.5}
+                      value={draft.competitionRules.competitionLevel ?? ''}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          competitionLevel: event.target.value ? Number(event.target.value) : null,
+                        },
+                      }))}
+                      placeholder="Auto from flight"
+                      style={inputStyle}
+                    />
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Doubles pair</span>
+                    <select
+                      value={draft.competitionRules.mixedPairRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          mixedPairRule: event.target.value as CompetitionMixedPairOverride,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="required">One man + one woman</option>
+                      <option value="not_required">No mixed-pair requirement</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Partner rating gap</span>
+                    <select
+                      value={String(draft.competitionRules.maxPartnerRatingGap)}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          maxPartnerRatingGap: event.target.value === 'auto' || event.target.value === 'none'
+                            ? event.target.value
+                            : Number(event.target.value),
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use format default</option>
+                      <option value="none">No saved maximum</option>
+                      <option value="0.5">0.5 maximum</option>
+                      <option value="1">1.0 maximum</option>
+                      <option value="1.5">1.5 maximum</option>
+                      <option value="2">2.0 maximum</option>
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Standings priority</span>
+                    <select
+                      value={draft.competitionRules.standingsRule}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        competitionRules: {
+                          ...current.competitionRules,
+                          standingsRule: event.target.value as CompetitionStandingsRule,
+                        },
+                      }))}
+                      style={inputStyle}
+                    >
+                      <option value="auto">Use scoring default</option>
+                      <option value="match_wins">Team-match wins first</option>
+                      <option value="line_wins">Line wins first</option>
+                      <option value="points">Points first</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label style={fieldLabel}>
+                  <span>Published rule note</span>
+                  <textarea
+                    value={draft.competitionRules.notes}
+                    onChange={(event) => setDraft((current) => ({
+                      ...current,
+                      competitionRules: { ...current.competitionRules, notes: event.target.value },
+                    }))}
+                    placeholder="Only add the local rule captains and players need to know."
+                    style={textareaStyle}
+                  />
+                </label>
+
+                <p style={fieldHelpText}>
+                  <strong>Applied now:</strong> {draftTeamCompetitionRules.eligibilityDetail}{' '}
+                  {draftTeamCompetitionRules.standingsDetail}
+                </p>
+              </details>
+            ) : null}
+
                 <div style={responsiveOutcomeInfoGrid}>
               <div style={infoCard}>
                 <div style={sectionEyebrow}>Score format</div>
@@ -2331,7 +2539,7 @@ export function LeagueCoordinatorWorkspace() {
                 </strong>
                 <p style={infoCardText}>
                   {draft.leagueFormat === 'team'
-                    ? 'Record a team-vs-team event, then each singles or doubles line with winner and score. Standings come from team wins, line wins, and dynamic points when enabled.'
+                    ? `${draftTeamCompetitionRules.teamResultDetail} ${draftTeamCompetitionRules.standingsDetail}`
                     : 'Record Player A, Player B, result date, winner, and score. Completed results sync into the rating engine and league standings.'}
                 </p>
               </div>
@@ -2554,10 +2762,14 @@ export function LeagueCoordinatorWorkspace() {
                   {[...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].map((entry) => {
                     const league = records.find((record) => record.id === entry.leagueId)
                     if (!league) return null
+                    const isPlayerEntry = 'playerName' in entry
+                    const playerEligibility = isPlayerEntry ? entry.eligibility : null
+                    const cannotApprove = playerEligibility?.status === 'ineligible'
                     const entryName =
                       'teamName' in entry
                         ? entry.teamName
                         : entry.playerName
+                    const infoRequestKey = `${entry.leagueId}:${entryName}`
                     const detail =
                       'teamName' in entry
                         ? [entry.sourceLeagueName, entry.sourceFlight, 'Team request'].filter(Boolean).join(' | ')
@@ -2569,15 +2781,54 @@ export function LeagueCoordinatorWorkspace() {
                           <div style={registryTitle}>{entryName}</div>
                           <div style={registryText}>{league.leagueName}</div>
                           {detail ? <div style={registryNotes}>{detail}</div> : null}
+                          {playerEligibility ? (
+                            <div style={eligibilityReviewRowStyle}>
+                              <span style={leagueEligibilityPillStyle(playerEligibility.status)}>{playerEligibility.label}</span>
+                              <span style={registryNotes}>{playerEligibility.detail}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div style={responsiveButtonRowStyle}>
-                          <PrimaryBtn onClick={() => void handleEntryRequestAction(league, entryName, 'active')}>
-                            Approve
+                          <PrimaryBtn
+                            onClick={() => void handleEntryRequestAction(league, entryName, 'active')}
+                            disabled={cannotApprove}
+                          >
+                            {cannotApprove
+                              ? 'Does not match'
+                              : playerEligibility?.status === 'needs_confirmation'
+                                ? 'Confirm & approve'
+                                : 'Approve'}
                           </PrimaryBtn>
                           <DangerBtn onClick={() => void handleEntryRequestAction(league, entryName, 'rejected')}>
                             Decline
                           </DangerBtn>
+                          {isPlayerEntry ? (
+                            <GhostBtn onClick={() => {
+                              setEntryInfoRequestKey(infoRequestKey)
+                              setEntryInfoRequestNote(playerEligibility?.detail || '')
+                            }}>
+                              Request info
+                            </GhostBtn>
+                          ) : null}
                         </div>
+                        {isPlayerEntry && entryInfoRequestKey === infoRequestKey ? (
+                          <div style={entryInfoRequestStyle}>
+                            <label style={fieldLabel}>
+                              <span>What does the player need to confirm?</span>
+                              <textarea
+                                value={entryInfoRequestNote}
+                                onChange={(event) => setEntryInfoRequestNote(event.target.value)}
+                                placeholder="Confirm your age division or current rating."
+                                rows={3}
+                                style={textareaStyle}
+                              />
+                            </label>
+                            <div style={responsiveButtonRowStyle}>
+                              <PrimaryBtn onClick={() => void handleEntryInformationRequest(league, entryName)}>Send request</PrimaryBtn>
+                              <GhostBtn onClick={() => { setEntryInfoRequestKey(''); setEntryInfoRequestNote('') }}>Cancel</GhostBtn>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     )
                   })}
@@ -4567,6 +4818,29 @@ const compactDetailsPanelStyle: CSSProperties = {
   gap: '10px',
 }
 
+const rulesDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: '14px 16px',
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const rulesSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+}
+
 const mobileScrollablePanelStyle: CSSProperties = {
   maxHeight: 'min(680px, 82vh)',
   overflowY: 'auto',
@@ -5318,6 +5592,51 @@ const requestCardContentStyle: CSSProperties = {
   gap: '4px',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const eligibilityReviewRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  marginTop: '6px',
+  minWidth: 0,
+}
+
+const entryInfoRequestStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: '10px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,36,0.68)',
+  minWidth: 0,
+}
+
+function leagueEligibilityPillStyle(status: TiqPlayerLeagueEntryRecord['eligibility']['status']): CSSProperties {
+  if (status === 'verified') {
+    return {
+      ...pillBase,
+      justifySelf: 'start',
+      background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+      color: 'var(--foreground-strong)',
+    }
+  }
+  if (status === 'ineligible') {
+    return {
+      ...pillBase,
+      justifySelf: 'start',
+      border: '1px solid color-mix(in srgb, #f87171 32%, var(--shell-panel-border) 68%)',
+      background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-chip-bg) 86%)',
+      color: 'color-mix(in srgb, #fca5a5 78%, var(--foreground-strong) 22%)',
+    }
+  }
+  return {
+    ...pillBase,
+    justifySelf: 'start',
+    border: '1px solid color-mix(in srgb, #facc15 26%, var(--shell-panel-border) 74%)',
+    background: 'color-mix(in srgb, #713f12 12%, var(--shell-chip-bg) 88%)',
+    color: 'var(--foreground-strong)',
+  }
 }
 
 const registryTimestamp: CSSProperties = {

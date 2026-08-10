@@ -17,5 +17,7 @@ describe('profile link API resilience', () => {
     expect(source).toContain('linked_league_name: cleanString(existingProfile?.linked_league_name) || null')
     expect(source).toContain(".select('linked_player_id,linked_player_name,profile_photo_url,message_display_name')")
     expect(source).toContain(".select('linked_player_id,linked_player_name')")
+    expect(source).toContain("mixed_pair_role: mixedPairRole")
+    expect(source).toContain("body.mixedPairRole !== undefined")
   })
 })

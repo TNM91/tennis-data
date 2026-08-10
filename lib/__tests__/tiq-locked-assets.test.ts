@@ -31,6 +31,7 @@ const lockedAssets = [
   'public/brand/web/footer-logo-light-bg.png',
   'public/brand/web/header-iq-compact.png',
   'public/brand/web/header-logo-transparent.png',
+  'public/brand/web/home-watermark.png',
 ]
 
 function textFiles(dir: string): string[] {

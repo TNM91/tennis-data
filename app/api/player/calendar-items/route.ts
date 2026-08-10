@@ -5,6 +5,7 @@ import {
   type PlayerCalendarItemInput,
   type PlayerCalendarItemRow,
 } from '@/lib/player-calendar-items'
+import { loadPlayerCompetitionSchedule } from '@/lib/player-competition-schedule'
 
 export const runtime = 'nodejs'
 
@@ -22,21 +23,31 @@ export async function GET(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
-  const { data, error } = await auth.supabase
-    .from('player_calendar_items')
-    .select(calendarItemSelect)
-    .eq('player_user_id', auth.userId)
-    .order('scheduled_date', { ascending: true })
-    .order('scheduled_time', { ascending: true })
-    .limit(100)
+  const [personalResult, competitionResult] = await Promise.all([
+    auth.supabase
+      .from('player_calendar_items')
+      .select(calendarItemSelect)
+      .eq('player_user_id', auth.userId)
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true })
+      .limit(100),
+    loadPlayerCompetitionSchedule(auth.supabase, auth.userId)
+      .then((items) => ({ items, error: null }))
+      .catch((error: unknown) => ({
+        items: [],
+        error: error instanceof Error ? error : new Error('Competition dates could not be loaded.'),
+      })),
+  ])
 
-  if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (personalResult.error) {
+    return Response.json({ ok: false, message: personalResult.error.message }, { status: 500 })
   }
 
   return Response.json({
     ok: true,
-    items: ((data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow),
+    items: ((personalResult.data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow),
+    competitionItems: competitionResult.items,
+    competitionWarning: competitionResult.error?.message ?? '',
   })
 }
 

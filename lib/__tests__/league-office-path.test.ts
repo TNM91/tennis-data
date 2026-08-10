@@ -36,4 +36,12 @@ describe('League Office desk', () => {
     expect(source).toContain('leagueDeskCardCompleteStyle')
     expect(source).toContain('leagueDeskMarkerReadyStyle')
   })
+
+  it('keeps local competition overrides durable but out of the default setup path', () => {
+    expect(source).toContain('Local competition rules')
+    expect(source).toContain("hasTeamCompetitionRulesOverride(draft.competitionRules)")
+    expect(source).toContain('Automatic defaults cover common Adult, Mixed, Combo, rated-line, and club formats.')
+    expect(source).toContain('competitionRules: record.competitionRules')
+    expect(source).toContain('Standings priority')
+  })
 })

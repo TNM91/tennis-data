@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 const allowedTypes = new Set<ClubGroupType>(['clinic', 'team', 'camp', 'development_group', 'league_division', 'tournament_field'])
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const groupSelect = 'id,club_id,name,group_type,description,season_label,lead_user_id,capacity,location_label,registration_url,default_duration_minutes,is_public,is_active,closed_at,rollover_source_group_id,launch_handoff_completed_at,updated_at'
-const leagueRolloverSelect = 'id,club_group_id,league_format,individual_competition_format,team_match_format_id,scoring_system,third_set_rule,league_name,max_weeks,max_match_events,is_public,scheduling_mode,default_match_day,default_match_time,schedule_time_zone,default_facility,scheduling_notes,flight,location_label,photo_url,notes'
+const leagueRolloverSelect = 'id,club_group_id,league_format,individual_competition_format,team_match_format_id,scoring_system,third_set_rule,competition_rules,league_name,max_weeks,max_match_events,is_public,scheduling_mode,default_match_day,default_match_time,schedule_time_zone,default_facility,scheduling_notes,flight,location_label,photo_url,notes'
 const tournamentRolloverSelect = 'id,club_group_id,name,format,entrant_type,location_label,director_notes,is_public'
 
 export async function POST(request: Request, context: { params: Promise<{ clubId: string }> }) {
@@ -187,6 +187,7 @@ export async function PUT(request: Request, context: { params: Promise<{ clubId:
         team_match_format_id: league.team_match_format_id,
         scoring_system: league.scoring_system,
         third_set_rule: league.third_set_rule,
+        competition_rules: league.competition_rules,
         league_name: league.league_name,
         season_label: seasonLabel,
         season_status: 'draft',
