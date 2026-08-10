@@ -1995,7 +1995,10 @@ export default function MyQuestClient() {
                   <article>
                     <span>Weekly plan</span>
                     <strong>{levelUpWeeklyPlanProgress.completed}/{levelUpWeeklyPlanProgress.total}</strong>
-                    <small>{levelUpWeeklyPlanProgress.complete ? 'Week complete' : `Next: ${levelUpWeeklyPlanProgress.nextRep?.title ?? 'Open Level Up'}`}</small>
+                    <small>
+                      {levelUpWeeklyPlan.coachResponse ? 'Coach updated · ' : ''}
+                      {levelUpWeeklyPlanProgress.complete ? 'Week complete' : `Next: ${levelUpWeeklyPlanProgress.nextRep?.title ?? 'Open Level Up'}`}
+                    </small>
                   </article>
                 ) : null}
               </div>
