@@ -2616,6 +2616,38 @@
     color: #07111f;
   }
 
+  .mobileTennisWeek {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 0.75fr 0.9fr minmax(0, 1.4fr);
+    gap: 6px;
+  }
+
+  .mobileTennisWeek article {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(2, 10, 24, 0.32);
+    padding: 7px;
+  }
+
+  .mobileTennisWeek strong {
+    overflow: hidden;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileTennisWeek small {
+    overflow: hidden;
+    font-size: 0.66rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .mobileQuestRail {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
