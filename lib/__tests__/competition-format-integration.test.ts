@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '../competition-format-registry'
 
 const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
@@ -18,6 +19,9 @@ describe('shared competition formats', () => {
     expect(service).toContain('team_match_format_id: normalizeTeamMatchFormatId(record.teamMatchFormatId)')
     expect(migration).toContain("'tri_level'")
     expect(migration).toContain("'mixed_tri_level'")
+    for (const format of TEAM_MATCH_FORMATS) {
+      expect(migration, `missing team format ${format.id}`).toContain(`'${format.id}'`)
+    }
   })
 
   it('loads one format into lineup creation and keeps arbitrary saved slots usable downstream', () => {
@@ -47,5 +51,8 @@ describe('shared competition formats', () => {
     expect(migration).toContain("'round_robin_first_match_consolation'")
     expect(migration).toContain("'feed_in_consolation'")
     expect(migration).toContain("'team_tournament'")
+    for (const format of TOURNAMENT_DRAW_FORMATS) {
+      expect(migration, `missing tournament format ${format.id}`).toContain(`'${format.id}'`)
+    }
   })
 })

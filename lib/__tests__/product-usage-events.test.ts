@@ -1,11 +1,29 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  PRODUCT_USAGE_EVENT_NAMES,
+  PRODUCT_USAGE_EVENT_SURFACES,
   buildProductUsageEventInsert,
   normalizeProductUsageEventInput,
 } from '../product-usage-events'
 
 describe('product usage events', () => {
+  it('keeps production event and surface constraints aligned with the application registry', () => {
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260810000500_sync_product_usage_event_constraints.sql'),
+      'utf8',
+    )
+
+    for (const eventName of PRODUCT_USAGE_EVENT_NAMES) {
+      expect(migration).toContain(`'${eventName}'`)
+    }
+    for (const surface of PRODUCT_USAGE_EVENT_SURFACES) {
+      expect(migration).toContain(`'${surface}'`)
+    }
+  })
+
   it('normalizes supported event input', () => {
     expect(normalizeProductUsageEventInput({
       eventName: 'mylab_match_plan_action',

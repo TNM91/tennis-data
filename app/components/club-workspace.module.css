@@ -19,6 +19,17 @@
   margin: 32px auto 0;
 }
 
+.clubWelcome {
+  display: grid;
+  gap: 16px;
+  padding: clamp(20px, 5vw, 38px);
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--shell-panel-bg) 98%, #061225);
+}
+
+.clubWelcome > .copy { max-width: 760px; }
+
 .eyebrow {
   margin: 0;
   color: var(--brand-green);

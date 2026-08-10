@@ -598,13 +598,31 @@ export default function ClubWorkspace() {
   if (!userId || !accessToken) {
     return (
       <main className={styles.page}>
-        <section className={styles.empty}>
+        <section className={styles.clubWelcome}>
           <p className={styles.eyebrow}>Club</p>
           <h1 className={styles.title}>One home for your club.</h1>
-          <p className={styles.copy}>Sign in to connect players, coaches, programs, leagues, and tournaments.</p>
+          <p className={styles.copy}>Connect players, coaches, programs, leagues, and tournaments without replacing your booking or registration system.</p>
           <div className={styles.row}>
             <Link className={styles.primary} href="/login?next=%2Fclubs">Sign in</Link>
             <Link className={styles.secondary} href="/join?next=%2Fclubs">Create account</Link>
+          </div>
+          <div className={styles.actionGrid} aria-label="Club experience preview">
+            <article className={styles.actionCard}>
+              <strong>Players + staff</strong>
+              <span>Keep club roles, people, and communication connected.</span>
+            </article>
+            <article className={styles.actionCard}>
+              <strong>Coaching + clinics</strong>
+              <span>Run groups, attendance, plans, and player follow-through.</span>
+            </article>
+            <article className={styles.actionCard}>
+              <strong>Leagues + tournaments</strong>
+              <span>Host competition with shared schedules, results, and updates.</span>
+            </article>
+            <article className={styles.actionCard}>
+              <strong>Your club experience</strong>
+              <span>Add your logo, colors, public home, and member pathways.</span>
+            </article>
           </div>
         </section>
       </main>

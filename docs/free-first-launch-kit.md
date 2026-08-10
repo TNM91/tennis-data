@@ -164,6 +164,10 @@ I am opening TenAceIQ to a small group of captains and coaches. Public tennis ex
 
 I am opening TenAceIQ to a small group of tennis organizers. Public league and competition exploration is free, and coordinator tools are opening soon. Try it and tell me where your current workflow creates the most friction: https://www.tenaceiq.com/explore
 
+### Club pilot
+
+I am opening a small TenAceIQ pilot for tennis clubs. It connects players, coaches, clinics, teams, leagues, and tournaments in one branded tennis experience without replacing your booking or registration system. The pilot is free and does not require payment information. Reply if your club would like to test it with real staff and members.
+
 ## Feedback prompt
 
 Ask three things:
