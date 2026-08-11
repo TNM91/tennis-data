@@ -9,6 +9,7 @@ import {
   subscribeToRoleHomeResume,
   writeRoleHomeResume,
 } from '@/lib/role-home-resume'
+import ContextualTennisVisual, { type ContextualTennisVisualName } from './contextual-tennis-visual'
 import TrackedProductLink, { type ProductLinkEvent } from './tracked-product-link'
 import styles from './role-action-home.module.css'
 
@@ -86,6 +87,7 @@ export default function RoleActionHome({
     () => (preferPrimaryAction ? primaryAction : resumeAction || primaryAction),
     [preferPrimaryAction, primaryAction, resumeAction],
   )
+  const visual = getRoleVisual(roleLabel)
 
   function rememberAction(action: Pick<RoleHomeAction, 'title' | 'detail' | 'href' | 'icon'>) {
     onAction?.(action)
@@ -102,10 +104,10 @@ export default function RoleActionHome({
   return (
     <section
       className={styles.shell}
-      data-visual={getRoleVisualMode(roleLabel)}
       data-role={getRoleVisualKey(roleLabel)}
       aria-label={`${roleLabel} home`}
     >
+      <ContextualTennisVisual visual={visual} mode="hero" />
       <header className={styles.header}>
         <div className={styles.heading}>
           <span className={styles.eyebrow}>{roleLabel} home</span>
@@ -175,9 +177,15 @@ export default function RoleActionHome({
   )
 }
 
-function getRoleVisualMode(roleLabel: string) {
+function getRoleVisual(roleLabel: string): ContextualTennisVisualName {
   const normalizedRole = roleLabel.trim().toLowerCase()
-  return normalizedRole === 'improve' || normalizedRole === 'coach' ? 'athlete' : 'strategy'
+  if (normalizedRole === 'improve') return 'improve'
+  if (normalizedRole === 'compete') return 'compete'
+  if (normalizedRole === 'coach') return 'coach'
+  if (normalizedRole === 'league') return 'league'
+  if (normalizedRole === 'captain') return 'captain'
+  if (normalizedRole === 'club') return 'club'
+  return 'manage'
 }
 
 function getRoleVisualKey(roleLabel: string) {
