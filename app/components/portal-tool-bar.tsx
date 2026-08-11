@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { PushPinSimpleIcon } from '@phosphor-icons/react/dist/csr/PushPinSimple'
+import { SlidersHorizontalIcon } from '@phosphor-icons/react/dist/csr/SlidersHorizontal'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type UIEvent } from 'react'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
@@ -9,6 +11,14 @@ import { useClubCommunicationAttention } from '@/app/components/use-club-communi
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
+import {
+  buildPortalLaneOrder,
+  DEFAULT_PINNED_PORTAL_LANES,
+  PORTAL_LANE_PIN_LIMIT,
+  readPinnedPortalLanes,
+  writePinnedPortalLanes,
+  type PortalLanePreferenceId,
+} from '@/lib/portal-lane-preferences'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
@@ -16,7 +26,7 @@ import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BO
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league' | 'club'
+type PortalLaneId = PortalLanePreferenceId
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
@@ -216,6 +226,10 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     laneId: null,
   })
   const [currentHash, setCurrentHash] = useState('')
+  const [pinnedPortalLaneIds, setPinnedPortalLaneIds] = useState<PortalLaneId[]>(DEFAULT_PINNED_PORTAL_LANES)
+  const [draftPinnedPortalLaneIds, setDraftPinnedPortalLaneIds] = useState<PortalLaneId[]>(DEFAULT_PINNED_PORTAL_LANES)
+  const [customizingPortalLanes, setCustomizingPortalLanes] = useState(false)
+  const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -229,6 +243,21 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     userId,
   })
   const clubAttentionCount = clubCommunicationAttention?.attentionCount ?? 0
+  const personalizedPortalLanes = useMemo(() => {
+    const laneIds = buildPortalLaneOrder(pinnedPortalLaneIds)
+    return laneIds.map((laneId) => portalLanes.find((lane) => lane.id === laneId)).filter((lane): lane is PortalLane => Boolean(lane))
+  }, [pinnedPortalLaneIds])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const nextPinnedLaneIds = readPinnedPortalLanes(userId)
+      setPinnedPortalLaneIds(nextPinnedLaneIds)
+      setDraftPinnedPortalLaneIds(nextPinnedLaneIds)
+      setCustomizingPortalLanes(false)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [userId])
 
   useEffect(() => {
     let active = true
@@ -295,8 +324,61 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
 
   function handleMobilePortalLaneSelect(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
     event.currentTarget.blur()
-    const lane = orderedPortalLanes.find((item) => item.id === laneId)
+    const lane = personalizedPortalLanes.find((item) => item.id === laneId)
     if (lane) router.push(lane.route)
+  }
+
+  function handlePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
+    event.currentTarget.blur()
+    setDraftPinnedPortalLaneIds((currentLaneIds) => {
+      if (currentLaneIds.includes(laneId)) {
+        const nextLaneIds = currentLaneIds.filter((currentLaneId) => currentLaneId !== laneId)
+        setPortalPersonalizationMessage(`${nextLaneIds.length} of ${PORTAL_LANE_PIN_LIMIT} pinned.`)
+        return nextLaneIds
+      }
+
+      if (currentLaneIds.length >= PORTAL_LANE_PIN_LIMIT) {
+        setPortalPersonalizationMessage('Four are already pinned. Unpin one to replace it.')
+        return currentLaneIds
+      }
+
+      const nextLaneIds = [...currentLaneIds, laneId]
+      setPortalPersonalizationMessage(`${nextLaneIds.length} of ${PORTAL_LANE_PIN_LIMIT} pinned.`)
+      return nextLaneIds
+    })
+  }
+
+  function openPortalLaneCustomization(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    setMobilePortalLaneState({ pathname, laneId: null })
+    setDraftPinnedPortalLaneIds(pinnedPortalLaneIds)
+    setPortalPersonalizationMessage('Pin four. They stay on the first row.')
+    setCustomizingPortalLanes(true)
+  }
+
+  function savePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    if (draftPinnedPortalLaneIds.length !== PORTAL_LANE_PIN_LIMIT) {
+      setPortalPersonalizationMessage(`Choose ${PORTAL_LANE_PIN_LIMIT} lanes before saving.`)
+      return
+    }
+
+    const savedLaneIds = writePinnedPortalLanes(draftPinnedPortalLaneIds, userId)
+    setPinnedPortalLaneIds(savedLaneIds)
+    setDraftPinnedPortalLaneIds(savedLaneIds)
+    setPortalPersonalizationMessage('Your first row is saved.')
+    setCustomizingPortalLanes(false)
+  }
+
+  function resetPortalLaneCustomization() {
+    setDraftPinnedPortalLaneIds([...DEFAULT_PINNED_PORTAL_LANES])
+    setPortalPersonalizationMessage('Default first row selected. Tap Done to save.')
+  }
+
+  function cancelPortalLaneCustomization() {
+    setDraftPinnedPortalLaneIds(pinnedPortalLaneIds)
+    setPortalPersonalizationMessage('')
+    setCustomizingPortalLanes(false)
   }
 
   function handleMobilePortalMainSelect(event: MouseEvent<HTMLButtonElement>) {
@@ -382,7 +464,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         </form>
 
         <nav aria-label="Choose a TenAceIQ tool" style={railPortalLaneGridStyle}>
-          {orderedPortalLanes.map((lane) => {
+          {personalizedPortalLanes.map((lane) => {
             const laneActive = lane.id === activeLane.id
             const laneAccent = getLaneAccent(lane.id)
             const railTasks = publicVisitor ? lane.tasks.slice(0, 4) : lane.tasks
@@ -485,10 +567,10 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                 ? mobilePortalLane
                   ? 'repeat(3, minmax(0, 1fr))'
                   : 'repeat(4, minmax(0, 1fr))'
-                : 'repeat(7, minmax(0, 1fr))',
+                : 'repeat(8, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
-            aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
+            aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : customizingPortalLanes ? 'Personalize main TenAceIQ menu' : 'Main TenAceIQ menu'}
             aria-live="polite"
             onScroll={handleMobilePortalPaletteScroll}
           >
@@ -531,18 +613,51 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                   />
                 ))}
               </>
-            ) : orderedPortalLanes.map((lane) => (
-              <MobilePortalLaneButton
-                key={lane.id}
-                lane={lane}
-                active={lane.id === activeLane.id}
-                expanded={mobilePortalLaneId === lane.id}
-                controlsId={portalActionMenuId}
-                onSelect={handleMobilePortalLaneSelect}
-                attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
-              />
-            ))}
+            ) : (
+              <>
+                {(customizingPortalLanes ? orderedPortalLanes : personalizedPortalLanes).map((lane) => (
+                  <MobilePortalLaneButton
+                    key={lane.id}
+                    lane={lane}
+                    active={lane.id === activeLane.id}
+                    expanded={mobilePortalLaneId === lane.id}
+                    controlsId={portalActionMenuId}
+                    onSelect={customizingPortalLanes ? handlePortalLaneCustomization : handleMobilePortalLaneSelect}
+                    attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
+                    customizing={customizingPortalLanes}
+                    pinnedPosition={draftPinnedPortalLaneIds.indexOf(lane.id) + 1}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={customizingPortalLanes ? savePortalLaneCustomization : openPortalLaneCustomization}
+                  data-mobile-portal-personalize={customizingPortalLanes ? 'save' : 'open'}
+                  style={{
+                    ...mobilePortalTileStyle,
+                    ...(customizingPortalLanes ? mobilePortalPersonalizeDoneStyle : mobilePortalPersonalizeTileStyle),
+                  }}
+                  aria-label={customizingPortalLanes ? 'Save pinned menu lanes' : 'Personalize main menu'}
+                >
+                  <span style={mobilePortalTileIconStyle}>
+                    {customizingPortalLanes
+                      ? <PushPinSimpleIcon size={27} weight="fill" aria-hidden="true" />
+                      : <SlidersHorizontalIcon size={27} weight="bold" aria-hidden="true" />}
+                  </span>
+                  <span style={mobilePortalTileLabelStyle}>{customizingPortalLanes ? 'Done' : 'Edit'}</span>
+                </button>
+              </>
+            )}
           </nav>
+        ) : null}
+
+        {collapseMobilePortal && customizingPortalLanes ? (
+          <div data-mobile-portal-customizer="true" style={mobilePortalCustomizerStyle}>
+            <span aria-live="polite" style={mobilePortalCustomizerCopyStyle}>{portalPersonalizationMessage}</span>
+            <span style={mobilePortalCustomizerActionsStyle}>
+              <button type="button" onClick={resetPortalLaneCustomization} style={mobilePortalCustomizerButtonStyle}>Reset</button>
+              <button type="button" onClick={cancelPortalLaneCustomization} style={mobilePortalCustomizerButtonStyle}>Cancel</button>
+            </span>
+          </div>
         ) : null}
 
         {collapseMobilePortal && mobilePortalScroll.max > 0 ? (
@@ -603,7 +718,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                     ...(useDenseDesktopPortalRail ? desktopPortalMemberLaneGridStyle : null),
                   }}
                 >
-                  {orderedPortalLanes.map((lane) => (
+                  {personalizedPortalLanes.map((lane) => (
                     <PortalLaneCard
                       key={lane.id}
                       lane={lane}
@@ -931,6 +1046,8 @@ function MobilePortalLaneButton({
   controlsId,
   onSelect,
   attentionCount = 0,
+  customizing = false,
+  pinnedPosition = 0,
 }: {
   lane: PortalLane
   active: boolean
@@ -938,8 +1055,11 @@ function MobilePortalLaneButton({
   controlsId: string
   onSelect: (event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) => void
   attentionCount?: number
+  customizing?: boolean
+  pinnedPosition?: number
 }) {
   const label = getMobileLaneLabel(lane.id)
+  const pinned = pinnedPosition > 0
 
   return (
     <button
@@ -948,14 +1068,20 @@ function MobilePortalLaneButton({
       data-mobile-portal-lane={lane.id}
       style={{
         ...mobilePortalTileStyle,
-        borderColor: active ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
-        background: active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
+        borderColor: customizing && pinned ? 'rgba(155,225,29,0.76)' : active ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
+        background: customizing && pinned ? 'rgba(155,225,29,0.11)' : active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
       }}
-      aria-pressed={active}
-      aria-controls={controlsId}
-      aria-expanded={expanded}
-      aria-label={`${label}: ${lane.cue}`}
+      aria-pressed={customizing ? pinned : active}
+      aria-controls={customizing ? undefined : controlsId}
+      aria-expanded={customizing ? undefined : expanded}
+      aria-label={customizing ? `${pinned ? 'Unpin' : 'Pin'} ${label}` : `${label}: ${lane.cue}`}
     >
+      {customizing && pinned ? (
+        <span aria-hidden="true" style={mobilePortalPinBadgeStyle}>
+          <PushPinSimpleIcon size={10} weight="fill" />
+          {pinnedPosition}
+        </span>
+      ) : null}
       <span style={mobilePortalTileIconStyle}>
         <TiqFeatureIcon name={lane.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
       </span>
@@ -1475,6 +1601,7 @@ const mobilePortalScrollbarThumbStyle: CSSProperties = {
 }
 
 const mobilePortalTileStyle: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gridTemplateRows: '34px minmax(0, auto)',
   justifyItems: 'center',
@@ -1496,6 +1623,81 @@ const mobilePortalTileStyle: CSSProperties = {
   WebkitTapHighlightColor: 'transparent',
   scrollSnapAlign: 'start',
   transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
+}
+
+const mobilePortalPersonalizeTileStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.28)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.08), rgba(116,190,255,0.07))',
+  color: 'var(--brand-green)',
+}
+
+const mobilePortalPersonalizeDoneStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.62)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.18), rgba(116,190,255,0.09))',
+  color: 'var(--brand-green)',
+  boxShadow: '0 0 0 1px rgba(155,225,29,0.08), 0 10px 22px rgba(2,10,24,0.22)',
+}
+
+const mobilePortalPinBadgeStyle: CSSProperties = {
+  position: 'absolute',
+  top: 5,
+  right: 5,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 2,
+  minWidth: 20,
+  height: 18,
+  padding: '0 4px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.46)',
+  background: '#102347',
+  color: '#B7F24A',
+  fontSize: 9,
+  lineHeight: 1,
+  fontWeight: 950,
+  boxSizing: 'border-box',
+}
+
+const mobilePortalCustomizerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 38,
+  padding: '5px 6px 0',
+  color: 'var(--shell-copy-muted)',
+  boxSizing: 'border-box',
+}
+
+const mobilePortalCustomizerCopyStyle: CSSProperties = {
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 820,
+}
+
+const mobilePortalCustomizerActionsStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  flex: '0 0 auto',
+}
+
+const mobilePortalCustomizerButtonStyle: CSSProperties = {
+  minHeight: 30,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  lineHeight: 1,
+  fontWeight: 900,
+  cursor: 'pointer',
+  touchAction: 'manipulation',
 }
 
 const mobilePortalBackTileStyle: CSSProperties = {
