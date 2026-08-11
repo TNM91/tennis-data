@@ -3,6 +3,7 @@ import SiteShell from '@/app/components/site-shell'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import {
   DATA_ASSIST_STORY,
@@ -333,6 +334,7 @@ export function CommandHero({
   showSearchResults = true,
   searchPlaceholder,
   showBoard = true,
+  visual,
 }: {
   eyebrow?: string
   title?: string
@@ -344,11 +346,16 @@ export function CommandHero({
   showSearchResults?: boolean
   searchPlaceholder?: string
   showBoard?: boolean
+  visual?: ContextualTennisVisualName
 }) {
   return (
     <section style={showBoard ? heroStyle : heroSingleColumnStyle}>
       <div style={heroCopyStyle}>
-        <span aria-hidden="true" style={heroCopyBrandMarkStyle} />
+        {visual ? (
+          <ContextualTennisVisual visual={visual} />
+        ) : (
+          <span aria-hidden="true" style={heroCopyBrandMarkStyle} />
+        )}
         <div style={heroCopyContentStyle}>
           <div style={eyebrowStyle}>{eyebrow}</div>
           <h1 style={heroTitleStyle}>{title}</h1>

@@ -20,12 +20,20 @@
 }
 
 .clubWelcome {
+  position: relative;
   display: grid;
   gap: 16px;
+  overflow: hidden;
   padding: clamp(20px, 5vw, 38px);
   border: 1px solid var(--shell-panel-border);
   border-radius: 16px;
   background: color-mix(in srgb, var(--shell-panel-bg) 98%, #061225);
+}
+
+.clubWelcome > :not([data-contextual-tennis-visual]),
+.hero > :not([data-contextual-tennis-visual]) {
+  position: relative;
+  z-index: 1;
 }
 
 .clubWelcome > .copy { max-width: 760px; }

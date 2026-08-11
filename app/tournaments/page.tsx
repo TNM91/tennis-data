@@ -53,6 +53,7 @@ export default function TournamentsPage() {
           searchCompact
           showSearchResults={false}
           showBoard={false}
+          visual="tournament"
         />
         <section id="find" className="tournamentFindSection" style={findSectionStyle} aria-labelledby="tournament-find-title">
           <SectionHeader

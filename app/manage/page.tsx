@@ -46,6 +46,7 @@ export default function ManagePage() {
           showSearchResults={false}
           showBoard={false}
           searchPlaceholder="Search teams, leagues, tournaments, schedules, scorecards, or captain tools"
+          visual="manage"
         />
 
         <section style={quickPathStyle} aria-labelledby="manage-quick-path-title">

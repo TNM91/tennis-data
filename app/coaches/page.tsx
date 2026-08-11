@@ -45,6 +45,7 @@ export default function CoachesPage() {
           searchPlaceholder="Search coaches, drills, or player goals"
           showSearchResults={false}
           showBoard={false}
+          visual="coach"
         />
         <section className="coachQuickPath" style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
           <div className="coachQuickPathHeader" style={coachQuickPathHeaderStyle}>

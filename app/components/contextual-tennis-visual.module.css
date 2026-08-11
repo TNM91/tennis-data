@@ -1,0 +1,110 @@
+.visual {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--foreground-strong);
+  isolation: isolate;
+}
+
+.visual::before {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand-green) 15%, transparent), transparent 68%);
+  content: '';
+}
+
+.primary,
+.secondary {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 20px 44px rgba(2, 10, 24, 0.34));
+}
+
+.primary {
+  transform: rotate(-4deg);
+}
+
+.secondary {
+  position: absolute !important;
+  right: 8%;
+  top: 10%;
+  color: var(--brand-green);
+  transform: rotate(6deg);
+}
+
+.hero {
+  right: clamp(-38px, -2vw, -14px);
+  bottom: clamp(-54px, -4vw, -24px);
+  width: min(46%, 440px);
+  aspect-ratio: 1;
+  opacity: 0.105;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.72) 24%, #000 58%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.72) 24%, #000 58%);
+}
+
+.atmosphere {
+  position: fixed;
+  right: clamp(-70px, -3vw, -28px);
+  bottom: clamp(34px, 6vh, 86px);
+  z-index: 0;
+  width: min(46vw, 640px);
+  aspect-ratio: 1;
+  opacity: 0.09;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.46) 24%, #000 60%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.46) 24%, #000 60%);
+}
+
+.visual-explore .primary,
+.visual-coach .primary {
+  transform: rotate(-7deg);
+}
+
+.visual-captain .primary,
+.visual-manage .primary {
+  transform: rotate(2deg);
+}
+
+.visual-league .primary,
+.visual-tournament .primary {
+  transform: rotate(-2deg);
+}
+
+.visual-club .primary {
+  transform: rotate(1deg);
+}
+
+@media (max-width: 720px) {
+  .hero {
+    right: -52px;
+    bottom: -38px;
+    width: min(62%, 260px);
+    opacity: 0.075;
+  }
+
+  .hero .primary {
+    transform: scale(0.82) rotate(-4deg);
+  }
+
+  .hero .secondary {
+    right: 10%;
+    top: 14%;
+    transform: scale(0.72) rotate(6deg);
+  }
+
+  .atmosphere {
+    right: -96px;
+    bottom: 10vh;
+    width: min(92vw, 420px);
+    opacity: 0.065;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary,
+  .secondary {
+    transition: none;
+  }
+}

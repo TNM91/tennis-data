@@ -5,11 +5,13 @@
   pointer-events: none;
   opacity: var(--tennis-state-art-opacity, 0.2);
   mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.46) 20%, #000 58%, #000 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.46) 20%, #000 58%, #000 100%);
 }
 
 .art::after {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background:
     linear-gradient(90deg, rgba(6, 23, 47, 0.9) 0%, rgba(6, 23, 47, 0.26) 52%, rgba(6, 23, 47, 0.08) 100%),
     linear-gradient(180deg, rgba(6, 23, 47, 0.06), rgba(6, 23, 47, 0.52));
@@ -17,9 +19,21 @@
 }
 
 .image {
+  z-index: 0;
   object-fit: cover;
   filter: saturate(0.92) contrast(1.04);
   transform: scale(1.015);
+}
+
+.icon {
+  position: absolute !important;
+  right: clamp(18px, 6%, 72px);
+  bottom: clamp(10px, 4%, 48px);
+  z-index: 2;
+  color: var(--foreground-strong);
+  opacity: 0.52;
+  filter: drop-shadow(0 20px 44px rgba(2, 10, 24, 0.34));
+  transform: rotate(-3deg);
 }
 
 .compact {
@@ -32,10 +46,18 @@
     inset: 22% -12% 0 14%;
     opacity: calc(var(--tennis-state-art-opacity, 0.2) * 0.72);
     mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.44) 22%, #000 72%, #000 100%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.44) 22%, #000 72%, #000 100%);
   }
 
   .compact {
     inset: 34% -10% 0 26%;
+  }
+
+  .icon {
+    right: -16px;
+    bottom: -22px;
+    opacity: 0.42;
+    transform: scale(0.72) rotate(-3deg);
   }
 }
 

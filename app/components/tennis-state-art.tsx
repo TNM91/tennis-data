@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import styles from './tennis-state-art.module.css'
 
 export type TennisStateVisual =
@@ -99,6 +100,13 @@ export default function TennisStateArt({
         sizes="(max-width: 720px) 78vw, 44vw"
         src={config.src}
         style={{ objectPosition: config.objectPosition }}
+      />
+      <TiqFeatureIcon
+        className={styles.icon}
+        name={config.icon}
+        signature={false}
+        size="hero"
+        variant="ghost"
       />
     </div>
   )

@@ -69,6 +69,7 @@ export default function ResourcesPage() {
           secondary={{ href: '/faq', label: 'Open FAQ' }}
           showSearch={false}
           showBoard={false}
+          visual="resources"
         />
         <ActionGrid cards={resourceActions} />
       </main>
