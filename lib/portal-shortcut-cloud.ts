@@ -1,6 +1,7 @@
 import {
   isPinnedPortalShortcutList,
   normalizePinnedPortalShortcuts,
+  PORTAL_SHORTCUT_IDS,
   type PortalShortcutPreferenceId,
 } from '@/lib/portal-lane-preferences'
 
@@ -9,6 +10,29 @@ export type PortalShortcutCloudState = {
   cueDismissed: boolean
   cloudAvailable: boolean
   updatedAt: string | null
+}
+
+export async function loadPortalShortcutSuggestions(accessToken: string, signal?: AbortSignal) {
+  if (!accessToken) return []
+
+  try {
+    const response = await fetch('/api/portal/shortcuts?suggestions=1', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal,
+    })
+    const body = await response.json().catch(() => null) as Record<string, unknown> | null
+    if (!response.ok || !body?.ok || !Array.isArray(body.suggestions)) return []
+
+    return body.suggestions.filter(
+      (shortcutId): shortcutId is PortalShortcutPreferenceId => (
+        typeof shortcutId === 'string'
+        && isPortalShortcutPreferenceId(shortcutId)
+      ),
+    )
+  } catch {
+    return []
+  }
 }
 
 export async function loadPortalShortcutCloudState(accessToken: string, signal?: AbortSignal): Promise<PortalShortcutCloudState> {
@@ -78,4 +102,8 @@ function emptyCloudState(cloudAvailable: boolean): PortalShortcutCloudState {
     cloudAvailable,
     updatedAt: null,
   }
+}
+
+function isPortalShortcutPreferenceId(value: string): value is PortalShortcutPreferenceId {
+  return (PORTAL_SHORTCUT_IDS as readonly string[]).includes(value)
 }

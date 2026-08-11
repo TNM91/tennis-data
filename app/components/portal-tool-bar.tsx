@@ -24,7 +24,16 @@ import {
   type PortalLanePreferenceId,
   type PortalShortcutPreferenceId,
 } from '@/lib/portal-lane-preferences'
-import { loadPortalShortcutCloudState, savePortalShortcutCloudState } from '@/lib/portal-shortcut-cloud'
+import {
+  loadPortalShortcutCloudState,
+  loadPortalShortcutSuggestions,
+  savePortalShortcutCloudState,
+} from '@/lib/portal-shortcut-cloud'
+import {
+  mergePortalShortcutSuggestionCandidates,
+  readPortalShortcutSuggestionCandidates,
+  recordPortalShortcutUse,
+} from '@/lib/portal-shortcut-suggestions'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
@@ -275,7 +284,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const [showAllPortalLanes, setShowAllPortalLanes] = useState(false)
   const [showPortalPersonalizationCue, setShowPortalPersonalizationCue] = useState(false)
   const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
+  const [portalShortcutSuggestionCandidates, setPortalShortcutSuggestionCandidates] = useState<PortalShortcutPreferenceId[]>([])
   const portalShortcutInteractionVersionRef = useRef(0)
+  const portalShortcutSuggestionRequestRef = useRef(0)
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -298,6 +309,12 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     const laneIds = buildPortalLaneOrderFromShortcuts(pinnedPortalShortcutIds)
     return laneIds.map((laneId) => portalLanes.find((lane) => lane.id === laneId)).filter((lane): lane is PortalLane => Boolean(lane))
   }, [pinnedPortalShortcutIds])
+  const suggestedPortalShortcutIds = useMemo(() => {
+    const pinned = new Set(draftPinnedPortalShortcutIds)
+    return portalShortcutSuggestionCandidates
+      .filter((shortcutId) => !pinned.has(shortcutId))
+      .slice(0, 3)
+  }, [draftPinnedPortalShortcutIds, portalShortcutSuggestionCandidates])
 
   useEffect(() => {
     let active = true
@@ -445,6 +462,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
 
   function trackPortalShortcutOpen(shortcut: PortalShortcut, destination: string) {
     const pinnedPosition = pinnedPortalShortcutIds.indexOf(shortcut.id) + 1
+    recordPortalShortcutUse(shortcut.id, userId)
     void trackProductUsageEvent({
       eventName: 'portal_shortcut_opened',
       surface: 'portal',
@@ -490,8 +508,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setShowAllPortalLanes(false)
     setShowPortalPersonalizationCue(false)
     setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
-    setPortalPersonalizationMessage('Pin four hubs or quick actions.')
+    setPortalPersonalizationMessage('Pin four. “For you” reflects recent use.')
     setCustomizingPortalShortcuts(true)
+    loadPortalShortcutSuggestionCandidates()
     void trackProductUsageEvent({
       eventName: 'portal_personalization_opened',
       surface: 'portal',
@@ -501,6 +520,22 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         layout,
         mobile: isMobile,
       },
+    })
+  }
+
+  function loadPortalShortcutSuggestionCandidates() {
+    const requestVersion = ++portalShortcutSuggestionRequestRef.current
+    const localSuggestions = readPortalShortcutSuggestionCandidates(userId)
+    setPortalShortcutSuggestionCandidates(localSuggestions)
+
+    const accessToken = session?.access_token || ''
+    if (!authResolved || !userId || !accessToken) return
+
+    void loadPortalShortcutSuggestions(accessToken).then((cloudSuggestions) => {
+      if (portalShortcutSuggestionRequestRef.current !== requestVersion) return
+      setPortalShortcutSuggestionCandidates(
+        mergePortalShortcutSuggestionCandidates(cloudSuggestions, localSuggestions),
+      )
     })
   }
 
@@ -551,6 +586,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   }
 
   function cancelPortalShortcutCustomization() {
+    portalShortcutSuggestionRequestRef.current += 1
     setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
     setPortalPersonalizationMessage('')
     setCustomizingPortalShortcuts(false)
@@ -821,6 +857,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                     key={shortcut.id}
                     shortcut={shortcut}
                     pinnedPosition={draftPinnedPortalShortcutIds.indexOf(shortcut.id) + 1}
+                    suggested={suggestedPortalShortcutIds.includes(shortcut.id)}
                     onSelect={handlePortalShortcutCustomization}
                   />
                 ))}
@@ -1318,10 +1355,12 @@ function MobilePortalShortcutTile({
 function MobilePortalShortcutEditorTile({
   shortcut,
   pinnedPosition,
+  suggested,
   onSelect,
 }: {
   shortcut: PortalShortcut
   pinnedPosition: number
+  suggested: boolean
   onSelect: (event: MouseEvent<HTMLButtonElement>, shortcutId: PortalShortcutPreferenceId) => void
 }) {
   const pinned = pinnedPosition > 0
@@ -1331,8 +1370,9 @@ function MobilePortalShortcutEditorTile({
       type="button"
       onClick={(event) => onSelect(event, shortcut.id)}
       data-portal-shortcut-option={shortcut.id}
+      data-portal-shortcut-suggested={suggested ? 'true' : undefined}
       aria-pressed={pinned}
-      aria-label={`${pinned ? 'Unpin' : 'Pin'} ${shortcut.label}`}
+      aria-label={`${suggested ? 'Suggested. ' : ''}${pinned ? 'Unpin' : 'Pin'} ${shortcut.label}`}
       title={shortcut.cue}
       style={{
         ...mobilePortalTileStyle,
@@ -1346,6 +1386,7 @@ function MobilePortalShortcutEditorTile({
           {pinnedPosition}
         </span>
       ) : null}
+      {suggested ? <span style={mobilePortalSuggestionBadgeStyle}>For you</span> : null}
       <span style={mobilePortalTileIconStyle}>
         <TiqFeatureIcon name={shortcut.icon} size="sm" variant={pinned ? 'surface' : 'ghost'} />
       </span>
@@ -2024,6 +2065,25 @@ const mobilePortalPinBadgeStyle: CSSProperties = {
   fontSize: 9,
   lineHeight: 1,
   fontWeight: 950,
+  boxSizing: 'border-box',
+}
+
+const mobilePortalSuggestionBadgeStyle: CSSProperties = {
+  position: 'absolute',
+  top: 5,
+  left: 5,
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 18,
+  padding: '0 5px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.42)',
+  background: '#102347',
+  color: '#9FD7FF',
+  fontSize: 8,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '0.02em',
   boxSizing: 'border-box',
 }
 
