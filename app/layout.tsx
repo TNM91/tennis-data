@@ -10,7 +10,7 @@ import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
 const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png'
-const BRAND_ICON_VERSION = '20260809-navy'
+const BRAND_ICON_VERSION = '20260810-safe-frame'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -97,11 +97,11 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: `/brand/icons/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
       { url: `/brand/icons/favicon-256.png?v=${BRAND_ICON_VERSION}`, sizes: '256x256', type: 'image/png' },
       { url: `/brand/icons/favicon-512.png?v=${BRAND_ICON_VERSION}`, sizes: '512x512', type: 'image/png' },
+      { url: `/brand/icons/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
     ],
-    shortcut: `/brand/icons/favicon.ico?v=${BRAND_ICON_VERSION}`,
+    shortcut: `/brand/icons/favicon-256.png?v=${BRAND_ICON_VERSION}`,
     apple: `/brand/icons/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`,
   },
 }
