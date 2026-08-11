@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  getHeaderResumeShortcutLabel,
   getSiteHeaderCompactBreakpoint,
   shouldUseCompactSiteHeader,
 } from '../site-header-responsive'
@@ -66,11 +67,40 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
     expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
     expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')
-    expect(siteHeaderSource).toContain('{authenticated && resumePrimary && !isMobile ? (')
+    expect(siteHeaderSource).toContain('{authenticated && resumePrimary ? (')
+    expect(siteHeaderSource).toContain('data-site-resume-shortcut="true"')
+    expect(siteHeaderSource).toContain("maxWidth: isMobile ? (screenWidth < 380 ? 70 : 110)")
     expect(siteHeaderSource).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
       'top ? (siteHeaderCompact ? 42 : 64)',
     )
+  })
+
+  it('keeps phone resume copy compact without hiding the full task from wider screens', () => {
+    expect(getHeaderResumeShortcutLabel({
+      status: 'unfinished',
+      actionLabel: 'Finish lineup',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 360,
+      compact: true,
+    })).toBe('Next')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'unfinished',
+      actionLabel: 'Finish lineup',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Finish lineup')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'recent',
+      actionLabel: 'Continue Captain',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Continue')
   })
 
   it('locks the header in place when the desktop/tablet rail is active', () => {

@@ -15,3 +15,17 @@ export function shouldUseCompactSiteHeader(input: {
 }) {
   return input.screenWidth < getSiteHeaderCompactBreakpoint(input.role, input.authenticated)
 }
+
+export function getHeaderResumeShortcutLabel(input: {
+  status: 'unfinished' | 'recent'
+  actionLabel: string
+  lane: string
+  isMobile: boolean
+  screenWidth: number
+  compact: boolean
+}) {
+  if (input.status === 'unfinished') {
+    return input.isMobile && input.screenWidth < 380 ? 'Next' : input.actionLabel
+  }
+  return input.isMobile || input.compact ? 'Continue' : `Continue ${input.lane}`
+}

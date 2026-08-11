@@ -11,7 +11,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
-import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
+import { getHeaderResumeShortcutLabel, shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'
 import { getPlatformResumeDetail, type PlatformResumeCandidate } from '@/lib/platform-resume'
 import { supabase } from '@/lib/supabase'
@@ -282,6 +282,16 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     return true
   })
   const resumePrimary = resumeItems[0]
+  const resumeShortcutLabel = resumePrimary
+    ? getHeaderResumeShortcutLabel({
+        status: resumePrimary.status,
+        actionLabel: resumePrimary.actionLabel,
+        lane: resumePrimary.lane,
+        isMobile,
+        screenWidth,
+        compact: useCompactHeader,
+      })
+    : ''
 
   return (
     <>
@@ -385,23 +395,26 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               maxWidth: '100%',
             }}
           >
-            {authenticated && resumePrimary && !isMobile ? (
+            {authenticated && resumePrimary ? (
               <Link
                 href={resumePrimary.href}
                 aria-label={`${resumePrimary.actionLabel}: ${getPlatformResumeDetail(resumePrimary) || resumePrimary.label}`}
+                title={`${resumePrimary.actionLabel}: ${getPlatformResumeDetail(resumePrimary) || resumePrimary.label}`}
+                data-site-resume-shortcut="true"
+                data-resume-status={resumePrimary.status}
                 onClick={() => {
                   setMenuOpen(false)
                   setSearchOpen(false)
                 }}
                 style={{
                   ...resumeShortcutStyle,
-                  minHeight: useCompactHeader ? 36 : 42,
-                  padding: useCompactHeader ? '0 11px' : '0 13px',
+                  minHeight: isMobile ? 44 : useCompactHeader ? 36 : 42,
+                  maxWidth: isMobile ? (screenWidth < 380 ? 70 : 110) : resumeShortcutStyle.maxWidth,
+                  padding: isMobile ? '0 9px' : useCompactHeader ? '0 11px' : '0 13px',
+                  fontSize: isMobile ? 11.5 : primaryCtaStyle.fontSize,
                 }}
               >
-                {resumePrimary.status === 'unfinished'
-                  ? resumePrimary.actionLabel
-                  : useCompactHeader ? 'Continue' : `Continue ${resumePrimary.lane}`}
+                <span style={resumeShortcutLabelStyle}>{resumeShortcutLabel}</span>
               </Link>
             ) : null}
 
@@ -855,6 +868,13 @@ const resumeShortcutStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
   borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+}
+
+const resumeShortcutLabelStyle: CSSProperties = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 }
 
 const resumeCompletionToastStyle: CSSProperties = {
