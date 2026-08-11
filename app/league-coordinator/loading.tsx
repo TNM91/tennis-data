@@ -6,6 +6,7 @@ export default function Loading() {
       label="Preparing League Office..."
       detail="Preparing league setup, schedules, results, standings, and Data Assist refresh paths."
       pattern="workflow"
+      visual="league"
     />
   )
 }

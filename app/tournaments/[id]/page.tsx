@@ -314,6 +314,8 @@ function TournamentPublicInner() {
           eyebrow="Tournament"
           title="Opening tournament details."
           body="Checking divisions, entries, draws, court schedule, results, and player notification paths."
+          tone="loading"
+          visual="tournament"
           signals={[
             { label: 'Source', value: 'Tournament Desk and director updates' },
             { label: 'Freshness', value: 'Live event record' },
@@ -335,6 +337,8 @@ function TournamentPublicInner() {
           eyebrow="Tournament"
           title="Bracket unavailable."
           body={error || 'This tournament is private, unpublished, or no longer exists.'}
+          tone="empty"
+          visual="tournament"
           signals={[
             { label: 'Source', value: 'Tournament Desk lookup' },
             { label: 'Freshness', value: 'Checked now' },
