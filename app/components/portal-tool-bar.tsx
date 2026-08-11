@@ -30,9 +30,12 @@ import {
   savePortalShortcutCloudState,
 } from '@/lib/portal-shortcut-cloud'
 import {
+  dismissPortalShortcutPinRecommendation,
   mergePortalShortcutSuggestionCandidates,
+  readPortalShortcutPinRecommendation,
   readPortalShortcutSuggestionCandidates,
   recordPortalShortcutUse,
+  type PortalShortcutPinRecommendation,
 } from '@/lib/portal-shortcut-suggestions'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
@@ -229,6 +232,10 @@ const portalShortcutCatalog: PortalShortcut[] = [
   ...portalActionShortcuts,
 ]
 
+function getPortalShortcutLabel(shortcutId: PortalShortcutPreferenceId) {
+  return portalShortcutCatalog.find((shortcut) => shortcut.id === shortcutId)?.label || 'this tool'
+}
+
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
 const portalSurfaceBackground = 'var(--portal-surface-bg)'
 const portalActiveCardBackground = 'var(--portal-active-card-bg)'
@@ -285,6 +292,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const [showPortalPersonalizationCue, setShowPortalPersonalizationCue] = useState(false)
   const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
   const [portalShortcutSuggestionCandidates, setPortalShortcutSuggestionCandidates] = useState<PortalShortcutPreferenceId[]>([])
+  const [portalPinRecommendation, setPortalPinRecommendation] = useState<PortalShortcutPinRecommendation | null>(null)
   const portalShortcutInteractionVersionRef = useRef(0)
   const portalShortcutSuggestionRequestRef = useRef(0)
 
@@ -328,6 +336,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       setCustomizingPortalShortcuts(false)
       setShowAllPortalLanes(false)
       setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
+      setPortalPinRecommendation(readPortalShortcutPinRecommendation(localShortcutIds, userId))
     })
 
     async function restoreCloudShortcuts() {
@@ -352,6 +361,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       setPinnedPortalShortcutIds(restoredShortcutIds)
       setDraftPinnedPortalShortcutIds(restoredShortcutIds)
       setShowPortalPersonalizationCue(!cueDismissed)
+      setPortalPinRecommendation(readPortalShortcutPinRecommendation(restoredShortcutIds, userId))
 
       if (cueDismissed && !cloud.cueDismissed) {
         void savePortalShortcutCloudState({
@@ -446,7 +456,8 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         href: lane.route,
         icon: lane.icon,
         laneId: lane.id,
-      }, lane.route)
+      }, lane.route, 'all_tools')
+      setShowAllPortalLanes(false)
       router.push(lane.route)
     }
   }
@@ -457,12 +468,19 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     destination: string,
   ) {
     event.currentTarget.blur()
-    trackPortalShortcutOpen(shortcut, destination)
+    trackPortalShortcutOpen(shortcut, destination, 'pinned')
   }
 
-  function trackPortalShortcutOpen(shortcut: PortalShortcut, destination: string) {
+  function trackPortalShortcutOpen(
+    shortcut: PortalShortcut,
+    destination: string,
+    source: 'pinned' | 'all_tools',
+  ) {
     const pinnedPosition = pinnedPortalShortcutIds.indexOf(shortcut.id) + 1
-    recordPortalShortcutUse(shortcut.id, userId)
+    recordPortalShortcutUse(shortcut.id, userId, new Date().toISOString(), source)
+    if (source === 'all_tools' && pinnedPosition === 0) {
+      setPortalPinRecommendation(readPortalShortcutPinRecommendation(pinnedPortalShortcutIds, userId))
+    }
     void trackProductUsageEvent({
       eventName: 'portal_shortcut_opened',
       surface: 'portal',
@@ -474,6 +492,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         destination,
         pinned: pinnedPosition > 0,
         pinnedPosition: pinnedPosition > 0 ? pinnedPosition : null,
+        source,
         pathname,
         layout,
         mobile: isMobile,
@@ -507,6 +526,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setMobilePortalLaneState({ pathname, laneId: null })
     setShowAllPortalLanes(false)
     setShowPortalPersonalizationCue(false)
+    setPortalPinRecommendation(null)
     setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
     setPortalPersonalizationMessage('Pin four. “For you” reflects recent use.')
     setCustomizingPortalShortcuts(true)
@@ -565,6 +585,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setPortalPersonalizationMessage('Your first row is saved.')
     setCustomizingPortalShortcuts(false)
     setShowPortalPersonalizationCue(false)
+    setPortalPinRecommendation(null)
     syncPortalShortcutsToCloud(savedShortcutIds, true)
     void trackProductUsageEvent({
       eventName: 'portal_personalization_saved',
@@ -608,6 +629,45 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     dismissPortalPersonalizationCue(userId)
     setShowPortalPersonalizationCue(false)
     syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)
+  }
+
+  function applyPortalPinRecommendation() {
+    if (!portalPinRecommendation) return
+
+    const recommendedShortcut = portalPinRecommendation.shortcutId
+    const replacedShortcut = portalPinRecommendation.replaceShortcutId
+    const nextShortcutIds = pinnedPortalShortcutIds.map((shortcutId) => (
+      shortcutId === replacedShortcut ? recommendedShortcut : shortcutId
+    ))
+    const savedShortcutIds = writePinnedPortalShortcuts(nextShortcutIds, userId)
+    dismissPortalShortcutPinRecommendation(recommendedShortcut, userId)
+    portalShortcutInteractionVersionRef.current += 1
+    setPinnedPortalShortcutIds(savedShortcutIds)
+    setDraftPinnedPortalShortcutIds(savedShortcutIds)
+    setShowPortalPersonalizationCue(false)
+    setPortalPinRecommendation(null)
+    syncPortalShortcutsToCloud(savedShortcutIds, true)
+    void trackProductUsageEvent({
+      eventName: 'portal_personalization_saved',
+      surface: 'portal',
+      metadata: {
+        pinnedShortcuts: savedShortcutIds,
+        previousPinnedShortcuts: pinnedPortalShortcutIds,
+        changed: true,
+        source: 'usage_recommendation',
+        recommendedShortcut,
+        replacedShortcut,
+        pathname,
+        layout,
+        mobile: isMobile,
+      },
+    })
+  }
+
+  function dismissPortalPinRecommendation() {
+    if (!portalPinRecommendation) return
+    dismissPortalShortcutPinRecommendation(portalPinRecommendation.shortcutId, userId)
+    setPortalPinRecommendation(null)
   }
 
   function syncPortalShortcutsToCloud(shortcuts: readonly PortalShortcutPreferenceId[], cueDismissed: boolean) {
@@ -966,6 +1026,23 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
             <span style={mobilePortalCustomizerActionsStyle}>
               <button type="button" onClick={openPortalShortcutCustomization} style={mobilePortalCuePrimaryButtonStyle}>Choose</button>
               <button type="button" onClick={skipPortalPersonalizationCue} style={mobilePortalCustomizerButtonStyle}>Skip</button>
+            </span>
+          </div>
+        ) : null}
+
+        {collapseMobilePortal
+        && portalPinRecommendation
+        && !showPortalPersonalizationCue
+        && !customizingPortalShortcuts
+        && !showAllPortalLanes ? (
+          <div data-portal-pin-recommendation="true" style={mobilePortalPersonalizationCueStyle}>
+            <span aria-live="polite" style={mobilePortalPersonalizationCueCopyStyle}>
+              <strong>Pin {getPortalShortcutLabel(portalPinRecommendation.shortcutId)}?</strong>
+              <span>Replaces {getPortalShortcutLabel(portalPinRecommendation.replaceShortcutId)}.</span>
+            </span>
+            <span style={mobilePortalCustomizerActionsStyle}>
+              <button type="button" onClick={applyPortalPinRecommendation} style={mobilePortalCuePrimaryButtonStyle}>Pin it</button>
+              <button type="button" onClick={dismissPortalPinRecommendation} style={mobilePortalCustomizerButtonStyle}>Not now</button>
             </span>
           </div>
         ) : null}
