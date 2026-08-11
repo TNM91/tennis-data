@@ -36,7 +36,9 @@ describe('platform-wide pick up continuity', () => {
   })
 
   it('keeps one-tap Continue compact and puts alternatives in the account menu', () => {
-    expect(header).toContain('Continue ${resumePrimary.lane}')
+    expect(header).toContain('getHeaderResumeShortcutLabel({')
+    expect(header).toContain('data-site-resume-shortcut="true"')
+    expect(header).toContain('{authenticated && resumePrimary ? (')
     expect(header).toContain('Pick up where you left off')
     expect(header).toContain('resumeItems.slice(0, 3)')
     expect(header).toContain('resumeItems.slice(0, 2)')
@@ -46,7 +48,8 @@ describe('platform-wide pick up continuity', () => {
   })
 
   it('promotes real unfinished work without adding another portal surface', () => {
-    expect(header).toContain("resumePrimary.status === 'unfinished'")
+    expect(header).toContain('getHeaderResumeShortcutLabel({')
+    expect(header).toContain('status: resumePrimary.status')
     expect(header).toContain('resumePrimary.actionLabel')
     expect(header).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(hook).toContain('tenaceiq-team-room-draft:')
