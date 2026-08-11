@@ -158,6 +158,8 @@ export default function AdminProductEventsPage() {
   const billingEvents = events.filter((event) => event.surface === 'billing').length
   const myLabEvents = events.filter((event) => event.surface === 'mylab').length
   const captainEvents = events.filter((event) => event.surface === 'captain').length
+  const portalSaves = events.filter((event) => event.event_name === 'portal_personalization_saved').length
+  const portalLaneOpens = events.filter((event) => event.event_name === 'portal_lane_opened').length
   const profileSyncRepairEvents = events.filter((event) => event.event_name === 'profile_cloud_sync_repair').length
   const openProfileSyncReviewEvents = events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews)).length
   const reviewedProfileSyncEvents = Object.values(profileSyncReviews).filter((review) => review.status === 'reviewed').length
@@ -200,8 +202,8 @@ export default function AdminProductEventsPage() {
     <SiteShell active="/admin">
       <AdminGate>
         <AdminReviewFrame>
-          <AdminReviewHero kicker="Product Events" title="Paid usage signals">
-            Track the first-party actions that show whether Player and Captain users are reaching the paid workflows after checkout.
+          <AdminReviewHero kicker="Product Events" title="Product behavior signals">
+            See which workflows people reach, where personalization lands, and what needs attention.
           </AdminReviewHero>
 
           <AdminReviewPanel>
@@ -212,6 +214,13 @@ export default function AdminProductEventsPage() {
               <MetricCard label="Billing" value={billingEvents} />
               <MetricCard label="My Lab" value={myLabEvents} />
               <MetricCard label="Captain" value={captainEvents} />
+              <MetricCard
+                label="Portal Saves"
+                value={portalSaves}
+                active={filter === 'portal'}
+                onClick={() => setFilter((current) => current === 'portal' ? 'all' : 'portal')}
+              />
+              <MetricCard label="Lane Opens" value={portalLaneOpens} />
               <MetricCard
                 label="Profile Sync Repairs"
                 value={profileSyncRepairEvents}
@@ -250,6 +259,7 @@ export default function AdminProductEventsPage() {
                     <option value="profile_sync_attention">Sync needs review</option>
                     <option value="mylab">My Lab</option>
                     <option value="captain">Captain</option>
+                    <option value="portal">Portal navigation</option>
                     <option value="upgrade">Upgrade</option>
                   </select>
                 </div>

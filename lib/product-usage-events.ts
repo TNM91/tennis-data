@@ -41,6 +41,10 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'schedule_upload_started',
   'team_summary_upload_started',
   'data_issue_reported',
+  'portal_personalization_opened',
+  'portal_personalization_saved',
+  'portal_personalization_save_blocked',
+  'portal_lane_opened',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [
@@ -57,6 +61,7 @@ export const PRODUCT_USAGE_EVENT_SURFACES = [
   'tournaments',
   'leagues',
   'data_assist',
+  'portal',
 ] as const
 
 export type ProductUsageEventName = (typeof PRODUCT_USAGE_EVENT_NAMES)[number]
