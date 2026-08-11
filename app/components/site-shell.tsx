@@ -150,13 +150,49 @@ function getBrandAtmosphereClassName(pathname: string) {
     return 'brand-atmosphere-mark brand-atmosphere-mark--home'
   }
 
+  const visualMode = getPlatformVisualMode(pathname)
+
   if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return 'brand-atmosphere-mark brand-atmosphere-mark--quiet'
+    return `brand-atmosphere-mark brand-atmosphere-mark--quiet brand-atmosphere-mark--${visualMode}`
   }
 
   if (hubRoutes.has(pathname)) {
-    return 'brand-atmosphere-mark brand-atmosphere-mark--hub'
+    return `brand-atmosphere-mark brand-atmosphere-mark--hub brand-atmosphere-mark--${visualMode}`
   }
 
-  return 'brand-atmosphere-mark'
+  return `brand-atmosphere-mark brand-atmosphere-mark--${visualMode}`
+}
+
+function getPlatformVisualMode(pathname: string) {
+  const athletePrefixes = [
+    '/mylab',
+    '/player-development',
+    '/level-up',
+    '/players',
+    '/profile',
+    '/coach',
+  ]
+  const strategyPrefixes = [
+    '/compete',
+    '/matchup',
+    '/captain',
+    '/teams',
+    '/tournaments',
+    '/rankings',
+    '/league-coordinator',
+    '/leagues',
+    '/clubs',
+    '/admin',
+    '/explore',
+  ]
+
+  if (athletePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return 'athlete'
+  }
+
+  if (strategyPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return 'strategy'
+  }
+
+  return 'brand'
 }

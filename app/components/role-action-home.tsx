@@ -100,7 +100,11 @@ export default function RoleActionHome({
   }
 
   return (
-    <section className={styles.shell} aria-label={`${roleLabel} home`}>
+    <section
+      className={styles.shell}
+      data-visual={getRoleVisualMode(roleLabel)}
+      aria-label={`${roleLabel} home`}
+    >
       <header className={styles.header}>
         <div className={styles.heading}>
           <span className={styles.eyebrow}>{roleLabel} home</span>
@@ -168,4 +172,9 @@ export default function RoleActionHome({
       </details>
     </section>
   )
+}
+
+function getRoleVisualMode(roleLabel: string) {
+  const normalizedRole = roleLabel.trim().toLowerCase()
+  return normalizedRole === 'improve' || normalizedRole === 'coach' ? 'athlete' : 'strategy'
 }

@@ -407,6 +407,45 @@ footer {
   bottom: clamp(24px, 4vh, 58px);
 }
 
+.brand-atmosphere-mark--athlete,
+.brand-atmosphere-mark--strategy {
+  right: 0;
+  bottom: clamp(36px, 6vh, 84px);
+  width: min(92vw, 1420px);
+  aspect-ratio: 1896 / 830;
+  opacity: 0.26;
+  background-position: right bottom;
+  background-size: contain;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 22%, #000 56%);
+}
+
+.brand-atmosphere-mark--athlete {
+  background-image: url('/player-profile/journey-hero.png');
+}
+
+.brand-atmosphere-mark--strategy {
+  width: min(76vw, 1180px);
+  aspect-ratio: 1648 / 900;
+  opacity: 0.2;
+  background-image: url('/player-profile/player-id-court.png');
+  background-position: right center;
+}
+
+.brand-atmosphere-mark--quiet.brand-atmosphere-mark--athlete,
+.brand-atmosphere-mark--quiet.brand-atmosphere-mark--strategy {
+  opacity: 0.12;
+}
+
+.brand-atmosphere-mark--hub.brand-atmosphere-mark--athlete {
+  width: min(96vw, 1480px);
+  opacity: 0.3;
+}
+
+.brand-atmosphere-mark--hub.brand-atmosphere-mark--strategy {
+  width: min(82vw, 1240px);
+  opacity: 0.24;
+}
+
 .admin-shell {
   width: min(1400px, calc(100% - 32px));
   margin-inline: auto;
@@ -1297,6 +1336,16 @@ hr {
   .brand-atmosphere-mark--quiet {
     width: min(64vw, 600px);
   }
+
+  .brand-atmosphere-mark--athlete {
+    width: min(112vw, 1100px);
+    right: -8vw;
+  }
+
+  .brand-atmosphere-mark--strategy {
+    width: min(94vw, 860px);
+    right: -4vw;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1349,6 +1398,23 @@ hr {
     width: min(82vw, 480px);
     right: 18px;
     bottom: 112px;
+    opacity: 0.12;
+  }
+
+  .brand-atmosphere-mark--athlete,
+  .brand-atmosphere-mark--hub.brand-atmosphere-mark--athlete {
+    right: -64vw;
+    bottom: 104px;
+    width: 164vw;
+    opacity: 0.13;
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.12) 22%, #000 58%);
+  }
+
+  .brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--hub.brand-atmosphere-mark--strategy {
+    right: -30vw;
+    bottom: 112px;
+    width: 128vw;
     opacity: 0.12;
   }
 
