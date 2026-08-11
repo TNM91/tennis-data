@@ -14,6 +14,7 @@ import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import ExploreContinueCard from '@/app/explore/_components/explore-continue-card'
+import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
 
 const FIND_COMMAND_STEPS: Array<{
   href: string
@@ -159,7 +160,7 @@ export default function ExplorePage() {
       <JsonLd id="explore-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Explore', '/explore')} />
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
-          <div aria-hidden="true" style={watermarkStyle} />
+          <ContextualTennisVisual visual="explore" />
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <h1 style={dynamicHeroTitle}>
@@ -660,15 +661,4 @@ const publicDiscoveryProofLabelStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: 0,
   textTransform: 'uppercase',
-}
-
-const watermarkStyle: CSSProperties = {
-  position: 'absolute',
-  right: 0,
-  top: '-72px',
-  width: 'min(280px, 58vw)',
-  aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
-  opacity: 0.14,
-  pointerEvents: 'none',
 }

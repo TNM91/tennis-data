@@ -49,7 +49,7 @@ export type TiqFeatureIconName =
   | 'accountSecurity'
   | 'clubOperations'
 
-export type TiqFeatureIconSize = 'sm' | 'md' | 'lg' | 'xl'
+export type TiqFeatureIconSize = 'sm' | 'md' | 'lg' | 'xl' | 'hero'
 export type TiqFeatureIconVariant = 'default' | 'surface' | 'ghost'
 
 type TiqFeatureIconProps = {
@@ -67,6 +67,7 @@ const iconSizes: Record<TiqFeatureIconSize, number> = {
   md: 48,
   lg: 72,
   xl: 96,
+  hero: 220,
 }
 
 export const tiqFeatureIconNames: TiqFeatureIconName[] = [

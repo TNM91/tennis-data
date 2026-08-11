@@ -38,6 +38,7 @@ export default function LeaguesAndTournamentsPage() {
           searchCompact
           showSearchResults={false}
           showBoard={false}
+          visual="league"
         />
 
         <section className="organizerQuickPath" style={organizerQuickPathStyle} aria-labelledby="organizer-quick-path-title">

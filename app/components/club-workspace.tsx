@@ -8,6 +8,7 @@ import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-f
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import { getClubCommunicationSummary, type ClubCommunicationItem } from '@/lib/club-communication'
 import { notifyClubCommunicationUpdated } from '@/lib/club-communication-events'
+import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
 import {
   CLUB_ROLES,
   buildClubCompetitionLaunchHref,
@@ -599,6 +600,7 @@ export default function ClubWorkspace() {
     return (
       <main className={styles.page}>
         <section className={styles.clubWelcome}>
+          <ContextualTennisVisual visual="club" />
           <p className={styles.eyebrow}>Club</p>
           <h1 className={styles.title}>One home for your club.</h1>
           <p className={styles.copy}>Connect players, coaches, programs, leagues, and tournaments without replacing your booking or registration system.</p>
@@ -663,6 +665,7 @@ export default function ClubWorkspace() {
   return (
     <main className={styles.page} style={clubStyle}>
       <section className={styles.hero}>
+        <ContextualTennisVisual visual="club" />
         <div className={styles.heroTop}>
           <div className={styles.clubIdentity}>
             {workspace.club.logoUrl

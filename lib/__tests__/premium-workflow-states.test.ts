@@ -16,6 +16,34 @@ describe('premium workflow states', () => {
     expect(art).toContain('quality={75}')
     expect(art).toContain('sizes="(max-width: 720px) 78vw, 44vw"')
     expect(art).toContain('alt=""')
+    expect(art).toContain('name={config.icon}')
+    expect(art).toContain('size="hero"')
+  })
+
+  it('maps page-level visuals to the tennis work each hub represents', () => {
+    const visual = read('app/components/contextual-tennis-visual.tsx')
+    const commandCenter = read('app/components/public-command-center.tsx')
+    const shell = read('app/components/site-shell.tsx')
+
+    expect(visual).toContain("explore: { primary: 'opponentScouting', secondary: 'playerRatings' }")
+    expect(visual).toContain("captain: { primary: 'lineupBuilder', secondary: 'captainTennis' }")
+    expect(visual).toContain("coach: { primary: 'coachTennis', secondary: 'playerRatings' }")
+    expect(visual).toContain("league: { primary: 'leagueTennis', secondary: 'schedule' }")
+    expect(visual).toContain("tournament: { primary: 'competeTennis', secondary: 'schedule' }")
+    expect(visual).toContain("club: { primary: 'clubTennis', secondary: 'coachTennis' }")
+    expect(commandCenter).toContain('<ContextualTennisVisual visual={visual} />')
+    expect(shell).toContain("if (visualArea === 'captain') return 'captain'")
+    expect(shell).toContain("if (visualArea === 'club') return 'club'")
+  })
+
+  it('assigns contextual hero visuals to the public role and organizer pages', () => {
+    expect(read('app/coaches/page.tsx')).toContain('visual="coach"')
+    expect(read('app/leagues-and-tournaments/page.tsx')).toContain('visual="league"')
+    expect(read('app/tournaments/page.tsx')).toContain('visual="tournament"')
+    expect(read('app/manage/page.tsx')).toContain('visual="manage"')
+    expect(read('app/resources/page.tsx')).toContain('visual="resources"')
+    expect(read('app/explore/page.tsx')).toContain('<ContextualTennisVisual visual="explore" />')
+    expect(read('app/components/club-workspace.tsx')).toContain('<ContextualTennisVisual visual="club" />')
   })
 
   it('gives public detail states a shared visual, tone, and primary action hierarchy', () => {

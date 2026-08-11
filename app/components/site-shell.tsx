@@ -11,6 +11,7 @@ import LevelUpCoachAlert from '@/app/components/level-up-coach-alert'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 import { shouldUseFocusedSiteShell } from '@/lib/site-shell-focus'
+import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
 
 type SiteShellProps = {
   children: ReactNode
@@ -24,9 +25,11 @@ const PLATFORM_VISUAL_AREAS = [
   { name: 'coach', prefixes: ['/coach', '/coaches'] },
   { name: 'compete', prefixes: ['/compete', '/matchup', '/tournaments'] },
   { name: 'captain', prefixes: ['/captain'] },
-  { name: 'league', prefixes: ['/league-coordinator', '/leagues'] },
+  { name: 'league', prefixes: ['/league-coordinator', '/leagues', '/leagues-and-tournaments'] },
   { name: 'club', prefixes: ['/clubs'] },
   { name: 'explore', prefixes: ['/explore', '/players', '/teams', '/rankings'] },
+  { name: 'manage', prefixes: ['/manage'] },
+  { name: 'resources', prefixes: ['/resources'] },
 ] as const
 
 export default function SiteShell({ children, active, showPortalToolBar = true, appMode = false }: SiteShellProps) {
@@ -45,6 +48,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   const visualArea = getPlatformVisualArea(pathname)
   const visualMode = getPlatformVisualMode(pathname)
   const visualSurface = getPlatformVisualSurface(pathname)
+  const contextualAtmosphereVisual = getContextualAtmosphereVisual(visualArea)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
 
@@ -126,6 +130,9 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
         <div style={gridGlow} />
         <div style={topBlueWash} />
         <div className={atmosphereClassName} aria-hidden="true" />
+        {contextualAtmosphereVisual ? (
+          <ContextualTennisVisual mode="atmosphere" visual={contextualAtmosphereVisual} />
+        ) : null}
 
         {!compactAppMode ? (
           <SiteHeader
@@ -203,6 +210,8 @@ function getPlatformVisualMode(pathname: string) {
     '/players',
     '/profile',
     '/coach',
+    '/coaches',
+    '/resources',
   ]
   const strategyPrefixes = [
     '/compete',
@@ -213,7 +222,9 @@ function getPlatformVisualMode(pathname: string) {
     '/rankings',
     '/league-coordinator',
     '/leagues',
+    '/leagues-and-tournaments',
     '/clubs',
+    '/manage',
     '/admin',
     '/explore',
   ]
@@ -227,4 +238,14 @@ function getPlatformVisualMode(pathname: string) {
   }
 
   return 'brand'
+}
+
+function getContextualAtmosphereVisual(visualArea: string): ContextualTennisVisualName | null {
+  if (visualArea === 'explore') return 'explore'
+  if (visualArea === 'captain') return 'captain'
+  if (visualArea === 'league') return 'league'
+  if (visualArea === 'club') return 'club'
+  if (visualArea === 'manage') return 'manage'
+  if (visualArea === 'resources') return 'resources'
+  return null
 }

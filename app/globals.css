@@ -450,7 +450,7 @@ footer {
 .brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
   right: -3vw;
   width: min(72vw, 1080px);
-  opacity: 0.17;
+  opacity: 0.075;
   background-position: right 42%;
 }
 
@@ -464,21 +464,21 @@ footer {
 .brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy {
   right: 4vw;
   width: min(74vw, 1140px);
-  opacity: 0.2;
+  opacity: 0.095;
   background-position: right 48%;
 }
 
 .brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
   right: 1vw;
   width: min(86vw, 1280px);
-  opacity: 0.23;
+  opacity: 0.105;
   background-position: right 62%;
 }
 
 .brand-atmosphere-mark--area-club.brand-atmosphere-mark--strategy {
   right: 6vw;
   width: min(82vw, 1200px);
-  opacity: 0.21;
+  opacity: 0.085;
   background-position: right 52%;
 }
 
@@ -515,7 +515,7 @@ footer {
 .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
   right: -6vw;
   width: min(62vw, 940px);
-  opacity: 0.105;
+  opacity: 0.055;
 }
 
 .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy {
@@ -528,7 +528,7 @@ footer {
 .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
   right: -1vw;
   width: min(70vw, 1080px);
-  opacity: 0.13;
+  opacity: 0.075;
 }
 
 .admin-shell {
