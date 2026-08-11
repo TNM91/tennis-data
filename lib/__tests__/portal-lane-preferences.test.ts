@@ -5,6 +5,7 @@ import {
   buildPortalLaneOrderFromShortcuts,
   DEFAULT_PINNED_PORTAL_SHORTCUTS,
   getPortalShortcutStorageKey,
+  isPinnedPortalShortcutList,
   normalizePinnedPortalShortcuts,
 } from '../portal-lane-preferences'
 
@@ -28,6 +29,13 @@ describe('portal shortcut personalization', () => {
     expect(normalizePinnedPortalShortcuts(null)).toEqual(DEFAULT_PINNED_PORTAL_SHORTCUTS)
   })
 
+  it('accepts only four unique known shortcuts for cloud storage', () => {
+    expect(isPinnedPortalShortcutList(['action:mylab', 'action:tactics', 'lane:team', 'lane:club'])).toBe(true)
+    expect(isPinnedPortalShortcutList(['action:mylab', 'action:mylab', 'lane:team', 'lane:club'])).toBe(false)
+    expect(isPinnedPortalShortcutList(['action:mylab', 'lane:team', 'lane:club'])).toBe(false)
+    expect(isPinnedPortalShortcutList(['action:mylab', 'action:unknown', 'lane:team', 'lane:club'])).toBe(false)
+  })
+
   it('scopes saved shortcuts to the signed-in account', () => {
     expect(getPortalShortcutStorageKey()).toBe('tenaceiq.portal-shortcuts.v2.guest')
     expect(getPortalShortcutStorageKey('player-123')).toBe('tenaceiq.portal-shortcuts.v2.player-123')
@@ -40,5 +48,7 @@ describe('portal shortcut personalization', () => {
     expect(portalSource).toContain('data-portal-personalization-cue="true"')
     expect(portalSource).toContain('Pin My Lab, Tactics, or the hubs you use most.')
     expect(portalSource).toContain('writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)')
+    expect(portalSource).toContain('loadPortalShortcutCloudState(accessToken, controller.signal)')
+    expect(portalSource).toContain('syncPortalShortcutsToCloud(savedShortcutIds, true)')
   })
 })

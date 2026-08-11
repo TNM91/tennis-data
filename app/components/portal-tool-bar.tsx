@@ -13,8 +13,10 @@ import { buildProductAccessState, type ProductAccessState } from '@/lib/access-m
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import {
   buildPortalLaneOrderFromShortcuts,
+  cachePinnedPortalShortcuts,
   DEFAULT_PINNED_PORTAL_SHORTCUTS,
   dismissPortalPersonalizationCue,
+  hasDismissedPortalPersonalizationCue,
   PORTAL_SHORTCUT_PIN_LIMIT,
   readPinnedPortalShortcuts,
   shouldShowPortalPersonalizationCue,
@@ -22,6 +24,7 @@ import {
   type PortalLanePreferenceId,
   type PortalShortcutPreferenceId,
 } from '@/lib/portal-lane-preferences'
+import { loadPortalShortcutCloudState, savePortalShortcutCloudState } from '@/lib/portal-shortcut-cloud'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
@@ -272,6 +275,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const [showAllPortalLanes, setShowAllPortalLanes] = useState(false)
   const [showPortalPersonalizationCue, setShowPortalPersonalizationCue] = useState(false)
   const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
+  const portalShortcutInteractionVersionRef = useRef(0)
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -296,17 +300,59 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   }, [pinnedPortalShortcutIds])
 
   useEffect(() => {
+    let active = true
+    const controller = new AbortController()
+    const restoreVersion = portalShortcutInteractionVersionRef.current
+    const localShortcutIds = readPinnedPortalShortcuts(userId)
+    const localCueDismissed = hasDismissedPortalPersonalizationCue(userId)
     const frame = window.requestAnimationFrame(() => {
-      const nextPinnedShortcutIds = readPinnedPortalShortcuts(userId)
-      setPinnedPortalShortcutIds(nextPinnedShortcutIds)
-      setDraftPinnedPortalShortcutIds(nextPinnedShortcutIds)
+      setPinnedPortalShortcutIds(localShortcutIds)
+      setDraftPinnedPortalShortcutIds(localShortcutIds)
       setCustomizingPortalShortcuts(false)
       setShowAllPortalLanes(false)
       setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
     })
 
-    return () => window.cancelAnimationFrame(frame)
-  }, [userId])
+    async function restoreCloudShortcuts() {
+      const accessToken = session?.access_token || ''
+      if (!authResolved || !userId || !accessToken) return
+
+      const cloud = await loadPortalShortcutCloudState(accessToken, controller.signal)
+      if (!active || !cloud.cloudAvailable || portalShortcutInteractionVersionRef.current !== restoreVersion) return
+
+      if (!cloud.shortcuts) {
+        void savePortalShortcutCloudState({
+          accessToken,
+          shortcuts: localShortcutIds,
+          cueDismissed: localCueDismissed,
+        })
+        return
+      }
+
+      const restoredShortcutIds = cachePinnedPortalShortcuts(cloud.shortcuts, userId)
+      const cueDismissed = cloud.cueDismissed || localCueDismissed
+      if (cueDismissed) dismissPortalPersonalizationCue(userId)
+      setPinnedPortalShortcutIds(restoredShortcutIds)
+      setDraftPinnedPortalShortcutIds(restoredShortcutIds)
+      setShowPortalPersonalizationCue(!cueDismissed)
+
+      if (cueDismissed && !cloud.cueDismissed) {
+        void savePortalShortcutCloudState({
+          accessToken,
+          shortcuts: restoredShortcutIds,
+          cueDismissed: true,
+        })
+      }
+    }
+
+    void restoreCloudShortcuts()
+
+    return () => {
+      active = false
+      controller.abort()
+      window.cancelAnimationFrame(frame)
+    }
+  }, [authResolved, session?.access_token, userId])
 
   useEffect(() => {
     let active = true
@@ -439,6 +485,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
 
   function openPortalShortcutCustomization(event: MouseEvent<HTMLButtonElement>) {
     event.currentTarget.blur()
+    portalShortcutInteractionVersionRef.current += 1
     setMobilePortalLaneState({ pathname, laneId: null })
     setShowAllPortalLanes(false)
     setShowPortalPersonalizationCue(false)
@@ -477,11 +524,13 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     }
 
     const savedShortcutIds = writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)
+    portalShortcutInteractionVersionRef.current += 1
     setPinnedPortalShortcutIds(savedShortcutIds)
     setDraftPinnedPortalShortcutIds(savedShortcutIds)
     setPortalPersonalizationMessage('Your first row is saved.')
     setCustomizingPortalShortcuts(false)
     setShowPortalPersonalizationCue(false)
+    syncPortalShortcutsToCloud(savedShortcutIds, true)
     void trackProductUsageEvent({
       eventName: 'portal_personalization_saved',
       surface: 'portal',
@@ -519,8 +568,16 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   }
 
   function skipPortalPersonalizationCue() {
+    portalShortcutInteractionVersionRef.current += 1
     dismissPortalPersonalizationCue(userId)
     setShowPortalPersonalizationCue(false)
+    syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)
+  }
+
+  function syncPortalShortcutsToCloud(shortcuts: readonly PortalShortcutPreferenceId[], cueDismissed: boolean) {
+    const accessToken = session?.access_token || ''
+    if (!authResolved || !userId || !accessToken) return
+    void savePortalShortcutCloudState({ accessToken, shortcuts, cueDismissed })
   }
 
   function handleMobilePortalMainSelect(event: MouseEvent<HTMLButtonElement>) {
