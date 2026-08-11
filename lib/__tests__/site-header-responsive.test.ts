@@ -101,6 +101,15 @@ describe('site header responsive rules', () => {
       screenWidth: 390,
       compact: true,
     })).toBe('Continue')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'recent',
+      actionLabel: 'Open match day',
+      lane: 'Captain',
+      handoff: true,
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Open match day')
   })
 
   it('locks the header in place when the desktop/tablet rail is active', () => {

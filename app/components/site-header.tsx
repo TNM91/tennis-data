@@ -106,7 +106,7 @@ function ResumeItemControls({
   onLater: (item: PlatformResumeCandidate) => void
   onHide: (item: PlatformResumeCandidate) => void
 }) {
-  const itemLabel = item.status === 'unfinished' ? item.actionLabel : item.label
+  const itemLabel = item.status === 'unfinished' || item.handoff ? item.actionLabel : item.label
   return (
     <span style={resumeItemControlsStyle}>
       <button
@@ -287,6 +287,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         status: resumePrimary.status,
         actionLabel: resumePrimary.actionLabel,
         lane: resumePrimary.lane,
+        handoff: resumePrimary.handoff,
         isMobile,
         screenWidth,
         compact: useCompactHeader,
@@ -522,14 +523,14 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 {resumeItems.length ? (
                   <div aria-label="Recent work" style={desktopResumeSectionStyle}>
                     <div style={mobileSectionLabelStyle}>
-                      {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
+                      {resumePrimary?.handoff ? 'Next up' : resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
                     </div>
                     {resumeItems.slice(0, 3).map((item) => (
                       <div key={item.id} style={desktopResumeCardStyle}>
                         <Link href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeCardLinkStyle}>
                           <ResumeItemLabel
                             lane={item.lane}
-                            label={item.status === 'unfinished' ? item.actionLabel : item.label}
+                            label={item.status === 'unfinished' || item.handoff ? item.actionLabel : item.label}
                             context={getPlatformResumeDetail(item)}
                             unfinished={item.status === 'unfinished'}
                           />
@@ -621,13 +622,13 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                   {resumeItems.length ? (
                     <div aria-label="Recent work" style={mobileResumeSectionStyle}>
                       <div style={mobileSectionLabelStyle}>
-                        {resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
+                        {resumePrimary?.handoff ? 'Next up' : resumePrimary?.status === 'unfinished' ? 'Needs attention' : 'Pick up where you left off'}
                       </div>
                       {resumeItems.slice(0, 2).map((item) => (
                         <div key={item.id} style={mobileResumeCardStyle}>
                           <Link href={item.href} onClick={() => setMenuOpen(false)} style={mobileResumeCardLinkStyle}>
                             <MobileItemLabel
-                              label={`${item.lane}: ${item.status === 'unfinished' ? item.actionLabel : item.label}`}
+                              label={`${item.lane}: ${item.status === 'unfinished' || item.handoff ? item.actionLabel : item.label}`}
                               description={getPlatformResumeDetail(item) || undefined}
                             />
                             <span style={{ opacity: 0.62 }}>{'\u2192'}</span>

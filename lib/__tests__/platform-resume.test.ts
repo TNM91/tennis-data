@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyPlatformResumeHandoff,
+  buildPlatformResumeHandoff,
   buildPlatformResumeCandidates,
   getPlatformResumeDetail,
   mergePlatformResumeCandidates,
@@ -192,12 +194,151 @@ describe('platform resume', () => {
       teamRoomDraftPending: true,
     })
     const readyToBuild = buildPlatformResumeCandidates({
-      captain,
+      captain: { ...captain, lineupCount: 0 },
       teamRoomDraftPending: true,
+    })
+    const lineupInProgress = buildPlatformResumeCandidates({ captain })
+    const readyToSend = buildPlatformResumeCandidates({
+      captain: { ...captain, weekStatus: 'ready-to-send' },
     })
 
     expect(waitingOnPlayers[0].actionLabel).toBe('Check replies')
-    expect(readyToBuild[0].actionLabel).toBe('Finish lineup')
+    expect(readyToBuild[0]).toMatchObject({ actionLabel: 'Build lineup', status: 'unfinished' })
+    expect(lineupInProgress[0].actionLabel).toBe('Finish lineup')
+    expect(readyToSend[0].actionLabel).toBe('Send lineup')
+  })
+
+  it('promotes the next action in the same lane when work is completed', () => {
+    const previous = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'availability',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-08-04',
+        pendingResponseCount: 2,
+        weekStatus: 'draft-lineup',
+        lineupCount: 0,
+        lastVisitedAt: '2026-08-03T12:00:00.000Z',
+      },
+    })
+    const next = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'availability',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-08-04',
+        pendingResponseCount: 0,
+        weekStatus: 'draft-lineup',
+        lineupCount: 0,
+        lastVisitedAt: '2026-08-03T12:01:00.000Z',
+      },
+      improve: {
+        lastSurface: 'conversation',
+        conversationDraft: 'Still writing',
+        lastVisitedAt: '2026-08-03T12:02:00.000Z',
+      },
+    })
+
+    const handoff = buildPlatformResumeHandoff(previous, next)
+    const promoted = applyPlatformResumeHandoff(next, handoff)
+
+    expect(handoff).toMatchObject({
+      completedActionLabel: 'Check replies',
+      candidate: {
+        id: 'captain',
+        actionLabel: 'Build lineup',
+        handoff: true,
+      },
+    })
+    expect(promoted.map((candidate) => candidate.id)).toEqual(['captain', 'improve'])
+  })
+
+  it('turns a completed lineup send into the match-day handoff', () => {
+    const previous = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'messaging',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-08-04',
+        weekStatus: 'ready-to-send',
+        lineupCount: 3,
+        lastVisitedAt: '2026-08-03T12:00:00.000Z',
+      },
+    })
+    const next = buildPlatformResumeCandidates({
+      captain: {
+        lastTool: 'messaging',
+        team: 'SuperSmash Bros',
+        eventDate: '2026-08-04',
+        weekStatus: 'finalized',
+        lineupCount: 3,
+        lastVisitedAt: '2026-08-03T12:01:00.000Z',
+      },
+    })
+
+    expect(buildPlatformResumeHandoff(previous, next)?.candidate).toMatchObject({
+      actionLabel: 'Open match day',
+      reason: 'The team update is handled',
+      href: '/captain?team=SuperSmash+Bros&date=2026-08-04#captain-match-day-command-strip',
+      handoff: true,
+    })
+  })
+
+  it('uses role-specific next steps after Coach and League saves', () => {
+    const coachPrevious = buildPlatformResumeCandidates({
+      coach: {
+        lastSurface: 'assignment',
+        studentLinkId: 'student-1',
+        playerName: 'Avery',
+        assignmentDraft: { title: 'Serve pattern' },
+        lastVisitedAt: '2026-08-03T12:00:00.000Z',
+      },
+    })
+    const coachNext = buildPlatformResumeCandidates({
+      coach: {
+        lastSurface: 'assignment',
+        studentLinkId: 'student-1',
+        playerName: 'Avery',
+        assignmentId: 'assignment-1',
+        lastVisitedAt: '2026-08-03T12:01:00.000Z',
+      },
+    })
+    const leaguePrevious = buildPlatformResumeCandidates({
+      league: {
+        lastSurface: 'team-results',
+        leagueId: 'league-1',
+        leagueName: 'Summer League',
+        teamResultDraft: { teamAName: 'A', teamBName: 'B' },
+        lastVisitedAt: '2026-08-03T12:00:00.000Z',
+      },
+    })
+    const leagueNext = buildPlatformResumeCandidates({
+      league: {
+        lastSurface: 'team-results',
+        leagueId: 'league-1',
+        leagueName: 'Summer League',
+        lastVisitedAt: '2026-08-03T12:01:00.000Z',
+      },
+    })
+
+    expect(buildPlatformResumeHandoff(coachPrevious, coachNext)?.candidate).toMatchObject({
+      actionLabel: 'Open player bench',
+      href: '/coach?studentLinkId=student-1#coach-linked-dashboard',
+    })
+    expect(buildPlatformResumeHandoff(leaguePrevious, leagueNext)?.candidate).toMatchObject({
+      actionLabel: 'Review results',
+      href: '/league-coordinator/results?leagueId=league-1',
+    })
+  })
+
+  it('does not create a handoff while the same task is still open', () => {
+    const candidates = buildPlatformResumeCandidates({
+      coach: {
+        lastSurface: 'assignment',
+        playerName: 'Avery',
+        assignmentDraft: { title: 'Serve pattern' },
+        lastVisitedAt: '2026-08-03T12:00:00.000Z',
+      },
+    })
+
+    expect(buildPlatformResumeHandoff(candidates, candidates)).toBeNull()
   })
 
   it('starts a linked upcoming match with availability from Captain home', () => {

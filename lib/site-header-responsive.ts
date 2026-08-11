@@ -20,10 +20,14 @@ export function getHeaderResumeShortcutLabel(input: {
   status: 'unfinished' | 'recent'
   actionLabel: string
   lane: string
+  handoff?: boolean
   isMobile: boolean
   screenWidth: number
   compact: boolean
 }) {
+  if (input.handoff) {
+    return input.isMobile && input.screenWidth < 380 ? 'Next' : input.actionLabel
+  }
   if (input.status === 'unfinished') {
     return input.isMobile && input.screenWidth < 380 ? 'Next' : input.actionLabel
   }
