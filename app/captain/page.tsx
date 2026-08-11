@@ -7,6 +7,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type 
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import ClubContextBanner from '@/app/components/club-context-banner'
+import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
@@ -18121,6 +18122,7 @@ function CaptainHubContent() {
         {!isMobile ? (
         <>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
+          <ContextualTennisVisual visual="captain" mode="hero" />
           <div style={heroLeft}>
             <div style={scopeHeaderStyle}>
               <div style={captainScopeIdentityStyle}>

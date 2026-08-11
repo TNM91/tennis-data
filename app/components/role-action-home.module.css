@@ -39,33 +39,11 @@
   --role-secondary-rgb: 155 225 29;
 }
 
-.shell::before,
 .shell::after {
   position: absolute;
   inset: 0;
   pointer-events: none;
   content: '';
-}
-
-.shell::before {
-  z-index: -2;
-  opacity: 0.34;
-  background-repeat: no-repeat;
-  background-position: right center;
-  background-size: min(70%, 820px) auto;
-  mask-image: linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, 0.2) 42%, #000 74%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, 0.2) 42%, #000 74%);
-}
-
-.shell[data-visual='athlete']::before {
-  background-image: url('/player-profile/journey-hero.png');
-}
-
-.shell[data-visual='strategy']::before {
-  opacity: 0.24;
-  background-image: url('/player-profile/player-id-court.png');
-  background-position: 112% 54%;
-  background-size: min(72%, 780px) auto;
 }
 
 .shell::after {
@@ -75,7 +53,7 @@
     linear-gradient(180deg, transparent 62%, rgba(2, 11, 24, 0.68));
 }
 
-.shell > * {
+.shell > :not([data-contextual-tennis-visual]) {
   position: relative;
   z-index: 1;
 }
@@ -314,20 +292,6 @@
     gap: 13px;
     padding: 16px;
     border-radius: 22px;
-  }
-
-  .shell::before {
-    opacity: 0.21;
-    background-position: 132% 10%;
-    background-size: auto 72%;
-    mask-image: linear-gradient(90deg, transparent 10%, rgba(0, 0, 0, 0.16) 44%, #000 100%);
-    -webkit-mask-image: linear-gradient(90deg, transparent 10%, rgba(0, 0, 0, 0.16) 44%, #000 100%);
-  }
-
-  .shell[data-visual='strategy']::before {
-    opacity: 0.16;
-    background-position: 142% 16%;
-    background-size: auto 66%;
   }
 
   .shell::after {
