@@ -6,6 +6,7 @@ import {
   DEFAULT_PINNED_PORTAL_SHORTCUTS,
   getPortalShortcutStorageKey,
   isPinnedPortalShortcutList,
+  movePinnedPortalShortcut,
   normalizePinnedPortalShortcuts,
 } from '../portal-lane-preferences'
 
@@ -36,6 +37,25 @@ describe('portal shortcut personalization', () => {
     expect(isPinnedPortalShortcutList(['action:mylab', 'action:unknown', 'lane:team', 'lane:club'])).toBe(false)
   })
 
+  it('moves a selected shortcut one position without changing the other pins', () => {
+    const pins = ['lane:find', 'action:mylab', 'lane:team', 'lane:club'] as const
+
+    expect(movePinnedPortalShortcut(pins, 'lane:team', -1)).toEqual([
+      'lane:find',
+      'lane:team',
+      'action:mylab',
+      'lane:club',
+    ])
+    expect(movePinnedPortalShortcut(pins, 'action:mylab', 1)).toEqual([
+      'lane:find',
+      'lane:team',
+      'action:mylab',
+      'lane:club',
+    ])
+    expect(movePinnedPortalShortcut(pins, 'lane:find', -1)).toEqual(pins)
+    expect(movePinnedPortalShortcut(pins, 'lane:club', 1)).toEqual(pins)
+  })
+
   it('scopes saved shortcuts to the signed-in account', () => {
     expect(getPortalShortcutStorageKey()).toBe('tenaceiq.portal-shortcuts.v2.guest')
     expect(getPortalShortcutStorageKey('player-123')).toBe('tenaceiq.portal-shortcuts.v2.player-123')
@@ -50,5 +70,12 @@ describe('portal shortcut personalization', () => {
     expect(portalSource).toContain('writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)')
     expect(portalSource).toContain('loadPortalShortcutCloudState(accessToken, controller.signal)')
     expect(portalSource).toContain('syncPortalShortcutsToCloud(savedShortcutIds, true)')
+    expect(portalSource).toContain('draftPinnedPortalShortcuts.map((shortcut)')
+    expect(portalSource).toContain('unpinnedPortalShortcutOptions.map((shortcut)')
+    expect(portalSource).toContain('data-portal-shortcut-selected={selected')
+    expect(portalSource).toContain('Move it or unpin it.')
+    expect(portalSource).toContain('moveSelectedPortalShortcut(event, -1)')
+    expect(portalSource).toContain('moveSelectedPortalShortcut(event, 1)')
+    expect(portalSource).toContain('onClick={unpinSelectedPortalShortcut}')
   })
 })
