@@ -22,6 +22,7 @@ import {
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -325,7 +326,24 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   function handleMobilePortalLaneSelect(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
     event.currentTarget.blur()
     const lane = personalizedPortalLanes.find((item) => item.id === laneId)
-    if (lane) router.push(lane.route)
+    if (lane) {
+      const pinnedPosition = pinnedPortalLaneIds.indexOf(laneId) + 1
+      void trackProductUsageEvent({
+        eventName: 'portal_lane_opened',
+        surface: 'portal',
+        metadata: {
+          laneId,
+          laneLabel: lane.label,
+          destination: lane.route,
+          pinned: pinnedPosition > 0,
+          pinnedPosition: pinnedPosition > 0 ? pinnedPosition : null,
+          pathname,
+          layout,
+          mobile: isMobile,
+        },
+      })
+      router.push(lane.route)
+    }
   }
 
   function handlePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
@@ -354,12 +372,34 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setDraftPinnedPortalLaneIds(pinnedPortalLaneIds)
     setPortalPersonalizationMessage('Pin four. They stay on the first row.')
     setCustomizingPortalLanes(true)
+    void trackProductUsageEvent({
+      eventName: 'portal_personalization_opened',
+      surface: 'portal',
+      metadata: {
+        pinnedLanes: pinnedPortalLaneIds,
+        pathname,
+        layout,
+        mobile: isMobile,
+      },
+    })
   }
 
   function savePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>) {
     event.currentTarget.blur()
     if (draftPinnedPortalLaneIds.length !== PORTAL_LANE_PIN_LIMIT) {
       setPortalPersonalizationMessage(`Choose ${PORTAL_LANE_PIN_LIMIT} lanes before saving.`)
+      void trackProductUsageEvent({
+        eventName: 'portal_personalization_save_blocked',
+        surface: 'portal',
+        metadata: {
+          pinnedLanes: draftPinnedPortalLaneIds,
+          pinnedCount: draftPinnedPortalLaneIds.length,
+          requiredCount: PORTAL_LANE_PIN_LIMIT,
+          pathname,
+          layout,
+          mobile: isMobile,
+        },
+      })
       return
     }
 
@@ -368,6 +408,18 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setDraftPinnedPortalLaneIds(savedLaneIds)
     setPortalPersonalizationMessage('Your first row is saved.')
     setCustomizingPortalLanes(false)
+    void trackProductUsageEvent({
+      eventName: 'portal_personalization_saved',
+      surface: 'portal',
+      metadata: {
+        pinnedLanes: savedLaneIds,
+        previousPinnedLanes: pinnedPortalLaneIds,
+        changed: savedLaneIds.join('|') !== pinnedPortalLaneIds.join('|'),
+        pathname,
+        layout,
+        mobile: isMobile,
+      },
+    })
   }
 
   function resetPortalLaneCustomization() {

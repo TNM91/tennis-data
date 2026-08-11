@@ -12,7 +12,7 @@ import {
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
     const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260810000500_sync_product_usage_event_constraints.sql'),
+      join(process.cwd(), 'supabase/migrations/20260810000600_add_portal_usage_events.sql'),
       'utf8',
     )
 
@@ -183,6 +183,23 @@ describe('product usage events', () => {
           : 'matchup',
         metadata: {
           source: 'test',
+        },
+      })?.eventName).toBe(eventName)
+    }
+  })
+
+  it('accepts portal personalization and lane-use analytics', () => {
+    for (const eventName of [
+      'portal_personalization_opened',
+      'portal_personalization_saved',
+      'portal_personalization_save_blocked',
+      'portal_lane_opened',
+    ] as const) {
+      expect(normalizeProductUsageEventInput({
+        eventName,
+        surface: 'portal',
+        metadata: {
+          pinnedLanes: ['find', 'you', 'team', 'club'],
         },
       })?.eventName).toBe(eventName)
     }
