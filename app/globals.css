@@ -495,6 +495,42 @@ footer {
   background-position: right 42%;
 }
 
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy {
+  right: clamp(-72px, -3vw, -24px);
+  bottom: clamp(10px, 2vh, 28px);
+  width: min(68vw, 1080px);
+  aspect-ratio: 1426 / 1118;
+  opacity: 0.135;
+  background-image: url('/tiq/courts/tiq-court-master.png');
+  background-position: right bottom;
+  background-size: contain;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.28) 24%, #000 56%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.28) 24%, #000 56%);
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--quiet.brand-atmosphere-mark--strategy {
+  opacity: 0.095;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
+  right: -6vw;
+  width: min(62vw, 940px);
+  opacity: 0.105;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy {
+  right: -2vw;
+  width: min(72vw, 1120px);
+  opacity: 0.155;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy,
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
+  right: -1vw;
+  width: min(70vw, 1080px);
+  opacity: 0.13;
+}
+
 .admin-shell {
   width: min(1400px, calc(100% - 32px));
   margin-inline: auto;
@@ -1395,6 +1431,12 @@ hr {
     width: min(94vw, 860px);
     right: -4vw;
   }
+
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy {
+    right: -12vw;
+    width: min(88vw, 780px);
+    opacity: 0.12;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1486,6 +1528,21 @@ hr {
   .brand-atmosphere-mark--area-coach.brand-atmosphere-mark--athlete {
     right: -68vw;
     width: 170vw;
+  }
+
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
+    right: -72vw;
+    bottom: 72px;
+    width: 190vw;
+    opacity: 0.085;
+    background-image: url('/player-profile/player-id-court.png');
+    background-position: right bottom;
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 58%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 58%);
   }
 
   .hero-panel {

@@ -2148,7 +2148,7 @@ const watermarkStyle: CSSProperties = {
   top: '-108px',
   width: 'min(280px, 58vw)',
   aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
-  opacity: 0.14,
+  background: 'url("/player-profile/player-id-court.png") center / cover no-repeat',
+  opacity: 0.18,
   pointerEvents: 'none',
 }
