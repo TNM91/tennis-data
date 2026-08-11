@@ -96,14 +96,26 @@ export function readPinnedPortalShortcuts(userId?: string | null) {
 }
 
 export function writePinnedPortalShortcuts(shortcutIds: readonly PortalShortcutPreferenceId[], userId?: string | null) {
+  const normalized = cachePinnedPortalShortcuts(shortcutIds, userId)
+  if (typeof window === 'undefined') return normalized
+
+  try {
+    window.localStorage.setItem(getPortalPersonalizationCueKey(userId), 'dismissed')
+  } catch {
+    // Personalization is best-effort; navigation must remain available.
+  }
+
+  return normalized
+}
+
+export function cachePinnedPortalShortcuts(shortcutIds: readonly PortalShortcutPreferenceId[], userId?: string | null) {
   const normalized = normalizePinnedPortalShortcuts(shortcutIds)
   if (typeof window === 'undefined') return normalized
 
   try {
     window.localStorage.setItem(getPortalShortcutStorageKey(userId), JSON.stringify(normalized))
-    window.localStorage.setItem(getPortalPersonalizationCueKey(userId), 'dismissed')
   } catch {
-    // Personalization is best-effort; navigation must remain available.
+    // Cloud restoration is best-effort; navigation must remain available.
   }
 
   return normalized
@@ -114,13 +126,32 @@ export function shouldShowPortalPersonalizationCue(userId?: string | null) {
 
   try {
     if (window.localStorage.getItem(getPortalPersonalizationCueKey(userId))) return false
-    if (window.localStorage.getItem(getPortalShortcutStorageKey(userId))) return false
     if (window.localStorage.getItem(getLegacyPortalLaneStorageKey(userId))) return false
   } catch {
     return false
   }
 
   return true
+}
+
+export function hasDismissedPortalPersonalizationCue(userId?: string | null) {
+  if (typeof window === 'undefined') return false
+
+  try {
+    return Boolean(window.localStorage.getItem(getPortalPersonalizationCueKey(userId)))
+  } catch {
+    return false
+  }
+}
+
+export function isPinnedPortalShortcutList(value: unknown): value is PortalShortcutPreferenceId[] {
+  if (!Array.isArray(value) || value.length !== PORTAL_SHORTCUT_PIN_LIMIT) return false
+  const valid = new Set<PortalShortcutPreferenceId>(PORTAL_SHORTCUT_IDS)
+  return value.every((shortcutId, index) => (
+    typeof shortcutId === 'string'
+    && valid.has(shortcutId as PortalShortcutPreferenceId)
+    && value.indexOf(shortcutId) === index
+  ))
 }
 
 export function dismissPortalPersonalizationCue(userId?: string | null) {
