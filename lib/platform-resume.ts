@@ -37,6 +37,12 @@ export type PlatformResumeCandidate = {
   reason: string
   priority: number
   dueAt?: string
+  handoff?: boolean
+}
+
+export type PlatformResumeHandoff = {
+  completedActionLabel: string
+  candidate: PlatformResumeCandidate
 }
 
 export type PlatformResumeStates = {
@@ -190,6 +196,16 @@ function captainActionSignal(captain: CaptainResumeState, teamRoomDraftPending: 
     }
   }
 
+  if (captain.weekStatus === 'draft-lineup' && captain.eventDate) {
+    return {
+      status: 'unfinished',
+      actionLabel: 'Build lineup',
+      reason: 'Availability is clear for this match',
+      priority: 100,
+      href: buildCaptainScopedHref('/captain/lineup-builder', scope),
+    }
+  }
+
   if (captain.weekStatus === 'ready-to-send') {
     return {
       status: 'unfinished',
@@ -210,6 +226,82 @@ function captainActionSignal(captain: CaptainResumeState, teamRoomDraftPending: 
   }
 
   return null
+}
+
+const PLATFORM_HANDOFF_COPY: Record<string, Pick<PlatformResumeCandidate, 'actionLabel' | 'reason'>> = {
+  'Check replies': { actionLabel: 'Build lineup', reason: 'Availability is clear' },
+  'Finish lineup': { actionLabel: 'Send lineup', reason: 'The lineup is ready for the team' },
+  'Send lineup': { actionLabel: 'Open match day', reason: 'The team update is handled' },
+  'Finish message': { actionLabel: 'Open team chat', reason: 'Your message was sent' },
+  'Finish assignment': { actionLabel: 'Open player bench', reason: 'The assignment was saved' },
+  'Finish reply': { actionLabel: 'Open messages', reason: 'Your reply was sent' },
+  'Finish training': { actionLabel: 'View progress', reason: 'Your training was saved' },
+  'Finish team result': { actionLabel: 'Review results', reason: 'The team result was saved' },
+  'Finish player result': { actionLabel: 'Review results', reason: 'The player result was saved' },
+  'Finish tournament': { actionLabel: 'Open tournament', reason: 'The tournament was saved' },
+}
+
+function replaceResumeHrefPath(href: string, pathname: string, hash = '') {
+  try {
+    const parsed = new URL(href, 'https://www.tenaceiq.com')
+    return `${pathname}${parsed.search}${hash}`
+  } catch {
+    return href
+  }
+}
+
+function getPlatformHandoffHref(completedActionLabel: string, successor: PlatformResumeCandidate) {
+  if (completedActionLabel === 'Send lineup') {
+    return replaceResumeHrefPath(successor.href, '/captain', '#captain-match-day-command-strip')
+  }
+  if (completedActionLabel === 'Finish assignment') {
+    return replaceResumeHrefPath(successor.href, '/coach', '#coach-linked-dashboard')
+  }
+  return successor.href
+}
+
+export function buildPlatformResumeHandoff(
+  previousCandidates: PlatformResumeCandidate[] | null,
+  nextCandidates: PlatformResumeCandidate[],
+): PlatformResumeHandoff | null {
+  if (!previousCandidates?.length) return null
+
+  const completed = previousCandidates.find((previous) => (
+    previous.status === 'unfinished'
+    && !nextCandidates.some((next) => (
+      next.id === previous.id
+      && next.status === 'unfinished'
+      && next.actionLabel === previous.actionLabel
+    ))
+  ))
+  if (!completed) return null
+
+  const successor = nextCandidates.find((candidate) => candidate.id === completed.id)
+  if (!successor) return null
+  const copy = PLATFORM_HANDOFF_COPY[completed.actionLabel]
+
+  return {
+    completedActionLabel: completed.actionLabel,
+    candidate: {
+      ...successor,
+      actionLabel: successor.status === 'unfinished'
+        ? successor.actionLabel
+        : copy?.actionLabel || successor.actionLabel,
+      reason: successor.status === 'unfinished'
+        ? successor.reason
+        : copy?.reason || successor.reason,
+      href: getPlatformHandoffHref(completed.actionLabel, successor),
+      handoff: true,
+    },
+  }
+}
+
+export function applyPlatformResumeHandoff(
+  candidates: PlatformResumeCandidate[],
+  handoff: PlatformResumeHandoff | null,
+) {
+  if (!handoff) return candidates
+  return [handoff.candidate, ...candidates.filter((candidate) => candidate.id !== handoff.candidate.id)]
 }
 
 function hasDraft(value: object | null | undefined) {

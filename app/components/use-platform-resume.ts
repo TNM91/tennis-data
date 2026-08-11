@@ -11,10 +11,13 @@ import {
   PLATFORM_RESUME_UPDATED_EVENT,
 } from '@/lib/platform-resume-events'
 import {
+  applyPlatformResumeHandoff,
+  buildPlatformResumeHandoff,
   buildPlatformResumeCandidates,
   mergePlatformResumeCandidates,
   sanitizePlatformResumeCandidates,
   type PlatformResumeCandidate,
+  type PlatformResumeHandoff,
 } from '@/lib/platform-resume'
 import {
   filterPlatformResumeCandidates,
@@ -39,6 +42,7 @@ export function usePlatformResume({
   const [localCandidates, setLocalCandidates] = useState<PlatformResumeCandidate[]>([])
   const [cloudCandidates, setCloudCandidates] = useState<PlatformResumeCandidate[]>([])
   const [suppressions, setSuppressions] = useState<PlatformResumeSuppression[]>([])
+  const [handoff, setHandoff] = useState<PlatformResumeHandoff | null>(null)
   const [notice, setNotice] = useState<{ message: string; undoFingerprint?: string }>({ message: '' })
   const previousLocalCandidatesRef = useRef<PlatformResumeCandidate[] | null>(null)
   const previousUserIdRef = useRef<string | null | undefined>(undefined)
@@ -46,17 +50,23 @@ export function usePlatformResume({
 
   useEffect(() => {
     let timeout: number | null = null
-    if (previousUserIdRef.current !== userId) {
+    let clearHandoffForUserChange = previousUserIdRef.current !== userId
+    if (clearHandoffForUserChange) {
       previousUserIdRef.current = userId
       previousLocalCandidatesRef.current = null
     }
 
     const loadLocalCandidates = () => {
       timeout = null
+      if (clearHandoffForUserChange) {
+        clearHandoffForUserChange = false
+        setHandoff(null)
+      }
       if (!userId) {
         previousLocalCandidatesRef.current = null
         setLocalCandidates([])
         setSuppressions([])
+        setHandoff(null)
         return
       }
 
@@ -74,17 +84,17 @@ export function usePlatformResume({
         teamRoomDraftPending,
       })
       const previousCandidates = previousLocalCandidatesRef.current
-      const previousUnfinished = previousCandidates?.find((item) => item.status === 'unfinished')
-      const unfinishedStillOpen = previousUnfinished
-        ? nextCandidates.some((item) => (
-          item.status === 'unfinished'
-          && item.id === previousUnfinished.id
-          && item.actionLabel === previousUnfinished.actionLabel
-        ))
-        : true
+      const nextHandoff = buildPlatformResumeHandoff(previousCandidates, nextCandidates)
 
-      if (previousUnfinished && !unfinishedStillOpen) {
-        setNotice({ message: getPlatformResumeCompletionMessage(previousUnfinished.actionLabel) })
+      if (nextHandoff) {
+        setHandoff(nextHandoff)
+        setNotice({ message: getPlatformResumeCompletionMessage(nextHandoff.completedActionLabel) })
+      } else {
+        setHandoff((current) => {
+          if (!current) return null
+          const currentLane = nextCandidates.find((candidate) => candidate.id === current.candidate.id)
+          return currentLane?.visitedAt === current.candidate.visitedAt ? current : null
+        })
       }
       previousLocalCandidatesRef.current = nextCandidates
       setLocalCandidates(nextCandidates)
@@ -238,10 +248,13 @@ export function usePlatformResume({
 
   const items = useMemo(
     () => filterPlatformResumeCandidates(
-      mergePlatformResumeCandidates(localCandidates, cloudCandidates),
+      applyPlatformResumeHandoff(
+        mergePlatformResumeCandidates(localCandidates, cloudCandidates),
+        handoff,
+      ),
       suppressions,
     ),
-    [cloudCandidates, localCandidates, suppressions],
+    [cloudCandidates, handoff, localCandidates, suppressions],
   )
 
   return useMemo(() => ({
