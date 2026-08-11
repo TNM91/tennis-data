@@ -6,6 +6,7 @@ export default function Loading() {
       label="Preparing team results..."
       detail="Preparing team match entry, line coverage, score review, and standings context."
       pattern="workflow"
+      visual="league"
     />
   )
 }

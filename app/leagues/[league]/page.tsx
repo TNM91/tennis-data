@@ -761,6 +761,8 @@ export default function LeagueDetailPage() {
               title="Opening season context."
               titleAs="h2"
               body="Checking teams, schedules, scorecards, standings, and correction paths for this league segment."
+              tone="loading"
+              visual="league"
               signals={[
                 { label: 'Source', value: 'Schedules, scorecards, standings' },
                 { label: 'Freshness', value: 'Latest reviewed rows first' },

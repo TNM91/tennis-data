@@ -6,6 +6,7 @@ export default function Loading() {
       label="Preparing Team Hub..."
       detail="Checking team scope, availability, lineup context, and match-week notes."
       pattern="workflow"
+      visual="captain"
     />
   )
 }

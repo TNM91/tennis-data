@@ -1322,6 +1322,8 @@ function TeamPageContent() {
           eyebrow="Team Intelligence"
           title="Opening team context."
           body="Pulling roster, recent matches, league scope, and Captain Tools paths so this team page starts with useful tennis context."
+          tone="loading"
+          visual="team"
           signals={[
             { label: 'Source', value: 'Player Rosters and scorecards' },
             { label: 'Freshness', value: 'Recent matches first' },

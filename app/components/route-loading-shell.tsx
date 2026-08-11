@@ -1,26 +1,58 @@
 import type { CSSProperties } from 'react'
 import TiqLoader from '@/components/TiqLoader'
+import TennisStateArt, { type TennisStateVisual } from '@/app/components/tennis-state-art'
 
 type RouteLoadingShellProps = {
   label?: string
   detail?: string
   pattern?: 'cards' | 'list' | 'dashboard' | 'matchup' | 'workflow' | 'upload'
+  visual?: TennisStateVisual
 }
 
 export default function RouteLoadingShell({
   label = 'Preparing TenAceIQ...',
   detail,
   pattern = 'cards',
+  visual,
 }: RouteLoadingShellProps) {
+  const resolvedVisual = visual ?? getLoadingVisual(pattern)
+  const resolvedDetail = detail ?? getLoadingDetail(pattern)
+
   return (
     <div className="page-shell">
-      <section aria-busy="true" aria-live="polite" role="status" style={shellStyle}>
-        <TiqLoader label={label} size="md" />
-        {detail ? <p style={detailStyle}>{detail}</p> : null}
-        <LoadingPattern pattern={pattern} />
+      <section
+        aria-busy="true"
+        aria-live="polite"
+        data-loading-visual={resolvedVisual}
+        role="status"
+        style={shellStyle}
+      >
+        <TennisStateArt compact visual={resolvedVisual} />
+        <div style={contentLayerStyle}>
+          <TiqLoader label={label} size="md" />
+          <p style={detailStyle}>{resolvedDetail}</p>
+          <LoadingPattern pattern={pattern} />
+        </div>
       </section>
     </div>
   )
+}
+
+function getLoadingVisual(pattern: RouteLoadingShellProps['pattern']): TennisStateVisual {
+  if (pattern === 'matchup') return 'matchup'
+  if (pattern === 'workflow') return 'captain'
+  if (pattern === 'dashboard') return 'team'
+  if (pattern === 'list') return 'player'
+  return 'generic'
+}
+
+function getLoadingDetail(pattern: RouteLoadingShellProps['pattern']) {
+  if (pattern === 'matchup') return 'Checking the players, recent form, and court context behind the next matchup read.'
+  if (pattern === 'workflow') return 'Connecting the tennis decisions that move this workflow from setup to the next action.'
+  if (pattern === 'dashboard') return 'Bringing the latest roster, results, and tennis signals into view.'
+  if (pattern === 'list') return 'Reviewing the tennis records behind this directory before the first decision.'
+  if (pattern === 'upload') return 'Preparing the source review path so tennis context can be checked and updated.'
+  return 'Preparing the tennis context and next actions for this page.'
 }
 
 function LoadingPattern({ pattern }: { pattern: RouteLoadingShellProps['pattern'] }) {
@@ -130,10 +162,25 @@ function Bone({ style }: { style?: CSSProperties }) {
 }
 
 const shellStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  padding: '24px clamp(16px, 3vw, 28px) 30px',
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(145deg, rgba(14,35,61,0.9), rgba(6,19,37,0.96))',
+  boxShadow: '0 24px 58px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+  isolation: 'isolate',
+}
+
+const contentLayerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gap: 18,
   justifyItems: 'center',
-  padding: '24px 0 34px',
+  width: '100%',
+  minWidth: 0,
 }
 
 const detailStyle: CSSProperties = {

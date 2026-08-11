@@ -1325,6 +1325,8 @@ function PlayerProfileContent() {
           eyebrow="Player scorecard"
           title="Opening player context."
           body="Checking ratings, recent matches, team context, awards, and review signals so this profile starts with useful tennis evidence."
+          tone="loading"
+          visual="player"
           signals={[
             { label: 'Source', value: 'Player records, scorecards, TIQ context' },
             { label: 'Freshness', value: 'Recent matches first' },
@@ -1349,7 +1351,7 @@ function PlayerProfileContent() {
           <div style={errorCard}>
             <div style={sectionKicker}>Player profile</div>
             <h2 style={sectionTitle}>Unable to load player</h2>
-            <p style={sectionText}>{error || 'Player not found.'}</p>
+            <p style={sectionText}>{getPublicPlayerErrorMessage(error)}</p>
             <div style={errorActionRow}>
               <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
               <MiniLink href="/players">Back to players</MiniLink>
@@ -5550,6 +5552,18 @@ const resultLoss: CSSProperties = {
   background: 'rgba(255, 60, 40, 0.10)',
   color: '#ffb4ab',
   border: '1px solid rgba(255, 60, 40, 0.16)',
+}
+
+function getPublicPlayerErrorMessage(error: string | null) {
+  if (!error || /not found/i.test(error)) {
+    return 'This player profile is not available yet. Search the directory or browse rankings to find another reviewed player.'
+  }
+
+  if (/uuid|syntax|invalid input/i.test(error)) {
+    return 'That player link is not valid. Return to the directory and open a reviewed player profile.'
+  }
+
+  return 'This player profile could not be opened right now. Try again or continue through the player directory.'
 }
 
 const errorCard: CSSProperties = {
