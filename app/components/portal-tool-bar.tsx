@@ -17,6 +17,7 @@ import {
   DEFAULT_PINNED_PORTAL_SHORTCUTS,
   dismissPortalPersonalizationCue,
   hasDismissedPortalPersonalizationCue,
+  movePinnedPortalShortcut,
   PORTAL_SHORTCUT_PIN_LIMIT,
   readPinnedPortalShortcuts,
   shouldShowPortalPersonalizationCue,
@@ -293,6 +294,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
   const [portalShortcutSuggestionCandidates, setPortalShortcutSuggestionCandidates] = useState<PortalShortcutPreferenceId[]>([])
   const [portalPinRecommendation, setPortalPinRecommendation] = useState<PortalShortcutPinRecommendation | null>(null)
+  const [selectedPinnedPortalShortcutId, setSelectedPinnedPortalShortcutId] = useState<PortalShortcutPreferenceId | null>(null)
   const portalShortcutInteractionVersionRef = useRef(0)
   const portalShortcutSuggestionRequestRef = useRef(0)
 
@@ -323,6 +325,18 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       .filter((shortcutId) => !pinned.has(shortcutId))
       .slice(0, 3)
   }, [draftPinnedPortalShortcutIds, portalShortcutSuggestionCandidates])
+  const draftPinnedPortalShortcuts = useMemo(() => (
+    draftPinnedPortalShortcutIds
+      .map((shortcutId) => portalShortcutCatalog.find((shortcut) => shortcut.id === shortcutId))
+      .filter((shortcut): shortcut is PortalShortcut => Boolean(shortcut))
+  ), [draftPinnedPortalShortcutIds])
+  const unpinnedPortalShortcutOptions = useMemo(() => {
+    const pinned = new Set(draftPinnedPortalShortcutIds)
+    return portalShortcutCatalog.filter((shortcut) => !pinned.has(shortcut.id))
+  }, [draftPinnedPortalShortcutIds])
+  const selectedPinnedPortalShortcutPosition = selectedPinnedPortalShortcutId
+    ? draftPinnedPortalShortcutIds.indexOf(selectedPinnedPortalShortcutId) + 1
+    : 0
 
   useEffect(() => {
     let active = true
@@ -335,6 +349,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       setDraftPinnedPortalShortcutIds(localShortcutIds)
       setCustomizingPortalShortcuts(false)
       setShowAllPortalLanes(false)
+      setSelectedPinnedPortalShortcutId(null)
       setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
       setPortalPinRecommendation(readPortalShortcutPinRecommendation(localShortcutIds, userId))
     })
@@ -504,20 +519,51 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     event.currentTarget.blur()
     setDraftPinnedPortalShortcutIds((currentShortcutIds) => {
       if (currentShortcutIds.includes(shortcutId)) {
-        const nextShortcutIds = currentShortcutIds.filter((currentShortcutId) => currentShortcutId !== shortcutId)
-        setPortalPersonalizationMessage(`${nextShortcutIds.length} of ${PORTAL_SHORTCUT_PIN_LIMIT} pinned.`)
-        return nextShortcutIds
+        if (selectedPinnedPortalShortcutId === shortcutId) {
+          setSelectedPinnedPortalShortcutId(null)
+          setPortalPersonalizationMessage('Tap a pinned shortcut to move or unpin it.')
+          return currentShortcutIds
+        }
+        const position = currentShortcutIds.indexOf(shortcutId) + 1
+        setSelectedPinnedPortalShortcutId(shortcutId)
+        setPortalPersonalizationMessage(`${getPortalShortcutLabel(shortcutId)} is #${position}. Move it or unpin it.`)
+        return currentShortcutIds
       }
 
       if (currentShortcutIds.length >= PORTAL_SHORTCUT_PIN_LIMIT) {
-        setPortalPersonalizationMessage('Four are already pinned. Unpin one to replace it.')
+        setPortalPersonalizationMessage('Four are pinned. Select one, then tap Unpin.')
         return currentShortcutIds
       }
 
       const nextShortcutIds = [...currentShortcutIds, shortcutId]
+      setSelectedPinnedPortalShortcutId(shortcutId)
+      setPortalPersonalizationMessage(`${getPortalShortcutLabel(shortcutId)} is #${nextShortcutIds.length}.`)
+      return nextShortcutIds
+    })
+  }
+
+  function moveSelectedPortalShortcut(event: MouseEvent<HTMLButtonElement>, direction: -1 | 1) {
+    event.currentTarget.blur()
+    if (!selectedPinnedPortalShortcutId) return
+
+    setDraftPinnedPortalShortcutIds((currentShortcutIds) => {
+      const reordered = movePinnedPortalShortcut(currentShortcutIds, selectedPinnedPortalShortcutId, direction)
+      const position = reordered.indexOf(selectedPinnedPortalShortcutId) + 1
+      setPortalPersonalizationMessage(`${getPortalShortcutLabel(selectedPinnedPortalShortcutId)} moved to #${position}.`)
+      return reordered
+    })
+  }
+
+  function unpinSelectedPortalShortcut(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    if (!selectedPinnedPortalShortcutId) return
+
+    setDraftPinnedPortalShortcutIds((currentShortcutIds) => {
+      const nextShortcutIds = currentShortcutIds.filter((shortcutId) => shortcutId !== selectedPinnedPortalShortcutId)
       setPortalPersonalizationMessage(`${nextShortcutIds.length} of ${PORTAL_SHORTCUT_PIN_LIMIT} pinned.`)
       return nextShortcutIds
     })
+    setSelectedPinnedPortalShortcutId(null)
   }
 
   function openPortalShortcutCustomization(event: MouseEvent<HTMLButtonElement>) {
@@ -527,8 +573,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setShowAllPortalLanes(false)
     setShowPortalPersonalizationCue(false)
     setPortalPinRecommendation(null)
+    setSelectedPinnedPortalShortcutId(null)
     setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
-    setPortalPersonalizationMessage('Pin four. “For you” reflects recent use.')
+    setPortalPersonalizationMessage('Your first four open in this order. Tap one to move it.')
     setCustomizingPortalShortcuts(true)
     loadPortalShortcutSuggestionCandidates()
     void trackProductUsageEvent({
@@ -586,6 +633,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setCustomizingPortalShortcuts(false)
     setShowPortalPersonalizationCue(false)
     setPortalPinRecommendation(null)
+    setSelectedPinnedPortalShortcutId(null)
     syncPortalShortcutsToCloud(savedShortcutIds, true)
     void trackProductUsageEvent({
       eventName: 'portal_personalization_saved',
@@ -602,6 +650,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   }
 
   function resetPortalShortcutCustomization() {
+    setSelectedPinnedPortalShortcutId(null)
     setDraftPinnedPortalShortcutIds([...DEFAULT_PINNED_PORTAL_SHORTCUTS])
     setPortalPersonalizationMessage('Default first row selected. Tap Done to save.')
   }
@@ -609,6 +658,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   function cancelPortalShortcutCustomization() {
     portalShortcutSuggestionRequestRef.current += 1
     setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
+    setSelectedPinnedPortalShortcutId(null)
     setPortalPersonalizationMessage('')
     setCustomizingPortalShortcuts(false)
     setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
@@ -912,12 +962,13 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
               </>
             ) : customizingPortalShortcuts ? (
               <>
-                {portalShortcutCatalog.map((shortcut) => (
+                {draftPinnedPortalShortcuts.map((shortcut) => (
                   <MobilePortalShortcutEditorTile
                     key={shortcut.id}
                     shortcut={shortcut}
                     pinnedPosition={draftPinnedPortalShortcutIds.indexOf(shortcut.id) + 1}
                     suggested={suggestedPortalShortcutIds.includes(shortcut.id)}
+                    selected={selectedPinnedPortalShortcutId === shortcut.id}
                     onSelect={handlePortalShortcutCustomization}
                   />
                 ))}
@@ -936,6 +987,16 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                   </span>
                   <span style={mobilePortalTileLabelStyle}>Done</span>
                 </button>
+                {unpinnedPortalShortcutOptions.map((shortcut) => (
+                  <MobilePortalShortcutEditorTile
+                    key={shortcut.id}
+                    shortcut={shortcut}
+                    pinnedPosition={0}
+                    suggested={suggestedPortalShortcutIds.includes(shortcut.id)}
+                    selected={false}
+                    onSelect={handlePortalShortcutCustomization}
+                  />
+                ))}
               </>
             ) : showAllPortalLanes ? (
               <>
@@ -1011,7 +1072,33 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
           <div data-mobile-portal-customizer="true" style={mobilePortalCustomizerStyle}>
             <span aria-live="polite" style={mobilePortalCustomizerCopyStyle}>{portalPersonalizationMessage}</span>
             <span style={mobilePortalCustomizerActionsStyle}>
-              <button type="button" onClick={resetPortalShortcutCustomization} style={mobilePortalCustomizerButtonStyle}>Reset</button>
+              {selectedPinnedPortalShortcutId ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={(event) => moveSelectedPortalShortcut(event, -1)}
+                    disabled={selectedPinnedPortalShortcutPosition <= 1}
+                    aria-label={`Move ${getPortalShortcutLabel(selectedPinnedPortalShortcutId)} left`}
+                    style={{
+                      ...mobilePortalOrderButtonStyle,
+                      ...(selectedPinnedPortalShortcutPosition <= 1 ? mobilePortalDisabledButtonStyle : null),
+                    }}
+                  >←</button>
+                  <button
+                    type="button"
+                    onClick={(event) => moveSelectedPortalShortcut(event, 1)}
+                    disabled={selectedPinnedPortalShortcutPosition >= draftPinnedPortalShortcutIds.length}
+                    aria-label={`Move ${getPortalShortcutLabel(selectedPinnedPortalShortcutId)} right`}
+                    style={{
+                      ...mobilePortalOrderButtonStyle,
+                      ...(selectedPinnedPortalShortcutPosition >= draftPinnedPortalShortcutIds.length ? mobilePortalDisabledButtonStyle : null),
+                    }}
+                  >→</button>
+                  <button type="button" onClick={unpinSelectedPortalShortcut} style={mobilePortalCustomizerButtonStyle}>Unpin</button>
+                </>
+              ) : (
+                <button type="button" onClick={resetPortalShortcutCustomization} style={mobilePortalCustomizerButtonStyle}>Reset</button>
+              )}
               <button type="button" onClick={cancelPortalShortcutCustomization} style={mobilePortalCustomizerButtonStyle}>Cancel</button>
             </span>
           </div>
@@ -1433,11 +1520,13 @@ function MobilePortalShortcutEditorTile({
   shortcut,
   pinnedPosition,
   suggested,
+  selected,
   onSelect,
 }: {
   shortcut: PortalShortcut
   pinnedPosition: number
   suggested: boolean
+  selected: boolean
   onSelect: (event: MouseEvent<HTMLButtonElement>, shortcutId: PortalShortcutPreferenceId) => void
 }) {
   const pinned = pinnedPosition > 0
@@ -1448,13 +1537,15 @@ function MobilePortalShortcutEditorTile({
       onClick={(event) => onSelect(event, shortcut.id)}
       data-portal-shortcut-option={shortcut.id}
       data-portal-shortcut-suggested={suggested ? 'true' : undefined}
+      data-portal-shortcut-selected={selected ? 'true' : undefined}
       aria-pressed={pinned}
-      aria-label={`${suggested ? 'Suggested. ' : ''}${pinned ? 'Unpin' : 'Pin'} ${shortcut.label}`}
+      aria-label={`${suggested ? 'Suggested. ' : ''}${pinned ? `Edit position ${pinnedPosition} for` : 'Pin'} ${shortcut.label}`}
       title={shortcut.cue}
       style={{
         ...mobilePortalTileStyle,
         borderColor: pinned ? 'rgba(155,225,29,0.76)' : 'rgba(116,190,255,0.15)',
         background: pinned ? 'rgba(155,225,29,0.11)' : 'rgba(255,255,255,0.045)',
+        boxShadow: selected ? '0 0 0 2px rgba(116,190,255,0.78), 0 10px 22px rgba(2,10,24,0.24)' : undefined,
       }}
     >
       {pinned ? (
@@ -2203,6 +2294,22 @@ const mobilePortalCustomizerButtonStyle: CSSProperties = {
   fontWeight: 900,
   cursor: 'pointer',
   touchAction: 'manipulation',
+}
+
+const mobilePortalOrderButtonStyle: CSSProperties = {
+  ...mobilePortalCustomizerButtonStyle,
+  minWidth: 36,
+  minHeight: 34,
+  padding: 0,
+  borderColor: 'rgba(116,190,255,0.34)',
+  background: 'rgba(116,190,255,0.10)',
+  color: '#9FD7FF',
+  fontSize: 17,
+}
+
+const mobilePortalDisabledButtonStyle: CSSProperties = {
+  opacity: 0.34,
+  cursor: 'default',
 }
 
 const mobilePortalPersonalizationCueStyle: CSSProperties = {

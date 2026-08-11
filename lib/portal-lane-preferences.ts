@@ -66,6 +66,22 @@ export function buildPortalLaneOrderFromShortcuts(shortcutIds: readonly PortalSh
   return [...pinnedLaneIds, ...PORTAL_LANE_IDS.filter((laneId) => !pinnedLaneIds.includes(laneId))]
 }
 
+export function movePinnedPortalShortcut(
+  shortcutIds: readonly PortalShortcutPreferenceId[],
+  shortcutId: PortalShortcutPreferenceId,
+  direction: -1 | 1,
+) {
+  const currentIndex = shortcutIds.indexOf(shortcutId)
+  const targetIndex = currentIndex + direction
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= shortcutIds.length) return [...shortcutIds]
+
+  const reordered = [...shortcutIds]
+  const movedShortcut = reordered[currentIndex]
+  reordered[currentIndex] = reordered[targetIndex]
+  reordered[targetIndex] = movedShortcut
+  return reordered
+}
+
 export function readPinnedPortalShortcuts(userId?: string | null) {
   if (typeof window === 'undefined') return [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
 
