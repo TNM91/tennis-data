@@ -42,6 +42,9 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   const compactAppMode = appMode || pathname === '/team-room'
   const focusedShell = shouldUseFocusedSiteShell(pathname)
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
+  const visualArea = getPlatformVisualArea(pathname)
+  const visualMode = getPlatformVisualMode(pathname)
+  const visualSurface = getPlatformVisualSurface(pathname)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
 
@@ -110,6 +113,9 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   return (
       <main
         className={pathname.startsWith('/player-development') ? 'player-development-site-shell' : undefined}
+        data-platform-area={visualArea}
+        data-platform-mode={visualMode}
+        data-platform-surface={visualSurface}
         style={{
           ...pageBackground,
           paddingBottom: 'max(0px, env(safe-area-inset-bottom))',
@@ -164,14 +170,23 @@ function getBrandAtmosphereClassName(pathname: string) {
   const visualArea = getPlatformVisualArea(pathname)
 
   if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return `brand-atmosphere-mark brand-atmosphere-mark--quiet brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
+    return `brand-atmosphere-mark brand-atmosphere-mark--detail brand-atmosphere-mark--quiet brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
   }
 
   if (hubRoutes.has(pathname)) {
     return `brand-atmosphere-mark brand-atmosphere-mark--hub brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
   }
 
-  return `brand-atmosphere-mark brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
+  return `brand-atmosphere-mark brand-atmosphere-mark--detail brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
+}
+
+function getPlatformVisualSurface(pathname: string) {
+  const hubRoutes = new Set(['/', '/mylab', '/coach', '/captain', '/league-coordinator', '/clubs', '/admin'])
+  const authRoutes = new Set(['/login', '/join', '/forget-password', '/reset-password'])
+
+  if (authRoutes.has(pathname)) return 'auth'
+  if (hubRoutes.has(pathname)) return 'hub'
+  return 'detail'
 }
 
 function getPlatformVisualArea(pathname: string) {
