@@ -66,16 +66,18 @@ describe('route loading shells', () => {
     }
   })
 
-  it('keeps the global desktop brand watermark fully on-screen and more readable', () => {
+  it('keeps the global desktop and tablet watermark within the supplied raster density', () => {
     const source = readAppFile('app/globals.css')
 
     expect(source).toContain('.brand-atmosphere-mark')
     expect(source).toContain('right: clamp(24px, 4vw, 72px);')
     expect(source).toContain('bottom: clamp(58px, 8vh, 120px);')
-    expect(source).toContain('width: min(76vw, 980px);')
-    expect(source).toContain('opacity: 0.17;')
+    expect(source).toContain('width: min(60vw, 720px);')
+    expect(source).toContain('opacity: 0.15;')
+    expect(source).toContain('width: min(64vw, 776px);')
+    expect(source).toContain('width: min(72vw, 680px);')
     expect(source).toContain('right: clamp(20px, 3.6vw, 64px);')
-    expect(source).toContain('opacity: 0.2;')
+    expect(source).toContain('opacity: 0.16;')
     expect(source).not.toContain('right: max(-300px, -16vw)')
     expect(source).not.toContain('bottom: max(-180px, -10vw)')
   })
