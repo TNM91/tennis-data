@@ -159,7 +159,7 @@ export default function AdminProductEventsPage() {
   const myLabEvents = events.filter((event) => event.surface === 'mylab').length
   const captainEvents = events.filter((event) => event.surface === 'captain').length
   const portalSaves = events.filter((event) => event.event_name === 'portal_personalization_saved').length
-  const portalLaneOpens = events.filter((event) => event.event_name === 'portal_lane_opened').length
+  const portalShortcutOpens = events.filter((event) => event.event_name === 'portal_shortcut_opened' || event.event_name === 'portal_lane_opened').length
   const profileSyncRepairEvents = events.filter((event) => event.event_name === 'profile_cloud_sync_repair').length
   const openProfileSyncReviewEvents = events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews)).length
   const reviewedProfileSyncEvents = Object.values(profileSyncReviews).filter((review) => review.status === 'reviewed').length
@@ -220,7 +220,7 @@ export default function AdminProductEventsPage() {
                 active={filter === 'portal'}
                 onClick={() => setFilter((current) => current === 'portal' ? 'all' : 'portal')}
               />
-              <MetricCard label="Lane Opens" value={portalLaneOpens} />
+              <MetricCard label="Shortcut Opens" value={portalShortcutOpens} />
               <MetricCard
                 label="Profile Sync Repairs"
                 value={profileSyncRepairEvents}

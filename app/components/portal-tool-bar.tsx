@@ -12,12 +12,15 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import {
-  buildPortalLaneOrder,
-  DEFAULT_PINNED_PORTAL_LANES,
-  PORTAL_LANE_PIN_LIMIT,
-  readPinnedPortalLanes,
-  writePinnedPortalLanes,
+  buildPortalLaneOrderFromShortcuts,
+  DEFAULT_PINNED_PORTAL_SHORTCUTS,
+  dismissPortalPersonalizationCue,
+  PORTAL_SHORTCUT_PIN_LIMIT,
+  readPinnedPortalShortcuts,
+  shouldShowPortalPersonalizationCue,
+  writePinnedPortalShortcuts,
   type PortalLanePreferenceId,
+  type PortalShortcutPreferenceId,
 } from '@/lib/portal-lane-preferences'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
@@ -28,6 +31,18 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PortalLaneId = PortalLanePreferenceId
+type PortalRequiredRoute = '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
+
+type PortalShortcut = {
+  id: PortalShortcutPreferenceId
+  kind: 'lane' | 'action'
+  label: string
+  cue: string
+  href: string
+  icon: TiqFeatureIconName
+  laneId: PortalLaneId
+  requiredRoute?: PortalRequiredRoute
+}
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
@@ -51,7 +66,7 @@ type PortalLane = {
     metric: string
     href: string
     icon: TiqFeatureIconName
-    requiredRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
+    requiredRoute: PortalRequiredRoute
   }>
 }
 
@@ -178,6 +193,30 @@ const orderedPortalLanes = [...portalLanes].sort(
   (left, right) => portalLaneOrder.indexOf(left.id) - portalLaneOrder.indexOf(right.id),
 )
 
+const portalActionShortcuts: PortalShortcut[] = [
+  { id: 'action:mylab', kind: 'action', label: 'My Lab', cue: 'Your tennis home', href: '/mylab', icon: 'myLab', laneId: 'you', requiredRoute: '/mylab' },
+  { id: 'action:tactics', kind: 'action', label: 'Tactics', cue: 'Map the next pattern', href: PLAYER_TACTICS_BOARD_HREF, icon: 'scenarioBuilder', laneId: 'you', requiredRoute: '/mylab' },
+  { id: 'action:level-up', kind: 'action', label: 'Level Up', cue: 'Run the next rep', href: '/level-up', icon: 'matchPrep', laneId: 'you', requiredRoute: '/mylab' },
+  { id: 'action:matchup', kind: 'action', label: 'Matchup', cue: 'Compare the court', href: '/matchup', icon: 'matchupAnalysis', laneId: 'compete', requiredRoute: '/compete' },
+  { id: 'action:availability', kind: 'action', label: 'Availability', cue: 'See who can play', href: '/captain/availability', icon: 'reliabilityIndex', laneId: 'team', requiredRoute: '/captain' },
+  { id: 'action:lineup', kind: 'action', label: 'Build lineup', cue: 'Plan the next match', href: '/captain/lineup-builder', icon: 'lineupBuilder', laneId: 'team', requiredRoute: '/captain' },
+  { id: 'action:team-room', kind: 'action', label: 'Team Room', cue: 'Open team communication', href: '/team-room', icon: 'messagingCenter', laneId: 'team', requiredRoute: '/captain' },
+  { id: 'action:messages', kind: 'action', label: 'Messages', cue: 'Open tennis replies', href: '/messages', icon: 'messagingCenter', laneId: 'you', requiredRoute: '/mylab' },
+]
+
+const portalShortcutCatalog: PortalShortcut[] = [
+  ...orderedPortalLanes.map((lane): PortalShortcut => ({
+    id: `lane:${lane.id}` as PortalShortcutPreferenceId,
+    kind: 'lane',
+    label: getMobileLaneLabel(lane.id),
+    cue: lane.cue,
+    href: lane.route,
+    icon: lane.icon,
+    laneId: lane.id,
+  })),
+  ...portalActionShortcuts,
+]
+
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
 const portalSurfaceBackground = 'var(--portal-surface-bg)'
 const portalActiveCardBackground = 'var(--portal-active-card-bg)'
@@ -227,9 +266,11 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     laneId: null,
   })
   const [currentHash, setCurrentHash] = useState('')
-  const [pinnedPortalLaneIds, setPinnedPortalLaneIds] = useState<PortalLaneId[]>(DEFAULT_PINNED_PORTAL_LANES)
-  const [draftPinnedPortalLaneIds, setDraftPinnedPortalLaneIds] = useState<PortalLaneId[]>(DEFAULT_PINNED_PORTAL_LANES)
-  const [customizingPortalLanes, setCustomizingPortalLanes] = useState(false)
+  const [pinnedPortalShortcutIds, setPinnedPortalShortcutIds] = useState<PortalShortcutPreferenceId[]>(DEFAULT_PINNED_PORTAL_SHORTCUTS)
+  const [draftPinnedPortalShortcutIds, setDraftPinnedPortalShortcutIds] = useState<PortalShortcutPreferenceId[]>(DEFAULT_PINNED_PORTAL_SHORTCUTS)
+  const [customizingPortalShortcuts, setCustomizingPortalShortcuts] = useState(false)
+  const [showAllPortalLanes, setShowAllPortalLanes] = useState(false)
+  const [showPortalPersonalizationCue, setShowPortalPersonalizationCue] = useState(false)
   const [portalPersonalizationMessage, setPortalPersonalizationMessage] = useState('')
 
   const authenticated = Boolean(userId) || role !== 'public'
@@ -244,17 +285,24 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     userId,
   })
   const clubAttentionCount = clubCommunicationAttention?.attentionCount ?? 0
+  const pinnedPortalShortcuts = useMemo(() => {
+    return pinnedPortalShortcutIds
+      .map((shortcutId) => portalShortcutCatalog.find((shortcut) => shortcut.id === shortcutId))
+      .filter((shortcut): shortcut is PortalShortcut => Boolean(shortcut))
+  }, [pinnedPortalShortcutIds])
   const personalizedPortalLanes = useMemo(() => {
-    const laneIds = buildPortalLaneOrder(pinnedPortalLaneIds)
+    const laneIds = buildPortalLaneOrderFromShortcuts(pinnedPortalShortcutIds)
     return laneIds.map((laneId) => portalLanes.find((lane) => lane.id === laneId)).filter((lane): lane is PortalLane => Boolean(lane))
-  }, [pinnedPortalLaneIds])
+  }, [pinnedPortalShortcutIds])
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const nextPinnedLaneIds = readPinnedPortalLanes(userId)
-      setPinnedPortalLaneIds(nextPinnedLaneIds)
-      setDraftPinnedPortalLaneIds(nextPinnedLaneIds)
-      setCustomizingPortalLanes(false)
+      const nextPinnedShortcutIds = readPinnedPortalShortcuts(userId)
+      setPinnedPortalShortcutIds(nextPinnedShortcutIds)
+      setDraftPinnedPortalShortcutIds(nextPinnedShortcutIds)
+      setCustomizingPortalShortcuts(false)
+      setShowAllPortalLanes(false)
+      setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
     })
 
     return () => window.cancelAnimationFrame(frame)
@@ -325,58 +373,43 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
 
   function handleMobilePortalLaneSelect(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
     event.currentTarget.blur()
-    const lane = personalizedPortalLanes.find((item) => item.id === laneId)
+    const lane = portalLanes.find((item) => item.id === laneId)
     if (lane) {
-      const pinnedPosition = pinnedPortalLaneIds.indexOf(laneId) + 1
-      void trackProductUsageEvent({
-        eventName: 'portal_lane_opened',
-        surface: 'portal',
-        metadata: {
-          laneId,
-          laneLabel: lane.label,
-          destination: lane.route,
-          pinned: pinnedPosition > 0,
-          pinnedPosition: pinnedPosition > 0 ? pinnedPosition : null,
-          pathname,
-          layout,
-          mobile: isMobile,
-        },
-      })
+      trackPortalShortcutOpen({
+        id: `lane:${lane.id}` as PortalShortcutPreferenceId,
+        kind: 'lane',
+        label: getMobileLaneLabel(lane.id),
+        cue: lane.cue,
+        href: lane.route,
+        icon: lane.icon,
+        laneId: lane.id,
+      }, lane.route)
       router.push(lane.route)
     }
   }
 
-  function handlePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
+  function handlePinnedPortalShortcutActivate(
+    event: MouseEvent<HTMLAnchorElement>,
+    shortcut: PortalShortcut,
+    destination: string,
+  ) {
     event.currentTarget.blur()
-    setDraftPinnedPortalLaneIds((currentLaneIds) => {
-      if (currentLaneIds.includes(laneId)) {
-        const nextLaneIds = currentLaneIds.filter((currentLaneId) => currentLaneId !== laneId)
-        setPortalPersonalizationMessage(`${nextLaneIds.length} of ${PORTAL_LANE_PIN_LIMIT} pinned.`)
-        return nextLaneIds
-      }
-
-      if (currentLaneIds.length >= PORTAL_LANE_PIN_LIMIT) {
-        setPortalPersonalizationMessage('Four are already pinned. Unpin one to replace it.')
-        return currentLaneIds
-      }
-
-      const nextLaneIds = [...currentLaneIds, laneId]
-      setPortalPersonalizationMessage(`${nextLaneIds.length} of ${PORTAL_LANE_PIN_LIMIT} pinned.`)
-      return nextLaneIds
-    })
+    trackPortalShortcutOpen(shortcut, destination)
   }
 
-  function openPortalLaneCustomization(event: MouseEvent<HTMLButtonElement>) {
-    event.currentTarget.blur()
-    setMobilePortalLaneState({ pathname, laneId: null })
-    setDraftPinnedPortalLaneIds(pinnedPortalLaneIds)
-    setPortalPersonalizationMessage('Pin four. They stay on the first row.')
-    setCustomizingPortalLanes(true)
+  function trackPortalShortcutOpen(shortcut: PortalShortcut, destination: string) {
+    const pinnedPosition = pinnedPortalShortcutIds.indexOf(shortcut.id) + 1
     void trackProductUsageEvent({
-      eventName: 'portal_personalization_opened',
+      eventName: 'portal_shortcut_opened',
       surface: 'portal',
       metadata: {
-        pinnedLanes: pinnedPortalLaneIds,
+        shortcutId: shortcut.id,
+        shortcutKind: shortcut.kind,
+        shortcutLabel: shortcut.label,
+        laneId: shortcut.laneId,
+        destination,
+        pinned: pinnedPosition > 0,
+        pinnedPosition: pinnedPosition > 0 ? pinnedPosition : null,
         pathname,
         layout,
         mobile: isMobile,
@@ -384,17 +417,57 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     })
   }
 
-  function savePortalLaneCustomization(event: MouseEvent<HTMLButtonElement>) {
+  function handlePortalShortcutCustomization(event: MouseEvent<HTMLButtonElement>, shortcutId: PortalShortcutPreferenceId) {
     event.currentTarget.blur()
-    if (draftPinnedPortalLaneIds.length !== PORTAL_LANE_PIN_LIMIT) {
-      setPortalPersonalizationMessage(`Choose ${PORTAL_LANE_PIN_LIMIT} lanes before saving.`)
+    setDraftPinnedPortalShortcutIds((currentShortcutIds) => {
+      if (currentShortcutIds.includes(shortcutId)) {
+        const nextShortcutIds = currentShortcutIds.filter((currentShortcutId) => currentShortcutId !== shortcutId)
+        setPortalPersonalizationMessage(`${nextShortcutIds.length} of ${PORTAL_SHORTCUT_PIN_LIMIT} pinned.`)
+        return nextShortcutIds
+      }
+
+      if (currentShortcutIds.length >= PORTAL_SHORTCUT_PIN_LIMIT) {
+        setPortalPersonalizationMessage('Four are already pinned. Unpin one to replace it.')
+        return currentShortcutIds
+      }
+
+      const nextShortcutIds = [...currentShortcutIds, shortcutId]
+      setPortalPersonalizationMessage(`${nextShortcutIds.length} of ${PORTAL_SHORTCUT_PIN_LIMIT} pinned.`)
+      return nextShortcutIds
+    })
+  }
+
+  function openPortalShortcutCustomization(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    setMobilePortalLaneState({ pathname, laneId: null })
+    setShowAllPortalLanes(false)
+    setShowPortalPersonalizationCue(false)
+    setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
+    setPortalPersonalizationMessage('Pin four hubs or quick actions.')
+    setCustomizingPortalShortcuts(true)
+    void trackProductUsageEvent({
+      eventName: 'portal_personalization_opened',
+      surface: 'portal',
+      metadata: {
+        pinnedShortcuts: pinnedPortalShortcutIds,
+        pathname,
+        layout,
+        mobile: isMobile,
+      },
+    })
+  }
+
+  function savePortalShortcutCustomization(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    if (draftPinnedPortalShortcutIds.length !== PORTAL_SHORTCUT_PIN_LIMIT) {
+      setPortalPersonalizationMessage(`Choose ${PORTAL_SHORTCUT_PIN_LIMIT} shortcuts before saving.`)
       void trackProductUsageEvent({
         eventName: 'portal_personalization_save_blocked',
         surface: 'portal',
         metadata: {
-          pinnedLanes: draftPinnedPortalLaneIds,
-          pinnedCount: draftPinnedPortalLaneIds.length,
-          requiredCount: PORTAL_LANE_PIN_LIMIT,
+          pinnedShortcuts: draftPinnedPortalShortcutIds,
+          pinnedCount: draftPinnedPortalShortcutIds.length,
+          requiredCount: PORTAL_SHORTCUT_PIN_LIMIT,
           pathname,
           layout,
           mobile: isMobile,
@@ -403,18 +476,19 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       return
     }
 
-    const savedLaneIds = writePinnedPortalLanes(draftPinnedPortalLaneIds, userId)
-    setPinnedPortalLaneIds(savedLaneIds)
-    setDraftPinnedPortalLaneIds(savedLaneIds)
+    const savedShortcutIds = writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)
+    setPinnedPortalShortcutIds(savedShortcutIds)
+    setDraftPinnedPortalShortcutIds(savedShortcutIds)
     setPortalPersonalizationMessage('Your first row is saved.')
-    setCustomizingPortalLanes(false)
+    setCustomizingPortalShortcuts(false)
+    setShowPortalPersonalizationCue(false)
     void trackProductUsageEvent({
       eventName: 'portal_personalization_saved',
       surface: 'portal',
       metadata: {
-        pinnedLanes: savedLaneIds,
-        previousPinnedLanes: pinnedPortalLaneIds,
-        changed: savedLaneIds.join('|') !== pinnedPortalLaneIds.join('|'),
+        pinnedShortcuts: savedShortcutIds,
+        previousPinnedShortcuts: pinnedPortalShortcutIds,
+        changed: savedShortcutIds.join('|') !== pinnedPortalShortcutIds.join('|'),
         pathname,
         layout,
         mobile: isMobile,
@@ -422,15 +496,31 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     })
   }
 
-  function resetPortalLaneCustomization() {
-    setDraftPinnedPortalLaneIds([...DEFAULT_PINNED_PORTAL_LANES])
+  function resetPortalShortcutCustomization() {
+    setDraftPinnedPortalShortcutIds([...DEFAULT_PINNED_PORTAL_SHORTCUTS])
     setPortalPersonalizationMessage('Default first row selected. Tap Done to save.')
   }
 
-  function cancelPortalLaneCustomization() {
-    setDraftPinnedPortalLaneIds(pinnedPortalLaneIds)
+  function cancelPortalShortcutCustomization() {
+    setDraftPinnedPortalShortcutIds(pinnedPortalShortcutIds)
     setPortalPersonalizationMessage('')
-    setCustomizingPortalLanes(false)
+    setCustomizingPortalShortcuts(false)
+    setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
+  }
+
+  function showAllPortalTools(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    setShowAllPortalLanes(true)
+  }
+
+  function showPinnedPortalTools(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    setShowAllPortalLanes(false)
+  }
+
+  function skipPortalPersonalizationCue() {
+    dismissPortalPersonalizationCue(userId)
+    setShowPortalPersonalizationCue(false)
   }
 
   function handleMobilePortalMainSelect(event: MouseEvent<HTMLButtonElement>) {
@@ -612,17 +702,19 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
           <nav
             ref={mobilePortalPaletteRef}
             id={mobilePortalLane ? portalActionMenuId : portalMenuId}
-            data-mobile-portal-palette={mobilePortalLane ? 'actions' : 'lanes'}
+            data-mobile-portal-palette={mobilePortalLane ? 'actions' : customizingPortalShortcuts ? 'edit' : showAllPortalLanes ? 'all-tools' : 'shortcuts'}
             style={{
               ...(mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle),
               gridTemplateColumns: isMobile
                 ? mobilePortalLane
                   ? 'repeat(3, minmax(0, 1fr))'
                   : 'repeat(4, minmax(0, 1fr))'
-                : 'repeat(8, minmax(0, 1fr))',
+                : customizingPortalShortcuts || showAllPortalLanes
+                  ? 'repeat(8, minmax(0, 1fr))'
+                  : 'repeat(6, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
-            aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : customizingPortalLanes ? 'Personalize main TenAceIQ menu' : 'Main TenAceIQ menu'}
+            aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : customizingPortalShortcuts ? 'Personalize TenAceIQ shortcuts' : showAllPortalLanes ? 'All TenAceIQ tools' : 'Pinned TenAceIQ shortcuts'}
             aria-live="polite"
             onScroll={handleMobilePortalPaletteScroll}
           >
@@ -665,49 +757,121 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                   />
                 ))}
               </>
-            ) : (
+            ) : customizingPortalShortcuts ? (
               <>
-                {(customizingPortalLanes ? orderedPortalLanes : personalizedPortalLanes).map((lane) => (
-                  <MobilePortalLaneButton
-                    key={lane.id}
-                    lane={lane}
-                    active={lane.id === activeLane.id}
-                    expanded={mobilePortalLaneId === lane.id}
-                    controlsId={portalActionMenuId}
-                    onSelect={customizingPortalLanes ? handlePortalLaneCustomization : handleMobilePortalLaneSelect}
-                    attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
-                    customizing={customizingPortalLanes}
-                    pinnedPosition={draftPinnedPortalLaneIds.indexOf(lane.id) + 1}
+                {portalShortcutCatalog.map((shortcut) => (
+                  <MobilePortalShortcutEditorTile
+                    key={shortcut.id}
+                    shortcut={shortcut}
+                    pinnedPosition={draftPinnedPortalShortcutIds.indexOf(shortcut.id) + 1}
+                    onSelect={handlePortalShortcutCustomization}
                   />
                 ))}
                 <button
                   type="button"
-                  onClick={customizingPortalLanes ? savePortalLaneCustomization : openPortalLaneCustomization}
-                  data-mobile-portal-personalize={customizingPortalLanes ? 'save' : 'open'}
+                  onClick={savePortalShortcutCustomization}
+                  data-mobile-portal-personalize="save"
                   style={{
                     ...mobilePortalTileStyle,
-                    ...(customizingPortalLanes ? mobilePortalPersonalizeDoneStyle : mobilePortalPersonalizeTileStyle),
+                    ...mobilePortalPersonalizeDoneStyle,
                   }}
-                  aria-label={customizingPortalLanes ? 'Save pinned menu lanes' : 'Personalize main menu'}
+                  aria-label="Save pinned shortcuts"
                 >
                   <span style={mobilePortalTileIconStyle}>
-                    {customizingPortalLanes
-                      ? <PushPinSimpleIcon size={27} weight="fill" aria-hidden="true" />
-                      : <SlidersHorizontalIcon size={27} weight="bold" aria-hidden="true" />}
+                    <PushPinSimpleIcon size={27} weight="fill" aria-hidden="true" />
                   </span>
-                  <span style={mobilePortalTileLabelStyle}>{customizingPortalLanes ? 'Done' : 'Edit'}</span>
+                  <span style={mobilePortalTileLabelStyle}>Done</span>
+                </button>
+              </>
+            ) : showAllPortalLanes ? (
+              <>
+                <button
+                  type="button"
+                  onClick={showPinnedPortalTools}
+                  data-mobile-portal-action="shortcuts"
+                  style={mobilePortalBackTileStyle}
+                  aria-label="Show pinned shortcuts"
+                >
+                  <span style={mobilePortalTileIconStyle}>
+                    <PushPinSimpleIcon size={27} weight="fill" aria-hidden="true" />
+                  </span>
+                  <span style={mobilePortalTileLabelStyle}>Pinned</span>
+                </button>
+                {orderedPortalLanes.map((lane) => (
+                  <MobilePortalLaneButton
+                    key={lane.id}
+                    lane={lane}
+                    active={lane.id === activeLane.id}
+                    expanded={false}
+                    controlsId={portalActionMenuId}
+                    onSelect={handleMobilePortalLaneSelect}
+                    attentionCount={lane.id === 'club' ? clubAttentionCount : 0}
+                  />
+                ))}
+              </>
+            ) : (
+              <>
+                {pinnedPortalShortcuts.map((shortcut) => (
+                  <MobilePortalShortcutTile
+                    key={shortcut.id}
+                    shortcut={shortcut}
+                    access={access}
+                    authenticated={authenticated}
+                    accessPending={accessPending}
+                    profileLinked={profileLinked}
+                    active={isPortalTaskActive(currentPortalPath, shortcut.href)}
+                    attentionCount={shortcut.laneId === 'club' ? clubAttentionCount : 0}
+                    onActivate={handlePinnedPortalShortcutActivate}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={showAllPortalTools}
+                  data-mobile-portal-all="open"
+                  style={mobilePortalTileStyle}
+                  aria-label="Show all TenAceIQ tools"
+                >
+                  <span style={mobilePortalTileIconStyle}>
+                    <TiqFeatureIcon name="exploreTennis" size="sm" variant="ghost" />
+                  </span>
+                  <span style={mobilePortalTileLabelStyle}>All tools</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openPortalShortcutCustomization}
+                  data-mobile-portal-personalize="open"
+                  style={{ ...mobilePortalTileStyle, ...mobilePortalPersonalizeTileStyle }}
+                  aria-label="Personalize shortcuts"
+                >
+                  <span style={mobilePortalTileIconStyle}>
+                    <SlidersHorizontalIcon size={27} weight="bold" aria-hidden="true" />
+                  </span>
+                  <span style={mobilePortalTileLabelStyle}>Edit</span>
                 </button>
               </>
             )}
           </nav>
         ) : null}
 
-        {collapseMobilePortal && customizingPortalLanes ? (
+        {collapseMobilePortal && customizingPortalShortcuts ? (
           <div data-mobile-portal-customizer="true" style={mobilePortalCustomizerStyle}>
             <span aria-live="polite" style={mobilePortalCustomizerCopyStyle}>{portalPersonalizationMessage}</span>
             <span style={mobilePortalCustomizerActionsStyle}>
-              <button type="button" onClick={resetPortalLaneCustomization} style={mobilePortalCustomizerButtonStyle}>Reset</button>
-              <button type="button" onClick={cancelPortalLaneCustomization} style={mobilePortalCustomizerButtonStyle}>Cancel</button>
+              <button type="button" onClick={resetPortalShortcutCustomization} style={mobilePortalCustomizerButtonStyle}>Reset</button>
+              <button type="button" onClick={cancelPortalShortcutCustomization} style={mobilePortalCustomizerButtonStyle}>Cancel</button>
+            </span>
+          </div>
+        ) : null}
+
+        {collapseMobilePortal && showPortalPersonalizationCue && !customizingPortalShortcuts && !showAllPortalLanes ? (
+          <div data-portal-personalization-cue="true" style={mobilePortalPersonalizationCueStyle}>
+            <span style={mobilePortalPersonalizationCueCopyStyle}>
+              <strong>Make this yours.</strong>
+              <span>Pin My Lab, Tactics, or the hubs you use most.</span>
+            </span>
+            <span style={mobilePortalCustomizerActionsStyle}>
+              <button type="button" onClick={openPortalShortcutCustomization} style={mobilePortalCuePrimaryButtonStyle}>Choose</button>
+              <button type="button" onClick={skipPortalPersonalizationCue} style={mobilePortalCustomizerButtonStyle}>Skip</button>
             </span>
           </div>
         ) : null}
@@ -1035,6 +1199,101 @@ function PortalRailTaskLink({
         <span style={railPortalTaskMetaStyle}>{task.metric}</span>
       </span>
     </Link>
+  )
+}
+
+function MobilePortalShortcutTile({
+  shortcut,
+  access,
+  authenticated,
+  accessPending,
+  profileLinked,
+  active,
+  attentionCount = 0,
+  onActivate,
+}: {
+  shortcut: PortalShortcut
+  access: ProductAccessState
+  authenticated: boolean
+  accessPending: boolean
+  profileLinked: boolean
+  active: boolean
+  attentionCount?: number
+  onActivate: (event: MouseEvent<HTMLAnchorElement>, shortcut: PortalShortcut, destination: string) => void
+}) {
+  const target = shortcut.kind === 'action' && shortcut.requiredRoute
+    ? getPortalTaskTarget({
+        href: shortcut.href,
+        requiredRoute: shortcut.requiredRoute,
+        title: shortcut.label,
+        access,
+        authenticated,
+        accessPending,
+        profileLinked,
+      })
+    : { href: shortcut.href, title: shortcut.label, locked: false }
+
+  return (
+    <Link
+      href={target.href}
+      onClick={(event) => onActivate(event, shortcut, target.href)}
+      data-portal-shortcut={shortcut.id}
+      aria-current={active ? 'page' : undefined}
+      aria-label={`${target.title}${target.locked ? ' locked' : ''}: ${shortcut.cue}`}
+      title={shortcut.cue}
+      style={{
+        ...mobilePortalTileStyle,
+        ...(active ? getActiveTaskCardStyle(getLaneAccent(shortcut.laneId)) : null),
+      }}
+    >
+      <span style={mobilePortalTileIconStyle}>
+        <TiqFeatureIcon name={shortcut.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
+      </span>
+      <span style={mobilePortalTileLabelStyle}>
+        {target.title}
+        {target.locked ? <NavLockIcon size={10} /> : null}
+        {attentionCount > 0 ? <ClubAttentionBadge count={attentionCount} compact /> : null}
+      </span>
+    </Link>
+  )
+}
+
+function MobilePortalShortcutEditorTile({
+  shortcut,
+  pinnedPosition,
+  onSelect,
+}: {
+  shortcut: PortalShortcut
+  pinnedPosition: number
+  onSelect: (event: MouseEvent<HTMLButtonElement>, shortcutId: PortalShortcutPreferenceId) => void
+}) {
+  const pinned = pinnedPosition > 0
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => onSelect(event, shortcut.id)}
+      data-portal-shortcut-option={shortcut.id}
+      aria-pressed={pinned}
+      aria-label={`${pinned ? 'Unpin' : 'Pin'} ${shortcut.label}`}
+      title={shortcut.cue}
+      style={{
+        ...mobilePortalTileStyle,
+        borderColor: pinned ? 'rgba(155,225,29,0.76)' : 'rgba(116,190,255,0.15)',
+        background: pinned ? 'rgba(155,225,29,0.11)' : 'rgba(255,255,255,0.045)',
+      }}
+    >
+      {pinned ? (
+        <span aria-hidden="true" style={mobilePortalPinBadgeStyle}>
+          <PushPinSimpleIcon size={10} weight="fill" />
+          {pinnedPosition}
+        </span>
+      ) : null}
+      <span style={mobilePortalTileIconStyle}>
+        <TiqFeatureIcon name={shortcut.icon} size="sm" variant={pinned ? 'surface' : 'ghost'} />
+      </span>
+      <span style={mobilePortalTileLabelStyle}>{shortcut.label}</span>
+    </button>
   )
 }
 
@@ -1750,6 +2009,39 @@ const mobilePortalCustomizerButtonStyle: CSSProperties = {
   fontWeight: 900,
   cursor: 'pointer',
   touchAction: 'manipulation',
+}
+
+const mobilePortalPersonalizationCueStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 48,
+  margin: '1px 2px 0',
+  padding: '7px 8px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.07))',
+  boxSizing: 'border-box',
+}
+
+const mobilePortalPersonalizationCueCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10.5,
+  lineHeight: 1.25,
+  fontWeight: 760,
+}
+
+const mobilePortalCuePrimaryButtonStyle: CSSProperties = {
+  ...mobilePortalCustomizerButtonStyle,
+  borderColor: 'rgba(155,225,29,0.42)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
 }
 
 const mobilePortalBackTileStyle: CSSProperties = {

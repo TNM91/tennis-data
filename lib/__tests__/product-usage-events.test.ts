@@ -12,7 +12,7 @@ import {
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
     const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260810000600_add_portal_usage_events.sql'),
+      join(process.cwd(), 'supabase/migrations/20260810000700_add_portal_shortcut_event.sql'),
       'utf8',
     )
 
@@ -194,6 +194,7 @@ describe('product usage events', () => {
       'portal_personalization_saved',
       'portal_personalization_save_blocked',
       'portal_lane_opened',
+      'portal_shortcut_opened',
     ] as const) {
       expect(normalizeProductUsageEventInput({
         eventName,

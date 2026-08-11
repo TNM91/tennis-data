@@ -45,6 +45,7 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'portal_personalization_saved',
   'portal_personalization_save_blocked',
   'portal_lane_opened',
+  'portal_shortcut_opened',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [
