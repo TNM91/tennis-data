@@ -1,4 +1,6 @@
 .shell {
+  --role-accent-rgb: 155 225 29;
+  --role-secondary-rgb: 116 190 255;
   position: relative;
   display: grid;
   gap: 16px;
@@ -9,11 +11,32 @@
   border: 1px solid rgba(116, 190, 255, 0.22);
   border-radius: 26px;
   background:
-    radial-gradient(circle at 92% 8%, rgba(155, 225, 29, 0.12), transparent 26%),
+    radial-gradient(circle at 92% 8%, rgb(var(--role-accent-rgb) / 0.13), transparent 26%),
+    radial-gradient(circle at 8% 96%, rgb(var(--role-secondary-rgb) / 0.055), transparent 32%),
     linear-gradient(145deg, rgba(7, 24, 47, 0.97), rgba(5, 17, 34, 0.94));
   box-shadow:
     0 32px 84px rgba(0, 6, 19, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.shell[data-role='improve'] {
+  --role-accent-rgb: 116 190 255;
+  --role-secondary-rgb: 155 225 29;
+}
+
+.shell[data-role='coach'] {
+  --role-accent-rgb: 155 225 29;
+  --role-secondary-rgb: 116 190 255;
+}
+
+.shell[data-role='compete'] {
+  --role-accent-rgb: 155 225 29;
+  --role-secondary-rgb: 45 212 191;
+}
+
+.shell[data-role='league'] {
+  --role-accent-rgb: 116 190 255;
+  --role-secondary-rgb: 155 225 29;
 }
 
 .shell::before,
@@ -31,6 +54,7 @@
   background-position: right center;
   background-size: min(70%, 820px) auto;
   mask-image: linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, 0.2) 42%, #000 74%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, 0.2) 42%, #000 74%);
 }
 
 .shell[data-visual='athlete']::before {
@@ -96,7 +120,7 @@
   justify-items: end;
   max-width: 260px;
   padding: 9px 12px;
-  border: 1px solid rgba(155, 225, 29, 0.28);
+  border: 1px solid rgb(var(--role-accent-rgb) / 0.3);
   border-radius: 16px;
   background: rgba(13, 36, 48, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -118,7 +142,7 @@
   align-items: center;
   min-width: 0;
   padding: 16px;
-  border: 1px solid rgba(155, 225, 29, 0.31);
+  border: 1px solid rgb(var(--role-accent-rgb) / 0.32);
   border-radius: 22px;
   background: linear-gradient(135deg, rgba(7, 25, 46, 0.86), rgba(4, 16, 31, 0.72));
   box-shadow:
@@ -185,9 +209,23 @@
 }
 
 .quickAction:hover {
-  border-color: rgba(155, 225, 29, 0.42);
+  border-color: rgb(var(--role-accent-rgb) / 0.46);
   background: linear-gradient(145deg, rgba(23, 51, 76, 0.8), rgba(8, 28, 50, 0.7));
   transform: translateY(-1px);
+}
+
+@media (min-width: 761px) and (max-width: 940px) {
+  .shell {
+    padding: 20px;
+  }
+
+  .quickGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quickAction {
+    min-height: 68px;
+  }
 }
 
 .quickCopy strong {
@@ -283,6 +321,7 @@
     background-position: 132% 10%;
     background-size: auto 72%;
     mask-image: linear-gradient(90deg, transparent 10%, rgba(0, 0, 0, 0.16) 44%, #000 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 10%, rgba(0, 0, 0, 0.16) 44%, #000 100%);
   }
 
   .shell[data-visual='strategy']::before {

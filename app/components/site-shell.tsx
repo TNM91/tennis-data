@@ -19,6 +19,16 @@ type SiteShellProps = {
   appMode?: boolean
 }
 
+const PLATFORM_VISUAL_AREAS = [
+  { name: 'improve', prefixes: ['/mylab', '/player-development', '/level-up'] },
+  { name: 'coach', prefixes: ['/coach', '/coaches'] },
+  { name: 'compete', prefixes: ['/compete', '/matchup', '/tournaments'] },
+  { name: 'captain', prefixes: ['/captain'] },
+  { name: 'league', prefixes: ['/league-coordinator', '/leagues'] },
+  { name: 'club', prefixes: ['/clubs'] },
+  { name: 'explore', prefixes: ['/explore', '/players', '/teams', '/rankings'] },
+] as const
+
 export default function SiteShell({ children, active, showPortalToolBar = true, appMode = false }: SiteShellProps) {
   return (
     <AuthProvider>
@@ -151,16 +161,23 @@ function getBrandAtmosphereClassName(pathname: string) {
   }
 
   const visualMode = getPlatformVisualMode(pathname)
+  const visualArea = getPlatformVisualArea(pathname)
 
   if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return `brand-atmosphere-mark brand-atmosphere-mark--quiet brand-atmosphere-mark--${visualMode}`
+    return `brand-atmosphere-mark brand-atmosphere-mark--quiet brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
   }
 
   if (hubRoutes.has(pathname)) {
-    return `brand-atmosphere-mark brand-atmosphere-mark--hub brand-atmosphere-mark--${visualMode}`
+    return `brand-atmosphere-mark brand-atmosphere-mark--hub brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
   }
 
-  return `brand-atmosphere-mark brand-atmosphere-mark--${visualMode}`
+  return `brand-atmosphere-mark brand-atmosphere-mark--${visualMode} brand-atmosphere-mark--area-${visualArea}`
+}
+
+function getPlatformVisualArea(pathname: string) {
+  return PLATFORM_VISUAL_AREAS.find(({ prefixes }) => (
+    prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  ))?.name || 'brand'
 }
 
 function getPlatformVisualMode(pathname: string) {

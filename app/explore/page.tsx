@@ -171,7 +171,12 @@ export default function ExplorePage() {
                   Search by name, team, league, city, rating, coach, or tournament.
                 </p>
               ) : null}
-              <UniversalSearch compact showResults={false} />
+              <UniversalSearch
+                compact
+                showResults={false}
+                stackOnMobile
+                placeholder="Search players, teams, leagues, and more"
+              />
               <ExploreContinueCard />
             </div>
 
