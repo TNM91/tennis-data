@@ -1,4 +1,5 @@
 import { getClubApiAuth } from '@/lib/club-api-auth'
+import { isActiveClubBillingStatus, mapClubBillingAccountRow } from '@/lib/club-billing'
 import {
   buildClubCoachStudentLinkId,
   cleanClubMultiline,
@@ -579,6 +580,42 @@ function addClubCalendarMinutes(startsAt: string, minutes: number) {
 export async function POST(request: Request) {
   const auth = await getClubApiAuth(request)
   if (!auth.ok) return auth.response
+
+  const [{ data: billingRow, error: billingError }, { data: ownedClubRows, error: ownedClubError }] = await Promise.all([
+    auth.supabase
+      .from('club_billing_accounts')
+      .select('owner_user_id,plan_id,status,stripe_customer_id,stripe_subscription_id')
+      .eq('owner_user_id', auth.userId)
+      .maybeSingle(),
+    auth.supabase
+      .from('clubs')
+      .select('id')
+      .eq('owner_user_id', auth.userId)
+      .limit(1),
+  ])
+  if (billingError || ownedClubError) {
+    return Response.json({ ok: false, message: 'Club access could not be checked.' }, { status: 500 })
+  }
+
+  const billing = mapClubBillingAccountRow(billingRow as Record<string, unknown> | null)
+  if (!billing || !isActiveClubBillingStatus(billing.status)) {
+    return Response.json(
+      {
+        ok: false,
+        code: 'club_subscription_required',
+        message: 'Choose Club Starter or Club Unlimited before creating a club.',
+        upgradeHref: '/pricing#club',
+      },
+      { status: 402 },
+    )
+  }
+
+  if ((ownedClubRows ?? []).length > 0) {
+    return Response.json(
+      { ok: false, code: 'club_workspace_exists', message: 'Your Club plan already has its branded workspace.' },
+      { status: 409 },
+    )
+  }
 
   let body: Record<string, unknown>
   try {

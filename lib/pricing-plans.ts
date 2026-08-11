@@ -1,10 +1,14 @@
 import {
+  CLUB_PLAN_STORY,
   getMembershipTier,
   PRODUCT_PROOF_POINTS,
   type MembershipTierId,
 } from './product-story'
 
 export type PricingPlanId = 'free' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
+export type CorePricingPlanId = PricingPlanId
+export type ClubPricingPlanId = 'club_starter' | 'club_unlimited'
+export type BillablePricingPlanId = PricingPlanId | ClubPricingPlanId
 export type PricingBillingInterval = 'none' | 'month' | 'season'
 export type PricingCheckoutMode = 'none' | 'subscription' | 'one_time'
 export type PricingQuantityMode = 'account' | 'league'
@@ -25,6 +29,8 @@ export type PricingEntitlementGrant = {
   leagueCoordinator: boolean
   tiqTeamLeagueEntry: boolean
   tiqIndividualLeagueCreator: boolean
+  clubStarter: boolean
+  clubUnlimited: boolean
 }
 
 export type PricingDiscountRule = {
@@ -36,7 +42,7 @@ export type PricingDiscountRule = {
 }
 
 export type PricingPlan = {
-  id: PricingPlanId
+  id: BillablePricingPlanId
   name: string
   subtitle: string
   audience: string
@@ -63,6 +69,8 @@ const NO_ENTITLEMENTS: PricingEntitlementGrant = {
   leagueCoordinator: false,
   tiqTeamLeagueEntry: false,
   tiqIndividualLeagueCreator: false,
+  clubStarter: false,
+  clubUnlimited: false,
 }
 
 const PLAYER_ENTITLEMENTS: PricingEntitlementGrant = {
@@ -95,7 +103,17 @@ const FULL_COURT_ENTITLEMENTS: PricingEntitlementGrant = {
   tiqIndividualLeagueCreator: true,
 }
 
-const PRICING_BILLING: Record<PricingPlanId, PricingBillingModel> = {
+const CLUB_STARTER_ENTITLEMENTS: PricingEntitlementGrant = {
+  ...NO_ENTITLEMENTS,
+  clubStarter: true,
+}
+
+const CLUB_UNLIMITED_ENTITLEMENTS: PricingEntitlementGrant = {
+  ...CLUB_STARTER_ENTITLEMENTS,
+  clubUnlimited: true,
+}
+
+const PRICING_BILLING: Record<BillablePricingPlanId, PricingBillingModel> = {
   free: {
     amountCents: 0,
     currency: USD,
@@ -138,6 +156,20 @@ const PRICING_BILLING: Record<PricingPlanId, PricingBillingModel> = {
     checkoutMode: 'subscription',
     quantityMode: 'account',
   },
+  club_starter: {
+    amountCents: 9900,
+    currency: USD,
+    interval: 'month',
+    checkoutMode: 'subscription',
+    quantityMode: 'account',
+  },
+  club_unlimited: {
+    amountCents: 19900,
+    currency: USD,
+    interval: 'month',
+    checkoutMode: 'subscription',
+    quantityMode: 'account',
+  },
 }
 
 function formatUsd(amountCents: number) {
@@ -152,7 +184,7 @@ export function formatPricingBillingLabel(billing: PricingBillingModel) {
   return `${formatUsd(billing.amountCents)}/season`
 }
 
-export function getPricingBillingCue(planId: PricingPlanId) {
+export function getPricingBillingCue(planId: BillablePricingPlanId) {
   const plan = getPricingPlan(planId)
   if (plan.billing.checkoutMode === 'none') return 'Free account'
   if (plan.billing.checkoutMode === 'subscription') return 'Monthly subscription'
@@ -252,7 +284,46 @@ export const PRICING_PLANS: PricingPlan[] = [
     outcome: 'Keep every tennis role connected, with unlimited Tournament Desk room.',
     valueProps: getMembershipTier('full_court').valueProps,
   },
+  {
+    id: 'club_starter',
+    name: CLUB_PLAN_STORY.starter.name,
+    subtitle: CLUB_PLAN_STORY.starter.shortPromise,
+    audience: CLUB_PLAN_STORY.starter.audience,
+    billing: PRICING_BILLING.club_starter,
+    entitlementGrant: CLUB_STARTER_ENTITLEMENTS,
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.club_starter),
+    ctaLabel: 'Unlock Club Starter',
+    problem: 'Ready to connect the club experience without replacing registration or payments?',
+    friction: 'Club identity, staff, players, clinics, teams, leagues, and tournaments are hard to keep connected across separate tools.',
+    solution: CLUB_PLAN_STORY.starter.description,
+    outcome: 'Open one branded club workspace for core staff and up to 100 connected players.',
+    valueProps: [...CLUB_PLAN_STORY.starter.valueProps],
+  },
+  {
+    id: 'club_unlimited',
+    name: CLUB_PLAN_STORY.unlimited.name,
+    subtitle: CLUB_PLAN_STORY.unlimited.shortPromise,
+    audience: CLUB_PLAN_STORY.unlimited.audience,
+    billing: PRICING_BILLING.club_unlimited,
+    entitlementGrant: CLUB_UNLIMITED_ENTITLEMENTS,
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.club_unlimited),
+    badge: 'Club-wide',
+    ctaLabel: 'Unlock Club Unlimited',
+    problem: 'Rolling TenAceIQ out across the full club?',
+    friction: 'Staff and player caps get in the way when every program and competition needs the same club identity.',
+    solution: CLUB_PLAN_STORY.unlimited.description,
+    outcome: 'Connect unlimited staff and players across one club identity.',
+    valueProps: [...CLUB_PLAN_STORY.unlimited.valueProps],
+  },
 ]
+
+export const CORE_PRICING_PLANS = PRICING_PLANS.filter(
+  (plan): plan is PricingPlan & { id: CorePricingPlanId } => !isClubPricingPlanId(plan.id),
+)
+
+export const CLUB_PRICING_PLANS = PRICING_PLANS.filter(
+  (plan): plan is PricingPlan & { id: ClubPricingPlanId } => isClubPricingPlanId(plan.id),
+)
 
 export const PRICING_PROOF_POINTS = PRODUCT_PROOF_POINTS
 
@@ -284,11 +355,11 @@ export const ROLE_BASED_PLAN_RECOMMENDATION: Record<'player' | 'coach' | 'captai
   organizer: 'league',
 }
 
-export function getPricingPlan(planId: PricingPlanId) {
+export function getPricingPlan(planId: BillablePricingPlanId) {
   return PRICING_PLANS.find((plan) => plan.id === planId) ?? PRICING_PLANS[0]
 }
 
-export function getPlanHierarchyWeight(planId: PricingPlanId) {
+export function getPlanHierarchyWeight(planId: BillablePricingPlanId) {
   switch (planId) {
     case 'full_court':
       return 6
@@ -300,8 +371,16 @@ export function getPlanHierarchyWeight(planId: PricingPlanId) {
       return 3
     case 'player_plus':
       return 2
+    case 'club_unlimited':
+      return 2
+    case 'club_starter':
+      return 1
     case 'free':
     default:
       return 0
   }
+}
+
+export function isClubPricingPlanId(value: unknown): value is ClubPricingPlanId {
+  return value === 'club_starter' || value === 'club_unlimited'
 }

@@ -15,6 +15,8 @@ describe('stripe checkout helpers', () => {
     expect(getStripeCheckoutMode('captain')).toBe('subscription')
     expect(getStripeCheckoutMode('league')).toBe('payment')
     expect(getStripeCheckoutMode('full_court')).toBe('subscription')
+    expect(getStripeCheckoutMode('club_starter')).toBe('subscription')
+    expect(getStripeCheckoutMode('club_unlimited')).toBe('subscription')
   })
 
   it('resolves configured Stripe price ids by plan', () => {
@@ -23,6 +25,8 @@ describe('stripe checkout helpers', () => {
     expect(getStripePriceId('captain', { STRIPE_CAPTAIN_PRICE_ID: 'price_captain' })).toBe('price_captain')
     expect(getStripePriceId('league', { STRIPE_LEAGUE_PRICE_ID: 'price_league' })).toBe('price_league')
     expect(getStripePriceId('full_court', { STRIPE_FULL_COURT_PRICE_ID: 'price_full_court' })).toBe('price_full_court')
+    expect(getStripePriceId('club_starter', { STRIPE_CLUB_STARTER_PRICE_ID: 'price_club_starter' })).toBe('price_club_starter')
+    expect(getStripePriceId('club_unlimited', { STRIPE_CLUB_UNLIMITED_PRICE_ID: 'price_club_unlimited' })).toBe('price_club_unlimited')
   })
 
   it('documents every paid Stripe price environment variable for launch setup', () => {
@@ -36,6 +40,8 @@ describe('stripe checkout helpers', () => {
       'STRIPE_CAPTAIN_PRICE_ID',
       'STRIPE_LEAGUE_PRICE_ID',
       'STRIPE_FULL_COURT_PRICE_ID',
+      'STRIPE_CLUB_STARTER_PRICE_ID',
+      'STRIPE_CLUB_UNLIMITED_PRICE_ID',
     ]) {
       expect(qaDoc).toContain(envName)
     }
@@ -118,6 +124,42 @@ describe('stripe checkout helpers', () => {
     expect(params.get('success_url')).toBe(
       'https://tenaceiq.test/upgrade?plan=coach&next=%2Fcoach&checkout=success&request=request-coach&session_id=%7BCHECKOUT_SESSION_ID%7D',
     )
+  })
+
+  it('builds Club subscription Checkout Session params with account-owner metadata', () => {
+    const params = buildStripeCheckoutSessionParams({
+      planId: 'club_starter',
+      priceId: 'price_club_starter',
+      requestId: 'request-club',
+      userId: 'club-owner',
+      customerEmail: 'owner@example.com',
+      origin: 'https://tenaceiq.test',
+      nextHref: '/clubs',
+    })
+
+    expect(params.get('mode')).toBe('subscription')
+    expect(params.get('line_items[0][price]')).toBe('price_club_starter')
+    expect(params.get('metadata[plan_id]')).toBe('club_starter')
+    expect(params.get('subscription_data[metadata][plan_id]')).toBe('club_starter')
+    expect(params.get('subscription_data[metadata][user_id]')).toBe('club-owner')
+    expect(params.get('success_url')).toContain('plan=club_starter')
+    expect(params.get('success_url')).toContain('next=%2Fclubs')
+  })
+
+  it('reuses an existing Stripe customer across role and Club purchases', () => {
+    const params = buildStripeCheckoutSessionParams({
+      planId: 'club_unlimited',
+      priceId: 'price_club_unlimited',
+      requestId: 'request-existing-customer',
+      userId: 'club-owner',
+      customerId: 'cus_existing',
+      customerEmail: 'owner@example.com',
+      origin: 'https://tenaceiq.test',
+      nextHref: '/clubs',
+    })
+
+    expect(params.get('customer')).toBe('cus_existing')
+    expect(params.get('customer_email')).toBeNull()
   })
 
   it('applies an eligible team invitation coupon instead of a second promotion code', () => {

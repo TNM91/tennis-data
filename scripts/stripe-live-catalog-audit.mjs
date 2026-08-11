@@ -49,12 +49,30 @@ const expectedPlans = [
     checkoutMode: 'subscription',
     recurringInterval: 'month',
   },
+  {
+    id: 'club_starter',
+    name: 'Club Starter',
+    envName: 'STRIPE_CLUB_STARTER_PRICE_ID',
+    amountCents: 9900,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    recurringInterval: 'month',
+  },
+  {
+    id: 'club_unlimited',
+    name: 'Club Unlimited',
+    envName: 'STRIPE_CLUB_UNLIMITED_PRICE_ID',
+    amountCents: 19900,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    recurringInterval: 'month',
+  },
 ]
 
 const sourceChecks = [
   {
-    label: 'Expected catalog has five paid plans',
-    ok: expectedPlans.length === 5,
+    label: 'Expected catalog has seven paid plans',
+    ok: expectedPlans.length === 7,
   },
   ...expectedPlans.map((plan) => ({
     label: `${plan.name} has a positive ${plan.currency.toUpperCase()} amount`,

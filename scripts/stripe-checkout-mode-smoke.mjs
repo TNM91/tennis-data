@@ -6,6 +6,8 @@ const PLAN_CONFIG = {
   captain: { name: 'Captain', nextHref: '/captain' },
   league: { name: 'League', nextHref: '/league-coordinator' },
   full_court: { name: 'Full-Court', nextHref: '/league-coordinator/tournaments' },
+  club_starter: { name: 'Club Starter', nextHref: '/clubs' },
+  club_unlimited: { name: 'Club Unlimited', nextHref: '/clubs' },
 }
 
 const args = new Map(

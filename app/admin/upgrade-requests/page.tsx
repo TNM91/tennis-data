@@ -11,7 +11,7 @@ import {
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import { buildSupportMessageHref } from '@/lib/message-links'
-import { getMembershipTier } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, getMembershipTier } from '@/lib/product-story'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -22,7 +22,7 @@ import {
   type UpgradeRequestStatus,
 } from '@/lib/upgrade-requests'
 
-type StatusFilter = 'all' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
+type StatusFilter = 'all' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court' | 'club_starter' | 'club_unlimited'
 type SetupStatus = {
   upgradeRequestsTable: boolean
   playerPlusEntitlements: boolean
@@ -76,6 +76,8 @@ export default function AdminUpgradeRequestsPage() {
   const captainCount = requests.filter((request) => request.planId === 'captain').length
   const leagueCount = requests.filter((request) => request.planId === 'league').length
   const playerCount = requests.filter((request) => request.planId === 'player_plus').length
+  const clubStarterCount = requests.filter((request) => request.planId === 'club_starter').length
+  const clubUnlimitedCount = requests.filter((request) => request.planId === 'club_unlimited').length
   const localCount = requests.filter((request) => request.source === 'local').length
   const readyToActivateCount = requests.filter(canActivateRequest).length
   const needsAccountCount = requests.filter((request) =>
@@ -224,6 +226,8 @@ export default function AdminUpgradeRequestsPage() {
               <Metric label="Captain" value={String(captainCount)} />
               <Metric label="League" value={String(leagueCount)} />
               <Metric label="Player" value={String(playerCount)} />
+              <Metric label="Club Starter" value={String(clubStarterCount)} />
+              <Metric label="Club Unlimited" value={String(clubUnlimitedCount)} />
             </div>
           </AdminReviewPanel>
 
@@ -284,6 +288,8 @@ export default function AdminUpgradeRequestsPage() {
                   ['captain', 'Captain'],
                   ['league', 'League'],
                   ['player_plus', 'Player'],
+                  ['club_starter', 'Club Starter'],
+                  ['club_unlimited', 'Club Unlimited'],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -420,6 +426,19 @@ function getActivateButtonLabel(request: UpgradeRequestRecord) {
 }
 
 function getActivationCue(request: UpgradeRequestRecord) {
+  if (request.planId === 'club_starter' || request.planId === 'club_unlimited') {
+    const clubPlan = request.planId === 'club_unlimited' ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+    return {
+      title: clubPlan.name,
+      summary: clubPlan.shortPromise,
+      grants: request.planId === 'club_unlimited'
+        ? ['One branded club workspace', 'Unlimited staff and players']
+        : ['One branded club workspace', 'Up to 5 staff and 100 players'],
+      excludes: ['Court booking', 'Registration and point-of-sale'],
+      note: CLUB_PLAN_STORY.boundary,
+    }
+  }
+
   const tier = getMembershipTier(request.planId)
   const playerTier = getMembershipTier('player_plus')
 

@@ -6,7 +6,7 @@ import {
   type UpgradeRequestRecord,
   type UpgradeRequestRow,
 } from '@/lib/upgrade-requests'
-import type { PricingPlanId } from '@/lib/pricing-plans'
+import type { BillablePricingPlanId } from '@/lib/pricing-plans'
 
 export const runtime = 'nodejs'
 
@@ -15,7 +15,15 @@ type ClaimRequestBody = {
   requestId?: unknown
 }
 
-const PAID_PLAN_IDS: PricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
+const PAID_PLAN_IDS: BillablePricingPlanId[] = [
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 const UPGRADE_REQUEST_SELECT =
   'id, plan_id, plan_name, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at'
 

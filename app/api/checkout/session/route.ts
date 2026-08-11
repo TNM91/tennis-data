@@ -26,7 +26,15 @@ type UpgradeRequestCheckoutRow = {
   status: string | null
 }
 
-const PAID_PLAN_IDS: PaidPricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
+const PAID_PLAN_IDS: PaidPricingPlanId[] = [
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
 
 export async function POST(request: Request) {
@@ -116,12 +124,26 @@ export async function POST(request: Request) {
   const inviteOffer = checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'
     ? await getTeamInviteOfferEligibility(supabase, checkoutTarget.userId, checkoutTarget.planId)
     : null
+  const [{ data: billingProfile }, { data: clubBilling }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', checkoutTarget.userId)
+      .maybeSingle(),
+    supabase
+      .from('club_billing_accounts')
+      .select('stripe_customer_id')
+      .eq('owner_user_id', checkoutTarget.userId)
+      .maybeSingle(),
+  ])
+  const customerId = billingProfile?.stripe_customer_id?.trim() || clubBilling?.stripe_customer_id?.trim() || undefined
   const params = buildStripeCheckoutSessionParams({
     planId: checkoutTarget.planId,
     priceId,
     requestId: checkoutTarget.requestId,
     userId: checkoutTarget.userId,
     customerEmail: checkoutTarget.email || userResult.email,
+    customerId,
     origin,
     nextHref,
     couponId: inviteOffer?.couponId,

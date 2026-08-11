@@ -1,4 +1,4 @@
-import type { PricingPlanId } from './pricing-plans'
+import type { BillablePricingPlanId } from './pricing-plans'
 
 export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
@@ -71,7 +71,7 @@ export type ProductUsageEventSurface = (typeof PRODUCT_USAGE_EVENT_SURFACES)[num
 export type ProductUsageEventInput = {
   eventName: ProductUsageEventName
   surface: ProductUsageEventSurface
-  planId?: Extract<PricingPlanId, 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'> | null
+  planId?: Exclude<BillablePricingPlanId, 'free'> | null
   metadata?: Record<string, unknown>
 }
 
@@ -97,7 +97,7 @@ export function normalizeProductUsageEventInput(input: RawProductUsageEventInput
   const surface = PRODUCT_USAGE_EVENT_SURFACES.includes(input.surface as ProductUsageEventSurface)
     ? input.surface as ProductUsageEventSurface
     : null
-  const planId = input.planId === 'player_plus' || input.planId === 'coach' || input.planId === 'captain' || input.planId === 'league' || input.planId === 'full_court'
+  const planId = input.planId === 'player_plus' || input.planId === 'coach' || input.planId === 'captain' || input.planId === 'league' || input.planId === 'full_court' || input.planId === 'club_starter' || input.planId === 'club_unlimited'
     ? input.planId
     : null
   const metadata = sanitizeUsageMetadata(input.metadata)

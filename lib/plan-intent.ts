@@ -1,6 +1,7 @@
-import type { PricingPlanId } from '@/lib/pricing-plans'
+import type { BillablePricingPlanId } from '@/lib/pricing-plans'
 
-export function getPlanDestinationHref(planId: PricingPlanId) {
+export function getPlanDestinationHref(planId: BillablePricingPlanId) {
+  if (planId === 'club_starter' || planId === 'club_unlimited') return '/clubs'
   if (planId === 'full_court') return '/league-coordinator'
   if (planId === 'coach') return '/coach'
   if (planId === 'captain') return '/captain'
@@ -9,12 +10,12 @@ export function getPlanDestinationHref(planId: PricingPlanId) {
   return '/mylab'
 }
 
-export function getPlanUnlockHref(planId: PricingPlanId, nextHref = getPlanDestinationHref(planId)) {
+export function getPlanUnlockHref(planId: BillablePricingPlanId, nextHref = getPlanDestinationHref(planId)) {
   if (planId === 'free') return nextHref
   return `/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`
 }
 
-export function getPlanSignupHref(planId: PricingPlanId, nextHref = getPlanUnlockHref(planId)) {
+export function getPlanSignupHref(planId: BillablePricingPlanId, nextHref = getPlanUnlockHref(planId)) {
   return `/join?plan=${planId}&next=${encodeURIComponent(nextHref)}`
 }
 

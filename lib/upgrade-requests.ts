@@ -2,7 +2,7 @@ import {
   getPricingPlan,
   type PricingCheckoutMode,
   type PricingBillingInterval,
-  type PricingPlanId,
+  type BillablePricingPlanId,
   type PricingQuantityMode,
 } from './pricing-plans'
 
@@ -10,7 +10,7 @@ export const UPGRADE_REQUESTS_KEY = 'tenaceiq-upgrade-requests-v1'
 
 export type UpgradeRequestRecord = {
   id: string
-  planId: PricingPlanId
+  planId: BillablePricingPlanId
   planName: string
   priceLabel?: string
   billingAmountCents?: number
@@ -35,7 +35,7 @@ export type UpgradeRequestStatus = 'pending' | 'contacted' | 'converted' | 'clos
 
 export type UpgradeRequestRow = {
   id: string
-  plan_id: PricingPlanId
+  plan_id: BillablePricingPlanId
   plan_name: string
   price_label?: string | null
   billing_amount_cents?: number | null
@@ -108,7 +108,7 @@ export function mapUpgradeRequestRecordToInsert(record: UpgradeRequestRecord) {
   }
 }
 
-export function buildUpgradePricingSnapshot(planId: PricingPlanId) {
+export function buildUpgradePricingSnapshot(planId: BillablePricingPlanId) {
   const plan = getPricingPlan(planId)
 
   return {

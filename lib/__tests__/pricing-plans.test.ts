@@ -72,6 +72,26 @@ describe('pricing plans', () => {
     expect(getPricingPlan('full_court').badge).not.toBe('Full Suite')
     expect(getPricingPlan('full_court').badge).not.toBe('Complete Toolkit')
     expect(getPricingPlan('full_court').outcome).not.toContain('Run every TenAceIQ workspace')
+
+    expect(getPricingPlan('club_starter')).toMatchObject({
+      priceLabel: '$99/month',
+      billing: {
+        amountCents: 9900,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
+
+    expect(getPricingPlan('club_unlimited')).toMatchObject({
+      priceLabel: '$199/month',
+      billing: {
+        amountCents: 19900,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
   })
 
   it('keeps Captain, League, and Full-Court entitlement grants clear', () => {
@@ -82,6 +102,8 @@ describe('pricing plans', () => {
       leagueCoordinator: false,
       tiqTeamLeagueEntry: false,
       tiqIndividualLeagueCreator: false,
+      clubStarter: false,
+      clubUnlimited: false,
     })
 
     expect(getPricingPlan('league').entitlementGrant).toEqual({
@@ -91,6 +113,8 @@ describe('pricing plans', () => {
       leagueCoordinator: true,
       tiqTeamLeagueEntry: true,
       tiqIndividualLeagueCreator: true,
+      clubStarter: false,
+      clubUnlimited: false,
     })
 
     expect(getPricingPlan('full_court').entitlementGrant).toEqual({
@@ -100,6 +124,17 @@ describe('pricing plans', () => {
       leagueCoordinator: true,
       tiqTeamLeagueEntry: true,
       tiqIndividualLeagueCreator: true,
+      clubStarter: false,
+      clubUnlimited: false,
+    })
+
+    expect(getPricingPlan('club_starter').entitlementGrant).toMatchObject({
+      clubStarter: true,
+      clubUnlimited: false,
+    })
+    expect(getPricingPlan('club_unlimited').entitlementGrant).toMatchObject({
+      clubStarter: true,
+      clubUnlimited: true,
     })
   })
 
@@ -110,6 +145,8 @@ describe('pricing plans', () => {
     expect(getPricingBillingCue('captain')).toBe('Monthly subscription')
     expect(getPricingBillingCue('league')).toBe('Season fee')
     expect(getPricingBillingCue('full_court')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('club_starter')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('club_unlimited')).toBe('Monthly subscription')
   })
 
   it('keeps role upgrade proof concrete instead of everything-language', () => {

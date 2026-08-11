@@ -108,6 +108,15 @@ describe('product usage events', () => {
     })
   })
 
+  it('accepts Club upgrade checkout plan ids', () => {
+    expect(normalizeProductUsageEventInput({
+      eventName: 'upgrade_checkout_started',
+      surface: 'upgrade',
+      planId: 'club_unlimited',
+      metadata: { nextHref: '/clubs' },
+    })?.planId).toBe('club_unlimited')
+  })
+
   it('accepts profile cloud sync repair observability', () => {
     expect(buildProductUsageEventInsert('user-profile-sync', {
       eventName: 'profile_cloud_sync_repair',

@@ -9,7 +9,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 - Confirm the local or deployed app points at test credentials before sending test events. Do not create, cancel, or force-fail live customer subscriptions for QA.
 - Keep the canonical production webhook endpoint as `https://www.tenaceiq.com/api/stripe/webhook`.
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
-- Keep all paid checkout price env vars configured anywhere checkout can run: `STRIPE_PLAYER_PRICE_ID`, `STRIPE_COACH_PRICE_ID`, `STRIPE_CAPTAIN_PRICE_ID`, `STRIPE_LEAGUE_PRICE_ID`, and `STRIPE_FULL_COURT_PRICE_ID`.
+- Keep all paid checkout price env vars configured anywhere checkout can run: `STRIPE_PLAYER_PRICE_ID`, `STRIPE_COACH_PRICE_ID`, `STRIPE_CAPTAIN_PRICE_ID`, `STRIPE_LEAGUE_PRICE_ID`, `STRIPE_FULL_COURT_PRICE_ID`, `STRIPE_CLUB_STARTER_PRICE_ID`, and `STRIPE_CLUB_UNLIMITED_PRICE_ID`.
 - Invited-captain offer: set `STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID` to a $5 USD Stripe coupon configured with duration `once`, and set `CAPTAIN_TEAM_INVITE_OFFER_LABEL` to `First month $4.99, then $9.99/month`.
 - Invited-player Improve offer: set `STRIPE_PLAYER_TEAM_INVITE_COUPON_ID` to a $2.50 USD Stripe coupon configured with duration `once`, and set `PLAYER_TEAM_INVITE_OFFER_LABEL` to `First month $2.49, then $4.99/month`.
 - Both offers require a matching team role accepted within the last 14 days, no active included access, and no prior handled Stripe subscription event for that plan or a plan that included it. Coupon IDs and eligibility stay server-only.
@@ -25,7 +25,7 @@ Run `npm run qa:stripe-live-readiness` before changing credentials. Run `npm run
 
 Run `npm run qa:stripe-live-cutover` to print the secret-free cutover packet for the Stripe/Vercel owner.
 
-1. Create or confirm live-mode Stripe Products and Prices for Player, Coach, Captain, League, and Full-Court.
+1. Create or confirm live-mode Stripe Products and Prices for Player, Coach, Captain, League, Full-Court, Club Starter, and Club Unlimited.
    - Run `npm run qa:stripe-live-catalog` to review the expected TenAceIQ paid catalog.
    - When a live-mode Stripe key and live price IDs are available in the shell, run `npm run qa:stripe-live-catalog -- --stripe` to verify the live Price objects without printing secret values.
 2. Replace Production Vercel Stripe env vars with live-mode values:
@@ -37,6 +37,8 @@ Run `npm run qa:stripe-live-cutover` to print the secret-free cutover packet for
    - `STRIPE_CAPTAIN_PRICE_ID`
    - `STRIPE_LEAGUE_PRICE_ID`
    - `STRIPE_FULL_COURT_PRICE_ID`
+   - `STRIPE_CLUB_STARTER_PRICE_ID`
+   - `STRIPE_CLUB_UNLIMITED_PRICE_ID`
 3. Confirm the live Stripe webhook endpoint is `https://www.tenaceiq.com/api/stripe/webhook` and includes the required lifecycle events.
 4. Redeploy Production after the env swap.
 5. Run `npm run qa:stripe-live-mode` to start one no-card checkout smoke from a Free QA account and confirm the returned Checkout Session ID starts with `cs_live_`, not `cs_test_`.
