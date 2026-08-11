@@ -63,3 +63,27 @@ The original home treatment enlarged the 1552-pixel compact raster twice: once i
 - The high-resolution watermark remains subtle, readable, and does not compete with the primary action.
 
 final result: passed
+
+---
+
+# Desktop and tablet watermark visual QA
+
+Final result: **passed**
+
+## Sources and capture details
+
+- Reference screenshot: `C:\Users\nmein\AppData\Local\Temp\codex-clipboard-0c878160-85b1-48b3-8538-e6af5d70fa9c.png` (1293 x 556, signed-in Improve hub).
+- Desktop implementation: `docs/qa-evidence/watermark-desktop-after.png` (1293 x 556, public Explore home).
+- Tablet implementation: `docs/qa-evidence/watermark-tablet-after.png` (1024 x 768, public Explore home).
+- Side-by-side comparison: `docs/qa-evidence/watermark-desktop-comparison.png`.
+- The authenticated reference state was not available locally. The watermark is a shared global layer, so this comparison is limited to its rendering, scale, opacity, and relationship to foreground content.
+
+## Evidence and comparison history
+
+1. The supplied 1552 x 1614 watermark source previously rendered at 1034.39 x 1075.7 CSS pixels at the 1293 px desktop viewport. A 2x display therefore requested about 2069 x 2152 source pixels and upscaled the raster.
+2. The revised desktop hub watermark renders at 776 x 807 CSS pixels and 0.16 opacity. At 2x, its requested width is exactly 1552 pixels, matching the source width.
+3. The revised tablet hub watermark renders at 680 x 707.16 CSS pixels and 0.16 opacity. At 2x, its requested width is 1360 pixels, below the source width.
+4. `background-size: contain` remains in effect. No cropping, stretching, filter, shadow, rotation, or border radius is applied to the approved artwork.
+5. Browser console warnings/errors: none.
+
+The oversized-raster P2 issue is resolved. No remaining P0, P1, or P2 visual issues were found in the watermark layer.
