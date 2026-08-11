@@ -19,6 +19,8 @@ const requiredEnvNames = [
   'STRIPE_CAPTAIN_PRICE_ID',
   'STRIPE_LEAGUE_PRICE_ID',
   'STRIPE_FULL_COURT_PRICE_ID',
+  'STRIPE_CLUB_STARTER_PRICE_ID',
+  'STRIPE_CLUB_UNLIMITED_PRICE_ID',
 ]
 
 const expectedCatalog = [
@@ -67,6 +69,24 @@ const expectedCatalog = [
     checkoutMode: 'subscription',
     interval: 'month',
   },
+  {
+    plan: 'Club Starter',
+    planId: 'club_starter',
+    priceEnvName: 'STRIPE_CLUB_STARTER_PRICE_ID',
+    amountCents: 9900,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    interval: 'month',
+  },
+  {
+    plan: 'Club Unlimited',
+    planId: 'club_unlimited',
+    priceEnvName: 'STRIPE_CLUB_UNLIMITED_PRICE_ID',
+    amountCents: 19900,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    interval: 'month',
+  },
 ]
 
 const cutoverPacket = {
@@ -90,8 +110,8 @@ const cutoverPacket = {
     {
       step: 'Create or confirm live Stripe catalog',
       checks: [
-        'Create live Products and Prices for Player, Coach, Captain, League, and Full-Court.',
-        'Use recurring monthly Prices for Player, Coach, Captain, and Full-Court.',
+        'Create live Products and Prices for Player, Coach, Captain, League, Full-Court, Club Starter, and Club Unlimited.',
+        'Use recurring monthly Prices for Player, Coach, Captain, Full-Court, Club Starter, and Club Unlimited.',
         'Use a one-time live Price for League season access.',
         'Confirm every live Price is active and uses USD at the expected amount.',
       ],
@@ -100,7 +120,7 @@ const cutoverPacket = {
     {
       step: 'Verify live catalog from the shell',
       checks: [
-        'Set a live-mode Stripe key and the five live Price IDs in the local shell only.',
+        'Set a live-mode Stripe key and the seven live Price IDs in the local shell only.',
         'Run the audit against Stripe; it rejects test-mode keys and redacts Price IDs.',
       ],
       command: 'npm run qa:stripe-live-catalog -- --stripe',

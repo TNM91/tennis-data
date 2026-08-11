@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isClubPricingPlanId } from '@/lib/club-billing'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 
@@ -74,11 +75,20 @@ export async function POST(request: Request) {
     )
   }
 
-  const profilePayload = buildProfileActivationPayload(activationTarget.planId)
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update(profilePayload)
-    .eq('id', activationTarget.userId)
+  const { error: profileError } = isClubPricingPlanId(activationTarget.planId)
+    ? await supabase
+        .from('club_billing_accounts')
+        .upsert({
+          owner_user_id: activationTarget.userId,
+          plan_id: activationTarget.planId,
+          status: 'active',
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+        }, { onConflict: 'owner_user_id' })
+    : await supabase
+        .from('profiles')
+        .update(buildProfileActivationPayload(activationTarget.planId))
+        .eq('id', activationTarget.userId)
 
   if (profileError) {
     return Response.json({ ok: false, message: profileError.message }, { status: 500 })

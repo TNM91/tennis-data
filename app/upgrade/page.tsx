@@ -6,15 +6,20 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import {
   PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
   PAID_CHECKOUT_ENABLED,
   PAID_CHECKOUT_PAUSED_MESSAGE,
 } from '@/lib/paid-checkout'
-import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import {
+  getPricingPlan,
+  isClubPricingPlanId,
+  type BillablePricingPlanId as PricingPlanId,
+} from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
-import { getMembershipTier } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, getMembershipTier } from '@/lib/product-story'
 import { COACH_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { supabase } from '@/lib/supabase'
@@ -25,7 +30,16 @@ import {
   type UpgradeRequestRecord,
 } from '@/lib/upgrade-requests'
 
-const PLAN_IDS: PricingPlanId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
+const PLAN_IDS: PricingPlanId[] = [
+  'free',
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 const LAST_REMOTE_UPGRADE_REQUEST_KEY = 'tenaceiq-last-remote-upgrade-request-v1'
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
@@ -35,6 +49,8 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   captain: 'lineupBuilder',
   league: 'teamRankings',
   full_court: 'teamRankings',
+  club_starter: 'teamRankings',
+  club_unlimited: 'teamRankings',
 }
 
 const UNLOCK_COPY: Record<PricingPlanId, {
@@ -93,6 +109,22 @@ const UNLOCK_COPY: Record<PricingPlanId, {
     checkoutAction: 'Unlock Full-Court',
     setupAction: 'Preview Full-Court',
   },
+  club_starter: {
+    eyebrow: 'Club unlock',
+    title: 'Activate one connected club experience.',
+    body: 'Continue with Club Starter for one branded club, up to 5 staff, and 100 connected players across clinics, teams, leagues, and tournaments.',
+    action: 'Continue with Club Starter',
+    checkoutAction: 'Unlock Club Starter',
+    setupAction: 'Preview Club',
+  },
+  club_unlimited: {
+    eyebrow: 'Club-wide unlock',
+    title: 'Activate Club Unlimited for everyone.',
+    body: 'Continue with Club Unlimited when every coach and player should connect through one club identity without staff or player caps.',
+    action: 'Continue with Club Unlimited',
+    checkoutAction: 'Unlock Club Unlimited',
+    setupAction: 'Preview Club',
+  },
 }
 
 const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
@@ -102,6 +134,8 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
   captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
   league: 'Activate League when one season needs participants, schedules, scores, standings, and corrections in League Office.',
   full_court: 'Activate Full-Court when My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk all need to stay connected.',
+  club_starter: 'Activate Club Starter for one branded workspace with core staff and up to 100 connected players.',
+  club_unlimited: 'Activate Club Unlimited when the entire club should connect without staff or player caps.',
 }
 
 const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }> = {
@@ -129,6 +163,14 @@ const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }>
     title: 'Unlock Full-Court.',
     body: 'Keep every tennis role open: player, coach, captain, league, and tournaments.',
   },
+  club_starter: {
+    title: 'Unlock Club Starter.',
+    body: 'Connect one club, 5 staff, and up to 100 players.',
+  },
+  club_unlimited: {
+    title: 'Unlock Club Unlimited.',
+    body: 'Connect every coach and player through one club identity.',
+  },
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
@@ -138,6 +180,8 @@ const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
   league: ['Create Free access', 'Activate League', 'Open League Office'],
   full_court: ['Create Free access', 'Activate Full-Court', 'Open Full-Court'],
+  club_starter: ['Create Free access', 'Activate Club Starter', 'Create your club'],
+  club_unlimited: ['Create Free access', 'Activate Club Unlimited', 'Create your club'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -196,6 +240,22 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     secondaryHref: '/leagues',
     steps: ['Open Full-Court', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
+  club_starter: {
+    title: 'Club Starter is active. Create the club.',
+    body: 'Open Club, add the club identity, then connect core staff and up to 100 players across programs and competition.',
+    primaryAction: 'Open Club',
+    secondaryAction: 'Review Club plans',
+    secondaryHref: '/pricing#club',
+    steps: ['Create the club identity', 'Connect core staff', 'Invite players'],
+  },
+  club_unlimited: {
+    title: 'Club Unlimited is active. Roll out the club.',
+    body: 'Open Club, add the club identity, then connect every coach and player across programs, teams, leagues, and tournaments.',
+    primaryAction: 'Open Club',
+    secondaryAction: 'Review Club plans',
+    secondaryHref: '/pricing#club',
+    steps: ['Create the club identity', 'Connect staff', 'Invite every player'],
+  },
 }
 
 type UpgradeNextIntent = {
@@ -231,7 +291,7 @@ function UpgradeContent({
     : 'captain'
   const plan = getPricingPlan(planId)
   const pricingSnapshot = useMemo(() => buildUpgradePricingSnapshot(planId), [planId])
-  const tier = getMembershipTier(planId)
+  const tier = getUpgradeTierStory(planId)
   const copy = UNLOCK_COPY[planId]
   const mobileCopy = MOBILE_UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
@@ -253,6 +313,8 @@ function UpgradeContent({
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
   const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
+  const [clubBilling, setClubBilling] = useState<ClubBillingAccount | null>(null)
+  const [clubBillingResolved, setClubBillingResolved] = useState(false)
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
@@ -264,6 +326,37 @@ function UpgradeContent({
       void claimLastRemoteRequest(session?.user?.email ?? '')
     }
   }, [authResolved, session?.user?.email, userId])
+
+  useEffect(() => {
+    if (!authResolved || !isClubPricingPlanId(planId)) {
+      setClubBillingResolved(authResolved)
+      return
+    }
+    if (!userId || !session?.access_token) {
+      setClubBilling(null)
+      setClubBillingResolved(true)
+      return
+    }
+
+    const controller = new AbortController()
+    setClubBillingResolved(false)
+    void fetch('/api/club-billing', {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(async (response) => {
+        const body = await response.json() as { ok?: boolean; billing?: ClubBillingAccount | null }
+        if (!response.ok || !body.ok) throw new Error('Club billing could not be checked.')
+        setClubBilling(body.billing ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setClubBilling(null)
+      })
+      .finally(() => setClubBillingResolved(true))
+
+    return () => controller.abort()
+  }, [authResolved, planId, session?.access_token, userId])
 
   async function claimLastRemoteRequest(userEmail: string) {
     const stored = readLastRemoteRequest()
@@ -430,7 +523,7 @@ function UpgradeContent({
   }, [checkoutSubmitting, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
   const resolvedRole = authResolved || !userId ? role : 'member'
-  const authLoading = !authResolved
+  const authLoading = !authResolved || (isClubPricingPlanId(planId) && !clubBillingResolved)
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const hasAccess =
     planId === 'free' ||
@@ -438,13 +531,15 @@ function UpgradeContent({
     (planId === 'coach' && access.canUseCoachWorkflow) ||
     (planId === 'captain' && access.canUseCaptainWorkflow) ||
     (planId === 'league' && access.canUseLeagueTools) ||
-    (planId === 'full_court' && access.currentPlanId === 'full_court')
+    (planId === 'full_court' && access.currentPlanId === 'full_court') ||
+    (planId === 'club_starter' && isActiveClubBillingStatus(clubBilling?.status)) ||
+    (planId === 'club_unlimited' && clubBilling?.planId === 'club_unlimited' && isActiveClubBillingStatus(clubBilling.status))
   const isPublic = resolvedRole === 'public'
-  const isPaidPlan = planId === 'player_plus' || planId === 'coach' || planId === 'captain' || planId === 'league' || planId === 'full_court'
+  const isPaidPlan = plan.billing.checkoutMode !== 'none'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
   const planChoiceCards = PLAN_IDS.map((choicePlanId) => {
     const choicePlan = getPricingPlan(choicePlanId)
-    const choiceTier = getMembershipTier(choicePlanId)
+    const choiceTier = getUpgradeTierStory(choicePlanId)
     return {
       id: choicePlanId,
       plan: choicePlan,
@@ -1066,12 +1161,29 @@ function getSearchParamValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
+function getUpgradeTierStory(planId: PricingPlanId) {
+  if (planId === 'club_starter') {
+    return {
+      shortPromise: CLUB_PLAN_STORY.starter.shortPromise,
+      upgradeCue: 'Connect one branded club, core staff, and up to 100 players.',
+    }
+  }
+  if (planId === 'club_unlimited') {
+    return {
+      shortPromise: CLUB_PLAN_STORY.unlimited.shortPromise,
+      upgradeCue: 'Connect every coach and player through one club identity.',
+    }
+  }
+  return getMembershipTier(planId)
+}
+
 function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'My Lab'
   if (planId === 'coach') return 'Coach Hub'
   if (planId === 'captain') return 'Team Hub'
   if (planId === 'league') return 'League Office'
   if (planId === 'full_court') return 'Full-Court'
+  if (planId === 'club_starter' || planId === 'club_unlimited') return 'Club'
   return 'Find'
 }
 

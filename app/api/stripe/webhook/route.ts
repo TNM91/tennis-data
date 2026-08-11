@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  buildClubBillingCheckoutPayload,
+  buildClubBillingSubscriptionUpdate,
+  isClubPricingPlanId,
+} from '@/lib/club-billing'
 import { supabaseUrl } from '@/lib/supabase'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import {
@@ -15,6 +20,7 @@ import {
   isStripeCheckoutActivationEvent,
   parseStripeWebhookEvent,
 } from '@/lib/stripe-webhook'
+import { isPaidStripeCheckoutSessionForRequest } from '@/lib/stripe-session-verification'
 
 export const runtime = 'nodejs'
 
@@ -67,6 +73,43 @@ export async function POST(request: Request) {
   const supabase = serviceKey ? createServiceSupabaseClient(serviceKey) : null
 
   if (isStripeSubscriptionLifecycleEvent(event)) {
+    const clubBillingUpdate = buildClubBillingSubscriptionUpdate(event)
+    if (clubBillingUpdate) {
+      if (!supabase) {
+        return Response.json({ ok: false, message: 'Supabase service access is not configured.' }, { status: 500 })
+      }
+
+      const { error: clubBillingError } = await supabase
+        .from('club_billing_accounts')
+        .upsert(clubBillingUpdate, { onConflict: 'owner_user_id' })
+
+      if (clubBillingError) {
+        await recordStripeBillingEvent(supabase, {
+          event,
+          outcome: 'error',
+          message: clubBillingError.message,
+          profileId: clubBillingUpdate.owner_user_id,
+          customerId: clubBillingUpdate.stripe_customer_id,
+          subscriptionId: clubBillingUpdate.stripe_subscription_id,
+          planId: clubBillingUpdate.plan_id,
+          resultingStatus: clubBillingUpdate.status,
+        })
+        return Response.json({ ok: false, message: clubBillingError.message }, { status: 500 })
+      }
+
+      await recordStripeBillingEvent(supabase, {
+        event,
+        outcome: 'handled',
+        profileId: clubBillingUpdate.owner_user_id,
+        customerId: clubBillingUpdate.stripe_customer_id,
+        subscriptionId: clubBillingUpdate.stripe_subscription_id,
+        planId: clubBillingUpdate.plan_id,
+        resultingStatus: clubBillingUpdate.status,
+      })
+
+      return Response.json({ ok: true, updated: clubBillingUpdate.plan_id, status: clubBillingUpdate.status })
+    }
+
     const lifecycleUpdate = buildStripeSubscriptionProfileUpdate(event)
     if (!lifecycleUpdate) {
       if (supabase) {
@@ -183,6 +226,66 @@ export async function POST(request: Request) {
       { ok: false, message: activationTarget.message },
       { status: activationTarget.status },
     )
+  }
+
+  if (!isPaidStripeCheckoutSessionForRequest(event.data?.object, {
+    requestId: activationTarget.requestId,
+    userId: activationTarget.userId,
+  })) {
+    await recordStripeBillingEvent(supabase, {
+      event,
+      outcome: 'ignored',
+      message: 'Checkout session is not complete and paid.',
+      profileId: activationTarget.userId,
+      planId: activationTarget.planId,
+    })
+    return Response.json({ ok: true, ignored: true, message: 'Checkout session is not complete and paid.' })
+  }
+
+  if (isClubPricingPlanId(activationTarget.planId)) {
+    const clubBillingPayload = buildClubBillingCheckoutPayload(
+      event.data?.object,
+      activationTarget.userId,
+      activationTarget.planId,
+    )
+    const { error: clubBillingError } = await supabase
+      .from('club_billing_accounts')
+      .upsert(clubBillingPayload, { onConflict: 'owner_user_id' })
+
+    if (clubBillingError) {
+      await recordStripeBillingEvent(supabase, {
+        event,
+        outcome: 'error',
+        message: clubBillingError.message,
+        profileId: activationTarget.userId,
+        customerId: clubBillingPayload.stripe_customer_id,
+        subscriptionId: clubBillingPayload.stripe_subscription_id,
+        planId: activationTarget.planId,
+        resultingStatus: clubBillingPayload.status,
+      })
+      return Response.json({ ok: false, message: clubBillingError.message }, { status: 500 })
+    }
+
+    const { error: requestError } = await supabase
+      .from('upgrade_requests')
+      .update({ status: 'converted' })
+      .eq('id', activationTarget.requestId)
+
+    if (requestError) {
+      return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    }
+
+    await recordStripeBillingEvent(supabase, {
+      event,
+      outcome: 'handled',
+      profileId: activationTarget.userId,
+      customerId: clubBillingPayload.stripe_customer_id,
+      subscriptionId: clubBillingPayload.stripe_subscription_id,
+      planId: activationTarget.planId,
+      resultingStatus: clubBillingPayload.status,
+    })
+
+    return Response.json({ ok: true, activated: activationTarget.planId })
   }
 
   const profilePayload = {

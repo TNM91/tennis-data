@@ -1,6 +1,6 @@
-import { getPricingPlan, type PricingPlanId } from './pricing-plans'
+import { getPricingPlan, type BillablePricingPlanId } from './pricing-plans'
 
-export type PaidPricingPlanId = Exclude<PricingPlanId, 'free'>
+export type PaidPricingPlanId = Exclude<BillablePricingPlanId, 'free'>
 
 export type StripeCheckoutSessionInput = {
   planId: PaidPricingPlanId
@@ -8,6 +8,7 @@ export type StripeCheckoutSessionInput = {
   requestId: string
   userId: string
   customerEmail?: string
+  customerId?: string
   origin: string
   nextHref: string
   couponId?: string
@@ -19,6 +20,8 @@ export const STRIPE_PRICE_ENV_BY_PLAN: Record<PaidPricingPlanId, string> = {
   captain: 'STRIPE_CAPTAIN_PRICE_ID',
   league: 'STRIPE_LEAGUE_PRICE_ID',
   full_court: 'STRIPE_FULL_COURT_PRICE_ID',
+  club_starter: 'STRIPE_CLUB_STARTER_PRICE_ID',
+  club_unlimited: 'STRIPE_CLUB_UNLIMITED_PRICE_ID',
 }
 
 export function getStripePriceId(planId: PaidPricingPlanId, env: Record<string, string | undefined> = process.env) {
@@ -36,6 +39,7 @@ export function buildStripeCheckoutSessionParams({
   requestId,
   userId,
   customerEmail,
+  customerId,
   origin,
   nextHref,
   couponId,
@@ -65,7 +69,9 @@ export function buildStripeCheckoutSessionParams({
   params.set('metadata[user_id]', metadata.user_id)
   params.set('metadata[plan_id]', metadata.plan_id)
 
-  if (customerEmail) {
+  if (customerId) {
+    params.set('customer', customerId)
+  } else if (customerEmail) {
     params.set('customer_email', customerEmail)
   }
 

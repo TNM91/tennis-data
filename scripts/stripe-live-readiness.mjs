@@ -14,6 +14,8 @@ const requiredEnvNames = [
   'STRIPE_CAPTAIN_PRICE_ID',
   'STRIPE_LEAGUE_PRICE_ID',
   'STRIPE_FULL_COURT_PRICE_ID',
+  'STRIPE_CLUB_STARTER_PRICE_ID',
+  'STRIPE_CLUB_UNLIMITED_PRICE_ID',
 ]
 
 const requiredWebhookEvents = [

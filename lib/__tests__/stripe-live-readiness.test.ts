@@ -14,6 +14,8 @@ describe('Stripe live readiness command', () => {
     expect(readinessScript).toContain('STRIPE_SECRET_KEY')
     expect(readinessScript).toContain('STRIPE_WEBHOOK_SECRET')
     expect(readinessScript).toContain('STRIPE_FULL_COURT_PRICE_ID')
+    expect(readinessScript).toContain('STRIPE_CLUB_STARTER_PRICE_ID')
+    expect(readinessScript).toContain('STRIPE_CLUB_UNLIMITED_PRICE_ID')
     expect(readinessScript).toContain('checkout.session.completed')
     expect(readinessScript).toContain('customer.subscription.updated')
     expect(readinessScript).toContain('invoice.payment_failed')

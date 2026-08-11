@@ -17,6 +17,8 @@ describe('Stripe live cutover packet', () => {
     expect(packetScript).toContain('2026-04-22.dahlia')
     expect(packetScript).toContain('STRIPE_WEBHOOK_SECRET')
     expect(packetScript).toContain('STRIPE_FULL_COURT_PRICE_ID')
+    expect(packetScript).toContain('STRIPE_CLUB_STARTER_PRICE_ID')
+    expect(packetScript).toContain('STRIPE_CLUB_UNLIMITED_PRICE_ID')
     expect(packetScript).toContain('checkout.session.completed')
     expect(packetScript).toContain('invoice.payment_failed')
     expect(packetScript).toContain('npm run qa:stripe-live-catalog -- --stripe')

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { buildClubBillingCheckoutPayload, isClubPricingPlanId } from '@/lib/club-billing'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
@@ -112,6 +113,30 @@ export async function POST(request: Request) {
 
   if (!stripeSession) {
     return Response.json({ ok: false, message: 'Paid checkout session was not found yet.' }, { status: 409 })
+  }
+
+  if (isClubPricingPlanId(activationTarget.planId)) {
+    const { error: clubBillingError } = await supabase
+      .from('club_billing_accounts')
+      .upsert(
+        buildClubBillingCheckoutPayload(stripeSession, activationTarget.userId, activationTarget.planId),
+        { onConflict: 'owner_user_id' },
+      )
+
+    if (clubBillingError) {
+      return Response.json({ ok: false, message: clubBillingError.message }, { status: 500 })
+    }
+
+    const { error: requestError } = await supabase
+      .from('upgrade_requests')
+      .update({ status: 'converted' })
+      .eq('id', activationTarget.requestId)
+
+    if (requestError) {
+      return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    }
+
+    return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })
   }
 
   const profilePayload = {

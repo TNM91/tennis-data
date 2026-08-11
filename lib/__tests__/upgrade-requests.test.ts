@@ -118,4 +118,31 @@ describe('upgrade request pricing snapshots', () => {
       },
     })
   })
+
+  it('captures both Club account subscriptions with their exact monthly prices', () => {
+    expect(buildUpgradePricingSnapshot('club_starter')).toMatchObject({
+      planName: 'Club Starter',
+      priceLabel: '$99/month',
+      billingAmountCents: 9900,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        clubStarter: true,
+        clubUnlimited: false,
+      },
+    })
+    expect(buildUpgradePricingSnapshot('club_unlimited')).toMatchObject({
+      planName: 'Club Unlimited',
+      priceLabel: '$199/month',
+      billingAmountCents: 19900,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        clubStarter: true,
+        clubUnlimited: true,
+      },
+    })
+  })
 })

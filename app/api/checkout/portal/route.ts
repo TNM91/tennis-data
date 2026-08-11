@@ -25,6 +25,19 @@ type SupabaseProfileReader = {
   }
 }
 
+type SupabaseClubBillingReader = {
+  from(table: 'club_billing_accounts'): {
+    select(columns: 'stripe_customer_id'): {
+      eq(column: 'owner_user_id', value: string): {
+        maybeSingle(): PromiseLike<{
+          data: ProfileBillingRow | null
+          error: { code?: string; message?: string } | null
+        }>
+      }
+    }
+  }
+}
+
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
 
 export async function POST(request: Request) {
@@ -61,22 +74,28 @@ export async function POST(request: Request) {
       detectSessionInUrl: false,
     },
   }) as unknown as SupabaseProfileReader
-  let profileCustomerId = ''
+  let storedCustomerId = ''
   try {
-    profileCustomerId = await getStoredStripeCustomerId(supabase, userResult.userId)
+    storedCustomerId = await getStoredStripeCustomerId(supabase, userResult.userId)
+    if (!storedCustomerId) {
+      storedCustomerId = await getStoredClubStripeCustomerId(
+        supabase as unknown as SupabaseClubBillingReader,
+        userResult.userId,
+      )
+    }
   } catch (error) {
     return Response.json(
       { ok: false, message: error instanceof Error ? error.message : 'Billing profile could not be loaded.' },
       { status: 500 },
     )
   }
-  const fallbackCustomerId = profileCustomerId
+  const fallbackCustomerId = storedCustomerId
     ? ''
     : findStripeCustomerIdForUser(
         await listRecentStripeCheckoutSessions(stripeSecretKey),
         { userId: userResult.userId, email: userResult.email },
       )
-  const customerId = profileCustomerId || fallbackCustomerId
+  const customerId = storedCustomerId || fallbackCustomerId
 
   if (!customerId) {
     return Response.json(
@@ -127,6 +146,20 @@ async function getStoredStripeCustomerId(
   }
 
   return ((data ?? null) as ProfileBillingRow | null)?.stripe_customer_id?.trim() ?? ''
+}
+
+async function getStoredClubStripeCustomerId(
+  supabase: SupabaseClubBillingReader,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from('club_billing_accounts')
+    .select('stripe_customer_id')
+    .eq('owner_user_id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data?.stripe_customer_id?.trim() ?? ''
 }
 
 async function listRecentStripeCheckoutSessions(stripeSecretKey: string) {

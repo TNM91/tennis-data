@@ -14,13 +14,15 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
   getPricingPlan,
-  PRICING_PLANS,
+  CLUB_PRICING_PLANS,
+  CORE_PRICING_PLANS,
+  type CorePricingPlanId,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
-const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
+const PLAN_ICON_BY_ID: Record<CorePricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
   player_plus: 'myLab',
   coach: 'scenarioBuilder',
@@ -29,7 +31,7 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   full_court: 'teamRankings',
 }
 
-const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
+const PLAN_PUBLIC_NAMES: Record<CorePricingPlanId, string> = {
   free: 'Free - Search tennis in one place',
   player_plus: 'Player - My Lab for your game',
   coach: 'Coach - Coach Hub for player development',
@@ -38,7 +40,7 @@ const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
   full_court: 'Full-Court - Every tennis role, including Tournament Desk',
 }
 
-const PLAN_MOBILE_NAMES: Record<PricingPlanId, string> = {
+const PLAN_MOBILE_NAMES: Record<CorePricingPlanId, string> = {
   free: 'Free',
   player_plus: 'Player',
   coach: 'Coach',
@@ -47,7 +49,7 @@ const PLAN_MOBILE_NAMES: Record<PricingPlanId, string> = {
   full_court: 'Full-Court',
 }
 
-const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
+const PLAN_JOB_FIT: Record<CorePricingPlanId, string> = {
   free: 'You need to scan players, teams, leagues, rankings, and tennis context before choosing paid tools.',
   player_plus: 'You want My Lab to track your game, sharpen matchup prep, and keep your tennis context close.',
   coach: 'You need Coach Hub to plan lessons, assign drills, review proof, and support players between sessions.',
@@ -57,7 +59,7 @@ const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
 }
 
 const WORKSPACE_PREVIEWS: Array<{
-  planId: PricingPlanId
+  planId: CorePricingPlanId
   title: string
   body: string
   chips: string[]
@@ -277,7 +279,7 @@ function PricingContent() {
           body="Choose a role to see what it includes."
         />
         <div style={isMobile ? compactPlanGridStyle : planGridStyle}>
-          {PRICING_PLANS.map((plan) => {
+          {CORE_PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
             const planCta = (
@@ -345,18 +347,20 @@ function PricingContent() {
           body="Club is its own TenAceIQ tier. It connects players, coaches, clinics, teams, leagues, tournaments, people, and branding without replacing registration or payments."
         />
         <div style={isMobile ? compactPlanGridStyle : { ...planGridStyle, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-          {[CLUB_PLAN_STORY.starter, CLUB_PLAN_STORY.unlimited].map((plan) => (
+          {CLUB_PRICING_PLANS.map((plan) => (
             <article key={plan.id} id={plan.id} style={isMobile ? compactPlanCardStyle : planCardStyle}>
               <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
                 <TiqFeatureIcon name="teamRankings" size={isMobile ? 'md' : 'lg'} variant="surface" />
                 <span style={planNameStyle}>{plan.name}</span>
               </div>
               <div style={isMobile ? compactPriceStyle : priceStyle}>{plan.priceLabel}</div>
-              <p style={cardTextStyle}>{plan.description}</p>
+              <p style={cardTextStyle}>{plan.solution}</p>
               <ul style={isMobile ? compactFeatureListStyle : featureListStyle}>
                 {plan.valueProps.slice(0, isMobile ? 3 : 5).map((valueProp) => <li key={valueProp}>{valueProp}</li>)}
               </ul>
-              <Link href="/clubs" style={plan.id === 'club_starter' ? primaryButtonStyle : secondaryButtonStyle}>Open Club</Link>
+              <Link href={getPlanUnlockHref(plan.id)} style={plan.id === 'club_starter' ? primaryButtonStyle : secondaryButtonStyle}>
+                {PAID_CHECKOUT_ENABLED ? plan.ctaLabel : 'Join early access'}
+              </Link>
             </article>
           ))}
         </div>
@@ -503,7 +507,7 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
   )
 }
 
-function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
+function isPlanActive(planId: CorePricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
   if (planId === 'free') return access.currentPlanId === 'free'
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
   if (planId === 'coach') return access.canUseCoachWorkflow
@@ -512,12 +516,12 @@ function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProd
   return access.currentPlanId === 'full_court'
 }
 
-function getPlanHref(planId: PricingPlanId, active: boolean) {
+function getPlanHref(planId: CorePricingPlanId, active: boolean) {
   if (active) return getPlanDestinationHref(planId)
   return planId === 'free' ? getPlanSignupHref(planId) : getPlanUnlockHref(planId)
 }
 
-function getPlanCta(planId: PricingPlanId, active: boolean) {
+function getPlanCta(planId: CorePricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'coach') return 'Open Coach Hub'
     if (planId === 'captain') return 'Open Team Hub'
@@ -536,7 +540,7 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   return 'Unlock Full-Court'
 }
 
-function getCompactPlanCta(planId: PricingPlanId, active: boolean) {
+function getCompactPlanCta(planId: CorePricingPlanId, active: boolean) {
   if (active) return 'Open'
   if (planId === 'free') return 'Start'
   if (!PAID_CHECKOUT_ENABLED) return 'Early access'

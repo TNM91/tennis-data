@@ -20,12 +20,12 @@ describe('Stripe live catalog audit', () => {
     expect(auditScript).toContain('redactStripeId')
     expect(auditScript).not.toContain('.env.local')
 
-    for (const planId of ['player_plus', 'coach', 'captain', 'league', 'full_court']) {
+    for (const planId of ['player_plus', 'coach', 'captain', 'league', 'full_court', 'club_starter', 'club_unlimited']) {
       expect(auditScript).toContain(`id: '${planId}'`)
       expect(pricingSource).toContain(`${planId}: {`)
     }
 
-    for (const amount of ['499', '999', '2500', '1999']) {
+    for (const amount of ['499', '999', '2500', '1999', '9900', '19900']) {
       expect(auditScript).toContain(`amountCents: ${amount}`)
       expect(pricingSource).toContain(`amountCents: ${amount}`)
     }

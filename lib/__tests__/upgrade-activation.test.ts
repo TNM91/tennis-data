@@ -57,6 +57,11 @@ describe('buildProfileActivationPayload', () => {
       league_access_expires_at: null,
     })
   })
+
+  it('keeps Club billing activation separate from profile entitlements', () => {
+    expect(buildProfileActivationPayload('club_starter')).toEqual({})
+    expect(buildProfileActivationPayload('club_unlimited')).toEqual({})
+  })
 })
 
 describe('resolveUpgradeActivationTarget', () => {
@@ -71,6 +76,20 @@ describe('resolveUpgradeActivationTarget', () => {
       requestId: 'request-1',
       planId: 'captain',
       userId: 'user-1',
+    })
+  })
+
+  it('accepts Club requests as account billing targets', () => {
+    expect(resolveUpgradeActivationTarget({
+      id: 'request-club',
+      planId: 'club_unlimited',
+      userId: 'club-owner',
+      status: 'pending',
+    })).toEqual({
+      ok: true,
+      requestId: 'request-club',
+      planId: 'club_unlimited',
+      userId: 'club-owner',
     })
   })
 
