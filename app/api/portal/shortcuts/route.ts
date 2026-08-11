@@ -3,6 +3,7 @@ import {
   isPinnedPortalShortcutList,
   normalizePinnedPortalShortcuts,
 } from '@/lib/portal-lane-preferences'
+import { rankPortalShortcutSuggestions } from '@/lib/portal-shortcut-suggestions'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -17,9 +18,36 @@ export async function GET(request: Request) {
   const auth = await getShortcutAuth(request)
   if (!auth.ok) return auth.response
 
+  const suggestionsRequested = new URL(request.url).searchParams.get('suggestions') === '1'
+  if (suggestionsRequested) {
+    const suggestions = await loadShortcutSuggestions(auth.service, auth.userId)
+    return Response.json({ ok: true, suggestions })
+  }
+
   const loaded = await loadShortcutPreferences(auth.service, auth.userId)
   if (!loaded.ok) return loaded.response
   return Response.json({ ok: true, ...loaded.state, cloudAvailable: true })
+}
+
+async function loadShortcutSuggestions(service: SupabaseClient, userId: string) {
+  const { data, error } = await service
+    .from('product_usage_events')
+    .select('metadata,created_at')
+    .eq('user_id', userId)
+    .eq('event_name', 'portal_shortcut_opened')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error || !Array.isArray(data)) return []
+
+  return rankPortalShortcutSuggestions(
+    data.map((row) => ({
+      shortcutId: isRecord(row.metadata) ? row.metadata.shortcutId : undefined,
+      usedAt: row.created_at,
+    })),
+    [],
+    15,
+  )
 }
 
 export async function PUT(request: Request) {
@@ -131,4 +159,8 @@ function isMissingShortcutPreferencesTable(message: string | null | undefined) {
   const normalized = (message || '').toLowerCase()
   return normalized.includes('portal_shortcut_preferences')
     && (normalized.includes('does not exist') || normalized.includes('schema cache'))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
