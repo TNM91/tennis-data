@@ -23,7 +23,8 @@ type SiteShellProps = {
 const PLATFORM_VISUAL_AREAS = [
   { name: 'improve', prefixes: ['/mylab', '/player-development', '/level-up'] },
   { name: 'coach', prefixes: ['/coach', '/coaches'] },
-  { name: 'compete', prefixes: ['/compete', '/matchup', '/tournaments'] },
+  { name: 'compete', prefixes: ['/compete', '/matchup'] },
+  { name: 'tournament', prefixes: ['/tournaments'] },
   { name: 'captain', prefixes: ['/captain'] },
   { name: 'league', prefixes: ['/league-coordinator', '/leagues', '/leagues-and-tournaments'] },
   { name: 'club', prefixes: ['/clubs'] },
@@ -48,7 +49,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   const visualArea = getPlatformVisualArea(pathname)
   const visualMode = getPlatformVisualMode(pathname)
   const visualSurface = getPlatformVisualSurface(pathname)
-  const contextualAtmosphereVisual = getContextualAtmosphereVisual(visualArea)
+  const contextualAtmosphereVisual = getContextualAtmosphereVisual(visualArea, pathname)
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
 
@@ -129,10 +130,11 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
         <div style={orbTwo} />
         <div style={gridGlow} />
         <div style={topBlueWash} />
-        <div className={atmosphereClassName} aria-hidden="true" />
         {contextualAtmosphereVisual ? (
           <ContextualTennisVisual mode="atmosphere" visual={contextualAtmosphereVisual} />
-        ) : null}
+        ) : (
+          <div className={atmosphereClassName} aria-hidden="true" />
+        )}
 
         {!compactAppMode ? (
           <SiteHeader
@@ -213,21 +215,7 @@ function getPlatformVisualMode(pathname: string) {
     '/coaches',
     '/resources',
   ]
-  const strategyPrefixes = [
-    '/compete',
-    '/matchup',
-    '/captain',
-    '/teams',
-    '/tournaments',
-    '/rankings',
-    '/league-coordinator',
-    '/leagues',
-    '/leagues-and-tournaments',
-    '/clubs',
-    '/manage',
-    '/admin',
-    '/explore',
-  ]
+  const strategyPrefixes = ['/matchup']
 
   if (athletePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return 'athlete'
@@ -240,9 +228,16 @@ function getPlatformVisualMode(pathname: string) {
   return 'brand'
 }
 
-function getContextualAtmosphereVisual(visualArea: string): ContextualTennisVisualName | null {
+function getContextualAtmosphereVisual(
+  visualArea: string,
+  pathname: string,
+): ContextualTennisVisualName | null {
+  if (pathname === '/matchup' || pathname.startsWith('/matchup/')) return null
   if (visualArea === 'explore') return 'explore'
+  if (visualArea === 'compete') return 'compete'
+  if (visualArea === 'tournament') return 'tournament'
   if (visualArea === 'captain') return 'captain'
+  if (visualArea === 'coach') return 'coach'
   if (visualArea === 'league') return 'league'
   if (visualArea === 'club') return 'club'
   if (visualArea === 'manage') return 'manage'
