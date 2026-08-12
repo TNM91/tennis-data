@@ -1030,7 +1030,7 @@ function UpgradeContent({
                       value={requestName}
                       onChange={(event) => setRequestName(event.target.value)}
                       placeholder="Your name"
-                      style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                      style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                     />
                   </label>
                   <label style={fieldStyle}>
@@ -1043,7 +1043,7 @@ function UpgradeContent({
                       value={requestEmail}
                       onChange={(event) => setRequestEmail(event.target.value)}
                       placeholder="you@example.com"
-                      style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                      style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                     />
                   </label>
                 </div>
@@ -1054,7 +1054,7 @@ function UpgradeContent({
                     value={requestOrganization}
                     onChange={(event) => setRequestOrganization(event.target.value)}
                     placeholder="Optional"
-                    style={{ ...inputStyle, minHeight: isMobile ? 38 : inputStyle.minHeight }}
+                    style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                   />
                 </label>
                 <label style={fieldStyle}>
@@ -1763,6 +1763,9 @@ const noteTextStyle: CSSProperties = {
 }
 
 const secondaryInlineLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
   maxWidth: '100%',
   color: 'var(--foreground-strong)',
   fontSize: 13,

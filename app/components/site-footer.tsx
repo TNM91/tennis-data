@@ -180,7 +180,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
                   }}
                 >
                   {META_LINKS.map((item) => (
-                    <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
+                    <Link key={item.href} href={item.href} style={isMobile ? mobileFooterMetaLinkStyle : footerMetaLinkStyle}>
                       {item.label}
                     </Link>
                   ))}
@@ -239,6 +239,15 @@ const footerMetaLinkStyle = {
   overflowWrap: 'anywhere',
 } as const
 
+const mobileFooterMetaLinkStyle = {
+  ...footerMetaLinkStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '44px',
+  minWidth: '44px',
+  padding: '0 4px',
+} as const
+
 const railFooterCopyrightStyle = {
   color: 'var(--footer-meta)',
   fontSize: '12px',
@@ -253,7 +262,7 @@ const backToTopStyle = {
   border: '1px solid rgba(116, 190, 255, 0.14)',
   background: 'transparent',
   color: 'var(--foreground-strong)',
-  minHeight: '38px',
+  minHeight: '44px',
   padding: '0 14px',
   maxWidth: '100%',
   borderRadius: '999px',

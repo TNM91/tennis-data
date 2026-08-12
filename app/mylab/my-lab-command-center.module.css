@@ -76,6 +76,7 @@
   display: grid;
   flex: 0 0 auto;
   gap: 3px;
+  min-height: 44px;
   min-width: 174px;
   padding: 13px 16px;
   border: 1px solid rgba(116, 190, 255, 0.2);
@@ -345,6 +346,9 @@
 }
 
 .postRepProgress > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: #9fd4ff;
   font-size: 0.74rem;
   font-weight: 850;
@@ -531,6 +535,9 @@
 
 .cardHeadingRow a,
 .matchAction {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: #80c5ff;
   font-size: 0.78rem;
   font-weight: 850;
@@ -701,7 +708,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 11px;
+    min-height: 44px;
+    padding: 8px 11px;
   }
 
   .playerLink strong {

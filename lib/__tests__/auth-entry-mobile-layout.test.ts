@@ -330,10 +330,10 @@ describe('auth entry mobile layout guards', () => {
       "gridTemplateColumns: 'minmax(0, 1fr)'",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobilePrimaryAuthLink')).toContain(
-      "minHeight: 42",
+      "minHeight: 44",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileSecondaryAuthLink')).toContain(
-      "minHeight: 42",
+      "minHeight: 44",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileFooterPrompt')).toContain(
       "justifyItems: 'center'",
