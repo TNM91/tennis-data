@@ -1273,6 +1273,7 @@ const selectStyle: CSSProperties = {
   flex: '1 1 min(100%, 220px)',
   minWidth: 0,
   height: '52px',
+  minHeight: '52px',
   borderRadius: '16px',
   border: '1px solid rgba(125,211,252,0.16)',
   background: 'rgba(255,255,255,0.045)',
@@ -1748,7 +1749,7 @@ const statusButtonRow: CSSProperties = {
 }
 
 const statusButton: CSSProperties = {
-  minHeight: '38px',
+  minHeight: '44px',
   padding: '0 12px',
   borderRadius: '999px',
   border: '1px solid var(--shell-panel-border)',
