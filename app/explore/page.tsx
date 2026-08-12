@@ -468,9 +468,9 @@ const findCommandPill: CSSProperties = {
 
 const compactFindCommandPill: CSSProperties = {
   ...findCommandPill,
-  minHeight: 28,
-  padding: '0 8px',
-  fontSize: '10px',
+  minHeight: 44,
+  padding: '0 10px',
+  fontSize: '11px',
 }
 
 const findCommandGrid: CSSProperties = {

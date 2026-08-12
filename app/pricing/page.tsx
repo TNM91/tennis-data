@@ -920,19 +920,19 @@ const compactHeroTextStyle: CSSProperties = {
 const compactPrimaryPlanButtonStyle: CSSProperties = {
   ...primaryButtonStyle,
   width: '100%',
-  minHeight: 30,
-  padding: '0 7px',
-  borderRadius: 10,
-  fontSize: 10,
+  minHeight: 44,
+  padding: '0 10px',
+  borderRadius: 12,
+  fontSize: 12,
 }
 
 const compactSecondaryPlanButtonStyle: CSSProperties = {
   ...secondaryButtonStyle,
   width: '100%',
-  minHeight: 30,
-  padding: '0 7px',
-  borderRadius: 10,
-  fontSize: 10,
+  minHeight: 44,
+  padding: '0 10px',
+  borderRadius: 12,
+  fontSize: 12,
 }
 
 const fitBoxStyle: CSSProperties = {

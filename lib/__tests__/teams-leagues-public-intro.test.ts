@@ -106,6 +106,6 @@ describe('Teams and Leagues public intros', () => {
     expect(styleBlock(leaguesSource, 'mobileFinderStackStyle')).toContain('gap: 8')
     expect(styleBlock(leaguesSource, 'mobileFinderStackStyle')).toContain('marginBottom: 10')
     expect(styleBlock(leaguesSource, 'compactLeagueSearchControlStyle')).toContain("padding: '0 10px 0 38px'")
-    expect(styleBlock(leaguesSource, 'compactLeagueDirectoryControlStyle')).toContain("height: '42px'")
+    expect(styleBlock(leaguesSource, 'compactLeagueDirectoryControlStyle')).toContain("height: '44px'")
   })
 })

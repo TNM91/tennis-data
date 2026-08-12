@@ -1723,7 +1723,7 @@ const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '38px',
+  minHeight: '44px',
   padding: '0 14px',
   borderRadius: '999px',
   border: '1px solid rgba(125, 211, 252, 0.18)',
@@ -1740,7 +1740,7 @@ const clearFilterButton: CSSProperties = {
 }
 
 const compactLeagueFilterButtonStyle: CSSProperties = {
-  minHeight: '36px',
+  minHeight: '44px',
   padding: '0 12px',
   borderRadius: '12px',
   fontSize: '12px',
@@ -1770,7 +1770,7 @@ const selectStyle: CSSProperties = {
 }
 
 const compactLeagueDirectoryControlStyle: CSSProperties = {
-  height: '42px',
+  height: '44px',
   borderRadius: '10px',
   padding: '0 10px',
   fontSize: '13px',
@@ -1955,7 +1955,7 @@ const leagueBoardLimitTextStyle: CSSProperties = {
 
 const leagueBoardLimitButtonStyle: CSSProperties = {
   ...secondaryIntroButton,
-  minHeight: 38,
+  minHeight: 44,
   padding: '0 13px',
   fontSize: 12,
   maxWidth: '100%',
@@ -2098,7 +2098,7 @@ const primaryButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '40px',
+  minHeight: '44px',
   padding: '0 14px',
   borderRadius: '999px',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',

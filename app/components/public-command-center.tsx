@@ -952,7 +952,7 @@ const primaryButtonStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   maxWidth: '100%',
-  minHeight: 42,
+  minHeight: 44,
   padding: '0 14px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
