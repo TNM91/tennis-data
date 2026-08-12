@@ -22,4 +22,13 @@ describe('contextual shell atmosphere', () => {
     expect(shellSource).toContain("const strategyPrefixes = ['/matchup']")
     expect(shellSource).toContain("if (pathname === '/matchup' || pathname.startsWith('/matchup/')) return null")
   })
+
+  it('keeps resources and tournaments to one restrained page-specific motif', () => {
+    const visualStyles = readFileSync(join(process.cwd(), 'app/components/contextual-tennis-visual.module.css'), 'utf8')
+
+    expect(shellSource).toContain("const suppressShellAtmosphere = pathname === '/resources' || pathname === '/tournaments'")
+    expect(shellSource).toContain('!suppressShellAtmosphere ? (')
+    expect(visualStyles).toContain('.hero.visual-resources .secondary')
+    expect(visualStyles).toContain('.hero.visual-tournament .secondary')
+  })
 })

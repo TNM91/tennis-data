@@ -12,6 +12,8 @@ const lockedAssets = [
   'public/brand/icons/apple-touch-icon.png',
   'public/brand/icons/favicon-256.png',
   'public/brand/icons/favicon-512.png',
+  'public/brand/icons/favicon-16.png',
+  'public/brand/icons/favicon-32.png',
   'public/brand/icons/favicon.ico',
   'public/brand/icons/pwa-192.png',
   'public/brand/icons/pwa-512.png',

@@ -50,6 +50,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   const visualMode = getPlatformVisualMode(pathname)
   const visualSurface = getPlatformVisualSurface(pathname)
   const contextualAtmosphereVisual = getContextualAtmosphereVisual(visualArea, pathname)
+  const suppressShellAtmosphere = pathname === '/resources' || pathname === '/tournaments'
   const lastPathnameRef = useRef(pathname)
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
 
@@ -130,11 +131,13 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
         <div style={orbTwo} />
         <div style={gridGlow} />
         <div style={topBlueWash} />
-        {contextualAtmosphereVisual ? (
-          <ContextualTennisVisual mode="atmosphere" visual={contextualAtmosphereVisual} />
-        ) : (
-          <div className={atmosphereClassName} aria-hidden="true" />
-        )}
+        {!suppressShellAtmosphere ? (
+          contextualAtmosphereVisual ? (
+            <ContextualTennisVisual mode="atmosphere" visual={contextualAtmosphereVisual} />
+          ) : (
+            <div className={atmosphereClassName} aria-hidden="true" />
+          )
+        ) : null}
 
         {!compactAppMode ? (
           <SiteHeader

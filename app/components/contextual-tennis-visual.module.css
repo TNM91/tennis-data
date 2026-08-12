@@ -57,6 +57,11 @@
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.46) 24%, #000 60%);
 }
 
+.hero.visual-resources .secondary,
+.hero.visual-tournament .secondary {
+  display: none;
+}
+
 .visual-explore .primary,
 .visual-coach .primary {
   transform: rotate(-7deg);
