@@ -9,6 +9,7 @@ import {
 
 const adminPageSource = readFileSync(join(process.cwd(), 'app/admin/page.tsx'), 'utf8')
 const backupPageSource = readFileSync(join(process.cwd(), 'app/admin/backups/page.tsx'), 'utf8')
+const vercelIgnoreSource = readFileSync(join(process.cwd(), '.vercelignore'), 'utf8')
 
 describe('admin backup center', () => {
   it('keeps the reusable prompt read-only and security specific', () => {
@@ -36,5 +37,11 @@ describe('admin backup center', () => {
     expect(adminPageSource).toContain("href: '/admin/backups'")
     expect(adminPageSource).toContain("title: 'Backups'")
     expect(adminPageSource).toContain('href="/admin/backups"')
+  })
+
+  it('keeps the admin route in Vercel builds while excluding root backup artifacts', () => {
+    const ignoreLines = vercelIgnoreSource.split(/\r?\n/).map((line) => line.trim())
+    expect(ignoreLines).toContain('/backups')
+    expect(ignoreLines).not.toContain('backups')
   })
 })
