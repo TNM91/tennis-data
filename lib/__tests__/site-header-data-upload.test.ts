@@ -16,12 +16,24 @@ describe('site header data upload shortcut', () => {
   })
 
   it('opens an accessible chooser for the supported tennis data sources', () => {
+    expect(headerSource).toContain("import { createPortal } from 'react-dom'")
     expect(headerSource).toContain('data-header-upload-panel="true"')
+    expect(headerSource).toContain('data-header-upload-backdrop="true"')
+    expect(headerSource).toContain('aria-modal="true"')
     expect(headerSource).toContain('aria-labelledby="site-header-upload-title"')
     expect(headerSource).toContain('/data-assist?intent=upload-source&type=scorecard#upload')
     expect(headerSource).toContain('/data-assist?intent=upload-source&type=team_summary#upload')
     expect(headerSource).toContain('/data-assist?intent=upload-source&type=schedule#upload')
     expect(headerSource).toContain('Upload something else or report a data issue')
+  })
+
+  it('keeps the chooser above the page and scroll-safe on phones', () => {
+    expect(headerSource).toContain('document.body.style.overflow = \'hidden\'')
+    expect(headerSource).toContain("position: 'fixed'")
+    expect(headerSource).toContain("zIndex: 100")
+    expect(headerSource).toContain("background: 'rgba(2, 8, 20, 0.76)'")
+    expect(headerSource).toContain("maxHeight: isMobile ? 'min(72dvh, 620px)'")
+    expect(headerSource).toContain("background: 'linear-gradient(180deg, var(--brand-navy-2) 0%, var(--brand-navy) 100%)'")
   })
 
   it('uses the shared tennis-themed icon system for upload', () => {

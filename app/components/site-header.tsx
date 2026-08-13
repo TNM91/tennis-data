@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
@@ -167,6 +168,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const uploadDialogRef = useRef<HTMLDivElement | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const mountedPathnameRef = useRef<string | null>(null)
@@ -207,6 +209,22 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [menuOpen, searchOpen, uploadOpen])
+
+  useEffect(() => {
+    if (!uploadOpen) return
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousRootOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    const focusTimer = window.setTimeout(() => uploadDialogRef.current?.focus(), 0)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousRootOverflow
+    }
+  }, [uploadOpen])
 
   useEffect(() => {
     const root = document.documentElement
@@ -325,6 +343,83 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         compact: useCompactHeader,
       })
     : ''
+
+  const uploadDialog = showHeaderUploadAction && uploadOpen && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          data-header-upload-backdrop="true"
+          style={{
+            ...headerUploadBackdropStyle,
+            alignItems: isMobile ? 'flex-end' : 'flex-start',
+            justifyContent: isMobile ? 'center' : 'flex-end',
+            padding: isMobile
+              ? '12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))'
+              : '88px max(20px, env(safe-area-inset-right)) 20px 20px',
+          }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setUploadOpen(false)
+          }}
+        >
+          <div
+            ref={uploadDialogRef}
+            id={uploadPanelId}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="site-header-upload-title"
+            data-header-upload-panel="true"
+            tabIndex={-1}
+            style={{
+              ...headerUploadPanelStyle,
+              width: isMobile ? '100%' : 'min(520px, calc(100vw - 40px))',
+              maxHeight: isMobile ? 'min(72dvh, 620px)' : 'calc(100dvh - 108px)',
+              borderRadius: isMobile ? '24px 24px 18px 18px' : 18,
+            }}
+          >
+            <div style={headerUploadPanelHeaderStyle}>
+              <div style={headerUploadPanelTitleBlockStyle}>
+                <span style={mobileSectionLabelStyle}>New tennis data</span>
+                <h2 id="site-header-upload-title" style={headerUploadPanelTitleStyle}>What are you uploading?</h2>
+                <p style={headerUploadPanelCopyStyle}>Choose the source and TenAceIQ will open the matching upload lane.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close tennis data upload menu"
+                onClick={() => setUploadOpen(false)}
+                style={searchCloseButtonStyle}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div style={{ ...headerUploadChoiceGridStyle, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))' }}>
+              {HEADER_UPLOAD_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setUploadOpen(false)}
+                  style={headerUploadChoiceStyle}
+                >
+                  <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
+                  <span style={headerUploadChoiceCopyStyle}>
+                    <strong style={headerUploadChoiceTitleStyle}>{item.label}</strong>
+                    <span style={headerUploadChoiceDescriptionStyle}>{item.description}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            <Link
+              href="/data-assist?intent=report-issue"
+              onClick={() => setUploadOpen(false)}
+              style={headerUploadOtherLinkStyle}
+            >
+              Upload something else or report a data issue <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null
 
   return (
     <>
@@ -527,58 +622,6 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
             ) : null}
           </div>
         </div>
-
-        {showHeaderUploadAction && uploadOpen ? (
-          <div
-            id={uploadPanelId}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="site-header-upload-title"
-            data-header-upload-panel="true"
-            style={headerUploadPanelStyle}
-          >
-            <div style={headerUploadPanelHeaderStyle}>
-              <div style={headerUploadPanelTitleBlockStyle}>
-                <span style={mobileSectionLabelStyle}>New tennis data</span>
-                <h2 id="site-header-upload-title" style={headerUploadPanelTitleStyle}>What are you uploading?</h2>
-                <p style={headerUploadPanelCopyStyle}>Choose the source and TenAceIQ will open the matching upload lane.</p>
-              </div>
-              <button
-                type="button"
-                aria-label="Close tennis data upload menu"
-                onClick={() => setUploadOpen(false)}
-                style={searchCloseButtonStyle}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            <div style={{ ...headerUploadChoiceGridStyle, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))' }}>
-              {HEADER_UPLOAD_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setUploadOpen(false)}
-                  style={headerUploadChoiceStyle}
-                >
-                  <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
-                  <span style={headerUploadChoiceCopyStyle}>
-                    <strong style={headerUploadChoiceTitleStyle}>{item.label}</strong>
-                    <span style={headerUploadChoiceDescriptionStyle}>{item.description}</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-
-            <Link
-              href="/data-assist?intent=report-issue"
-              onClick={() => setUploadOpen(false)}
-              style={headerUploadOtherLinkStyle}
-            >
-              Upload something else or report a data issue <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-        ) : null}
 
         {!useCompactHeader && searchOpen ? (
           <div
@@ -817,6 +860,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         ) : null}
       </div>
     </header>
+    {uploadDialog}
     {authenticated && resumeConfirmation ? (
       <div
         style={{ ...resumeCompletionToastStyle, pointerEvents: canUndoResumeAction ? 'auto' : 'none' }}
@@ -970,21 +1014,28 @@ const headerUploadIconButtonStyle: CSSProperties = {
   borderRadius: 12,
 }
 
+const headerUploadBackdropStyle: CSSProperties = {
+  position: 'fixed',
+  zIndex: 100,
+  inset: 0,
+  display: 'flex',
+  boxSizing: 'border-box',
+  background: 'rgba(2, 8, 20, 0.76)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+}
+
 const headerUploadPanelStyle: CSSProperties = {
-  position: 'absolute',
-  zIndex: 4,
-  top: 'calc(100% - 2px)',
-  right: 'max(8px, env(safe-area-inset-right))',
-  width: 'min(520px, calc(100vw - 28px))',
   display: 'grid',
   gap: 10,
-  padding: 12,
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 97%, var(--surface) 3%) 0%, color-mix(in srgb, var(--shell-panel-bg) 91%, var(--surface-soft) 9%) 100%)',
-  boxShadow: '0 22px 54px rgba(2, 10, 24, 0.32), inset 0 1px 0 rgba(255,255,255,0.06)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
+  padding: 14,
+  boxSizing: 'border-box',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  border: '1px solid rgba(155, 225, 29, 0.38)',
+  outline: 'none',
+  background: 'linear-gradient(180deg, var(--brand-navy-2) 0%, var(--brand-navy) 100%)',
+  boxShadow: '0 26px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255,255,255,0.08)',
 }
 
 const headerUploadPanelHeaderStyle: CSSProperties = {
