@@ -71,6 +71,11 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('overflow-wrap: anywhere;')
     expect(styleSource).toContain('.firstServeGrid')
     expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(styleSource).toContain('.ballImage {\n    right: 0;')
+    expect(styleSource).toContain('width: clamp(128px, 23vw, 178px);')
+    expect(styleSource).toContain('width: 108px;')
+    expect(styleSource).not.toContain('right: -42px;')
+    expect(styleSource).not.toContain('right: -44px;')
   })
 
   it('uses one consistent My Lab mark without a nested signature frame', () => {

@@ -417,9 +417,9 @@
 
 .ballImage {
   position: absolute;
-  right: -42px;
+  right: 0;
   bottom: 105px;
-  width: clamp(150px, 27vw, 220px);
+  width: clamp(128px, 23vw, 178px);
   height: auto;
   opacity: 0.72;
   filter: saturate(0.9) brightness(0.76);
@@ -799,9 +799,9 @@
   }
 
   .ballImage {
-    right: -44px;
+    right: 0;
     bottom: 90px;
-    width: 152px;
+    width: 108px;
   }
 
   .supportStack {
