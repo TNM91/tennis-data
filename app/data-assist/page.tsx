@@ -8,6 +8,7 @@ import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getMyDataAssistContributorStats,
   getDataAssistImportTypeLabel,
@@ -136,25 +137,41 @@ const dataAssistPlayerIdStarterRead = [
 const dataAssistSourcePathJobs = [
   {
     id: 'scorecard',
+    icon: 'dataUpload',
     question: 'What result should update first?',
-    title: 'Upload a scorecard',
+    title: 'Scorecard',
     body: 'Use after match day so scores, winners, players, teams, and standings can move from one reviewed source.',
-    cta: 'Choose scorecard',
+    cta: 'Match result and line scores',
   },
   {
     id: 'schedule',
+    icon: 'schedule',
     question: 'What is the season schedule?',
-    title: 'Add match dates',
+    title: 'Schedule',
     body: 'Use the schedule export when teams, courts, dates, times, and sites need one cleaner place to live.',
-    cta: 'Choose schedule',
+    cta: 'Dates, courts, and sites',
   },
   {
     id: 'team_summary',
+    icon: 'lineupBuilder',
     question: 'Who is on the roster?',
-    title: 'Add Player Roster',
+    title: 'Player roster',
     body: 'Import players, starting ratings, and available contact details from one TennisLink export.',
-    cta: 'Choose roster',
+    cta: 'Players, ratings, and contacts',
   },
+] as const satisfies ReadonlyArray<{
+  id: DataAssistImportType
+  icon: TiqFeatureIconName
+  question: string
+  title: string
+  body: string
+  cta: string
+}>
+
+const uploadJourneySteps = [
+  { step: '1', label: 'Choose source', active: true },
+  { step: '2', label: 'Add file', active: false },
+  { step: '3', label: 'Review & import', active: false },
 ] as const
 
 const importTypes: Array<{
@@ -959,14 +976,14 @@ function DataAssistWorkspace() {
           <section id="upload" style={dynamicPanelStyle}>
             <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
-                <StepBadge step={1} label="Upload export" />
-                <h1 style={sectionTitleStyle}>Choose your TennisLink export.</h1>
-                {!isCompactViewport ? (
-                  <p style={copyStyle}>TenAceIQ identifies scorecards, schedules, and Player Rosters automatically.</p>
-                ) : null}
+                <StepBadge step={1} label="Data Assist" />
+                <h1 style={sectionTitleStyle}>Add new tennis data.</h1>
+                <p style={copyStyle}>Choose the source, add its TennisLink export, then review what TenAceIQ found.</p>
               </div>
-              <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
+              <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span>
             </div>
+
+            <UploadJourneyRail />
 
             {authResolved && !userId ? (
               <div style={noticeStyle}>
@@ -979,6 +996,12 @@ function DataAssistWorkspace() {
               <ScorecardUploadPausedPanel message={scorecardUploadPausedMessage} />
             ) : null}
 
+            <DataAssistSourcePathPanel
+              selectedImportType={importType}
+              onSelectImportType={updateImportType}
+              issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+            />
+
             <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '', isMobile)}>
               <input
                 type="file"
@@ -988,9 +1011,10 @@ function DataAssistWorkspace() {
                 disabled={scorecardUploadBlocked}
                 style={fileInputStyle}
               />
-              <span style={dropzoneKickerStyle}>Supported Excel exports</span>
-              <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose TennisLink .xls export'}</strong>
-              <small>{scorecardUploadBlocked ? 'Schedules and Player Rosters can still be uploaded.' : 'Scorecard, schedule, and Player Roster files are identified automatically.'}</small>
+              <TiqFeatureIcon name="dataUpload" size={isMobile ? 'md' : 'lg'} variant="ghost" />
+              <span style={dropzoneKickerStyle}>{getDataAssistImportTypeLabel(importType)} selected</span>
+              <strong style={dropzoneTitleStyle}>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : `Choose ${getShortImportTypeLabel(importType)} export`}</strong>
+              <small style={dropzoneHintStyle}>{scorecardUploadBlocked ? 'Schedules and Player Rosters can still be uploaded.' : getUploadPickerHint(importType)}</small>
             </label>
 
             <details style={typeOverrideDetailsStyle}>
@@ -1037,10 +1061,6 @@ function DataAssistWorkspace() {
                     <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} />
                     {!exportHelpRequested ? (
                       <>
-                        <DataAssistSourcePathPanel
-                          onSelectImportType={updateImportType}
-                          issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
-                        />
                         <DataAssistReviewFlowPanel />
                         <DataAssistTrustEnginePanel />
                       </>
@@ -1066,16 +1086,6 @@ function DataAssistWorkspace() {
 
             {!isCompactViewport ? (
               <>
-                <DataAssistDetailsSection
-                  eyebrow="Source choices"
-                  title="Need help choosing the right source?"
-                  cue="Show source choices"
-                >
-                  <DataAssistSourcePathPanel
-                    onSelectImportType={updateImportType}
-                    issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
-                  />
-                </DataAssistDetailsSection>
                 <DataAssistDetailsSection
                   eyebrow="Review-first upload"
                   title="What happens after an upload?"
@@ -1469,9 +1479,11 @@ function DataAssistTrustEnginePanel() {
 }
 
 function DataAssistSourcePathPanel({
+  selectedImportType,
   onSelectImportType,
   issueHref,
 }: {
+  selectedImportType: DataAssistImportType
   onSelectImportType: (importType: DataAssistImportType) => void
   issueHref: string
 }) {
@@ -1482,56 +1494,60 @@ function DataAssistSourcePathPanel({
   const dynamicTitleStyle = isCompactViewport ? compactSourcePathTitleStyle : sourcePathTitleStyle
   const dynamicGridStyle = isCompactViewport ? compactSourcePathGridStyle : sourcePathGridStyle
   const dynamicCardStyle = isCompactViewport ? compactSourcePathCardStyle : sourcePathCardStyle
-  const dynamicLinkCardStyle = isCompactViewport ? compactSourcePathLinkCardStyle : sourcePathLinkCardStyle
 
   return (
     <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
       <div style={dynamicHeaderStyle}>
         <div>
           <span style={sourcePathEyebrowStyle}>Source refresh path</span>
-          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>Choose the source you want to fix or import.</h2>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>What are you adding?</h2>
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
-          Choose the tennis need first. Data Assist will keep the upload review-first before records change.
+          Start with the source. TenAceIQ will keep the upload review-first before records change.
         </p> : null}
       </div>
       <div style={dynamicGridStyle}>
-        {dataAssistSourcePathJobs.map((job) => (
-          <button
-            key={job.id}
-            type="button"
-            style={dynamicCardStyle}
-            onClick={() => onSelectImportType(job.id)}
-            data-data-assist-source-path-job={job.id}
-            aria-label={`${job.cta}: ${job.question}`}
-          >
-            <span style={sourcePathQuestionStyle}>{job.question}</span>
-            <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
-            {!isCompactViewport ? <span>{job.body}</span> : null}
-            <span style={sourcePathCtaStyle}>{job.cta}</span>
-          </button>
-        ))}
-        <Link
-          href={issueHref}
-          style={dynamicLinkCardStyle}
-          data-data-assist-source-path-job="report_or_review"
-          aria-label="Report or request review: What looks wrong?"
-          onClick={() => {
-            void trackProductUsageEvent({
-              eventName: 'data_issue_reported',
-              surface: 'data_assist',
-              metadata: {
-                location: 'data_assist_source_path',
-              },
-            })
-          }}
-        >
-          <span style={sourcePathQuestionStyle}>What looks wrong?</span>
-          <strong style={sourcePathCardTitleStyle}>Report or request review</strong>
-          {!isCompactViewport ? <span>Use this when a player, score, rating, team, draw, or source label needs a closer look.</span> : null}
-          <span style={sourcePathCtaStyle}>Open support report</span>
-        </Link>
+        {dataAssistSourcePathJobs.map((job) => {
+          const selected = selectedImportType === job.id
+          return (
+            <button
+              key={job.id}
+              type="button"
+              style={{ ...dynamicCardStyle, ...(selected ? sourcePathSelectedCardStyle : {}) }}
+              onClick={() => onSelectImportType(job.id)}
+              data-data-assist-source-path-job={job.id}
+              aria-label={`${job.title}: ${job.cta}`}
+              aria-pressed={selected}
+            >
+              <span style={sourcePathCardTopStyle}>
+                <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
+                <span style={selected ? sourcePathSelectedPillStyle : sourcePathReadyPillStyle}>
+                  {selected ? 'Selected' : 'Choose'}
+                </span>
+              </span>
+              <span style={sourcePathQuestionStyle}>{job.question}</span>
+              <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
+              <span style={sourcePathCtaStyle}>{job.cta}</span>
+              {!isCompactViewport ? <span>{job.body}</span> : null}
+            </button>
+          )
+        })}
       </div>
+      <Link
+        href={issueHref}
+        style={sourcePathSupportLinkStyle}
+        onClick={() => {
+          void trackProductUsageEvent({
+            eventName: 'data_issue_reported',
+            surface: 'data_assist',
+            metadata: {
+              location: 'data_assist_source_path',
+            },
+          })
+        }}
+      >
+        Something looks wrong? Report a data issue <span aria-hidden="true">→</span>
+      </Link>
     </section>
   )
 }
@@ -1730,6 +1746,12 @@ function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
   if (importType === 'team_summary') return 'Player Roster'
   return 'scorecard'
+}
+
+function getUploadPickerHint(importType: DataAssistImportType) {
+  if (importType === 'scorecard') return `TennisLink .xls · choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards at once.`
+  if (importType === 'schedule') return 'TennisLink .xls · choose one team schedule at a time.'
+  return 'TennisLink .xls · choose one Player Roster at a time.'
 }
 
 function getUploadHelpTitle(importType: DataAssistImportType) {
@@ -2292,6 +2314,19 @@ function StepBadge({ step, label }: { step: number; label: string }) {
     <div style={stepBadgeStyle}>
       <span style={stepBadgeNumberStyle}>{step}</span>
       <strong>{label}</strong>
+    </div>
+  )
+}
+
+function UploadJourneyRail() {
+  return (
+    <div aria-label="Upload progress" style={uploadJourneyRailStyle}>
+      {uploadJourneySteps.map((item) => (
+        <span key={item.step} style={item.active ? uploadJourneyActiveStepStyle : uploadJourneyStepStyle}>
+          <strong style={uploadJourneyStepNumberStyle}>{item.step}</strong>
+          <span>{item.label}</span>
+        </span>
+      ))}
     </div>
   )
 }
@@ -3389,6 +3424,7 @@ const sourcePathGridStyle: CSSProperties = {
 
 const compactSourcePathGridStyle: CSSProperties = {
   ...sourcePathGridStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 7,
 }
 
@@ -3417,22 +3453,59 @@ const sourcePathCardStyle: CSSProperties = {
 
 const compactSourcePathCardStyle: CSSProperties = {
   ...sourcePathCardStyle,
-  minHeight: 72,
+  minHeight: 112,
   borderRadius: 12,
-  padding: 8,
-  gap: 4,
+  padding: 10,
+  gap: 5,
 }
 
-const sourcePathLinkCardStyle: CSSProperties = {
-  ...sourcePathCardBaseStyle,
+const sourcePathSelectedCardStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 66%, var(--shell-panel-border) 34%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%))',
+  boxShadow: '0 12px 28px color-mix(in srgb, var(--brand-green) 10%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)',
 }
 
-const compactSourcePathLinkCardStyle: CSSProperties = {
-  ...sourcePathLinkCardStyle,
-  minHeight: 72,
-  borderRadius: 12,
-  padding: 8,
-  gap: 4,
+const sourcePathCardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const sourcePathReadyPillStyle: CSSProperties = {
+  minHeight: 26,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+}
+
+const sourcePathSelectedPillStyle: CSSProperties = {
+  ...sourcePathReadyPillStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-panel-bg) 84%)',
+  color: 'var(--brand-green)',
+}
+
+const sourcePathSupportLinkStyle: CSSProperties = {
+  minHeight: 42,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  padding: '0 4px',
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const sourcePathQuestionStyle: CSSProperties = {
@@ -3972,9 +4045,54 @@ const sectionTitleStyle: CSSProperties = {
 
 const compactPanelStyle: CSSProperties = {
   ...panelStyle,
-  borderRadius: 16,
-  padding: 8,
-  gap: 8,
+  borderRadius: 18,
+  padding: 12,
+  gap: 12,
+}
+
+const uploadJourneyRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const uploadJourneyStepStyle: CSSProperties = {
+  minHeight: 48,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '6px 7px',
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, transparent)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10.5,
+  lineHeight: 1.15,
+  fontWeight: 850,
+  textAlign: 'left',
+  overflowWrap: 'anywhere',
+}
+
+const uploadJourneyActiveStepStyle: CSSProperties = {
+  ...uploadJourneyStepStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg) 89%)',
+  color: 'var(--foreground-strong)',
+}
+
+const uploadJourneyStepNumberStyle: CSSProperties = {
+  width: 22,
+  height: 22,
+  flex: '0 0 auto',
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-bg) 82%)',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
 }
 
 const typeOverrideDetailsStyle: CSSProperties = {
@@ -4106,8 +4224,9 @@ const stepBadgeNumberStyle: CSSProperties = {
 }
 
 const dropzoneStyle = (status: string, compact = false): CSSProperties => ({
-  minHeight: compact ? 82 : 150,
-  borderRadius: compact ? 14 : 16,
+  position: 'relative',
+  minHeight: compact ? 138 : 170,
+  borderRadius: compact ? 16 : 18,
   border: status === 'rejected' || status === 'paused'
     ? '1px dashed rgba(248,113,113,0.55)'
     : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
@@ -4115,14 +4234,15 @@ const dropzoneStyle = (status: string, compact = false): CSSProperties => ({
     ? 'rgba(239,68,68,0.08)'
     : 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
   color: 'var(--foreground-strong)',
-  padding: compact ? 9 : 18,
+  padding: compact ? 14 : 20,
   display: 'grid',
   placeItems: 'center',
   textAlign: 'center',
-  gap: compact ? 4 : 8,
+  gap: compact ? 6 : 8,
   cursor: status === 'paused' ? 'not-allowed' : 'pointer',
   opacity: status === 'paused' ? 0.82 : 1,
   minWidth: 0,
+  overflow: 'hidden',
   overflowWrap: 'anywhere',
 })
 
@@ -4135,14 +4255,13 @@ const compactDropzoneStyle: CSSProperties = {
 }
 
 const fileInputStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 2,
+  inset: 0,
   width: '100%',
-  maxWidth: 360,
-  minWidth: 0,
-  minHeight: 44,
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
+  height: '100%',
+  opacity: 0,
+  cursor: 'pointer',
 }
 
 const dropzoneKickerStyle: CSSProperties = {
@@ -4151,6 +4270,23 @@ const dropzoneKickerStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const dropzoneTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(17px, 4.6vw, 21px)',
+  lineHeight: 1.18,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dropzoneHintStyle: CSSProperties = {
+  maxWidth: 520,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 

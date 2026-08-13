@@ -308,7 +308,8 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
   const compactMenuId = 'site-header-compact-menu'
   const uploadPanelId = 'site-header-upload-panel'
-  const showHeaderUploadAction = authResolved && authenticated
+  // The upload shortcut only needs a confirmed session, not the slower role/entitlement lookup.
+  const showHeaderUploadAction = authenticated
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,

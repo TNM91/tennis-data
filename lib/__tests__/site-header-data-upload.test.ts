@@ -9,7 +9,8 @@ const dataAssistSource = readFileSync(join(root, 'app/data-assist/page.tsx'), 'u
 
 describe('site header data upload shortcut', () => {
   it('adds one signed-in upload action without crowding the phone header', () => {
-    expect(headerSource).toContain('const showHeaderUploadAction = authResolved && authenticated')
+    expect(headerSource).toContain('const showHeaderUploadAction = authenticated')
+    expect(headerSource).not.toContain('const showHeaderUploadAction = authResolved && authenticated')
     expect(headerSource).toContain('data-header-upload-action="true"')
     expect(headerSource).toContain("aria-label={uploadOpen ? 'Close tennis data upload menu' : 'Upload tennis data'}")
     expect(headerSource).toContain('authenticated && resumePrimary && !isMobile')
