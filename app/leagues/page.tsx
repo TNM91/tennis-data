@@ -261,6 +261,15 @@ export default function LeaguesPage() {
     ? { ...clearFilterButton, ...compactLeagueFilterButtonStyle }
     : clearFilterButton
 
+  const clearFilters = () => {
+    setSearch('')
+    setFlightFilter('all')
+    setYearFilter('all')
+    setSeasonFilter('all')
+    setGenderFilter('all')
+    setRatingFilter('all')
+  }
+
   const filterActions = (
     <div style={filterActionRow}>
       <button type="button" onClick={() => void loadLeagueSummary()} style={filterButtonStyle}>
@@ -269,14 +278,7 @@ export default function LeaguesPage() {
       {hasActiveFilters ? (
         <button
           type="button"
-          onClick={() => {
-            setSearch('')
-            setFlightFilter('all')
-            setYearFilter('all')
-            setSeasonFilter('all')
-            setGenderFilter('all')
-            setRatingFilter('all')
-          }}
+          onClick={clearFilters}
           style={filterButtonStyle}
         >
           Clear active filters
@@ -436,7 +438,11 @@ export default function LeaguesPage() {
                   {filterControls}
                 </div>
               </details>
-              {filterActions}
+              {hasActiveFilters ? (
+                <button type="button" onClick={clearFilters} style={filterButtonStyle}>
+                  Clear filters
+                </button>
+              ) : null}
             </div>
           ) : (
             <div style={dynamicFilterGrid}>
@@ -446,10 +452,10 @@ export default function LeaguesPage() {
           )}
 
           {isMobile ? (
-            <div style={mobileSummaryPillRowStyle}>
-              <span style={mobileSummaryPillStyle}>{loading ? 'Refreshing leagues' : `${summary.totalLeagues} leagues`}</span>
-              <span style={mobileSummaryPillStyle}>{loading ? 'Reviewing matches' : `${summary.totalMatches} matches`}</span>
-              <span style={mobileSummaryPillStyle}>{loading ? 'Latest match refreshing' : `Latest ${formatDate(summary.latestMatch)}`}</span>
+            <div role="status" aria-live="polite" style={mobileSummaryStatusStyle}>
+              {loading
+                ? 'Updating league results...'
+                : `${summary.totalLeagues} leagues · ${summary.totalMatches} matches · Latest ${formatDate(summary.latestMatch)}`}
             </div>
           ) : (
             <div style={dynamicSummaryGrid}>
@@ -1301,29 +1307,19 @@ const mobileFilterDetailsContentStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const mobileSummaryPillRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
+const mobileSummaryStatusStyle: CSSProperties = {
+  display: 'block',
   marginBottom: 12,
-  minWidth: 0,
-}
-
-const mobileSummaryPillStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 30,
-  padding: '0 10px',
-  borderRadius: 999,
-  border: '1px solid rgba(125, 211, 252, 0.16)',
-  background: 'rgba(15, 23, 42, 0.62)',
-  color: 'var(--foreground-strong)',
+  minHeight: 34,
+  padding: '9px 11px',
+  borderRadius: 10,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.46)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 12,
-  lineHeight: 1.2,
+  lineHeight: 1.35,
   fontWeight: 800,
-  maxWidth: '100%',
   minWidth: 0,
-  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
