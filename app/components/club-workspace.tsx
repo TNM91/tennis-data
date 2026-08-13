@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
@@ -141,6 +142,7 @@ const CLUB_REQUEST_TIMEOUT_MS = 12000
 const CLUB_AUTH_RECOVERY_MS = 9000
 
 export default function ClubWorkspace() {
+  const router = useRouter()
   const { authResolved, refreshAuth, session, userId } = useAuth()
   const accessToken = session?.access_token ?? ''
   const [clubs, setClubs] = useState<Club[]>([])
@@ -516,7 +518,7 @@ export default function ClubWorkspace() {
         await request(`/api/clubs/${workspace.club.id}/coach-sync`, { method: 'POST', body: JSON.stringify({ groupId: group.id }) })
       }
       await request(`/api/clubs/${workspace.club.id}/groups`, { method: 'PATCH', body: JSON.stringify({ action: 'mark-launched', groupId: group.id }) })
-      window.location.assign(launch.href)
+      router.push(launch.href)
     } catch (error) {
       showMessage(error instanceof Error ? error.message : 'The program launch could not open.', 'danger')
       setWorking(false)
@@ -846,7 +848,7 @@ export default function ClubWorkspace() {
               const result = await request<{ synced: number }>(`/api/clubs/${workspace.club.id}/coach-sync`, { method: 'POST', body: JSON.stringify({ groupId }) })
               showMessage(result.synced ? `${result.synced} players are ready in Coach Hub.` : 'Add players to this program before opening it in Coach Hub.')
               const group = workspace.groups.find((item) => item.id === groupId)
-              if (result.synced) window.location.assign(`${buildClubToolHref('/coach', workspace.club, { source: 'club-program-card', groupId, program: group?.name ?? '' })}#coach-lesson-frame`)
+              if (result.synced) router.push(`${buildClubToolHref('/coach', workspace.club, { source: 'club-program-card', groupId, program: group?.name ?? '' })}#coach-lesson-frame`)
             } catch (error) {
               showMessage(error instanceof Error ? error.message : 'The roster could not be connected.', 'danger')
             } finally { setWorking(false) }

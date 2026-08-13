@@ -4,7 +4,7 @@ import { join } from 'node:path'
 const args = new Set(process.argv.slice(2))
 const includeLive = args.has('--live')
 const baseUrl = cleanBaseUrl(process.env.SEO_SHARE_QA_BASE_URL || 'https://www.tenaceiq.com')
-const canonicalBaseUrl = 'https://tenaceiq.com'
+const canonicalBaseUrl = 'https://www.tenaceiq.com'
 const previewImagePath = '/brand/social/og-image-1200x630.png'
 const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-image-1200x630.png')
 const maxPreviewBytes = 5 * 1024 * 1024
@@ -81,7 +81,7 @@ function runLocalChecks() {
   const manifestSource = read('app/manifest.ts')
   const structuredDataSource = read('lib/structured-data.ts')
 
-  assertIncludes(layoutSource, "metadataBase: new URL('https://tenaceiq.com')", 'root metadataBase')
+  assertIncludes(layoutSource, "metadataBase: new URL('https://www.tenaceiq.com')", 'root metadataBase')
   assertIncludes(layoutSource, previewImagePath, 'root social preview image')
   assertIncludes(layoutSource, 'openGraph', 'root Open Graph metadata')
   assertIncludes(layoutSource, 'twitter', 'root Twitter metadata')

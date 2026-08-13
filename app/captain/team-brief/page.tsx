@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -92,6 +93,7 @@ export default function CaptainTeamBriefPage() {
 }
 
 function CaptainTeamBriefContent() {
+  const router = useRouter()
   const { role, entitlements, authResolved } = useAuth()
   const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialContext()
@@ -120,8 +122,8 @@ function CaptainTeamBriefContent() {
       return
     }
     const next = encodeURIComponent('/captain/team-brief')
-    window.location.href = `/login?plan=captain&next=${next}`
-  }, [authResolved, role])
+    router.replace(`/login?plan=captain&next=${next}`)
+  }, [authResolved, role, router])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return

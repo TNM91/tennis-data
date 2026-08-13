@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const coachPriorityQueueSource = readFileSync(join(process.cwd(), 'app/coach/coach-priority-queue.tsx'), 'utf8')
-const shellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
+const shellSource = readFileSync(join(process.cwd(), 'app/components/navigation-scroll-manager.tsx'), 'utf8')
 const lockedPlanSource = readFileSync(join(process.cwd(), 'app/components/locked-plan-page.tsx'), 'utf8')
 
 describe('coach mobile resilience', () => {
@@ -191,8 +191,16 @@ describe('coach mobile resilience', () => {
     expect(shellSource).toContain("document.addEventListener('visibilitychange', handleVisibilityChange)")
     expect(shellSource).toContain('window.sessionStorage.setItem')
     expect(shellSource).toContain('window.sessionStorage.getItem')
+    expect(shellSource).toContain("document.addEventListener('click', handleLinkNavigation, true)")
     expect(shellSource).toContain('window.location.hash')
     expect(shellSource).toContain('window.scrollTo({ top: y')
+    expect(shellSource).toContain('const routeChanged = lastPathnameRef.current !== pathname')
+    expect(shellSource).toContain('lastPathnameRef.current = pathname')
+    expect(shellSource).toContain('linkNavigationPendingRef.current = true')
+    expect(shellSource).toContain('routeChanged && linkNavigationPendingRef.current')
+    expect(shellSource).toContain('restoreScrollPosition()')
+    expect(shellSource).toContain('if (!initialRestoreCompletedRef.current)')
+    expect(shellSource).toContain("window.scrollTo({ top: 0, behavior: 'instant' })")
   })
 
   it('keeps the phone coach bench one tap away from player profile work', () => {

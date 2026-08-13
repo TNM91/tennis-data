@@ -630,6 +630,16 @@ footer {
     background 0.18s ease;
 }
 
+/* Google marks inventory it cannot fill after the slot has rendered. Collapse
+   that empty canvas while leaving the compact TenAceIQ sponsor card visible. */
+.adsbygoogle[data-ad-status='unfilled'] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}
+
 .panel-pad {
   padding: 20px;
 }

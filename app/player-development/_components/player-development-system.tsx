@@ -37,7 +37,7 @@ type PlayerDevelopmentSystemProps = {
 }
 
 const playerTier = getMembershipTier('player_plus')
-const TIQ_SITE_URL = 'https://tenaceiq.com'
+const TIQ_SITE_URL = 'https://www.tenaceiq.com'
 
 export default function PlayerDevelopmentSystem({ focus = 'overview', identitySlug }: PlayerDevelopmentSystemProps) {
   const identity = getPlayerDevelopmentIdentity(identitySlug)

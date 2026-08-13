@@ -169,7 +169,7 @@ export function buildTennisCalendarFeed(
   options: ScheduleCalendarFeedOptions = {},
 ) {
   const calendarName = options.calendarName || 'TenAceIQ schedule'
-  const productUrl = options.productUrl || 'https://tenaceiq.com'
+  const productUrl = options.productUrl || 'https://www.tenaceiq.com'
   const timeZone = options.timeZone || 'America/Chicago'
   const durationMinutes = options.durationMinutes ?? 90
   const lines = [

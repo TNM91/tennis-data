@@ -180,8 +180,8 @@ function CaptainWeeklyBriefContent() {
       return
     }
     const next = encodeURIComponent(`${pathname}${searchParams.size ? `?${searchParams.toString()}` : ''}`)
-    window.location.href = `/login?plan=captain&next=${next}`
-  }, [authResolved, pathname, role, searchParams])
+    router.replace(`/login?plan=captain&next=${next}`)
+  }, [authResolved, pathname, role, router, searchParams])
 
   useEffect(() => {
     if (!authResolved || role === 'public' || !incomingLevelUpChallenge) return

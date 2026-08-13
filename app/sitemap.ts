@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 
-const SITE_URL = 'https://tenaceiq.com'
+const SITE_URL = 'https://www.tenaceiq.com'
 
 type RouteConfig = {
   path: string

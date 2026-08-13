@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/app/components/auth-provider'
@@ -293,6 +294,7 @@ export default function CaptainAnalyticsPage() {
 }
 
 function CaptainAnalyticsContent() {
+  const router = useRouter()
   const initialCaptainContext = readInitialCaptainAnalyticsContext()
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
@@ -333,8 +335,8 @@ function CaptainAnalyticsContent() {
     }
 
     const next = encodeURIComponent('/captain/analytics')
-    window.location.href = `/login?plan=captain&next=${next}`
-  }, [authResolved, role])
+    router.replace(`/login?plan=captain&next=${next}`)
+  }, [authResolved, role, router])
 
   useEffect(() => {
     writeCaptainResumeState({

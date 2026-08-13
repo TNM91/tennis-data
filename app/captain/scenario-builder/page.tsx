@@ -809,7 +809,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = messagingHref(winningScenario)
+                          router.push(messagingHref(winningScenario))
                         }}>
                           Send to messaging
                         </GhostSmallBtn>
@@ -1159,7 +1159,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = messagingHref(winningScenario)
+                          router.push(messagingHref(winningScenario))
                         }}>
                         Send Winning Scenario
                       </GhostSmallBtn>
@@ -1360,7 +1360,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                          router.push(`/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`)
                         }}>
                         Open Messaging
                       </GhostSmallBtn>

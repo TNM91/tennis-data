@@ -1,4 +1,4 @@
-const SITE_URL = 'https://tenaceiq.com'
+const SITE_URL = 'https://www.tenaceiq.com'
 
 type BreadcrumbItem = {
   name: string

@@ -3,6 +3,7 @@ import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import JsonLd from '@/app/components/json-ld'
+import NavigationScrollManager from '@/app/components/navigation-scroll-manager'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tenaceiq.com'),
+  metadataBase: new URL('https://www.tenaceiq.com'),
   title: {
     default: `TenAceIQ | ${PRODUCT_MOTTO}`,
     template: '%s | TenAceIQ',
@@ -75,7 +76,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tenaceiq.com',
+    url: 'https://www.tenaceiq.com',
     siteName: 'TenAceIQ',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description: SITE_DESCRIPTION,
@@ -135,6 +136,7 @@ export default function RootLayout({
         `}</Script>
         <JsonLd id="tenaceiq-organization-jsonld" data={buildOrganizationJsonLd()} />
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
+        <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
         <Analytics />
         <SpeedInsights />
