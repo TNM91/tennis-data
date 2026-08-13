@@ -1692,6 +1692,13 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('postMatchCloseoutRows')
     expect(source).toContain('matchDayChecklist')
     expect(source).toContain('matchDayLineupPreview')
+    expect(source).toContain('{hasTeamScope ? captainHomeShortcut : null}')
+    expect(source).toContain('open={!hasTeamScope}')
+    expect(source).toContain('aria-label="Captain team context"')
+    expect(source).toContain("{hasTeamScope ? 'Change team' : 'Choose team'}")
+    expect(source.indexOf('{hasTeamScope ? captainHomeShortcut : null}')).toBeLessThan(
+      source.indexOf('aria-label="Captain team context"'),
+    )
     expect(source.indexOf('{captainHomeShortcut}')).toBeLessThan(
       source.indexOf('<details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">'),
     )

@@ -16,9 +16,9 @@ describe('public landing search', () => {
     expect(commandCenterSource).toContain('showResults={showSearchResults}')
   })
 
-  it('keeps Coaches and Tournaments searchable from their hero sections', () => {
-    expect(coachesSource).toContain('Search coaches, drills, or player goals')
-    expect(coachesSource).not.toContain('showSearch={false}')
+  it('keeps the Coaches mobile hero focused while preserving Tournament search', () => {
+    expect(coachesSource).not.toContain('Search coaches, drills, or player goals')
+    expect(coachesSource).toContain('showSearch={false}')
     expect(tournamentsSource).toContain('Search tournaments, draws')
     expect(tournamentsSource).not.toContain('showSearch={false}')
   })

@@ -15749,6 +15749,32 @@ function CaptainHubContent() {
 
   return (
     <div style={pageWrap}>
+        {hasTeamScope ? (
+          <h1 style={visuallyHiddenHeadingStyle}>Captain Home</h1>
+        ) : null}
+
+        {hasTeamScope ? captainHomeShortcut : null}
+
+        <details
+          open={!hasTeamScope}
+          style={hasTeamScope ? captainScopeDetailsShellStyle : captainScopeDetailsOpenShellStyle}
+          aria-label="Captain team context"
+        >
+          <summary style={captainScopeDetailsSummaryStyle}>
+            <span style={captainScopeDetailsSummaryCopyStyle}>
+              <span style={sectionKicker}>{hasTeamScope ? 'Current team' : 'Team setup'}</span>
+              <strong style={captainScopeDetailsSummaryTitleStyle}>
+                {hasTeamScope ? selectedTeam : 'Choose your team and week.'}
+              </strong>
+              <span style={captainScopeDetailsSummaryMetaStyle}>
+                {hasTeamScope ? `${selectedLeague} · ${selectedFlight}` : 'Connect the team context Captain needs.'}
+              </span>
+            </span>
+            <span style={hasTeamScope ? badgeGreen : badgeBlue}>
+              {hasTeamScope ? 'Change team' : 'Choose team'}
+            </span>
+          </summary>
+
         <section style={dynamicHeroCard} aria-label="Captain team scope">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroLeft}>
@@ -15757,7 +15783,11 @@ function CaptainHubContent() {
                 <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
                 <div>
                   <div style={sectionKicker}>Team scope</div>
-                  <h1 style={scopeTitleStyle}>Choose the week.</h1>
+                  {hasTeamScope ? (
+                    <h2 style={scopeTitleStyle}>Choose the week.</h2>
+                  ) : (
+                    <h1 style={scopeTitleStyle}>Choose the week.</h1>
+                  )}
                 </div>
               </div>
               <div style={captainScopeHeaderActionsStyle}>
@@ -15927,7 +15957,9 @@ function CaptainHubContent() {
           </div>
         </section>
 
-        {captainHomeShortcut}
+        </details>
+
+        {!hasTeamScope ? captainHomeShortcut : null}
 
         <details style={dynamicCaptainToolLaneShell} aria-label="Captain match-day lane">
           <summary style={captainToolLaneSummary}>
@@ -23465,6 +23497,67 @@ const captainCommunicationTimelineCardDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   lineHeight: 1.4,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const visuallyHiddenHeadingStyle: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+}
+
+const captainScopeDetailsShellStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(8,13,28,0.70)',
+  overflow: 'hidden',
+}
+
+const captainScopeDetailsOpenShellStyle: CSSProperties = {
+  ...captainScopeDetailsShellStyle,
+  borderColor: 'transparent',
+  background: 'transparent',
+  overflow: 'visible',
+}
+
+const captainScopeDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const captainScopeDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+}
+
+const captainScopeDetailsSummaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainScopeDetailsSummaryMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }

@@ -42,18 +42,17 @@ export default function CoachesPage() {
           body="Plan lessons, assign drills, track progress, and follow up in one place."
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
-          searchPlaceholder="Search coaches, drills, or player goals"
-          showSearchResults={false}
+          showSearch={false}
           showBoard={false}
         />
         <section className="coachQuickPath" style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
           <div className="coachQuickPathHeader" style={coachQuickPathHeaderStyle}>
             <p style={coachQuickPathEyebrowStyle}>Coach quick path</p>
             <h2 id="coach-quick-path-title" style={coachQuickPathTitleStyle}>
-              What does the player need next?
+              What do you need to do?
             </h2>
             <p className="coachQuickPathText" style={coachQuickPathTextStyle}>
-              Start with the player in front of you, then open the smallest action that keeps development moving.
+              Choose the next coaching action and keep the player moving.
             </p>
           </div>
           <div className="coachQuickPathGrid" style={coachQuickPathGridStyle}>
@@ -250,8 +249,8 @@ export default function CoachesPage() {
 
 const coachQuickPaths = [
   {
-    question: 'How can I assign drills?',
-    cta: 'Assign Drills',
+    question: 'Assign player work',
+    cta: 'Assign drills',
     href: '/coach',
     job: 'assign_drills',
     event: {
@@ -264,8 +263,8 @@ const coachQuickPaths = [
     },
   },
   {
-    question: 'How can I track player development?',
-    cta: 'Track Development',
+    question: 'Review progress',
+    cta: 'Track development',
     href: '/coach',
     job: 'track_development',
     event: {
@@ -278,8 +277,8 @@ const coachQuickPaths = [
     },
   },
   {
-    question: 'How can I recommend resources?',
-    cta: 'Recommend Resources',
+    question: 'Share the next resource',
+    cta: 'Recommend resources',
     href: '/resources?q=coach%20tools',
     job: 'recommend_resources',
     event: {
@@ -292,8 +291,8 @@ const coachQuickPaths = [
     },
   },
   {
-    question: 'How can I support players between sessions?',
-    cta: 'Support Between Sessions',
+    question: 'Follow up with a player',
+    cta: 'Support between sessions',
     href: '/coach',
     job: 'support_between_sessions',
     event: {
@@ -302,20 +301,6 @@ const coachQuickPaths = [
       metadata: {
         location: 'coaches_quick_path',
         job: 'support_between_sessions',
-      },
-    },
-  },
-  {
-    question: 'How can I find coaching support?',
-    cta: 'Find a Coach',
-    href: '/resources?q=find%20a%20coach',
-    job: 'find_coaching_support',
-    event: {
-      eventName: 'find_coach_clicked',
-      surface: 'coach',
-      metadata: {
-        location: 'coaches_quick_path',
-        job: 'find_coaching_support',
       },
     },
   },
