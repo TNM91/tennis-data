@@ -12,6 +12,12 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
 import {
+  CLUB_COMPETITION_RESULT_MODE_OPTIONS,
+  getClubCompetitionResultModeDescription,
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from '@/lib/club-competition'
+import {
   chooseLatestLeagueCoordinatorResumeState,
   loadLeagueCoordinatorResumeStateFromCloud,
   readLeagueCoordinatorResumeState,
@@ -159,6 +165,7 @@ export default function TournamentBuilderWorkspace() {
   const [records, setRecords] = useState<TiqTournamentRecord[]>([])
   const [clubId, setClubId] = useState('')
   const [clubGroupId, setClubGroupId] = useState('')
+  const [resultMode, setResultMode] = useState<ClubCompetitionResultMode>('tiq_rated')
   const [name, setName] = useState('Saturday Smash')
   const [format, setFormat] = useState<TiqTournamentFormat>('single_elimination')
   const [entrantType, setEntrantType] = useState<'players' | 'teams'>('players')
@@ -626,6 +633,7 @@ export default function TournamentBuilderWorkspace() {
         setDirectorNotes(draft.directorNotes || '')
         setEntrantsText(draft.entrantsText || sampleEntrants.join('\n'))
         setIsPublic(Boolean(draft.isPublic))
+        setResultMode(normalizeClubCompetitionResultMode(draft.resultMode))
         setAppliedResumeTournamentId(draft.tournamentId || targetId || 'new')
       }
     })().finally(() => {
@@ -644,6 +652,7 @@ export default function TournamentBuilderWorkspace() {
     setSelectedId(record.id)
     setClubId(record.clubId || '')
     setClubGroupId(record.clubGroupId || '')
+    setResultMode(normalizeClubCompetitionResultMode(record.resultMode))
     setName(record.name)
     setFormat(record.format)
     setEntrantType(record.entrantType)
@@ -679,6 +688,7 @@ export default function TournamentBuilderWorkspace() {
         directorNotes,
         entrantsText,
         isPublic,
+        resultMode,
       },
     }
     const timeout = window.setTimeout(() => {
@@ -694,6 +704,7 @@ export default function TournamentBuilderWorkspace() {
     entrantsText,
     format,
     isPublic,
+    resultMode,
     locationLabel,
     name,
     records,
@@ -900,6 +911,7 @@ export default function TournamentBuilderWorkspace() {
     const saved = await upsertTiqTournamentRecordForUser({
       clubId,
       clubGroupId,
+      resultMode,
       name,
       format,
       entrantType,
@@ -1411,6 +1423,7 @@ export default function TournamentBuilderWorkspace() {
     setSelectedId(record.id)
     setClubId(record.clubId || '')
     setClubGroupId(record.clubGroupId || '')
+    setResultMode(normalizeClubCompetitionResultMode(record.resultMode))
     setName(record.name)
     setFormat(record.format)
     setEntrantType(record.entrantType)
@@ -1437,6 +1450,7 @@ export default function TournamentBuilderWorkspace() {
   function startNew() {
     setSelectedId('')
     setClubGroupId('')
+    setResultMode('tiq_rated')
     setName('Saturday Smash')
     setFormat('single_elimination')
     setEntrantType('players')
@@ -1743,6 +1757,20 @@ export default function TournamentBuilderWorkspace() {
               <strong>Public bracket</strong>
               <small>Anyone with the link can view the tournament page.</small>
             </span>
+          </label>
+
+          <label style={fieldStyle}>
+            How results count
+            <select
+              value={resultMode}
+              onChange={(event) => setResultMode(event.target.value as ClubCompetitionResultMode)}
+              style={inputStyle}
+            >
+              {CLUB_COMPETITION_RESULT_MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <small>{getClubCompetitionResultModeDescription(resultMode)}</small>
           </label>
 
           {notice ? <p style={noticeStyle}>{notice}</p> : null}

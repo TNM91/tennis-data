@@ -9,6 +9,8 @@ import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-f
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import { getClubCommunicationSummary, type ClubCommunicationItem } from '@/lib/club-communication'
 import { notifyClubCommunicationUpdated } from '@/lib/club-communication-events'
+import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
+import { CLUB_PLAN_STORY, getClubPlanStory } from '@/lib/product-story'
 import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
 import {
   CLUB_ROLES,
@@ -53,6 +55,7 @@ type ClubListResponse = {
   clubs?: Club[]
   memberships?: ClubMembership[]
   workspace?: ClubWorkspaceData
+  billing?: ClubBillingAccount | null
 }
 
 type ClubRosterContact = {
@@ -146,6 +149,7 @@ export default function ClubWorkspace() {
   const { authResolved, refreshAuth, session, userId } = useAuth()
   const accessToken = session?.access_token ?? ''
   const [clubs, setClubs] = useState<Club[]>([])
+  const [clubBilling, setClubBilling] = useState<ClubBillingAccount | null>(null)
   const [workspace, setWorkspace] = useState<ClubWorkspaceData | null>(null)
   const [selectedClubId, setSelectedClubId] = useState('')
   const [tab, setTab] = useState<WorkspaceTab>('home')
@@ -197,6 +201,7 @@ export default function ClubWorkspace() {
       const list = await request<ClubListResponse>('/api/clubs')
       const nextClubs = list.clubs ?? []
       setClubs(nextClubs)
+      setClubBilling(list.billing ?? null)
       const storedClubId = readStoredClubId()
       const requestedClubId = preferredClubId || readRequestedClubId() || storedClubId
       const nextClubId = nextClubs.some((club) => club.id === requestedClubId) ? requestedClubId : nextClubs[0]?.id || ''
@@ -204,6 +209,7 @@ export default function ClubWorkspace() {
       if (nextClubId) {
         const detail = await request<ClubListResponse>(`/api/clubs?clubId=${encodeURIComponent(nextClubId)}`)
         setWorkspace(detail.workspace ?? null)
+        setClubBilling(detail.billing ?? list.billing ?? null)
         rememberClubId(nextClubId)
       } else {
         setWorkspace(null)
@@ -603,40 +609,45 @@ export default function ClubWorkspace() {
       <main className={styles.page}>
         <section className={styles.clubWelcome}>
           <ContextualTennisVisual visual="club" />
-          <p className={styles.eyebrow}>Club</p>
-          <h1 className={styles.title}>One home for your club.</h1>
-          <p className={styles.copy}>Connect players, coaches, programs, leagues, and tournaments without replacing your booking or registration system.</p>
-          <div className={styles.row}>
-            <Link className={styles.primary} href="/login?next=%2Fclubs">Sign in</Link>
-            <Link className={styles.secondary} href="/join?next=%2Fclubs">Create account</Link>
+          <div className={styles.clubWelcomeLead}>
+            <p className={styles.eyebrow}>TenAceIQ for clubs</p>
+            <h1 className={styles.title}>Your club. Every tennis experience, connected.</h1>
+            <p className={styles.copy}>Bring players, coaches, programs, teams, leagues, tournaments, communication, and player development into one premium club experience—without replacing your booking or registration system.</p>
+            <div className={styles.row}>
+              <Link className={styles.primary} href="/login?next=%2Fclubs">Open my club</Link>
+              <Link className={styles.secondary} href="/clubs/northstar-tennis-club-demo">See a live Club home</Link>
+              <Link className={styles.secondary} href="/join?next=%2Fclubs">Create account</Link>
+            </div>
           </div>
-          <div className={styles.actionGrid} aria-label="Club experience preview">
-            <article className={styles.actionCard}>
-              <strong>Players + staff</strong>
-              <span>Keep club roles, people, and communication connected.</span>
-            </article>
-            <article className={styles.actionCard}>
-              <strong>Coaching + clinics</strong>
-              <span>Run groups, attendance, plans, and player follow-through.</span>
-            </article>
-            <article className={styles.actionCard}>
-              <strong>Leagues + tournaments</strong>
-              <span>Host competition with shared schedules, results, and updates.</span>
-            </article>
-            <article className={styles.actionCard}>
-              <strong>Your club experience</strong>
-              <span>Add your logo, colors, public home, and member pathways.</span>
-            </article>
+          <div className={styles.clubWelcomePromise}>
+            <span>Why clubs pay for it</span>
+            <strong>One relationship with the player. More value from every TenAceIQ tool.</strong>
+            <p>Club context moves with each person, so coaches, captains, organizers, and players can act without rebuilding the same roster or history.</p>
           </div>
+          <div className={styles.clubJourney} aria-label="Club experience preview">
+            <article><b>01</b><div><strong>Players + staff</strong><span>Brand, people, roles, and communication establish one source of truth.</span></div></article>
+            <article><b>02</b><div><strong>Coaching + clinics</strong><span>Coach Hub, My Lab, video, goals, assignments, and programs stay in context.</span></div></article>
+            <article><b>03</b><div><strong>Leagues + tournaments</strong><span>Competition reuses club people, schedules, and results.</span></div></article>
+            <article><b>04</b><div><strong>Your club experience</strong><span>Choose whether results update public history and TIQ ratings or stay social.</span></div></article>
+          </div>
+          <ClubPlanCards source="club-entry" />
         </section>
       </main>
     )
   }
 
   if (!clubs.length || !workspace) {
+    const requestedClubId = readRequestedClubId()
+    if (requestedClubId) {
+      return <ClubMembershipNeeded clubSlug={readRequestedClubSlug()} accountEmail={session?.user?.email ?? ''} onRetry={() => void loadClubs(requestedClubId)} />
+    }
+    if (!clubBilling || !isActiveClubBillingStatus(clubBilling.status)) {
+      return <ClubPlanGate billing={clubBilling} />
+    }
     return (
       <main className={styles.page}>
         <CreateClubForm
+          billing={clubBilling}
           working={working}
           message={message}
           messageTone={messageTone}
@@ -662,11 +673,20 @@ export default function ClubWorkspace() {
   const staff = canRunClubPrograms(clubRoles)
   const clubStyle = { '--club-color': workspace.club.primaryColor } as CSSProperties
   const heroAction = getClubHeroAction(workspace, clubRoles)
+  const playerRoles = clubRoles.some((role) => role === 'player' || role === 'captain')
+  const identityConnected = workspace.currentMembership.playerIdentityConnected
   const guidedStep = guidedStepId ? getClubSetupSteps(workspace).find((step) => step.id === guidedStepId) ?? null : null
 
   return (
     <main className={styles.page} style={clubStyle}>
-      <section className={styles.hero}>
+      <section
+        className={styles.hero}
+        style={workspace.club.heroImageUrl ? {
+          backgroundImage: `linear-gradient(105deg, rgba(5,14,28,.97) 12%, rgba(5,14,28,.86) 56%, rgba(5,14,28,.62)), url(${JSON.stringify(workspace.club.heroImageUrl)})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        } : undefined}
+      >
         <ContextualTennisVisual visual="club" />
         <div className={styles.heroTop}>
           <div className={styles.clubIdentity}>
@@ -674,7 +694,7 @@ export default function ClubWorkspace() {
               ? <Image className={styles.logo} src={workspace.club.logoUrl} alt={`${workspace.club.name} logo`} width={64} height={64} unoptimized />
               : <div className={styles.logoFallback} aria-hidden="true">{workspace.club.name.slice(0, 2).toUpperCase()}</div>}
             <div>
-              <p className={styles.eyebrow}>Club</p>
+              <p className={styles.eyebrow}>Your club · powered by TenAceIQ</p>
               <h1 className={styles.clubName}>{workspace.club.name}</h1>
               <p className={styles.clubMeta}>{[workspace.club.locationLabel, clubRoles.map(getClubRoleLabel).join(' + ')].filter(Boolean).join(' · ')}</p>
             </div>
@@ -688,7 +708,12 @@ export default function ClubWorkspace() {
             </label>
           ) : <span className={styles.powered}>Powered by TenAceIQ</span>}
         </div>
-        <p className={styles.copy}>{workspace.club.description || 'One connected tennis experience for players, coaches, programs, leagues, and tournaments.'}</p>
+        <p className={`${styles.copy} ${styles.heroCopy}`}>{workspace.club.description || 'One connected tennis experience for players, coaches, programs, leagues, and tournaments.'}</p>
+        <div className={styles.heroProof} aria-label="Club at a glance">
+          <span><strong>{workspace.memberships.length}</strong> connected people</span>
+          <span><strong>{workspace.groups.filter((group) => group.isActive).length}</strong> active programs</span>
+          <span><strong>{workspace.competitions.length}</strong> live competitions</span>
+        </div>
         <div className={styles.heroActions}>
           {heroAction.setupStep
             ? <button className={styles.primary} type="button" onClick={() => openGuidedStep(heroAction.setupStep!)}>{heroAction.label}</button>
@@ -698,6 +723,16 @@ export default function ClubWorkspace() {
           {!heroAction.setupStep ? <Link className={styles.secondary} href={`/clubs/${workspace.club.slug}`}>View public club page</Link> : null}
           {manager && !heroAction.setupStep && heroAction.tab !== 'people' ? <button className={styles.secondary} type="button" onClick={() => openPeople()}>Invite people</button> : null}
         </div>
+        {playerRoles ? (
+          <div className={`${styles.identityStatus} ${identityConnected ? styles.identityConnected : ''}`}>
+            <span aria-hidden="true">{identityConnected ? '✓' : '!'}</span>
+            <div>
+              <strong>{identityConnected ? 'Player ID connected' : 'Connect your Player ID'}</strong>
+              <p>{identityConnected ? `${workspace.currentMembership.linkedPlayerName || 'Your player record'} keeps Club programs, matches, My Lab, and TIQ history together.` : 'Match this membership to your TenAceIQ player record once—no duplicate profile—so Club programs, My Lab, match history, and TIQ ratings stay together.'}</p>
+            </div>
+            {!identityConnected ? <Link className={styles.quietButton} href={`/profile?clubId=${encodeURIComponent(workspace.club.id)}&returnTo=${encodeURIComponent(`/clubs?clubId=${workspace.club.id}`)}#profile-identity`}>Connect Player ID</Link> : null}
+          </div>
+        ) : null}
       </section>
 
       {message ? <div className={`${styles.notice} ${messageTone === 'danger' ? styles.danger : styles.success}`} role="status">{message}</div> : null}
@@ -890,6 +925,8 @@ export default function ClubWorkspace() {
       {tab === 'settings' && manager ? (
         <ClubSettings
           club={workspace.club}
+          workspace={workspace}
+          billing={clubBilling}
           working={working}
           onUploadLogo={uploadClubLogo}
           onSave={async (payload) => {
@@ -945,6 +982,78 @@ function ClubLoadRecovery({
         <div className={styles.row}>
           <button className={styles.primary} type="button" onClick={onPrimary}>{primaryLabel}</button>
           <Link className={styles.secondary} href={secondaryHref}>{secondaryLabel}</Link>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function ClubPlanCards({ source }: { source: 'club-entry' | 'club-gate' }) {
+  const plans = [CLUB_PLAN_STORY.starter, CLUB_PLAN_STORY.unlimited]
+  return (
+    <section className={styles.clubPlans} aria-labelledby={`${source}-plans-title`}>
+      <div className={styles.clubPlansHeading}>
+        <div>
+          <p className={styles.eyebrow}>Simple Club pricing</p>
+          <h2 id={`${source}-plans-title`}>The same premium Club experience. Choose the capacity.</h2>
+          <p>Both plans include the branded Club home, role-based workspace, programs, communication, Coach and Player connections, leagues, tournaments, and flexible result policies.</p>
+        </div>
+        <span className={styles.clubPlanScope}>1 subscription = 1 branded Club workspace</span>
+      </div>
+      <div className={styles.clubPlanGrid}>
+        {plans.map((plan) => (
+          <article className={`${styles.clubPlanCard} ${plan.id === 'club_unlimited' ? styles.clubPlanFeatured : ''}`} key={plan.id}>
+            <div className={styles.clubPlanTop}>
+              <div><span>{plan.id === 'club_unlimited' ? 'Club-wide capacity' : 'Focused rollout'}</span><h3>{plan.name}</h3></div>
+              {plan.id === 'club_unlimited' ? <b>Best for full-club rollout</b> : null}
+            </div>
+            <p className={styles.clubPlanPrice}>{plan.priceLabel.replace('/month', '')}<span>/month</span></p>
+            <strong>{plan.capacityLabel}</strong>
+            <p>{plan.shortPromise} {plan.id === 'club_unlimited' ? 'Everything in Starter is included, with no coach, staff, or player cap.' : 'No Club features are held back; Starter is sized for a focused rollout.'}</p>
+            <ul>
+              <li>{plan.scopeLabel}</li>
+              <li>All Club tools and branded experiences</li>
+              <li>TIQ-rated, public-history-only, or social competition</li>
+            </ul>
+            <Link className={plan.id === 'club_unlimited' ? styles.primary : styles.secondary} href={`/upgrade?plan=${plan.id}&next=%2Fclubs&utm_source=${source}&utm_medium=product&utm_campaign=club`}>Choose {plan.id === 'club_unlimited' ? 'Unlimited' : 'Starter'}</Link>
+          </article>
+        ))}
+      </div>
+      <p className={styles.clubPlanBoundary}>{CLUB_PLAN_STORY.workspaceBoundary} {CLUB_PLAN_STORY.boundary}</p>
+    </section>
+  )
+}
+
+function ClubPlanGate({ billing }: { billing: ClubBillingAccount | null }) {
+  const billingNeedsAttention = billing?.status === 'past_due' || billing?.status === 'canceled'
+  return (
+    <main className={styles.page}>
+      <section className={styles.clubPlanGateIntro}>
+        <p className={styles.eyebrow}>{billingNeedsAttention ? 'Club access needs attention' : 'TenAceIQ for clubs'}</p>
+        <h1 className={styles.title}>{billingNeedsAttention ? 'Reconnect your Club subscription.' : 'Choose the Club rollout that fits.'}</h1>
+        <p className={styles.copy}>{billingNeedsAttention ? 'Your Club workspace stays tied to the same account. Choose a plan to restore access and keep the club connected.' : 'Activate one branded Club workspace, then invite the coaches, staff, and players who should be part of it.'}</p>
+      </section>
+      <ClubPlanCards source="club-gate" />
+    </main>
+  )
+}
+
+function ClubMembershipNeeded({ clubSlug, accountEmail, onRetry }: { clubSlug: string; accountEmail: string; onRetry: () => void }) {
+  return (
+    <main className={styles.page}>
+      <section className={styles.clubMembershipNeeded}>
+        <p className={styles.eyebrow}>Club invitation needed</p>
+        <h1 className={styles.title}>Your account is ready. The Club connection comes next.</h1>
+        <p className={styles.copy}>Ask Club staff to send an invitation to {accountEmail ? <strong>{accountEmail}</strong> : 'the email on this TenAceIQ account'}. Accepting that invitation connects the Club role, programs, teams, and competition to this same account.</p>
+        <div className={styles.clubConnectionFlow} aria-label="How Club membership connects">
+          <div><b>01</b><strong>Club sends access</strong><span>Staff chooses your role and can place you into a program or competition.</span></div>
+          <div><b>02</b><strong>You accept once</strong><span>The invitation connects this TenAceIQ account without creating a duplicate profile.</span></div>
+          <div><b>03</b><strong>Club context follows you</strong><span>Player, Coach, Captain, League, and Tournament tools open with the right Club context.</span></div>
+        </div>
+        <div className={styles.row}>
+          <button className={styles.primary} type="button" onClick={onRetry}>I accepted the invite — try again</button>
+          {clubSlug ? <Link className={styles.secondary} href={`/clubs/${clubSlug}`}>Return to Club page</Link> : null}
+          <Link className={styles.secondary} href="/messages?compose=support&context=Club%20invitation">Get help</Link>
         </div>
       </section>
     </main>
@@ -1493,6 +1602,7 @@ function ClubHome({ workspace, roles, working, openCommunicationOnLoad, onPostMe
         <div><p className={styles.eyebrow}>Finish competition</p><h3 id="finish-competition-title">{nextCompetitionWork.competition.name}: {nextCompetitionWork.readiness.label.toLowerCase()}.</h3><p>{nextCompetitionWork.readiness.detail}{competitionNeedsWork.length > 1 ? ` ${competitionNeedsWork.length - 1} more ${competitionNeedsWork.length === 2 ? 'competition' : 'competitions'} will follow.` : ''}</p></div>
         <div className={styles.renewalTaskActions}><Link className={styles.primary} href={nextCompetitionWork.competition.href}>{nextCompetitionWork.readiness.actionLabel}</Link><button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Open Competition</button></div>
       </section> : null}
+      {showEverydayWorkspace ? <ClubExperiencePath workspace={workspace} roles={roles} onOpenTab={onOpenTab} /> : null}
       {showEverydayWorkspace ? <ClubPulse key={workspace.club.id} workspace={workspace} roles={roles} openCommunicationOnLoad={openCommunicationOnLoad} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onLoadCommunication={onLoadCommunication} onMarkCommunicationRead={onMarkCommunicationRead} onOpenTab={onOpenTab} /> : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
@@ -1521,17 +1631,29 @@ function ClubHome({ workspace, roles, working, openCommunicationOnLoad, onPostMe
           ) : null}
         </section>
       ) : null}
-      {showEverydayWorkspace ? <><div className={styles.statGrid}>
-        <div className={styles.stat}><strong>{workspace.memberships.length}</strong><span>People</span></div>
-        <div className={styles.stat}><strong>{workspace.groups.filter((group) => group.isActive).length}</strong><span>Active programs</span></div>
-        <div className={styles.stat}><strong>{workspace.competitions.length}</strong><span>Live competitions</span></div>
-      </div>
-      <div className={styles.actionGrid}>
-        {actions.map((action) => action.tab
-          ? <button key={action.title} className={`${styles.actionCard} ${styles.actionCardButton}`} type="button" onClick={() => onOpenTab(action.tab!)}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></button>
-          : <Link key={action.title} className={styles.actionCard} href={action.href!}><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label}</b></Link>)}
-      </div>
-      {staff ? <button className={styles.secondary} type="button" onClick={() => onOpenTab('compete')}>Set up club competition</button> : null}</> : null}
+      {showEverydayWorkspace ? <section className={styles.continueSection} aria-labelledby="continue-club-work-title">
+        <div className={styles.continueHeading}>
+          <div><p className={styles.eyebrow}>Your TenAceIQ tools</p><h3 id="continue-club-work-title">Continue with the club already connected.</h3><p>Open the right tool with this club, its people, and your role carried with you.</p></div>
+          {staff ? <button className={styles.quietButton} type="button" onClick={() => onOpenTab('compete')}>Set up competition</button> : null}
+        </div>
+        <div className={styles.commandLayout}>
+          <div className={styles.actionGrid}>
+            {actions.map((action, index) => action.tab
+              ? <button key={action.title} className={`${styles.actionCard} ${styles.actionCardButton}`} type="button" onClick={() => onOpenTab(action.tab!)}><span className={styles.actionNumber}>{String(index + 1).padStart(2, '0')}</span><span className={styles.actionTool}>{action.tool}</span><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label} <span aria-hidden="true">→</span></b></button>
+              : <Link key={action.title} className={styles.actionCard} href={action.href!}><span className={styles.actionNumber}>{String(index + 1).padStart(2, '0')}</span><span className={styles.actionTool}>{action.tool}</span><strong>{action.title}</strong><span>{action.detail}</span><b>{action.label} <span aria-hidden="true">→</span></b></Link>)}
+          </div>
+          <aside className={styles.clubSnapshot} aria-label="Club connection summary">
+            <p className={styles.eyebrow}>Club connection</p>
+            <strong>{workspace.memberships.length + workspace.groups.filter((group) => group.isActive).length + workspace.competitions.length}</strong>
+            <span>active connections across people, programs, and competition</span>
+            <div>
+              <button type="button" onClick={() => onOpenTab('people')}><b>{workspace.memberships.length}</b><span>People</span></button>
+              <button type="button" onClick={() => onOpenTab('groups')}><b>{workspace.groups.filter((group) => group.isActive).length}</b><span>Programs</span></button>
+              <button type="button" onClick={() => onOpenTab('compete')}><b>{workspace.competitions.length}</b><span>Compete</span></button>
+            </div>
+          </aside>
+        </div>
+      </section> : null}
       {renewalReviewGroup ? <div className={styles.renewalBackdrop} role="presentation">
         <section className={styles.renewalSheet} role="dialog" aria-modal="true" aria-labelledby="finalize-roster-title">
           <div className={styles.headingRow}><div className={styles.panelHeading}><p className={styles.eyebrow}>Final roster check</p><h2 id="finalize-roster-title">{renewalReviewGroup.name}</h2><p>Review each answer. Finalizing closes these decisions for the season.</p></div><button className={styles.quietButton} type="button" onClick={() => setRenewalReviewGroup(null)}>Close</button></div>
@@ -1823,7 +1945,8 @@ function PeoplePanel({ workspace, manager, working, guidedStepId, initialDestina
         </div> : null}
         {visiblePeople.length ? <div className={styles.peopleGrid}>{visiblePeople.map((member) => {
           const assignments = assignmentsByMemberId.get(member.id) ?? []
-          return <article className={styles.peopleCard} key={member.id}>{manager ? <input aria-label={`Select ${member.displayName || member.email || 'Club member'}`} type="checkbox" checked={selectedPeopleIds.includes(member.id)} onChange={() => togglePerson(member.id)} /> : null}<div><div className={styles.cardTop}><h3>{member.displayName || member.email || 'Club member'}</h3><span className={styles.pill}>{member.status}</span></div><div className={styles.roleList}>{member.roles.map((role) => <span key={role} className={styles.pill}>{getClubRoleLabel(role)}</span>)}</div>{member.email ? <span className={styles.muted}>{member.email}</span> : null}{assignments.length ? <div className={styles.peopleAssignments}>{assignments.map((assignment) => <span key={`${assignment.type}:${assignment.id}`}>{assignment.name} · {assignment.label}</span>)}</div> : <span className={styles.unassignedLabel}>Needs a destination</span>}</div></article>
+          const identityBadge = member.roles.some((role) => role === 'player' || role === 'captain') ? <span className={`${styles.pill} ${member.playerIdentityConnected ? styles.identityPillConnected : styles.identityPillPending}`}>{member.playerIdentityConnected ? 'Player ID connected' : 'Player ID needed'}</span> : null
+          return <article className={styles.peopleCard} key={member.id}>{manager ? <input aria-label={`Select ${member.displayName || member.email || 'Club member'}`} type="checkbox" checked={selectedPeopleIds.includes(member.id)} onChange={() => togglePerson(member.id)} /> : null}<div><div className={styles.cardTop}><h3>{member.displayName || member.email || 'Club member'}</h3><span className={styles.pill}>{member.status}</span></div><div className={styles.roleList}>{member.roles.map((role) => <span key={role} className={styles.pill}>{getClubRoleLabel(role)}</span>)}{identityBadge}</div>{member.email ? <span className={styles.muted}>{member.email}</span> : null}{assignments.length ? <div className={styles.peopleAssignments}>{assignments.map((assignment) => <span key={`${assignment.type}:${assignment.id}`}>{assignment.name} · {assignment.label}</span>)}</div> : <span className={styles.unassignedLabel}>Needs a destination</span>}</div></article>
         })}</div> : <div className={styles.emptyPeople}><strong>No people match this view.</strong><span>Try another filter or search.</span></div>}
       </div> : null}
       {manager ? (
@@ -2126,10 +2249,15 @@ function TemplateCard({ club, template }: { club: Club; template: ClubCompetitio
   return <article className={styles.card}><div className={styles.cardTop}><h3>{template.name}</h3><span className={styles.pill}>{template.competitionType}</span></div><p>{[template.divisionLabel, template.defaultFacility, template.formatId.replaceAll('_', ' ')].filter(Boolean).join(' · ')}</p><Link className={styles.primary} href={buildClubCompetitionLaunchHref(club, template)}>Open {template.competitionType === 'league' ? 'League Office' : 'Tournament Desk'}</Link></article>
 }
 
-function ClubSettings({ club, working, onUploadLogo, onSave }: { club: Club; working: boolean; onUploadLogo: (file: File) => Promise<string>; onSave: (payload: Record<string, unknown>) => Promise<void> }) {
+function ClubSettings({ club, workspace, billing, working, onUploadLogo, onSave }: { club: Club; workspace: ClubWorkspaceData; billing: ClubBillingAccount | null; working: boolean; onUploadLogo: (file: File) => Promise<string>; onSave: (payload: Record<string, unknown>) => Promise<void> }) {
   const [form, setForm] = useState({ name: club.name, description: club.description, logoUrl: club.logoUrl, heroImageUrl: club.heroImageUrl, primaryColor: club.primaryColor, locationLabel: club.locationLabel, contactEmail: club.contactEmail, timeZone: club.timeZone, isPublic: club.isPublic })
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoNotice, setLogoNotice] = useState('')
+  const plan = billing ? getClubPlanStory(billing.planId) : null
+  const staffRoles: ClubRole[] = ['owner', 'admin', 'director', 'coach', 'captain', 'coordinator']
+  const activeMemberships = workspace.memberships.filter((membership) => membership.status === 'active')
+  const staffCount = activeMemberships.filter((membership) => membership.roles.some((role) => staffRoles.includes(role))).length
+  const playerCount = activeMemberships.filter((membership) => membership.roles.includes('player')).length
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) { setForm((current) => ({ ...current, [key]: value })) }
 
   async function uploadLogo(file: File | undefined) {
@@ -2150,6 +2278,23 @@ function ClubSettings({ club, working, onUploadLogo, onSave }: { club: Club; wor
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}><p className={styles.eyebrow}>Club page</p><h2>Make the club feel like your club.</h2><p>These details carry into the public club home and new competition setups.</p></div>
+      <section className={styles.clubCapacity} aria-labelledby="club-plan-title">
+        <div className={styles.clubCapacityHeading}>
+          <div>
+            <p className={styles.eyebrow}>Club plan</p>
+            <h3 id="club-plan-title">{plan ? `${plan.name} · ${plan.priceLabel}` : 'Managed by the Club owner'}</h3>
+            <p>{plan ? `${plan.scopeLabel}. ${plan.capacityLabel}.` : 'The owner controls billing and workspace capacity. Your Club tools and settings remain available for your role.'}</p>
+          </div>
+          {plan?.id === 'club_starter'
+            ? <Link className={styles.primary} href="/upgrade?plan=club_unlimited&next=%2Fclubs%3Ftab%3Dsettings&utm_source=club_settings&utm_medium=product&utm_campaign=club">Remove capacity limits</Link>
+            : <Link className={styles.quietButton} href="/pricing#club">View Club pricing</Link>}
+        </div>
+        <div className={styles.clubCapacityGrid}>
+          <ClubCapacityMeter label="Coaches and staff" count={staffCount} limit={plan?.coachStaffLimit ?? null} />
+          <ClubCapacityMeter label="Connected players" count={playerCount} limit={plan?.connectedPlayerLimit ?? null} />
+          <div className={styles.clubWorkspaceScope}><strong>1</strong><span>Branded Club workspace</span><small>Programs and competition can use multiple locations inside this workspace.</small></div>
+        </div>
+      </section>
       <form className={styles.compactForm} onSubmit={(event) => { event.preventDefault(); void onSave(form) }}>
         <div className={styles.fieldGrid}>
           <label className={styles.field}><span>Name</span><input value={form.name} onChange={(event) => set('name', event.target.value)} /></label>
@@ -2189,39 +2334,76 @@ function ClubSettings({ club, working, onUploadLogo, onSave }: { club: Club; wor
   )
 }
 
-function CreateClubForm({ working, message, messageTone, onCreate }: { working: boolean; message: string; messageTone: 'success' | 'danger'; onCreate: (payload: Record<string, unknown>) => Promise<void> }) {
+function ClubCapacityMeter({ label, count, limit }: { label: string; count: number; limit: number | null }) {
+  const percent = limit ? Math.min(100, Math.round((count / limit) * 100)) : 100
+  const nearingLimit = Boolean(limit && count >= Math.max(1, limit * .8))
+  return (
+    <div className={`${styles.clubCapacityMeter} ${nearingLimit ? styles.clubCapacityMeterAttention : ''}`}>
+      <div><strong>{count}</strong><span>{limit ? `of ${limit}` : 'unlimited'}</span></div>
+      <p>{label}</p>
+      <div className={styles.clubCapacityTrack} aria-label={`${label}: ${count}${limit ? ` of ${limit}` : ', unlimited'}`} role="progressbar" aria-valuemin={0} aria-valuemax={limit ?? Math.max(count, 1)} aria-valuenow={count}><span style={{ width: `${percent}%` }} /></div>
+    </div>
+  )
+}
+
+function CreateClubForm({ billing, working, message, messageTone, onCreate }: { billing: ClubBillingAccount; working: boolean; message: string; messageTone: 'success' | 'danger'; onCreate: (payload: Record<string, unknown>) => Promise<void> }) {
   const [name, setName] = useState('')
   const [locationLabel, setLocationLabel] = useState('')
   const [description, setDescription] = useState('')
-  return <section className={styles.empty}><p className={styles.eyebrow}>Club</p><h1 className={styles.title}>Give the club one home.</h1><p className={styles.copy}>Start with the club. Add people, clinics, teams, leagues, and tournaments next.</p>{message ? <div className={`${styles.notice} ${messageTone === 'danger' ? styles.danger : styles.success}`}>{message}</div> : null}<form className={styles.compactForm} onSubmit={(event: FormEvent) => { event.preventDefault(); void onCreate({ name, locationLabel, description }) }}><label className={styles.field}><span>Club name</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="Westside Tennis Club" /></label><label className={styles.field}><span>Location</span><input value={locationLabel} onChange={(event) => setLocationLabel(event.target.value)} placeholder="St. Louis, Missouri" /></label><label className={styles.field}><span>What should players know?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label><button className={styles.primary} disabled={working} type="submit">{working ? 'Creating...' : 'Create club'}</button></form></section>
+  const plan = getClubPlanStory(billing.planId)
+  return <section className={`${styles.empty} ${styles.createClub}`}><p className={styles.eyebrow}>{plan.name} is active</p><h1 className={styles.title}>Give the club one premium home.</h1><p className={styles.copy}>{plan.capacityLabel}. Your subscription includes one branded Club workspace with every Club tool.</p>{message ? <div className={`${styles.notice} ${messageTone === 'danger' ? styles.danger : styles.success}`}>{message}</div> : null}<form className={styles.compactForm} onSubmit={(event: FormEvent) => { event.preventDefault(); void onCreate({ name, locationLabel, description }) }}><label className={styles.field}><span>Club name</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="Westside Tennis Club" /></label><label className={styles.field}><span>Location</span><input value={locationLabel} onChange={(event) => setLocationLabel(event.target.value)} placeholder="St. Louis, Missouri" /></label><label className={styles.field}><span>What should players know?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label><button className={styles.primary} disabled={working} type="submit">{working ? 'Creating...' : 'Create my Club workspace'}</button></form><p className={styles.clubPlanBoundary}>{CLUB_PLAN_STORY.workspaceBoundary}</p></section>
 }
 
 function RoleChecks({ value, onChange }: { value: ClubRole[]; onChange: (roles: ClubRole[]) => void }) {
   return <div className={styles.checkGrid}>{CLUB_ROLES.filter((role) => role !== 'owner').map((role) => <label className={styles.check} key={role}><input type="checkbox" checked={value.includes(role)} onChange={() => onChange(value.includes(role) ? value.filter((item) => item !== role) : [...value, role])} />{getClubRoleLabel(role)}</label>)}</div>
 }
 
+function ClubExperiencePath({ workspace, roles, onOpenTab }: { workspace: ClubWorkspaceData; roles: ClubRole[]; onOpenTab: (tab: WorkspaceTab) => void }) {
+  const manager = isClubManager(roles)
+  return (
+    <section className={styles.experiencePath} aria-labelledby="club-experience-title">
+      <div className={styles.experiencePathIntro}>
+        <p className={styles.eyebrow}>One connected club experience</p>
+        <h3 id="club-experience-title">{manager ? 'The club relationship follows every member.' : `${workspace.club.name} follows you into every tool.`}</h3>
+        <p>{manager ? 'Connect someone once. Their program, coaching, team, and competition context stays together from there.' : 'Your programs, coach work, and competition stay connected to the same player experience.'}</p>
+      </div>
+      <div className={styles.experienceSteps}>
+        <button type="button" onClick={() => onOpenTab('people')}>
+          <span>01</span><div><strong>Connect</strong><p>One club membership sets the right role and access.</p></div><b aria-hidden="true">→</b>
+        </button>
+        <button type="button" onClick={() => onOpenTab('groups')}>
+          <span>02</span><div><strong>Develop</strong><p>Programs and coach work flow into each player’s next step.</p></div><b aria-hidden="true">→</b>
+        </button>
+        <button type="button" onClick={() => onOpenTab('compete')}>
+          <span>03</span><div><strong>Compete</strong><p>Leagues and tournaments can feed public history and TIQ ratings—or stay social.</p></div><b aria-hidden="true">→</b>
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function getRoleActions(roles: ClubRole[], workspace: ClubWorkspaceData) {
   const activeGroupCount = workspace.groups.filter((group) => group.isActive).length
   if (roles.some((role) => role === 'owner' || role === 'admin' || role === 'director')) return [
-    { title: 'Develop players', detail: `${workspace.memberships.length} people connected to the club experience`, label: 'Open coaching view', href: buildClubToolHref('/coach', workspace.club) },
-    { title: 'Run programs', detail: `${activeGroupCount} active clinics, teams, camps, or development groups`, label: 'Open programs', tab: 'groups' as WorkspaceTab },
-    { title: 'Host competition', detail: 'Club leagues and tournaments with schedules, draws, and results', label: 'Open competition', tab: 'compete' as WorkspaceTab },
-    ...(hasClubTeamProgram(workspace) ? [{ title: 'Support teams', detail: 'Availability, projected lineups, and team messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
+    { tool: 'Coach Hub', title: 'Develop players', detail: `${workspace.memberships.length} people connected to coaching, goals, assignments, and reviews`, label: 'Open coaching view', href: buildClubToolHref('/coach', workspace.club) },
+    { tool: 'Club Programs', title: 'Run programs', detail: `${activeGroupCount} active clinics, teams, camps, or development groups`, label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { tool: 'Competition', title: 'Host competition', detail: 'Run club leagues and tournaments with entries, schedules, draws, and results', label: 'Open competition', tab: 'compete' as WorkspaceTab },
+    ...(hasClubTeamProgram(workspace) ? [{ tool: 'Team Hub', title: 'Support teams', detail: 'Carry club rosters into availability, projected lineups, and team messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
   ]
   if (roles.includes('coach')) return [
-    { title: 'Player book', detail: 'Goals, assignments, and reviews', label: 'Open Coach Hub', href: buildClubToolHref('/coach', workspace.club) },
-    { title: 'Programs', detail: 'Open the groups you coach from the club roster', label: 'Open programs', tab: 'groups' as WorkspaceTab },
-    { title: 'Video feedback', detail: 'Review a clip and return cues', label: 'Open Video Review', href: buildClubToolHref('/video-review', workspace.club) },
+    { tool: 'Coach Hub', title: 'Player book', detail: 'See goals, assignments, lesson context, and reviews together', label: 'Open Coach Hub', href: buildClubToolHref('/coach', workspace.club) },
+    { tool: 'Club Programs', title: 'Your programs', detail: 'Open the groups you coach with the club roster already connected', label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { tool: 'Video Review', title: 'Return useful feedback', detail: 'Review a player clip and send clear cues back into their work', label: 'Open Video Review', href: buildClubToolHref('/video-review', workspace.club) },
   ]
   if (roles.some((role) => role === 'captain' || role === 'coordinator')) return [
-    ...(hasClubTeamProgram(workspace) ? [{ title: 'Team work', detail: 'Availability, projected lineups, and messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
-    { title: 'Club league', detail: 'Schedules, entries, and results', label: 'Open League Office', href: buildClubToolHref('/league-coordinator', workspace.club) },
-    { title: 'Tournament day', detail: 'Entries, draws, courts, and scores', label: 'Open Tournament Desk', href: buildClubToolHref('/league-coordinator/tournaments', workspace.club) },
+    ...(hasClubTeamProgram(workspace) ? [{ tool: 'Team Hub', title: 'Make the next team decision', detail: 'Use the club roster for availability, projected lineups, and messages', label: 'Open Team Hub', href: buildClubToolHref('/captain', workspace.club) }] : []),
+    { tool: 'League Office', title: 'Run the club league', detail: 'Keep entries, schedules, standings, and results in one season', label: 'Open League Office', href: buildClubToolHref('/league-coordinator', workspace.club) },
+    { tool: 'Tournament Desk', title: 'Run tournament day', detail: 'Move from entries to draws, courts, scores, and public results', label: 'Open Tournament Desk', href: buildClubToolHref('/league-coordinator/tournaments', workspace.club) },
   ]
   return [
-    { title: 'My development', detail: 'Your assignments and next focus', label: 'Open My Lab', href: buildClubToolHref('/mylab', workspace.club) },
-    { title: 'My programs', detail: 'See the clinics, teams, and groups connected to you', label: 'Open programs', tab: 'groups' as WorkspaceTab },
-    { title: 'Club competition', detail: 'Schedules, draws, and results', label: 'Open Compete', href: buildClubToolHref('/compete', workspace.club) },
+    { tool: 'My Lab', title: 'Know your next step', detail: 'Keep goals, coach assignments, follows, and match preparation together', label: 'Open My Lab', href: buildClubToolHref('/mylab', workspace.club) },
+    { tool: 'Club Programs', title: 'Stay with your programs', detail: 'See the clinics, teams, and groups connected to your club profile', label: 'Open programs', tab: 'groups' as WorkspaceTab },
+    { tool: 'Compete', title: 'Follow club competition', detail: 'Open your schedules, draws, results, and player history', label: 'Open Compete', href: buildClubToolHref('/compete', workspace.club) },
   ]
 }
 
@@ -2240,6 +2422,7 @@ function getClubHeroAction(workspace: ClubWorkspaceData, roles: ClubRole[]): { l
 function readStoredClubId() { try { return window.localStorage.getItem('tenaceiq.club.active') || '' } catch { return '' } }
 function rememberClubId(clubId: string) { try { window.localStorage.setItem('tenaceiq.club.active', clubId) } catch { /* best effort */ } }
 function readRequestedClubId() { return new URL(window.location.href).searchParams.get('clubId') || '' }
+function readRequestedClubSlug() { return new URL(window.location.href).searchParams.get('clubSlug') || '' }
 function readRequestedWorkspaceTab(): WorkspaceTab | null { const value = new URL(window.location.href).searchParams.get('tab'); return value === 'calendar' || value === 'people' || value === 'groups' || value === 'compete' || value === 'settings' || value === 'home' ? value : null }
 function readRequestedGroupId() { return new URL(window.location.href).searchParams.get('groupId') || '' }
 function readRequestedRosterOpen() { return new URL(window.location.href).searchParams.get('roster') === '1' }

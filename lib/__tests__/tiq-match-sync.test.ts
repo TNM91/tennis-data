@@ -127,7 +127,7 @@ describe('syncTiqIndividualResultToMatch', () => {
       return chain
     })
 
-    await syncTiqIndividualResultToMatch(result)
+    await syncTiqIndividualResultToMatch(result, { resultMode: 'tiq_rated' })
 
     expect(insertSpy).toHaveBeenCalledOnce()
     const inserted = insertSpy.mock.calls[0][0] as Array<{ player_id: string }>
@@ -153,7 +153,7 @@ describe('syncTiqIndividualResultToMatch', () => {
       return makeChain({ data: null, error: null })
     })
 
-    await syncTiqIndividualResultToMatch(result)
+    await syncTiqIndividualResultToMatch(result, { resultMode: 'tiq_rated' })
     expect(createdPlayer).toBe(true)
   })
 
@@ -163,7 +163,7 @@ describe('syncTiqIndividualResultToMatch', () => {
       winner_player_id: null,
       winner_player_name: 'Unknown Player',
     }
-    await expect(syncTiqIndividualResultToMatch(ambiguous)).rejects.toThrow('Cannot determine winner side')
+    await expect(syncTiqIndividualResultToMatch(ambiguous, { resultMode: 'tiq_rated' })).rejects.toThrow('Cannot determine winner side')
   })
 
   it('throws when match upsert fails', async () => {
@@ -174,7 +174,7 @@ describe('syncTiqIndividualResultToMatch', () => {
       return makeChain({ data: null, error: null })
     })
 
-    await expect(syncTiqIndividualResultToMatch(result)).rejects.toThrow('Failed to sync TIQ individual result')
+    await expect(syncTiqIndividualResultToMatch(result, { resultMode: 'tiq_rated' })).rejects.toThrow('Failed to sync TIQ individual result')
   })
 
   it('throws when player resolution returns null for both sides', async () => {
@@ -185,7 +185,7 @@ describe('syncTiqIndividualResultToMatch', () => {
       return makeChain({ data: null, error: null })
     })
 
-    await expect(syncTiqIndividualResultToMatch(result)).rejects.toThrow('Failed to resolve players')
+    await expect(syncTiqIndividualResultToMatch(result, { resultMode: 'tiq_rated' })).rejects.toThrow('Failed to resolve players')
   })
 
   it('uses external_match_id based on the result id', async () => {
@@ -205,7 +205,44 @@ describe('syncTiqIndividualResultToMatch', () => {
       return makeChain({ data: null, error: null })
     })
 
-    await syncTiqIndividualResultToMatch(result)
+    await syncTiqIndividualResultToMatch(result, { resultMode: 'tiq_rated' })
     expect((upsertedPayload as unknown as Record<string, unknown>)?.external_match_id).toBe('tiq_ind_result-1')
+    expect((upsertedPayload as unknown as Record<string, unknown>)?.rating_eligible).toBe(true)
+    expect((upsertedPayload as unknown as Record<string, unknown>)?.public_history_eligible).toBe(true)
+    expect((upsertedPayload as unknown as Record<string, unknown>)?.source_entity_type).toBe('league')
+  })
+
+  it('keeps public-history-only results out of TIQ rating calculations', async () => {
+    const fromMock = supabase.from as Mock
+    let upsertedPayload: Record<string, unknown> | null = null
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'players') return makeChain({ data: { id: 'p-x' }, error: null })
+      if (table === 'matches') {
+        const chain = makeChain({ data: { id: 'match-1' }, error: null })
+        ;(chain as Record<string, unknown>)['upsert'] = (payload: Record<string, unknown>) => {
+          upsertedPayload = payload
+          return makeChain({ data: { id: 'match-1' }, error: null })
+        }
+        return chain
+      }
+      return makeChain({ data: null, error: null })
+    })
+
+    await syncTiqIndividualResultToMatch(result, { resultMode: 'public_history' })
+    expect((upsertedPayload as unknown as Record<string, unknown>)?.rating_eligible).toBe(false)
+    expect((upsertedPayload as unknown as Record<string, unknown>)?.public_history_eligible).toBe(true)
+  })
+
+  it('does not mirror social results into public match history', async () => {
+    const fromMock = supabase.from as Mock
+    const upsertSpy = vi.fn()
+    fromMock.mockImplementation((table: string) => {
+      const chain = makeChain({ data: null, error: null })
+      if (table === 'matches') (chain as Record<string, unknown>)['upsert'] = upsertSpy
+      return chain
+    })
+
+    await syncTiqIndividualResultToMatch(result, { resultMode: 'social' })
+    expect(upsertSpy).not.toHaveBeenCalled()
   })
 })

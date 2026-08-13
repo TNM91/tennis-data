@@ -1,5 +1,10 @@
 import { supabase } from './supabase'
 import type { TiqTeamMatchEventRecord, TiqTeamMatchLineRecord } from './tiq-team-results-service'
+import {
+  getClubCompetitionResultPolicy,
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from './club-competition'
 
 type TiqIndividualResult = {
   id: string
@@ -12,6 +17,11 @@ type TiqIndividualResult = {
   winner_player_name: string
   score: string
   result_date: string
+}
+
+export type TiqMatchSyncPolicy = {
+  clubId?: string | null
+  resultMode?: ClubCompetitionResultMode
 }
 
 export function deriveWinnerSide(result: TiqIndividualResult): 'A' | 'B' | null {
@@ -79,7 +89,10 @@ async function resolvePlayer(
 
 // ─── Individual results ───────────────────────────────────────────────────────
 
-export async function syncTiqIndividualResultToMatch(result: TiqIndividualResult): Promise<void> {
+export async function syncTiqIndividualResultToMatch(
+  result: TiqIndividualResult,
+  syncPolicy?: TiqMatchSyncPolicy,
+): Promise<void> {
   const winnerSide = deriveWinnerSide(result)
   if (!winnerSide) {
     throw new Error(`Cannot determine winner side for TIQ result ${result.id}`)
@@ -87,6 +100,12 @@ export async function syncTiqIndividualResultToMatch(result: TiqIndividualResult
 
   const externalMatchId = buildTiqIndividualExternalMatchId(result.id)
   const matchDate = result.result_date.slice(0, 10)
+
+  const policy = syncPolicy ? buildMatchPolicy(syncPolicy) : await resolveLeagueMatchPolicy(result.league_id)
+  if (!policy.publicHistoryEligible) {
+    await deleteTiqIndividualResultMatch(result.id)
+    return
+  }
 
   const { data: upsertedMatch, error: matchError } = await supabase
     .from('matches')
@@ -105,6 +124,11 @@ export async function syncTiqIndividualResultToMatch(result: TiqIndividualResult
         source: 'tiq',
         status: 'completed',
         match_source: 'tiq_individual',
+        club_id: policy.clubId,
+        rating_eligible: policy.ratingEligible,
+        public_history_eligible: policy.publicHistoryEligible,
+        source_entity_type: 'league',
+        source_entity_id: result.league_id,
         match_type: 'singles',
         winner_side: winnerSide,
         score: result.score || null,
@@ -153,12 +177,18 @@ export async function deleteTiqIndividualResultMatch(resultId: string): Promise<
 export async function syncTiqTeamMatchLineToMatch(
   line: TiqTeamMatchLineRecord,
   event: TiqTeamMatchEventRecord,
+  syncPolicy?: TiqMatchSyncPolicy,
 ): Promise<void> {
   if (!line.winnerSide) {
     throw new Error(`Cannot sync incomplete team line ${line.id} — no winner set`)
   }
 
   const externalMatchId = buildTiqTeamLineExternalMatchId(line.id)
+  const policy = syncPolicy ? buildMatchPolicy(syncPolicy) : await resolveLeagueMatchPolicy(event.leagueId)
+  if (!policy.publicHistoryEligible) {
+    await deleteTiqTeamMatchLineMatch(line.id)
+    return
+  }
 
   const { data: upsertedMatch, error: matchError } = await supabase
     .from('matches')
@@ -177,6 +207,11 @@ export async function syncTiqTeamMatchLineToMatch(
         source: 'tiq',
         status: 'completed',
         match_source: 'tiq_team',
+        club_id: policy.clubId,
+        rating_eligible: policy.ratingEligible,
+        public_history_eligible: policy.publicHistoryEligible,
+        source_entity_type: 'league',
+        source_entity_id: event.leagueId,
         match_type: line.matchType,
         winner_side: line.winnerSide,
         score: line.score || null,
@@ -226,4 +261,110 @@ export async function deleteTiqTeamMatchLineMatch(lineId: string): Promise<void>
     .from('matches')
     .delete()
     .eq('external_match_id', buildTiqTeamLineExternalMatchId(lineId))
+}
+
+async function resolveLeagueMatchPolicy(leagueId: string) {
+  const { data } = await supabase
+    .from('tiq_leagues')
+    .select('club_id,result_mode')
+    .eq('id', leagueId)
+    .maybeSingle()
+
+  const resultMode = normalizeClubCompetitionResultMode(data?.result_mode)
+  return {
+    clubId: typeof data?.club_id === 'string' && data.club_id ? data.club_id : null,
+    resultMode,
+    ...getClubCompetitionResultPolicy(resultMode),
+  }
+}
+
+function buildMatchPolicy(policy: TiqMatchSyncPolicy) {
+  const resultMode = normalizeClubCompetitionResultMode(policy.resultMode)
+  return {
+    clubId: policy.clubId || null,
+    resultMode,
+    ...getClubCompetitionResultPolicy(resultMode),
+  }
+}
+
+export async function syncTiqTournamentResultToMatch(input: {
+  tournamentId: string
+  matchId: string
+  matchDate: string
+  locationLabel: string
+  sideAName: string
+  sideAPlayerId: string
+  sideBName: string
+  sideBPlayerId: string
+  winnerName: string
+  score: string
+  clubId?: string
+  resultMode: ClubCompetitionResultMode
+}): Promise<void> {
+  const externalMatchId = `tiq_tournament_${input.tournamentId}_${input.matchId}`
+  const policy = getClubCompetitionResultPolicy(input.resultMode)
+
+  if (!policy.publicHistoryEligible) {
+    await supabase.from('matches').delete().eq('external_match_id', externalMatchId)
+    return
+  }
+
+  if (!input.sideAPlayerId || !input.sideBPlayerId) {
+    throw new Error('Connect both entrants to TIQ player profiles before publishing this result to player history.')
+  }
+
+  const winnerSide = input.winnerName === input.sideAName
+    ? 'A'
+    : input.winnerName === input.sideBName
+      ? 'B'
+      : null
+  if (!winnerSide) throw new Error('Choose a winner from the two players in this match.')
+
+  const { data: upsertedMatch, error: matchError } = await supabase
+    .from('matches')
+    .upsert({
+      external_match_id: externalMatchId,
+      match_date: input.matchDate.slice(0, 10),
+      match_time: null,
+      home_team: null,
+      away_team: null,
+      facility: input.locationLabel || null,
+      league_name: input.tournamentId,
+      flight: null,
+      usta_section: null,
+      district_area: null,
+      source: 'tiq',
+      status: 'completed',
+      match_source: 'tiq_tournament',
+      match_type: 'singles',
+      winner_side: winnerSide,
+      score: input.score || null,
+      line_number: null,
+      dedupe_key: null,
+      club_id: input.clubId || null,
+      rating_eligible: policy.ratingEligible,
+      public_history_eligible: policy.publicHistoryEligible,
+      source_entity_type: 'tournament',
+      source_entity_id: input.tournamentId,
+    }, { onConflict: 'external_match_id' })
+    .select('id')
+    .single()
+
+  if (matchError || !upsertedMatch?.id) {
+    throw new Error(`Failed to publish tournament result to player history: ${matchError?.message ?? 'no id returned'}`)
+  }
+
+  await supabase.from('match_players').delete().eq('match_id', upsertedMatch.id)
+  const { error: playersError } = await supabase.from('match_players').insert([
+    { match_id: upsertedMatch.id, player_id: input.sideAPlayerId, side: 'A', seat: 1 },
+    { match_id: upsertedMatch.id, player_id: input.sideBPlayerId, side: 'B', seat: 1 },
+  ])
+  if (playersError) throw new Error(`Failed to connect tournament players to match history: ${playersError.message}`)
+}
+
+export async function deleteTiqTournamentResultMatch(tournamentId: string, matchId: string) {
+  await supabase
+    .from('matches')
+    .delete()
+    .eq('external_match_id', `tiq_tournament_${tournamentId}_${matchId}`)
 }

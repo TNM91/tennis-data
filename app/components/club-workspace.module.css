@@ -22,12 +22,15 @@
 .clubWelcome {
   position: relative;
   display: grid;
-  gap: 16px;
+  gap: 20px;
   overflow: hidden;
   padding: clamp(20px, 5vw, 38px);
   border: 1px solid var(--shell-panel-border);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--shell-panel-bg) 98%, #061225);
+  background:
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--brand-green) 13%, transparent), transparent 28%),
+    linear-gradient(145deg, #071426, #04101f 72%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
 }
 
 .clubWelcome > :not([data-contextual-tennis-visual]),
@@ -37,6 +40,69 @@
 }
 
 .clubWelcome > .copy { max-width: 760px; }
+.clubWelcomeLead { position: relative; z-index: 1; display: grid; gap: 14px; max-width: 880px; padding-block: clamp(12px, 3vw, 30px); }
+.clubWelcomeLead .title { max-width: 820px; font-size: clamp(38px, 7vw, 72px); }
+.clubWelcomeLead .copy { max-width: 810px; font-size: clamp(15px, 2.3vw, 19px); }
+.clubWelcomePromise { position: relative; z-index: 1; display: grid; gap: 6px; max-width: 850px; border-left: 3px solid var(--brand-green); padding: 4px 0 4px 15px; }
+.clubWelcomePromise > span { color: var(--brand-green); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.clubWelcomePromise > strong { font-size: clamp(19px, 3vw, 27px); line-height: 1.15; }
+.clubWelcomePromise p { margin: 0; color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.5; }
+.clubJourney { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 16px; background: var(--shell-panel-border); }
+.clubJourney article { display: grid; align-content: start; gap: 12px; min-height: 178px; background: rgba(8, 24, 44, .96); padding: 17px; }
+.clubJourney article > b { color: var(--brand-green); font-size: 24px; letter-spacing: -.04em; }
+.clubJourney article > div { display: grid; gap: 7px; }
+.clubJourney strong { font-size: 17px; }
+.clubJourney span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.45; }
+
+.clubPlans { position: relative; z-index: 1; display: grid; gap: 16px; padding: clamp(17px, 3vw, 24px); border: 1px solid var(--shell-panel-border); border-radius: 16px; background: linear-gradient(145deg, rgba(8, 24, 44, .97), rgba(4, 16, 31, .98)); box-shadow: 0 18px 48px rgba(0, 0, 0, .2); }
+.clubWelcome .clubPlans { margin-top: 2px; }
+.clubPlansHeading, .clubCapacityHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.clubPlansHeading > div, .clubCapacityHeading > div { display: grid; gap: 6px; min-width: 0; }
+.clubPlansHeading h2 { max-width: 760px; margin: 0; font-size: clamp(24px, 4vw, 36px); line-height: 1.08; letter-spacing: -.025em; }
+.clubPlansHeading p:not(.eyebrow), .clubCapacityHeading p { max-width: 780px; margin: 0; color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.5; }
+.clubPlanScope { flex: 0 0 auto; border: 1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border)); border-radius: 999px; background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg)); color: var(--brand-green); padding: 8px 11px; font-size: 11px; font-weight: 900; }
+.clubPlanGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.clubPlanCard { display: grid; align-content: start; gap: 11px; min-width: 0; border: 1px solid var(--shell-panel-border); border-radius: 15px; background: rgba(5, 16, 31, .78); padding: clamp(16px, 3vw, 21px); }
+.clubPlanFeatured { border-color: color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border)); background: linear-gradient(150deg, color-mix(in srgb, var(--brand-green) 10%, rgba(5, 16, 31, .94)), rgba(5, 16, 31, .92)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
+.clubPlanTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.clubPlanTop > div { display: grid; gap: 3px; }
+.clubPlanTop span { color: var(--shell-copy-muted); font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.clubPlanTop h3 { margin: 0; font-size: 21px; }
+.clubPlanTop > b { max-width: 150px; border-radius: 999px; background: var(--brand-green); color: #07111f; padding: 6px 9px; font-size: 9px; font-weight: 950; text-align: center; text-transform: uppercase; }
+.clubPlanPrice { display: flex; align-items: baseline; gap: 5px; margin: 0; color: var(--foreground-strong); font-size: clamp(36px, 6vw, 54px); font-weight: 950; letter-spacing: -.055em; line-height: 1; }
+.clubPlanPrice span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 850; letter-spacing: 0; }
+.clubPlanCard > strong { font-size: 16px; }
+.clubPlanCard > p:not(.clubPlanPrice) { margin: 0; color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.48; }
+.clubPlanCard ul { display: grid; gap: 7px; margin: 0; padding-left: 18px; color: var(--shell-copy); font-size: 12px; font-weight: 750; line-height: 1.4; }
+.clubPlanCard > .primary, .clubPlanCard > .secondary { width: 100%; margin-top: 2px; }
+.clubPlanBoundary { margin: 0; color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; line-height: 1.45; }
+.clubPlanGateIntro { display: grid; gap: 12px; max-width: 880px; padding: clamp(10px, 3vw, 24px) 0 20px; }
+.clubPlanGateIntro .copy { max-width: 780px; font-size: 17px; }
+.createClub { max-width: 820px; }
+.publicOpening { min-height: 420px; align-content: end; }
+.clubMembershipNeeded { display: grid; gap: 17px; max-width: 980px; margin: 20px auto 0; border: 1px solid var(--shell-panel-border); border-radius: 18px; background: radial-gradient(circle at 84% 12%, color-mix(in srgb, var(--brand-green) 12%, transparent), transparent 32%), linear-gradient(145deg, #071426, #04101f 76%); padding: clamp(20px, 5vw, 36px); box-shadow: 0 24px 70px rgba(0, 0, 0, .28); }
+.clubMembershipNeeded .copy { max-width: 820px; font-size: 16px; }
+.clubMembershipNeeded .copy strong { color: var(--foreground-strong); overflow-wrap: anywhere; }
+.clubConnectionFlow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 14px; background: var(--shell-panel-border); }
+.clubConnectionFlow > div { display: grid; align-content: start; gap: 8px; min-height: 154px; background: rgba(8, 24, 44, .97); padding: 15px; }
+.clubConnectionFlow b { color: var(--brand-green); font-size: 22px; }
+.clubConnectionFlow strong { font-size: 16px; }
+.clubConnectionFlow span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 700; line-height: 1.45; }
+
+.clubCapacity { display: grid; gap: 14px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 35%, var(--shell-panel-border)); border-radius: 15px; background: linear-gradient(145deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 7%, #071426), #071426); padding: 16px; }
+.clubCapacityHeading h3 { margin: 0; font-size: clamp(20px, 3vw, 26px); }
+.clubCapacityHeading > a { flex: 0 0 auto; }
+.clubCapacityGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.clubCapacityMeter, .clubWorkspaceScope { display: grid; align-content: start; gap: 6px; min-width: 0; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: rgba(5, 16, 31, .72); padding: 13px; }
+.clubCapacityMeter > div:first-child { display: flex; align-items: baseline; gap: 6px; }
+.clubCapacityMeter > div:first-child strong, .clubWorkspaceScope > strong { color: var(--club-color, var(--brand-green)); font-size: 28px; line-height: 1; }
+.clubCapacityMeter > div:first-child span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 850; }
+.clubCapacityMeter p, .clubWorkspaceScope span { margin: 0; color: var(--foreground-strong); font-size: 12px; font-weight: 850; }
+.clubCapacityTrack { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .08); }
+.clubCapacityTrack > span { display: block; height: 100%; border-radius: inherit; background: var(--club-color, var(--brand-green)); }
+.clubCapacityMeterAttention { border-color: rgba(255, 194, 87, .42); }
+.clubCapacityMeterAttention .clubCapacityTrack > span { background: #ffc257; }
+.clubWorkspaceScope small { color: var(--shell-copy-muted); font-size: 10px; font-weight: 700; line-height: 1.4; }
 
 .eyebrow {
   margin: 0;
@@ -68,7 +134,8 @@
   gap: 18px;
   padding: clamp(18px, 4vw, 30px);
   background:
-    linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 13%, #071426), #071426 72%);
+    linear-gradient(120deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 18%, #071426), #071426 72%);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255, 255, 255, .045);
 }
 
 .hero::after {
@@ -121,6 +188,28 @@
 .clubName { margin: 3px 0 5px; font-size: clamp(27px, 5vw, 42px); line-height: 1.04; overflow-wrap: anywhere; }
 .clubMeta { margin: 0; color: var(--shell-copy-muted); font-weight: 720; }
 .powered { position: relative; z-index: 1; color: var(--shell-copy-muted); font-size: 12px; font-weight: 900; letter-spacing: .04em; }
+.publicHero { min-height: 390px; align-content: end; padding: clamp(22px, 5vw, 42px); }
+.publicHeroTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.publicLogo { width: 86px; height: 86px; border-radius: 20px; box-shadow: 0 12px 34px rgba(0,0,0,.28); }
+.publicExperience { overflow: hidden; background: linear-gradient(145deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 6%, var(--shell-panel-bg)), var(--shell-panel-bg)); }
+.experienceStrip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 15px; background: var(--shell-panel-border); }
+.experienceStrip > div { display: grid; align-content: start; gap: 7px; min-height: 150px; background: var(--shell-chip-bg); padding: 16px; }
+.experienceStrip b { color: var(--club-color, var(--brand-green)); font-size: 22px; }
+.experienceStrip strong { font-size: 17px; }
+.experienceStrip span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.45; }
+.heroCopy { max-width: 760px; color: color-mix(in srgb, var(--foreground-strong) 74%, var(--shell-copy-muted)); font-size: clamp(15px, 2.2vw, 18px); }
+.heroProof { display: flex; flex-wrap: wrap; gap: 8px; }
+.heroProof span { display: inline-flex; align-items: baseline; gap: 5px; min-height: 33px; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 25%, rgba(255,255,255,.12)); border-radius: 999px; background: rgba(5, 14, 28, .54); padding: 7px 11px; color: var(--shell-copy-muted); font-size: 11px; font-weight: 800; backdrop-filter: blur(8px); }
+.heroProof strong { color: var(--foreground-strong); font-size: 14px; }
+.identityStatus { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; max-width: 860px; border: 1px solid rgba(255, 190, 58, .38); border-radius: 14px; background: rgba(55, 36, 8, .42); padding: 12px 14px; }
+.identityStatus > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #ffbf3f; color: #07111f; font-weight: 950; }
+.identityStatus > div { display: grid; gap: 3px; }
+.identityStatus strong { font-size: 14px; }
+.identityStatus p { margin: 0; color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.45; }
+.identityConnected { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 38%, var(--shell-panel-border)); background: color-mix(in srgb, var(--club-color, var(--brand-green)) 7%, rgba(5,14,28,.76)); }
+.identityConnected > span { background: var(--club-color, var(--brand-green)); }
+.identityPillConnected { border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 42%, var(--shell-panel-border)); color: var(--club-color, var(--brand-green)); }
+.identityPillPending { border-color: rgba(255, 190, 58, .38); color: #ffd582; }
 
 .switcher select, .field input, .field textarea, .field select {
   width: 100%;
@@ -383,6 +472,38 @@
 .setupSteps span { color: var(--shell-copy-muted); font-size: 12px; line-height: 1.4; }
 .setupStepDone strong { color: var(--club-color, var(--brand-green)); }
 
+.experiencePath { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(0, 1.65fr); gap: clamp(18px, 3vw, 32px); align-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 45%, var(--shell-panel-border)); border-radius: 18px; background: linear-gradient(125deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 13%, #071426), #071426 68%); padding: clamp(18px, 3vw, 26px); }
+.experiencePathIntro { display: grid; gap: 7px; }
+.experiencePathIntro h3 { margin: 0; font-size: clamp(23px, 4vw, 33px); line-height: 1.08; letter-spacing: -.025em; }
+.experiencePathIntro p:last-child { margin: 0; color: var(--shell-copy-muted); line-height: 1.5; }
+.experienceSteps { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--shell-panel-border); border-radius: 14px; background: var(--shell-panel-border); }
+.experienceSteps button { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 84px; border: 0; background: rgba(7, 20, 38, .96); color: inherit; padding: 13px 15px; text-align: left; font: inherit; cursor: pointer; }
+.experienceSteps button:hover, .experienceSteps button:focus-visible { background: color-mix(in srgb, var(--club-color, var(--brand-green)) 10%, #071426); }
+.experienceSteps button > span { color: var(--club-color, var(--brand-green)); font-size: 22px; font-weight: 950; letter-spacing: -.05em; }
+.experienceSteps button > div { display: grid; gap: 3px; }
+.experienceSteps strong { font-size: 16px; }
+.experienceSteps p { margin: 0; color: var(--shell-copy-muted); font-size: 12px; font-weight: 700; line-height: 1.4; }
+.experienceSteps b { color: var(--club-color, var(--brand-green)); font-size: 18px; }
+
+.continueSection { display: grid; gap: 14px; }
+.continueHeading { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.continueHeading > div { display: grid; gap: 5px; }
+.continueHeading h3 { margin: 0; font-size: clamp(21px, 3.4vw, 28px); }
+.continueHeading p:not(.eyebrow) { max-width: 680px; margin: 0; color: var(--shell-copy-muted); line-height: 1.45; }
+.commandLayout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .32fr); gap: 12px; }
+.commandLayout .actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.commandLayout .actionGrid > :only-child { grid-column: 1 / -1; }
+.commandLayout .actionGrid > :nth-last-child(3):first-child, .commandLayout .actionGrid > :nth-last-child(3):first-child ~ * { grid-column: auto; }
+.actionNumber { color: color-mix(in srgb, var(--club-color, var(--brand-green)) 55%, var(--shell-copy-muted)); font-size: 11px; font-weight: 950; letter-spacing: .08em; }
+.actionTool { width: fit-content; border-radius: 999px; background: color-mix(in srgb, var(--club-color, var(--brand-green)) 12%, transparent); color: var(--club-color, var(--brand-green)) !important; padding: 5px 8px; font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.clubSnapshot { display: grid; align-content: start; gap: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 35%, var(--shell-panel-border)); border-radius: 14px; background: linear-gradient(160deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 10%, #071426), #071426); padding: 16px; }
+.clubSnapshot > strong { color: var(--club-color, var(--brand-green)); font-size: clamp(40px, 7vw, 64px); line-height: .95; letter-spacing: -.06em; }
+.clubSnapshot > span { color: var(--shell-copy-muted); font-size: 12px; font-weight: 750; line-height: 1.4; }
+.clubSnapshot > div { display: grid; gap: 6px; margin-top: 7px; }
+.clubSnapshot button { display: flex; align-items: center; justify-content: space-between; min-height: 38px; border: 1px solid var(--shell-panel-border); border-radius: 10px; background: rgba(255,255,255,.025); color: inherit; padding: 8px 10px; font: inherit; cursor: pointer; }
+.clubSnapshot button b { color: var(--foreground-strong); font-size: 15px; }
+.clubSnapshot button span { color: var(--shell-copy-muted); font-size: 11px; font-weight: 850; }
+
 .actionGrid, .cardGrid, .statGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
@@ -397,11 +518,13 @@
   background: var(--shell-chip-bg);
 }
 
-.actionCard { display: grid; gap: 8px; color: inherit; text-decoration: none; }
+.actionCard { position: relative; display: grid; align-content: start; gap: 8px; overflow: hidden; color: inherit; text-decoration: none; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+.actionCard:hover, .actionCard:focus-visible { transform: translateY(-2px); border-color: color-mix(in srgb, var(--club-color, var(--brand-green)) 48%, var(--shell-panel-border)); background: color-mix(in srgb, var(--club-color, var(--brand-green)) 6%, var(--shell-chip-bg)); }
 .actionCardButton { width: 100%; color: inherit; text-align: left; font: inherit; cursor: pointer; }
 .actionCard strong, .card h3 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
 .actionCard span, .card p { color: var(--shell-copy-muted); line-height: 1.45; }
 .actionCard b { color: var(--club-color, var(--brand-green)); font-size: 13px; }
+.actionCard b span { color: inherit; font-size: 15px; }
 .stat { display: grid; gap: 3px; }
 .stat strong { font-size: 26px; }
 .stat span { color: var(--shell-copy-muted); font-size: 13px; font-weight: 800; }
@@ -514,14 +637,27 @@
 .renewalNo { border-color: rgba(255, 94, 112, .36); color: #ffd2d7; }
 
 @media (max-width: 650px) {
+  .identityStatus { grid-template-columns: auto minmax(0, 1fr); }
+  .identityStatus .quietButton { grid-column: 1 / -1; width: 100%; }
   .page { width: min(100% - 20px, 1180px); padding-top: 16px; }
   .hero { border-radius: 14px; }
+  .clubJourney, .experienceStrip, .clubPlanGrid, .clubCapacityGrid, .clubConnectionFlow { grid-template-columns: 1fr; }
+  .clubConnectionFlow > div { min-height: 0; }
+  .clubPlansHeading, .clubCapacityHeading { align-items: stretch; flex-direction: column; }
+  .clubPlanScope { align-self: flex-start; }
+  .clubCapacityHeading > a { width: 100%; }
+  .clubJourney article { grid-template-columns: 44px minmax(0, 1fr); min-height: 0; }
+  .publicHero { min-height: 0; }
+  .publicHeroTop { align-items: flex-start; flex-direction: column; }
+  .publicLogo { width: 72px; height: 72px; }
   .fieldGrid { grid-template-columns: 1fr; }
   .full { grid-column: auto; }
   .clubLogoEditor { grid-template-columns: 1fr; }
   .clubLogoPreview { width: 76px; height: 76px; }
   .clubLogoActions > * { flex: 1 1 132px; }
   .heroActions > *, .row > .primary, .row > .secondary, .row > .quietButton, .row > .dangerButton { flex: 1 1 145px; }
+  .heroProof { display: grid; grid-template-columns: 1fr; }
+  .heroProof span { justify-content: space-between; }
   .tabs { position: sticky; top: 8px; z-index: 4; }
   .tab { flex-basis: 92px; padding: 0 8px; font-size: 12px; }
   .headingRow, .setupTop { align-items: stretch; }
@@ -530,6 +666,11 @@
   .seasonAction { grid-template-columns: 1fr; }
   .seasonAction > button { width: 100%; }
   .setupSteps li { align-items: flex-start; }
+  .experiencePath, .commandLayout { grid-template-columns: 1fr; }
+  .experienceSteps button { grid-template-columns: 36px minmax(0, 1fr) auto; min-height: 76px; padding-inline: 12px; }
+  .continueHeading { align-items: stretch; flex-direction: column; }
+  .continueHeading > button { align-self: flex-start; }
+  .commandLayout .actionGrid { grid-template-columns: 1fr; }
   .clubPulseHeading { align-items: flex-start; }
   .clubPulseActions { justify-content: flex-start; }
   .clubPulseActions > button { flex: 1 1 132px; }
@@ -568,4 +709,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .setupProgress span { transition: none; }
+  .actionCard { transition: none; }
 }

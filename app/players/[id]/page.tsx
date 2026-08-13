@@ -436,10 +436,12 @@ function PlayerProfileContent() {
               league_name,
               source,
               score,
-              winner_side
+              winner_side,
+              public_history_eligible
             `)
             .in('id', matchIds)
             .not('match_type', 'is', null)
+            .eq('public_history_eligible', true)
             .order('match_date', { ascending: false })
             .order('match_time', { ascending: false })
             .order('id', { ascending: false }),

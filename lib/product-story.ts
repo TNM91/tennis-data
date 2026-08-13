@@ -113,6 +113,11 @@ export const CLUB_PLAN_STORY = {
     id: 'club_starter',
     name: 'Club Starter',
     priceLabel: '$99/month',
+    workspaceLimit: 1,
+    coachStaffLimit: 10,
+    connectedPlayerLimit: 150,
+    capacityLabel: 'Up to 10 coaches or staff and 150 connected players',
+    scopeLabel: 'One branded Club workspace',
     audience: 'Clubs bringing their core tennis experience together',
     shortPromise: 'Give the club one connected tennis home.',
     description:
@@ -122,13 +127,18 @@ export const CLUB_PLAN_STORY = {
       'Clinic Hub for schedules, rosters, waitlists, plans, attendance, and updates',
       'Connected Coach, Player, League, Tournament, and optional Captain experiences',
       'External registration links back to the club’s current system',
-      'Up to 5 staff and 100 connected players',
+      'Up to 10 coaches or staff and 150 connected players',
     ],
   },
   unlimited: {
     id: 'club_unlimited',
     name: 'Club Unlimited',
     priceLabel: '$199/month',
+    workspaceLimit: 1,
+    coachStaffLimit: null,
+    connectedPlayerLimit: null,
+    capacityLabel: 'Unlimited coaches, staff, and connected players',
+    scopeLabel: 'One branded Club workspace',
     audience: 'Clubs supporting tennis across every coach and player',
     shortPromise: 'Extend the connected club experience to everyone.',
     description:
@@ -143,7 +153,15 @@ export const CLUB_PLAN_STORY = {
   },
   boundary:
     'TenAceIQ does not replace court booking, member registration, point-of-sale, or payment systems. Club links can send registration and payment back to the system the club already uses.',
+  workspaceBoundary:
+    'Each Club subscription activates one branded Club workspace. Separate workspaces are scoped separately.',
 } as const
+
+export type ClubPlanStory = typeof CLUB_PLAN_STORY.starter | typeof CLUB_PLAN_STORY.unlimited
+
+export function getClubPlanStory(planId: string): ClubPlanStory {
+  return planId === CLUB_PLAN_STORY.unlimited.id ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+}
 
 export const PRODUCT_AVOID_LIST = [
   'Vague SaaS language',

@@ -112,7 +112,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   club_starter: {
     eyebrow: 'Club unlock',
     title: 'Activate one connected club experience.',
-    body: 'Continue with Club Starter for one branded club, up to 5 staff, and 100 connected players across clinics, teams, leagues, and tournaments.',
+    body: `Continue with Club Starter for ${CLUB_PLAN_STORY.starter.scopeLabel.toLowerCase()}, ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}, across clinics, teams, leagues, and tournaments.`,
     action: 'Continue with Club Starter',
     checkoutAction: 'Unlock Club Starter',
     setupAction: 'Preview Club',
@@ -120,7 +120,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   club_unlimited: {
     eyebrow: 'Club-wide unlock',
     title: 'Activate Club Unlimited for everyone.',
-    body: 'Continue with Club Unlimited when every coach and player should connect through one club identity without staff or player caps.',
+    body: `Continue with Club Unlimited for ${CLUB_PLAN_STORY.unlimited.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
     action: 'Continue with Club Unlimited',
     checkoutAction: 'Unlock Club Unlimited',
     setupAction: 'Preview Club',
@@ -134,8 +134,8 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
   captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
   league: 'Activate League when one season needs participants, schedules, scores, standings, and corrections in League Office.',
   full_court: 'Activate Full-Court when My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk all need to stay connected.',
-  club_starter: 'Activate Club Starter for one branded workspace with core staff and up to 100 connected players.',
-  club_unlimited: 'Activate Club Unlimited when the entire club should connect without staff or player caps.',
+  club_starter: `Activate Club Starter for ${CLUB_PLAN_STORY.starter.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}.`,
+  club_unlimited: `Activate Club Unlimited for ${CLUB_PLAN_STORY.unlimited.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
 }
 
 const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }> = {
@@ -165,11 +165,11 @@ const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }>
   },
   club_starter: {
     title: 'Unlock Club Starter.',
-    body: 'Connect one club, 5 staff, and up to 100 players.',
+    body: `${CLUB_PLAN_STORY.starter.scopeLabel}. ${CLUB_PLAN_STORY.starter.capacityLabel}.`,
   },
   club_unlimited: {
     title: 'Unlock Club Unlimited.',
-    body: 'Connect every coach and player through one club identity.',
+    body: `${CLUB_PLAN_STORY.unlimited.scopeLabel}. ${CLUB_PLAN_STORY.unlimited.capacityLabel}.`,
   },
 }
 
@@ -242,7 +242,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   club_starter: {
     title: 'Club Starter is active. Create the club.',
-    body: 'Open Club, add the club identity, then connect core staff and up to 100 players across programs and competition.',
+    body: `Open Club, add the club identity, then connect ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()} across programs and competition.`,
     primaryAction: 'Open Club',
     secondaryAction: 'Review Club plans',
     secondaryHref: '/pricing#club',
@@ -1165,13 +1165,13 @@ function getUpgradeTierStory(planId: PricingPlanId) {
   if (planId === 'club_starter') {
     return {
       shortPromise: CLUB_PLAN_STORY.starter.shortPromise,
-      upgradeCue: 'Connect one branded club, core staff, and up to 100 players.',
+      upgradeCue: `${CLUB_PLAN_STORY.starter.scopeLabel}. ${CLUB_PLAN_STORY.starter.capacityLabel}.`,
     }
   }
   if (planId === 'club_unlimited') {
     return {
       shortPromise: CLUB_PLAN_STORY.unlimited.shortPromise,
-      upgradeCue: 'Connect every coach and player through one club identity.',
+      upgradeCue: `${CLUB_PLAN_STORY.unlimited.scopeLabel}. ${CLUB_PLAN_STORY.unlimited.capacityLabel}.`,
     }
   }
   return getMembershipTier(planId)

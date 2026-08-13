@@ -48,6 +48,8 @@ export type ClubMembership = {
   displayName: string
   email: string
   phone: string
+  playerIdentityConnected?: boolean
+  linkedPlayerName?: string
   joinedAt: string
   updatedAt: string
 }
@@ -893,6 +895,8 @@ export function mapClubMembershipRow(row: Row): ClubMembership {
     displayName: cleanClubText(row.display_name),
     email: cleanClubText(row.email, 180).toLowerCase(),
     phone: cleanClubText(row.phone, 40),
+    playerIdentityConnected: Boolean(row.player_identity_connected),
+    linkedPlayerName: cleanClubText(row.linked_player_name),
     joinedAt: cleanClubText(row.joined_at, 80),
     updatedAt: cleanClubText(row.updated_at, 80),
   }

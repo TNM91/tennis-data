@@ -431,11 +431,9 @@ function getActivationCue(request: UpgradeRequestRecord) {
     return {
       title: clubPlan.name,
       summary: clubPlan.shortPromise,
-      grants: request.planId === 'club_unlimited'
-        ? ['One branded club workspace', 'Unlimited staff and players']
-        : ['One branded club workspace', 'Up to 5 staff and 100 players'],
+      grants: [clubPlan.scopeLabel, clubPlan.capacityLabel],
       excludes: ['Court booking', 'Registration and point-of-sale'],
-      note: CLUB_PLAN_STORY.boundary,
+      note: `${CLUB_PLAN_STORY.workspaceBoundary} ${CLUB_PLAN_STORY.boundary}`,
     }
   }
 
