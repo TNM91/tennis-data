@@ -4,8 +4,9 @@ import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/trac
 import UniversalSearch from '@/app/components/universal-search'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
-import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import {
+  CLUB_PLAN_STORY,
   DATA_ASSIST_STORY,
   MEMBERSHIP_TIERS,
   PLATFORM_PILLARS,
@@ -295,13 +296,30 @@ const homeModeCards: HomeModeCard[] = [
   },
 ]
 
-const guestTierPreviews: Array<{ planId: PricingPlanId; icon: TiqFeatureIconName; label: string }> = [
+const guestTierPreviews: Array<{
+  planId: BillablePricingPlanId
+  icon: TiqFeatureIconName
+  label: string
+  audienceOverride?: string
+}> = [
   { planId: 'free', icon: 'exploreTennis', label: 'Explore' },
   { planId: 'player_plus', icon: 'improveTennis', label: 'Player' },
   { planId: 'captain', icon: 'captainTennis', label: 'Captain' },
   { planId: 'coach', icon: 'coachTennis', label: 'Coach' },
-  { planId: 'league', icon: 'leagueTennis', label: 'League' },
   { planId: 'full_court', icon: 'captainDashboard', label: 'Full-Court' },
+  { planId: 'league', icon: 'leagueTennis', label: 'League' },
+  {
+    planId: 'club_starter',
+    icon: 'clubTennis',
+    label: 'Club Starter',
+    audienceOverride: CLUB_PLAN_STORY.starter.capacityLabel,
+  },
+  {
+    planId: 'club_unlimited',
+    icon: 'clubTennis',
+    label: 'Club Unlimited',
+    audienceOverride: CLUB_PLAN_STORY.unlimited.capacityLabel,
+  },
 ]
 
 const platformLaneCues = {
@@ -554,7 +572,7 @@ export function GuestTierPreview() {
         titleId="guest-tier-preview-title"
       />
       <div role="list" style={guestTierGridStyle}>
-        {guestTierPreviews.map(({ planId, icon, label }) => {
+        {guestTierPreviews.map(({ planId, icon, label, audienceOverride }) => {
           const plan = getPricingPlan(planId)
           const featured = planId === 'captain'
           const href = planId === 'free' ? '/explore' : `/pricing#${planId}`
@@ -570,7 +588,7 @@ export function GuestTierPreview() {
               <div style={guestTierCardCopyStyle}>
                 <span style={guestTierLabelStyle}>{label}</span>
                 <h2 style={guestTierTitleStyle}>{plan.subtitle}</h2>
-                <p style={guestTierAudienceStyle}>{plan.audience}</p>
+                <p style={guestTierAudienceStyle}>{audienceOverride ?? plan.audience}</p>
               </div>
               <ul style={guestTierListStyle}>
                 {plan.valueProps.slice(0, 3).map((item) => (
