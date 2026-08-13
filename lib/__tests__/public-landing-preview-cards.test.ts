@@ -164,7 +164,8 @@ describe('public landing preview cards', () => {
   })
 
   it('keeps homepage section copy approachable instead of workspace-heavy', () => {
-    expect(homePageSource).toContain('<GuestTierPreviewGate />')
+    expect(homePageSource).toContain('<GuestTierPreview />')
+    expect(homePageSource).not.toContain('GuestTierPreviewGate')
     expect(homePageSource).toContain('showBoard={false}')
     expect(homePageSource).not.toContain('<HomeIntelligenceSnapshot />')
     expect(homePageSource).not.toContain('<HomeModeRouter />')
