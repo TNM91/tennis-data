@@ -1,0 +1,318 @@
+.section {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 12% 6%, rgba(var(--brand-green-rgb), 0.15), transparent 32%),
+    linear-gradient(135deg, rgba(7, 17, 33, 0.98), rgba(10, 27, 51, 0.96));
+  box-shadow: 0 28px 72px rgba(2, 8, 23, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.courtLines {
+  position: absolute;
+  z-index: -1;
+  left: -90px;
+  bottom: -175px;
+  width: 410px;
+  height: 410px;
+  border: 1px solid rgba(var(--brand-green-rgb), 0.13);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 54px rgba(var(--brand-green-rgb), 0.025),
+    0 0 0 108px rgba(var(--brand-green-rgb), 0.018);
+  pointer-events: none;
+}
+
+.story,
+.pricing {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding: clamp(22px, 3.5vw, 40px);
+}
+
+.story {
+  display: grid;
+  align-content: center;
+  gap: 15px;
+}
+
+.kickerRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+}
+
+.eyebrow,
+.pricingIntro span {
+  color: var(--brand-green);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 690px;
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(2rem, 4vw, 3.45rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.body {
+  max-width: 650px;
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: clamp(0.94rem, 1.5vw, 1.08rem);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.experienceList {
+  display: grid;
+  gap: 9px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.experienceList li {
+  position: relative;
+  padding-left: 22px;
+  color: var(--foreground-strong);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.4;
+}
+
+.experienceList li::before {
+  position: absolute;
+  top: 0.15em;
+  left: 0;
+  content: '✓';
+  color: var(--brand-green);
+  font-weight: 950;
+}
+
+.storyActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 3px;
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #eaff9e 0%, #9be11d 100%);
+  color: #071226;
+  font-size: 12.5px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+}
+
+.secondaryAction {
+  border-color: rgba(116, 190, 255, 0.2);
+  background: rgba(7, 17, 33, 0.84);
+  color: var(--foreground-strong);
+}
+
+.textAction {
+  color: var(--foreground-strong);
+  font-size: 12.5px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.textAction span {
+  margin-left: 3px;
+  color: var(--brand-green);
+}
+
+.pricing {
+  display: grid;
+  align-content: center;
+  gap: 13px;
+  border-left: 1px solid rgba(116, 190, 255, 0.13);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(116, 190, 255, 0.11), transparent 32%),
+    rgba(4, 12, 27, 0.48);
+}
+
+.pricingIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.pricingIntro strong {
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.pricingIntro p {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  font-weight: 740;
+  line-height: 1.45;
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.planCard {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: clamp(15px, 2.1vw, 20px);
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(16, 34, 62, 0.93), rgba(7, 17, 33, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.featuredPlan {
+  border-color: color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%);
+  background:
+    linear-gradient(160deg, rgba(var(--brand-green-rgb), 0.15), rgba(10, 26, 49, 0.94) 46%, rgba(7, 17, 33, 0.94));
+  box-shadow: 0 18px 44px rgba(var(--brand-green-rgb), 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.planTopline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.planName {
+  color: var(--foreground-strong);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(var(--brand-green-rgb), 0.26);
+  border-radius: 999px;
+  background: rgba(var(--brand-green-rgb), 0.1);
+  color: var(--brand-green-3);
+  font-size: 9.5px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.price {
+  color: var(--brand-green);
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.capacity {
+  min-height: 38px;
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 12.5px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.planPromise {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
+.planCard .primaryAction,
+.planCard .secondaryAction {
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.boundary {
+  margin: 0;
+  color: color-mix(in srgb, var(--shell-copy-muted) 80%, transparent 20%);
+  font-size: 10.5px;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.primaryAction:hover,
+.secondaryAction:hover,
+.textAction:hover {
+  filter: brightness(1.06);
+}
+
+@media (max-width: 920px) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pricing {
+    border-top: 1px solid rgba(116, 190, 255, 0.13);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .story,
+  .pricing {
+    padding: 20px 16px;
+  }
+
+  .planGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .capacity {
+    min-height: 0;
+  }
+
+  .planCard .primaryAction,
+  .planCard .secondaryAction {
+    width: 100%;
+  }
+}

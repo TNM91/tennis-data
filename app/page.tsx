@@ -7,6 +7,7 @@ import {
 import GuestTierPreviewGate from '@/app/components/guest-tier-preview-gate'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import ClubCommunicationAttentionCard from '@/app/components/club-communication-attention-card'
+import HomeClubPricing from '@/app/components/home-club-pricing'
 import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
@@ -48,7 +49,7 @@ export default function HomePage() {
         <ActiveTeamChallengeCard />
         <CommandHero
           title={`${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`}
-          body="Search players, teams, leagues, rankings, and tournaments for free. Add the right tools when you want help with your game, team, players, or competition."
+          body="Search players, teams, leagues, rankings, and tournaments for free. Add the right tools when you want help with your game, team, players, competition, or club."
           primary={{ href: '/explore', label: 'Start Exploring' }}
           secondary={{ href: '/pricing', label: 'See Plans' }}
           searchPlaceholder="Search players, teams, leagues, tournaments, or coaches"
@@ -56,6 +57,7 @@ export default function HomePage() {
           showSearchResults={false}
           showBoard={false}
         />
+        <HomeClubPricing />
         <GuestTierPreviewGate />
       </main>
     </PublicPageShell>
