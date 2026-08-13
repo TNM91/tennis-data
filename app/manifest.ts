@@ -1,12 +1,14 @@
 import type { MetadataRoute } from 'next'
 import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
-const PWA_ICON = '/brand/icons/pwa-192.png'
+const PWA_ICON_VERSION = '20260813-navy-tile'
+const PWA_ICON = `/brand/icons/pwa-192.png?v=${PWA_ICON_VERSION}`
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
+    id: '/',
     description:
       `${PRODUCT_MOTTO} ${PRODUCT_LANGUAGE_SYSTEM.coreLine}`,
     start_url: '/',
@@ -75,13 +77,13 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'any',
       },
       {
-        src: '/brand/icons/pwa-maskable-512.png',
+        src: `/brand/icons/pwa-maskable-512.png?v=${PWA_ICON_VERSION}`,
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/brand/icons/pwa-512.png',
+        src: `/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}`,
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
