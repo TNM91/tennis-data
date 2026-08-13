@@ -49,14 +49,12 @@ export default function ContextualTennisVisual({
       <TiqFeatureIcon
         className={styles.primary}
         name={config.primary}
-        signature={false}
         size="hero"
         variant="ghost"
       />
       <TiqFeatureIcon
         className={styles.secondary}
         name={config.secondary}
-        signature={false}
         size="xl"
         variant="ghost"
       />

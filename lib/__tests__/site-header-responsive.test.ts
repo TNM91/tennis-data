@@ -67,7 +67,7 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
     expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
     expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')
-    expect(siteHeaderSource).toContain('{authenticated && resumePrimary ? (')
+    expect(siteHeaderSource).toContain('{authenticated && resumePrimary && !isMobile ? (')
     expect(siteHeaderSource).toContain('data-site-resume-shortcut="true"')
     expect(siteHeaderSource).toContain("maxWidth: isMobile ? (screenWidth < 380 ? 70 : 110)")
     expect(siteHeaderSource).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")

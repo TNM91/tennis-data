@@ -104,7 +104,6 @@ export default function TennisStateArt({
       <TiqFeatureIcon
         className={styles.icon}
         name={config.icon}
-        signature={false}
         size="hero"
         variant="ghost"
       />

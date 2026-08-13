@@ -73,11 +73,12 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
   })
 
-  it('uses one signature My Lab mark across the workspace, navigation, and Player entry points', () => {
-    expect(iconSource).toContain("signature = name === 'myLab'")
-    expect(iconSource).toContain("'tiq-feature-icon--signature'")
-    expect(iconSource).toContain('data-icon-treatment={signature ? \'signature\' : undefined}')
-    expect(componentSource).toContain('<TiqFeatureIcon name="myLab" size="md" variant="surface" signature />')
+  it('uses one consistent My Lab mark without a nested signature frame', () => {
+    expect(iconSource).toContain('myLab: FlaskIcon')
+    expect(iconSource).not.toContain("signature = name === 'myLab'")
+    expect(iconSource).not.toContain('tiq-feature-icon--signature')
+    expect(iconSource).not.toContain('data-icon-treatment')
+    expect(componentSource).toContain('<TiqFeatureIcon name="myLab" size="md" variant="surface" />')
     expect(componentSource).toContain('Player workspace')
     expect(portalSource).toContain("icon: 'myLab'")
     expect(pricingSource).toContain("player_plus: 'myLab'")

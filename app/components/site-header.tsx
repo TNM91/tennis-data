@@ -17,12 +17,39 @@ import { getPlatformResumeDetail, type PlatformResumeCandidate } from '@/lib/pla
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 type SiteHeaderProps = {
   active?: string
   railLayout?: boolean
   onCompactMenuOpenChange?: (open: boolean) => void
 }
+
+const HEADER_UPLOAD_ITEMS: Array<{
+  href: string
+  label: string
+  description: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    href: '/data-assist?intent=upload-source&type=scorecard#upload',
+    label: 'Scorecard',
+    description: 'Match results and line scores',
+    icon: 'dataUpload',
+  },
+  {
+    href: '/data-assist?intent=upload-source&type=team_summary#upload',
+    label: 'Player roster',
+    description: 'Team Summary export',
+    icon: 'lineupBuilder',
+  },
+  {
+    href: '/data-assist?intent=upload-source&type=schedule#upload',
+    label: 'Schedule',
+    description: 'Dates, teams, courts, and sites',
+    icon: 'schedule',
+  },
+]
 
 function HamburgerIcon() {
   return (
@@ -139,6 +166,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const mountedPathnameRef = useRef<string | null>(null)
@@ -160,23 +188,25 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     const timeout = window.setTimeout(() => {
       setMenuOpen(false)
       setSearchOpen(false)
+      setUploadOpen(false)
     }, 0)
     return () => window.clearTimeout(timeout)
   }, [pathname])
 
   useEffect(() => {
-    if (!menuOpen && !searchOpen) return
+    if (!menuOpen && !searchOpen && !uploadOpen) return
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setMenuOpen(false)
         setSearchOpen(false)
+        setUploadOpen(false)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [menuOpen, searchOpen])
+  }, [menuOpen, searchOpen, uploadOpen])
 
   useEffect(() => {
     const root = document.documentElement
@@ -259,6 +289,8 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     signInPlanId === 'free' ? '/join' : buildAuthEntryHref('/join', signInPlanId, signInNextHref, true)
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
   const compactMenuId = 'site-header-compact-menu'
+  const uploadPanelId = 'site-header-upload-panel'
+  const showHeaderUploadAction = authResolved && authenticated
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
@@ -396,7 +428,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               maxWidth: '100%',
             }}
           >
-            {authenticated && resumePrimary ? (
+            {authenticated && resumePrimary && !isMobile ? (
               <Link
                 href={resumePrimary.href}
                 aria-label={`${resumePrimary.actionLabel}: ${getPlatformResumeDetail(resumePrimary) || resumePrimary.label}`}
@@ -406,6 +438,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 onClick={() => {
                   setMenuOpen(false)
                   setSearchOpen(false)
+                  setUploadOpen(false)
                 }}
                 style={{
                   ...resumeShortcutStyle,
@@ -419,6 +452,26 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               </Link>
             ) : null}
 
+            {showHeaderUploadAction ? (
+              <button
+                type="button"
+                data-header-upload-action="true"
+                aria-label={uploadOpen ? 'Close tennis data upload menu' : 'Upload tennis data'}
+                aria-expanded={uploadOpen}
+                aria-controls={uploadPanelId}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setMenuOpen(false)
+                  setSearchOpen(false)
+                  setUploadOpen((current) => !current)
+                }}
+                style={isMobile ? headerUploadIconButtonStyle : headerUploadButtonStyle}
+              >
+                <TiqFeatureIcon name="dataUpload" size="sm" variant="ghost" />
+                {!isMobile ? <span>Upload</span> : null}
+              </button>
+            ) : null}
+
             {useCompactHeader ? null : (
               <>
                 <button
@@ -429,6 +482,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                   aria-haspopup="dialog"
                   onClick={() => {
                     setMenuOpen(false)
+                    setUploadOpen(false)
                     setSearchOpen((current) => !current)
                   }}
                   style={utilityButtonStyle}
@@ -443,6 +497,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                   aria-haspopup="dialog"
                   onClick={() => {
                     setSearchOpen(false)
+                    setUploadOpen(false)
                     setMenuOpen((prev) => !prev)
                   }}
                   style={desktopMenuButtonStyle}
@@ -459,7 +514,11 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 aria-expanded={menuOpen}
                 aria-controls={compactMenuId}
                 aria-haspopup="dialog"
-                onClick={() => setMenuOpen((prev) => !prev)}
+                onClick={() => {
+                  setSearchOpen(false)
+                  setUploadOpen(false)
+                  setMenuOpen((prev) => !prev)
+                }}
                 style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}
               >
                 {menuOpen ? <CloseIcon /> : <HamburgerIcon />}
@@ -468,6 +527,58 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
             ) : null}
           </div>
         </div>
+
+        {showHeaderUploadAction && uploadOpen ? (
+          <div
+            id={uploadPanelId}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="site-header-upload-title"
+            data-header-upload-panel="true"
+            style={headerUploadPanelStyle}
+          >
+            <div style={headerUploadPanelHeaderStyle}>
+              <div style={headerUploadPanelTitleBlockStyle}>
+                <span style={mobileSectionLabelStyle}>New tennis data</span>
+                <h2 id="site-header-upload-title" style={headerUploadPanelTitleStyle}>What are you uploading?</h2>
+                <p style={headerUploadPanelCopyStyle}>Choose the source and TenAceIQ will open the matching upload lane.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close tennis data upload menu"
+                onClick={() => setUploadOpen(false)}
+                style={searchCloseButtonStyle}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div style={{ ...headerUploadChoiceGridStyle, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))' }}>
+              {HEADER_UPLOAD_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setUploadOpen(false)}
+                  style={headerUploadChoiceStyle}
+                >
+                  <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
+                  <span style={headerUploadChoiceCopyStyle}>
+                    <strong style={headerUploadChoiceTitleStyle}>{item.label}</strong>
+                    <span style={headerUploadChoiceDescriptionStyle}>{item.description}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            <Link
+              href="/data-assist?intent=report-issue"
+              onClick={() => setUploadOpen(false)}
+              style={headerUploadOtherLinkStyle}
+            >
+              Upload something else or report a data issue <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        ) : null}
 
         {!useCompactHeader && searchOpen ? (
           <div
@@ -829,6 +940,139 @@ const desktopMenuButtonStyle = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 68%, transparent 32%)',
   color: 'var(--foreground-strong)',
 } as const
+
+const headerUploadButtonStyle: CSSProperties = {
+  appearance: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 5,
+  minWidth: 96,
+  minHeight: 44,
+  padding: '0 12px 0 8px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 15%, var(--shell-chip-bg) 85%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+  cursor: 'pointer',
+  boxShadow: '0 10px 24px color-mix(in srgb, var(--brand-green) 10%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const headerUploadIconButtonStyle: CSSProperties = {
+  ...headerUploadButtonStyle,
+  width: 44,
+  minWidth: 44,
+  height: 44,
+  minHeight: 44,
+  padding: 0,
+  borderRadius: 12,
+}
+
+const headerUploadPanelStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 4,
+  top: 'calc(100% - 2px)',
+  right: 'max(8px, env(safe-area-inset-right))',
+  width: 'min(520px, calc(100vw - 28px))',
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 97%, var(--surface) 3%) 0%, color-mix(in srgb, var(--shell-panel-bg) 91%, var(--surface-soft) 9%) 100%)',
+  boxShadow: '0 22px 54px rgba(2, 10, 24, 0.32), inset 0 1px 0 rgba(255,255,255,0.06)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+}
+
+const headerUploadPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const headerUploadPanelTitleBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const headerUploadPanelTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.12,
+  fontWeight: 950,
+}
+
+const headerUploadPanelCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 720,
+}
+
+const headerUploadChoiceGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const headerUploadChoiceStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 62,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent 12%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+}
+
+const headerUploadChoiceCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const headerUploadChoiceTitleStyle: CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const headerUploadChoiceDescriptionStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10.5,
+  lineHeight: 1.25,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const headerUploadOtherLinkStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 40,
+  padding: '0 10px',
+  borderRadius: 10,
+  border: '1px solid transparent',
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 850,
+  textDecoration: 'none',
+}
 
 const primaryCtaStyle = {
   display: 'inline-flex',

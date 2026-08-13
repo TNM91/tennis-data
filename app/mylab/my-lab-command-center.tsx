@@ -74,7 +74,7 @@ export default function MyLabCommandCenter({
       <header className={styles.intro}>
         <div>
           <div className={styles.labSignature}>
-            <TiqFeatureIcon name="myLab" size="md" variant="surface" signature />
+            <TiqFeatureIcon name="myLab" size="md" variant="surface" />
             <span>
               <strong>My Lab</strong>
               <small>Player workspace</small>

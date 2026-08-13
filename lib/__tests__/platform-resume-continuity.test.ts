@@ -38,7 +38,8 @@ describe('platform-wide pick up continuity', () => {
   it('keeps one-tap Continue compact and puts alternatives in the account menu', () => {
     expect(header).toContain('getHeaderResumeShortcutLabel({')
     expect(header).toContain('data-site-resume-shortcut="true"')
-    expect(header).toContain('{authenticated && resumePrimary ? (')
+    expect(header).toContain('{authenticated && resumePrimary && !isMobile ? (')
+    expect(header).toContain('data-header-upload-action="true"')
     expect(header).toContain('Pick up where you left off')
     expect(header).toContain('resumeItems.slice(0, 3)')
     expect(header).toContain('resumeItems.slice(0, 2)')

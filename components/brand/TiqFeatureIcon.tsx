@@ -21,6 +21,7 @@ import { TargetIcon } from '@phosphor-icons/react/dist/csr/Target'
 import { TennisBallIcon } from '@phosphor-icons/react/dist/csr/TennisBall'
 import { TreeStructureIcon } from '@phosphor-icons/react/dist/csr/TreeStructure'
 import { TrophyIcon } from '@phosphor-icons/react/dist/csr/Trophy'
+import { UploadSimpleIcon } from '@phosphor-icons/react/dist/csr/UploadSimple'
 import { UsersThreeIcon } from '@phosphor-icons/react/dist/csr/UsersThree'
 import type { CSSProperties } from 'react'
 
@@ -45,6 +46,7 @@ export type TiqFeatureIconName =
   | 'schedule'
   | 'reports'
   | 'alerts'
+  | 'dataUpload'
   | 'myLab'
   | 'accountSecurity'
   | 'clubOperations'
@@ -56,7 +58,6 @@ type TiqFeatureIconProps = {
   name: TiqFeatureIconName
   size?: TiqFeatureIconSize
   variant?: TiqFeatureIconVariant
-  signature?: boolean
   title?: string
   className?: string
   style?: CSSProperties
@@ -91,6 +92,7 @@ export const tiqFeatureIconNames: TiqFeatureIconName[] = [
   'schedule',
   'reports',
   'alerts',
+  'dataUpload',
   'myLab',
   'accountSecurity',
   'clubOperations',
@@ -117,6 +119,7 @@ export const tiqFeatureIconLabels: Record<TiqFeatureIconName, string> = {
   schedule: 'Schedule',
   reports: 'Reports',
   alerts: 'Alerts',
+  dataUpload: 'Upload tennis data',
   myLab: 'My Lab',
   accountSecurity: 'Account security',
   clubOperations: 'Club operations',
@@ -143,6 +146,7 @@ const iconRegistry: Record<TiqFeatureIconName, Icon> = {
   schedule: CalendarBlankIcon,
   reports: PresentationChartIcon,
   alerts: BellRingingIcon,
+  dataUpload: UploadSimpleIcon,
   myLab: FlaskIcon,
   accountSecurity: LockKeyIcon,
   clubOperations: BuildingsIcon,
@@ -152,7 +156,6 @@ export default function TiqFeatureIcon({
   name,
   size = 'md',
   variant = 'default',
-  signature = name === 'myLab',
   title,
   className,
   style,
@@ -168,10 +171,8 @@ export default function TiqFeatureIcon({
     <span
       className={[
         'tiq-feature-icon',
-        signature ? 'tiq-feature-icon--signature' : null,
         className,
       ].filter(Boolean).join(' ')}
-      data-icon-treatment={signature ? 'signature' : undefined}
       style={{
         ...shellStyle(pixelSize, variant),
         ...style,
@@ -215,41 +216,6 @@ export default function TiqFeatureIcon({
           bottom: 8%;
           filter: drop-shadow(0 2px 4px rgba(2, 10, 24, 0.3));
           transition: transform 160ms ease;
-        }
-
-        .tiq-feature-icon--signature {
-          position: relative;
-          isolation: isolate;
-          border-color: color-mix(in srgb, var(--brand-green, #9be11d) 54%, var(--brand-blue-2, #74beff) 18%) !important;
-          background:
-            radial-gradient(circle at 72% 24%, rgba(155, 225, 29, 0.2), transparent 28%),
-            linear-gradient(145deg, rgba(13, 38, 64, 0.96), rgba(7, 20, 38, 0.98)) !important;
-          box-shadow:
-            0 14px 34px rgba(70, 158, 255, 0.14),
-            0 0 0 1px rgba(155, 225, 29, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-        }
-
-        .tiq-feature-icon--signature::after {
-          position: absolute;
-          inset: 10%;
-          z-index: 0;
-          border: 1px solid rgba(155, 225, 29, 0.16);
-          border-radius: 28%;
-          pointer-events: none;
-          content: '';
-        }
-
-        .tiq-feature-icon--signature > svg {
-          position: relative;
-          z-index: 1;
-        }
-
-        .tiq-feature-icon--signature:hover {
-          box-shadow:
-            0 16px 38px rgba(155, 225, 29, 0.2),
-            0 0 0 1px rgba(155, 225, 29, 0.16),
-            inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
         }
 
         .tiq-feature-icon:hover {

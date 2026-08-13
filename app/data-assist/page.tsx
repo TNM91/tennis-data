@@ -389,12 +389,29 @@ function DataAssistWorkspace() {
   }, [authResolved, userId])
 
   useEffect(() => {
+    if (!requestedImportType) return
+
+    scanRunRef.current += 1
+    setTypeOverrideActive(true)
+    setImportType(requestedImportType)
+    setSummary(null)
+    setLatestScan(null)
+    setSavedBatchId('')
+    setMessage('')
+    setError('')
+    setBulkScorecardResults([])
+    setFocusedSubmissionId('')
+  }, [requestedImportType])
+
+  useEffect(() => {
     void trackProductUsageEvent({
       eventName: 'data_assist_opened',
       surface: 'data_assist',
-      metadata: intent || intentContext || intentQuery ? { intent, context: intentContext, query: intentQuery } : undefined,
+      metadata: intent || requestedImportType || intentContext || intentQuery
+        ? { intent, importType: requestedImportType, context: intentContext, query: intentQuery }
+        : undefined,
     })
-  }, [intent, intentContext, intentQuery])
+  }, [intent, intentContext, intentQuery, requestedImportType])
 
   useEffect(() => {
     if (!latestScan) return
