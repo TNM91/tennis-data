@@ -11,7 +11,7 @@ import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
 const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png'
-const BRAND_ICON_VERSION = '20260811-navy-iq'
+const BRAND_ICON_VERSION = '20260813-navy-tile'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -98,14 +98,19 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: `/brand/icons/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
+      { url: `/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
+      { url: `/favicon-32x32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
+      { url: `/favicon-16x16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
       { url: `/brand/icons/favicon-32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
       { url: `/brand/icons/favicon-16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
       { url: `/brand/icons/favicon-256.png?v=${BRAND_ICON_VERSION}`, sizes: '256x256', type: 'image/png' },
       { url: `/brand/icons/favicon-512.png?v=${BRAND_ICON_VERSION}`, sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: `/brand/icons/favicon.ico?v=${BRAND_ICON_VERSION}`,
-    apple: `/brand/icons/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`,
+    shortcut: `/favicon.ico?v=${BRAND_ICON_VERSION}`,
+    apple: [
+      { url: `/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`, sizes: '180x180', type: 'image/png' },
+      { url: `/brand/icons/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`, sizes: '180x180', type: 'image/png' },
+    ],
   },
 }
 

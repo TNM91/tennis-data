@@ -33,8 +33,31 @@ standard_sizes = {
     'pwa-512.png': (512, 0.84),
 }
 
+generated_icons: dict[str, Image.Image] = {}
+
 for filename, (size, scale) in standard_sizes.items():
-    square_canvas(size, scale).convert('RGB').save(ICON_DIR / filename, optimize=True)
+    icon = square_canvas(size, scale).convert('RGB')
+    icon.save(ICON_DIR / filename, optimize=True)
+    generated_icons[filename] = icon
+
+# Keep the conventional root discovery paths on the same opaque navy artwork.
+# Safari may probe these URLs directly when creating a Favorite or Home Screen
+# web clip even when the page also provides explicit metadata links.
+root_fallbacks = {
+    'apple-touch-icon.png': 'apple-touch-icon.png',
+    'apple-touch-icon-precomposed.png': 'apple-touch-icon.png',
+    'apple-touch-icon-180x180.png': 'apple-touch-icon.png',
+    'favicon-16x16.png': 'favicon-16.png',
+    'favicon-32x32.png': 'favicon-32.png',
+    'android-chrome-192x192.png': 'pwa-192.png',
+    'android-chrome-512x512.png': 'pwa-512.png',
+}
+
+for root_filename, source_filename in root_fallbacks.items():
+    generated_icons[source_filename].save(ROOT / 'public' / root_filename, optimize=True)
+
+# Next.js file-based metadata provides an additional hashed Apple icon URL.
+generated_icons['apple-touch-icon.png'].save(ROOT / 'app' / 'apple-icon.png', optimize=True)
 
 maskable = square_canvas(512, 0.68)
 maskable.convert('RGB').save(ICON_DIR / 'pwa-maskable-512.png', optimize=True)
