@@ -45,8 +45,9 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain("title: 'Explore leagues'")
     expect(source).toContain('summaryOnly={isMobile}')
     expect(shellSmokeSource).toContain("type: 'league-mobile-summary-repeated-guidance'")
-    expect(shellSmokeSource).toContain("type: 'league-mobile-summary-prompt-too-tall'")
-    expect(shellSmokeSource).toContain('Ready to run organized competition without spreadsheets?')
+    expect(shellSmokeSource).toContain("type: 'league-mobile-role-home-missing-or-too-tall'")
+    expect(shellSmokeSource).toContain("type: 'league-mobile-unlock-action-missing'")
+    expect(shellSmokeSource).toContain('[aria-label="League home"]')
   })
 
   it('keeps the setup form Data Assist upload path visible', () => {

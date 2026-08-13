@@ -3,9 +3,9 @@ import { chromium } from 'playwright'
 const baseUrl = process.env.SITE_SHELL_BASE_URL ?? 'http://127.0.0.1:3000'
 
 const viewports = [
-  { name: 'desktop', width: 1440, height: 900, expectsRail: true },
-  { name: 'tablet', width: 900, height: 900, expectsRail: true },
-  { name: 'mobile', width: 390, height: 844, expectsRail: false },
+  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'tablet', width: 900, height: 900 },
+  { name: 'mobile', width: 390, height: 844 },
 ]
 
 const ignoredConsoleFragments = [
@@ -18,7 +18,6 @@ const ignoredConsoleFragments = [
   'Failed to load resource: net::ERR_FAILED',
 ]
 
-const tolerance = 2
 const findings = []
 
 const browser = await chromium.launch({ headless: true })
@@ -150,170 +149,71 @@ for (const viewport of viewports) {
       })
     }
 
-    if (viewport.expectsRail) {
-      if (!metrics.rail) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-missing',
-          metrics,
-        })
-      } else if (metrics.main && metrics.main.left < metrics.rail.right + 1) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-overlaps-main',
-          main: metrics.main,
-          rail: metrics.rail,
-        })
-      } else if (metrics.rail.bottom < metrics.viewportHeight - 12) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-does-not-fill-viewport',
-          rail: metrics.rail,
-          viewportHeight: metrics.viewportHeight,
-        })
-      }
+    if (metrics.rail) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'retired-portal-rail-visible',
+        rail: metrics.rail,
+      })
+    }
 
-      if (metrics.railScrollbarWidth !== 'none') {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-scrollbar-visible',
-          railScrollbarWidth: metrics.railScrollbarWidth,
-        })
-      }
+    if (metrics.portalContentScroll) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'retired-portal-scroll-container-visible',
+        portalContentScroll: metrics.portalContentScroll,
+      })
+    }
 
-      if (!metrics.portalContentScroll) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'portal-content-scroll-missing',
-          metrics,
-        })
-      } else if (metrics.headerPosition !== 'fixed') {
-        findings.push({
-          viewport: viewport.name,
-          type: 'portal-header-not-fixed',
-          headerPosition: metrics.headerPosition,
-          metrics,
-        })
-      } else if (metrics.header && metrics.portalContentScroll.height < metrics.viewportHeight - metrics.header.height - 40) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'portal-content-scroll-too-short',
-          metrics,
-        })
-      } else {
-        const scrollState = await page.evaluate(async () => {
-          const scroller = document.querySelector('[data-portal-content-scroll="true"]')
-          const header = document.querySelector('header')
-          const rail = document.querySelector('[data-portal-rail="true"]')
-          if (!(scroller instanceof HTMLElement) || !header || !rail) return null
+    if (!metrics.footerContent) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'footer-content-missing',
+        metrics,
+      })
+    }
 
-          const before = {
-            headerTop: Math.round(header.getBoundingClientRect().top),
-            railTop: Math.round(rail.getBoundingClientRect().top),
-            windowY: Math.round(window.scrollY),
-          }
+    if (metrics.headerPosition !== 'sticky') {
+      findings.push({
+        viewport: viewport.name,
+        type: 'top-navigation-header-not-sticky',
+        headerPosition: metrics.headerPosition,
+      })
+    }
 
-          scroller.style.scrollBehavior = 'auto'
-          scroller.scrollTop = 420
-          await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)))
-
-          return {
-            before,
-            after: {
-              headerTop: Math.round(header.getBoundingClientRect().top),
-              railTop: Math.round(rail.getBoundingClientRect().top),
-              scrollerTop: Math.round(scroller.scrollTop),
-              windowY: Math.round(window.scrollY),
-            },
-          }
-        })
-
-        if (!scrollState || scrollState.after.scrollerTop < 120) {
-          findings.push({
-            viewport: viewport.name,
-            type: 'portal-content-did-not-scroll',
-            scrollState,
-            metrics,
-          })
-        } else if (scrollState.after.windowY !== scrollState.before.windowY) {
-          findings.push({
-            viewport: viewport.name,
-            type: 'portal-window-scrolled-with-content',
-            scrollState,
-          })
-        } else if (Math.abs(scrollState.after.headerTop - scrollState.before.headerTop) > tolerance) {
-          findings.push({
-            viewport: viewport.name,
-            type: 'portal-header-moved-during-content-scroll',
-            scrollState,
-          })
-        } else if (Math.abs(scrollState.after.railTop - scrollState.before.railTop) > tolerance) {
-          findings.push({
-            viewport: viewport.name,
-            type: 'portal-rail-moved-during-content-scroll',
-            scrollState,
-          })
-        }
-      }
-
-      if (!metrics.openMenuButton) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-header-menu-button-missing',
-          metrics,
-        })
-      } else if (metrics.openMenuButton.width < 72) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-header-menu-button-too-small',
-          openMenuButton: metrics.openMenuButton,
-        })
-      }
-
-      if (!metrics.footerContent) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'footer-content-missing',
-          metrics,
-        })
-      } else if (metrics.main) {
-        const leftDelta = Math.abs(metrics.footerContent.left - metrics.main.left)
-        const rightDelta = Math.abs(metrics.footerContent.right - metrics.main.right)
-
-        if (leftDelta > tolerance || rightDelta > tolerance) {
-          findings.push({
-            viewport: viewport.name,
-            type: 'footer-content-not-aligned-with-main',
-            footerContent: metrics.footerContent,
-            main: metrics.main,
-          })
-        }
-      }
-
-      if (metrics.footerNav) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-footer-nav-visible',
-          footerNav: metrics.footerNav,
-        })
-      }
-
-      if (metrics.footer && metrics.footer.height > 176) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'rail-footer-too-tall',
-          footer: metrics.footer,
-        })
-      }
+    if (!metrics.mobilePortalPalette) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'top-navigation-lane-palette-missing',
+        metrics,
+      })
     } else {
-      if (metrics.rail) {
+      const paletteHeightLimit = viewport.name === 'mobile' ? 140 : 72
+      if (metrics.mobilePortalPalette.height > paletteHeightLimit) {
         findings.push({
           viewport: viewport.name,
-          type: 'mobile-rail-visible',
-          rail: metrics.rail,
+          type: 'top-navigation-lane-palette-too-tall',
+          paletteHeightLimit,
+          mobilePortalPalette: metrics.mobilePortalPalette,
         })
       }
+    }
 
+    if (!metrics.openMenuButton) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'top-navigation-menu-button-missing',
+        metrics,
+      })
+    } else if (metrics.openMenuButton.width < 44 || metrics.openMenuButton.height < 44) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'top-navigation-menu-button-too-small',
+        openMenuButton: metrics.openMenuButton,
+      })
+    }
+
+    if (viewport.name === 'mobile') {
       if (metrics.footerNav) {
         findings.push({
           viewport: viewport.name,
@@ -322,27 +222,7 @@ for (const viewport of viewports) {
         })
       }
 
-      if (!metrics.mobilePortalPalette) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'mobile-portal-lane-palette-missing',
-          metrics,
-        })
-      } else if (metrics.mobilePortalPalette.height > 58) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'mobile-portal-too-tall',
-          mobilePortalPalette: metrics.mobilePortalPalette,
-        })
-      }
-
-      if (!metrics.openMenuButton) {
-        findings.push({
-          viewport: viewport.name,
-          type: 'mobile-menu-button-missing',
-          metrics,
-        })
-      } else {
+      if (metrics.openMenuButton) {
         await page.locator('button[aria-label="Open menu"]').click()
         await page.waitForTimeout(200)
 
@@ -405,74 +285,61 @@ for (const viewport of viewports) {
           ])
         }
 
-        await page.goto(`${baseUrl}/?shellqa=${Date.now()}&portal=1`, {
+        await page.goto(`${baseUrl}/?shellqa=${Date.now()}`, {
           waitUntil: 'networkidle',
           timeout: 35_000,
         })
         await page.evaluate(() => window.scrollTo(0, 0))
 
-        const portalPalette = page.locator('[data-mobile-portal-palette="lanes"]')
+        const portalPalette = page.locator('[data-mobile-portal-palette="shortcuts"]')
         const portalPaletteCount = await portalPalette.count()
 
         if (portalPaletteCount !== 1) {
           findings.push({
             viewport: viewport.name,
-            type: 'mobile-portal-lane-palette-missing',
+            type: 'mobile-portal-shortcut-palette-missing',
             portalPaletteCount,
           })
         }
 
+        const allToolsAction = page.locator('[data-mobile-portal-all="open"]')
+        const allToolsActionCount = await allToolsAction.count()
         const competeLane = page.locator('[data-mobile-portal-lane="compete"]')
-        const competeLaneCount = await competeLane.count()
 
-        if (competeLaneCount !== 1) {
+        if (allToolsActionCount !== 1) {
           findings.push({
             viewport: viewport.name,
-            type: 'mobile-portal-compete-lane-missing',
-            competeLaneCount,
+            type: 'mobile-portal-all-tools-action-missing',
+            allToolsActionCount,
           })
         } else {
-          await competeLane.click()
+          await allToolsAction.click()
           await page.waitForTimeout(200)
 
-          const actionPalette = page.locator('[data-mobile-portal-palette="actions"]')
-          const actionPaletteCount = await actionPalette.count()
-          const mainAction = page.locator('[data-mobile-portal-action="main"]')
-          const mainActionCount = await mainAction.count()
-          const matchPrepAction = page.locator('[data-mobile-portal-action="match-prep"]')
-          const matchPrepActionCount = await matchPrepAction.count()
+          const allToolsPaletteCount = await page.locator('[data-mobile-portal-palette="all-tools"]').count()
+          const competeLaneCount = await competeLane.count()
 
-          if (actionPaletteCount !== 1 || mainActionCount !== 1 || matchPrepActionCount !== 1) {
+          if (allToolsPaletteCount !== 1 || competeLaneCount !== 1) {
             findings.push({
               viewport: viewport.name,
-              type: 'mobile-portal-match-prep-missing',
-              actionPaletteCount,
-              mainActionCount,
-              matchPrepActionCount,
+              type: 'mobile-portal-all-tools-palette-missing',
+              allToolsPaletteCount,
+              competeLaneCount,
             })
-          } else {
-            await mainAction.click()
-            await page.waitForTimeout(200)
-
-            const restoredLanePaletteCount = await page.locator('[data-mobile-portal-palette="lanes"]').count()
-            if (restoredLanePaletteCount !== 1) {
-              findings.push({
-                viewport: viewport.name,
-                type: 'mobile-portal-main-did-not-restore-lanes',
-                restoredLanePaletteCount,
-              })
-            }
-
-            await competeLane.click()
-            await page.waitForTimeout(200)
-
-            await Promise.all([
-              page.waitForURL(/\/matchup/, { timeout: 10_000 }),
-              matchPrepAction.click(),
-            ])
+            continue
           }
+
+          await Promise.all([
+            page.waitForURL(/\/compete(?:\?|$)/, { timeout: 10_000 }),
+            competeLane.click(),
+          ])
         }
       }
+    } else if (!metrics.footerNav) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'desktop-footer-nav-missing',
+      })
     }
   } catch (error) {
     findings.push({
@@ -595,7 +462,7 @@ try {
       captainMetrics,
     })
   } else {
-    const unlockAction = captainMetrics.links.find((link) => link.href === '/upgrade?plan=captain&next=%2Fcaptain')
+    const unlockAction = captainMetrics.links.find((link) => link.href?.startsWith('/upgrade?plan=captain&next=%2Fcaptain'))
     const secondaryAction = captainMetrics.links.find((link) => link.href === '/pricing' || link.href === '/mylab')
 
     if (!unlockAction || !unlockAction.visible || unlockAction.height < 42 || unlockAction.top > captainMetrics.viewportHeight * 0.58) {
@@ -616,7 +483,7 @@ try {
   }
 
   const captainUnlockAction = captainMobilePage.locator(
-    '[aria-label="Captain mobile unlock actions"] a[href="/upgrade?plan=captain&next=%2Fcaptain"]',
+    '[aria-label="Captain mobile unlock actions"] a[href^="/upgrade?plan=captain&next=%2Fcaptain"]',
   )
   const captainUnlockActionCount = await captainUnlockAction.count()
 
@@ -675,25 +542,11 @@ try {
 
   const leagueMetrics = await leagueMobilePage.evaluate(() => {
     const bodyText = document.body.textContent || ''
-    const promptHeadlines = [
-      'Ready to run organized competition without spreadsheets?',
-      'Need this draft to become active League Office tools?',
-      'Ready to run the season without spreadsheet cleanup?',
-    ]
-    const promptCards = Array.from(document.querySelectorAll('h3'))
-      .filter((element) => promptHeadlines.includes((element.textContent || '').trim()))
-      .map((element) => {
-        const rect = element.closest('section')?.getBoundingClientRect()
-        return {
-          height: rect ? Math.round(rect.height) : 0,
-          text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
-          top: rect ? Math.round(rect.top) : null,
-        }
-      })
+    const roleHome = document.querySelector('[aria-label="League home"]')
+    const roleHomeRect = roleHome?.getBoundingClientRect()
 
     return {
       documentWidth: document.documentElement.scrollWidth,
-      promptCards,
       railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
       repeatedUnlockGuidance: [
         'Creating an account starts Free access',
@@ -702,6 +555,11 @@ try {
         'Track participation',
         'Reduce cleanup',
       ].filter((text) => bodyText.includes(text)),
+      roleHome: roleHomeRect ? {
+        height: Math.round(roleHomeRect.height),
+        text: (roleHome?.textContent || '').replace(/\s+/g, ' ').trim(),
+        top: Math.round(roleHomeRect.top),
+      } : null,
       viewportWidth: window.innerWidth,
     }
   })
@@ -730,13 +588,17 @@ try {
     })
   }
 
-  const oversizedPromptCards = leagueMetrics.promptCards.filter((card) => card.height > 700)
-  if (leagueMetrics.promptCards.length === 0 || oversizedPromptCards.length) {
+  if (!leagueMetrics.roleHome || leagueMetrics.roleHome.height > 700) {
     findings.push({
       viewport: 'mobile',
-      type: 'league-mobile-summary-prompt-too-tall',
+      type: 'league-mobile-role-home-missing-or-too-tall',
       leagueMetrics,
-      oversizedPromptCards,
+    })
+  } else if (!leagueMetrics.roleHome.text.includes('Unlock League Office')) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'league-mobile-unlock-action-missing',
+      leagueMetrics,
     })
   }
 } catch (error) {
@@ -833,18 +695,10 @@ for (const viewport of viewports) {
       })
     }
 
-    if (viewport.expectsRail && !upgradeMetrics.railVisible) {
+    if (upgradeMetrics.railVisible) {
       findings.push({
         viewport: viewport.name,
-        type: 'upgrade-rail-missing',
-        upgradeMetrics,
-      })
-    }
-
-    if (!viewport.expectsRail && upgradeMetrics.railVisible) {
-      findings.push({
-        viewport: viewport.name,
-        type: 'upgrade-mobile-rail-visible',
+        type: 'upgrade-retired-rail-visible',
         upgradeMetrics,
       })
     }
@@ -904,14 +758,6 @@ for (const viewport of viewports) {
         timeout: 35_000,
       })
       await directoryPage.waitForTimeout(800)
-      if (viewport.expectsRail) {
-        await directoryPage
-          .waitForFunction(() => Boolean(document.querySelector('[data-portal-rail="true"]')), null, {
-            timeout: 2_500,
-          })
-          .catch(() => {})
-      }
-
       const directoryMetrics = await directoryPage.evaluate(() => {
         const roundRect = (selector) => {
           const element = document.querySelector(selector)
@@ -972,20 +818,11 @@ for (const viewport of viewports) {
         })
       }
 
-      if (viewport.expectsRail && !directoryMetrics.railVisible) {
+      if (directoryMetrics.railVisible) {
         findings.push({
           viewport: viewport.name,
           route: publicPage.route,
-          type: `${publicPage.label}-rail-missing`,
-          directoryMetrics,
-        })
-      }
-
-      if (!viewport.expectsRail && directoryMetrics.railVisible) {
-        findings.push({
-          viewport: viewport.name,
-          route: publicPage.route,
-          type: `${publicPage.label}-mobile-rail-visible`,
+          type: `${publicPage.label}-retired-rail-visible`,
           directoryMetrics,
         })
       }

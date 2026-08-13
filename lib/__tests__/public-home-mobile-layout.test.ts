@@ -302,11 +302,13 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain("if (title === 'Open My Lab') return 'My Lab'")
     expect(portalToolbarSource).toContain("if (title === 'Fix tennis context') return 'Fix context'")
     expect(shellSmokeSource).toContain("type: 'mobile-portal-visible-under-header-menu'")
-    expect(shellSmokeSource).toContain("type: 'mobile-portal-too-tall'")
-    expect(shellSmokeSource).toContain("type: 'mobile-portal-lane-palette-missing'")
-    expect(shellSmokeSource).toContain("type: 'mobile-portal-main-did-not-restore-lanes'")
+    expect(shellSmokeSource).toContain("type: 'top-navigation-lane-palette-too-tall'")
+    expect(shellSmokeSource).toContain("type: 'mobile-portal-shortcut-palette-missing'")
+    expect(shellSmokeSource).toContain("type: 'mobile-portal-all-tools-palette-missing'")
+    expect(shellSmokeSource).toContain('[data-mobile-portal-palette="shortcuts"]')
+    expect(shellSmokeSource).toContain('[data-mobile-portal-all="open"]')
     expect(shellSmokeSource).toContain('[data-mobile-portal-lane="compete"]')
-    expect(shellSmokeSource).toContain('[data-mobile-portal-action="match-prep"]')
+    expect(shellSmokeSource).toContain('page.waitForURL(/\\/compete')
   })
 
   it('keeps public hub routes mapped to the right mobile portal lane', () => {
