@@ -14,10 +14,9 @@ const contentSecurityPolicyReportOnly = [
   "img-src 'self' data: blob: https://*.supabase.co https://*.google.com https://*.googleusercontent.com https://*.googlesyndication.com https://*.doubleclick.net",
   "media-src 'self' data: blob: https://*.supabase.co",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.vercel-insights.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://api.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
-  "frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
+  "frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
-  'upgrade-insecure-requests',
   'report-uri /api/security/csp-report',
   'report-to csp-endpoint',
 ].join('; ')
