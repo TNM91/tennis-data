@@ -160,6 +160,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Activation health',
   },
   {
+    title: 'Backups',
+    href: '/admin/backups',
+    description: 'Run and verify a private encrypted production backup.',
+    badge: 'Safety',
+    accent: 'slate',
+    icon: 'accountSecurity',
+    highlights: ['Copy-ready prompt', 'Drive handoff', 'Checksum verification', 'Weekly routine'],
+    statLabel: 'Best for',
+    statValue: 'Recovery readiness',
+  },
+  {
     title: 'Manage Players',
     href: '/admin/manage-players',
     description: 'Update player records, ratings, and metadata.',
@@ -268,6 +279,7 @@ export default function AdminDashboardPage() {
             <>
               <Link href="/admin/data-assist" className="button-primary">Review uploads</Link>
               <Link href="/admin/clubs" className="button-secondary">Manage clubs</Link>
+              <Link href="/admin/backups" className="button-secondary">Backups</Link>
             </>
           }
         >
