@@ -2,6 +2,7 @@
   position: absolute;
   display: grid;
   place-items: center;
+  max-width: 100%;
   overflow: hidden;
   pointer-events: none;
   color: var(--foreground-strong);
@@ -83,7 +84,7 @@
 
 @media (max-width: 720px) {
   .hero {
-    right: -52px;
+    right: 0;
     bottom: -38px;
     width: min(62%, 260px);
     opacity: 0.075;
@@ -100,9 +101,9 @@
   }
 
   .atmosphere {
-    right: -96px;
+    right: 0;
     bottom: 10vh;
-    width: min(92vw, 420px);
+    width: min(82vw, 360px);
     opacity: 0.065;
   }
 }

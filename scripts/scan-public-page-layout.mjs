@@ -1,10 +1,14 @@
 import { chromium } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 const baseUrl = process.env.PUBLIC_PAGE_SCAN_BASE_URL ?? 'http://127.0.0.1:3001'
+const artifactDir = process.env.PUBLIC_PAGE_SCAN_ARTIFACT_DIR
 
 const routes = [
   '/',
   '/pricing',
+  '/upgrade?plan=club_starter&next=%2Fclubs',
   '/explore',
   '/explore/players',
   '/explore/teams',
@@ -17,6 +21,10 @@ const routes = [
   '/compete',
   '/league-coordinator',
   '/league-coordinator/tournaments',
+  '/leagues-and-tournaments',
+  '/tournaments',
+  '/clubs',
+  '/clubs/northstar-tennis-club-demo',
   '/captain',
   '/coach',
   '/mylab',
@@ -33,6 +41,16 @@ const viewports = [
   { name: 'tablet', width: 768, height: 1024 },
   { name: 'web', width: 1440, height: 900 },
 ]
+
+const screenshotRoutes = new Set([
+  '/',
+  '/resources',
+  '/mylab',
+  '/clubs',
+  '/clubs/northstar-tennis-club-demo',
+])
+
+if (artifactDir) mkdirSync(artifactDir, { recursive: true })
 
 const browser = await chromium.launch({ headless: true })
 const rows = []
@@ -104,6 +122,11 @@ for (const viewport of viewports) {
           offenders,
         }
       })
+
+      if (artifactDir && viewport.name === 'phone' && screenshotRoutes.has(route)) {
+        const routeName = route === '/' ? 'home' : route.replace(/^\//, '').replaceAll('/', '-')
+        await page.screenshot({ path: join(artifactDir, `${routeName}-iphone.png`), fullPage: true })
+      }
 
       rows.push({
         route,

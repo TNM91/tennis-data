@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const shellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
+const clubStyles = readFileSync(join(process.cwd(), 'app/components/club-workspace.module.css'), 'utf8')
 
 describe('contextual shell atmosphere', () => {
   it('renders one atmosphere layer instead of stacking generic and contextual artwork', () => {
@@ -30,5 +31,17 @@ describe('contextual shell atmosphere', () => {
     expect(shellSource).toContain('!suppressShellAtmosphere ? (')
     expect(visualStyles).toContain('.hero.visual-resources .secondary')
     expect(visualStyles).toContain('.hero.visual-tournament .secondary')
+  })
+
+  it('keeps contextual artwork inside the iPhone viewport', () => {
+    const visualStyles = readFileSync(join(process.cwd(), 'app/components/contextual-tennis-visual.module.css'), 'utf8')
+
+    expect(visualStyles).toContain('max-width: 100%;')
+    expect(visualStyles).toContain('.hero {\n    right: 0;')
+    expect(visualStyles).toContain('.atmosphere {\n    right: 0;')
+    expect(visualStyles).toContain('width: min(82vw, 360px);')
+    expect(visualStyles).not.toContain('right: -96px;')
+    expect(clubStyles).toContain('inset: auto 0 0 auto;')
+    expect(clubStyles).not.toContain('inset: auto -70px -100px auto;')
   })
 })
