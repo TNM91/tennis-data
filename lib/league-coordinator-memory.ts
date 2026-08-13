@@ -47,6 +47,7 @@ export type LeagueCoordinatorTournamentDraft = {
   directorNotes?: string
   entrantsText?: string
   isPublic?: boolean
+  resultMode?: 'tiq_rated' | 'public_history' | 'social'
 }
 
 export type LeagueCoordinatorResumeState = {
@@ -81,6 +82,10 @@ function cleanText(value: unknown, maxLength = 240) {
 
 function cleanBoolean(value: unknown) {
   return typeof value === 'boolean' ? value : undefined
+}
+
+function cleanResultMode(value: unknown): LeagueCoordinatorTournamentDraft['resultMode'] {
+  return value === 'public_history' || value === 'social' || value === 'tiq_rated' ? value : undefined
 }
 
 export function isSafeLeagueCoordinatorResumeHref(value: unknown): value is string {
@@ -133,6 +138,7 @@ function sanitizeTournamentDraft(value: unknown): LeagueCoordinatorTournamentDra
   const input = value as Record<string, unknown>
   const entrantType = input.entrantType === 'teams' ? 'teams' : input.entrantType === 'players' ? 'players' : undefined
   const isPublic = cleanBoolean(input.isPublic)
+  const resultMode = cleanResultMode(input.resultMode)
   const draft: LeagueCoordinatorTournamentDraft = {
     ...(cleanText(input.tournamentId, 160) ? { tournamentId: cleanText(input.tournamentId, 160) } : {}),
     ...(cleanText(input.name, 240) ? { name: cleanText(input.name, 240) } : {}),
@@ -143,6 +149,7 @@ function sanitizeTournamentDraft(value: unknown): LeagueCoordinatorTournamentDra
     ...(cleanText(input.directorNotes, 1000) ? { directorNotes: cleanText(input.directorNotes, 1000) } : {}),
     ...(cleanText(input.entrantsText, 8000) ? { entrantsText: cleanText(input.entrantsText, 8000) } : {}),
     ...(isPublic === undefined ? {} : { isPublic }),
+    ...(resultMode ? { resultMode } : {}),
   }
   return Object.keys(draft).length ? draft : undefined
 }

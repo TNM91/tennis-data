@@ -296,7 +296,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Ready to connect the club experience without replacing registration or payments?',
     friction: 'Club identity, staff, players, clinics, teams, leagues, and tournaments are hard to keep connected across separate tools.',
     solution: CLUB_PLAN_STORY.starter.description,
-    outcome: 'Open one branded club workspace for core staff and up to 100 connected players.',
+    outcome: `${CLUB_PLAN_STORY.starter.scopeLabel} for ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}.`,
     valueProps: [...CLUB_PLAN_STORY.starter.valueProps],
   },
   {
@@ -312,7 +312,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Rolling TenAceIQ out across the full club?',
     friction: 'Staff and player caps get in the way when every program and competition needs the same club identity.',
     solution: CLUB_PLAN_STORY.unlimited.description,
-    outcome: 'Connect unlimited staff and players across one club identity.',
+    outcome: `${CLUB_PLAN_STORY.unlimited.scopeLabel} with ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
     valueProps: [...CLUB_PLAN_STORY.unlimited.valueProps],
   },
 ]

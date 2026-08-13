@@ -311,8 +311,10 @@ export async function saveTiqIndividualLeagueResult(input: {
         winner_player_id: localRecord.winnerPlayerId || null,
         score: localRecord.score,
         result_date: localRecord.resultDate,
-      })
-      await recalculateDynamicRatings()
+      }, { clubId: league.clubId, resultMode: league.resultMode })
+      if (league.resultMode === 'tiq_rated' || !league.resultMode) {
+        await recalculateDynamicRatings()
+      }
     } catch (syncError) {
       syncWarning =
         syncError instanceof Error

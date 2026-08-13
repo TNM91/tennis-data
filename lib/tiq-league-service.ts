@@ -22,6 +22,7 @@ import {
   normalizeTeamCompetitionRulesOverride,
   type TeamCompetitionRulesOverride,
 } from '@/lib/competition-rules'
+import { normalizeClubCompetitionResultMode } from '@/lib/club-competition'
 import {
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
@@ -102,6 +103,7 @@ type TiqLeagueRow = {
   id: string
   club_id?: string | null
   club_group_id?: string | null
+  result_mode?: string | null
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
@@ -165,6 +167,7 @@ type TiqLeagueRemotePayload = {
   id: string
   club_id: string | null
   club_group_id: string | null
+  result_mode: ReturnType<typeof normalizeClubCompetitionResultMode>
   competition_layer: 'tiq'
   league_format: 'team' | 'individual'
   individual_competition_format: 'standard' | 'ladder' | 'round_robin' | 'challenge'
@@ -256,6 +259,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     id: cleanText(row.id),
     clubId: cleanText(row.club_id),
     clubGroupId: cleanText(row.club_group_id),
+    resultMode: normalizeClubCompetitionResultMode(row.result_mode),
     competitionLayer: 'tiq',
     leagueFormat: row.league_format === 'individual' ? 'individual' : 'team',
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
@@ -442,6 +446,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     id: record.id,
     club_id: cleanText(record.clubId) || null,
     club_group_id: cleanText(record.clubGroupId) || null,
+    result_mode: normalizeClubCompetitionResultMode(record.resultMode),
     competition_layer: 'tiq',
     league_format: record.leagueFormat,
     individual_competition_format: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),

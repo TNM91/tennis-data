@@ -24,6 +24,10 @@ import {
   normalizeTeamCompetitionRulesOverride,
   type TeamCompetitionRulesOverride,
 } from './competition-rules'
+import {
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from './club-competition'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
@@ -36,6 +40,7 @@ export type TiqLeagueRecord = {
   id: string
   clubId?: string
   clubGroupId?: string
+  resultMode?: ClubCompetitionResultMode
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
@@ -71,6 +76,7 @@ export type TiqLeagueRecord = {
 export type TiqLeagueDraft = {
   clubId?: string
   clubGroupId?: string
+  resultMode?: ClubCompetitionResultMode
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   teamMatchFormatId: TeamMatchFormatId
@@ -228,6 +234,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
     clubId: cleanText(input.clubId),
     clubGroupId: cleanText(input.clubGroupId),
+    resultMode: normalizeClubCompetitionResultMode(input.resultMode),
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     teamMatchFormatId: normalizeTeamMatchFormatId(input.teamMatchFormatId),
@@ -273,6 +280,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       ...record,
       clubId: cleanText(record.clubId),
       clubGroupId: cleanText(record.clubGroupId),
+      resultMode: normalizeClubCompetitionResultMode(record.resultMode),
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
@@ -335,6 +343,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     id: nextId,
     clubId: normalized.clubId,
     clubGroupId: normalized.clubGroupId,
+    resultMode: normalizeClubCompetitionResultMode(normalized.resultMode),
     competitionLayer: 'tiq',
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,

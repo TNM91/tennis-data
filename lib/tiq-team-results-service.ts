@@ -348,8 +348,14 @@ export async function saveTiqTeamMatchLine(
     let syncWarning: string | null = null
     if (line.winnerSide) {
       try {
-        await syncTiqTeamMatchLineToMatch(line, event)
-        await recalculateDynamicRatings()
+        const leagueResult = await getTiqLeagueById(event.leagueId)
+        await syncTiqTeamMatchLineToMatch(line, event, {
+          clubId: leagueResult.record?.clubId,
+          resultMode: leagueResult.record?.resultMode,
+        })
+        if (leagueResult.record?.resultMode === 'tiq_rated' || !leagueResult.record?.resultMode) {
+          await recalculateDynamicRatings()
+        }
       } catch (syncErr) {
         syncWarning =
           syncErr instanceof Error

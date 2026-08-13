@@ -93,10 +93,31 @@ describe('Club tier and Clinic Hub integration', () => {
   })
 
   it('defines Club as a separate offering without claiming club operations', () => {
+    const clubWorkspace = source('app/components/club-workspace.tsx')
+    const pricing = source('app/pricing/page.tsx')
+    const upgrade = source('app/upgrade/page.tsx')
+    const billingPolicy = source('lib/billing-policy.ts')
+
     expect(CLUB_PLAN_STORY.starter.priceLabel).toBe('$99/month')
     expect(CLUB_PLAN_STORY.unlimited.priceLabel).toBe('$199/month')
+    expect(CLUB_PLAN_STORY.starter).toMatchObject({
+      workspaceLimit: 1,
+      coachStaffLimit: 10,
+      connectedPlayerLimit: 150,
+    })
+    expect(CLUB_PLAN_STORY.unlimited).toMatchObject({
+      workspaceLimit: 1,
+      coachStaffLimit: null,
+      connectedPlayerLimit: null,
+    })
+    expect(CLUB_PLAN_STORY.workspaceBoundary).toContain('one branded Club workspace')
     expect(CLUB_PLAN_STORY.boundary).toContain('does not replace court booking')
     expect(CLUB_PLAN_STORY.starter.description).toContain('registration or payment system')
+    expect(clubWorkspace).toContain('No Club features are held back')
+    expect(clubWorkspace).toContain('Remove capacity limits')
+    expect(pricing).toContain('Starter supports up to 10 coaches or staff and 150 connected players')
+    expect(upgrade).not.toContain('up to 100 players')
+    expect(billingPolicy).toContain('CLUB_SUBSCRIPTION_POLICY')
   })
 
   it('houses Clinic Hub inside the Club lane', () => {

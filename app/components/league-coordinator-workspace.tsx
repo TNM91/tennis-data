@@ -15,6 +15,12 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
 import {
+  CLUB_COMPETITION_RESULT_MODE_OPTIONS,
+  getClubCompetitionResultModeDescription,
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from '@/lib/club-competition'
+import {
   chooseLatestLeagueCoordinatorResumeState,
   getLeagueCoordinatorResumeHref,
   loadLeagueCoordinatorResumeStateFromCloud,
@@ -182,6 +188,7 @@ const LEAGUE_HOME_LOCKED_ACTIONS: readonly RoleHomeQuickAction[] = [
 const EMPTY_DRAFT: TiqLeagueDraft = {
   clubId: '',
   clubGroupId: '',
+  resultMode: 'tiq_rated',
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
   teamMatchFormatId: 'standard_2s_3d',
@@ -2026,6 +2033,27 @@ export function LeagueCoordinatorWorkspace() {
                 </select>
                 <span style={fieldHelpText}>
                   {getTiqLeagueVisibilityDescription(draft.isPublic)}
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>How results count</span>
+                <select
+                  value={normalizeClubCompetitionResultMode(draft.resultMode)}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      resultMode: event.target.value as ClubCompetitionResultMode,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  {CLUB_COMPETITION_RESULT_MODE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <span style={fieldHelpText}>
+                  {getClubCompetitionResultModeDescription(normalizeClubCompetitionResultMode(draft.resultMode))}
                 </span>
               </label>
 

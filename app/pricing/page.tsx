@@ -263,6 +263,7 @@ function PricingContent() {
             ? 'Start free. Add a role when it helps.'
             : 'Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.'}
         </p>
+        <p style={smallTextStyle}>Running a club? Club Starter and Club Unlimited add one premium branded Club workspace.</p>
         {!PAID_CHECKOUT_ENABLED ? (
           <div role="status" style={checkoutPauseStyle}>{PAID_CHECKOUT_PAUSED_MESSAGE}</div>
         ) : null}
@@ -347,24 +348,27 @@ function PricingContent() {
           body="Club is its own TenAceIQ tier. It connects players, coaches, clinics, teams, leagues, tournaments, people, and branding without replacing registration or payments."
         />
         <div style={isMobile ? compactPlanGridStyle : { ...planGridStyle, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-          {CLUB_PRICING_PLANS.map((plan) => (
-            <article key={plan.id} id={plan.id} style={isMobile ? compactPlanCardStyle : planCardStyle}>
+          {CLUB_PRICING_PLANS.map((plan) => {
+            const story = plan.id === 'club_unlimited' ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+            return <article key={plan.id} id={plan.id} style={isMobile ? compactPlanCardStyle : planCardStyle}>
               <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
                 <TiqFeatureIcon name="teamRankings" size={isMobile ? 'md' : 'lg'} variant="surface" />
                 <span style={planNameStyle}>{plan.name}</span>
+                {plan.id === 'club_unlimited' ? <span style={badgeStyle}>Best for full-club rollout</span> : null}
               </div>
               <div style={isMobile ? compactPriceStyle : priceStyle}>{plan.priceLabel}</div>
+              <strong style={{ fontSize: isMobile ? 13 : 15 }}>{story.capacityLabel}</strong>
               <p style={cardTextStyle}>{plan.solution}</p>
               <ul style={isMobile ? compactFeatureListStyle : featureListStyle}>
                 {plan.valueProps.slice(0, isMobile ? 3 : 5).map((valueProp) => <li key={valueProp}>{valueProp}</li>)}
               </ul>
-              <Link href={getPlanUnlockHref(plan.id)} style={plan.id === 'club_starter' ? primaryButtonStyle : secondaryButtonStyle}>
+              <Link href={getPlanUnlockHref(plan.id)} style={plan.id === 'club_unlimited' ? primaryButtonStyle : secondaryButtonStyle}>
                 {PAID_CHECKOUT_ENABLED ? plan.ctaLabel : 'Join early access'}
               </Link>
             </article>
-          ))}
+          })}
         </div>
-        <p style={{ ...smallTextStyle, marginTop: 14 }}>{CLUB_PLAN_STORY.boundary}</p>
+        <p style={{ ...smallTextStyle, marginTop: 14 }}>{CLUB_PLAN_STORY.workspaceBoundary} {CLUB_PLAN_STORY.boundary}</p>
       </section>
 
       <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">
@@ -477,9 +481,11 @@ function PricingContent() {
           <p style={heroTextStyle}>
             Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $25 per season for one bounded league, ladder, or tournament.
           </p>
+          <p style={heroTextStyle}>Club Starter and Club Unlimited are monthly subscriptions for one branded Club workspace.</p>
           <p style={heroTextStyle}>
             Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.
           </p>
+          <p style={smallTextStyle}>{CLUB_PLAN_STORY.workspaceBoundary} Starter supports up to 10 coaches or staff and 150 connected players; Unlimited removes those people limits.</p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
           <p style={smallTextStyle}>Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.</p>
           <div style={heroActionRowStyle}>

@@ -28,18 +28,26 @@ export async function GET(request: Request) {
   const auth = await getClubApiAuth(request)
   if (!auth.ok) return auth.response
 
-  const { data: membershipRows, error: membershipError } = await auth.supabase
-    .from('club_memberships')
-    .select(membershipSelect)
-    .eq('user_id', auth.userId)
-    .eq('status', 'active')
-    .order('updated_at', { ascending: false })
+  const [{ data: membershipRows, error: membershipError }, { data: billingRow, error: billingError }] = await Promise.all([
+    auth.supabase
+      .from('club_memberships')
+      .select(membershipSelect)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false }),
+    auth.supabase
+      .from('club_billing_accounts')
+      .select('owner_user_id,plan_id,status,stripe_customer_id,stripe_subscription_id')
+      .eq('owner_user_id', auth.userId)
+      .maybeSingle(),
+  ])
 
-  if (membershipError) return clubDatabaseError(membershipError.message)
+  if (membershipError || billingError) return clubDatabaseError(membershipError?.message || billingError?.message || '')
 
   const memberships = ((membershipRows ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow)
+  const billing = mapClubBillingAccountRow(billingRow as Record<string, unknown> | null)
   const clubIds = memberships.map((membership) => membership.clubId).filter(Boolean)
-  if (!clubIds.length) return Response.json({ ok: true, clubs: [], memberships: [] })
+  if (!clubIds.length) return Response.json({ ok: true, clubs: [], memberships: [], billing })
 
   const { data: clubRows, error: clubError } = await auth.supabase
     .from('clubs')
@@ -51,7 +59,7 @@ export async function GET(request: Request) {
 
   const clubs = ((clubRows ?? []) as Record<string, unknown>[]).map(mapClubRow)
   const requestedClubId = new URL(request.url).searchParams.get('clubId')?.trim() ?? ''
-  if (!requestedClubId) return Response.json({ ok: true, clubs, memberships })
+  if (!requestedClubId) return Response.json({ ok: true, clubs, memberships, billing })
 
   const club = clubs.find((item) => item.id === requestedClubId)
   const currentMembership = memberships.find((item) => item.clubId === requestedClubId)
@@ -73,6 +81,26 @@ export async function GET(request: Request) {
   if (firstError) return clubDatabaseError(firstError.message)
 
   const workspaceMemberships = ((memberResult.data ?? []) as Record<string, unknown>[]).map(mapClubMembershipRow)
+  const profileIdentityByUserId = new Map<string, string>()
+  const membershipUserIds = workspaceMemberships.map((membership) => membership.userId).filter(Boolean)
+  if (membershipUserIds.length) {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+    if (serviceKey) {
+      const { createClient } = await import('@supabase/supabase-js')
+      const { supabaseUrl } = await import('@/lib/supabase')
+      const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+      const profileResult = await service.from('profiles').select('id,linked_player_id,linked_player_name').in('id', membershipUserIds)
+      if (profileResult.error) return clubDatabaseError(profileResult.error.message)
+      for (const row of (profileResult.data ?? []) as Array<{ id?: string | null; linked_player_id?: string | null; linked_player_name?: string | null }>) {
+        if (row.id && row.linked_player_id) profileIdentityByUserId.set(row.id, cleanClubText(row.linked_player_name))
+      }
+    }
+  }
+  const connectedWorkspaceMemberships = workspaceMemberships.map((membership) => ({
+    ...membership,
+    playerIdentityConnected: Boolean(membership.userId && profileIdentityByUserId.has(membership.userId)),
+    linkedPlayerName: membership.userId ? profileIdentityByUserId.get(membership.userId) ?? '' : '',
+  }))
   const groups = ((groupResult.data ?? []) as Record<string, unknown>[]).map((row) => mapClubGroupRow(row))
   const clinicGroupIds = groups.filter((group) => group.groupType === 'clinic').map((group) => group.id)
   const teamGroups = groups.filter((group) => group.groupType === 'team')
@@ -489,10 +517,11 @@ export async function GET(request: Request) {
     ok: true,
     clubs,
     memberships,
+    billing,
     workspace: {
       club,
       currentMembership,
-      memberships: workspaceMemberships,
+      memberships: connectedWorkspaceMemberships,
       invites: ((inviteResult.data ?? []) as Record<string, unknown>[]).map(mapClubInviteRow),
       groups: groups.map((group) => {
         const renewalCounts = renewalCountsByGroup.get(group.id) ?? { pending: 0, confirmed: 0, declined: 0 }
