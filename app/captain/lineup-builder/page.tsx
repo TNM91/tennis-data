@@ -4990,6 +4990,7 @@ const checkLabelStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 8,
+  minHeight: 44,
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
   flexWrap: 'wrap',
@@ -5048,7 +5049,7 @@ const ghostButtonSmallButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  height: 36,
+  minHeight: 44,
   padding: '0 12px',
   borderRadius: 999,
   border: '1px solid var(--shell-panel-border)',
@@ -5858,12 +5859,14 @@ function getLineupStatusStyle(status: LineupRatingStatus): CSSProperties {
 
 const pillButton: CSSProperties = {
   ...miniPillSlateStyle,
+  minHeight: 44,
   cursor: 'pointer',
   border: '1px solid rgba(148, 163, 184, 0.22)',
 }
 
 const pillButtonActive: CSSProperties = {
   ...miniPillGreenStyle,
+  minHeight: 44,
   cursor: 'pointer',
 }
 

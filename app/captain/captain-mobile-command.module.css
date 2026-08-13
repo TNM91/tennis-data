@@ -233,7 +233,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 38px;
+    min-height: 44px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.06);
@@ -247,7 +247,7 @@
   }
 
   .noticeDismiss {
-    min-height: 38px;
+    min-height: 44px;
     border: 0;
     background: transparent;
     color: var(--shell-copy-muted);
@@ -302,7 +302,7 @@
   }
 
   .nowMoreSummary {
-    min-height: 38px;
+    min-height: 44px;
     display: flex;
     align-items: center;
     color: var(--brand-blue-2);
@@ -391,7 +391,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    min-height: 42px;
+    min-height: 44px;
     color: var(--foreground-strong);
     font-size: 0.78rem;
     font-weight: 900;
@@ -419,7 +419,7 @@
   .moreButton {
     display: flex;
     align-items: center;
-    min-height: 42px;
+    min-height: 44px;
     min-width: 0;
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 11px;

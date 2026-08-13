@@ -273,7 +273,7 @@ const triggerStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 34,
+  minHeight: 44,
   padding: '0 12px',
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.22)',
@@ -332,8 +332,8 @@ const titleStyle: CSSProperties = {
 }
 
 const closeButtonStyle: CSSProperties = {
-  width: 38,
-  height: 38,
+  width: 44,
+  height: 44,
   borderRadius: 999,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'rgba(255,255,255,0.05)',
@@ -419,7 +419,7 @@ const actionRowStyle: CSSProperties = {
 }
 
 const primaryStyle: CSSProperties = {
-  minHeight: 42,
+  minHeight: 44,
   padding: '0 14px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
@@ -436,6 +436,9 @@ const disabledStyle: CSSProperties = {
 }
 
 const secondaryStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
   color: '#dbeafe',
   fontSize: 13,
   fontWeight: 850,
