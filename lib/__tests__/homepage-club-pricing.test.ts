@@ -11,6 +11,12 @@ describe('homepage Club pricing', () => {
     expect(homepageSource).toContain('<HomeClubPricing />')
   })
 
+  it('shows every individual tier alongside the separate Club offer', () => {
+    expect(homepageSource).toContain('GuestTierPreview,')
+    expect(homepageSource).toContain('<GuestTierPreview />')
+    expect(homepageSource).not.toContain('GuestTierPreviewGate')
+  })
+
   it('uses the centralized Club story and shows the capacity difference', () => {
     expect(clubPricingSource).toContain("import { CLUB_PLAN_STORY } from '@/lib/product-story'")
     expect(clubPricingSource).toContain('Same complete Club experience')

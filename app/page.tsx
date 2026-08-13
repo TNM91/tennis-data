@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import {
   CommandHero,
+  GuestTierPreview,
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import GuestTierPreviewGate from '@/app/components/guest-tier-preview-gate'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import ClubCommunicationAttentionCard from '@/app/components/club-communication-attention-card'
 import HomeClubPricing from '@/app/components/home-club-pricing'
@@ -58,7 +58,7 @@ export default function HomePage() {
           showBoard={false}
         />
         <HomeClubPricing />
-        <GuestTierPreviewGate />
+        <GuestTierPreview />
       </main>
     </PublicPageShell>
   )
