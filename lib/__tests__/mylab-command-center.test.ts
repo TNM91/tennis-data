@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const componentSource = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.tsx'), 'utf8')
-const styleSource = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.module.css'), 'utf8')
+const styleSource = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.module.css'), 'utf8').replace(/\r\n/g, '\n')
 const iconSource = readFileSync(join(process.cwd(), 'components/brand/TiqFeatureIcon.tsx'), 'utf8')
 const portalSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 const pricingSource = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 'utf8')

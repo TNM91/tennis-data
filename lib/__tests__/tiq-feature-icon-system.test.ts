@@ -52,7 +52,7 @@ describe('TenAceIQ feature icon system', () => {
       ['find', 'exploreTennis'],
       ['you', 'improveTennis'],
       ['compete', 'competeTennis'],
-      ['team', 'captainTennis'],
+      ['team', 'teamRankings'],
       ['coach', 'coachTennis'],
       ['league', 'leagueTennis'],
       ['club', 'clubTennis'],

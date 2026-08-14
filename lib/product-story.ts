@@ -210,10 +210,11 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Explore players, teams, leagues, rankings, tournaments, and tennis context for free.',
+      'Explore players, teams, leagues, rankings, tournaments, and public tennis context for free, with collaboration for every connected USTA or TIQ team.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
+      'Open linked team rosters, schedules, stats, and Team Chat',
       'Contribute TennisLink exports through Data Assist',
       'Understand the landscape before upgrading',
     ],
@@ -225,8 +226,9 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players who want clearer prep and a personalized tennis home',
     upgradeCue: 'Unlock My Lab, Level Up, data refreshes, matchups, and messages.',
     description:
-      'Unlock My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages together.',
+      'Keep Free team access, then add My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages.',
     valueProps: [
+      'Keep linked team access from Free',
       'Unlock My Lab',
       'Use Level Up cards and Tactics Tools to improve your game',
       'Save serve and stroke clips for coach review',
@@ -396,9 +398,10 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   free: {
     stage: 'Start here',
     headline: 'Explore tennis for free.',
-    copy: 'Explore players, teams, leagues, rankings, tournaments, and tennis context before choosing paid tools.',
+    copy: 'Explore public tennis context and use roster, schedule, stats, and Team Chat for every linked team.',
     bullets: [
       'Search players, teams, leagues, and rankings',
+      'Use roster, schedule, stats, and Team Chat for every linked team',
       'Find public tennis context fast',
       'Understand the landscape before upgrading',
     ],
@@ -408,7 +411,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   player_plus: {
     stage: 'Player unlock',
     headline: 'Make TenAceIQ personal.',
-    copy: 'Unlock My Lab, improve the data behind your tennis read, prep matchups, and keep messages together.',
+    copy: 'Keep Free team access, then add My Lab, Level Up, richer matchup prep, and personalized improvement tools.',
     bullets: [
       'Make My Lab your tennis home',
       'Use Level Up to choose and track focused court work',

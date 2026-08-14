@@ -121,8 +121,9 @@ describe('Captain mobile command center', () => {
 
   it('turns the already-open Captain connection action into Team Chat', () => {
     expect(connectionBanner).toContain("import { buildTeamRoomHref } from '@/lib/team-room'")
-    expect(connectionBanner).toContain("isCaptainConnection ? 'Open Team Chat' : 'Continue with team'")
-    expect(connectionBanner).toContain("alreadyAtDestination ? teamRoomHref")
+    expect(connectionBanner).toContain('Open Team Chat')
+    expect(connectionBanner).toContain('href={teamRoomHref}')
+    expect(connectionBanner).toContain('!hasRecommendedAccess ? <Link href={tierHref}')
     expect(connectionBanner).toContain('.team-connection-invite-banner.is-accepted .team-connection-invite-body')
   })
 })

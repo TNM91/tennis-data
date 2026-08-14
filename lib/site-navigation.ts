@@ -15,13 +15,14 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/explore', label: 'Explore', description: 'Players, teams, leagues, and rankings.' },
   { href: '/player-development', label: 'Improve', description: 'Drills, Level Up, and video.' },
   { href: '/compete', label: 'Compete', description: 'Matchups, schedules, and results.' },
-  { href: '/captain', label: 'Captain', description: 'Team week, lineups, and chat.' },
+  { href: '/compete/teams', label: 'Teams', description: 'Rosters, schedules, stats, and Team Chat.' },
   { href: '/coaches', label: 'Coaches', description: 'Players, plans, and progress.' },
   { href: '/leagues-and-tournaments', label: 'Leagues', description: 'Seasons, tournaments, and scores.' },
   { href: '/clubs', label: 'Club', description: 'Programs, staff, and competition.' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
+  { href: '/compete/teams', label: 'My Teams' },
   { href: '/clubs', label: 'Club' },
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },

@@ -8,7 +8,7 @@ describe('site navigation language', () => {
       { href: '/explore', label: 'Explore', description: 'Players, teams, leagues, and rankings.' },
       { href: '/player-development', label: 'Improve', description: 'Drills, Level Up, and video.' },
       { href: '/compete', label: 'Compete', description: 'Matchups, schedules, and results.' },
-      { href: '/captain', label: 'Captain', description: 'Team week, lineups, and chat.' },
+      { href: '/compete/teams', label: 'Teams', description: 'Rosters, schedules, stats, and Team Chat.' },
       { href: '/coaches', label: 'Coaches', description: 'Players, plans, and progress.' },
       { href: '/leagues-and-tournaments', label: 'Leagues', description: 'Seasons, tournaments, and scores.' },
       { href: '/clubs', label: 'Club', description: 'Programs, staff, and competition.' },
@@ -18,13 +18,14 @@ describe('site navigation language', () => {
       'Explore',
       'Improve',
       'Compete',
-      'Captain',
+      'Teams',
       'Coaches',
       'Leagues',
       'Club',
     ])
     expect(PRIMARY_NAV_ITEMS.every((item) => item.description && item.description.length < 42)).toBe(true)
     expect(PRIMARY_NAV_ITEMS.map((item) => item.description)).toContain('Drills, Level Up, and video.')
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/compete/teams', label: 'My Teams' })
     expect(PRIMARY_NAV_ITEMS).not.toContainEqual({ href: '/manage', label: 'Manage' })
   })
 
