@@ -81,6 +81,7 @@ export default function CompeteTeamsPage() {
       resumeSurface="teams"
       resumeLabel="team directory"
       resumeHref="/compete/teams"
+      showGenericSupport={false}
     >
       <CompeteTeamsContent />
     </CompetePageFrame>
@@ -98,6 +99,7 @@ function CompeteTeamsContent() {
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
+  const { isMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     let active = true
@@ -184,10 +186,19 @@ function CompeteTeamsContent() {
         pendingTeamCount={pendingConnections.length}
         playerToolsActive={access.canUseAdvancedPlayerInsights}
         captainToolsActive={access.canUseCaptainWorkflow}
+        isMobile={isMobile}
       />
 
-      <section id="tiq-entered-teams" style={sectionStyle}>
-        <div style={sectionEyebrowStyle}>Your teams</div>
+      <section
+        id="tiq-entered-teams"
+        style={{
+          ...sectionStyle,
+          marginTop: isMobile ? 0 : sectionStyle.marginTop,
+          padding: isMobile ? '16px' : sectionStyle.padding,
+          borderRadius: isMobile ? '20px' : sectionStyle.borderRadius,
+        }}
+      >
+        <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
         <div style={sectionTextStyle}>
           {loading
             ? 'Finding your linked teams...'
@@ -195,7 +206,7 @@ function CompeteTeamsContent() {
               ? 'Open a team for its roster, schedule, stats, and Team Chat.'
               : userId
                 ? 'Accept a team connection or connect your player profile to bring your teams here.'
-                : 'Create a Free account to open the private team spaces connected to you.'}
+                : 'Public team pages are open now. Accepted team connections appear here after registration.'}
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
@@ -229,45 +240,61 @@ function CompeteTeamsContent() {
                   ready: true,
                 },
               ]
+              const teamMetaItems = [
+                group.sourceLeagueName,
+                group.sourceFlight,
+                `${group.tiqLeagues.length} TIQ league${group.tiqLeagues.length === 1 ? '' : 's'}`,
+              ].filter(Boolean)
 
               return (
-                <div key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`} style={rowStyle}>
+                <div
+                  key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`}
+                  style={{
+                    ...rowStyle,
+                    padding: isMobile ? '14px' : rowStyle.padding,
+                    borderRadius: isMobile ? '16px' : rowStyle.borderRadius,
+                  }}
+                >
                   <div style={teamCopyStyle}>
-                    <div style={rowTitleStyle}>{group.teamName}</div>
+                    <div style={{ ...rowTitleStyle, fontSize: isMobile ? '17px' : rowTitleStyle.fontSize }}>{group.teamName}</div>
                     <div style={rowMetaStyle}>
-                      {[group.sourceLeagueName, group.sourceFlight, `${group.tiqLeagues.length} TIQ leagues`]
-                        .filter(Boolean)
-                        .join(' | ')}
+                      {teamMetaItems.map((item) => <span key={item} style={rowMetaChipStyle}>{item}</span>)}
                     </div>
                     <div style={rowSubtleStyle}>
                       {getTeamConnectionRolesLabel(group.connection.roles)} connection
                     </div>
-                    <div style={teamReadinessGridStyle}>
+                    <div
+                      style={{
+                        ...teamReadinessGridStyle,
+                        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : teamReadinessGridStyle.gridTemplateColumns,
+                      }}
+                    >
                       {teamReadinessItems.map((item) => (
-                        <div key={item.label} style={teamReadinessItemStyle}>
+                        <div
+                          key={item.label}
+                          style={isMobile ? { ...teamReadinessItemStyle, ...teamReadinessItemMobileStyle } : teamReadinessItemStyle}
+                        >
                           <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
-                          <span>{item.label}</span>
-                          <strong>{item.value}</strong>
+                          <span style={teamReadinessLabelStyle}>{item.label}</span>
+                          <strong style={isMobile ? teamReadinessValueMobileStyle : teamReadinessValueStyle}>{item.value}</strong>
                         </div>
                       ))}
-                      <Link href={teamPageHref} style={teamPrimaryActionStyle}>
+                      <Link href={teamPageHref} style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}>
                         Open team
                       </Link>
                     </div>
                   </div>
-                  <div style={teamRowActionStyle}>
+                  <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
-                  {access.canUseCaptainWorkflow ? (
-                    <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
-                  ) : null}
-                  {access.canUseAdvancedPlayerInsights ? (
-                    <Link href="/mylab" style={teamSecondaryLinkStyle}>My Lab</Link>
-                  ) : null}
-                  {!access.canUseCaptainWorkflow ? (
-                    <Link href={teamPageHref} style={teamSecondaryLinkStyle}>
-                      Stats
-                    </Link>
-                  ) : null}
+                    {access.canUseCaptainWorkflow ? (
+                      <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
+                    ) : null}
+                    {access.canUseAdvancedPlayerInsights ? (
+                      <Link href="/mylab" style={teamSecondaryLinkStyle}>My Lab</Link>
+                    ) : null}
+                    {!access.canUseCaptainWorkflow ? (
+                      <Link href={teamPageHref} style={teamSecondaryLinkStyle}>Stats</Link>
+                    ) : null}
                   </div>
                 </div>
               )
@@ -276,52 +303,56 @@ function CompeteTeamsContent() {
         )}
       </section>
 
-      <TeamToolsDisclosure label="Find or update a team">
+      <TeamToolsDisclosure label="Find or manage a team">
         <TeamPathPanel />
+        <details className="competeDetailsSection" style={teamMoreOptionsStyle}>
+          <summary style={teamMoreOptionsSummaryStyle}>More team options</summary>
+          <div style={teamMoreOptionsBodyStyle}>
+            <CompeteGrid>
+              <CompeteCard
+                href="/teams"
+                meta="Public map"
+                title="Team directory"
+                text="Open roster, standings, and team analytics."
+                icon="teamRankings"
+                action="Find team"
+              />
+              <CompeteCard
+                href="/league-coordinator/results"
+                meta="Scorebook"
+                title="Team book"
+                text="Record team match events, line scores, and standings-moving outcomes."
+                icon="reports"
+                action="Open book"
+              />
+              <CompeteCard
+                href="/captain/lineup-builder"
+                meta="Team handoff"
+                title="Build lineup"
+                text="Build from the team already in view."
+                icon="lineupBuilder"
+                action="Build lineup"
+              />
+              <CompeteCard
+                href="/compete/schedule"
+                meta="Shared calendar"
+                title="Match dates"
+                text="Keep team matches connected to the league calendar."
+                icon="schedule"
+                action="Open calendar"
+              />
+            </CompeteGrid>
+          </div>
+        </details>
       </TeamToolsDisclosure>
 
-      <TeamToolsDisclosure>
-        <CompeteGrid>
-          <CompeteCard
-            href="/teams"
-            meta="Public map"
-            title="Team directory"
-            text="Open roster, standings, and team analytics."
-            icon="teamRankings"
-            action="Find team"
-          />
-          <CompeteCard
-            href="/league-coordinator/results"
-            meta="Scorebook"
-            title="Team book"
-            text="Record team match events, line scores, and standings-moving outcomes."
-            icon="reports"
-            action="Open book"
-          />
-          <CompeteCard
-            href="/captain/lineup-builder"
-            meta="Team handoff"
-            title="Build lineup"
-            text="Build from the team already in view."
-            icon="lineupBuilder"
-            action="Build lineup"
-          />
-          <CompeteCard
-            href="/compete/schedule"
-            meta="Shared calendar"
-            title="Match dates"
-            text="Keep team matches connected to the league calendar."
-            icon="schedule"
-            action="Open calendar"
-          />
-        </CompeteGrid>
-      </TeamToolsDisclosure>
+      {authResolved && userId ? (
+        <TeamSupportDisclosure>
+          <TeamPlayerIdPrepPanel />
+        </TeamSupportDisclosure>
+      ) : null}
 
-      <TeamSupportDisclosure>
-        <TeamPlayerIdPrepPanel />
-      </TeamSupportDisclosure>
-
-      {authResolved ? (
+      {authResolved && userId ? (
         <TeamUpgradeDisclosure>
           <div style={upgradeGridStyle}>
             {!access.canUseCaptainWorkflow ? (
@@ -360,7 +391,7 @@ function TeamSupportDisclosure({ children }: { children: ReactNode }) {
     <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
       <summary style={teamSupportSummaryStyle}>
         <span style={teamSupportSummaryCopyStyle}>Use Player ID for this team read</span>
-        <span>Open</span>
+        <span style={teamSupportCueStyle}>View</span>
       </summary>
       <div style={teamSupportBodyStyle}>{children}</div>
     </details>
@@ -372,19 +403,19 @@ function TeamUpgradeDisclosure({ children }: { children: ReactNode }) {
     <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
       <summary style={teamSupportSummaryStyle}>
         <span style={teamSupportSummaryCopyStyle}>Need Captain or League tools?</span>
-        <span>Open</span>
+        <span style={teamSupportCueStyle}>View</span>
       </summary>
       <div style={teamSupportBodyStyle}>{children}</div>
     </details>
   )
 }
 
-function TeamToolsDisclosure({ children, label = 'More team tools' }: { children: ReactNode; label?: string }) {
+function TeamToolsDisclosure({ children, label }: { children: ReactNode; label: string }) {
   return (
     <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
       <summary style={teamSupportSummaryStyle}>
         <span style={teamSupportSummaryCopyStyle}>{label}</span>
-        <span>Open</span>
+        <span style={teamSupportCueStyle}>View</span>
       </summary>
       <div style={teamSupportBodyStyle}>{children}</div>
     </details>
@@ -480,6 +511,7 @@ function TeamAccountAccessPanel({
   pendingTeamCount,
   playerToolsActive,
   captainToolsActive,
+  isMobile,
 }: {
   authResolved: boolean
   signedIn: boolean
@@ -487,6 +519,7 @@ function TeamAccountAccessPanel({
   pendingTeamCount: number
   playerToolsActive: boolean
   captainToolsActive: boolean
+  isMobile: boolean
 }) {
   const title = !authResolved
     ? 'Checking your team access...'
@@ -499,7 +532,15 @@ function TeamAccountAccessPanel({
           : 'Connect your first team.'
 
   return (
-    <section style={accountAccessStyle} aria-label="Teams account access">
+    <section
+      style={{
+        ...accountAccessStyle,
+        padding: isMobile ? '16px' : accountAccessStyle.padding,
+        borderRadius: isMobile ? '20px' : accountAccessStyle.borderRadius,
+        gap: isMobile ? '12px' : accountAccessStyle.gap,
+      }}
+      aria-label="Teams account access"
+    >
       <div style={emptyTeamsCopyStyle}>
         <span style={sectionEyebrowStyle}>Team access</span>
         <strong style={accountAccessTitleStyle}>{title}</strong>
@@ -514,7 +555,7 @@ function TeamAccountAccessPanel({
           </span>
         ) : null}
       </div>
-      <div style={emptyTeamsActionRowStyle}>
+      <div style={isMobile && !signedIn ? { ...emptyTeamsActionRowStyle, ...mobileActionGridStyle } : emptyTeamsActionRowStyle}>
         {!signedIn ? (
           <>
             <Link href="/join?next=%2Fcompete%2Fteams" style={teamPrimaryActionStyle}>Register Free</Link>
@@ -534,21 +575,19 @@ function EmptyTeamsState({ signedIn, pendingTeamCount }: { signedIn: boolean; pe
   return (
     <div style={emptyTeamsStyle}>
       <div style={emptyTeamsCopyStyle}>
-        <strong>{signedIn ? 'No accepted team connections yet.' : 'Your private team spaces start with a Free account.'}</strong>
+        <strong>{signedIn ? 'No accepted team connections yet.' : 'Explore public teams now.'}</strong>
         <span>
           {signedIn
             ? pendingTeamCount > 0
               ? 'Review the team connection waiting for you, then its Team Chat and team tools will open here.'
               : 'Connect your player profile, accept a team invitation, or find the team already in the public map.'
-            : 'Register, connect your player profile, and every accepted USTA or TIQ team will appear here.'}
+            : 'Check rosters, records, standings, and recent results without an account.'}
         </span>
       </div>
       <div style={emptyTeamsActionRowStyle}>
         {signedIn ? (
           <Link href="/team-connections" style={emptyTeamsActionStyle}>{pendingTeamCount > 0 ? 'Review connections' : 'Connect team'}</Link>
-        ) : (
-          <Link href="/join?next=%2Fcompete%2Fteams" style={emptyTeamsActionStyle}>Register Free</Link>
-        )}
+        ) : null}
         <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link>
       </div>
     </div>
@@ -631,6 +670,7 @@ const teamSupportSummaryStyle: CSSProperties = {
   gap: '10px',
   color: 'var(--foreground-strong)',
   fontSize: '13px',
+  lineHeight: 1.3,
   fontWeight: 900,
   overflowWrap: 'anywhere',
 }
@@ -640,9 +680,37 @@ const teamSupportSummaryCopyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const teamSupportCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  whiteSpace: 'nowrap',
+}
+
 const teamSupportBodyStyle: CSSProperties = {
   minWidth: 0,
   padding: '0 10px 10px',
+}
+
+const teamMoreOptionsStyle: CSSProperties = {
+  minWidth: 0,
+  borderTop: '1px solid rgba(116,190,255,0.12)',
+}
+
+const teamMoreOptionsSummaryStyle: CSSProperties = {
+  minHeight: 44,
+  display: 'flex',
+  alignItems: 'center',
+  padding: '0 4px',
+  color: 'var(--brand-blue-2)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 900,
+}
+
+const teamMoreOptionsBodyStyle: CSSProperties = {
+  minWidth: 0,
+  paddingTop: 10,
 }
 
 const teamPathHeaderStyle: CSSProperties = {
@@ -942,6 +1010,13 @@ const emptyTeamsActionRowStyle = {
   minWidth: 0,
 } as const
 
+const mobileActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  alignItems: 'stretch',
+  width: '100%',
+}
+
 const emptyTeamsActionStyle = {
   minWidth: 0,
   maxWidth: '100%',
@@ -986,10 +1061,24 @@ const rowTitleStyle = {
 } as const
 
 const rowMetaStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
   marginTop: '4px',
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
+} as const
+
+const rowMetaChipStyle = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '3px 7px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(116,190,255,0.06)',
   overflowWrap: 'anywhere',
 } as const
 
@@ -1022,8 +1111,36 @@ const teamReadinessItemStyle = {
   color: 'rgba(223,238,255,0.84)',
   fontSize: '12px',
   fontWeight: 850,
-  overflow: 'hidden',
+  overflowWrap: 'anywhere',
 } as const
+
+const teamReadinessItemMobileStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  alignContent: 'center',
+  minHeight: 62,
+  padding: '9px 10px',
+}
+
+const teamReadinessLabelStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamReadinessValueStyle: CSSProperties = {
+  marginLeft: 'auto',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const teamReadinessValueMobileStyle: CSSProperties = {
+  ...teamReadinessValueStyle,
+  gridColumn: '1 / -1',
+  marginLeft: 0,
+}
 
 const teamPrimaryActionStyle = {
   display: 'inline-flex',
@@ -1068,6 +1185,13 @@ const teamRowActionStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
+}
+
+const teamRowActionMobileStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 108px), 1fr))',
+  justifyContent: 'stretch',
+  width: '100%',
 }
 
 const readinessDotReadyStyle = {
