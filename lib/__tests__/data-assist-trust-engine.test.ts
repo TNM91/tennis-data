@@ -87,8 +87,8 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('no public records change until the import check finishes')
     expect(source).not.toContain('refresh analytics across the platform')
     expect(source).not.toContain('ready without admin review')
-    expect(source.indexOf('<label style={dropzoneStyle')).toBeLessThan(source.indexOf('<DataAssistReviewFlowPanel />'))
-    expect(source.indexOf('<label style={dropzoneStyle')).toBeLessThan(source.indexOf('<DataAssistTrustEnginePanel />'))
+    expect(source.indexOf('ref={fileInputRef}')).toBeLessThan(source.indexOf('<DataAssistReviewFlowPanel />'))
+    expect(source.indexOf('ref={fileInputRef}')).toBeLessThan(source.indexOf('<DataAssistTrustEnginePanel />'))
   })
 
   it('gives upload visitors a plain source refresh path before the file picker', () => {
@@ -96,7 +96,8 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('DataAssistSourcePathPanel')
     expect(source).toContain('Source refresh path')
     expect(source).toContain('What are you adding?')
-    expect(source).toContain('Start with the source. TenAceIQ will keep the upload review-first before records change.')
+    expect(source).toContain('Choose a source to open its file picker. TenAceIQ reviews it before records change.')
+    expect(source).toContain('Tap a source to choose its file.')
     expect(source).toContain('What result should update first?')
     expect(source).toContain("title: 'Scorecard'")
     expect(source).toContain('What is the season schedule?')
@@ -107,8 +108,22 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('data-data-assist-source-path-job={job.id}')
     expect(source).not.toContain('data-data-assist-source-path-job="report_or_review"')
     expect(source).toContain('onClick={() => onSelectImportType(job.id)}')
+    expect(source).toContain('function chooseImportType(nextType: DataAssistImportType)')
+    expect(source).toContain('fileInputRef.current?.click()')
+    expect(source).toContain('aria-label={`Upload ${job.title}: ${job.cta}`}')
     expect(source).toContain("location: 'data_assist_source_path'")
-    expect(source.indexOf('<DataAssistSourcePathPanel')).toBeLessThan(source.indexOf('<label style={dropzoneStyle'))
+    expect(source.indexOf('<DataAssistSourcePathPanel')).toBeLessThan(source.indexOf('ref={fileInputRef}'))
+    expect(source).not.toContain('<label style={dropzoneStyle')
+  })
+
+  it('lets users cancel an upload and returns completed imports to the source buttons', () => {
+    expect(source).toContain('function resetUploadFlow()')
+    expect(source).toContain('setSaving(false)')
+    expect(source).toContain('Cancel upload')
+    expect(source).toContain("function completeUploadFlow(completionMessage = 'Upload complete.')")
+    expect(source).toContain("completeUploadFlow('Upload complete.')")
+    expect(source).toContain("completeUploadFlow('Already uploaded. No changes were needed.')")
+    expect(source).toContain('const showUploadStep = !hasPreparedScreenshots && !saving && !latestScan')
   })
 
   it('keeps source refresh cards tappable on mobile', () => {

@@ -280,7 +280,7 @@ function DataAssistWorkspace() {
   const [typeOverrideActive, setTypeOverrideActive] = useState(false)
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
-  const [selectedFileCount, setSelectedFileCount] = useState(0)
+  const [, setSelectedFileCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
   const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
@@ -305,6 +305,7 @@ function DataAssistWorkspace() {
   } | null>(null)
   const scanRunRef = useRef(0)
   const latestReadRef = useRef<HTMLElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasPreparedScreenshots = Boolean(summary?.screenshots.length)
   const showUploadStep = !hasPreparedScreenshots && !saving && !latestScan
@@ -351,6 +352,9 @@ function DataAssistWorkspace() {
 
   function resetUploadFlow() {
     scanRunRef.current += 1
+    setPreparing(false)
+    setSelectedFileCount(0)
+    setSaving(false)
     setSummary(null)
     setLatestScan(null)
     setSavedBatchId('')
@@ -358,6 +362,21 @@ function DataAssistWorkspace() {
     setError('')
     setBulkScorecardResults([])
     setFocusedSubmissionId('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function completeUploadFlow(completionMessage = 'Upload complete.') {
+    setPreparing(false)
+    setSelectedFileCount(0)
+    setSaving(false)
+    setSummary(null)
+    setLatestScan(null)
+    setSavedBatchId('')
+    setBulkScorecardResults([])
+    setFocusedSubmissionId('')
+    setError('')
+    setMessage(completionMessage)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function updateImportType(nextType: DataAssistImportType) {
@@ -376,6 +395,15 @@ function DataAssistWorkspace() {
     setError('')
     setBulkScorecardResults([])
     setFocusedSubmissionId('')
+  }
+
+  function chooseImportType(nextType: DataAssistImportType) {
+    updateImportType(nextType)
+    if (nextType === 'scorecard' && scorecardUploadsPaused) {
+      setError(scorecardUploadPausedMessage)
+      return
+    }
+    fileInputRef.current?.click()
   }
 
   async function refreshSubmissions() {
@@ -668,13 +696,19 @@ function DataAssistWorkspace() {
       }
 
       if (scanRunRef.current !== scanRunId) return
-      setMessage(buildBulkScorecardMessage({
-        total: files.length,
-        importedCount,
-        duplicateCount,
-        reviewCount,
-        failedCount,
-      }))
+      if (reviewCount === 0 && failedCount === 0) {
+        completeUploadFlow(duplicateCount === files.length
+          ? 'Already uploaded. No changes were needed.'
+          : 'Upload complete.')
+      } else {
+        setMessage(buildBulkScorecardMessage({
+          total: files.length,
+          importedCount,
+          duplicateCount,
+          reviewCount,
+          failedCount,
+        }))
+      }
       await refreshSubmissions()
     } finally {
       if (scanRunRef.current === scanRunId) {
@@ -752,6 +786,29 @@ function DataAssistWorkspace() {
         if (ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType) {
           setImportType(ocrResult.effectiveImportType)
         }
+        const typeCorrection = ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType
+          ? `TenAceIQ detected this as a ${getShortImportTypeLabel(ocrResult.effectiveImportType)} export. `
+          : ''
+        if (ocrResult.autoImport?.ok) {
+          const didReturn = isScorecardParsedDraft(ocrResult.parsedDraft)
+            ? finishScorecardImport(ocrResult.parsedDraft)
+            : isCaptainImportDraft(ocrResult.parsedDraft)
+              ? await finishCaptainImport({
+                  batchId: result.batchId,
+                  parsedDraft: ocrResult.parsedDraft,
+                  result: ocrResult.autoImport,
+                })
+              : false
+          if (didReturn) return
+          completeUploadFlow('Upload complete.')
+          void refreshSubmissions()
+          return
+        }
+        if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
+          completeUploadFlow('Already uploaded. No changes were needed.')
+          void refreshSubmissions()
+          return
+        }
         setLatestScan({
           batchId: result.batchId,
           draftId: result.draftId,
@@ -759,26 +816,11 @@ function DataAssistWorkspace() {
           autoAssessment: ocrResult.autoAssessment,
           autoImport: ocrResult.autoImport,
         })
-        const typeCorrection = ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType
-          ? `TenAceIQ detected this as a ${getShortImportTypeLabel(ocrResult.effectiveImportType)} export. `
-          : ''
         setMessage(typeCorrection + (isScheduleParsedDraft(ocrResult.parsedDraft)
-          ? ocrResult.autoImport?.ok
-            ? ocrResult.autoImport.message || 'Team schedule imported.'
-            : 'Team schedule read complete. Review the visible matches before import.'
+          ? 'Team schedule read complete. Review the visible matches before import.'
           : isTeamSummaryParsedDraft(ocrResult.parsedDraft)
-            ? ocrResult.autoImport?.ok
-              ? ocrResult.autoImport.message || 'Team roster imported.'
-              : 'Player Roster read complete. Review the players before import.'
-          : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
-        if (ocrResult.autoImport?.ok && isCaptainImportDraft(ocrResult.parsedDraft)) {
-          const didReturn = await finishCaptainImport({
-            batchId: result.batchId,
-            parsedDraft: ocrResult.parsedDraft,
-            result: ocrResult.autoImport,
-          })
-          if (didReturn) return
-        }
+            ? 'Player Roster read complete. Review the players before import.'
+            : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
         window.setTimeout(() => {
           document.getElementById('latest-data-assist-read')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 120)
@@ -814,7 +856,6 @@ function DataAssistWorkspace() {
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
       if (decision === 'confirmed' && result.autoImport?.ok) {
-        setLatestScan({ ...latestScan, autoImport: result.autoImport })
         const didReturn = isScorecardParsedDraft(latestScan.parsedDraft)
           ? finishScorecardImport(latestScan.parsedDraft)
           : isCaptainImportDraft(latestScan.parsedDraft)
@@ -825,6 +866,9 @@ function DataAssistWorkspace() {
               })
             : false
         if (didReturn) return
+        completeUploadFlow('Upload complete.')
+        await refreshSubmissions()
+        return
       } else {
         setLatestScan(null)
       }
@@ -1000,24 +1044,18 @@ function DataAssistWorkspace() {
 
             <DataAssistSourcePathPanel
               selectedImportType={importType}
-              onSelectImportType={updateImportType}
+              onSelectImportType={chooseImportType}
               issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
             />
 
-            <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '', isMobile)}>
-              <input
-                type="file"
-                multiple
-                accept=".xls,.html,application/vnd.ms-excel,text/html"
-                onChange={(event) => void handleFiles(event)}
-                disabled={scorecardUploadBlocked}
-                style={fileInputStyle}
-              />
-              <TiqFeatureIcon name="dataUpload" size={isMobile ? 'md' : 'lg'} variant="ghost" />
-              <span style={dropzoneKickerStyle}>{getDataAssistImportTypeLabel(importType)} selected</span>
-              <strong style={dropzoneTitleStyle}>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : `Choose ${getShortImportTypeLabel(importType)} export`}</strong>
-              <small style={dropzoneHintStyle}>{scorecardUploadBlocked ? 'Schedules and Player Rosters can still be uploaded.' : getUploadPickerHint(importType)}</small>
-            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".xls,.html,application/vnd.ms-excel,text/html"
+              onChange={(event) => void handleFiles(event)}
+              style={hiddenFileInputStyle}
+            />
 
             <details style={typeOverrideDetailsStyle}>
               <summary style={typeOverrideSummaryStyle}>
@@ -1121,14 +1159,14 @@ function DataAssistWorkspace() {
           {summary ? <span style={pillStyle}>{summary.screenshots.length} export{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
         </div>
 
-        <label style={compactDropzoneStyle}>
+        <label style={replaceExportPickerStyle}>
           <input
             type="file"
             multiple={summary?.requestedImportType === 'scorecard'}
             accept=".xls,.html,application/vnd.ms-excel,text/html"
             onChange={(event) => void handleFiles(event)}
             disabled={summaryScorecardUploadBlocked}
-            style={fileInputStyle}
+            style={replaceExportInputStyle}
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
           <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
@@ -1166,7 +1204,7 @@ function DataAssistWorkspace() {
           >
               {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : 'Import now'}
           </button>
-          <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Start over</button>
+          <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
           <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
         </div>
 
@@ -1194,6 +1232,7 @@ function DataAssistWorkspace() {
             <p style={scanLoadingCopyStyle}>
               TenAceIQ is reading the export and importing table data.
             </p>
+            <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
           </div>
         </section>
       ) : null}
@@ -1503,9 +1542,10 @@ function DataAssistSourcePathPanel({
         <div>
           <span style={sourcePathEyebrowStyle}>Source refresh path</span>
           <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>What are you adding?</h2>
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>Tap a source to choose its file.</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
-          Start with the source. TenAceIQ will keep the upload review-first before records change.
+          Choose a source to open its file picker. TenAceIQ reviews it before records change.
         </p> : null}
       </div>
       <div style={dynamicGridStyle}>
@@ -1518,16 +1558,16 @@ function DataAssistSourcePathPanel({
               style={{ ...dynamicCardStyle, ...(selected ? sourcePathSelectedCardStyle : {}) }}
               onClick={() => onSelectImportType(job.id)}
               data-data-assist-source-path-job={job.id}
-              aria-label={`${job.title}: ${job.cta}`}
+              aria-label={`Upload ${job.title}: ${job.cta}`}
               aria-pressed={selected}
             >
               <span style={sourcePathCardTopStyle}>
                 <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
                 <span style={selected ? sourcePathSelectedPillStyle : sourcePathReadyPillStyle}>
-                  {selected ? 'Selected' : 'Choose'}
+                  Upload
                 </span>
               </span>
-              <span style={sourcePathQuestionStyle}>{job.question}</span>
+              {!isCompactViewport ? <span style={sourcePathQuestionStyle}>{job.question}</span> : null}
               <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
               <span style={sourcePathCtaStyle}>{job.cta}</span>
               {!isCompactViewport ? <span>{job.body}</span> : null}
@@ -1748,12 +1788,6 @@ function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
   if (importType === 'team_summary') return 'Player Roster'
   return 'scorecard'
-}
-
-function getUploadPickerHint(importType: DataAssistImportType) {
-  if (importType === 'scorecard') return `TennisLink .xls · choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards at once.`
-  if (importType === 'schedule') return 'TennisLink .xls · choose one team schedule at a time.'
-  return 'TennisLink .xls · choose one Player Roster at a time.'
 }
 
 function getUploadHelpTitle(importType: DataAssistImportType) {
@@ -4240,38 +4274,29 @@ const stepBadgeNumberStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const dropzoneStyle = (status: string, compact = false): CSSProperties => ({
+const hiddenFileInputStyle: CSSProperties = {
+  display: 'none',
+}
+
+const replaceExportPickerStyle: CSSProperties = {
   position: 'relative',
-  minHeight: compact ? 138 : 170,
-  borderRadius: compact ? 16 : 18,
-  border: status === 'rejected' || status === 'paused'
-    ? '1px dashed rgba(248,113,113,0.55)'
-    : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
-  background: status === 'paused'
-    ? 'rgba(239,68,68,0.08)'
-    : 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
-  color: 'var(--foreground-strong)',
-  padding: compact ? 14 : 20,
+  minHeight: 92,
+  padding: 12,
   display: 'grid',
   placeItems: 'center',
-  textAlign: 'center',
-  gap: compact ? 6 : 8,
-  cursor: status === 'paused' ? 'not-allowed' : 'pointer',
-  opacity: status === 'paused' ? 0.82 : 1,
+  gap: 6,
   minWidth: 0,
   overflow: 'hidden',
   overflowWrap: 'anywhere',
-})
-
-const compactDropzoneStyle: CSSProperties = {
-  ...dropzoneStyle(''),
-  minHeight: 92,
-  padding: 12,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
+  textAlign: 'center',
+  cursor: 'pointer',
+  borderRadius: 16,
+  border: '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--foreground-strong)',
 }
 
-const fileInputStyle: CSSProperties = {
+const replaceExportInputStyle: CSSProperties = {
   position: 'absolute',
   zIndex: 2,
   inset: 0,
@@ -4287,23 +4312,6 @@ const dropzoneKickerStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const dropzoneTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(17px, 4.6vw, 21px)',
-  lineHeight: 1.18,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const dropzoneHintStyle: CSSProperties = {
-  maxWidth: 520,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.4,
-  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
