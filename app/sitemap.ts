@@ -20,6 +20,7 @@ const routes: RouteConfig[] = [
   { path: '/leagues-and-tournaments', changeFrequency: 'weekly', priority: 0.82 },
   { path: '/tournaments', changeFrequency: 'weekly', priority: 0.82 },
   { path: '/resources', changeFrequency: 'weekly', priority: 0.78 },
+  { path: '/resources/usta-upload', changeFrequency: 'monthly', priority: 0.68 },
   { path: '/matchup', changeFrequency: 'weekly', priority: 0.82 },
   { path: '/level-up', changeFrequency: 'weekly', priority: 0.82 },
   { path: '/explore/search', changeFrequency: 'weekly', priority: 0.8 },
