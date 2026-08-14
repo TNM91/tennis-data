@@ -21,6 +21,7 @@ type FrameProps = {
   resumeLabel?: string
   resumeHref?: string
   showGenericSupport?: boolean
+  showHeroSignals?: boolean
 }
 
 const HERO_SIGNALS = [
@@ -78,6 +79,7 @@ export default function CompetePageFrame({
   resumeLabel,
   resumeHref,
   showGenericSupport = true,
+  showHeroSignals = true,
 }: FrameProps) {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -172,7 +174,7 @@ export default function CompetePageFrame({
                     <div style={mottoStyle}>More Tennis. Less Chaos.</div>
                   </div>
 
-                  <details className="competeDetailsSection" style={heroSignalsDisclosureStyle}>
+                  {showHeroSignals ? <details className="competeDetailsSection" style={heroSignalsDisclosureStyle}>
                     <summary style={heroSignalsSummaryStyle}>Need a quick read?</summary>
                     <div
                       style={{
@@ -184,7 +186,7 @@ export default function CompetePageFrame({
                         <HeroSignal key={signal.label} {...signal} />
                       ))}
                     </div>
-                  </details>
+                  </details> : null}
                 </div>
 
               </div>

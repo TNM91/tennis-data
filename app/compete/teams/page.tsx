@@ -82,6 +82,7 @@ export default function CompeteTeamsPage() {
       resumeLabel="team directory"
       resumeHref="/compete/teams"
       showGenericSupport={false}
+      showHeroSignals={false}
     >
       <CompeteTeamsContent />
     </CompetePageFrame>
