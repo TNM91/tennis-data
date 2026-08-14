@@ -34,6 +34,7 @@ describe('compete teams readiness', () => {
     expect(source).toContain('Find or manage a team')
     expect(source).toContain('More team options')
     expect(source).toContain('showGenericSupport={false}')
+    expect(source).toContain('showHeroSignals={false}')
     expect(source).toContain('data-compete-team-path-job={action.job}')
     expect(source).toContain('id="tiq-entered-teams"')
     expect(source.indexOf('id="tiq-entered-teams"')).toBeLessThan(source.indexOf('<CompeteGrid>'))
