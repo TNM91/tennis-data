@@ -29,6 +29,18 @@ describe('membership-first Teams experience', () => {
     expect(teamPage).toContain('isCaptainTeamConnection(linkedTeamConnection.roles)')
   })
 
+  it('keeps the Teams phone hierarchy short and wrap-safe', () => {
+    expect(teamsHub).toContain('showGenericSupport={false}')
+    expect(teamsHub).toContain('Find or manage a team')
+    expect(teamsHub).toContain('More team options')
+    expect(teamsHub).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(teamsHub).toContain('rowMetaChipStyle')
+    expect(teamsHub).toContain('teamReadinessValueMobileStyle')
+    expect(teamsHub).toContain('teamRowActionMobileStyle')
+    expect(teamsHub).toContain('Explore public teams now.')
+    expect(teamsHub).not.toContain('Your private team spaces start with a Free account.')
+  })
+
   it('enforces Team Chat membership on the server before service-role access', () => {
     expect(teamRoomApi).toContain('const auth = await getTeamRoomAuth(request)')
     expect(teamRoomApi).toContain('loadAcceptedTeamLinks(auth.service, auth.userId)')

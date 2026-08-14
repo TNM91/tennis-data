@@ -20,6 +20,7 @@ type FrameProps = {
   resumeSurface?: CompeteResumeSurface
   resumeLabel?: string
   resumeHref?: string
+  showGenericSupport?: boolean
 }
 
 const HERO_SIGNALS = [
@@ -76,6 +77,7 @@ export default function CompetePageFrame({
   resumeSurface,
   resumeLabel,
   resumeHref,
+  showGenericSupport = true,
 }: FrameProps) {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -191,7 +193,7 @@ export default function CompetePageFrame({
 
           {children}
 
-          {!compactHome ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+          {!compactHome && showGenericSupport ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
             <summary style={competeSupportSummaryStyle}>
               <span style={competeSupportSummaryTextStyle}>Use your Player ID before match prep</span>
               <span>Open</span>
@@ -243,7 +245,7 @@ export default function CompetePageFrame({
             </div>
           </details> : null}
 
-          {!compactHome ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
+          {!compactHome && showGenericSupport ? <details className="competeDetailsSection" style={competeSupportDisclosureStyle}>
             <summary style={competeSupportSummaryStyle}>
               <span style={competeSupportSummaryTextStyle}>Turn this into a captain move</span>
               <span>Open</span>
