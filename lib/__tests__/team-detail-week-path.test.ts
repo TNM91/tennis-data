@@ -14,7 +14,8 @@ function styleBlock(styleName: string) {
 describe('team detail week path', () => {
   it('answers the captain match-week questions on team detail pages', () => {
     expect(source).not.toContain('PRODUCT_MOTTO')
-    expect(source).toContain('Team Hub context that helps captains plan the week')
+    expect(source).toContain('the team context that helps everyone stay ready')
+    expect(source).toContain('canManageThisTeam ? (')
     expect(source).toContain('Team week path')
     expect(source).toContain('Answer match week from your phone.')
     expect(source).toContain('Who is available?')

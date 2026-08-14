@@ -99,9 +99,9 @@ describe('team connection flow', () => {
     const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
 
     expect(banner).toContain('offers.player')
-    expect(banner).toContain("alreadyAtDestination")
-    expect(banner).toContain("Continue with team")
-    expect(banner).toContain("#captain-team-scope")
+    expect(banner).toContain('href={teamRoomHref}')
+    expect(banner).toContain('Open Team Chat')
+    expect(banner).toContain('!hasRecommendedAccess ? <Link href={tierHref}')
     expect(banner).toContain("onClick={() => setAccepted(null)}")
     expect(page).toContain('acceptedPlayerLinks')
     expect(page).toContain('offers.player.label')

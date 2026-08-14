@@ -10,6 +10,9 @@ import CompetePageFrame, {
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
+import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import { getTeamConnectionRolesLabel, type TeamConnection } from '@/lib/team-profile-links'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqTeamParticipations,
@@ -18,12 +21,6 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
-
-const emptyTeamActions = [
-  { href: '/league-coordinator', label: 'Create team league' },
-  { href: dataAssistTeamsHref, label: 'Refresh team data' },
-  { href: '/teams', label: 'Browse teams' },
-] as const
 
 const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')
 const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)
@@ -79,8 +76,8 @@ export default function CompeteTeamsPage() {
   return (
     <CompetePageFrame
       eyebrow="My Teams"
-      title="Find the team move fast."
-      description="Open the team, refresh roster data, build a lineup, or send match history to the team book."
+      title="Your teams, one tap away."
+      description="Open the roster, schedule, stats, and Team Chat connected to your account."
       resumeSurface="teams"
       resumeLabel="team directory"
       resumeHref="/compete/teams"
@@ -91,28 +88,36 @@ export default function CompeteTeamsPage() {
 }
 
 function CompeteTeamsContent() {
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const [participations, setParticipations] = useState<TiqTeamParticipationRecord[]>([])
+  const [connections, setConnections] = useState<TeamConnection[]>([])
+  const [pendingConnections, setPendingConnections] = useState<TeamConnection[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [loading, setLoading] = useState(true)
   const [storageWarning, setStorageWarning] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const accessToken = session?.access_token || ''
 
   useEffect(() => {
     let active = true
 
     async function load() {
       setLoading(true)
-      const [participationResult, teamOptions] = await Promise.all([
+      const [participationResult, teamOptions, connectionResult] = await Promise.all([
         listTiqTeamParticipations(),
         listTeamDirectoryOptions().catch(() => []),
+        accessToken
+          ? fetchTeamConnections(accessToken).catch(() => ({ pending: [], connections: [], offers: null }))
+          : Promise.resolve({ pending: [], connections: [], offers: null }),
       ])
 
       if (!active) return
 
       setParticipations(participationResult.entries)
       setTeamDirectory(teamOptions)
+      setConnections(connectionResult.connections)
+      setPendingConnections(connectionResult.pending)
       setStorageWarning(participationResult.warning || '')
       setLoading(false)
     }
@@ -122,7 +127,7 @@ function CompeteTeamsContent() {
     return () => {
       active = false
     }
-  }, [])
+  }, [accessToken, authResolved])
 
   const groupedTeams = useMemo(() => {
     const directoryByTeam = new Map(teamDirectory.map((option) => [option.team, option]))
@@ -134,22 +139,32 @@ function CompeteTeamsContent() {
         sourceFlight: string
         tiqLeagues: TiqTeamParticipationRecord[]
         directoryOption: TeamDirectoryOption | null
+        connection: TeamConnection
       }
     >()
 
-    for (const entry of participations) {
-      const key = entry.teamEntityId || `${entry.teamName}__${entry.sourceLeagueName}__${entry.sourceFlight}`
+    for (const connection of connections) {
+      const matchingParticipations = participations.filter((entry) => (
+        entry.teamName.toLowerCase() === connection.teamName.toLowerCase()
+        && (!connection.leagueName || !entry.sourceLeagueName || entry.sourceLeagueName.toLowerCase() === connection.leagueName.toLowerCase())
+        && (!connection.flight || !entry.sourceFlight || entry.sourceFlight.toLowerCase() === connection.flight.toLowerCase())
+      ))
+      const directoryOption = teamDirectory.find((option) => (
+        option.team.toLowerCase() === connection.teamName.toLowerCase()
+        && (!connection.leagueName || !option.league || option.league.toLowerCase() === connection.leagueName.toLowerCase())
+        && (!connection.flight || !option.flight || option.flight.toLowerCase() === connection.flight.toLowerCase())
+      )) || directoryByTeam.get(connection.teamName) || null
+      const key = `${connection.teamName}__${connection.leagueName}__${connection.flight}`
       if (!grouped.has(key)) {
         grouped.set(key, {
-          teamName: entry.teamName,
-          sourceLeagueName: entry.sourceLeagueName,
-          sourceFlight: entry.sourceFlight,
-          tiqLeagues: [],
-          directoryOption: directoryByTeam.get(entry.teamName) || null,
+          teamName: connection.teamName,
+          sourceLeagueName: connection.leagueName,
+          sourceFlight: connection.flight,
+          tiqLeagues: matchingParticipations,
+          directoryOption,
+          connection,
         })
       }
-
-      grouped.get(key)?.tiqLeagues.push(entry)
     }
 
     return Array.from(grouped.values()).sort((left, right) => {
@@ -158,30 +173,45 @@ function CompeteTeamsContent() {
       }
       return left.teamName.localeCompare(right.teamName)
     })
-  }, [participations, teamDirectory])
+  }, [connections, participations, teamDirectory])
 
   return (
     <>
-      <TeamPathPanel />
+      <TeamAccountAccessPanel
+        authResolved={authResolved}
+        signedIn={Boolean(userId)}
+        linkedTeamCount={connections.length}
+        pendingTeamCount={pendingConnections.length}
+        playerToolsActive={access.canUseAdvancedPlayerInsights}
+        captainToolsActive={access.canUseCaptainWorkflow}
+      />
 
       <section id="tiq-entered-teams" style={sectionStyle}>
-        <div style={sectionEyebrowStyle}>Entered teams</div>
+        <div style={sectionEyebrowStyle}>Your teams</div>
         <div style={sectionTextStyle}>
           {loading
-            ? 'Loading team participation...'
+            ? 'Finding your linked teams...'
             : groupedTeams.length > 0
-              ? 'Open the team, check match history, or move straight into the lineup action.'
-              : 'Create a team league, refresh roster data, or find a public team.'}
+              ? 'Open a team for its roster, schedule, stats, and Team Chat.'
+              : userId
+                ? 'Accept a team connection or connect your player profile to bring your teams here.'
+                : 'Create a Free account to open the private team spaces connected to you.'}
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {groupedTeams.length === 0 ? (
-          <EmptyTeamsState />
+          <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} />
         ) : (
           <div style={listStyle}>
             {groupedTeams.map((group) => {
-              const teamPageHref = `/team/${encodeURIComponent(group.teamName)}?layer=tiq${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const competitionLayer = group.connection.sourceType === 'tiq_entry' || group.tiqLeagues.length > 0 ? 'tiq' : 'usta'
+              const teamPageHref = `/team/${encodeURIComponent(group.teamName)}?layer=${competitionLayer}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
               const lineupHref = `/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const teamRoomHref = buildTeamRoomHref({
+                teamName: group.teamName,
+                leagueName: group.sourceLeagueName,
+                flight: group.sourceFlight,
+              })
               const teamReadinessItems = [
                 {
                   label: 'Leagues',
@@ -194,13 +224,11 @@ function CompeteTeamsContent() {
                   ready: Boolean(group.directoryOption),
                 },
                 {
-                  label: 'Captain',
-                  value: access.canUseCaptainWorkflow ? 'Ready' : 'Locked',
-                  ready: access.canUseCaptainWorkflow,
+                  label: 'Team Chat',
+                  value: 'Included',
+                  ready: true,
                 },
               ]
-              const primaryHref = access.canUseCaptainWorkflow ? lineupHref : teamPageHref
-              const primaryLabel = access.canUseCaptainWorkflow ? 'Build lineup' : 'Open team'
 
               return (
                 <div key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`} style={rowStyle}>
@@ -212,9 +240,7 @@ function CompeteTeamsContent() {
                         .join(' | ')}
                     </div>
                     <div style={rowSubtleStyle}>
-                      {group.tiqLeagues
-                        .map((entry) => [entry.leagueName, entry.seasonLabel].filter(Boolean).join(' - '))
-                        .join(' | ')}
+                      {getTeamConnectionRolesLabel(group.connection.roles)} connection
                     </div>
                     <div style={teamReadinessGridStyle}>
                       {teamReadinessItems.map((item) => (
@@ -224,22 +250,35 @@ function CompeteTeamsContent() {
                           <strong>{item.value}</strong>
                         </div>
                       ))}
-                      <Link href={primaryHref} style={teamPrimaryActionStyle}>
-                        {primaryLabel}
+                      <Link href={teamPageHref} style={teamPrimaryActionStyle}>
+                        Open team
                       </Link>
                     </div>
                   </div>
+                  <div style={teamRowActionStyle}>
+                    <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
                   {access.canUseCaptainWorkflow ? (
+                    <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
+                  ) : null}
+                  {access.canUseAdvancedPlayerInsights ? (
+                    <Link href="/mylab" style={teamSecondaryLinkStyle}>My Lab</Link>
+                  ) : null}
+                  {!access.canUseCaptainWorkflow ? (
                     <Link href={teamPageHref} style={teamSecondaryLinkStyle}>
-                      Team page
+                      Stats
                     </Link>
                   ) : null}
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
       </section>
+
+      <TeamToolsDisclosure label="Find or update a team">
+        <TeamPathPanel />
+      </TeamToolsDisclosure>
 
       <TeamToolsDisclosure>
         <CompeteGrid>
@@ -340,11 +379,11 @@ function TeamUpgradeDisclosure({ children }: { children: ReactNode }) {
   )
 }
 
-function TeamToolsDisclosure({ children }: { children: ReactNode }) {
+function TeamToolsDisclosure({ children, label = 'More team tools' }: { children: ReactNode; label?: string }) {
   return (
     <details className="competeDetailsSection" style={teamSupportDisclosureStyle}>
       <summary style={teamSupportSummaryStyle}>
-        <span style={teamSupportSummaryCopyStyle}>More team tools</span>
+        <span style={teamSupportSummaryCopyStyle}>{label}</span>
         <span>Open</span>
       </summary>
       <div style={teamSupportBodyStyle}>{children}</div>
@@ -434,19 +473,83 @@ function TeamPlayerIdPrepPanel() {
   )
 }
 
-function EmptyTeamsState() {
+function TeamAccountAccessPanel({
+  authResolved,
+  signedIn,
+  linkedTeamCount,
+  pendingTeamCount,
+  playerToolsActive,
+  captainToolsActive,
+}: {
+  authResolved: boolean
+  signedIn: boolean
+  linkedTeamCount: number
+  pendingTeamCount: number
+  playerToolsActive: boolean
+  captainToolsActive: boolean
+}) {
+  const title = !authResolved
+    ? 'Checking your team access...'
+    : !signedIn
+      ? 'Register to access your teams.'
+      : linkedTeamCount > 0
+        ? `${linkedTeamCount} team${linkedTeamCount === 1 ? '' : 's'} connected.`
+        : pendingTeamCount > 0
+          ? `${pendingTeamCount} team connection${pendingTeamCount === 1 ? '' : 's'} waiting.`
+          : 'Connect your first team.'
+
+  return (
+    <section style={accountAccessStyle} aria-label="Teams account access">
+      <div style={emptyTeamsCopyStyle}>
+        <span style={sectionEyebrowStyle}>Team access</span>
+        <strong style={accountAccessTitleStyle}>{title}</strong>
+        <span style={sectionTextStyle}>
+          {!signedIn
+            ? 'A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.'
+            : 'Team access is included. Player adds personalized improvement tools; Captain adds lineup and match-week decisions.'}
+        </span>
+        {signedIn && linkedTeamCount > 0 ? (
+          <span style={accountTierCueStyle}>
+            {captainToolsActive ? 'Captain tools active' : playerToolsActive ? 'Player tools active' : 'Free team access active'}
+          </span>
+        ) : null}
+      </div>
+      <div style={emptyTeamsActionRowStyle}>
+        {!signedIn ? (
+          <>
+            <Link href="/join?next=%2Fcompete%2Fteams" style={teamPrimaryActionStyle}>Register Free</Link>
+            <Link href="/login?next=%2Fcompete%2Fteams" style={teamSecondaryLinkStyle}>Sign in</Link>
+          </>
+        ) : (
+          <Link href="/team-connections" style={teamPrimaryActionStyle}>
+            {pendingTeamCount > 0 ? 'Review team connections' : 'Connect a team'}
+          </Link>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function EmptyTeamsState({ signedIn, pendingTeamCount }: { signedIn: boolean; pendingTeamCount: number }) {
   return (
     <div style={emptyTeamsStyle}>
       <div style={emptyTeamsCopyStyle}>
-        <strong>Team tools start with one real team signal.</strong>
-        <span>Create a TIQ team league, upload a roster or scorecard through Data Assist, or find the team already in the public map.</span>
+        <strong>{signedIn ? 'No accepted team connections yet.' : 'Your private team spaces start with a Free account.'}</strong>
+        <span>
+          {signedIn
+            ? pendingTeamCount > 0
+              ? 'Review the team connection waiting for you, then its Team Chat and team tools will open here.'
+              : 'Connect your player profile, accept a team invitation, or find the team already in the public map.'
+            : 'Register, connect your player profile, and every accepted USTA or TIQ team will appear here.'}
+        </span>
       </div>
       <div style={emptyTeamsActionRowStyle}>
-        {emptyTeamActions.map((action) => (
-          <Link key={action.href} href={action.href} style={emptyTeamsActionStyle}>
-            {action.label}
-          </Link>
-        ))}
+        {signedIn ? (
+          <Link href="/team-connections" style={emptyTeamsActionStyle}>{pendingTeamCount > 0 ? 'Review connections' : 'Connect team'}</Link>
+        ) : (
+          <Link href="/join?next=%2Fcompete%2Fteams" style={emptyTeamsActionStyle}>Register Free</Link>
+        )}
+        <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link>
       </div>
     </div>
   )
@@ -465,6 +568,34 @@ const sectionStyle = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 } as const
+
+const accountAccessStyle: CSSProperties = {
+  ...sectionStyle,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  alignItems: 'center',
+  marginTop: 0,
+  borderColor: 'rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.05)), rgba(8,16,34,0.78)',
+}
+
+const accountAccessTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 4vw, 28px)',
+  lineHeight: 1.12,
+  fontWeight: 950,
+}
+
+const accountTierCueStyle: CSSProperties = {
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '6px 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 900,
+}
 
 const teamPathStyle: CSSProperties = {
   position: 'relative',
@@ -929,6 +1060,15 @@ const teamSecondaryLinkStyle = {
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
 } as const
+
+const teamRowActionStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
 
 const readinessDotReadyStyle = {
   width: 9,

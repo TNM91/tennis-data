@@ -21,7 +21,7 @@ describe('site header mobile navigation descriptions', () => {
       'Explore',
       'Improve',
       'Compete',
-      'Captain',
+      'Teams',
       'Coaches',
       'Leagues',
       'Club',
@@ -32,7 +32,7 @@ describe('site header mobile navigation descriptions', () => {
       expect(item.description?.length).toBeLessThan(42)
     }
 
-    expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/captain')?.description).toContain('lineups')
+    expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/compete/teams')?.description).toContain('Team Chat')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/player-development')?.description).toContain('video')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/leagues-and-tournaments')?.description).toContain('scores')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/clubs')?.description).toContain('Programs')

@@ -24,6 +24,7 @@ import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
@@ -38,6 +39,8 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type TeamMatch = {
@@ -297,9 +300,33 @@ function TeamPageContent() {
   const [teamAwards, setTeamAwards] = useState<TiqAwardRecord[]>([])
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { userId: currentUserId, authResolved } = useAuth()
+  const { userId: currentUserId, authResolved, role, entitlements, session } = useAuth()
+  const accessToken = session?.access_token || ''
+  const resolvedRole = authResolved || !currentUserId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
+
+  useEffect(() => {
+    if (!authResolved || !accessToken) {
+      setTeamConnections([])
+      return
+    }
+
+    let active = true
+    void fetchTeamConnections(accessToken)
+      .then((result) => {
+        if (active) setTeamConnections(result.connections)
+      })
+      .catch(() => {
+        if (active) setTeamConnections([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [accessToken, authResolved])
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
@@ -1250,6 +1277,20 @@ function TeamPageContent() {
     leagueName: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
+  const linkedTeamConnection = teamConnections.find((connection) => {
+    if (normalizeTeamName(connection.teamName) !== normalizeTeamName(team)) return false
+    const currentLeague = cleanText(leagueFilter || teamMeta.league).toLowerCase()
+    const currentFlight = cleanText(flightFilter || teamMeta.flight).toLowerCase()
+    if (currentLeague && connection.leagueName && connection.leagueName.toLowerCase() !== currentLeague) return false
+    if (currentFlight && connection.flight && connection.flight.toLowerCase() !== currentFlight) return false
+    return true
+  }) || null
+  const isLinkedTeamMember = Boolean(currentUserId && linkedTeamConnection)
+  const canManageThisTeam = Boolean(
+    linkedTeamConnection
+    && isCaptainTeamConnection(linkedTeamConnection.roles)
+    && access.canUseCaptainWorkflow,
+  )
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -1354,7 +1395,7 @@ function TeamPageContent() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              See the roster, recent form, singles strength, doubles options, and the Team Hub context that helps captains plan the week.
+              See the roster, schedule, stats, recent form, and the team context that helps everyone stay ready.
             </p>
 
             <div style={heroBadgeRow}>
@@ -1376,9 +1417,27 @@ function TeamPageContent() {
             </div>
 
             <div style={dynamicHeroActions}>
-              <PrimaryLink href={teamRoomHref}>Open Team Room</PrimaryLink>
-              <SecondaryLink href={captainLinks[1].href}>Open lineup builder</SecondaryLink>
-              <GhostLink href={captainLinks[0].href}>Check availability</GhostLink>
+              {!authResolved ? (
+                <span style={helperCallout}>Checking team access...</span>
+              ) : !currentUserId ? (
+                <>
+                  <PrimaryLink href={`/join?next=${encodeURIComponent(teamRoomHref)}`}>Register Free</PrimaryLink>
+                  <SecondaryLink href={`/login?next=${encodeURIComponent(teamRoomHref)}`}>Sign in</SecondaryLink>
+                </>
+              ) : isLinkedTeamMember ? (
+                <>
+                  <PrimaryLink href={teamRoomHref}>Open Team Chat</PrimaryLink>
+                  {access.canUseAdvancedPlayerInsights ? <SecondaryLink href="/mylab">Open My Lab</SecondaryLink> : null}
+                  {access.canUseAdvancedPlayerInsights ? <GhostLink href="/matchup">Prep matchup</GhostLink> : null}
+                  {canManageThisTeam ? <SecondaryLink href={captainLinks[1].href}>Build lineup</SecondaryLink> : null}
+                  {canManageThisTeam ? <GhostLink href={captainLinks[0].href}>Check availability</GhostLink> : null}
+                </>
+              ) : (
+                <>
+                  <PrimaryLink href="/team-connections">Connect this team</PrimaryLink>
+                  <GhostLink href="/compete/teams">My Teams</GhostLink>
+                </>
+              )}
               <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
@@ -1469,7 +1528,8 @@ function TeamPageContent() {
           </div>
         </section>
 
-        <section style={teamWeekPathStyle(isTablet)} aria-label="Team week path">
+        {canManageThisTeam ? (
+        <section style={teamWeekPathStyle(isTablet)} aria-label="Captain team week tools">
           <div style={teamWeekPathCopyStyle}>
             <p style={sectionKicker}>Team week path</p>
             <h2 style={teamWeekPathTitleStyle}>Answer match week from your phone.</h2>
@@ -1493,6 +1553,7 @@ function TeamPageContent() {
             ))}
           </div>
         </section>
+        ) : null}
 
         <details style={detailDrawerStyle}>
           <summary style={detailDrawerSummaryStyle}>
@@ -1536,7 +1597,7 @@ function TeamPageContent() {
             <div style={dynamicHeroActions}>
               <SecondaryLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</SecondaryLink>
               <SecondaryLink href="/teams">Browse all teams</SecondaryLink>
-              <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink>
+              {canManageThisTeam ? <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink> : null}
             </div>
           </section>
         ) : null}
@@ -1633,14 +1694,14 @@ function TeamPageContent() {
                     <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(entry.leagueId)}?league_id=${encodeURIComponent(entry.leagueId)}`}>
                       TIQ League
                     </GhostLink>
-                    <SecondaryLink href={buildCaptainScopedHref('/captain/lineup-builder', {
+                    {canManageThisTeam ? <SecondaryLink href={buildCaptainScopedHref('/captain/lineup-builder', {
                       competitionLayer: 'tiq',
                       team,
                       league: entry.leagueName || undefined,
                       flight: entry.leagueFlight || undefined,
                     })}>
                       Lineup Builder
-                    </SecondaryLink>
+                    </SecondaryLink> : null}
                   </div>
                 </div>
               ))}
@@ -2127,17 +2188,17 @@ function TeamPageContent() {
                                 <Link href={`/players/${player.id}`} style={rosterActionLink}>
                                   Profile
                                 </Link>
-                                <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>
+                                {access.canUseAdvancedPlayerInsights ? <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>
                                   Matchup
-                                </Link>
+                                </Link> : null}
                               </>
                             )}
-                            <Link href={captainLinks[0].href} style={rosterActionLink}>
+                            {canManageThisTeam ? <Link href={captainLinks[0].href} style={rosterActionLink}>
                               Availability
-                            </Link>
-                            <Link href={captainLinks[1].href} style={rosterActionLink}>
+                            </Link> : null}
+                            {canManageThisTeam ? <Link href={captainLinks[1].href} style={rosterActionLink}>
                               Lineup
-                            </Link>
+                            </Link> : null}
                           </div>
                         </td>
                       </tr>

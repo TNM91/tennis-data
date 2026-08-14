@@ -1510,11 +1510,11 @@ function TeamRoomContent() {
         <main className={styles.page}>
           <section className={styles.stateCard}>
             <p className={styles.eyebrow}>Team Room</p>
-            <h1>Sign in to open your team conversation.</h1>
-            <p className={styles.helper}>Your linked team, unread messages, availability updates, and captain announcements will be waiting here.</p>
+            <h1>Register to access your teams.</h1>
+            <p className={styles.helper}>A Free account opens Team Chat, unread messages, availability updates, and announcements for every accepted team connection.</p>
             <div className={styles.roomActions}>
-              <Link className={styles.buttonPrimary} href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
-              <Link className={styles.buttonSecondary} href="/join">Create account</Link>
+              <Link className={styles.buttonPrimary} href={`/join?next=${encodeURIComponent(next)}`}>Register Free</Link>
+              <Link className={styles.buttonSecondary} href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
             </div>
           </section>
         </main>
@@ -1532,7 +1532,7 @@ function TeamRoomContent() {
             <p className={styles.helper}>{error || 'Accept or create a team link, then everyone connected to that team can meet here.'}</p>
             <div className={styles.roomActions}>
               <Link className={styles.buttonPrimary} href="/team-connections">Connect team</Link>
-              <Link className={styles.buttonSecondary} href="/captain">Open Captain</Link>
+              <Link className={styles.buttonSecondary} href="/compete/teams">My Teams</Link>
             </div>
           </section>
         </main>
@@ -1545,11 +1545,11 @@ function TeamRoomContent() {
       <nav className={styles.appBar} aria-label="Team Chat navigation">
         <Link
           className={styles.appBack}
-          href={room.canManage ? captainHref : '/mylab'}
-          aria-label={room.canManage ? 'Back to Captain' : 'Back to My Lab'}
+          href="/compete/teams"
+          aria-label="Back to My Teams"
         >
           <Image src="/brand/icons/pwa-192.png" alt="" width={32} height={32} />
-          <span>{room.canManage ? 'Captain' : 'My Lab'}</span>
+          <span>My Teams</span>
         </Link>
         <div className={styles.appIdentity}>
           <strong>{room.teamName}</strong>
