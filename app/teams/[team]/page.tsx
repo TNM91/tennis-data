@@ -172,8 +172,9 @@ function rosterMemberPlayer(entry: TeamRosterMemberRow): Player | null {
 function teamSideForMatch(match: TeamMatch, teamName: string): 'A' | 'B' | null {
   const home = cleanText(match.home_team)
   const away = cleanText(match.away_team)
-  if (home === teamName) return 'A'
-  if (away === teamName) return 'B'
+  const normalizedTeam = normalizeTeamName(teamName)
+  if (normalizeTeamName(home) === normalizedTeam) return 'A'
+  if (normalizeTeamName(away) === normalizedTeam) return 'B'
   return null
 }
 
@@ -186,8 +187,9 @@ function didTeamWin(match: TeamMatch, teamName: string): boolean | null {
 function getOpponent(match: TeamMatch, teamName: string): string | null {
   const home = cleanText(match.home_team)
   const away = cleanText(match.away_team)
-  if (home === teamName) return away
-  if (away === teamName) return home
+  const normalizedTeam = normalizeTeamName(teamName)
+  if (normalizeTeamName(home) === normalizedTeam) return away
+  if (normalizeTeamName(away) === normalizedTeam) return home
   return null
 }
 
@@ -799,20 +801,6 @@ function TeamPageContent() {
     return { wins, losses }
   }, [matches, team])
 
-  const teamStreak = useMemo(() => {
-    const results = matches
-      .map((m) => didTeamWin(m, team))
-      .filter((r): r is boolean => r !== null)
-    if (results.length === 0) return null
-    const type = results[0] ? 'W' : 'L'
-    let count = 0
-    for (const r of results) {
-      if ((r ? 'W' : 'L') === type) count++
-      else break
-    }
-    return { count, type }
-  }, [matches, team])
-
   const matchTypeSplit = useMemo(() => {
     let singlesW = 0, singlesL = 0, doublesW = 0, doublesL = 0
     for (const match of matches) {
@@ -953,17 +941,6 @@ function TeamPageContent() {
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
   const teamExistsFromSummary = summaryTeams.length > 0
-  const hasTeamAnalysisData = matches.length > 0 || roster.length > 0 || tiqParticipations.length > 0 || teamAwards.length > 0
-
-  const hotPlayers = useMemo(() => {
-    return roster.filter((p) => {
-      const base = p.overall_rating ?? null
-      const usta = p.overall_usta_dynamic_rating ?? null
-      if (base === null || usta === null) return false
-      return (usta - base) >= 0.07
-    })
-  }, [roster])
-
   const bestSingles = useMemo(() => {
     return [...roster]
       .sort((a, b) => {
@@ -1304,15 +1281,6 @@ function TeamPageContent() {
     fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '56px',
   }
 
-  const dynamicMetricGrid: CSSProperties = {
-    ...metricGridStyle,
-    gridTemplateColumns: isSmallMobile
-      ? 'minmax(0, 1fr)'
-      : isTablet
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(4, minmax(0, 1fr))',
-  }
-
   const dynamicCardGrid: CSSProperties = {
     ...cardGridStyle,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
@@ -1337,25 +1305,6 @@ function TeamPageContent() {
     leagueName: teamMeta.league,
     flight: teamMeta.flight,
   })
-  const teamSignals = [
-    {
-      label: 'League type',
-      value: getCompetitionLayerLabel(competitionLayer),
-      note: competitionLayer === 'usta'
-        ? 'Reviewed league, flight, and roster details stay together here.'
-        : 'TenAceIQ league play, roster, and results stay together here.',
-    },
-    {
-      label: 'Weekly planning',
-      value: `${matches.length} matches tracked`,
-      note: 'Move from roster review into availability, lineup building, pairings, and the team message.',
-    },
-    {
-      label: 'TIQ leagues',
-      value: tiqParticipations.length > 0 ? `${tiqParticipations.length} TIQ entries` : 'No TIQ entries yet',
-      note: 'Use TIQ leagues when you want to run teams, schedules, rosters, and results in TenAceIQ.',
-    },
-  ]
   if (loading) {
     return (
       <section style={pageContent}>
@@ -1404,16 +1353,6 @@ function TeamPageContent() {
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
               {teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
               <span style={badgeSlate}>{matches.length} matches tracked</span>
-              {teamStreak && teamStreak.count >= 2 ? (
-                <span style={teamStreak.type === 'W' ? badgeGreen : badgeRed}>
-                  {teamStreak.count} {teamStreak.type === 'W' ? 'win' : 'loss'} streak
-                </span>
-              ) : null}
-              {hotPlayers.length > 0 ? (
-                <span style={badgeGreen}>{hotPlayers.length} hot player{hotPlayers.length > 1 ? 's' : ''}</span>
-              ) : null}
-              {tiqParticipations.length > 0 ? <span style={badgeGreen}>{tiqParticipations.length} TIQ leagues entered</span> : null}
-              {teamAwards.length > 0 ? <span style={badgeGreen}>{teamAwards.length} team award{teamAwards.length > 1 ? 's' : ''}</span> : null}
             </div>
 
             <div style={dynamicHeroActions}>
@@ -1456,26 +1395,11 @@ function TeamPageContent() {
             <div style={summaryMetricGrid}>
               <MetricCard label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
               <MetricCard label="Roster size" value={String(roster.length)} subtle="Players from Player Roster and match history" />
-              <MetricCard label="Reviewed scorecards" value={String(matches.length)} subtle="Completed team results loaded" />
               <MetricCard
                 label="Latest match"
                 value={formatDate(recentMatch?.match_date)}
                 subtle={recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '--'}` : 'No recent match yet'}
               />
-              {teamStreak && teamStreak.count >= 2 ? (
-                <MetricCard
-                  label="Current streak"
-                  value={`${teamStreak.count} ${teamStreak.type === 'W' ? 'wins' : 'losses'}`}
-                  subtle={teamStreak.type === 'W' ? 'Active win run' : 'Active loss run'}
-                />
-              ) : null}
-              {hotPlayers.length > 0 ? (
-                <MetricCard
-                  label="Hot players"
-                  value={String(hotPlayers.length)}
-                  subtle={hotPlayers.slice(0, 2).map((p) => p.name).join(', ')}
-                />
-              ) : null}
             </div>
 
             {(matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 || matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0) ? (
@@ -1602,46 +1526,6 @@ function TeamPageContent() {
           </section>
         ) : null}
 
-        {hasTeamAnalysisData ? (
-        <section style={dynamicMetricGrid}>
-          <section style={signalGridStyle(isSmallMobile)}>
-            {teamSignals.map((signal) => (
-              <article key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </article>
-            ))}
-          </section>
-
-          <article style={metricCard}>
-            <span style={metricLabel}>Record</span>
-            <strong style={metricValue}>{record.wins}-{record.losses}</strong>
-            <span style={metricSubtle}>Wins / losses tracked</span>
-          </article>
-
-          <article style={metricCard}>
-            <span style={metricLabel}>Roster Size</span>
-            <strong style={metricValue}>{roster.length}</strong>
-            <span style={metricSubtle}>Player Roster plus match history</span>
-          </article>
-
-          <article style={metricCard}>
-            <span style={metricLabel}>Imported Scorecards</span>
-            <strong style={metricValue}>{matches.length}</strong>
-            <span style={metricSubtle}>Completed team results loaded</span>
-          </article>
-
-          <article style={metricCard}>
-            <span style={metricLabel}>Latest Match</span>
-            <strong style={metricValue}>{formatDate(recentMatch?.match_date)}</strong>
-            <span style={metricSubtle}>
-              {recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '--'}` : 'No recent match yet'}
-            </span>
-          </article>
-        </section>
-        ) : null}
-
         {teamAwards.length > 0 ? (
           <section style={surfaceCard} id="team-awards">
             <div style={sectionHeadingRow}>
@@ -1723,6 +1607,16 @@ function TeamPageContent() {
         </section>
         ) : null}
 
+        {roster.length || bestSingles.length || pairings.length || bestDoubles.length ? (
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Player insights</span>
+              <strong style={detailDrawerTitleStyle}>Singles, doubles, and pairings</strong>
+            </span>
+            <span style={panelCountPill}>View</span>
+          </summary>
+          <div style={detailDrawerContentStyle}>
         {roster.length || bestSingles.length || pairings.length ? (
         <section style={dynamicCardGrid}>
           <article style={surfaceCardStrong}>
@@ -1851,6 +1745,9 @@ function TeamPageContent() {
           </article>
         </section>
         ) : null}
+          </div>
+        </details>
+        ) : null}
 
         {matches.length ? (
         <section style={surfaceCard} id="team-roster">
@@ -1870,40 +1767,24 @@ function TeamPageContent() {
                 </div>
                 <span style={{ padding: '4px 12px', borderRadius: 999, background: 'rgba(15, 23, 42, 0.68)', border: '1px solid rgba(125, 211, 252, 0.18)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
-              <div style={tableWrap}>
-                <table style={{ ...dataTable, minWidth: 0 }}>
-                  <thead>
-                    <tr>
-                      {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
-                        <th key={h} style={tableHeaderCell}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {opponentAnalysis.map((opp, i) => {
-                      const dominated = opp.winPct >= 70
-                      const struggling = opp.winPct <= 30
-                      return (
-                        <tr key={opp.name} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
-                          <td style={{ ...tableCell, fontWeight: 800, color: 'var(--foreground)' }}>
-                            <EntityDetailLink href={buildTeamProfileHref(opp.name)}>
-                              {opp.name}
-                            </EntityDetailLink>
-                          </td>
-                          <td style={{ ...tableCell, color: '#86efac', fontWeight: 800 }}>{opp.wins}</td>
-                          <td style={{ ...tableCell, color: '#fca5a5', fontWeight: 800 }}>{opp.losses}</td>
-                          <td style={tableCell}>
-                            <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: dominated ? 'rgba(155,225,29,0.10)' : struggling ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', color: dominated ? '#d9f84a' : struggling ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${dominated ? 'rgba(155,225,29,0.20)' : struggling ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>
-                              {opp.winPct}%
-                            </span>
-                          </td>
-                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{opp.total}</td>
-                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(opp.lastDate)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div style={opponentListStyle}>
+                {opponentAnalysis.map((opp) => (
+                  <article key={opp.name} style={opponentCardStyle(isSmallMobile)}>
+                    <div style={opponentIdentityStyle}>
+                      <strong style={opponentNameStyle}>
+                        <EntityDetailLink href={buildTeamProfileHref(opp.name)}>
+                          {opp.name}
+                        </EntityDetailLink>
+                      </strong>
+                      <span style={mutedText}>Last met {formatDate(opp.lastDate)}</span>
+                    </div>
+                    <div style={opponentRecordStyle} aria-label={`${opp.wins} wins, ${opp.losses} losses, ${opp.winPct}% win rate across ${opp.total} matches`}>
+                      <span style={opponentMetricStyle}><strong>{opp.wins}-{opp.losses}</strong><small>record</small></span>
+                      <span style={opponentMetricStyle}><strong>{opp.winPct}%</strong><small>win rate</small></span>
+                      <span style={opponentMetricStyle}><strong>{opp.total}</strong><small>matches</small></span>
+                    </div>
+                  </article>
+                ))}
               </div>
             </section>
           ) : null}
@@ -1925,8 +1806,79 @@ function TeamPageContent() {
                 ))}
               </div>
             ) : null}
-            <div style={tableWrap}>
-              <table style={dataTable}>
+            {isMobile ? (
+              <div style={mobileMatchListStyle}>
+                {visibleCards.map((match) => {
+                  const existingReport = myMatchReportByMatchId.get(match.id) || null
+                  return (
+                    <article key={match.id} style={mobileMatchCardStyle}>
+                      <div style={mobileMatchCardHeaderStyle}>
+                        <div style={mobileMatchIdentityStyle}>
+                          <span style={mobileMatchDateStyle}>{formatDate(match.match_date)}</span>
+                          <strong style={mobileMatchOpponentStyle}>
+                            {match.opponent ? (
+                              <EntityDetailLink
+                                href={buildTeamProfileHref(match.opponent, {
+                                  layer: competitionLayer,
+                                  league: match.league_name,
+                                  flight: match.flight,
+                                })}
+                              >
+                                {match.opponent}
+                              </EntityDetailLink>
+                            ) : 'Opponent unavailable'}
+                          </strong>
+                        </div>
+                        <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
+                          {match.won === true ? 'Win' : match.won === false ? 'Loss' : 'Upcoming'}
+                        </span>
+                      </div>
+                      <div style={mobileMatchMetaGridStyle}>
+                        <span style={mobileMatchMetaStyle}>
+                          <small>Venue</small>
+                          <strong>{match.venueLabel}</strong>
+                        </span>
+                        <span style={mobileMatchMetaStyle}>
+                          <small>Format</small>
+                          <strong>{match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '--'}</strong>
+                        </span>
+                        <span style={mobileMatchMetaStyle}>
+                          <small>Score</small>
+                          <strong>{match.score ?? '--'}</strong>
+                        </span>
+                      </div>
+                      {existingReport ? (
+                        <span style={reportStatusBadgeStyle(existingReport.status)}>
+                          {getReportStatusLabel(existingReport.status)}
+                        </span>
+                      ) : match.linkedPlayerAppears ? (
+                        <MatchAccuracyReportButton
+                          matchId={match.id}
+                          reporterPlayerName={linkedPlayerName}
+                          matchLabel={`${team} vs ${match.opponent ?? 'opponent'} - ${match.score ?? 'No score'}`}
+                          context={{
+                            surface: 'team_match_history',
+                            linkedPlayerId: linkedPlayerId || '',
+                            teamName: team,
+                            opponent: match.opponent,
+                            leagueName: match.league_name,
+                            flight: match.flight,
+                            matchType: match.match_type,
+                            matchDate: match.match_date,
+                            result: match.won === true ? 'W' : match.won === false ? 'L' : null,
+                            reportSource: match.linkedPlayerReportSource,
+                            externalMatchId: match.external_match_id,
+                          }}
+                          onSubmitted={() => void refreshMyMatchReports()}
+                        />
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={tableWrap}>
+                <table style={dataTable}>
                 <thead>
                   <tr>
                     <th style={tableHeaderCell}>Date</th>
@@ -1999,8 +1951,9 @@ function TeamPageContent() {
                     )
                   })}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            )}
             {filteredCards.length > 8 ? (
               <div style={tableControlRowStyle}>
                 <button type="button" onClick={() => setShowFullMatchHistory((value) => !value)} style={tableToggleButtonStyle}>
@@ -2509,13 +2462,6 @@ const badgeSlate: CSSProperties = {
   color: 'var(--shell-copy-muted)',
 }
 
-const badgeRed: CSSProperties = {
-  ...badgeBase,
-  background: 'rgba(239,68,68,0.12)',
-  color: '#fca5a5',
-  border: '1px solid color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)',
-}
-
 const teamStatusPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -2728,91 +2674,6 @@ const teamWeekActionTextStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: '14px',
-  gridColumn: '1 / -1',
-  minWidth: 0,
-})
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid rgba(125, 211, 252, 0.18)',
-  background: 'rgba(8, 13, 28, 0.68)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
-  color: 'var(--foreground-strong)',
-  fontSize: '1.28rem',
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
-  overflowWrap: 'anywhere',
-}
-
-const metricGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  minWidth: 0,
-}
-
-const metricCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid rgba(125, 211, 252, 0.18)',
-  background: 'rgba(8, 13, 28, 0.68)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-}
-
-const metricLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
-  display: 'block',
-  overflowWrap: 'anywhere',
-}
-
-const metricValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '1.8rem',
-  fontWeight: 900,
-  lineHeight: 1.1,
-  display: 'block',
-  overflowWrap: 'anywhere',
-}
-
-const metricSubtle: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.55,
-  fontSize: '0.9rem',
-  display: 'block',
-  overflowWrap: 'anywhere',
-}
-
 const cardGridStyle: CSSProperties = {
   display: 'grid',
   gap: '18px',
@@ -2919,8 +2780,8 @@ const panelCountPill: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 }
 
 const teamAwardGridStyle: CSSProperties = {
@@ -3330,6 +3191,117 @@ const opponentBreakdownHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const opponentListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const opponentCardStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'flex',
+  flexDirection: isSmallMobile ? 'column' : 'row',
+  justifyContent: 'space-between',
+  alignItems: isSmallMobile ? 'stretch' : 'center',
+  gap: 14,
+  minWidth: 0,
+  padding: isSmallMobile ? '14px' : '14px 16px',
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.5)',
+})
+
+const opponentIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const opponentNameStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const opponentRecordStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 'min(100%, 250px)',
+}
+
+const opponentMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  padding: '8px 10px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileMatchCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.58)',
+}
+
+const mobileMatchCardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const mobileMatchIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const mobileMatchDateStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+}
+
+const mobileMatchOpponentStyle: CSSProperties = {
+  minWidth: 0,
+  fontSize: 16,
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchMetaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileMatchMetaStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  overflowWrap: 'anywhere',
 }
 
 const seasonFilterControlsStyle: CSSProperties = {
