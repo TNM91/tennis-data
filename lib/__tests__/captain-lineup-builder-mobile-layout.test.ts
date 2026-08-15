@@ -146,5 +146,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('appliedLineupNoticeStyle')).toContain('minWidth: 0')
     expect(styleBlock('appliedLineupActionStyle')).toContain('flexWrap: \'wrap\'')
     expect(styleBlock('triLevelFormatStyle')).toContain('minWidth: 0')
+    expect(source).toContain('aria-label="Lineup next decision"')
+    expect(source).toContain('<Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>')
+    expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
   })
 })

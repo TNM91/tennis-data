@@ -2750,7 +2750,12 @@ function importScenarioToLineup() {
               <span style={availabilityCountStyle('var(--brand-blue-2)')}><strong>{liveResponseCounts.waiting}</strong> Waiting</span>
             </div>
 
-            <div style={potentialPlayerGridStyle}>
+            <details open={!isMobile} style={potentialPlayerResponsesStyle}>
+              <summary style={potentialPlayerResponsesSummaryStyle}>
+                <span>Player responses</span>
+                <span>{liveResponseCounts.waiting} waiting</span>
+              </summary>
+              <div style={potentialPlayerGridStyle}>
               {potentialLineupQueue.map(({ playerName, playerKey, contact, canText, liveResponse }) => {
                 const availabilityStatus = contact ? availabilityMap.get(contact.id)?.status ?? 'no-response' : 'no-response'
                 const privateMessage = buildPotentialPlayerMessage(playerName)
@@ -2843,7 +2848,8 @@ function importScenarioToLineup() {
                   </article>
                 )
               })}
-            </div>
+              </div>
+            </details>
 
             {missingPotentialLineupNames.length ? (
               <div style={potentialMissingStyle}>
@@ -2880,30 +2886,30 @@ function importScenarioToLineup() {
             </span>
           </div>
 
-          <div style={messagePlaybookGridStyle}>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadAvailabilityCheckMessage}>
+          <div style={messagePlaybookGridResponsive(isMobile)}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadAvailabilityCheckMessage}>
               <span style={messagePlaybookLabelStyle}>Ask</span>
-              <strong style={messagePlaybookTitleStyle}>Availability check</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Availability check</strong>
               <span style={messagePlaybookTextStyle}>{availabilitySummary.noResponseCount} still need status</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={applyWinningLineupToComposer}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={applyWinningLineupToComposer}>
               <span style={messagePlaybookLabelStyle}>Announce</span>
-              <strong style={messagePlaybookTitleStyle}>Lineup announcement</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Lineup announcement</strong>
               <span style={messagePlaybookTextStyle}>{lineupRows.length ? `${lineupRows.length} courts loaded` : 'Import a lineup first'}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadMatchReminderMessage}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadMatchReminderMessage}>
               <span style={messagePlaybookLabelStyle}>Remind</span>
-              <strong style={messagePlaybookTitleStyle}>Match reminder</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Match reminder</strong>
               <span style={messagePlaybookTextStyle}>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Select match'}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={applyFollowUpEngine}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={applyFollowUpEngine}>
               <span style={messagePlaybookLabelStyle}>Clear</span>
-              <strong style={messagePlaybookTitleStyle}>Blocker follow-up</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Blocker follow-up</strong>
               <span style={messagePlaybookTextStyle}>{followUpEngine.detail}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadPostMatchNote}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadPostMatchNote}>
               <span style={messagePlaybookLabelStyle}>Close</span>
-              <strong style={messagePlaybookTitleStyle}>Post-match note</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Post-match note</strong>
               <span style={messagePlaybookTextStyle}>
                 {completedWeekChallenge
                   ? `${completedWeekChallenge.challenge.title}: ${completedWeekChallenge.history.completedCount}/${completedWeekChallenge.history.connectedCount} complete`
@@ -2911,9 +2917,15 @@ function importScenarioToLineup() {
               </span>
             </button>
           </div>
+          {isMobile ? (
+            <div style={mobileMessageNextActionsStyle}>
+              <PrimaryBtn onClick={applyRecommendedSendStrategy}>Load best send</PrimaryBtn>
+              <GhostLink href="#captain-message-composer">Review &amp; send</GhostLink>
+            </div>
+          ) : null}
         </section>
 
-        <section style={builderHandoffSurfaceStyle}>
+        <section style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}>
           <div style={tableHeaderStyle}>
             <div>
               <p style={sectionKicker}>Builder handoff</p>
@@ -4740,6 +4752,28 @@ const potentialPlayerGridStyle: CSSProperties = {
   marginTop: 16,
 }
 
+const potentialPlayerResponsesStyle: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 72%, transparent 28%)',
+  overflow: 'hidden',
+}
+
+const potentialPlayerResponsesSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 48,
+  padding: '10px 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 850,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
 const potentialTextQueueStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
@@ -4806,6 +4840,8 @@ const potentialPlayerCardStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  contentVisibility: 'auto',
+  containIntrinsicSize: '148px',
   minWidth: 0,
 }
 
@@ -4882,6 +4918,14 @@ const messagePlaybookGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+function messagePlaybookGridResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookGridStyle,
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : messagePlaybookGridStyle.gridTemplateColumns,
+    gap: isMobile ? 8 : messagePlaybookGridStyle.gap,
+  }
+}
+
 const messagePlaybookCardStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
@@ -4895,6 +4939,16 @@ const messagePlaybookCardStyle: CSSProperties = {
   cursor: 'pointer',
   boxShadow: '0 12px 28px rgba(2, 8, 23, 0.12)',
   minWidth: 0,
+}
+
+function messagePlaybookCardResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookCardStyle,
+    minHeight: isMobile ? 112 : messagePlaybookCardStyle.minHeight,
+    padding: isMobile ? 12 : messagePlaybookCardStyle.padding,
+    borderRadius: isMobile ? 16 : messagePlaybookCardStyle.borderRadius,
+    gap: isMobile ? 5 : messagePlaybookCardStyle.gap,
+  }
 }
 
 const messagePlaybookLabelStyle: CSSProperties = {
@@ -4914,6 +4968,13 @@ const messagePlaybookTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+function messagePlaybookTitleResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookTitleStyle,
+    fontSize: isMobile ? 16 : messagePlaybookTitleStyle.fontSize,
+  }
+}
+
 const messagePlaybookTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
@@ -4928,6 +4989,17 @@ const builderHandoffSurfaceStyle: CSSProperties = {
   margin: '0 auto 18px',
   border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
+}
+
+const hiddenMobileHandoffStyle: CSSProperties = {
+  display: 'none',
+}
+
+const mobileMessageNextActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  marginTop: 12,
 }
 
 const builderHandoffGridStyle: CSSProperties = {

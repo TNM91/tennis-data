@@ -91,6 +91,8 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('tableWrapStyle')).toContain("scrollbarWidth: 'thin'")
     expect(styleBlock('tableWrapStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('composerBodyPreviewStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('messagePlaybookGridResponsive')).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(functionBlock('messagePlaybookCardResponsive')).toContain('minHeight: isMobile ? 112')
   })
 
   it('keeps tables, recipient controls, lineup cards, templates, and repeated grids mobile-safe', () => {
@@ -136,6 +138,9 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('singlePlayerGrid')).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('statusButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('templateBodyStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(source).toContain('<details open={!isMobile} style={potentialPlayerResponsesStyle}>')
+    expect(source).toContain('<GhostLink href="#captain-message-composer">Review &amp; send</GhostLink>')
+    expect(source).toContain('style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}')
+    expect(styleBlock('potentialPlayerCardStyle')).toContain("contentVisibility: 'auto'")
   })
 })

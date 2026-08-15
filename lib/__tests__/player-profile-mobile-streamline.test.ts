@@ -29,6 +29,16 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain(".playerCardPreview[data-own-profile='true']")
     expect(styles).toContain(".milestoneStrip[data-empty='true']")
     expect(styles).toMatch(/\.ratingMeta\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
-    expect(styles).toContain('max-height: 210px')
+  })
+
+  it('turns Player ID into one focused, actionable mobile read', () => {
+    expect(page).toContain('Player focus')
+    expect(page).toContain('Train next')
+    expect(page).toContain('Start this focus')
+    expect(page).toContain('href={playerPathLevelUpHref}')
+    expect(page).toContain('/player-profile/journey-hero.png')
+    expect(page).not.toContain('/player-profile/player-id-court.png')
+    expect(styles).toMatch(/\.playerFocusVisual\s*\{[\s\S]*?min-height:\s*148px/)
+    expect(styles).toMatch(/@media \(max-width: 390px\)[\s\S]*?\.playerFocusProof,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
   })
 })
