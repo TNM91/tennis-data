@@ -64,4 +64,18 @@ describe('Player Development Level Up mobile layout', () => {
     expect(liveWorkbenchSource).toContain("onClick={() => openEditingStep('focus')}")
     expect(liveWorkbenchSource).toContain('ref={trainingFlowRef} className={styles.liveTrainingFlow}')
   })
+
+  it('turns a recommended card into a direct ready-to-run drill', () => {
+    expect(liveWorkbenchSource).toContain("data-quick-start={hasQuickStart && !hasCoachAssignment ? 'true' : 'false'}")
+    expect(liveWorkbenchSource).toContain('className={styles.liveDirectExecution}')
+    expect(liveWorkbenchSource).toContain('Ready to run')
+    expect(liveWorkbenchSource).toContain('Start timer')
+    expect(liveWorkbenchSource).toContain('Score proof')
+    expect(liveWorkbenchSource).toContain('Change rep')
+    expect(liveWorkbenchSource).toContain('if (hasCoachAssignment || !hasQuickStart) return')
+    expect(liveWorkbenchSource).toContain('setEditingStep(null)')
+    expect(liveWorkbenchSource).toContain('findCardFocus(playableFocuses, requestedCard)')
+    expect(stylesSource).toContain(".liveWorkbench[data-quick-start='true'] .liveCompactSummary")
+    expect(stylesSource).toContain('.liveDirectExecutionActions')
+  })
 })

@@ -393,7 +393,11 @@ export default function PlayerLiveWorkbench({
     [assignmentFocus, playableFocuses],
   )
   const requestedFocusMatch = playableFocuses.find((focus) => focus.id === requestedFocusId)
-  const initialFocusId = assignmentFocusMatch?.id ?? requestedFocusMatch?.id ?? defaultFocusId
+  const requestedCardFocusMatch = useMemo(
+    () => requestedCard ? findCardFocus(playableFocuses, requestedCard) : undefined,
+    [playableFocuses, requestedCard],
+  )
+  const initialFocusId = assignmentFocusMatch?.id ?? requestedFocusMatch?.id ?? requestedCardFocusMatch?.id ?? defaultFocusId
   const initialWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType ?? 'court'
   const initialContext = hasCoachAssignment && requestedCard ? 'coach' : requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
@@ -595,6 +599,35 @@ export default function PlayerLiveWorkbench({
     setQuestCreditMessage('')
     setEditingStep(null)
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment, requestedCard])
+
+  useEffect(() => {
+    if (hasCoachAssignment || !hasQuickStart) return
+
+    const quickStartFocusId = requestedFocusMatch?.id ?? requestedCardFocusMatch?.id
+    const quickStartWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType
+    const quickStartContext = requestedContext ?? (requestedCard && quickStartWorkType ? getCardLiveContext(requestedCard, quickStartWorkType) : undefined)
+    const quickStartDrillId = requestedCard ? `card-${requestedCard.id}` : requestedDrillId
+
+    saveReceiptLockRef.current = false
+    if (quickStartFocusId) setActiveFocusId(quickStartFocusId)
+    if (quickStartWorkType) setWorkType(quickStartWorkType)
+    if (quickStartContext) setContext(quickStartContext)
+    if (quickStartDrillId) setActiveDrillId(quickStartDrillId)
+    setLastSavedSession(null)
+    setFinishSummary(null)
+    setScoringDrillId('')
+    setEditingStep(null)
+    setSessionDockActive(true)
+  }, [
+    assignmentWorkType,
+    hasCoachAssignment,
+    hasQuickStart,
+    requestedCard,
+    requestedCardFocusMatch?.id,
+    requestedContext,
+    requestedDrillId,
+    requestedFocusMatch?.id,
+  ])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1754,7 +1787,12 @@ export default function PlayerLiveWorkbench({
     : []
 
   return (
-    <section className={styles.liveWorkbench} data-assignment={hasCoachAssignment ? 'true' : 'false'} aria-labelledby="live-workbench-title">
+    <section
+      className={styles.liveWorkbench}
+      data-assignment={hasCoachAssignment ? 'true' : 'false'}
+      data-quick-start={hasQuickStart && !hasCoachAssignment ? 'true' : 'false'}
+      aria-labelledby="live-workbench-title"
+    >
       <div className={styles.liveWorkbenchHero}>
         <div>
           <span>Level Up</span>
@@ -1768,6 +1806,55 @@ export default function PlayerLiveWorkbench({
       </div>
 
       <div id="level-up-flow" className={styles.liveFlowAnchor} aria-hidden="true" />
+
+      {hasQuickStart && !hasCoachAssignment ? (
+        <section className={styles.liveDirectExecution} aria-labelledby="direct-execution-title">
+          <div className={styles.liveDirectExecutionHeader}>
+            <div>
+              <span>Ready to run</span>
+              <h3 id="direct-execution-title">{activeDrill.title}</h3>
+              <p>{activeDrill.summary}</p>
+            </div>
+            <div className={styles.liveDirectExecutionTime}>
+              <span>Time</span>
+              <strong>{activeDrill.duration}</strong>
+            </div>
+          </div>
+          <div className={styles.liveDirectExecutionReads} aria-label="Drill cues">
+            <article data-state="now">
+              <span>Do</span>
+              <strong>{activeCourtsideCommand.now}</strong>
+            </article>
+            <article data-state="count">
+              <span>Count</span>
+              <strong>{activeCourtsideCommand.count}</strong>
+            </article>
+            <article data-state="proof">
+              <span>Proof</span>
+              <strong>{shortenDrillStep(activeDrill.proof)}</strong>
+            </article>
+          </div>
+          <ol className={styles.liveDirectExecutionSteps} aria-label="Drill instructions">
+            {activeDrillSteps.map((step, index) => (
+              <li key={`${activeDrill.id}-ready-${step}`}>
+                <span>{index + 1}</span>
+                <strong>{step}</strong>
+              </li>
+            ))}
+          </ol>
+          <div className={styles.liveDirectExecutionActions}>
+            <button type="button" className="button-primary" onClick={startDrillJourney}>
+              {activeTimerSeconds > 0 ? 'Resume timer' : 'Start timer'}
+            </button>
+            <button type="button" className="button-secondary" onClick={goToScore}>
+              Score proof
+            </button>
+            <button type="button" className="button-secondary" onClick={() => openEditingStep('focus')}>
+              Change rep
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {activeResumeStrip ? (
         <div className={styles.liveActiveResumeStrip} data-state={activeResumeStrip.state} aria-label="Active courtside session resume">
@@ -3635,6 +3722,30 @@ function findAssignmentFocus(focuses: LiveFocus[], assignmentFocus: string) {
     const title = focus.title.toLowerCase()
     return normalized.includes(focus.id.toLowerCase()) || normalized.includes(title.replace(' development', '')) || title.includes(normalized)
   }) ?? null
+}
+
+function findCardFocus(focuses: LiveFocus[], card: LevelUpCard) {
+  const cardTerms = getFocusMatchTerms([card.title, card.tennisGoal, card.cue, ...card.tags].join(' '))
+  let bestMatch: { focus: LiveFocus; score: number } | null = null
+
+  for (const focus of focuses) {
+    const focusTerms = getFocusMatchTerms([focus.id, focus.title, focus.cue, ...focus.tracker].join(' '))
+    const score = focusTerms.reduce((total, focusTerm) => (
+      total + (cardTerms.some((cardTerm) => cardTerm === focusTerm || (cardTerm.length >= 5 && focusTerm.length >= 5 && cardTerm.slice(0, 5) === focusTerm.slice(0, 5))) ? 1 : 0)
+    ), 0)
+    if (!bestMatch || score > bestMatch.score) bestMatch = { focus, score }
+  }
+
+  return bestMatch && bestMatch.score > 0 ? bestMatch.focus : undefined
+}
+
+function getFocusMatchTerms(value: string) {
+  const ignored = new Set(['about', 'after', 'before', 'court', 'development', 'first', 'from', 'into', 'only', 'player', 'point', 'score', 'tennis', 'that', 'the', 'this', 'through', 'when', 'with', 'your'])
+  return value
+    .toLowerCase()
+    .replaceAll('+', ' plus ')
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length >= 4 && !ignored.has(term))
 }
 
 function normalizeAssignmentWorkType(value: string | null): WorkType | null {
