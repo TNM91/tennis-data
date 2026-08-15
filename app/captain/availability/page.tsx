@@ -824,13 +824,15 @@ function CaptainAvailabilityContent() {
                 )}
               </select>
 
-              <input
-                aria-label="Selected match date"
-                value={weekLabel}
-                readOnly
-                style={textInputStyle}
-                placeholder="Select a scheduled match"
-              />
+              {!isMobile ? (
+                <input
+                  aria-label="Selected match date"
+                  value={weekLabel}
+                  readOnly
+                  style={textInputStyle}
+                  placeholder="Select a scheduled match"
+                />
+              ) : null}
 
               <select
                 value={selectedMatchId}
@@ -871,9 +873,28 @@ function CaptainAvailabilityContent() {
                 {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
               </button>
             </div>
+
+            {isMobile ? (
+              <div style={mobileAvailabilityReadStyle} aria-label="Availability summary">
+                <div>
+                  <strong>{responseAnswered} of {responseTotal || players.length} answered</strong>
+                  <span>{counts.unanswered ? `${counts.unanswered} to chase` : lineupPoolLabel}</span>
+                </div>
+                <div
+                  style={responseTrack}
+                  role="meter"
+                  aria-label="Availability responses answered"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={responseProgress}
+                >
+                  <span style={{ ...responseFill, width: `${responseProgress}%` }} />
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <div style={captainReadCard}>
+          {!isMobile ? <div style={captainReadCard}>
             <div style={captainReadTop}>
               <div>
                 <div style={sectionKicker}>Live read</div>
@@ -929,7 +950,7 @@ function CaptainAvailabilityContent() {
             ) : (
               <div style={helperBanner}>{responseSummary}</div>
             )}
-          </div>
+          </div> : null}
         </section>
 
         {error ? (
@@ -951,7 +972,23 @@ function CaptainAvailabilityContent() {
           </section>
         ) : null}
 
-        <section style={decisionPanel}>
+        {isMobile ? (
+          <section style={mobileNextMoveStyle} aria-label="Availability next move">
+            <div>
+              <div style={sectionKicker}>Next move</div>
+              <strong style={mobileNextMoveTitleStyle}>
+                {counts.unanswered > 0 ? `Chase ${counts.unanswered} repl${counts.unanswered === 1 ? 'y' : 'ies'}` : 'Build the lineup'}
+              </strong>
+              <span style={mobileNextMoveTextStyle}>{responseSummary}</span>
+            </div>
+            <div style={mobileNextMoveActionsStyle}>
+              <Link href={counts.unanswered > 0 ? messagingHref : lineupBuilderHref} style={sectionCtaPrimary}>
+                {counts.unanswered > 0 ? 'Text Team' : 'Build Lineup'}
+              </Link>
+              <Link href={lineupBuilderHref} style={sectionCtaSecondary}>Open courts</Link>
+            </div>
+          </section>
+        ) : <section style={decisionPanel}>
           <div style={sectionHeadResponsive(isTablet)}>
             <div>
               <div style={sectionKicker}>Availability read</div>
@@ -1003,14 +1040,14 @@ function CaptainAvailabilityContent() {
               </article>
             ))}
           </div>
-        </section>
+        </section>}
 
         <section style={contentWrap}>
-          <div style={metricGridResponsive(isSmallMobile, isMobile)}>
-            <MetricCard label="Available" value={String(counts.in)} accent="green" />
-            <MetricCard label="Unavailable" value={String(counts.out)} accent="blue" />
-            <MetricCard label="Maybe" value={String(counts.maybe)} accent="slate" />
-            <MetricCard label="Unanswered" value={String(counts.unanswered)} accent="slate" />
+          <div style={metricGridResponsive(isMobile)}>
+            <MetricCard label="In" value={String(counts.in)} accent="green" compact={isMobile} />
+            <MetricCard label="Out" value={String(counts.out)} accent="blue" compact={isMobile} />
+            <MetricCard label="Maybe" value={String(counts.maybe)} accent="slate" compact={isMobile} />
+            <MetricCard label="Waiting" value={String(counts.unanswered)} accent="slate" compact={isMobile} />
           </div>
 
           <section style={sectionCard}>
@@ -1068,9 +1105,11 @@ function CaptainAvailabilityContent() {
                   <div key={player.id} style={playerRowResponsive(isSmallMobile)}>
                     <div>
                       <div style={playerName}>{player.name}</div>
-                      <div style={playerMeta}>
-                        {selectedTeam || 'Team'} - {weekLabel}
-                      </div>
+                      {!isMobile ? (
+                        <div style={playerMeta}>
+                          {selectedTeam || 'Team'} - {weekLabel}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div style={statusButtonRowResponsive(isSmallMobile)}>
@@ -1117,15 +1156,18 @@ function MetricCard({
   label,
   value,
   accent,
+  compact = false,
 }: {
   label: string
   value: string
   accent: 'green' | 'blue' | 'slate'
+  compact?: boolean
 }) {
   return (
     <div
       style={{
         ...metricCard,
+        ...(compact ? metricCardCompact : {}),
         ...(accent === 'green'
           ? metricCardGreen
           : accent === 'blue'
@@ -1133,8 +1175,8 @@ function MetricCard({
             : metricCardSlate),
       }}
     >
-      <div style={metricLabel}>{label}</div>
-      <div style={metricValue}>{value}</div>
+      <div style={compact ? metricLabelCompact : metricLabel}>{label}</div>
+      <div style={compact ? metricValueCompact : metricValue}>{value}</div>
     </div>
   )
 }
@@ -1158,10 +1200,11 @@ function selectorPanelResponsive(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-function metricGridResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
+function metricGridResponsive(isMobile: boolean): CSSProperties {
   return {
     ...metricGrid,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: isMobile ? 6 : metricGrid.gap,
     minWidth: 0,
   }
 }
@@ -1191,6 +1234,9 @@ function playerRowResponsive(isSmallMobile: boolean): CSSProperties {
     ...playerRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'flex-start' : 'center',
+    gap: isSmallMobile ? 9 : playerRow.gap,
+    padding: isSmallMobile ? 12 : playerRow.padding,
+    borderRadius: isSmallMobile ? 16 : playerRow.borderRadius,
     minWidth: 0,
   }
 }
@@ -1199,6 +1245,9 @@ function statusButtonRowResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...statusButtonRow,
     width: isSmallMobile ? '100%' : 'auto',
+    display: isSmallMobile ? 'grid' : statusButtonRow.display,
+    gridTemplateColumns: isSmallMobile ? 'repeat(4, minmax(0, 1fr))' : undefined,
+    gap: isSmallMobile ? 5 : statusButtonRow.gap,
     minWidth: 0,
   }
 }
@@ -1401,6 +1450,45 @@ const captainReadText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const mobileAvailabilityReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  marginTop: 12,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+}
+
+const mobileNextMoveStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '15px 16px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+  minWidth: 0,
+}
+
+const mobileNextMoveTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.15,
+}
+
+const mobileNextMoveTextStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const mobileNextMoveActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+}
+
 const captainReadStats: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1591,6 +1679,13 @@ const metricCard: CSSProperties = {
   minWidth: 0,
 }
 
+const metricCardCompact: CSSProperties = {
+  padding: '10px 6px',
+  borderRadius: 14,
+  textAlign: 'center',
+  boxShadow: 'none',
+}
+
 const metricCardGreen: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
   border: '1px solid rgba(155,225,29,0.20)',
@@ -1614,6 +1709,13 @@ const metricLabel: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const metricLabelCompact: CSSProperties = {
+  ...metricLabel,
+  fontSize: 9,
+  letterSpacing: '0.02em',
+  textTransform: 'none',
+}
+
 const metricValue: CSSProperties = {
   marginTop: '8px',
   color: 'var(--foreground-strong)',
@@ -1622,6 +1724,12 @@ const metricValue: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
+}
+
+const metricValueCompact: CSSProperties = {
+  ...metricValue,
+  marginTop: 4,
+  fontSize: 20,
 }
 
 const sectionCard: CSSProperties = {
@@ -1722,6 +1830,8 @@ const playerRow: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   flexWrap: 'wrap',
+  contentVisibility: 'auto',
+  containIntrinsicSize: '76px',
   minWidth: 0,
 }
 

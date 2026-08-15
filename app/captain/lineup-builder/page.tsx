@@ -3528,7 +3528,23 @@ function LineupBuilderContent() {
           </section>
         ) : null}
 
-        <section style={decisionBoardShellStyle}>
+        {isMobile ? (
+          <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
+            <div>
+              <p style={sectionKicker}>Next decision</p>
+              <h2 style={mobileCourtFocusTitleStyle}>Set the courts.</h2>
+              <p style={mobileCourtFocusTextStyle}>
+                {lineupHasAssignments
+                  ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
+                  : 'Start with the three team courts. TIQ can fill a balanced first draft for you.'}
+              </p>
+            </div>
+            <div style={mobileCourtFocusActionsStyle}>
+              <Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>
+              <GhostBtn onClick={() => applyOptimizedPlan('best')}>Auto-build</GhostBtn>
+            </div>
+          </section>
+        ) : <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
               <p style={sectionKicker}>Captain scorecard</p>
@@ -3616,9 +3632,9 @@ function LineupBuilderContent() {
               </div>
             </div>
           ) : null}
-        </section>
+        </section>}
 
-        <details style={surfaceCard}>
+        <details style={isMobile ? hiddenMobileContextStyle : surfaceCard}>
           <summary style={detailsSummaryStyle}>
             <div>
               <p style={sectionKicker}>Match context</p>
@@ -3693,7 +3709,7 @@ function LineupBuilderContent() {
           ) : null}
         </details>
 
-        <details style={surfaceCard}>
+        <details style={isMobile ? hiddenMobileContextStyle : surfaceCard}>
           <summary style={detailsSummaryStyle}>
             <div>
               <p style={sectionKicker}>Builder readiness</p>
@@ -5329,6 +5345,41 @@ const decisionBoardShellStyle: CSSProperties = {
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
+}
+
+const mobileCourtFocusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 13,
+  padding: '16px',
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+  minWidth: 0,
+}
+
+const mobileCourtFocusTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const mobileCourtFocusTextStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const mobileCourtFocusActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, .7fr)',
+  gap: 8,
+}
+
+const hiddenMobileContextStyle: CSSProperties = {
+  display: 'none',
 }
 
 const decisionBoardHeaderStyle: CSSProperties = {

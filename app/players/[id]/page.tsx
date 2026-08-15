@@ -1538,26 +1538,42 @@ function PlayerProfileContent() {
 
         <section id="profile-player-id" className={profileStory.playerIdentityPanel}>
           <article className={profileStory.playerIdStory}>
-            <Image
-              src="/player-profile/player-id-court.png"
-              alt="Tennis court showing the current Player ID focus zones"
-              width={720}
-              height={420}
-              className={profileStory.courtImage}
-            />
+            <div className={profileStory.playerFocusVisual} aria-hidden="true">
+              <Image
+                src="/player-profile/journey-hero.png"
+                alt=""
+                width={1896}
+                height={829}
+                className={profileStory.playerFocusImage}
+              />
+              <div className={profileStory.playerFocusVisualLabel}>
+                <TiqFeatureIcon name="improveTennis" size="md" variant="surface" />
+                <span>Next match</span>
+                <strong>One focus</strong>
+              </div>
+            </div>
             <div className={profileStory.playerIdCopy}>
-              <span className={profileStory.playerIdEyebrow}>Player ID</span>
+              <span className={profileStory.playerIdEyebrow}>Player focus</span>
               <h2>{playerPathIdentityRead.label}</h2>
               <p>{playerPathIdentityRead.title}</p>
-              <ul className={profileStory.traitList}>
-                {playerPathReadItems.map((item) => (
-                  <li key={item.label}>
-                    <strong>{item.label}</strong>
-                    <span>{item.value}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link href={playerPathDevelopmentHref} className={profileStory.quietAction}>Open full Player ID</Link>
+              <div className={profileStory.playerFocusPrimary}>
+                <span>Train next</span>
+                <strong>{playerPathIdentityRead.trainingPriority}</strong>
+              </div>
+              <dl className={profileStory.playerFocusProof}>
+                <div>
+                  <dt>Prove it</dt>
+                  <dd>{playerPathIdentityRead.proofTarget}</dd>
+                </div>
+                <div>
+                  <dt>Test it</dt>
+                  <dd>{playerPathIdentityRead.matchTrigger}</dd>
+                </div>
+              </dl>
+              <div className={profileStory.playerFocusActions}>
+                <Link href={playerPathLevelUpHref} className={profileStory.primaryAction}>Start this focus</Link>
+                <Link href={playerPathDevelopmentHref} className={profileStory.quietAction}>Full Player ID</Link>
+              </div>
             </div>
           </article>
 

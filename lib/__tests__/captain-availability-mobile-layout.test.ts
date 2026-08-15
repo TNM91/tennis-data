@@ -40,7 +40,7 @@ describe('Captain availability mobile layout guards', () => {
     expect(functionBlock('availabilityControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('selectorPanelResponsive')).toContain('minWidth: 0')
     expect(styleBlock('selectorPanel')).toContain("flexWrap: 'wrap'")
-    expect(functionBlock('metricGridResponsive')).toContain("isMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(functionBlock('metricGridResponsive')).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
     expect(styleBlock('selectStyle')).toContain("flex: '1 1 min(100%, 220px)'")
     expect(styleBlock('selectStyle')).toContain('minWidth: 0')
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
@@ -67,7 +67,7 @@ describe('Captain availability mobile layout guards', () => {
     }
 
     expect(functionBlock('metricGridResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('metricGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('metricGridResponsive')).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
     expect(functionBlock('availabilityActionGridResponsive')).toContain('minWidth: 0')
     expect(functionBlock('availabilityActionGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(styleBlock('availabilityActionGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))'")
@@ -96,5 +96,10 @@ describe('Captain availability mobile layout guards', () => {
     expect(styleBlock('playerRow')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('statusButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('loadingCard')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('statusButtonRowResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'repeat(4, minmax(0, 1fr))'")
+    expect(source).toContain('{!isMobile ? (')
+    expect(source).toContain('aria-label="Availability next move"')
+    expect(source).toContain('compact={isMobile}')
+    expect(styleBlock('playerRow')).toContain("contentVisibility: 'auto'")
   })
 })
