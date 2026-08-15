@@ -11154,6 +11154,160 @@
   scroll-margin-top: 14px;
 }
 
+.liveWorkbench[data-quick-start='true'] .liveCompactSummary,
+.liveWorkbench[data-quick-start='true'] .liveTodayCommandCenter {
+  display: none;
+}
+
+.liveDirectExecution {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(155, 225, 29, 0.38);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.16), transparent 36%),
+    linear-gradient(145deg, rgba(7, 25, 33, 0.98), rgba(4, 14, 27, 0.98));
+  box-shadow: 0 20px 50px rgba(1, 8, 18, 0.32);
+  padding: 13px;
+  scroll-margin-top: 14px;
+}
+
+.liveDirectExecutionHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.liveDirectExecutionHeader > div:first-child {
+  min-width: 0;
+}
+
+.liveDirectExecutionHeader span,
+.liveDirectExecutionReads span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.63rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveDirectExecutionHeader h3 {
+  margin: 5px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1.02;
+}
+
+.liveDirectExecutionHeader p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.liveDirectExecutionTime {
+  display: grid;
+  min-width: 92px;
+  gap: 5px;
+  justify-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 13px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 10px;
+}
+
+.liveDirectExecutionTime strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.liveDirectExecutionReads {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.liveDirectExecutionReads article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
+.liveDirectExecutionReads article[data-state='proof'] {
+  border-color: rgba(155, 225, 29, 0.26);
+  background: rgba(155, 225, 29, 0.07);
+}
+
+.liveDirectExecutionReads strong {
+  color: var(--foreground-strong);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.liveDirectExecutionSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liveDirectExecutionSteps li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border-radius: 11px;
+  background: rgba(2, 10, 23, 0.38);
+  padding: 8px;
+}
+
+.liveDirectExecutionSteps span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.12);
+  color: var(--brand-blue-2);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.liveDirectExecutionSteps strong {
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  line-height: 1.24;
+}
+
+.liveDirectExecutionActions {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 8px;
+}
+
+.liveDirectExecutionActions button {
+  min-width: 0;
+  justify-content: center;
+}
+
+.liveDirectExecutionActions :global(.button-primary) {
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+
 .liveIdentityCourtRead {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -21901,6 +22055,37 @@
 }
 
 @media (max-width: 860px) {
+  .liveWorkbench[data-quick-start='true'] .liveWorkbenchBody[data-scoring='true'] .liveTracker {
+    min-height: 0;
+    align-content: start;
+  }
+
+  .liveDirectExecution {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .liveDirectExecutionReads,
+  .liveDirectExecutionSteps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .liveDirectExecutionReads article {
+    grid-template-columns: 60px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .liveDirectExecutionSteps li {
+    padding: 7px 8px;
+  }
+
+  .liveDirectExecutionActions {
+    grid-template-columns: minmax(0, 1fr) repeat(2, auto);
+  }
+
   .levelUpIdentityCurrent {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
@@ -21994,6 +22179,37 @@
 }
 
 @media (max-width: 620px) {
+  .liveDirectExecutionHeader h3 {
+    font-size: 1.35rem;
+  }
+
+  .liveDirectExecutionHeader p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.75rem;
+  }
+
+  .liveDirectExecutionTime {
+    min-width: 72px;
+    padding: 8px;
+  }
+
+  .liveDirectExecutionReads strong,
+  .liveDirectExecutionSteps strong {
+    font-size: 0.7rem;
+  }
+
+  .liveDirectExecutionActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveDirectExecutionActions :global(.button-primary) {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
   .levelUpIdentityCurrent {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 11px;
