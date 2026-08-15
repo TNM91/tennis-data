@@ -13,7 +13,7 @@ const upgradeSource = readFileSync(join(process.cwd(), 'app/upgrade/page.tsx'), 
 describe('My Lab command center', () => {
   it('puts one data-backed court action ahead of the legacy lab workspace', () => {
     const commandCenterIndex = pageSource.indexOf('<MyLabCommandCenter')
-    const legacyWorkspaceIndex = pageSource.indexOf('<section id="player-workshop"')
+    const legacyWorkspaceIndex = pageSource.indexOf('<PlayerWorkshopShell')
 
     expect(commandCenterIndex).toBeGreaterThanOrEqual(0)
     expect(legacyWorkspaceIndex).toBeGreaterThan(commandCenterIndex)
@@ -49,6 +49,8 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("? 'Choose one tennis focus'")
     expect(componentSource).toContain('Build your player loop.')
     expect(componentSource).toContain("aria-current={isCurrent ? 'step' : undefined}")
+    expect(componentSource).toContain("data-has-current={nextFirstServeStep >= 0 ? 'true' : 'false'}")
+    expect(componentSource).toContain('styles.firstServeStepSecondary')
     expect(componentSource).toContain('href={step.href}')
     expect(pageSource).not.toContain('First My Lab read')
   })
@@ -71,11 +73,24 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('overflow-wrap: anywhere;')
     expect(styleSource).toContain('.firstServeGrid')
     expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(styleSource).toContain(".firstServeGrid[data-has-current='true'] .firstServeStepSecondary")
+    expect(componentSource).toContain("${postRepReturn ? styles.primaryGridAfterRep : ''}")
+    expect(componentSource).toContain('{!postRepReturn ? <article className={styles.repCard}>')
+    expect(componentSource).toContain('{!postRepReturn ? <article className={styles.momentumCard}>')
+    expect(styleSource).toContain('.supportStackAfterRep .matchCard')
     expect(styleSource).toContain('.ballImage {\n    right: 0;')
     expect(styleSource).toContain('width: clamp(128px, 23vw, 178px);')
     expect(styleSource).toContain('width: 108px;')
     expect(styleSource).not.toContain('right: -42px;')
     expect(styleSource).not.toContain('right: -44px;')
+  })
+
+  it('keeps the deeper legacy workspace behind one mobile disclosure', () => {
+    expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
+    expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
+    expect(pageSource).toContain('<strong>More in My Lab</strong>')
+    expect(pageSource).toContain('Teams, tools, goals, and calendar.')
+    expect(pageSource).toContain('mobileMyLabExtrasDetailsStyle')
   })
 
   it('uses one consistent My Lab mark without a nested signature frame', () => {

@@ -3329,6 +3329,9 @@ function MyLabPageInner() {
     )
   }
 
+  const collapseLegacyWorkspace = isMobile && isProfileConfirmed
+  const PlayerWorkshopShell: 'details' | 'section' = collapseLegacyWorkspace ? 'details' : 'section'
+
   return (
     <section style={pageStyle}>
       {clubAccess.workspace ? (
@@ -3374,7 +3377,19 @@ function MyLabPageInner() {
         } : null}
       />
 
-      <section id="player-workshop" style={profileLinkSectionStyle}>
+      <PlayerWorkshopShell
+        id="player-workshop"
+        style={collapseLegacyWorkspace ? mobileMyLabExtrasDetailsStyle : profileLinkSectionStyle}
+      >
+        {collapseLegacyWorkspace ? (
+          <summary style={mobileMyLabExtrasSummaryStyle}>
+            <span style={labDrawerSummaryCopyStyle}>
+              <strong>More in My Lab</strong>
+              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and calendar.</em>
+            </span>
+            <span style={optionalContextCountStyle}>Open</span>
+          </summary>
+        ) : null}
         <div style={profileLinkCardStyle}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={sectionHeaderStyle}>
@@ -3982,7 +3997,7 @@ function MyLabPageInner() {
             </>
           ) : null}
         </div>
-      </section>
+      </PlayerWorkshopShell>
 
       {tiqPlayerParticipationWarning ? (
         <div style={warningNoteStyle}>
@@ -8076,6 +8091,33 @@ const secondaryButtonStyle: CSSProperties = {
 const profileLinkSectionStyle: CSSProperties = {
   margin: 0,
   minWidth: 0,
+}
+
+const mobileMyLabExtrasDetailsStyle: CSSProperties = {
+  width: '100%',
+  margin: '0 0 14px',
+  minWidth: 0,
+  overflow: 'hidden',
+  border: '1px solid rgba(116,190,255,0.16)',
+  borderRadius: 20,
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, transparent)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const mobileMyLabExtrasSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 58,
+  padding: '10px 14px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const warningNoteStyle: CSSProperties = {
