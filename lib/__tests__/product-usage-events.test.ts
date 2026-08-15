@@ -12,7 +12,7 @@ import {
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
     const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260810000700_add_portal_shortcut_event.sql'),
+      join(process.cwd(), 'supabase/migrations/20260814000200_add_product_tour_usage_events.sql'),
       'utf8',
     )
 

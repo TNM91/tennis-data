@@ -19,9 +19,11 @@ export const metadata: Metadata = buildRouteMetadata({
 const resourceActions: PublicActionCard[] = [
   {
     title: 'Learn how TenAceIQ works',
-    body: 'See the simple path from free search to Player, Captain, Coach, and League tools.',
-    href: '/how-it-works',
-    cta: 'How TenAceIQ Works',
+    body: 'Watch the complete platform tour or jump to a quick view for your tennis role.',
+    href: '/resources/platform-tour',
+    cta: 'Watch Platform Tour',
+    secondaryHref: '/how-it-works',
+    secondaryCta: 'Read Overview',
     meta: 'Start here',
   },
   {
@@ -67,7 +69,7 @@ export default function ResourcesPage() {
           eyebrow="Help"
           title="Find the help you need."
           body="Learn the platform, set up your account, improve your game, add tennis data, or contact support."
-          primary={{ href: '/how-it-works', label: 'How TenAceIQ Works' }}
+          primary={{ href: '/resources/platform-tour', label: 'Watch Platform Tour' }}
           secondary={{ href: '/faq', label: 'Open FAQ' }}
           showSearch={false}
           showBoard={false}
