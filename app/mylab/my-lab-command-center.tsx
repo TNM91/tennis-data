@@ -106,14 +106,14 @@ export default function MyLabCommandCenter({
             </div>
             <span className={styles.firstServeProgress}>{completedFirstServeSteps} of {firstServeSteps.length} ready</span>
           </div>
-          <div className={styles.firstServeGrid}>
+          <div className={styles.firstServeGrid} data-has-current={nextFirstServeStep >= 0 ? 'true' : 'false'}>
             {firstServeSteps.map((step, index) => {
               const isCurrent = index === nextFirstServeStep
 
               return (
                 <Link
                   key={step.title}
-                  className={`${styles.firstServeStep} ${step.complete ? styles.firstServeStepComplete : ''} ${isCurrent ? styles.firstServeStepCurrent : ''}`}
+                  className={`${styles.firstServeStep} ${step.complete ? styles.firstServeStepComplete : ''} ${isCurrent ? styles.firstServeStepCurrent : ''} ${nextFirstServeStep >= 0 && !isCurrent ? styles.firstServeStepSecondary : ''}`}
                   href={step.href}
                   aria-current={isCurrent ? 'step' : undefined}
                 >
@@ -167,8 +167,8 @@ export default function MyLabCommandCenter({
         </section>
       ) : null}
 
-      <div className={styles.primaryGrid}>
-        <article className={styles.repCard}>
+      <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>
+        {!postRepReturn ? <article className={styles.repCard}>
           <Image
             className={styles.courtImage}
             src="/tiq/courts/tiq-court-master.png"
@@ -202,10 +202,10 @@ export default function MyLabCommandCenter({
               <span aria-hidden="true">→</span>
             </Link>
           </div>
-        </article>
+        </article> : null}
 
-        <div className={styles.supportStack}>
-          <article className={styles.momentumCard}>
+        <div className={`${styles.supportStack} ${postRepReturn ? styles.supportStackAfterRep : ''}`}>
+          {!postRepReturn ? <article className={styles.momentumCard}>
             <div className={styles.cardHeadingRow}>
               <div>
                 <p className={styles.supportEyebrow}>Weekly momentum</p>
@@ -224,7 +224,7 @@ export default function MyLabCommandCenter({
                 </span>
               ))}
             </div>
-          </article>
+          </article> : null}
 
           <article className={styles.matchCard}>
             <div className={styles.matchIcon}>
