@@ -1357,11 +1357,11 @@ function TeamPageContent() {
           contextLabel={team}
           enabled={detailReady}
         />
-        <nav style={teamSectionNavStyle} aria-label="Team page sections">
-          <a href="#team-overview" style={teamSectionNavLinkStyle}>Overview</a>
-          <a href="#team-schedule" style={teamSectionNavLinkStyle}>Schedule</a>
-          <a href="#team-roster" style={teamSectionNavLinkStyle}>Roster</a>
-          <a href="#team-chat" style={teamSectionNavLinkStyle}>Team chat</a>
+        <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
+          <a href="#team-overview" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Overview</a>
+          <a href="#team-schedule" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Schedule</a>
+          <a href="#team-roster" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Roster</a>
+          <a href="#team-chat" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Team chat</a>
         </nav>
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
@@ -1392,10 +1392,10 @@ function TeamPageContent() {
               ) : isLinkedTeamMember ? (
                 <>
                   <PrimaryLink href="#team-chat">Open Team Chat</PrimaryLink>
-                  {access.canUseAdvancedPlayerInsights ? <SecondaryLink href="/mylab">Open My Lab</SecondaryLink> : null}
-                  {access.canUseAdvancedPlayerInsights ? <GhostLink href="/matchup">Prep matchup</GhostLink> : null}
+                  {!isMobile && access.canUseAdvancedPlayerInsights ? <SecondaryLink href="/mylab">Open My Lab</SecondaryLink> : null}
+                  {!isMobile && access.canUseAdvancedPlayerInsights ? <GhostLink href="/matchup">Prep matchup</GhostLink> : null}
                   {canManageThisTeam ? <SecondaryLink href={captainLinks[1].href}>Build lineup</SecondaryLink> : null}
-                  {canManageThisTeam ? <GhostLink href={captainLinks[0].href}>Check availability</GhostLink> : null}
+                  {!isMobile && canManageThisTeam ? <GhostLink href={captainLinks[0].href}>Check availability</GhostLink> : null}
                 </>
               ) : (
                 <>
@@ -2465,6 +2465,30 @@ const teamSectionNavLinkStyle: CSSProperties = {
   fontWeight: 850,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
+}
+
+const teamSectionNavMobileStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 4,
+  width: '100%',
+  margin: '0 0 -6px',
+  padding: 4,
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(8, 13, 28, 0.78)',
+  boxSizing: 'border-box',
+}
+
+const teamSectionNavLinkMobileStyle: CSSProperties = {
+  ...teamSectionNavLinkStyle,
+  minWidth: 0,
+  padding: '0 5px',
+  borderRadius: 12,
+  fontSize: 11,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  lineHeight: 1.15,
 }
 
 const heroShell: CSSProperties = {

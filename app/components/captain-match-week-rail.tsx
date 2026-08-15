@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchWeekStep = 'availability' | 'lineup' | 'messaging'
 
@@ -28,6 +29,7 @@ export default function CaptainMatchWeekRail({
   current: MatchWeekStep
   scope: MatchWeekScope
 }) {
+  const { isMobile } = useViewportBreakpoints()
   const currentIndex = steps.findIndex((step) => step.id === current)
   const hasMatch = Boolean(scope.date || scope.opponent)
 
@@ -47,7 +49,7 @@ export default function CaptainMatchWeekRail({
   }
 
   return (
-    <section style={railShell} aria-label="Match week progress">
+    <section style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
       <div style={matchContext}>
         <div style={kicker}>Match week</div>
         <strong style={title}>
@@ -55,7 +57,7 @@ export default function CaptainMatchWeekRail({
           {scope.date ? <span style={dateText}> - {formatMatchDate(scope.date)}</span> : null}
         </strong>
       </div>
-      <nav style={stepList} aria-label="Match week steps">
+      <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
           const isCurrent = step.id === current
           const isComplete = index < currentIndex
@@ -67,12 +69,13 @@ export default function CaptainMatchWeekRail({
               aria-current={isCurrent ? 'step' : undefined}
               style={{
                 ...stepLink,
+                ...(isMobile ? mobileStepLink : {}),
                 ...(isCurrent ? activeStep : {}),
                 ...(isComplete ? completeStep : {}),
               }}
             >
               <span aria-hidden="true" style={stepNumber}>{isComplete ? 'Done' : index + 1}</span>
-              <span>{step.label}</span>
+              <span>{isMobile ? mobileStepLabel(step.id) : step.label}</span>
             </Link>
           )
         })}
@@ -87,6 +90,12 @@ function formatMatchDate(value: string) {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function mobileStepLabel(step: MatchWeekStep) {
+  if (step === 'availability') return 'Availability'
+  if (step === 'lineup') return 'Lineup'
+  return 'Message'
+}
+
 const railShell: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -99,12 +108,22 @@ const railShell: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg-strong) 93%)',
 }
 
+const mobileRailShell: CSSProperties = {
+  ...railShell,
+  display: 'grid',
+  gap: 10,
+  padding: '12px',
+  borderRadius: 16,
+}
+
 const matchContext: CSSProperties = { minWidth: 180 }
 const kicker: CSSProperties = { color: '#93c5fd', fontSize: 11, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase' }
 const title: CSSProperties = { display: 'block', marginTop: 3, color: 'var(--foreground-strong)', fontSize: 15 }
 const dateText: CSSProperties = { color: 'var(--shell-copy-muted)', fontWeight: 700 }
 const stepList: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap' }
 const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '7px 11px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', fontSize: 12, fontWeight: 800, textDecoration: 'none' }
+const mobileStepList: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, minWidth: 0 }
+const mobileStepLink: CSSProperties = { justifyContent: 'center', minWidth: 0, gap: 5, padding: '6px 5px', fontSize: 10, lineHeight: 1.15, textAlign: 'center' }
 const activeStep: CSSProperties = { color: 'var(--foreground-strong)', borderColor: 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)', background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)' }
 const completeStep: CSSProperties = { color: 'var(--brand-lime)' }
 const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', minWidth: 20, height: 20, padding: '0 4px', borderRadius: 999, border: '1px solid currentColor', fontSize: 10 }

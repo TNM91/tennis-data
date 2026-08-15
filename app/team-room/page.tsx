@@ -1915,18 +1915,23 @@ function TeamRoomContent() {
                 {!message.deletedAt && editingId !== message.id ? (
                   <div className={styles.messageActions} aria-label={`Actions for ${message.senderName}'s message`}>
                     <button type="button" onClick={() => { setReplyTo(message); window.requestAnimationFrame(() => composerRef.current?.focus()) }}>Reply</button>
-                    {message.reactions.map((reaction) => (
-                      <button
-                        key={reaction.reaction}
-                        className={reaction.reacted ? styles.reactionActive : undefined}
-                        type="button"
-                        onClick={() => void toggleReaction(message.id, reaction.reaction)}
-                      >
-                        {reactionLabel(reaction.reaction)}{reaction.count ? ` ${reaction.count}` : ''}
-                      </button>
-                    ))}
-                    {message.isMine && !message.lineupAnnouncement ? <button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body) }}>Edit</button> : null}
-                    {(message.isMine || room.canManage) && !message.lineupAnnouncement ? <button type="button" onClick={() => void deleteMessage(message.id)}>Remove</button> : null}
+                    <details className={styles.messageMoreActions}>
+                      <summary>More</summary>
+                      <div className={styles.messageMoreMenu}>
+                        {message.reactions.map((reaction) => (
+                          <button
+                            key={reaction.reaction}
+                            className={reaction.reacted ? styles.reactionActive : undefined}
+                            type="button"
+                            onClick={() => void toggleReaction(message.id, reaction.reaction)}
+                          >
+                            {reactionLabel(reaction.reaction)}{reaction.count ? ` ${reaction.count}` : ''}
+                          </button>
+                        ))}
+                        {message.isMine && !message.lineupAnnouncement ? <button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body) }}>Edit</button> : null}
+                        {(message.isMine || room.canManage) && !message.lineupAnnouncement ? <button type="button" onClick={() => void deleteMessage(message.id)}>Remove</button> : null}
+                      </div>
+                    </details>
                   </div>
                 ) : null}
               </article>
