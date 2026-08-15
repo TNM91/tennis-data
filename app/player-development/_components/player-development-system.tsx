@@ -34,13 +34,14 @@ import styles from './player-development.module.css'
 type PlayerDevelopmentSystemProps = {
   focus?: 'overview' | 'workbook' | 'coach'
   identitySlug?: string
+  defaultIdentitySlug?: string
 }
 
 const playerTier = getMembershipTier('player_plus')
 const TIQ_SITE_URL = 'https://www.tenaceiq.com'
 
-export default function PlayerDevelopmentSystem({ focus = 'overview', identitySlug }: PlayerDevelopmentSystemProps) {
-  const identity = getPlayerDevelopmentIdentity(identitySlug)
+export default function PlayerDevelopmentSystem({ focus = 'overview', identitySlug, defaultIdentitySlug }: PlayerDevelopmentSystemProps) {
+  const identity = getPlayerDevelopmentIdentity(identitySlug ?? defaultIdentitySlug)
   const packetView = focus !== 'overview'
   const improveLanding = focus === 'overview' && !identitySlug
   const workbookPrintActive = focus === 'workbook'

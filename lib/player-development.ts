@@ -4331,6 +4331,29 @@ export const PLAYER_DEVELOPMENT_IDENTITIES = [
   ALL_COURT_ADAPTER_IDENTITY,
 ] as const
 
+const CORE_PLAYER_STYLE_SLUGS = new Set([
+  RELENTLESS_COMPETITOR_IDENTITY.slug,
+  SMART_ATTACKER_IDENTITY.slug,
+  CONSISTENT_BUILDER_IDENTITY.slug,
+  DOUBLES_COMMANDER_IDENTITY.slug,
+  DEFENSIVE_COUNTERPUNCHER_IDENTITY.slug,
+  ALL_COURT_ADAPTER_IDENTITY.slug,
+])
+
+export type PlayerDevelopmentIdentityKind = 'playing-style' | 'development-focus'
+
+export const PLAYER_DEVELOPMENT_PLAYING_STYLES = PLAYER_DEVELOPMENT_IDENTITIES.filter((identity) =>
+  CORE_PLAYER_STYLE_SLUGS.has(identity.slug)
+)
+
+export const PLAYER_DEVELOPMENT_FOCUS_PATHS = PLAYER_DEVELOPMENT_IDENTITIES.filter((identity) =>
+  !CORE_PLAYER_STYLE_SLUGS.has(identity.slug)
+)
+
+export function getPlayerDevelopmentIdentityKind(slug: string): PlayerDevelopmentIdentityKind {
+  return CORE_PLAYER_STYLE_SLUGS.has(slug) ? 'playing-style' : 'development-focus'
+}
+
 export function getPlayerDevelopmentIdentity(slug = RELENTLESS_COMPETITOR_IDENTITY.slug) {
   return PLAYER_DEVELOPMENT_IDENTITIES.find((identity) => identity.slug === slug) ?? RELENTLESS_COMPETITOR_IDENTITY
 }

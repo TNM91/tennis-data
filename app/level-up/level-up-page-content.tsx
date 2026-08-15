@@ -8,15 +8,18 @@ import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/
 import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
 import {
-  PLAYER_DEVELOPMENT_IDENTITIES,
+  PLAYER_DEVELOPMENT_FOCUS_PATHS,
+  PLAYER_DEVELOPMENT_PLAYING_STYLES,
   getPlayerDevelopmentIdentityActionRead,
   getPlayerDevelopmentIdentityCourtsideRead,
+  getPlayerDevelopmentIdentityKind,
   type PlayerDevelopmentIdentity,
 } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import HabitPathWizardClient from './habit-path-wizard-client'
 import LevelUpHashController, { LevelUpDisclosureLink } from './level-up-hash-controller'
+import PlayerIdentitySelector from './player-identity-selector'
 import QuestBuilderClient from './quest-builder-client'
 
 function buildImproveTacticsHref(identity: PlayerDevelopmentIdentity, card?: LevelUpCard) {
@@ -36,16 +39,41 @@ function buildImproveTacticsHref(identity: PlayerDevelopmentIdentity, card?: Lev
   return `/tactics?${params.toString()}`
 }
 
-export default function LevelUpPageContent({ identity }: { identity: PlayerDevelopmentIdentity }) {
+export default function LevelUpPageContent({
+  identity,
+  initialSavedStyleSlug = null,
+}: {
+  identity: PlayerDevelopmentIdentity
+  initialSavedStyleSlug?: string | null
+}) {
   const trainingMenus = getPlayerTrainingMenus(identity)
   const recommendedCards = getRecommendedLevelUpCards(identity.slug, 6)
   const identityModules = LEVEL_UP_MODULES.filter((module) => module.identitySlugs?.includes(identity.slug))
   const recommendedModules = (identityModules.length ? identityModules : LEVEL_UP_MODULES).slice(0, 3)
   const favoritePreview = recommendedCards.slice(0, 3)
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
-  const quickStartCards = recommendedCards.slice(0, 5)
+  const quickStartCards = recommendedCards.slice(0, 3)
   const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
   const courtsideRead = getPlayerDevelopmentIdentityCourtsideRead(identity)
+  const identityKind = getPlayerDevelopmentIdentityKind(identity.slug)
+  const identityChoice = {
+    slug: identity.slug,
+    title: identity.title.replace(/^The /, ''),
+    summary: identity.archetype,
+    cue: identity.mantra,
+  }
+  const playingStyleChoices = PLAYER_DEVELOPMENT_PLAYING_STYLES.map((item) => ({
+    slug: item.slug,
+    title: item.title.replace(/^The /, ''),
+    summary: item.archetype,
+    cue: item.mantra,
+  }))
+  const developmentFocusChoices = PLAYER_DEVELOPMENT_FOCUS_PATHS.map((item) => ({
+    slug: item.slug,
+    title: item.title.replace(/^The /, ''),
+    summary: item.archetype,
+    cue: item.mantra,
+  }))
   const playerIdRows = [
     ['Profile ID', identity.title.replace(/^The /, '')],
     ['Weapon', actionRead.title],
@@ -250,25 +278,6 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
         </section>
 
-        <section className={styles.levelUpIdentityStrip} aria-label="Choose development identity">
-          <div>
-            <TiqFeatureIcon name="matchPrep" size="sm" variant="ghost" />
-            <strong>Today&apos;s identity</strong>
-            <span>{identity.title.replace(/^The /, '')}: {identity.mantra}</span>
-          </div>
-          <div className={styles.levelUpIdentityButtons}>
-            {PLAYER_DEVELOPMENT_IDENTITIES.map((item) => (
-              <Link
-                key={item.slug}
-                href={`/level-up/${item.slug}`}
-                data-active={item.slug === identity.slug ? 'true' : 'false'}
-              >
-                {item.title.replace(/^The /, '')}
-              </Link>
-            ))}
-          </div>
-        </section>
-
         <nav className={styles.levelUpIphoneDock} aria-label="Level Up mobile dock">
           {iphoneQuickActions.map((action) => (
             action.href === '#quest-builder' ? (
@@ -282,6 +291,80 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             )
           ))}
         </nav>
+
+        <PlayerIdentitySelector
+          activeIdentity={identityChoice}
+          activeKind={identityKind}
+          playingStyles={playingStyleChoices}
+          developmentFocuses={developmentFocusChoices}
+          initialSavedStyleSlug={initialSavedStyleSlug}
+        />
+
+        <section className={styles.levelUpIdentityDrillGuide} aria-labelledby="identity-drill-guide-title">
+          <div className={styles.levelUpIdentityDrillProfile}>
+            <div className={styles.levelUpIdentityDrillHeading}>
+              <TiqFeatureIcon name="matchPrep" size="md" variant="ghost" />
+              <div>
+                <span>{identityKind === 'playing-style' ? 'Playing style profile' : 'Development focus profile'}</span>
+                <h2 id="identity-drill-guide-title">{identity.title.replace(/^The /, '')}</h2>
+                <p>{identity.promise}</p>
+                <small className={styles.levelUpIdentityFitNote}>
+                  {identityKind === 'playing-style'
+                    ? 'Choose this only if it matches how you compete today. Match and practice proof can sharpen it over time.'
+                    : 'Use this as a current training emphasis without replacing your core playing style.'}
+                </small>
+              </div>
+            </div>
+            <dl className={styles.levelUpIdentityDrillSignals}>
+              <div>
+                <dt>Train first</dt>
+                <dd>{actionRead.trainingPriority}</dd>
+              </div>
+              <div>
+                <dt>Leak watch</dt>
+                <dd>{actionRead.leakWatch}</dd>
+              </div>
+              <div>
+                <dt>Match test</dt>
+                <dd>{actionRead.matchTrigger}</dd>
+              </div>
+            </dl>
+            <div className={styles.levelUpIdentityDrillActions}>
+              {firstRecommendedCard ? (
+                <Link className="button-primary" href={`/level-up/${identity.slug}?card=${firstRecommendedCard.id}#level-up-flow`}>
+                  Start best-fit drill
+                </Link>
+              ) : null}
+              <LevelUpDisclosureLink className="button-secondary" targetId="path-finder">
+                Find another path
+              </LevelUpDisclosureLink>
+            </div>
+          </div>
+
+          <div className={styles.levelUpIdentityDrillList} aria-label={`Recommended drills for ${identity.title.replace(/^The /, '')}`}>
+            <div className={styles.levelUpIdentityDrillListHeader}>
+              <span>Recommended drills</span>
+              <strong>Start with the rep that fits your tennis.</strong>
+            </div>
+            {quickStartCards.map((card, index) => (
+              <Link key={card.id} href={`/level-up/${identity.slug}?card=${card.id}#level-up-flow`}>
+                <b>{index + 1}</b>
+                <div>
+                  <span>{card.pack}</span>
+                  <strong>{card.title}</strong>
+                  <small>{card.useWhen}</small>
+                </div>
+                <em>{card.durationMinutes} min</em>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <div className={styles.levelUpPrimaryPathFinder}>
+          <LevelUpMorePanel id="path-finder" label="Path finder" title="Change level, goal, or setup">
+            <HabitPathWizardClient paths={habitPathWizardOptions} />
+          </LevelUpMorePanel>
+        </div>
 
         <LevelUpHashController />
 
@@ -425,10 +508,6 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             <small>Open</small>
           </summary>
           <div className={styles.levelUpToolboxBody}>
-        <LevelUpMorePanel label="Path finder" title="Find a path">
-          <HabitPathWizardClient paths={habitPathWizardOptions} />
-        </LevelUpMorePanel>
-
         <LevelUpMorePanel label="Player ID" title="Player ID proof">
         <section className={styles.playerIdSnapshot} aria-labelledby="level-up-player-id-title">
           <div className={styles.playerIdSnapshotHeader}>

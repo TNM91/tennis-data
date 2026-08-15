@@ -361,6 +361,7 @@ export default function PlayerLiveWorkbench({
   const { userId, authResolved, session } = useAuth()
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
+  const trainingFlowRef = useRef<HTMLDivElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
   const finishRef = useRef<HTMLDivElement | null>(null)
   const starterCheckRef = useRef<HTMLDivElement | null>(null)
@@ -971,7 +972,14 @@ export default function PlayerLiveWorkbench({
     setQuestCreditMessage('')
     setFinishSummary(null)
     setScoringDrillId('')
-    setEditingStep('work')
+    openEditingStep('work')
+  }
+
+  function openEditingStep(step: Exclude<EditingStep, null>) {
+    setEditingStep(step)
+    window.setTimeout(() => {
+      trainingFlowRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
   }
 
   function chooseContext(nextContext: TrainingContext) {
@@ -1413,10 +1421,7 @@ export default function PlayerLiveWorkbench({
     setPressureRepeatCue('')
     setQuestCreditMessage('')
     setFinishSummary(null)
-    setEditingStep('focus')
-    window.setTimeout(() => {
-      document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    }, 0)
+    openEditingStep('focus')
   }
 
   function moveToSuggestedDrill() {
@@ -1770,13 +1775,13 @@ export default function PlayerLiveWorkbench({
         <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : formatFocusTitle(activeFocus.title)}</strong>
         <p>{workTypeLabels[workType]} / {contextLabels[context]}</p>
         <div className={styles.liveCompactEdits} aria-label="Change Level Up choices">
-          <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => setEditingStep('focus')}>
+          <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => openEditingStep('focus')}>
             Focus
           </button>
-          <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => setEditingStep('work')}>
+          <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => openEditingStep('work')}>
             Work
           </button>
-          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
+          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => openEditingStep('setup')}>
             Setup
           </button>
         </div>
@@ -2200,7 +2205,7 @@ export default function PlayerLiveWorkbench({
         <span>Go</span>
       </div>
 
-      <div className={styles.liveTrainingFlow}>
+      <div ref={trainingFlowRef} className={styles.liveTrainingFlow}>
         <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'focus' ? 'true' : 'false'}>
           <span>1. Focus</span>
           <strong>Choose today&apos;s target.</strong>
