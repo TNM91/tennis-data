@@ -43,6 +43,7 @@ import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
+import { preloadTeamConnections } from '@/lib/team-profile-links-client'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -338,6 +339,14 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
   const selectedPinnedPortalShortcutPosition = selectedPinnedPortalShortcutId
     ? draftPinnedPortalShortcutIds.indexOf(selectedPinnedPortalShortcutId) + 1
     : 0
+
+  useEffect(() => {
+    const accessToken = session?.access_token || ''
+    if (!authResolved || !userId || !accessToken) return
+
+    const preloadTimer = window.setTimeout(() => preloadTeamConnections(accessToken), 0)
+    return () => window.clearTimeout(preloadTimer)
+  }, [authResolved, session?.access_token, userId])
 
   useEffect(() => {
     let active = true
@@ -1035,7 +1044,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                     authenticated={authenticated}
                     accessPending={accessPending}
                     profileLinked={profileLinked}
-                    active={isPortalTaskActive(currentPortalPath, shortcut.href)}
+                    active={shortcut.kind === 'lane'
+                      ? shortcut.laneId === activeLane.id
+                      : isPortalTaskActive(currentPortalPath, shortcut.href)}
                     attentionCount={shortcut.laneId === 'club' ? clubAttentionCount : 0}
                     onActivate={handlePinnedPortalShortcutActivate}
                   />
@@ -1495,6 +1506,7 @@ function MobilePortalShortcutTile({
   return (
     <Link
       href={target.href}
+      prefetch
       onClick={(event) => onActivate(event, shortcut, target.href)}
       data-portal-shortcut={shortcut.id}
       aria-current={active ? 'page' : undefined}
