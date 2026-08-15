@@ -7,6 +7,7 @@ import {
 } from '@/app/components/public-command-center'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import ClubCommunicationAttentionCard from '@/app/components/club-communication-attention-card'
+import { ProductTourHomeSpotlight } from '@/app/components/product-tour-video'
 import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
@@ -56,6 +57,7 @@ export default function HomePage() {
           showSearchResults={false}
           showBoard={false}
         />
+        <ProductTourHomeSpotlight />
         <GuestTierPreview />
       </main>
     </PublicPageShell>

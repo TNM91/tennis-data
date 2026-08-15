@@ -21,6 +21,8 @@ import {
 } from '@/lib/pricing-plans'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ProductTourVideoButton from '@/app/components/product-tour-video'
+import { PRICING_PLAN_VIDEO_IDS } from '@/lib/product-tour-videos'
 
 const PLAN_ICON_BY_ID: Record<CorePricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
@@ -317,7 +319,17 @@ function PricingContent() {
                     ))}
                   </ul>
                 ) : null}
-                {isMobile ? planCta : null}
+                {isMobile ? (
+                  <div style={compactPlanActionStackStyle}>
+                    {isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="compact"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
                 {!isMobile ? (
                   <details className="pricingPlanDetails" style={planDetailsStyle}>
                     <summary style={planDetailsSummaryStyle}>Best for and what opens</summary>
@@ -334,7 +346,17 @@ function PricingContent() {
                     </div>
                   </details>
                 ) : null}
-                {!isMobile ? planCta : null}
+                {!isMobile ? (
+                  <div style={planActionStackStyle}>
+                    {!isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="secondary"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
               </article>
             )
           })}
@@ -369,6 +391,18 @@ function PricingContent() {
           })}
         </div>
         <p style={{ ...smallTextStyle, marginTop: 14 }}>{CLUB_PLAN_STORY.workspaceBoundary} {CLUB_PLAN_STORY.boundary}</p>
+        <div style={clubVideoCalloutStyle}>
+          <div style={clubVideoCopyStyle}>
+            <strong>See the connected Club experience.</strong>
+            <span>Watch how Club brings staff, players, programs, teams, leagues, and events together.</span>
+          </div>
+          <ProductTourVideoButton
+            videoId="club"
+            variant="secondary"
+            label="Watch Club overview"
+            source="pricing-club-plans"
+          />
+        </div>
       </section>
 
       <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">
@@ -659,6 +693,43 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const planActionStackStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  alignItems: 'center',
+}
+
+const compactPlanActionStackStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
+  minWidth: 0,
+}
+
+const clubVideoCalloutStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+}
+
+const clubVideoCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 420px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.5,
 }
 
 const detailsSectionStyle: CSSProperties = {

@@ -33,6 +33,8 @@ describe('Help and Resources', () => {
   })
 
   it('routes setup, data, FAQ, and support to working destinations', () => {
+    expect(source).toContain("href: '/resources/platform-tour'")
+    expect(source).toContain("secondaryHref: '/how-it-works'")
     expect(source).toContain("href: '/profile'")
     expect(source).toContain("href: '/resources/usta-upload'")
     expect(source).toContain("secondaryHref: '/data-assist?intent=upload-source&context=Resources'")
