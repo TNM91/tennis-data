@@ -1,9 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { buildProductAccessState, normalizeSubscriptionStatus } from '@/lib/access-model-core'
+import { normalizeUserRole } from '@/lib/roles'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
 
 type EntrantProfilesBody = {
+  tournamentId?: unknown
   entrants?: unknown
   selfRating?: unknown
 }
@@ -12,6 +15,22 @@ type PlayerRow = {
   id: string
   name: string
   rating_source?: string | null
+}
+
+type ProfileEntitlementRow = {
+  role?: string | null
+  player_plus_subscription_active?: boolean | null
+  player_plus_subscription_status?: string | null
+  player_plus_access_expires_at?: string | null
+  coach_subscription_active?: boolean | null
+  coach_subscription_status?: string | null
+  coach_access_expires_at?: string | null
+  captain_subscription_active?: boolean | null
+  captain_subscription_status?: string | null
+  captain_access_expires_at?: string | null
+  tiq_team_league_entry_enabled?: boolean | null
+  tiq_individual_league_creator_enabled?: boolean | null
+  league_access_expires_at?: string | null
 }
 
 const PLAYER_SELECT_WITH_SOURCE = 'id,name,rating_source'
@@ -24,9 +43,7 @@ export async function POST(request: Request) {
   }
 
   const requester = await getRequesterUser(token)
-  if (!requester.userId) {
-    return Response.json({ ok: false, message: 'Sign in to create tournament player profiles.' }, { status: 401 })
-  }
+  if (!requester.ok) return requester.response
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!serviceKey) {
@@ -41,8 +58,28 @@ export async function POST(request: Request) {
   }
 
   const entrants = normalizeEntrants(body.entrants)
+  const tournamentId = cleanPlayerName(body.tournamentId)
+  if (!tournamentId) {
+    return Response.json({ ok: false, message: 'Choose a tournament before creating player profiles.' }, { status: 400 })
+  }
   if (!entrants.length) {
     return Response.json({ ok: false, message: 'Add tournament entrants before creating player profiles.' }, { status: 400 })
+  }
+  if (entrants.length > 64) {
+    return Response.json({ ok: false, message: 'Create no more than 64 player profiles at a time.' }, { status: 413 })
+  }
+
+  const ownership = await requester.supabase
+    .from('tiq_tournaments')
+    .select('id,created_by_user_id')
+    .eq('id', tournamentId)
+    .maybeSingle()
+  if (ownership.error) {
+    console.error('Tournament profile ownership lookup failed', ownership.error)
+    return Response.json({ ok: false, message: 'Tournament ownership could not be verified.' }, { status: 503 })
+  }
+  if (ownership.data?.created_by_user_id !== requester.userId) {
+    return Response.json({ ok: false, message: 'You can only create profiles for a tournament you created.' }, { status: 403 })
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
@@ -64,8 +101,9 @@ export async function POST(request: Request) {
       players,
     })
   } catch (error) {
+    console.error('Tournament entrant profile sync failed', error)
     return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Unable to create tournament player profiles.' },
+      { ok: false, message: 'Unable to create tournament player profiles.' },
       { status: 500 },
     )
   }
@@ -86,8 +124,50 @@ async function getRequesterUser(token: string) {
   })
   const { data, error } = await supabase.auth.getUser(token)
 
-  if (error) return { userId: undefined }
-  return { userId: data.user?.id }
+  const userId = data.user?.id
+  if (error || !userId) {
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: 'Sign in to create tournament player profiles.' }, { status: 401 }),
+    }
+  }
+
+  const profileResult = await supabase
+    .from('profiles')
+    .select('role,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at,coach_subscription_active,coach_subscription_status,coach_access_expires_at,captain_subscription_active,captain_subscription_status,captain_access_expires_at,tiq_team_league_entry_enabled,tiq_individual_league_creator_enabled,league_access_expires_at')
+    .eq('id', userId)
+    .maybeSingle()
+  if (profileResult.error) {
+    console.error('Tournament profile entitlement lookup failed', profileResult.error)
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: 'Tournament access could not be verified.' }, { status: 503 }),
+    }
+  }
+
+  const profile = (profileResult.data || {}) as ProfileEntitlementRow
+  const access = buildProductAccessState(normalizeUserRole(profile.role), {
+    playerPlusSubscriptionActive: Boolean(profile.player_plus_subscription_active),
+    playerPlusSubscriptionStatus: normalizeSubscriptionStatus(profile.player_plus_subscription_status),
+    playerPlusAccessExpiresAt: profile.player_plus_access_expires_at || null,
+    coachSubscriptionActive: Boolean(profile.coach_subscription_active),
+    coachSubscriptionStatus: normalizeSubscriptionStatus(profile.coach_subscription_status),
+    coachAccessExpiresAt: profile.coach_access_expires_at || null,
+    captainSubscriptionActive: Boolean(profile.captain_subscription_active),
+    captainSubscriptionStatus: normalizeSubscriptionStatus(profile.captain_subscription_status),
+    captainAccessExpiresAt: profile.captain_access_expires_at || null,
+    tiqTeamLeagueEntryEnabled: Boolean(profile.tiq_team_league_entry_enabled),
+    tiqIndividualLeagueCreatorEnabled: Boolean(profile.tiq_individual_league_creator_enabled),
+    leagueAccessExpiresAt: profile.league_access_expires_at || null,
+  })
+  if (!access.canUseLeagueTools) {
+    return {
+      ok: false as const,
+      response: Response.json({ ok: false, message: 'League access is required to create tournament player profiles.' }, { status: 403 }),
+    }
+  }
+
+  return { ok: true as const, userId, supabase }
 }
 
 async function findOrCreateSelfRatedPlayer(supabase: SupabaseClient, name: string, rating: number) {

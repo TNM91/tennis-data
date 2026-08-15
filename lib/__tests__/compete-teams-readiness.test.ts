@@ -111,7 +111,7 @@ describe('compete teams readiness', () => {
     expect(source).toContain('teamReadinessItems')
     expect(source).toContain("label: 'Leagues'")
     expect(source).toContain("label: 'History'")
-    expect(source).toContain("label: 'Captain'")
+    expect(source).toContain("label: 'Team chat'")
     expect(source).toContain('Build lineup')
     expect(source).toContain('Open team')
     expect(source).toContain('teamReadinessGridStyle')
@@ -123,12 +123,10 @@ describe('compete teams readiness', () => {
 
   it('keeps the empty Teams state actionable and mobile-safe', () => {
     expect(source).toContain('function EmptyTeamsState')
-    expect(source).toContain('Team tools start with one real team signal.')
+    expect(source).toContain('No linked teams yet.')
     expect(source).toContain("const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'")
     expect(source).not.toContain('context=Compete%20teams')
     expect(source).toContain("href: dataAssistTeamsHref")
-    expect(source).toContain('Create team league')
-    expect(source).toContain('Refresh team data')
     expect(source).toContain('Browse teams')
     expect(source).not.toContain('No TIQ team entries are visible yet.')
     expect(styleBlock('emptyTeamsStyle')).toContain('minWidth: 0')

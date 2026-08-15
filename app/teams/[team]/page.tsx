@@ -7,7 +7,9 @@ import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
+  buildExploreLeagueHref,
   getCompetitionLayerLabel,
   inferCompetitionLayerFromValues,
 } from '@/lib/competition-layers'
@@ -20,6 +22,7 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -34,7 +37,8 @@ import {
 } from '@/lib/match-accuracy-reports'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { loadUserProfileLink } from '@/lib/user-profile'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { isProfileLinkedToTeam } from '@/lib/team-membership'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
@@ -294,9 +298,11 @@ function TeamPageContent() {
   const [teamAwards, setTeamAwards] = useState<TiqAwardRecord[]>([])
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const [profileLink, setProfileLink] = useState<UserProfileLink | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { userId: currentUserId, authResolved } = useAuth()
+  const { userId: currentUserId, authResolved, role, entitlements } = useAuth()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
 
   useEffect(() => {
     if (!authResolved) return
@@ -304,6 +310,7 @@ function TeamPageContent() {
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setLinkedPlayerName('')
+      setProfileLink(null)
       setMyMatchReports([])
       return
     }
@@ -313,6 +320,7 @@ function TeamPageContent() {
     void (async () => {
       const result = await loadUserProfileLink(currentUserId)
       if (!active) return
+      setProfileLink(result.data)
       setLinkedPlayerId(result.data?.linked_player_id || null)
       setLinkedPlayerName(result.data?.linked_player_name || '')
     })()
@@ -896,6 +904,22 @@ function TeamPageContent() {
     })
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
+  const isLinkedTeamMember = useMemo(() => (
+    Boolean(currentUserId) && isProfileLinkedToTeam(
+      profileLink,
+      rosterMembers.map((entry) => entry.player_id),
+      team,
+      leagueFilter || teamMeta.league,
+      flightFilter || teamMeta.flight,
+    )
+  ), [currentUserId, flightFilter, leagueFilter, profileLink, rosterMembers, team, teamMeta.flight, teamMeta.league])
+
+  const teamChatPlayerIds = useMemo(() => Array.from(new Set(
+    rosterMembers
+      .map((entry) => cleanText(entry.player_id))
+      .filter((playerId) => playerId && !playerId.startsWith('summary:')),
+  )), [rosterMembers])
+
   const teamExistsFromSummary = summaryTeams.length > 0
   const hasTeamAnalysisData = matches.length > 0 || roster.length > 0 || tiqParticipations.length > 0 || teamAwards.length > 0
 
@@ -1262,6 +1286,21 @@ function TeamPageContent() {
     leagueName: teamMeta.league,
     flight: teamMeta.flight,
   })
+  const teamLeagueHref = teamMeta.league
+    ? buildExploreLeagueHref({
+        competitionLayer,
+        leagueFormat: 'team',
+        leagueName: teamMeta.league,
+        flight: teamMeta.flight,
+        ustaSection: teamMeta.section,
+        districtArea: teamMeta.district,
+      })
+    : ''
+  const currentTeamHref = buildTeamProfileHref(team, {
+    layer: competitionLayer,
+    league: leagueFilter || teamMeta.league,
+    flight: flightFilter || teamMeta.flight,
+  })
   const teamSignals = [
     {
       label: 'League type',
@@ -1311,12 +1350,12 @@ function TeamPageContent() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              See the roster, recent form, singles strength, doubles options, and the Team Hub context that helps captains plan the week.
+              See the roster, recent form, singles strength, doubles options, and the team context that keeps players informed and helps captains plan.
             </p>
 
             <div style={heroBadgeRow}>
               <span style={badgeSlate}>{getCompetitionLayerLabel(competitionLayer)}</span>
-              {teamMeta.league ? <span style={badgeBlue}>{teamMeta.league}</span> : null}
+              {teamLeagueHref ? <Link href={teamLeagueHref} style={{ ...badgeBlue, textDecoration: 'none' }}>{teamMeta.league}</Link> : null}
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
               {teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
               <span style={badgeSlate}>{matches.length} matches tracked</span>
@@ -1333,8 +1372,24 @@ function TeamPageContent() {
             </div>
 
             <div style={dynamicHeroActions}>
-              <PrimaryLink href={captainLinks[1].href}>Open lineup builder</PrimaryLink>
-              <SecondaryLink href={captainLinks[0].href}>Check availability</SecondaryLink>
+              {access.canUseCaptainWorkflow ? (
+                <>
+                  <PrimaryLink href={captainLinks[1].href}>Open lineup builder</PrimaryLink>
+                  <SecondaryLink href={captainLinks[0].href}>Check availability</SecondaryLink>
+                </>
+              ) : isLinkedTeamMember ? (
+                <>
+                  <PrimaryLink href="#team-chat">Open team chat</PrimaryLink>
+                  <SecondaryLink href="#team-schedule">Team schedule</SecondaryLink>
+                </>
+              ) : currentUserId ? (
+                <PrimaryLink href="/profile">Link this team</PrimaryLink>
+              ) : (
+                <>
+                  <PrimaryLink href={`/join?next=${encodeURIComponent(currentTeamHref)}`}>Register Free</PrimaryLink>
+                  <SecondaryLink href={`/login?next=${encodeURIComponent(currentTeamHref)}`}>Sign in</SecondaryLink>
+                </>
+              )}
               <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
@@ -1425,7 +1480,94 @@ function TeamPageContent() {
           </div>
         </section>
 
-        <section style={teamWeekPathStyle(isTablet)} aria-label="Team week path">
+        <section id="team-home" style={memberTeamPanelStyle} aria-label="Team member space">
+          <div style={memberTeamHeaderStyle}>
+            <div style={memberTeamCopyStyle}>
+              <p style={sectionKicker}>Team space</p>
+              <h2 style={sectionTitle}>
+                {!authResolved
+                  ? 'Checking your team access...'
+                  : !currentUserId
+                    ? 'Register to join your team.'
+                    : isLinkedTeamMember
+                      ? 'Your team is connected.'
+                      : 'Link this team to collaborate.'}
+              </h2>
+              <p style={bodyText}>
+                {!authResolved
+                  ? 'Your roster link determines which private team tools open here.'
+                  : !currentUserId
+                    ? 'Public stats stay open. A Free account unlocks the private team space after your roster or invitation is linked.'
+                    : isLinkedTeamMember
+                      ? 'Roster, schedule, stats, and team chat stay together here. Your plan adds personalized or captain tools without taking away team access.'
+                      : 'You can keep reading public stats. Link your player profile or accept a captain invitation to open this team’s private chat and collaboration tools.'}
+              </p>
+            </div>
+
+            <nav style={memberTeamNavStyle} aria-label={`${team} team sections`}>
+              <Link href="#team-home" style={memberTeamNavLinkStyle}>Home</Link>
+              <Link href="#team-schedule" style={memberTeamNavLinkStyle}>Schedule</Link>
+              <Link href="#team-stats" style={memberTeamNavLinkStyle}>Stats</Link>
+              <Link href="#team-roster" style={memberTeamNavLinkStyle}>Roster</Link>
+              <Link href="#team-chat" style={memberTeamNavLinkStyle}>Team chat</Link>
+            </nav>
+          </div>
+
+          <div id="team-chat" style={teamChatPanelStyle}>
+            <div style={memberTeamCopyStyle}>
+              <span style={teamChatLabelStyle}>Team chat</span>
+              <strong style={teamChatTitleStyle}>
+                {isLinkedTeamMember ? 'Talk with the roster.' : 'Private for linked team members.'}
+              </strong>
+              <span style={teamChatTextStyle}>
+                {isLinkedTeamMember
+                  ? 'Start or continue the team conversation. Replies also appear in your Messages inbox.'
+                  : 'Register and connect this team to join its conversation.'}
+              </span>
+            </div>
+            <div style={memberTeamActionsStyle}>
+              {isLinkedTeamMember ? (
+                <QuickMessageComposer
+                  mode="team"
+                  triggerLabel="Open team chat"
+                  subject={`${team} team chat`}
+                  leagueName={team}
+                  teamName={team}
+                  teamLeagueName={leagueFilter || teamMeta.league}
+                  teamFlight={flightFilter || teamMeta.flight}
+                  entityType="team"
+                  entityId={stableFollowId}
+                  participantPlayerIds={teamChatPlayerIds}
+                />
+              ) : currentUserId ? (
+                <Link href="/profile" style={memberTeamPrimaryLinkStyle}>Link player profile</Link>
+              ) : (
+                <>
+                  <Link href={`/join?next=${encodeURIComponent(currentTeamHref)}`} style={memberTeamPrimaryLinkStyle}>Register Free</Link>
+                  <Link href={`/login?next=${encodeURIComponent(currentTeamHref)}`} style={memberTeamSecondaryLinkStyle}>Sign in</Link>
+                </>
+              )}
+            </div>
+          </div>
+
+          {isLinkedTeamMember && access.canUseAdvancedPlayerInsights ? (
+            <div style={playerTeamToolsStyle}>
+              <div style={memberTeamCopyStyle}>
+                <span style={teamChatLabelStyle}>Player tools</span>
+                <strong style={teamChatTitleStyle}>Turn team context into your next improvement.</strong>
+                <span style={teamChatTextStyle}>Bring this roster, your match history, and the next opponent into My Lab and matchup prep.</span>
+              </div>
+              <div style={memberTeamActionsStyle}>
+                <Link href="/mylab" style={memberTeamPrimaryLinkStyle}>Open My Lab</Link>
+                <Link href="/matchup" style={memberTeamSecondaryLinkStyle}>Prep matchup</Link>
+                <Link href={ROSTER_LEVEL_UP_HREF} style={memberTeamSecondaryLinkStyle}>Level Up</Link>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        {access.canUseCaptainWorkflow ? (
+        <section style={teamWeekPathStyle(isTablet)} aria-label="Captain team week tools">
           <div style={teamWeekPathCopyStyle}>
             <p style={sectionKicker}>Team week path</p>
             <h2 style={teamWeekPathTitleStyle}>Answer match week from your phone.</h2>
@@ -1449,6 +1591,7 @@ function TeamPageContent() {
             ))}
           </div>
         </section>
+        ) : null}
 
         <details style={detailDrawerStyle}>
           <summary style={detailDrawerSummaryStyle}>
@@ -1486,19 +1629,19 @@ function TeamPageContent() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
-              This team can exist from a reviewed team summary before results arrive. Use the roster and Team Hub now,
+              This team can exist from a reviewed team summary before results arrive. Use the roster and team space now,
               then reviewed Data Assist scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>
               <SecondaryLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</SecondaryLink>
               <SecondaryLink href="/teams">Browse all teams</SecondaryLink>
-              <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink>
+              {access.canUseCaptainWorkflow ? <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink> : <GhostLink href="#team-home">Open team space</GhostLink>}
             </div>
           </section>
         ) : null}
 
         {hasTeamAnalysisData ? (
-        <section style={dynamicMetricGrid}>
+        <section style={dynamicMetricGrid} id="team-stats">
           <section style={signalGridStyle(isSmallMobile)}>
             {teamSignals.map((signal) => (
               <article key={signal.label} style={signalCardStyle}>
@@ -1748,7 +1891,7 @@ function TeamPageContent() {
         ) : null}
 
         {matches.length ? (
-        <section style={surfaceCard} id="team-roster">
+        <section style={surfaceCard} id="team-schedule">
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Recent Form</p>
@@ -1766,7 +1909,7 @@ function TeamPageContent() {
                 <span style={{ padding: '4px 12px', borderRadius: 999, background: 'rgba(15, 23, 42, 0.68)', border: '1px solid rgba(125, 211, 252, 0.18)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
               <div style={tableWrap}>
-                <table style={{ ...dataTable, minWidth: 0 }}>
+                <table style={dataTable}>
                   <thead>
                     <tr>
                       {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
@@ -1821,7 +1964,7 @@ function TeamPageContent() {
               </div>
             ) : null}
             <div style={tableWrap}>
-              <table style={dataTable}>
+              <table style={{ ...dataTable, minWidth: 720 }}>
                 <thead>
                   <tr>
                     <th style={tableHeaderCell}>Date</th>
@@ -1915,7 +2058,7 @@ function TeamPageContent() {
         ) : null}
 
         {roster.length ? (
-        <section style={surfaceCard}>
+        <section style={surfaceCard} id="team-roster">
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Roster</p>
@@ -2025,7 +2168,7 @@ function TeamPageContent() {
               </div>
 
               <div style={tableWrap}>
-                <table style={dataTable}>
+                <table style={{ ...dataTable, minWidth: 980 }}>
                   <thead>
                     <tr>
                       <th style={tableHeaderCell}>Compare</th>
@@ -2247,6 +2390,36 @@ const pageContent: CSSProperties = {
   overflowX: 'clip',
 }
 
+const memberTeamPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055)), rgba(8,16,34,0.82)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  scrollMarginTop: 120,
+}
+
+const memberTeamHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  alignItems: 'end',
+  gap: 14,
+}
+
+const memberTeamCopyStyle: CSSProperties = { display: 'grid', gap: 6, minWidth: 0 }
+const memberTeamNavStyle: CSSProperties = { display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }
+const memberTeamNavLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 36, padding: '7px 11px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.16)', background: 'rgba(7,17,33,0.7)', color: 'var(--foreground-strong)', textDecoration: 'none', fontSize: 12, fontWeight: 900 }
+const teamChatPanelStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', alignItems: 'center', gap: 14, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.16)', background: 'rgba(7,17,33,0.68)', scrollMarginTop: 120 }
+const teamChatLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 950, letterSpacing: '0.07em', textTransform: 'uppercase' }
+const teamChatTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 18, lineHeight: 1.2, fontWeight: 950 }
+const teamChatTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.55 }
+const memberTeamActionsStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 9 }
+const memberTeamPrimaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 38, padding: '8px 13px', borderRadius: 999, border: '1px solid rgba(155,225,29,0.34)', background: 'rgba(155,225,29,0.13)', color: 'var(--foreground-strong)', textDecoration: 'none', fontSize: 12, fontWeight: 950 }
+const memberTeamSecondaryLinkStyle: CSSProperties = { ...memberTeamPrimaryLinkStyle, border: '1px solid rgba(116,190,255,0.16)', background: 'rgba(255,255,255,0.04)' }
+const playerTeamToolsStyle: CSSProperties = { ...teamChatPanelStyle, border: '1px solid rgba(155,225,29,0.18)', background: 'rgba(155,225,29,0.055)' }
+
 const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
@@ -2266,7 +2439,7 @@ const watermarkStyle: CSSProperties = {
   top: '-118px',
   width: 'min(100%, 310px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -3281,7 +3454,7 @@ const tableWrap: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 0,
+  minWidth: 680,
 }
 
 const tableHeaderCell: CSSProperties = {
@@ -3292,8 +3465,7 @@ const tableHeaderCell: CSSProperties = {
   fontSize: '12px',
   textTransform: 'uppercase',
   letterSpacing: '.06em',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
 }
 
 const tableCell: CSSProperties = {
@@ -3301,7 +3473,7 @@ const tableCell: CSSProperties = {
   borderTop: '1px solid rgba(125, 211, 252, 0.14)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
-  overflowWrap: 'anywhere',
+  overflowWrap: 'normal',
 }
 
 const scoreCellStackStyle: CSSProperties = {

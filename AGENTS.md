@@ -28,3 +28,13 @@ Default to focused, low-noise iteration:
 - Save full verification (`lint`, `typecheck`, full test suite, build, and live smoke when relevant) for the final pass before opening, merging, or shipping a PR.
 - Keep CI and deployment polling quiet: check status at useful intervals and report only actionable failures, completion, or a clear blocker.
 - Do not skip full verification for broad, risky, shared, or production-facing changes; run it once the focused loop says the change is ready.
+
+## TenAceIQ Brand Source of Truth
+
+Use only `public/brand/` as the production source of truth for TenAceIQ logos, app icons, favicons, social cards, and approved wallpapers. Read `public/brand/docs/MANIFEST.txt` and `public/brand/docs/CODEX_IMPLEMENTATION_PROMPT.txt` before changing brand presentation.
+
+- Do not source TenAceIQ artwork from generated `output/`, `artifacts/`, `deliverables/`, screenshots, old worktrees, temporary folders, or presentation exports.
+- Never restore the retired `public/tiq/logo/`, `public/tenaceiq/logos/`, or `public/tenaceiq-icon-*` asset families.
+- Root browser compatibility files are deployment aliases derived from `public/brand/icons/`; they are not editable masters.
+- `components/brand/TiqFeatureIcon.tsx` is the approved product-navigation icon system, not a source for the TenAceIQ logo.
+- Do not redraw, filter, recolor, crop, stretch, round, or otherwise reinterpret supplied brand artwork.

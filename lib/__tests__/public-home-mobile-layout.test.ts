@@ -304,9 +304,9 @@ describe('Public home mobile layout guards', () => {
   })
 
   it('keeps public hub routes mapped to the right mobile portal lane', () => {
-    expect(portalToolbarSource).toContain("label: 'Captain'")
-    expect(portalToolbarSource).toContain("cue: 'Team Hub and match week'")
-    expect(portalToolbarSource).toContain("if (laneId === 'team') return 'Captain'")
+    expect(portalToolbarSource).toContain("label: 'Teams'")
+    expect(portalToolbarSource).toContain("cue: 'Your teams and match week'")
+    expect(portalToolbarSource).toContain("if (laneId === 'team') return 'Teams'")
     expect(portalToolbarSource).toContain("paths: ['/coach', '/coaches', '/player-development', '/tactics']")
     expect(portalToolbarSource).toContain("paths: ['/captain', '/manage', '/compete/teams']")
     expect(portalToolbarSource).toContain("'/player-development', '/resources', '/tactics'")

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -51,33 +51,31 @@ export default function TournamentPreferencesPage() {
 
 function TournamentPreferencesInner() {
   const params = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
   const tournamentId = decodeURIComponent(params?.id || '')
+  const preferenceToken = searchParams.get('token')?.trim() || ''
   const { isMobile } = useViewportBreakpoints()
   const [record, setRecord] = useState<TiqTournamentRecord | null>(null)
   const [loading, setLoading] = useState(true)
-  const [playerName, setPlayerName] = useState('')
-  const [phone, setPhone] = useState('')
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
-  const [focusedField, setFocusedField] = useState<string | null>(null)
   const [preferenceReceipt, setPreferenceReceipt] = useState<{
     status: 'on' | 'off'
     phone: string
     savedAt: string
   } | null>(null)
-  const phoneReady = phone.trim().length >= 7
-  const nameReady = playerName.trim().length > 1
+  const tokenReady = preferenceToken.length >= 32
   const consentSteps = [
     {
-      label: 'Name',
-      value: nameReady ? 'Matched' : 'Needed',
-      ready: nameReady,
+      label: 'Private link',
+      value: tokenReady ? 'Verified' : 'Needed',
+      ready: tokenReady,
     },
     {
-      label: 'Phone',
-      value: phoneReady ? 'Ready' : 'Needed',
-      ready: phoneReady,
+      label: 'Event',
+      value: record ? 'Ready' : 'Loading',
+      ready: Boolean(record),
     },
     {
       label: 'Choice',
@@ -106,6 +104,10 @@ function TournamentPreferencesInner() {
 
   async function submitPreference(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!tokenReady) {
+      setNotice('Use the private alert link provided after tournament entry.')
+      return
+    }
     setSaving(true)
     setNotice('')
 
@@ -115,17 +117,16 @@ function TournamentPreferencesInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tournamentId,
-          playerName,
-          phone,
+          token: preferenceToken,
           smsOptIn,
         }),
       })
-      const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+      const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string; phoneLastFour?: string } | null
       if (!response.ok || !body?.ok) throw new Error(body?.message || 'Preference could not be saved.')
       setNotice(body.message || 'Preference saved.')
       setPreferenceReceipt({
         status: smsOptIn ? 'on' : 'off',
-        phone,
+        phone: body.phoneLastFour ? `•••• ${body.phoneLastFour}` : 'Phone on entry',
         savedAt: new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
       })
     } catch (error) {
@@ -151,7 +152,7 @@ function TournamentPreferencesInner() {
           <div>
             <div style={eyebrowStyle}>Tournament Alerts</div>
             <h1 style={{ ...titleStyle, ...(isMobile ? compactTitleStyle : null) }}>{loading ? 'Loading preferences.' : record?.name || 'Manage text alerts.'}</h1>
-            <p style={{ ...textStyle, display: isMobile ? 'none' : undefined }}>Use the same name and phone number from your tournament entry. Changes are saved for this tournament only.</p>
+            <p style={{ ...textStyle, display: isMobile ? 'none' : undefined }}>Use the private link created with your tournament entry. Changes apply to this event only.</p>
           </div>
         </div>
 
@@ -173,35 +174,7 @@ function TournamentPreferencesInner() {
         </div>
 
         <form style={{ ...formStyle, gap: isMobile ? 9 : formStyle.gap }} onSubmit={submitPreference}>
-          <label style={fieldStyle}>
-            Name
-            <input
-              value={playerName}
-              onChange={(event) => setPlayerName(event.target.value)}
-              onFocus={() => setFocusedField('name')}
-              onBlur={() => setFocusedField(null)}
-              style={{
-                ...inputStyle,
-                ...(isMobile ? compactInputStyle : null),
-                ...(focusedField === 'name' ? inputFocusStyle : null),
-              }}
-            />
-          </label>
-          <label style={fieldStyle}>
-            Phone
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              onFocus={() => setFocusedField('phone')}
-              onBlur={() => setFocusedField(null)}
-              placeholder="(555) 555-5555"
-              style={{
-                ...inputStyle,
-                ...(isMobile ? compactInputStyle : null),
-                ...(focusedField === 'phone' ? inputFocusStyle : null),
-              }}
-            />
-          </label>
+          {!tokenReady ? <div style={noticeStyle}>Open the private alert link supplied after you enter the tournament.</div> : null}
           <label style={{ ...toggleStyle, ...(isMobile ? compactToggleStyle : null) }}>
             <input type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
             <span style={toggleCopyStyle}>
@@ -212,7 +185,7 @@ function TournamentPreferencesInner() {
           <div style={{ ...complianceNoteStyle, display: isMobile ? 'none' : undefined }}>
             Every text includes a TenAceIQ link and opt-out language. Reply STOP anytime.
           </div>
-          <button type="submit" disabled={saving} style={{ ...buttonStyle, ...(isMobile ? compactButtonStyle : null), ...(saving ? disabledButtonStyle : null) }}>
+          <button type="submit" disabled={saving || !tokenReady} style={{ ...buttonStyle, ...(isMobile ? compactButtonStyle : null), ...(saving || !tokenReady ? disabledButtonStyle : null) }}>
             {saving ? 'Saving...' : smsOptIn ? 'Turn alerts on' : 'Turn alerts off'}
           </button>
           {notice ? <div style={noticeStyle}>{notice}</div> : null}
@@ -341,7 +314,7 @@ const watermarkStyle: CSSProperties = {
   bottom: -120,
   width: 'min(100%, 320px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -662,44 +635,6 @@ const readinessDotWaitingStyle: CSSProperties = {
   ...readinessDotReadyStyle,
   background: 'rgba(116,190,255,0.46)',
   boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
-}
-
-const fieldStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  color: 'var(--accent-blue)',
-  fontSize: 12,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  minWidth: 0,
-  minHeight: 48,
-  padding: '0 14px',
-  borderRadius: 14,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(15,23,42,0.72)',
-  color: 'var(--foreground-strong)',
-  fontSize: 15,
-  fontWeight: 850,
-  outline: '2px solid transparent',
-  outlineOffset: 2,
-  boxSizing: 'border-box',
-}
-
-const compactInputStyle: CSSProperties = {
-  minHeight: 42,
-  padding: '0 11px',
-  borderRadius: 10,
-  fontSize: 14,
-}
-
-const inputFocusStyle: CSSProperties = {
-  borderColor: 'rgba(155,225,29,0.45)',
-  outline: '2px solid rgba(155,225,29,0.42)',
-  boxShadow: '0 0 0 5px rgba(155,225,29,0.12)',
 }
 
 const toggleStyle: CSSProperties = {

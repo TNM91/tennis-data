@@ -23,6 +23,8 @@ import {
   type TiqTournamentRecord,
 } from '@/lib/tiq-tournament-registry'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { getClubCompetitionRatingModeLabel, getClubCompetitionRatingModeShortDescription } from '@/lib/club-competition'
+import { normalizeClubCompetitionRatingMode } from '@/lib/club-competition'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +66,7 @@ function TournamentPublicInner() {
   const [entryRating, setEntryRating] = useState('3.5')
   const [entrySmsOptIn, setEntrySmsOptIn] = useState(false)
   const [entryNotice, setEntryNotice] = useState('')
+  const [entryPreferenceHref, setEntryPreferenceHref] = useState('')
   const [entrySubmitting, setEntrySubmitting] = useState(false)
   const [entryFocusedField, setEntryFocusedField] = useState<string | null>(null)
 
@@ -77,7 +80,8 @@ function TournamentPublicInner() {
       if (!active) return
       setRecord(result.data)
       setSource(result.source)
-      setError(result.error?.message || (!result.data ? 'Tournament page is not available.' : ''))
+      if (result.error) console.error('Tournament page lookup failed', result.error)
+      setError(result.error ? 'Tournament page could not be loaded.' : (!result.data ? 'Tournament page is not available.' : ''))
       setLoading(false)
     }
 
@@ -119,6 +123,7 @@ function TournamentPublicInner() {
     return [...groups.entries()].sort(([left], [right]) => left - right)
   }, [matches])
   const tournamentStatus = record ? getPublicTournamentStatus(record, summary?.completedMatches ?? 0, summary?.totalMatches ?? 0) : null
+  const tournamentRatingMode = normalizeClubCompetitionRatingMode(record?.ratingMode)
   const podiumSummary = useMemo(() => buildTournamentPodiumSummary(awards), [awards])
   const publicReadinessItems = record ? [
     {
@@ -149,10 +154,10 @@ function TournamentPublicInner() {
     value: string
   }> = record ? [
     {
-      href: `/tournaments/${encodeURIComponent(record.id)}/preferences`,
+      href: '#enter-tournament',
       icon: 'messagingCenter',
       label: 'Texts',
-      value: scheduledMatches.length ? 'Court alerts' : 'Opt in',
+      value: 'Set on entry',
     },
     {
       href: '/players',
@@ -171,6 +176,7 @@ function TournamentPublicInner() {
   async function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setEntryNotice('')
+    setEntryPreferenceHref('')
     setEntrySubmitting(true)
 
     const result = await submitTiqTournamentEntry({
@@ -195,6 +201,7 @@ function TournamentPublicInner() {
     setEntryPhone('')
     setEntryRating('3.5')
     setEntrySmsOptIn(false)
+    setEntryPreferenceHref(result.preferenceHref || '')
     setEntryNotice('Entry submitted. The director will approve players into the draw.')
   }
 
@@ -262,6 +269,7 @@ function TournamentPublicInner() {
             {record.isPublic ? <a href="#enter-tournament" style={primaryButtonStyle}>Enter tournament</a> : null}
             <a href="#draw" style={secondaryButtonStyle}>View draw</a>
             <span style={pillStyle}>{source === 'cloud' ? (record.isPublic ? 'Public' : 'Director view') : 'Device preview'}</span>
+            <span style={pillStyle}>{getClubCompetitionRatingModeLabel(tournamentRatingMode)} · {getClubCompetitionRatingModeShortDescription(tournamentRatingMode)}</span>
           </div>
         </div>
         <div style={heroPanelStyle}>
@@ -351,6 +359,11 @@ function TournamentPublicInner() {
               {entrySubmitting ? 'Submitting...' : 'Submit entry'}
             </button>
             {entryNotice ? <div style={entryNoticeStyle}>{entryNotice}</div> : null}
+            {entryPreferenceHref ? (
+              <div style={entryNoticeStyle}>
+                <Link href={entryPreferenceHref}>Save your private alert-settings link</Link>
+              </div>
+            ) : null}
           </form>
         </section>
       ) : null}
@@ -652,7 +665,6 @@ function TournamentPublicInner() {
             <span>Enter the tournament, manage alerts, or check back when the director publishes the bracket.</span>
             <div style={publicEmptyActionRowStyle}>
               {record.isPublic ? <a href="#enter-tournament" style={podiumLinkStyle}>Enter</a> : null}
-              <Link href={`/tournaments/${encodeURIComponent(record.id)}/preferences`} style={podiumLinkStyle}>Alert settings</Link>
             </div>
           </div>
         )}
@@ -868,7 +880,7 @@ const watermarkStyle: CSSProperties = {
   top: '-120px',
   width: 'min(100%, 320px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

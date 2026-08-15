@@ -442,6 +442,7 @@ function CoachInviteContent() {
       : ''
   const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)
   const readyToAccept = authResolved && !loading && Boolean(userId) && invite?.status === 'pending' && !acceptBlockedMessage
+  const inviteUnavailable = authResolved && !loading && !invite
 
   const loadInvite = useCallback(async () => {
     if (!token) return
@@ -498,13 +499,18 @@ function CoachInviteContent() {
   }
 
   const studentName = student?.playerName || 'Player'
-  const statusLabel = getInviteStatusLabel(invite?.status)
-  const nextStep = getInviteNextStep({
-    authResolved,
-    loading,
-    status: invite?.status,
-    userId,
-  })
+  const statusLabel = inviteUnavailable ? 'Unavailable' : getInviteStatusLabel(invite?.status)
+  const nextStep = inviteUnavailable
+    ? {
+        title: 'Ask your coach for a new invite.',
+        copy: 'This link is invalid, expired, or no longer available. No coach connection can be accepted from it.',
+      }
+    : getInviteNextStep({
+        authResolved,
+        loading,
+        status: invite?.status,
+        userId,
+      })
 
   return (
     <main style={pageStyles.shell} className="coach-invite-shell">
@@ -553,7 +559,7 @@ function CoachInviteContent() {
               </p>
             ) : null}
 
-            {authResolved && !loading ? (
+            {authResolved && !loading && invite ? (
               <div style={pageStyles.setupCheckCard} aria-label="Coach invite mobile setup check">
                 <span style={pageStyles.eyebrow}>Setup check</span>
                 <div style={pageStyles.setupCheckGrid}>
@@ -616,6 +622,15 @@ function CoachInviteContent() {
             <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
                 <span style={pageStyles.secondaryButton}>Loading invite</span>
+              ) : inviteUnavailable ? (
+                <>
+                  <Link href="/player-development" style={pageStyles.primaryButton}>
+                    Open development paths
+                  </Link>
+                  <Link href="/contact" style={pageStyles.secondaryButton}>
+                    Contact TenAceIQ
+                  </Link>
+                </>
               ) : !userId ? (
                 <>
                   <Link href={loginHref} style={pageStyles.primaryButton}>
@@ -688,7 +703,7 @@ function CoachInviteContent() {
             <div style={pageStyles.card}>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Player</span>
-                <span style={pageStyles.value}>{loading ? 'Loading' : studentName}</span>
+                <span style={pageStyles.value}>{loading ? 'Loading' : inviteUnavailable ? 'Unavailable' : studentName}</span>
               </div>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Invite status</span>
@@ -696,7 +711,7 @@ function CoachInviteContent() {
               </div>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Invited email</span>
-                <span style={pageStyles.value}>{invite?.inviteEmail || 'Open invite'}</span>
+                <span style={pageStyles.value}>{inviteUnavailable ? 'Unavailable' : invite?.inviteEmail || 'Open invite'}</span>
               </div>
               <div style={{ ...pageStyles.stat, borderBottom: 0 }}>
                 <span style={pageStyles.label}>Development lane</span>

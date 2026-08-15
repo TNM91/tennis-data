@@ -104,7 +104,7 @@ describe('homepage portal action alignment', () => {
     expect(homepage).not.toContain('Full-Court combines Player, Coach, Captain, League')
     expect(homepage).not.toContain('Open Coach\'')
     expect(homepage).not.toContain('Open Team\'')
-    expect(portal).toContain('Message the team from Team Hub.')
+    expect(portal).toContain('Prepare and send the official match-week plan.')
     expect(portal).not.toContain('same workspace')
   })
 

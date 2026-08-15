@@ -3169,7 +3169,7 @@ function MyLabPageInner() {
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
                 <p style={sectionKickerStyle}>Your tennis hub</p>
-                <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
+                <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
                 <p style={sectionTextStyle}>
                   {isMobile
                     ? 'Pick the next move, then keep the proof connected.'
@@ -7801,7 +7801,7 @@ const watermarkStyle: CSSProperties = {
   top: 'clamp(-112px, -10vw, -52px)',
   width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

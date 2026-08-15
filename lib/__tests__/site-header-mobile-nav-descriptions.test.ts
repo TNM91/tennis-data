@@ -23,7 +23,7 @@ describe('site header mobile navigation descriptions', () => {
       'Improve',
       'Video Review',
       'Compete',
-      'Captain',
+      'Teams',
       'Coaches',
       'Leagues & Tournaments',
       'My Lab',
@@ -34,7 +34,7 @@ describe('site header mobile navigation descriptions', () => {
       expect(item.description?.length).toBeGreaterThan(20)
     }
 
-    expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/captain')?.description).toContain('match-week')
+    expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/compete/teams')?.description).toContain('team chat')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/video-review')?.description).toContain('coach')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/leagues-and-tournaments')?.description).toContain('scores')
     expect(PRIMARY_NAV_ITEMS.find((item) => item.href === '/mylab')?.description).toContain('personal tennis home')

@@ -27,9 +27,9 @@ describe('product story guardrails', () => {
   })
 
   it('keeps Free distinct from paid unlock tiers', () => {
-    expect(MEMBERSHIP_TIERS.free.description).toContain('tennis context for free')
-    expect(MEMBERSHIP_TIERS.free.description).toContain('tournaments')
-    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('before choosing paid tools')
+    expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
+    expect(MEMBERSHIP_TIERS.free.valueProps).toContain('Open linked team rosters, schedules, stats, and team chat')
+    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('teams linked to your Free account')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
     expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
     expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')

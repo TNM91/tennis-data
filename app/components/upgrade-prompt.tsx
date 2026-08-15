@@ -152,7 +152,7 @@ export default function UpgradePrompt({
           {plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
         </div>
 
-        <h3 style={titleStyle}>{headline}</h3>
+        <h2 style={titleStyle}>{headline}</h2>
         <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null) }}>{body}</p>
         {planId !== 'free' && showDetailedGuidance ? (
           <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>

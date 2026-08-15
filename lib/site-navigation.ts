@@ -16,13 +16,14 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
   { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
   { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-  { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
+  { href: '/compete/teams', label: 'Teams', description: 'Open your teams, schedules, stats, roster, and team chat.' },
   { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
   { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
   { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
+  { href: '/compete/teams', label: 'My Teams' },
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
   { href: '/video-review', label: 'Video Review' },

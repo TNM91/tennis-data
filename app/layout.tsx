@@ -9,7 +9,8 @@ import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-da
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
-const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const SOCIAL_BRAND_IMAGE = '/brand/web/header-logo-transparent.png'
+const VERCEL_OBSERVABILITY_ENABLED = process.env.VERCEL === '1'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -81,8 +82,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: SOCIAL_BRAND_IMAGE,
-        width: 1731,
-        height: 909,
+        width: 6118,
+        height: 1947,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -97,7 +98,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
-      { url: '/tiq/logo/tiq-app-icon.png', sizes: '512x512', type: 'image/png' },
       { url: '/tenaceiq-icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/tenaceiq-icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
@@ -134,8 +134,12 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-organization-jsonld" data={buildOrganizationJsonLd()} />
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <ThemeProvider>{children}</ThemeProvider>
-        <Analytics />
-        <SpeedInsights />
+        {VERCEL_OBSERVABILITY_ENABLED ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"

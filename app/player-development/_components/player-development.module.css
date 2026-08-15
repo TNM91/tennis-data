@@ -267,20 +267,6 @@
   display: contents;
 }
 
-.overviewDetailsMobileGroup {
-  display: none;
-  min-width: 0;
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-}
-
-.overviewDetailsMobileGroupBody {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 0 12px 12px;
-}
-
 .overviewDetailsSummary {
   display: flex;
   align-items: center;
@@ -339,7 +325,6 @@
 }
 
 .overviewDetails:not([open]) > .overviewDetailsContent,
-.overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody,
 .improveHubMoreActions:not([open]) > div,
 .playerIdActionPlanMore:not([open]) > div,
 .playerQuestionStripDrawer:not([open]) > .playerQuestionStripDrawerBody {
@@ -13521,7 +13506,7 @@
   bottom: 0;
   width: 360px;
   aspect-ratio: 1;
-  background: url("/tiq/logo/tiq-mark-dark.png") center / contain no-repeat;
+  background: url("/tenaceiq-icon-512.png") center / contain no-repeat;
   opacity: 0.045;
   pointer-events: none;
   transform: translate(36%, 42%);
@@ -17383,20 +17368,7 @@
   }
 
   .overviewDetailsDesktopStack {
-    display: none;
-  }
-
-  .overviewDetailsMobileGroup {
-    display: grid;
-    border: 1px solid var(--card-border-soft);
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-  }
-
-  .overviewDetailsMobileGroup .overviewDetails {
-    border: 1px solid rgba(116, 190, 255, 0.14);
-    background: rgba(255, 255, 255, 0.035);
-    box-shadow: none;
+    display: contents;
   }
 
   .coverPage .workbookPageBody {
@@ -18854,7 +18826,8 @@
   }
 
   .liveFocusButton {
-    min-width: 0;
+    flex: 0 0 148px;
+    min-width: 148px;
     min-height: 66px;
     scroll-snap-align: start;
   }
@@ -19885,20 +19858,7 @@
   }
 
   .overviewDetailsDesktopStack {
-    display: none;
-  }
-
-  .overviewDetailsMobileGroup {
-    display: grid;
-    border: 1px solid var(--card-border-soft);
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-  }
-
-  .overviewDetailsMobileGroup .overviewDetails {
-    border: 1px solid rgba(116, 190, 255, 0.14);
-    background: rgba(255, 255, 255, 0.035);
-    box-shadow: none;
+    display: contents;
   }
 
   .hero[data-compact='true'] {

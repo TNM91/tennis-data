@@ -67,7 +67,7 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/x-icon',
       },
       {
-        src: '/tiq/logo/tiq-app-icon.png',
+        src: '/tenaceiq-icon-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
@@ -82,20 +82,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/tenaceiq-icon-512.png',
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/tenaceiq-icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
         purpose: 'maskable',
-      },
-    ],
-    screenshots: [
-      {
-        src: '/tenaceiq/logos/tenaceiq-brand-preview.png',
-        sizes: '1600x1000',
-        type: 'image/png',
       },
     ],
   }

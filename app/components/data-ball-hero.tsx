@@ -207,7 +207,7 @@ export default function DataBallHero() {
           />
 
           <Image
-            src="/tiq/logo/tiq-mark-light.png"
+            src="/tenaceiq-icon-512.png"
             alt="TenAceIQ"
             width={1800}
             height={844}

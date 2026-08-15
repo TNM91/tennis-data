@@ -190,26 +190,6 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 </OverviewDetails>
               ) : null}
             </div>
-            <details className={styles.overviewDetailsMobileGroup} aria-label="More player development paths">
-              <summary className={styles.overviewDetailsSummary}>
-                <span>More paths</span>
-                <strong>Open guide, dashboard, and saved work.</strong>
-                <em>3 paths</em>
-              </summary>
-              <div className={styles.overviewDetailsMobileGroupBody}>
-                <OverviewDetails eyebrow="Level Up guide" title="See the full Level Up path" cue="Show path">
-                  <LevelUpOverviewPanel identity={identity} />
-                </OverviewDetails>
-                <OverviewDetails eyebrow="Weekly plan" title="Open the mission dashboard" cue="Show dashboard">
-                  <PlayerMissionDashboard identity={identity} />
-                </OverviewDetails>
-                {!packetView ? (
-                  <OverviewDetails eyebrow="Saved work" title="Connect proof, coach notes, and Data Assist" cue="Show companion">
-                    <ConnectedCompanion identity={identity} />
-                  </OverviewDetails>
-                ) : null}
-              </div>
-            </details>
           </>
         ) : null}
         {focus === 'workbook' ? <WorkbookPreview identity={identity} active printActive={workbookPrintActive} /> : null}

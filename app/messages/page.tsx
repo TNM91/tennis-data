@@ -165,9 +165,9 @@ function formatMessageTime(value: string) {
   }
 }
 
-function conversationTypeLabel(type: InternalConversation['conversationType']) {
+function conversationTypeLabel(type: InternalConversation['conversationType'], roomType = '') {
   if (type === 'support') return 'Support'
-  if (type === 'league') return 'League'
+  if (type === 'league') return roomType === 'team' ? 'Team' : 'League'
   if (type === 'system') return 'System'
   return 'Direct'
 }
@@ -256,7 +256,7 @@ function conversationMatchesThreadSearch(
   const searchable = [
     conversation.subject,
     conversation.lastMessageBody,
-    conversationTypeLabel(conversation.conversationType),
+    conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType),
     statusLabel(conversation.status),
     conversation.conversationType === 'support' ? supportCategoryLabel(conversation.relatedEntityType) : '',
     conversation.conversationType === 'support' ? supportStatusCopy(conversation, identity.role) : '',
@@ -305,7 +305,9 @@ function notificationMatchesAlertFilter(notification: InternalNotification, filt
 function replyPlaceholder(conversation: InternalConversation | null) {
   if (!conversation) return 'Write a reply...'
   if (conversation.conversationType === 'support') return 'Reply to this support request...'
-  if (conversation.conversationType === 'league') return 'Message this league room...'
+  if (conversation.conversationType === 'league') {
+    return conversation.metadata.roomType === 'team' ? 'Message your team...' : 'Message this league room...'
+  }
   if (isScheduleConversation(conversation)) return 'Add a schedule note...'
   return 'Write a message...'
 }
@@ -536,6 +538,9 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   if (entityType === 'tiq_league') {
     return `/explore/leagues/tiq/${encodeURIComponent(entityId)}?league_id=${encodeURIComponent(entityId)}`
   }
+  if (entityType === 'team' && conversation.metadata.teamName) {
+    return `/teams/${encodeURIComponent(conversation.metadata.teamName)}`
+  }
   if (entityType === 'tiq_individual_result') return '/compete/results'
   if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
   if (entityType === 'coach_player_link') {
@@ -659,10 +664,11 @@ function buildConversationContextPresentation(conversation: InternalConversation
   const entityId = conversation.metadata.entityId || conversation.relatedEntityId
 
   if (conversation.conversationType === 'league') {
+    const isTeamRoom = conversation.metadata.roomType === 'team'
     return {
-      label: 'League context',
-      text: conversation.metadata.leagueName || conversation.relatedEntityId || 'League conversation',
-      cta: 'Open league',
+      label: isTeamRoom ? 'Team context' : 'League context',
+      text: conversation.metadata.teamName || conversation.metadata.leagueName || conversation.relatedEntityId || (isTeamRoom ? 'Team conversation' : 'League conversation'),
+      cta: isTeamRoom ? 'Open team' : 'Open league',
     }
   }
 
@@ -2362,7 +2368,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <small style={threadTypePillStyle}>
                       {conversation.conversationType === 'support'
                         ? supportCategoryLabel(conversation.relatedEntityType)
-                        : conversationTypeLabel(conversation.conversationType)}
+                        : conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType)}
                     </small>
                     {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
                     {isCoachAssignmentConversation(conversation) ? <small style={assignmentPillStyle}>Assignment</small> : null}
@@ -3285,7 +3291,7 @@ const watermarkStyle: CSSProperties = {
   top: '-108px',
   width: 'clamp(230px, 28vw, 380px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

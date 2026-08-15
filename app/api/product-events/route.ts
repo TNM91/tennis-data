@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildProductUsageEventInsert } from '@/lib/product-usage-events'
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     .insert(payload)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message ?? 'Product event could not be recorded.' }, { status: 500 })
+    return apiServerError('Could not record product usage event', error, 'Product event could not be recorded.')
   }
 
   return Response.json({ ok: true })

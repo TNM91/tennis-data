@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   findStripeCustomerIdForUser,
@@ -65,10 +66,8 @@ export async function POST(request: Request) {
   try {
     profileCustomerId = await getStoredStripeCustomerId(supabase, userResult.userId)
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Billing profile could not be loaded.' },
-      { status: 500 },
-    )
+    console.error('Billing profile lookup failed', error)
+    return Response.json({ ok: false, message: 'Billing profile could not be loaded.' }, { status: 500 })
   }
   const fallbackCustomerId = profileCustomerId
     ? ''
@@ -103,10 +102,7 @@ export async function POST(request: Request) {
     | null
 
   if (!response.ok || !stripeBody?.url) {
-    return Response.json(
-      { ok: false, message: stripeBody?.error?.message || 'Stripe billing portal could not be opened.' },
-      { status: response.ok ? 500 : response.status },
-    )
+    return apiServerError('Stripe billing portal request failed', stripeBody, 'Stripe billing portal could not be opened.')
   }
 
   return Response.json({ ok: true, url: stripeBody.url })

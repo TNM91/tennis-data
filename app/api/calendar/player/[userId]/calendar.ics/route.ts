@@ -184,7 +184,7 @@ export async function GET(
       'Content-Disposition': 'inline; filename="tenaceiq-my-calendar.ics"',
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Player calendar feed could not be generated.'
-    return calendarResponse(message, 500)
+    console.error('Player calendar feed failed', error)
+    return calendarResponse('Player calendar feed could not be generated.', 500)
   }
 }

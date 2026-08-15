@@ -112,19 +112,20 @@ const portalLanes: PortalLane[] = [
   },
   {
     id: 'team',
-    label: 'Captain',
-    cue: 'Team Hub and match week',
-    route: '/captain',
+    label: 'Teams',
+    cue: 'Your teams and match week',
+    route: '/compete/teams',
     planRoute: '/captain',
-    icon: 'lineupBuilder',
+    icon: 'teamRankings',
     paths: ['/captain', '/manage', '/compete/teams'],
     searchScope: 'teams',
     tasks: [
+      { title: 'Open my teams', detail: 'Roster, schedule, stats, and team chat in one place.', metric: 'Free', href: '/compete/teams', icon: 'teamRankings', requiredRoute: '/explore' },
       { title: 'Who can play', detail: 'Availability and readiness before lineup pressure.', metric: 'Captain', href: '/captain/availability', icon: 'reliabilityIndex', requiredRoute: '/captain' },
       { title: 'Plan practice', detail: 'Schedule practice, invite the roster, and collect RSVPs.', metric: 'Captain', href: '/captain/practice', icon: 'schedule', requiredRoute: '/captain' },
       { title: 'Map tactics', detail: 'Build a court picture for the next point, drill, or team pattern.', metric: 'Coach beta', href: CAPTAIN_TACTICS_BOARD_HREF, icon: 'scenarioBuilder', requiredRoute: '/captain' },
       { title: 'Build lineup', detail: 'Turn the roster into the weekly plan.', metric: 'Captain', href: '/captain/lineup-builder', icon: 'lineupBuilder', requiredRoute: '/captain' },
-      { title: 'Send plan', detail: 'Message the team from Team Hub.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
+      { title: 'Send plan', detail: 'Prepare and send the official match-week plan.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
     ],
   },
   {
@@ -999,7 +1000,7 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
   if (laneId === 'you') return 'Improve'
   if (laneId === 'compete') return 'Compete'
   if (laneId === 'coach') return 'Coaches'
-  if (laneId === 'team') return 'Captain'
+  if (laneId === 'team') return 'Teams'
   return 'Leagues'
 }
 
@@ -1008,7 +1009,7 @@ function getMobileHubLabel(laneId: PortalLaneId) {
   if (laneId === 'you') return 'Improve Hub'
   if (laneId === 'compete') return 'Compete Hub'
   if (laneId === 'coach') return 'Coaches Hub'
-  if (laneId === 'team') return 'Team Hub'
+  if (laneId === 'team') return 'My Teams'
   return 'Organizer Hub'
 }
 
@@ -1365,7 +1366,7 @@ const portalBrandRunwayStyle: CSSProperties = {
 const portalBrandRunwayMarkStyle: CSSProperties = {
   display: 'block',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   mixBlendMode: 'screen',
   pointerEvents: 'none',
 }

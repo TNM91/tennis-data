@@ -563,6 +563,7 @@ function CaptainAvailabilityContent() {
               </select>
 
               <input
+                aria-label="Selected match date"
                 value={weekLabel}
                 readOnly
                 style={textInputStyle}
@@ -953,7 +954,7 @@ const watermarkStyle: CSSProperties = {
   bottom: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

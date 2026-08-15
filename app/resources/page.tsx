@@ -19,9 +19,11 @@ export const metadata: Metadata = buildRouteMetadata({
 const resourceActions: PublicActionCard[] = [
   {
     title: 'Learn how TenAceIQ works',
-    body: 'See the simple path from free search to Player, Captain, Coach, and League tools.',
-    href: '/how-it-works',
-    cta: 'How TenAceIQ Works',
+    body: 'Watch the complete platform tour or jump to a quick view for the role you care about.',
+    href: '/resources/platform-tour',
+    cta: 'Watch Platform Tour',
+    secondaryHref: '/how-it-works',
+    secondaryCta: 'Read Overview',
     meta: 'Start here',
   },
   {
@@ -40,9 +42,11 @@ const resourceActions: PublicActionCard[] = [
   },
   {
     title: 'Add or fix tennis data',
-    body: 'Upload a scorecard, schedule, or team summary and review what TenAceIQ found.',
-    href: '/data-assist?intent=upload-source&context=Resources',
-    cta: 'Open Data Assist',
+    body: 'Watch the phone walkthrough, then upload a scorecard, schedule, or team summary for review.',
+    href: '/resources/usta-upload',
+    cta: 'Watch Walkthrough',
+    secondaryHref: '/data-assist?intent=upload-source&context=Resources',
+    secondaryCta: 'Open Data Assist',
     meta: 'Data help',
   },
   {

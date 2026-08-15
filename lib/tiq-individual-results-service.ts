@@ -7,6 +7,7 @@ import { deleteTiqIndividualResultMatch, syncTiqIndividualResultToMatch } from '
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
+import { competitionAffectsTiqRating, competitionPublishesMatchHistory } from '@/lib/club-competition'
 
 const TIQ_INDIVIDUAL_RESULTS_TABLE = 'tiq_individual_league_results'
 const LOCAL_RESULTS_KEY = 'tenaceiq-tiq-individual-results-v1'
@@ -300,19 +301,26 @@ export async function saveTiqIndividualLeagueResult(input: {
     // Sync into the matches table so both rating tracks pick this up on the next recalculation.
     let syncWarning: string | null = null
     try {
-      await syncTiqIndividualResultToMatch({
-        id: localRecord.id,
-        league_id: localRecord.leagueId,
-        player_a_name: localRecord.playerAName,
-        player_a_id: localRecord.playerAId || null,
-        player_b_name: localRecord.playerBName,
-        player_b_id: localRecord.playerBId || null,
-        winner_player_name: localRecord.winnerPlayerName,
-        winner_player_id: localRecord.winnerPlayerId || null,
-        score: localRecord.score,
-        result_date: localRecord.resultDate,
-      })
-      await recalculateDynamicRatings()
+      const leagueResult = await getTiqLeagueById(localRecord.leagueId)
+      const ratingMode = leagueResult.record?.ratingMode ?? 'tiq_rated'
+      if (competitionPublishesMatchHistory(ratingMode)) {
+        await syncTiqIndividualResultToMatch({
+          id: localRecord.id,
+          league_id: localRecord.leagueId,
+          player_a_name: localRecord.playerAName,
+          player_a_id: localRecord.playerAId || null,
+          player_b_name: localRecord.playerBName,
+          player_b_id: localRecord.playerBId || null,
+          winner_player_name: localRecord.winnerPlayerName,
+          winner_player_id: localRecord.winnerPlayerId || null,
+          score: localRecord.score,
+          result_date: localRecord.resultDate,
+        }, {
+          ratingEligible: competitionAffectsTiqRating(ratingMode),
+          publicHistoryEligible: true,
+        })
+        if (competitionAffectsTiqRating(ratingMode)) await recalculateDynamicRatings()
+      }
     } catch (syncError) {
       syncWarning =
         syncError instanceof Error

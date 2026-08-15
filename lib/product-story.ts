@@ -148,10 +148,11 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Explore players, teams, leagues, rankings, tournaments, and tennis context for free.',
+      'Explore public tennis intelligence and collaborate inside teams linked to your Free account.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
+      'Open linked team rosters, schedules, stats, and team chat',
       'Contribute TennisLink exports through Data Assist',
       'Understand the landscape before upgrading',
     ],
@@ -241,6 +242,29 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
 } as const
 
 export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
+
+export const CLUB_PLANS = {
+  starter: {
+    id: 'starter',
+    name: 'Club Starter',
+    priceLabel: '$99/month',
+    locationLimit: 1,
+    coachStaffLimit: 10,
+    playerProfileLimit: 150,
+    scaleLabel: '1 location - Up to 10 coaches/staff - Up to 150 player profiles',
+    outcome: 'Launch one connected club experience with the complete TenAceIQ club toolset.',
+  },
+  unlimited: {
+    id: 'unlimited',
+    name: 'Club Unlimited',
+    priceLabel: '$199/month',
+    locationLimit: null,
+    coachStaffLimit: null,
+    playerProfileLimit: null,
+    scaleLabel: 'All locations - Unlimited coaches/staff - Unlimited player profiles',
+    outcome: 'Scale the same connected experience across the entire racquet organization.',
+  },
+} as const
 
 export const PRODUCT_PROOF_POINTS = [
   'Less guessing',
@@ -334,10 +358,11 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   free: {
     stage: 'Start here',
     headline: 'Explore tennis for free.',
-    copy: 'Explore players, teams, leagues, rankings, tournaments, and tennis context before choosing paid tools.',
+    copy: 'Explore public tennis intelligence and collaborate inside teams linked to your Free account.',
     bullets: [
       'Search players, teams, leagues, and rankings',
       'Find public tennis context fast',
+      'Open linked team rosters, schedules, stats, and team chat',
       'Understand the landscape before upgrading',
     ],
     primaryCta: { label: 'Get Started Free', href: '/join' },
@@ -346,7 +371,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   player_plus: {
     stage: 'Player unlock',
     headline: 'Make TenAceIQ personal.',
-    copy: 'Unlock My Lab, improve the data behind your tennis read, prep matchups, and keep messages together.',
+    copy: 'Keep Free team access, then connect team context to My Lab, improvement work, matchup prep, follows, and your personal tennis read.',
     bullets: [
       'Make My Lab your tennis home',
       'Use Level Up to choose and track focused court work',

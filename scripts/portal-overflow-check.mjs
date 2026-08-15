@@ -44,7 +44,6 @@ for (const viewport of viewports) {
       if (text === 'Failed to load resource: net::ERR_FAILED') {
         return
       }
-
       findings.push({
         route: page.url(),
         viewport: viewport.name,

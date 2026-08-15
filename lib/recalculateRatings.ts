@@ -24,6 +24,7 @@ type MatchRow = {
   score: string
   winner_side: MatchSide
   match_source?: MatchSource | null
+  rating_eligible?: boolean | null
   created_at?: string | null
 }
 
@@ -336,10 +337,12 @@ async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
       score,
       winner_side,
       match_source,
+      rating_eligible,
       created_at
     `)
     .not('match_type', 'is', null)
     .not('winner_side', 'is', null)
+    .eq('rating_eligible', true)
     .order('match_date', { ascending: true })
     .order('created_at', { ascending: true })
 

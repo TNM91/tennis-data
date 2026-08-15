@@ -5,11 +5,12 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import GuestTierPreviewGate from '@/app/components/guest-tier-preview-gate'
+import { ProductTourHomeSpotlight } from '@/app/components/product-tour-video'
 import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
-const socialBrandImage = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const socialBrandImage = '/brand/web/header-logo-transparent.png'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,
@@ -24,8 +25,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: socialBrandImage,
-        width: 1731,
-        height: 909,
+        width: 6118,
+        height: 1947,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -52,6 +53,7 @@ export default function HomePage() {
           showSearchResults={false}
           showBoard={false}
         />
+        <ProductTourHomeSpotlight />
         <GuestTierPreviewGate />
       </main>
     </PublicPageShell>

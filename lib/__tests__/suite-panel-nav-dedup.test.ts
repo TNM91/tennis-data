@@ -96,7 +96,7 @@ describe('suite panel navigation deduplication', () => {
     expect(portal).not.toContain("if (!authenticated && pathname !== '/') return null")
     expect(portal).not.toContain('if (!authenticated) return null')
     expect(portal).not.toContain('<h1 style={portalTitleStyle}>')
-    expect(myLab).toContain('<h1 style={sectionTitleStyle}>{welcomeLine}</h1>')
+    expect(myLab).toContain('<h2 style={sectionTitleStyle}>{welcomeLine}</h2>')
     expect(captain).toContain('<h1 style={scopeTitleStyle}>Choose the week.</h1>')
     expect(league).toContain('<h1 style={leagueOpsTitleStyle}>')
   })

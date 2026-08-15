@@ -1334,7 +1334,7 @@ function BoardToolDock({
 
 function BoardToolIcon({ type }: { type: TacticalTokenType }) {
   if (type === 'player') {
-    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tiq/logo/tiq-app-icon.png" width={34} />
+    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tenaceiq-icon-512.png" width={34} />
   }
 
   return <MarkerIcon type={type} />
@@ -1389,14 +1389,14 @@ function BrandLockup() {
       <Image
         alt=""
         height={1024}
-        src="/tiq/logo/tiq-app-icon.png"
+        src="/tenaceiq-icon-512.png"
         width={1024}
         className={styles.brandIcon}
       />
       <Image
         alt="TenAceIQ"
         height={537}
-        src="/tiq/logo/tiq-lockup-light.png"
+        src="/brand/web/header-logo-transparent.png"
         width={2048}
         className={styles.brandLockup}
       />
@@ -1503,7 +1503,7 @@ async function exportScenarioPng(
 
   const [court, qIcon, ballIcon] = await Promise.all([
     loadCanvasImage('/tiq/courts/tiq-court-master.png'),
-    loadCanvasImage('/tiq/logo/tiq-app-icon.png'),
+    loadCanvasImage('/tenaceiq-icon-512.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])
 

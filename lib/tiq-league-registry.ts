@@ -16,6 +16,10 @@ import {
 } from './tiq-individual-format'
 import { normalizeSeasonLabel } from './season-labels'
 import { getDynamicPointsRulesSummary } from './tiq-scoring'
+import {
+  normalizeClubCompetitionRatingMode,
+  type ClubCompetitionRatingMode,
+} from './club-competition'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
@@ -26,6 +30,8 @@ export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
+  clubId?: string
+  clubLocationId?: string
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
@@ -39,6 +45,7 @@ export type TiqLeagueRecord = {
   maxWeeks: number
   maxMatchEvents: number
   isPublic: boolean
+  ratingMode: ClubCompetitionRatingMode
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -57,6 +64,8 @@ export type TiqLeagueRecord = {
 }
 
 export type TiqLeagueDraft = {
+  clubId?: string
+  clubLocationId?: string
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   scoringSystem: TiqLeagueScoringSystem
@@ -69,6 +78,7 @@ export type TiqLeagueDraft = {
   maxWeeks: number
   maxMatchEvents: number
   isPublic: boolean
+  ratingMode: ClubCompetitionRatingMode
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -210,6 +220,8 @@ function buildRegistryId(input: {
 
 function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
+    clubId: cleanText(input.clubId),
+    clubLocationId: cleanText(input.clubLocationId),
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
@@ -222,6 +234,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
     isPublic: normalizeTiqLeagueVisibility(input.isPublic) === 'public',
+    ratingMode: normalizeClubCompetitionRatingMode(input.ratingMode),
     schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
     defaultMatchDay: cleanText(input.defaultMatchDay),
     defaultMatchTime: cleanText(input.defaultMatchTime),
@@ -251,6 +264,8 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
     .filter((record) => record && typeof record === 'object')
     .map((record): TiqLeagueRecord => ({
       ...record,
+      clubId: cleanText(record.clubId),
+      clubLocationId: cleanText(record.clubLocationId),
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
@@ -266,6 +281,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
         record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
       ),
       isPublic: normalizeTiqLeagueVisibility(record.isPublic) === 'public',
+      ratingMode: normalizeClubCompetitionRatingMode(record.ratingMode),
       schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
       defaultMatchDay: cleanText(record.defaultMatchDay),
       defaultMatchTime: cleanText(record.defaultMatchTime),
@@ -309,6 +325,8 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
 
   const nextRecord: TiqLeagueRecord = {
     id: nextId,
+    clubId: normalized.clubId,
+    clubLocationId: normalized.clubLocationId,
     competitionLayer: 'tiq',
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,
@@ -322,6 +340,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     maxWeeks: normalized.maxWeeks,
     maxMatchEvents: normalized.maxMatchEvents,
     isPublic: normalized.isPublic,
+    ratingMode: normalized.ratingMode,
     schedulingMode: normalized.schedulingMode,
     defaultMatchDay: normalized.defaultMatchDay,
     defaultMatchTime: normalized.defaultMatchTime,

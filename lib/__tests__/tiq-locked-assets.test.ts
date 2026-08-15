@@ -6,23 +6,11 @@ const root = process.cwd()
 
 const sourceRoots = ['app', 'components', 'lib', 'public', 'docs']
 const textFilePattern = /\.(css|html|json|md|mjs|ts|tsx|txt|webmanifest)$/i
-const allowedLegacyLogoRefs = new Set([
-  '/tenaceiq/logos/tenaceiq-brand-preview.png',
-  '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
-  '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
-  '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
-  '/tenaceiq/logos/tenaceiq-symbol.svg',
-  '/tenaceiq/logos/tenaceiq-social-preview.png',
-])
-
-const lockedAssets = [
+const approvedAssets = [
   'public/tiq/courts/tiq-court-master.png',
-  'public/tiq/logo/tiq-lockup-light.png',
-  'public/tiq/logo/tiq-lockup-dark.png',
-  'public/tiq/logo/tiq-q-icon-dark.png',
-  'public/tiq/logo/tiq-app-icon.png',
-  'public/tiq/logo/tiq-mark-dark.png',
-  'public/tiq/logo/tiq-mark-light.png',
+  'public/brand/web/header-logo-transparent.png',
+  'public/tenaceiq-icon-192.png',
+  'public/tenaceiq-icon-512.png',
 ]
 
 function textFiles(dir: string): string[] {
@@ -52,9 +40,9 @@ function readSourceFiles() {
     }))
 }
 
-describe('TIQ locked tactical assets', () => {
-  it('keeps every approved court and logo asset present in public/tiq', () => {
-    for (const asset of lockedAssets) {
+describe('TenAceIQ approved production assets', () => {
+  it('keeps every approved court and brand asset present', () => {
+    for (const asset of approvedAssets) {
       const path = join(root, asset)
       expect(existsSync(path), asset).toBe(true)
       expect(statSync(path).size, asset).toBeGreaterThan(0)
@@ -69,14 +57,14 @@ describe('TIQ locked tactical assets', () => {
     expect(boardSource).toContain('fill priority')
   })
 
-  it('keeps legacy TenAceIQ logo-folder references out of source except the restored nav and social previews', () => {
+  it('keeps retired TenAceIQ logo-folder references out of production source', () => {
     const offenders: string[] = []
-    const legacyLogoPattern = /\/tenaceiq\/logos\/[^"'`\s),]+/g
+    const retiredLogoPattern = /\/(?:tenaceiq\/logos|tiq\/logo)\/[^"'`\s),]+/g
 
     for (const file of readSourceFiles()) {
-      const matches = file.source.match(legacyLogoPattern) ?? []
+      const matches = file.source.match(retiredLogoPattern) ?? []
       for (const match of matches) {
-        if (!allowedLegacyLogoRefs.has(match)) offenders.push(`${file.path}: ${match}`)
+        offenders.push(`${file.path}: ${match}`)
       }
     }
 
@@ -92,25 +80,19 @@ describe('TIQ locked tactical assets', () => {
       'app/components/TiqLoader.tsx',
     ].map((path) => readFileSync(join(root, path), 'utf8')).join('\n')
 
-    expect(tacticalSources).toContain('/tiq/logo/tiq-app-icon.png')
-    expect(tacticalSources).toContain('/tiq/logo/tiq-lockup-light.png')
+    expect(tacticalSources).toContain('/tenaceiq-icon-512.png')
+    expect(tacticalSources).toContain('/brand/web/header-logo-transparent.png')
     expect(tacticalSources).not.toContain('tenaceiq-q-icon.svg')
     expect(tacticalSources).not.toContain('tenaceiq-app-icon.svg')
   })
 
-  it('keeps the restored nav wordmark scoped to the site header brand component', () => {
-    const offenders = readSourceFiles()
-      .filter((file) => file.path !== 'app/components/brand-wordmark.tsx')
-      .flatMap((file) => {
-        const matches = file.source.match(/\/tenaceiq\/logos\/tenaceiq-(primary-horizontal(?:-reverse)?|symbol(?:-reverse)?)\.svg/g) ?? []
-        return matches.map((match) => `${file.path}: ${match}`)
-      })
-
+  it('keeps the site header on the canonical brand source without stretching it', () => {
     const brandSource = readFileSync(join(root, 'app/components/brand-wordmark.tsx'), 'utf8')
     const headerSource = readFileSync(join(root, 'app/components/site-header.tsx'), 'utf8')
 
-    expect(offenders).toEqual([])
-    expect(brandSource).toContain('legacyNav')
+    expect(brandSource).toContain("src: '/brand/web/header-logo-transparent.png'")
+    expect(brandSource).toContain('width: 6118')
+    expect(brandSource).toContain('height: 1947')
     expect(headerSource).toContain('<BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />')
   })
 })

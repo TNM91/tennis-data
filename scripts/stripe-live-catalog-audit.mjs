@@ -35,7 +35,7 @@ const expectedPlans = [
     id: 'league',
     name: 'League',
     envName: 'STRIPE_LEAGUE_PRICE_ID',
-    amountCents: 1499,
+    amountCents: 2500,
     currency: 'usd',
     checkoutMode: 'one_time',
     recurringInterval: null,

@@ -14,6 +14,7 @@ import {
 } from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
+import { competitionAffectsTiqRating, competitionPublishesMatchHistory } from '@/lib/club-competition'
 
 export type TiqTeamMatchEventRecord = {
   id: string
@@ -348,8 +349,15 @@ export async function saveTiqTeamMatchLine(
     let syncWarning: string | null = null
     if (line.winnerSide) {
       try {
-        await syncTiqTeamMatchLineToMatch(line, event)
-        await recalculateDynamicRatings()
+        const leagueResult = await getTiqLeagueById(event.leagueId)
+        const ratingMode = leagueResult.record?.ratingMode ?? 'tiq_rated'
+        if (competitionPublishesMatchHistory(ratingMode)) {
+          await syncTiqTeamMatchLineToMatch(line, event, {
+            ratingEligible: competitionAffectsTiqRating(ratingMode),
+            publicHistoryEligible: true,
+          })
+          if (competitionAffectsTiqRating(ratingMode)) await recalculateDynamicRatings()
+        }
       } catch (syncErr) {
         syncWarning =
           syncErr instanceof Error

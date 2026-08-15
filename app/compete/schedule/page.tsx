@@ -530,8 +530,8 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
           {rowReadinessItems.map((item) => (
             <div key={item.label} style={rowReadinessItemStyle}>
               <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
+              <span style={rowReadinessLabelStyle}>{item.label}</span>
+              <strong style={rowReadinessValueStyle}>{item.value}</strong>
             </div>
           ))}
           <Link href={rowNextHref} style={rowNextActionStyle}>
@@ -1200,6 +1200,18 @@ const rowReadinessItemStyle = {
   fontSize: '12px',
   fontWeight: 850,
   overflow: 'hidden',
+} as const
+
+const rowReadinessLabelStyle = {
+  flex: '0 0 auto',
+  whiteSpace: 'nowrap',
+} as const
+
+const rowReadinessValueStyle = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 } as const
 
 const rowNextActionStyle = {

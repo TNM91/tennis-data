@@ -381,10 +381,12 @@ function PlayerProfileContent() {
               match_type,
               league_name,
               source,
+              public_history_eligible,
               score,
               winner_side
             `)
             .in('id', matchIds)
+            .eq('public_history_eligible', true)
             .not('match_type', 'is', null)
             .order('match_date', { ascending: false })
             .order('match_time', { ascending: false })
@@ -4803,7 +4805,7 @@ const ratingHistoryTableWrapStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 0,
+  minWidth: 720,
 }
 
 const tableHead: CSSProperties = {
@@ -4816,8 +4818,7 @@ const tableHead: CSSProperties = {
   fontWeight: 800,
   borderBottom: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(6,16,32,0.78)',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
 }
 
 const tableCell: CSSProperties = {
@@ -4828,7 +4829,7 @@ const tableCell: CSSProperties = {
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
-  overflowWrap: 'anywhere',
+  overflowWrap: 'normal',
 }
 
 const mobileMatchListStyle: CSSProperties = {
@@ -5167,7 +5168,7 @@ const seasonTableWrapStyle: CSSProperties = {
 
 const seasonTableStyle: CSSProperties = {
   ...dataTable,
-  minWidth: 0,
+  minWidth: 620,
 }
 
 const nearbyListStyle: CSSProperties = {

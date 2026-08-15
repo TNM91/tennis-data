@@ -321,7 +321,7 @@ function canUseBrowserStorage() {
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/tiq/logo/tiq-app-icon.png"
+              src="/tenaceiq-icon-512.png"
               alt=""
               width={512}
               height={512}
@@ -500,7 +500,7 @@ const watermarkStyle: CSSProperties = {
   bottom: '-12px',
   width: 'min(380px, 58vw)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

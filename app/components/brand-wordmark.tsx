@@ -19,44 +19,44 @@ type BrandAsset = {
 
 const BRAND_ASSETS = {
   legacyPrimary: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
-    width: 1600,
-    height: 420,
+    src: '/brand/web/header-logo-transparent.png',
+    width: 6118,
+    height: 1947,
   },
   legacyPrimaryReverse: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
-    width: 1600,
-    height: 420,
+    src: '/brand/web/header-logo-transparent.png',
+    width: 6118,
+    height: 1947,
   },
   legacySymbol: {
-    src: '/tenaceiq/logos/tenaceiq-symbol.svg',
-    width: 1045,
-    height: 490,
+    src: '/tenaceiq-icon-512.png',
+    width: 512,
+    height: 512,
   },
   legacySymbolReverse: {
-    src: '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
-    width: 1045,
-    height: 490,
+    src: '/tenaceiq-icon-512.png',
+    width: 512,
+    height: 512,
   },
   primary: {
-    src: '/tiq/logo/tiq-lockup-dark.png',
-    width: 2048,
-    height: 537,
+    src: '/brand/web/header-logo-transparent.png',
+    width: 6118,
+    height: 1947,
   },
   primaryReverse: {
-    src: '/tiq/logo/tiq-lockup-light.png',
-    width: 2048,
-    height: 537,
+    src: '/brand/web/header-logo-transparent.png',
+    width: 6118,
+    height: 1947,
   },
   symbol: {
-    src: '/tiq/logo/tiq-q-icon-dark.png',
-    width: 1024,
-    height: 1024,
+    src: '/tenaceiq-icon-512.png',
+    width: 512,
+    height: 512,
   },
   symbolReverse: {
-    src: '/tiq/logo/tiq-app-icon.png',
-    width: 1024,
-    height: 1024,
+    src: '/tenaceiq-icon-512.png',
+    width: 512,
+    height: 512,
   },
 } satisfies Record<string, BrandAsset>
 

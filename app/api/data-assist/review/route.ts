@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   runDataAssistScheduleImportAction,
@@ -81,8 +82,8 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ])
 
-  if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
-  if (draftResult.error) return Response.json({ ok: false, message: draftResult.error.message }, { status: 500 })
+  if (batchResult.error) return apiServerError('Could not load Data Assist review batch', batchResult.error, 'That Data Assist review is temporarily unavailable.')
+  if (draftResult.error) return apiServerError('Could not load Data Assist review draft', draftResult.error, 'That Data Assist review is temporarily unavailable.')
 
   const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null } | null
   const draft = draftResult.data as {
@@ -139,8 +140,8 @@ export async function POST(request: Request) {
         .eq('id', draftId),
     ])
 
-    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
-    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+    if (batchUpdate.error) return apiServerError('Could not approve Data Assist review batch', batchUpdate.error, 'The Data Assist review could not be approved.')
+    if (draftUpdate.error) return apiServerError('Could not approve Data Assist review draft', draftUpdate.error, 'The Data Assist review could not be approved.')
 
     const autoImport = await runConfirmedReviewImport({
       supabase,
@@ -179,8 +180,8 @@ export async function POST(request: Request) {
           .eq('id', draftId),
       ])
 
-      if (exceptionBatchUpdate.error) return Response.json({ ok: false, message: exceptionBatchUpdate.error.message }, { status: 500 })
-      if (exceptionDraftUpdate.error) return Response.json({ ok: false, message: exceptionDraftUpdate.error.message }, { status: 500 })
+      if (exceptionBatchUpdate.error) return apiServerError('Could not save Data Assist review exception batch', exceptionBatchUpdate.error, 'The Data Assist review exception could not be saved.')
+      if (exceptionDraftUpdate.error) return apiServerError('Could not save Data Assist review exception draft', exceptionDraftUpdate.error, 'The Data Assist review exception could not be saved.')
     }
 
     await refreshContributorStats(supabase, requester.userId)
@@ -217,8 +218,8 @@ export async function POST(request: Request) {
       .eq('id', draftId),
   ])
 
-  if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
-  if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+  if (batchUpdate.error) return apiServerError('Could not reject Data Assist review batch', batchUpdate.error, 'The Data Assist review could not be rejected.')
+  if (draftUpdate.error) return apiServerError('Could not reject Data Assist review draft', draftUpdate.error, 'The Data Assist review could not be rejected.')
 
   await refreshContributorStats(supabase, requester.userId)
 
@@ -281,10 +282,11 @@ async function runConfirmedReviewImport(input: {
       },
     })
   } catch (error) {
+    console.error('Confirmed Data Assist import failed', error)
     return {
       ok: false,
       action: 'commit',
-      message: error instanceof Error ? error.message : 'Confirmed Data Assist import failed.',
+      message: 'Confirmed Data Assist import failed.',
     }
   }
 }

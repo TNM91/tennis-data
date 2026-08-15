@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
@@ -49,6 +50,11 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
+import {
+  getClubCompetitionRatingModeDescription,
+  getClubCompetitionRatingModeLabel,
+  type ClubCompetitionRatingMode,
+} from '@/lib/club-competition'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
 
@@ -115,11 +121,15 @@ const tournamentDeskPaths = [
 ] as const
 
 export default function TournamentBuilderWorkspace() {
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const canUseLeague = access.canUseLeagueTools
   const isFullCourt = access.currentPlanId === 'full_court'
+  const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubLocationId = searchParams.get('clubLocationId') || ''
+  const requestedClubName = searchParams.get('clubName') || ''
   const [records, setRecords] = useState<TiqTournamentRecord[]>([])
   const [name, setName] = useState('Saturday Smash')
   const [format, setFormat] = useState<TiqTournamentFormat>('single_elimination')
@@ -129,6 +139,7 @@ export default function TournamentBuilderWorkspace() {
   const [directorNotes, setDirectorNotes] = useState('')
   const [entrantsText, setEntrantsText] = useState(sampleEntrants.join('\n'))
   const [isPublic, setIsPublic] = useState(false)
+  const [ratingMode, setRatingMode] = useState<ClubCompetitionRatingMode>('tiq_rated')
   const [selectedId, setSelectedId] = useState('')
   const [notice, setNotice] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
@@ -189,7 +200,6 @@ export default function TournamentBuilderWorkspace() {
     kind: alertKind,
     body: alertBody,
     siteUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}`,
-    preferencesUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}/preferences`,
   }) : ''
   const optedInCount = selectedRecord
     ? selectedRecord.entrants.filter((entrant) => selectedRecord.contacts[entrant]?.smsOptIn && selectedRecord.contacts[entrant]?.phone).length
@@ -693,6 +703,8 @@ export default function TournamentBuilderWorkspace() {
     }
 
     const saved = await upsertTiqTournamentRecordForUser({
+      clubId: selectedRecord?.clubId || requestedClubId,
+      clubLocationId: selectedRecord?.clubLocationId || requestedClubLocationId,
       name,
       format,
       entrantType,
@@ -702,6 +714,7 @@ export default function TournamentBuilderWorkspace() {
       directorNotes,
       entrants: draftEntrants,
       isPublic,
+      ratingMode,
     }, selectedId, userId)
 
     refreshRecords(saved.data.id)
@@ -729,7 +742,11 @@ export default function TournamentBuilderWorkspace() {
     setScheduleInputs(buildScheduleInputState(updated))
     setAwardRecipients((current) => buildAwardRecipientState(updated, current))
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`)
+    setNotice(
+      'syncWarning' in updated && typeof updated.syncWarning === 'string'
+        ? updated.syncWarning
+        : `${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`,
+    )
   }
 
   async function clearMatchResult(matchId: string) {
@@ -1010,6 +1027,7 @@ export default function TournamentBuilderWorkspace() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          tournamentId: selectedRecord.id,
           entrants: selectedRecord.entrants,
           selfRating: 3.5,
         }),
@@ -1076,6 +1094,7 @@ export default function TournamentBuilderWorkspace() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              tournamentId: selectedRecord.id,
               entrants: [entrantName],
               selfRating: entry.selfRating,
             }),
@@ -1167,6 +1186,7 @@ export default function TournamentBuilderWorkspace() {
     setDirectorNotes(record.directorNotes)
     setEntrantsText(record.entrants.join('\n'))
     setIsPublic(record.isPublic)
+    setRatingMode(record.ratingMode ?? 'tiq_rated')
     setScoreInputs(buildScoreInputState(record))
     setScheduleInputs(buildScheduleInputState(record))
     setContactInputs(buildContactInputState(record))
@@ -1188,10 +1208,11 @@ export default function TournamentBuilderWorkspace() {
     setFormat('single_elimination')
     setEntrantType('players')
     setStartsOn('')
-    setLocationLabel('')
+    setLocationLabel(requestedClubName)
     setDirectorNotes('')
     setEntrantsText(sampleEntrants.join('\n'))
     setIsPublic(false)
+    setRatingMode('tiq_rated')
     setScoreInputs({})
     setScheduleInputs({})
     setContactInputs({})
@@ -1481,6 +1502,20 @@ export default function TournamentBuilderWorkspace() {
               <strong>Public bracket</strong>
               <small>Anyone with the link can view the tournament page.</small>
             </span>
+          </label>
+
+          <label style={fieldStyle}>
+            How results count
+            <select
+              value={ratingMode}
+              onChange={(event) => setRatingMode(event.target.value as ClubCompetitionRatingMode)}
+              style={inputStyle}
+            >
+              {(['tiq_rated', 'club_standings', 'social'] as const).map((mode) => (
+                <option key={mode} value={mode}>{getClubCompetitionRatingModeLabel(mode)}</option>
+              ))}
+            </select>
+            <small style={smallNoteStyle}>{getClubCompetitionRatingModeDescription(ratingMode)}</small>
           </label>
 
           {notice ? <p style={noticeStyle}>{notice}</p> : null}
@@ -2952,7 +2987,7 @@ const watermarkStyle: CSSProperties = {
   top: '-84px',
   width: 'min(100%, 320px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

@@ -34,7 +34,8 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (profileError) {
-    return Response.json({ ok: false, message: profileError.message }, { status: 500 })
+    console.error('Upgrade setup profile lookup failed', profileError)
+    return Response.json({ ok: false, message: 'Upgrade setup could not load the profile.' }, { status: 500 })
   }
 
   if ((profile as { role?: string } | null)?.role !== 'admin') {

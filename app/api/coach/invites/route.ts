@@ -1,4 +1,5 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildCoachInvitePayload,
   mapCoachInviteRow,
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load coach invites', error, 'Invites are temporarily unavailable.')
   }
 
   const origin = new URL(request.url).origin
@@ -78,7 +79,7 @@ export async function DELETE(request: Request) {
     .eq('id', id)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not delete coach invite', error, 'The invite could not be deleted.')
   }
 
   return Response.json({ ok: true })

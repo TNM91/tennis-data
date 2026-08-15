@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
-const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('player development question strip', () => {
   it('frames the public player-development page around player questions', () => {
@@ -77,15 +77,15 @@ describe('player development question strip', () => {
     expect(systemSource).toContain('title="Open the mission dashboard"')
     expect(systemSource).toContain('title="Connect proof, coach notes, and Data Assist"')
     expect(systemSource).toContain('overviewDetailsDesktopStack')
-    expect(systemSource).toContain('overviewDetailsMobileGroup')
-    expect(systemSource).toContain('aria-label="More player development paths"')
-    expect(systemSource).toContain('Open guide, dashboard, and saved work.')
+    expect(systemSource).not.toContain('overviewDetailsMobileGroup')
+    expect(systemSource).toContain('title="See the full Level Up path"')
+    expect(systemSource).toContain('title="Open the mission dashboard"')
+    expect(systemSource).toContain('title="Connect proof, coach notes, and Data Assist"')
     expect(stylesSource).toContain('.overviewDetails')
     expect(stylesSource).toContain('.overviewDetailsSummary')
     expect(stylesSource).toContain('.overviewDetailsContent')
     expect(stylesSource).toContain('.overviewDetailsDesktopStack')
-    expect(stylesSource).toContain('.overviewDetailsMobileGroup')
-    expect(stylesSource).toContain('.overviewDetailsMobileGroupBody')
+    expect(stylesSource).not.toContain('.overviewDetailsMobileGroup')
     expect(stylesSource).toContain('.playerIdActionPlan')
     expect(stylesSource).toContain('.playerIdActionPlanGrid')
     expect(stylesSource).toContain('.playerIdActionPlanMore')

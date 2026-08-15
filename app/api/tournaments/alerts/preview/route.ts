@@ -16,13 +16,14 @@ type AlertRow = {
 type TournamentRow = {
   id: string
   name: string | null
-  contacts: Record<string, Partial<{
-    name: string
-    phone: string
-    smsOptIn: boolean
-    consentNote: string
-  }>> | null
   created_by_user_id: string | null
+}
+
+type ContactRow = {
+  entrant_name: string
+  phone: string | null
+  sms_opt_in: boolean | null
+  consent_note: string | null
 }
 
 type AlertPreviewBody = {
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
 
     const tournamentResult = await supabase
       .from('tiq_tournaments')
-      .select('id,name,contacts,created_by_user_id')
+      .select('id,name,created_by_user_id')
       .eq('id', alert.tournament_id)
       .maybeSingle()
 
@@ -102,14 +103,20 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'You can only preview alerts for tournaments you created.' }, { status: 403 })
     }
 
-    const contactRows = Object.entries(tournament.contacts || {})
-      .map(([entrantName, contact]) => {
+    const contactsResult = await supabase
+      .from('tiq_tournament_contacts')
+      .select('entrant_name,phone,sms_opt_in,consent_note')
+      .eq('tournament_id', tournament.id)
+    if (contactsResult.error) throw contactsResult.error
+
+    const contactRows = ((contactsResult.data || []) as ContactRow[])
+      .map((contact) => {
         const phone = cleanPhone(contact.phone)
-        const smsOptIn = Boolean(contact.smsOptIn)
+        const smsOptIn = Boolean(contact.sms_opt_in)
         return {
-          entrantName,
+          entrantName: cleanText(contact.entrant_name),
           phone,
-          consentNote: cleanText(contact.consentNote),
+          consentNote: cleanText(contact.consent_note),
           smsOptIn,
           skipReason: phone ? smsOptIn ? '' : 'missing consent' : 'missing phone',
         }
@@ -144,8 +151,9 @@ export async function POST(request: Request) {
       note: providerState.previewNote,
     })
   } catch (error) {
+    console.error('Tournament alert delivery preview failed', error)
     return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Alert delivery preview failed.' },
+      { ok: false, message: 'Alert delivery preview failed.' },
       { status: 500 },
     )
   }

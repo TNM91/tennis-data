@@ -8,7 +8,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { CLUB_PLANS, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
@@ -18,6 +18,15 @@ import {
 } from '@/lib/pricing-plans'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ProductTourVideoButton from '@/app/components/product-tour-video'
+import { PRICING_PLAN_VIDEO_IDS } from '@/lib/product-tour-videos'
+import { buildSupportMessageHref } from '@/lib/message-links'
+
+const CLUB_SALES_HREF = buildSupportMessageHref({
+  category: 'general',
+  subject: 'TenAceIQ Club',
+  body: 'I would like to talk about TenAceIQ Club for my organization.',
+})
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
@@ -310,7 +319,17 @@ function PricingContent() {
                     ))}
                   </ul>
                 ) : null}
-                {isMobile ? planCta : null}
+                {isMobile ? (
+                  <div style={compactPlanActionStackStyle}>
+                    {isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="compact"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
                 {!isMobile ? (
                   <details className="pricingPlanDetails" style={planDetailsStyle}>
                     <summary style={planDetailsSummaryStyle}>Best for and what opens</summary>
@@ -327,10 +346,55 @@ function PricingContent() {
                     </div>
                   </details>
                 ) : null}
-                {!isMobile ? planCta : null}
+                {!isMobile ? (
+                  <div style={planActionStackStyle}>
+                    {!isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="secondary"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
               </article>
             )
           })}
+        </div>
+      </section>
+
+      <section id="club-plans" style={sectionStyle} aria-labelledby="club-plans-title">
+        <SectionHeader
+          eyebrow="For clubs"
+          title="Start focused or remove the limits."
+          body="Both Club plans include the same connected Player, Coach, Captain, League, and Tournament tools. The difference is scale."
+        />
+        <div style={isMobile ? compactClubPlanGridStyle : clubPlanGridStyle}>
+          {[CLUB_PLANS.starter, CLUB_PLANS.unlimited].map((plan) => (
+            <article key={plan.id} style={clubPlanCardStyle}>
+              <div style={clubPlanTopStyle}>
+                <span style={planNameStyle}>{plan.name}</span>
+                <strong style={clubPlanPriceStyle}>{plan.priceLabel}</strong>
+              </div>
+              <p style={clubPlanLimitStyle}>{plan.scaleLabel}</p>
+              <p style={cardTextStyle}>{plan.outcome}</p>
+              <Link href={CLUB_SALES_HREF} style={secondaryButtonStyle}>
+                Talk about Club
+              </Link>
+            </article>
+          ))}
+        </div>
+        <div style={clubVideoCalloutStyle}>
+          <div style={clubVideoCopyStyle}>
+            <strong>See the connected Club experience.</strong>
+            <span>Watch how Club brings staff, players, programs, teams, leagues, and events together.</span>
+          </div>
+          <ProductTourVideoButton
+            videoId="club"
+            variant="secondary"
+            label="Watch Club overview"
+            source="pricing-club-plans"
+          />
         </div>
       </section>
 
@@ -442,7 +506,7 @@ function PricingContent() {
         </summary>
         <div className="pricingDetailsBody" style={billingDetailsBodyStyle}>
           <p style={heroTextStyle}>
-            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season for one bounded league, ladder, or tournament.
+            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $25 per season for one bounded league, ladder, or tournament.
           </p>
           <p style={heroTextStyle}>
             Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.
@@ -606,6 +670,89 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const planActionStackStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  alignItems: 'center',
+}
+
+const compactPlanActionStackStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
+  minWidth: 0,
+}
+
+const clubVideoCalloutStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+}
+
+const clubVideoCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 420px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.5,
+}
+
+const clubPlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 14,
+  minWidth: 0,
+}
+
+const compactClubPlanGridStyle: CSSProperties = {
+  ...clubPlanGridStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+}
+
+const clubPlanCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, rgba(116,190,255,0.14) 72%)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.10), rgba(8,16,34,0.78) 42%)',
+}
+
+const clubPlanTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const clubPlanPriceStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 24,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const clubPlanLimitStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.45,
+  fontWeight: 900,
 }
 
 const detailsSectionStyle: CSSProperties = {
@@ -802,7 +949,7 @@ const planTopStyle: CSSProperties = {
 
 const compactPlanTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gridTemplateColumns: '50px minmax(0, 1fr)',
   gap: 8,
   alignItems: 'center',
   minWidth: 0,

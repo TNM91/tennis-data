@@ -2366,7 +2366,7 @@ const watermarkStyle: CSSProperties = {
   top: '-108px',
   width: 'min(280px, 58vw)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  background: 'url("/tenaceiq-icon-512.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

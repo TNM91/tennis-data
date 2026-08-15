@@ -856,6 +856,8 @@ function DataAssistWorkspace() {
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
             </div>
 
+            <DataAssistWalkthroughHelp />
+
             <div style={uploadChoiceStackStyle}>
               <label style={dynamicImportTypeSelectWrapStyle}>
                 <span style={dropzoneKickerStyle}>Source type</span>
@@ -1660,6 +1662,21 @@ function getExportFileExample(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'MatchSchedule_582026.xls'
   if (importType === 'team_summary') return 'TeamSummary_582026.xls'
   return 'Scorecard_582026.xls'
+}
+
+function DataAssistWalkthroughHelp() {
+  return (
+    <aside style={walkthroughHelpStyle} aria-labelledby="data-assist-walkthrough-title">
+      <div style={walkthroughHelpCopyStyle}>
+        <span style={walkthroughHelpKickerStyle}>New to TennisLink exports?</span>
+        <strong id="data-assist-walkthrough-title">Watch the phone walkthrough first.</strong>
+        <small>See where to tap in USTA, confirm each download, choose the file on your phone, and review it in TenAceIQ.</small>
+      </div>
+      <Link href="/resources/usta-upload" style={secondaryButtonStyle}>
+        Watch walkthrough
+      </Link>
+    </aside>
+  )
 }
 
 function ExportHelpPanel({ importType, defaultOpen = false }: { importType: DataAssistImportType; defaultOpen?: boolean }) {
@@ -4536,6 +4553,37 @@ const simpleHelpStyle: CSSProperties = {
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
+
+const walkthroughHelpStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const walkthroughHelpCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 260px',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const walkthroughHelpKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
 
 const exportHelpStyle: CSSProperties = {
   borderRadius: 14,

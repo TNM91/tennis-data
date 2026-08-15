@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/player-development/page.tsx'), 'utf8')
 const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
-const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8').replace(/\r\n/g, '\n')
 const controlsSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-print-controls.tsx'), 'utf8')
 const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const trainingMenusSource = readFileSync(join(process.cwd(), 'lib/player-training-menus.ts'), 'utf8')
@@ -60,7 +60,7 @@ describe('Player Development public cleanup', () => {
     expect(stylesSource).toContain(".hero[data-compact='true'] .actions {\n    display: grid;")
     expect(stylesSource).toContain(".hero:not([data-compact='true']) .heroPanel {\n    display: none;")
     expect(stylesSource).toContain('.overviewDetails:not([open]) > .overviewDetailsContent')
-    expect(stylesSource).toContain('.overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody')
+    expect(systemSource).not.toContain('overviewDetailsMobileGroup')
     expect(stylesSource).toContain('.improveHubMoreActions:not([open]) > div')
     expect(stylesSource).toContain('.playerIdActionPlanMore:not([open]) > div')
     expect(stylesSource).toContain('.playerQuestionStripDrawer:not([open]) > .playerQuestionStripDrawerBody')

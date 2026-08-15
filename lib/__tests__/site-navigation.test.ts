@@ -9,7 +9,7 @@ describe('site navigation language', () => {
       { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
       { href: '/video-review', label: 'Video Review', description: 'Record a clip, send it to coach, and watch returned feedback.' },
       { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
-      { href: '/captain', label: 'Captain', description: 'Run availability, lineups, match-week messages, and team recaps.' },
+      { href: '/compete/teams', label: 'Teams', description: 'Open your teams, schedules, stats, roster, and team chat.' },
       { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
       { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
       { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
@@ -20,7 +20,7 @@ describe('site navigation language', () => {
       'Improve',
       'Video Review',
       'Compete',
-      'Captain',
+      'Teams',
       'Coaches',
       'Leagues & Tournaments',
       'My Lab',
@@ -87,6 +87,7 @@ describe('site navigation language', () => {
   })
 
   it('surfaces Coach from account quick navigation', () => {
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/compete/teams', label: 'My Teams' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/coach', label: 'Coach Hub' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/video-review', label: 'Video Review' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' })

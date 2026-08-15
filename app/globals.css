@@ -354,7 +354,7 @@ footer {
   pointer-events: none;
   z-index: 0;
   opacity: 0.17;
-  background-image: url("/tiq/logo/tiq-mark-light.png");
+  background-image: url("/tenaceiq-icon-512.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
@@ -1486,7 +1486,7 @@ hr {
   .tournamentCommandActionRow > a,
   .tournamentDeskQuick > a {
     flex: 1 1 130px !important;
-    min-height: 32px !important;
+    min-height: 44px !important;
     padding: 0 10px !important;
   }
 
@@ -1674,7 +1674,7 @@ hr {
 
   .organizerCommandActionRow > a {
     flex: 1 1 130px !important;
-    min-height: 32px !important;
+    min-height: 44px !important;
     padding: 0 10px !important;
   }
 

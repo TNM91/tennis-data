@@ -41,6 +41,9 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'schedule_upload_started',
   'team_summary_upload_started',
   'data_issue_reported',
+  'product_tour_started',
+  'product_tour_completed',
+  'product_tour_cta_clicked',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [

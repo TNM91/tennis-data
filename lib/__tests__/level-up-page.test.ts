@@ -21,7 +21,7 @@ const levelUpRecommendationsSource = readFileSync(join(process.cwd(), 'lib/level
 const playerDevelopmentPortalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
 const developmentSystemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
 const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
-const developmentStylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+const developmentStylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8').replace(/\r\n/g, '\n')
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 
@@ -1579,7 +1579,7 @@ describe('Level Up page', () => {
     expect(developmentStylesSource).toContain('.levelUpModuleActions')
     expect(developmentStylesSource).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr))')
     expect(developmentStylesSource).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr))')
-    expect(developmentStylesSource).toContain('.liveFocusButton {\n    min-width: 0;')
+    expect(developmentStylesSource).toContain('.liveFocusButton {\n    flex: 0 0 148px;\n    min-width: 148px;')
     expect(developmentStylesSource).toContain("[data-active='true']")
     expect(developmentStylesSource).toContain("[data-complete='true']")
     expect(developmentStylesSource).toContain('.levelUpModuleGuide')

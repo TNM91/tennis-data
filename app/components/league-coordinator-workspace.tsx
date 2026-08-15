@@ -73,6 +73,11 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
+import {
+  getClubCompetitionRatingModeDescription,
+  getClubCompetitionRatingModeLabel,
+  type ClubCompetitionRatingMode,
+} from '@/lib/club-competition'
 import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -115,6 +120,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   maxWeeks: DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   maxMatchEvents: DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   isPublic: true,
+  ratingMode: 'tiq_rated',
   schedulingMode: 'coordinator_fixed',
   defaultMatchDay: '',
   defaultMatchTime: '',
@@ -296,6 +302,9 @@ export function LeagueCoordinatorWorkspace() {
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
+  const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubLocationId = searchParams.get('clubLocationId') || ''
+  const requestedClubName = searchParams.get('clubName') || ''
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
@@ -946,7 +955,12 @@ export function LeagueCoordinatorWorkspace() {
   ]
 
   function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
-    setDraft(EMPTY_DRAFT)
+    setDraft({
+      ...EMPTY_DRAFT,
+      clubId: requestedClubId,
+      clubLocationId: requestedClubLocationId,
+      locationLabel: requestedClubName,
+    })
     setTeamListInput('')
     setPlayerListInput('')
     setParticipantQuickAddInput('')
@@ -960,6 +974,9 @@ export function LeagueCoordinatorWorkspace() {
     setEditingId('')
     setDraft({
       ...EMPTY_DRAFT,
+      clubId: requestedClubId,
+      clubLocationId: requestedClubLocationId,
+      locationLabel: requestedClubName,
       leagueFormat: format,
       individualCompetitionFormat: format === 'individual' ? 'round_robin' : 'standard',
     })
@@ -1103,6 +1120,7 @@ export function LeagueCoordinatorWorkspace() {
       maxWeeks: record.maxWeeks,
       maxMatchEvents: record.maxMatchEvents,
       isPublic: record.isPublic,
+      ratingMode: record.ratingMode,
       schedulingMode: record.schedulingMode,
       defaultMatchDay: record.defaultMatchDay,
       defaultMatchTime: record.defaultMatchTime,
@@ -1723,6 +1741,27 @@ export function LeagueCoordinatorWorkspace() {
                 </select>
                 <span style={fieldHelpText}>
                   {getTiqLeagueVisibilityDescription(draft.isPublic)}
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>How results count</span>
+                <select
+                  value={draft.ratingMode}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      ratingMode: event.target.value as ClubCompetitionRatingMode,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  {(['tiq_rated', 'club_standings', 'social'] as const).map((mode) => (
+                    <option key={mode} value={mode}>{getClubCompetitionRatingModeLabel(mode)}</option>
+                  ))}
+                </select>
+                <span style={fieldHelpText}>
+                  {getClubCompetitionRatingModeDescription(draft.ratingMode)}
                 </span>
               </label>
 
