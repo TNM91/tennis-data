@@ -16,7 +16,10 @@
 }
 
 .levelUpShell > .levelUpRouteHeader,
+.levelUpShell > .levelUpIdentityChooser,
 .levelUpShell > .levelUpIdentityStrip,
+.levelUpShell > .levelUpIdentityDrillGuide,
+.levelUpShell > .levelUpPrimaryPathFinder,
 .levelUpShell > .levelUpIphoneCommandCenter,
 .levelUpShell > .levelUpIphoneDock,
 .levelUpShell > .levelUpNextRepCommand,
@@ -1218,6 +1221,488 @@
   border-color: rgba(155, 225, 29, 0.52);
   background: rgba(155, 225, 29, 0.13);
   color: var(--foreground-strong);
+}
+
+.levelUpIdentityChooser {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.levelUpIdentityCurrent,
+.levelUpIdentityCompare {
+  border: 1px solid rgba(116, 190, 255, 0.17);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 9% 4%, rgba(155, 225, 29, 0.1), transparent 30%),
+    linear-gradient(145deg, rgba(8, 23, 47, 0.98), rgba(5, 15, 32, 0.98));
+  box-shadow: var(--shadow-card);
+}
+
+.levelUpIdentityCurrent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+}
+
+.levelUpIdentityCurrentCopy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.levelUpIdentityCurrentCopy > span {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.32);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 9px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpIdentityCurrentCopy > strong {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.1;
+}
+
+.levelUpIdentityCurrentCopy p,
+.levelUpIdentityCurrentCopy small {
+  grid-column: 2;
+  margin: 0;
+}
+
+.levelUpIdentityCurrentCopy p {
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.levelUpIdentityCurrentCopy small {
+  color: rgba(216, 247, 164, 0.8);
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.levelUpIdentityCurrentActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.levelUpIdentityCurrentActions button {
+  min-height: 42px;
+  border: 1px solid rgba(155, 225, 29, 0.5);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.16);
+  color: var(--foreground-strong);
+  padding: 9px 15px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.levelUpIdentityCurrentActions button:disabled {
+  border-color: rgba(116, 190, 255, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted-strong);
+  cursor: default;
+}
+
+.levelUpIdentityCurrentActions button:focus-visible,
+.levelUpIdentityCompare summary:focus-visible,
+.levelUpIdentityChoiceGrid a:focus-visible {
+  outline: 3px solid rgba(155, 225, 29, 0.92);
+  outline-offset: 3px;
+}
+
+.levelUpIdentityCompare {
+  overflow: clip;
+}
+
+.levelUpIdentityCompare > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.levelUpIdentityCompare > summary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpIdentityCompare > summary span,
+.levelUpIdentityCompare > summary em,
+.levelUpIdentityCompareBody header > span {
+  color: var(--brand-green);
+  font-size: 0.67rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpIdentityCompare > summary strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+}
+
+.levelUpIdentityCompare > summary em {
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 6px 9px;
+}
+
+.levelUpIdentityCompare[open] > summary {
+  border-bottom: 1px solid rgba(116, 190, 255, 0.14);
+}
+
+.levelUpIdentityCompare > summary em span:last-child {
+  display: none;
+}
+
+.levelUpIdentityCompare[open] > summary em {
+  color: var(--muted-strong);
+}
+
+.levelUpIdentityCompare[open] > summary em span:first-child {
+  display: none;
+}
+
+.levelUpIdentityCompare[open] > summary em span:last-child {
+  display: inline;
+}
+
+.levelUpIdentityCompareBody {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+}
+
+.levelUpIdentityCompareNote {
+  margin: 0;
+  border-left: 3px solid rgba(155, 225, 29, 0.6);
+  color: var(--muted-strong);
+  padding: 2px 0 2px 10px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.levelUpIdentityCompareBody > section {
+  display: grid;
+  gap: 9px;
+}
+
+.levelUpIdentityCompareBody header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 9px;
+  align-items: baseline;
+}
+
+.levelUpIdentityCompareBody header > strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+}
+
+.levelUpIdentityCompareBody header > p {
+  grid-column: 2;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+}
+
+.levelUpIdentityChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpIdentityChoiceGrid a {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 108px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--foreground);
+  padding: 11px;
+  text-decoration: none;
+}
+
+.levelUpIdentityChoiceGrid a:hover {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpIdentityChoiceGrid a[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.62);
+  background: rgba(155, 225, 29, 0.11);
+}
+
+.levelUpIdentityChoiceGrid a[data-saved='true'] {
+  box-shadow: inset 3px 0 rgba(155, 225, 29, 0.74);
+}
+
+.levelUpIdentityChoiceGrid a > span {
+  padding-right: 42px;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.levelUpIdentityChoiceGrid a > strong,
+.levelUpIdentityChoiceGrid a > small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.levelUpIdentityChoiceGrid a > strong {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+}
+
+.levelUpIdentityChoiceGrid a > small {
+  color: rgba(216, 247, 164, 0.72);
+  font-size: 0.66rem;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+}
+
+.levelUpIdentityChoiceGrid a > em {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: #d8f7a4;
+  padding: 4px 6px;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.levelUpIdentityFitNote {
+  display: block;
+  margin-top: 7px;
+  border-left: 2px solid rgba(155, 225, 29, 0.48);
+  color: rgba(216, 247, 164, 0.78);
+  padding-left: 8px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.levelUpIdentityDrillGuide {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: 12px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 8% 10%, rgba(155, 225, 29, 0.11), transparent 32%),
+    linear-gradient(145deg, rgba(7, 18, 38, 0.97), rgba(5, 13, 29, 0.98));
+  box-shadow: var(--shadow-card);
+  padding: 12px;
+}
+
+.levelUpIdentityDrillProfile,
+.levelUpIdentityDrillList {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.levelUpIdentityDrillProfile {
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.levelUpIdentityDrillHeading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.levelUpIdentityDrillHeading > div,
+.levelUpIdentityDrillListHeader {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpIdentityDrillHeading span,
+.levelUpIdentityDrillListHeader span,
+.levelUpIdentityDrillList a span {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpIdentityDrillHeading h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1;
+}
+
+.levelUpIdentityDrillHeading p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.38;
+}
+
+.levelUpIdentityDrillSignals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.levelUpIdentityDrillSignals div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
+.levelUpIdentityDrillSignals dt {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.levelUpIdentityDrillSignals dd {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.levelUpIdentityDrillActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpIdentityDrillActions :is(a) {
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+}
+
+.levelUpIdentityDrillListHeader {
+  padding: 2px 2px 0;
+}
+
+.levelUpIdentityDrillListHeader strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.levelUpIdentityDrillList > a {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 10px;
+  text-decoration: none;
+}
+
+.levelUpIdentityDrillList > a:hover,
+.levelUpIdentityDrillList > a:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpIdentityDrillList > a > b {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.13);
+  color: var(--brand-green-3);
+  font-size: 0.78rem;
+}
+
+.levelUpIdentityDrillList > a > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.levelUpIdentityDrillList a strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.16;
+}
+
+.levelUpIdentityDrillList a small {
+  overflow: hidden;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelUpIdentityDrillList a em {
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.levelUpPrimaryPathFinder {
+  min-width: 0;
 }
 
 .levelUpNextRepCommand {
@@ -20668,6 +21153,205 @@
 @page {
   size: letter portrait;
   margin: 0.25in;
+}
+
+@media (max-width: 860px) {
+  .levelUpIdentityCurrent {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .levelUpIdentityCurrentActions {
+    justify-content: stretch;
+  }
+
+  .levelUpIdentityCurrentActions button {
+    width: 100%;
+  }
+
+  .levelUpIdentityChoiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpIdentityDrillGuide {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    padding: 9px;
+  }
+
+  .levelUpIdentityDrillProfile {
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .levelUpIdentityDrillSignals {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .levelUpIdentityDrillSignals div {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+    padding: 8px 9px;
+  }
+
+  .levelUpIdentityDrillActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpIdentityDrillList > a {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .levelUpIdentityDrillList a small {
+    display: none;
+  }
+
+  .levelUpCardRail,
+  .levelUpModuleRail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin-inline: 0;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .levelUpLibraryGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-inline: 0;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .levelUpCardRail article,
+  .levelUpModuleRail article,
+  .levelUpLibraryGrid a {
+    flex: initial;
+  }
+}
+
+@media (max-width: 620px) {
+  .levelUpIdentityCurrent {
+    padding: 11px;
+  }
+
+  .levelUpIdentityCurrentCopy {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .levelUpIdentityCurrentCopy > span {
+    grid-row: auto;
+    padding: 5px 7px;
+  }
+
+  .levelUpIdentityCurrentCopy p,
+  .levelUpIdentityCurrentCopy small {
+    grid-column: 1;
+  }
+
+  .levelUpIdentityCurrentCopy p {
+    display: none;
+  }
+
+  .levelUpIdentityCompare > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+    padding: 9px 11px;
+  }
+
+  .levelUpIdentityCompare > summary strong {
+    grid-column: 1;
+    font-size: 0.8rem;
+  }
+
+  .levelUpIdentityCompare > summary em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .levelUpIdentityCompareBody {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .levelUpIdentityCompareNote {
+    font-size: 0.75rem;
+  }
+
+  .levelUpIdentityCompareBody header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .levelUpIdentityCompareBody header > p {
+    grid-column: 1;
+  }
+
+  .levelUpIdentityChoiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpIdentityChoiceGrid a {
+    min-height: 86px;
+    padding: 9px;
+  }
+
+  .levelUpIdentityChoiceGrid a > span {
+    padding-right: 0;
+    font-size: 0.78rem;
+  }
+
+  .levelUpIdentityChoiceGrid a > strong {
+    font-size: 0.67rem;
+  }
+
+  .levelUpIdentityChoiceGrid a > small {
+    display: none;
+  }
+
+  .levelUpIdentityChoiceGrid a > em {
+    position: static;
+    width: fit-content;
+    margin-top: 3px;
+  }
+
+  .levelUpIdentityDrillHeading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .levelUpIdentityDrillHeading > :first-child {
+    display: none !important;
+  }
+
+  .levelUpIdentityDrillHeading p {
+    display: none;
+  }
+
+  .levelUpIdentityDrillSignals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpIdentityDrillSignals div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .levelUpIdentityDrillSignals div:nth-child(3) {
+    display: none;
+  }
+
+  .levelUpIdentityDrillActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpIdentityDrillList > a:nth-of-type(3) {
+    display: none;
+  }
 }
 
 @media print {

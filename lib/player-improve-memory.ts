@@ -1,4 +1,5 @@
 import { notifyPlatformResumeUpdated } from './platform-resume-events'
+import { isPlayerStyleSlug, writePlayerStyleCookie } from './player-identity-selection'
 
 export const PLAYER_IMPROVE_RESUME_STORAGE_KEY = 'tenaceiq_player_improve_resume_v1'
 
@@ -211,6 +212,9 @@ export function writePlayerImproveResumeState(nextState: PlayerImproveResumeStat
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
     window.localStorage.setItem(getPlayerImproveResumeStorageKey(userId), JSON.stringify(saved))
+    if (isPlayerStyleSlug(saved.identitySlug)) {
+      writePlayerStyleCookie(saved.identitySlug)
+    }
     notifyPlatformResumeUpdated('improve')
     return saved
   } catch {

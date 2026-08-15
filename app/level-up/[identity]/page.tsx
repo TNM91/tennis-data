@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import LevelUpPageContent from '../level-up-page-content'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+import { isPlayerStyleSlug, PLAYER_STYLE_COOKIE } from '@/lib/player-identity-selection'
 
 type IdentityLevelUpPageProps = {
   params: Promise<{ identity: string }>
@@ -40,5 +42,11 @@ export default async function IdentityLevelUpPage({ params }: IdentityLevelUpPag
     notFound()
   }
 
-  return <LevelUpPageContent identity={identity} />
+  const savedStyle = (await cookies()).get(PLAYER_STYLE_COOKIE)?.value
+  return (
+    <LevelUpPageContent
+      identity={identity}
+      initialSavedStyleSlug={isPlayerStyleSlug(savedStyle) ? savedStyle : null}
+    />
+  )
 }
