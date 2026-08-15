@@ -183,6 +183,7 @@ function formatMessageTime(value: string) {
 function conversationTypeLabel(type: InternalConversation['conversationType'], roomType = '') {
   if (type === 'support') return 'Support'
   if (type === 'team') return 'Team'
+  if (type === 'league' && roomType === 'team') return 'Team'
   if (type === 'league') return 'League'
   if (type === 'system') return 'System'
   return 'Direct'

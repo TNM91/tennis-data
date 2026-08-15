@@ -21,6 +21,24 @@ const contentSecurityPolicyReportOnly = [
   'report-to csp-endpoint',
 ].join('; ')
 
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://va.vercel-scripts.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.gstatic.com",
+  "media-src 'self' data: blob: https://*.supabase.co",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.vercel-insights.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com",
+  "frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://hooks.stripe.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  ...(isDevelopment ? [] : ['upgrade-insecure-requests']),
+].join('; ')
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   turbopack: {

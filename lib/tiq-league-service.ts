@@ -103,7 +103,6 @@ type TiqLeagueRow = {
   id: string
   club_id?: string | null
   club_group_id?: string | null
-  result_mode?: string | null
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
@@ -184,7 +183,6 @@ type TiqLeagueRemotePayload = {
   max_weeks: number
   max_match_events: number
   is_public: boolean
-  result_mode: 'tiq_rated' | 'public_history' | 'social'
   scheduling_mode: 'coordinator_fixed' | 'player_arranged'
   default_match_day: string
   default_match_time: string
@@ -277,7 +275,6 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     maxWeeks: normalizeTiqLeagueMaxWeeks(row.max_weeks ?? DEFAULT_TIQ_LEAGUE_MAX_WEEKS),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(row.max_match_events ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS),
     isPublic: normalizeTiqLeagueVisibility(row.is_public ?? true) === 'public',
-    ratingMode: normalizeClubCompetitionRatingMode(row.result_mode === 'public_history' ? 'club_standings' : row.result_mode),
     schedulingMode: normalizeTiqLeagueSchedulingMode(row.scheduling_mode),
     defaultMatchDay: cleanText(row.default_match_day),
     defaultMatchTime: cleanText(row.default_match_time),
@@ -465,7 +462,6 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     max_weeks: record.maxWeeks,
     max_match_events: record.maxMatchEvents,
     is_public: record.isPublic,
-    result_mode: record.ratingMode === 'club_standings' ? 'public_history' : record.ratingMode,
     scheduling_mode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
     default_match_day: record.defaultMatchDay,
     default_match_time: record.defaultMatchTime,

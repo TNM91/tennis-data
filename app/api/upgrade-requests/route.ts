@@ -7,6 +7,7 @@ import {
   type UpgradeRequestRow,
 } from '@/lib/upgrade-requests'
 import type { BillablePricingPlanId } from '@/lib/pricing-plans'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
 
 export const runtime = 'nodejs'
 

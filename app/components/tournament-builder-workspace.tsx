@@ -85,11 +85,6 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
-import {
-  getClubCompetitionRatingModeDescription,
-  getClubCompetitionRatingModeLabel,
-  type ClubCompetitionRatingMode,
-} from '@/lib/club-competition'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
 const CLUB_TOURNAMENT_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coordinator', 'coach']
@@ -179,7 +174,6 @@ export default function TournamentBuilderWorkspace() {
   const [directorNotes, setDirectorNotes] = useState('')
   const [entrantsText, setEntrantsText] = useState(sampleEntrants.join('\n'))
   const [isPublic, setIsPublic] = useState(false)
-  const [ratingMode, setRatingMode] = useState<ClubCompetitionRatingMode>('tiq_rated')
   const [selectedId, setSelectedId] = useState('')
   const [notice, setNotice] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
@@ -926,7 +920,6 @@ export default function TournamentBuilderWorkspace() {
       directorNotes,
       entrants: draftEntrants,
       isPublic,
-      ratingMode,
     }, selectedId, userId)
 
     refreshRecords(saved.data.id)
@@ -1444,7 +1437,6 @@ export default function TournamentBuilderWorkspace() {
     setDirectorNotes(record.directorNotes)
     setEntrantsText(record.entrants.join('\n'))
     setIsPublic(record.isPublic)
-    setRatingMode(record.ratingMode ?? 'tiq_rated')
     setScoreInputs(buildScoreInputState(record))
     setScheduleInputs(buildScheduleInputState(record))
     setContactInputs(buildContactInputState(record))
@@ -1468,11 +1460,10 @@ export default function TournamentBuilderWorkspace() {
     setFormat('single_elimination')
     setEntrantType('players')
     setStartsOn('')
-    setLocationLabel(requestedClubName)
+    setLocationLabel('')
     setDirectorNotes('')
     setEntrantsText(sampleEntrants.join('\n'))
     setIsPublic(false)
-    setRatingMode('tiq_rated')
     setScoreInputs({})
     setScheduleInputs({})
     setContactInputs({})

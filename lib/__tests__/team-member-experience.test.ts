@@ -10,7 +10,7 @@ const internalMessages = readFileSync(join(process.cwd(), 'lib/internal-messages
 const teamChatMigration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260815000000_secure_team_chat_membership.sql'),
   'utf8',
-)
+).replace(/\r\n/g, '\n')
 
 describe('membership-first Teams experience', () => {
   it('makes Teams a first-class free destination', () => {
@@ -19,13 +19,13 @@ describe('membership-first Teams experience', () => {
     expect(portal).toContain("icon: 'teamRankings'")
     expect(portal).toContain("title: 'Open my teams'")
     expect(teamsHub).toContain('Register to access your teams.')
-    expect(teamsHub).toContain('Your Free account includes each linked team’s roster, schedule, stats, and team chat.')
+    expect(teamsHub).toContain('A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.')
   })
 
   it('keeps chat inside the linked team page', () => {
     expect(teamPage).toContain('id="team-chat"')
     expect(teamPage).toContain('mode="team"')
-    expect(teamPage).toContain('Open team chat')
+    expect(teamPage).toContain('Open Team Chat')
     expect(teamPage).toContain('Replies also appear in your Messages inbox.')
     expect(quickMessage).toContain("type QuickMessageMode = 'direct' | 'support' | 'league' | 'team'")
     expect(quickMessage).toContain('createTeamConversation(identity')

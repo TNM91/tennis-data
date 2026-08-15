@@ -7,7 +7,6 @@ import { deleteTiqIndividualResultMatch, syncTiqIndividualResultToMatch } from '
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
-import { competitionAffectsTiqRating, competitionPublishesMatchHistory } from '@/lib/club-competition'
 
 const TIQ_INDIVIDUAL_RESULTS_TABLE = 'tiq_individual_league_results'
 const LOCAL_RESULTS_KEY = 'tenaceiq-tiq-individual-results-v1'

@@ -7,7 +7,6 @@ import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
-import { buildProductAccessState } from '@/lib/access-model'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerLabel,
@@ -38,8 +37,7 @@ import {
 } from '@/lib/match-accuracy-reports'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
-import { isProfileLinkedToTeam } from '@/lib/team-membership'
+import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { fetchTeamConnections } from '@/lib/team-profile-links-client'
@@ -372,7 +370,6 @@ function TeamPageContent() {
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setLinkedPlayerName('')
-      setProfileLink(null)
       setMyMatchReports([])
       return
     }
@@ -382,7 +379,6 @@ function TeamPageContent() {
     void (async () => {
       const result = await loadUserProfileLink(currentUserId)
       if (!active) return
-      setProfileLink(result.data)
       setLinkedPlayerId(result.data?.linked_player_id || null)
       setLinkedPlayerName(result.data?.linked_player_name || '')
     })()
@@ -962,16 +958,6 @@ function TeamPageContent() {
     })
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
-  const isLinkedTeamMember = useMemo(() => (
-    Boolean(currentUserId) && isProfileLinkedToTeam(
-      profileLink,
-      rosterMembers.map((entry) => entry.player_id),
-      team,
-      leagueFilter || teamMeta.league,
-      flightFilter || teamMeta.flight,
-    )
-  ), [currentUserId, flightFilter, leagueFilter, profileLink, rosterMembers, team, teamMeta.flight, teamMeta.league])
-
   const teamChatPlayerIds = useMemo(() => Array.from(new Set(
     rosterMembers
       .map((entry) => cleanText(entry.player_id))
@@ -1270,6 +1256,16 @@ function TeamPageContent() {
     leagueName: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
+  const teamLeagueHref = teamMeta.league
+    ? buildExploreLeagueHref({
+        competitionLayer,
+        leagueFormat: 'team',
+        leagueName: teamMeta.league,
+        flight: teamMeta.flight,
+        ustaSection: teamMeta.section,
+        districtArea: teamMeta.district,
+      })
+    : ''
   const linkedTeamConnection = teamConnections.find((connection) => {
     if (normalizeTeamName(connection.teamName) !== normalizeTeamName(team)) return false
     const currentLeague = cleanText(leagueFilter || teamMeta.league).toLowerCase()
@@ -1365,6 +1361,7 @@ function TeamPageContent() {
           <a href="#team-overview" style={teamSectionNavLinkStyle}>Overview</a>
           <a href="#team-schedule" style={teamSectionNavLinkStyle}>Schedule</a>
           <a href="#team-roster" style={teamSectionNavLinkStyle}>Roster</a>
+          <a href="#team-chat" style={teamSectionNavLinkStyle}>Team chat</a>
         </nav>
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
@@ -1394,7 +1391,7 @@ function TeamPageContent() {
                 </>
               ) : isLinkedTeamMember ? (
                 <>
-                  <PrimaryLink href={teamRoomHref}>Open Team Chat</PrimaryLink>
+                  <PrimaryLink href="#team-chat">Open Team Chat</PrimaryLink>
                   {access.canUseAdvancedPlayerInsights ? <SecondaryLink href="/mylab">Open My Lab</SecondaryLink> : null}
                   {access.canUseAdvancedPlayerInsights ? <GhostLink href="/matchup">Prep matchup</GhostLink> : null}
                   {canManageThisTeam ? <SecondaryLink href={captainLinks[1].href}>Build lineup</SecondaryLink> : null}
@@ -1479,6 +1476,63 @@ function TeamPageContent() {
               </div>
             ) : null}
           </div>
+        </section>
+
+        <section id="team-chat" style={{ ...surfaceCard, order: 1, scrollMarginTop: 16 }}>
+          <div style={sectionHeadingRow}>
+            <div style={sectionHeadingCopyStyle}>
+              <p style={sectionKicker}>Team chat</p>
+              <h2 style={sectionTitle}>
+                {isLinkedTeamMember ? 'Talk with the roster.' : 'Private for linked team members.'}
+              </h2>
+              <p style={bodyText}>
+                {isLinkedTeamMember
+                  ? 'Start or continue the team conversation. Replies also appear in your Messages inbox.'
+                  : 'Register and connect this team to join its conversation.'}
+              </p>
+            </div>
+          </div>
+          <div style={dynamicHeroActions}>
+            {isLinkedTeamMember ? (
+              <>
+                <QuickMessageComposer
+                  mode="team"
+                  triggerLabel="Open Team Chat"
+                  subject={`${team} team chat`}
+                  leagueName={team}
+                  teamName={team}
+                  teamLeagueName={leagueFilter || teamMeta.league}
+                  teamFlight={flightFilter || teamMeta.flight}
+                  entityType="team"
+                  entityId={stableFollowId}
+                  participantPlayerIds={teamChatPlayerIds}
+                />
+                <GhostLink href={teamRoomHref}>Open full room</GhostLink>
+              </>
+            ) : currentUserId ? (
+              <PrimaryLink href="/team-connections">Connect this team</PrimaryLink>
+            ) : (
+              <PrimaryLink href={`/join?next=${encodeURIComponent(`${exploreResumeHref}#team-chat`)}`}>Register Free</PrimaryLink>
+            )}
+          </div>
+
+          {isLinkedTeamMember && access.canUseAdvancedPlayerInsights ? (
+            <div style={{ marginTop: 16, padding: 16, borderRadius: 18, border: '1px solid rgba(125, 211, 252, 0.16)', background: 'rgba(255, 255, 255, 0.035)' }}>
+              <p style={sectionKicker}>Player tools</p>
+              <h3 style={{ ...sectionTitle, fontSize: 18 }}>Turn team context into your next improvement.</h3>
+              <p style={bodyText}>Bring this roster, your match history, and the next opponent into My Lab and matchup prep.</p>
+              <div style={dynamicHeroActions}>
+                <PrimaryLink href="/mylab">Open My Lab</PrimaryLink>
+                <SecondaryLink href="/matchup">Prep matchup</SecondaryLink>
+              </div>
+            </div>
+          ) : null}
+
+          {linkedTeamConnection && isCaptainTeamConnection(linkedTeamConnection.roles) && access.canUseCaptainWorkflow ? (
+            <div style={{ marginTop: 12 }}>
+              <SecondaryLink href={captainLinks[1].href}>Open captain team tools</SecondaryLink>
+            </div>
+          ) : null}
         </section>
 
         {canManageThisTeam ? (

@@ -56,7 +56,6 @@ export type TiqLeagueRecord = {
   maxWeeks: number
   maxMatchEvents: number
   isPublic: boolean
-  ratingMode: ClubCompetitionRatingMode
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -92,7 +91,6 @@ export type TiqLeagueDraft = {
   maxWeeks: number
   maxMatchEvents: number
   isPublic: boolean
-  ratingMode: ClubCompetitionRatingMode
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -251,7 +249,6 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
     isPublic: normalizeTiqLeagueVisibility(input.isPublic) === 'public',
-    ratingMode: normalizeClubCompetitionRatingMode(input.ratingMode),
     schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
     defaultMatchDay: cleanText(input.defaultMatchDay),
     defaultMatchTime: cleanText(input.defaultMatchTime),
@@ -301,7 +298,6 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
         record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
       ),
       isPublic: normalizeTiqLeagueVisibility(record.isPublic) === 'public',
-      ratingMode: normalizeClubCompetitionRatingMode(record.ratingMode),
       schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
       defaultMatchDay: cleanText(record.defaultMatchDay),
       defaultMatchTime: cleanText(record.defaultMatchTime),
@@ -363,7 +359,6 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     maxWeeks: normalized.maxWeeks,
     maxMatchEvents: normalized.maxMatchEvents,
     isPublic: normalized.isPublic,
-    ratingMode: normalized.ratingMode,
     schedulingMode: normalized.schedulingMode,
     defaultMatchDay: normalized.defaultMatchDay,
     defaultMatchTime: normalized.defaultMatchTime,

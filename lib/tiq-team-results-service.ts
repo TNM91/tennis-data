@@ -14,7 +14,6 @@ import {
 } from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
-import { competitionAffectsTiqRating, competitionPublishesMatchHistory } from '@/lib/club-competition'
 
 export type TiqTeamMatchEventRecord = {
   id: string

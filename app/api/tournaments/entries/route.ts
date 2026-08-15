@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { normalizeMixedPairRole, normalizePlayerRatingSource } from '@/lib/player-eligibility'
 import { supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -12,6 +13,12 @@ type EntryBody = {
   selfRating?: unknown
   smsOptIn?: unknown
   consentNote?: unknown
+  eligibilityRating?: unknown
+  eligibilityRatingSource?: unknown
+  eligibilityMixedPairRole?: unknown
+  eligibilityMixedPairRoleSource?: unknown
+  eligibilityAgeDivision?: unknown
+  eligibilityAgeDivisionSource?: unknown
 }
 
 export async function POST(request: Request) {
@@ -29,6 +36,12 @@ export async function POST(request: Request) {
   const selfRating = normalizeSelfRating(body.selfRating)
   const smsOptIn = Boolean(body.smsOptIn)
   const consentNote = cleanText(body.consentNote, 300)
+  const eligibilityRating = normalizeSelfRating(body.eligibilityRating)
+  const eligibilityRatingSource = normalizePlayerRatingSource(body.eligibilityRatingSource)
+  const eligibilityMixedPairRole = normalizeMixedPairRole(body.eligibilityMixedPairRole)
+  const eligibilityMixedPairRoleSource = normalizePlayerRatingSource(body.eligibilityMixedPairRoleSource)
+  const eligibilityAgeDivision = cleanText(body.eligibilityAgeDivision, 80) || null
+  const eligibilityAgeDivisionSource = normalizePlayerRatingSource(body.eligibilityAgeDivisionSource)
   if (!tournamentId || !playerName) {
     return Response.json({ ok: false, message: 'Enter your name before submitting.' }, { status: 400 })
   }
@@ -84,10 +97,17 @@ export async function POST(request: Request) {
       sms_opt_in: smsOptIn,
       consent_note: consentNote,
       status: 'pending',
+      eligibility_rating: eligibilityRating,
+      eligibility_rating_source: eligibilityRatingSource,
+      eligibility_mixed_pair_role: eligibilityMixedPairRole,
+      eligibility_mixed_pair_role_source: eligibilityMixedPairRoleSource,
+      eligibility_age_division: eligibilityAgeDivision,
+      eligibility_age_division_source: eligibilityAgeDivisionSource,
+      eligibility_submitted_at: new Date().toISOString(),
       preference_token_hash: hashValue(preferenceToken),
       preference_token_expires_at: expiresAt,
     })
-    .select('id,tournament_id,player_name,self_rating,sms_opt_in,status,created_at,updated_at')
+    .select('id,tournament_id,player_name,self_rating,sms_opt_in,status,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,created_at,updated_at')
     .single()
 
   if (result.error) {

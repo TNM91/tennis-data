@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildProductUsageEventInsert } from '@/lib/product-usage-events'
 

@@ -339,7 +339,6 @@
 }
 
 .overviewDetails:not([open]) > .overviewDetailsContent,
-.overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody,
 .improveAllTools:not([open]) > .improveAllToolsBody,
 .improveHubMoreActions:not([open]) > div,
 .playerIdActionPlanMore:not([open]) > div,

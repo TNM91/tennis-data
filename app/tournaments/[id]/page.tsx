@@ -185,7 +185,6 @@ function TournamentPublicInner() {
     return [...groups.entries()].sort(([left], [right]) => left - right)
   }, [matches])
   const tournamentStatus = record ? getPublicTournamentStatus(record, summary?.completedMatches ?? 0, summary?.totalMatches ?? 0) : null
-  const tournamentRatingMode = normalizeClubCompetitionRatingMode(record?.ratingMode)
   const podiumSummary = useMemo(() => buildTournamentPodiumSummary(awards), [awards])
   const entryRequirement = useMemo(
     () => buildPlayerEligibilityRequirement(record?.name, record?.directorNotes),
@@ -275,6 +274,7 @@ function TournamentPublicInner() {
   async function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setEntryNotice('')
+    setEntryPreferenceHref('')
     if (entryCannotSubmit) {
       setEntryNotice('Complete the highlighted eligibility check before submitting your entry.')
       return
@@ -307,6 +307,7 @@ function TournamentPublicInner() {
     setEntrySmsOptIn(false)
     setEntryAgeAttested(false)
     setEntryDivisionAttested(false)
+    setEntryPreferenceHref(result.preferenceHref || '')
     setEntryNotice('Entry submitted. The director will approve players into the draw.')
   }
 
@@ -385,7 +386,6 @@ function TournamentPublicInner() {
             {record.isPublic ? <a href="#enter-tournament" style={primaryButtonStyle}>Enter tournament</a> : null}
             <a href="#draw" style={secondaryButtonStyle}>View draw</a>
             <span style={pillStyle}>{source === 'cloud' ? (record.isPublic ? 'Public' : 'Director view') : 'Device preview'}</span>
-            <span style={pillStyle}>{getClubCompetitionRatingModeLabel(tournamentRatingMode)} · {getClubCompetitionRatingModeShortDescription(tournamentRatingMode)}</span>
           </div>
         </div>
         <div style={heroPanelStyle}>

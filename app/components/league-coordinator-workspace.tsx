@@ -114,11 +114,6 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
-import {
-  getClubCompetitionRatingModeDescription,
-  getClubCompetitionRatingModeLabel,
-  type ClubCompetitionRatingMode,
-} from '@/lib/club-competition'
 import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -208,7 +203,6 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   maxWeeks: DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   maxMatchEvents: DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   isPublic: true,
-  ratingMode: 'tiq_rated',
   schedulingMode: 'coordinator_fixed',
   defaultMatchDay: '',
   defaultMatchTime: '',
@@ -1290,7 +1284,6 @@ export function LeagueCoordinatorWorkspace() {
       maxWeeks: record.maxWeeks,
       maxMatchEvents: record.maxMatchEvents,
       isPublic: record.isPublic,
-      ratingMode: record.ratingMode,
       schedulingMode: record.schedulingMode,
       defaultMatchDay: record.defaultMatchDay,
       defaultMatchTime: record.defaultMatchTime,

@@ -42,10 +42,6 @@ function buildTiqTeamLineExternalMatchId(lineId: string) {
   return `tiq_team_line_${lineId}`
 }
 
-function buildTiqTournamentExternalMatchId(tournamentId: string, matchId: string) {
-  return `tiq_tournament_${tournamentId}_${matchId}`
-}
-
 export function normalizePlayerName(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ')
 }
