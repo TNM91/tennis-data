@@ -2696,20 +2696,48 @@ export default function PlayerLiveWorkbench({
               </div>
             </section>
           ) : null}
-          <div ref={savedRef} className={styles.liveSavedBanner} role="status">
-            <div>
-              <span>Saved</span>
-              <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
-              <p>
-                {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
-                {' '}
-                {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
-                  ? 'Ready to sync to your coach when linked.'
-                  : lastSavedSession.accessMode === 'player_plus'
-                    ? `Ready for ${PLAYER_TIER_NAME} history and trends.`
-                    : 'Kept as a local preview for now.')}
-                {questCreditMessage ? ` ${questCreditMessage}` : ''}
-              </p>
+          <section ref={savedRef} className={styles.liveProofReceipt} aria-label="Saved proof receipt">
+            <div className={styles.liveProofReceiptTop}>
+              <div className={styles.liveProofReceiptCopy}>
+                <span>Proof banked</span>
+                <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
+                <p>{selectedSavedNextCue ? `Carry forward: ${selectedSavedNextCue.value}` : 'Your score and next cue are ready.'}</p>
+              </div>
+              <div className={styles.liveProofReceiptStats} aria-label="Saved proof score, time, and feel">
+                <article>
+                  <span>Proof</span>
+                  <strong>{lastSavedSession.rating}/5</strong>
+                </article>
+                <article>
+                  <span>Time</span>
+                  <strong>{formatClock(lastSavedSession.elapsedSeconds)}</strong>
+                </article>
+                <article>
+                  <span>Feel</span>
+                  <strong>{feelingLabels[lastSavedSession.feeling]}</strong>
+                </article>
+              </div>
+              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
+                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'Open My Lab'}
+              </a>
+            </div>
+            <details className={styles.liveProofReceiptDetails}>
+              <summary className={styles.liveProofReceiptSummary}>
+                <div>
+                  <span>Coach handoff</span>
+                  <strong>Review the cue, match moment, and share-ready recap.</strong>
+                </div>
+                <em aria-hidden="true" />
+              </summary>
+              <div className={styles.liveProofReceiptBody}>
+                <p className={styles.liveProofReceiptSync}>
+                  {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
+                    ? 'Ready to sync to your coach when linked.'
+                    : lastSavedSession.accessMode === 'player_plus'
+                      ? `Ready for ${PLAYER_TIER_NAME} history and trends.`
+                      : 'Kept as a local preview for now.')}
+                  {questCreditMessage ? ` ${questCreditMessage}` : ''}
+                </p>
               <div className={styles.liveSavedIdentitySignals} aria-label="Saved proof identity signals">
                 {savedIdentitySignals.map((signal) => (
                   <article key={signal.label}>
@@ -2866,19 +2894,9 @@ export default function PlayerLiveWorkbench({
                   )}
                 </div>
               </div>
-            </div>
-            <div className={styles.liveSavedActions}>
-              <button type="button" className="button-primary" onClick={repeatActivity}>
-                Repeat
-              </button>
-              <button type="button" className="button-secondary" onClick={pickNewFocus}>
-                New focus
-              </button>
-              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'My Lab'}
-              </a>
-            </div>
-          </div>
+              </div>
+            </details>
+          </section>
         </>
       ) : null}
 
