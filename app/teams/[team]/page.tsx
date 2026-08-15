@@ -1014,7 +1014,8 @@ function TeamPageContent() {
 
     return nextRoster
   }, [roster, rosterFilter])
-  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, 12)
+  const mobileRosterPreviewLimit = isMobile ? 6 : 12
+  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
 
   const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => [
     { key: 'all', label: 'All', count: roster.length },
@@ -2180,31 +2181,29 @@ function TeamPageContent() {
                             </button>
                           )}
                         </div>
-                        <div style={mobileRosterMetricGridStyle}>
-                          <span style={mobileRosterMetricStyle}>
-                            <small>Singles</small>
-                            <strong>{formatRating(singlesRating)}</strong>
-                          </span>
-                          <span style={mobileRosterMetricStyle}>
-                            <small>Doubles</small>
-                            <strong>{formatRating(doublesRating)}</strong>
-                          </span>
-                          <span style={mobileRosterMetricStyle}>
-                            <small>{player.appearances} played</small>
-                            <strong>{player.wins}-{player.losses}</strong>
-                          </span>
-                        </div>
-                        <div style={rosterActionRow}>
-                          {player.id.startsWith('summary:') ? null : (
-                            <>
-                              <Link href={`/players/${player.id}`} style={rosterActionLink}>Profile</Link>
-                              {access.canUseAdvancedPlayerInsights ? (
-                                <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
-                              ) : null}
-                            </>
-                          )}
-                          {canManageThisTeam ? <Link href={captainLinks[0].href} style={rosterActionLink}>Availability</Link> : null}
-                          {canManageThisTeam ? <Link href={captainLinks[1].href} style={rosterActionLink}>Lineup</Link> : null}
+                        <div style={mobileRosterCompactRowStyle}>
+                          <dl style={mobileRosterMetricGridStyle} aria-label={`${player.name} roster stats`}>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>Singles</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(singlesRating)}</dd>
+                            </div>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>Doubles</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(doublesRating)}</dd>
+                            </div>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>{player.appearances} played</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{player.wins}-{player.losses}</dd>
+                            </div>
+                          </dl>
+                          {!player.id.startsWith('summary:') && access.canUseAdvancedPlayerInsights ? (
+                            <Link
+                              href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`}
+                              style={mobileRosterMatchupLink}
+                            >
+                              Matchup
+                            </Link>
+                          ) : null}
                         </div>
                       </article>
                     )
@@ -2289,7 +2288,7 @@ function TeamPageContent() {
                 </table>
               </div>
               )}
-              {filteredRoster.length > 12 ? (
+              {filteredRoster.length > mobileRosterPreviewLimit ? (
                 <div style={tableControlRowStyle}>
                   <button type="button" onClick={() => setShowFullRoster((value) => !value)} style={tableToggleButtonStyle}>
                     {showFullRoster ? 'Show fewer players' : `Show all ${filteredRoster.length} players`}
@@ -3587,16 +3586,16 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
 
 const mobileRosterListStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
 }
 
 const mobileRosterCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
-  padding: 14,
-  borderRadius: 16,
+  padding: 12,
+  borderRadius: 14,
   border: '1px solid rgba(125, 211, 252, 0.14)',
   background: 'rgba(15, 23, 42, 0.58)',
 }
@@ -3633,21 +3632,44 @@ const mobileRosterPendingStyle: CSSProperties = {
 const mobileRosterMetricGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 7,
+  gap: 12,
+  flex: '1 1 190px',
   minWidth: 0,
+  margin: 0,
 }
 
 const mobileRosterMetricStyle: CSSProperties = {
   display: 'grid',
-  gap: 4,
+  gap: 2,
   minWidth: 0,
-  padding: '9px 7px',
-  borderRadius: 12,
-  background: 'rgba(255, 255, 255, 0.035)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  overflowWrap: 'anywhere',
+}
+
+const mobileRosterMetricLabelStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+}
+
+const mobileRosterMetricValueStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--foreground-strong)',
   fontSize: 13,
-  textAlign: 'center',
-  overflowWrap: 'anywhere',
+  fontWeight: 850,
+}
+
+const mobileRosterCompactRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  paddingTop: 9,
+  borderTop: '1px solid rgba(125, 211, 252, 0.10)',
 }
 
 const playerLink: CSSProperties = {
@@ -3686,5 +3708,12 @@ const rosterActionLinkAccent: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.28)',
   background: 'rgba(155,225,29,0.10)',
   color: '#d9f84a',
+}
+
+const mobileRosterMatchupLink: CSSProperties = {
+  ...rosterActionLinkAccent,
+  flex: '0 0 auto',
+  minHeight: '44px',
+  padding: '0 13px',
 }
 
