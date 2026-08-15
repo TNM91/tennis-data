@@ -2023,19 +2023,32 @@ export default function PlayerLiveWorkbench({
         ) : null}
       </div>
 
-      <section className={styles.liveWeeklyRecap} aria-label="Weekly Level Up progress recap">
-        <div className={styles.liveWeeklyRecapHeader}>
+      <details className={styles.liveWeeklyRecap} aria-label="Weekly Level Up progress recap">
+        <summary className={styles.liveWeeklyMomentum}>
           <div>
-            <span>Last 7 days</span>
-            <strong>{weeklyRecap.proofCount ? 'Your tennis week, simplified.' : 'Start this tennis week.'}</strong>
-            <p>{weeklyRecap.summary}</p>
+            <span>7-day momentum</span>
+            <strong>
+              {weeklyPlan
+                ? `${weeklyPlanProgress.completed} of ${weeklyPlanProgress.total} planned reps complete`
+                : `${weeklyRecap.proofCount} proof · ${weeklyRecap.activeDays} active day${weeklyRecap.activeDays === 1 ? '' : 's'}`}
+            </strong>
+            <small>{weeklyRecap.strongestFocus}</small>
           </div>
           <div className={styles.liveWeeklyRecapScore} data-trend={weeklyRecap.proofTrend}>
             <span>{weeklyPlan ? 'Plan' : 'Average'}</span>
             <strong>{weeklyPlan ? `${weeklyPlanProgress.completed}/${weeklyPlanProgress.total}` : weeklyRecap.proofCount ? `${weeklyRecap.averageRating.toFixed(1)}/5` : '—'}</strong>
           </div>
-        </div>
-        <div className={styles.liveWeeklyRecapReads} aria-label="Weekly proof, activity, streak, and strongest focus">
+          <em>View week</em>
+        </summary>
+        <div className={styles.liveWeeklyRecapBody}>
+          <div className={styles.liveWeeklyRecapHeader}>
+          <div>
+            <span>Last 7 days</span>
+            <strong>{weeklyRecap.proofCount ? 'Your tennis week, simplified.' : 'Start this tennis week.'}</strong>
+            <p>{weeklyRecap.summary}</p>
+          </div>
+          </div>
+          <div className={styles.liveWeeklyRecapReads} aria-label="Weekly proof, activity, streak, and strongest focus">
           <article data-trend={weeklyRecap.proofTrend}>
             <span>Proof</span>
             <strong>{weeklyRecap.proofCount}</strong>
@@ -2056,8 +2069,8 @@ export default function PlayerLiveWorkbench({
             <strong>{weeklyRecap.strongestFocus}</strong>
             <small>{weeklyRecap.strongestFocusRead}</small>
           </article>
-        </div>
-        {weeklyPlan ? (
+          </div>
+          {weeklyPlan ? (
           <div className={styles.liveWeeklyPlanStatus}>
             <div>
               <strong>{weeklyPlanProgress.complete ? 'Week complete.' : `Next: ${weeklyPlanProgress.nextRep?.title ?? 'Keep building'}`}</strong>
@@ -2074,16 +2087,16 @@ export default function PlayerLiveWorkbench({
             <span>Three reps. One clear week.</span>
             <button type="button" onClick={saveThisWeek}>Save this week</button>
           </div>
-        ) : null}
-        {weeklyPlan ? (
+          ) : null}
+          {weeklyPlan ? (
           <WeeklyPlanCoachResponse
             key={weeklyPlan.coachResponse?.updatedAt ?? weeklyPlan.id}
             plan={weeklyPlan}
             accessToken={session?.access_token ?? ''}
             onSaved={persistWeeklyPlan}
           />
-        ) : null}
-        {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).length ? (
+          ) : null}
+          {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).length ? (
           <div className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
             {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).map((rep, index) => {
               const completed = 'completedAt' in rep && Boolean(rep.completedAt)
@@ -2104,16 +2117,17 @@ export default function PlayerLiveWorkbench({
               )
             })}
           </div>
-        ) : null}
-        {weeklyPlanMessage ? (
+          ) : null}
+          {weeklyPlanMessage ? (
           <p className={styles.liveWeeklyPlanMessage} role="status">
             {weeklyPlanMessage}
             {weeklyPlanMessage.toLowerCase().includes('connect a coach') ? (
               <> <Link href="/mylab#coach-assignments">Open My Lab</Link></>
             ) : null}
           </p>
-        ) : null}
-      </section>
+          ) : null}
+        </div>
+      </details>
 
       <nav className={styles.liveSessionDock} data-active={sessionDockActive ? 'true' : 'false'} aria-label="Level Up bottom session dock">
         <a href="#level-up-flow">Today</a>
