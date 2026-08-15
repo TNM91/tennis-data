@@ -86,10 +86,10 @@ describe('TenAceIQ locked brand assets', () => {
 
   it('keeps obsolete TenAceIQ logo references out of source', () => {
     const offenders: string[] = []
-    const legacyLogoPattern = /\/(?:tenaceiq\/logos|tiq\/logo)\/[^"'`\s),]+/g
+    const retiredLogoPattern = /\/(?:tenaceiq\/logos|tiq\/logo)\/[^"'`\s),]+/g
 
     for (const file of readSourceFiles()) {
-      const matches = file.source.match(legacyLogoPattern) ?? []
+      const matches = file.source.match(retiredLogoPattern) ?? []
       for (const match of matches) {
         offenders.push(`${file.path}: ${match}`)
       }

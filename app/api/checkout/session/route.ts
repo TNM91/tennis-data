@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim()
+  const stripeSecretKey = process.env.STRIPE_RESTRICTED_KEY?.trim() || process.env.STRIPE_SECRET_KEY?.trim()
   if (!stripeSecretKey) {
     return Response.json(
       { ok: false, message: 'Checkout is not configured yet.' },
@@ -97,7 +97,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Checkout request lookup failed', error)
+    return Response.json({ ok: false, message: 'Checkout request could not be loaded.' }, { status: 500 })
   }
 
   const checkoutTarget = resolveCheckoutTarget(data as UpgradeRequestCheckoutRow | null, userResult.userId)
@@ -155,6 +156,7 @@ export async function POST(request: Request) {
       Authorization: `Bearer ${stripeSecretKey}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Stripe-Version': STRIPE_API_VERSION,
+      'Idempotency-Key': `tenaceiq-checkout-${checkoutTarget.requestId}`,
     },
     body: params,
   })
@@ -163,8 +165,9 @@ export async function POST(request: Request) {
     | null
 
   if (!response.ok || !stripeBody?.url) {
+    console.error('Stripe Checkout Session creation failed', { status: response.status, requestId })
     return Response.json(
-      { ok: false, message: stripeBody?.error?.message || 'Stripe checkout could not be started.' },
+      { ok: false, message: 'Stripe checkout could not be started.' },
       { status: response.ok ? 500 : response.status },
     )
   }

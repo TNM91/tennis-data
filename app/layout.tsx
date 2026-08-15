@@ -12,6 +12,7 @@ import './globals.css'
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
 const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png'
 const BRAND_ICON_VERSION = '20260813-navy-tile'
+const VERCEL_OBSERVABILITY_ENABLED = process.env.VERCEL === '1'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -143,8 +144,12 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
-        <Analytics />
-        <SpeedInsights />
+        {VERCEL_OBSERVABILITY_ENABLED ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"

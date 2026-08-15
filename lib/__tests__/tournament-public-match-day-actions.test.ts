@@ -20,7 +20,7 @@ describe('public tournament match-day actions', () => {
     expect(source).toContain('eventDayCommandStyle')
     expect(source).toContain('Match-day actions')
     expect(source).toContain('playerRailCopyStyle')
-    expect(source).toContain('Court alerts')
+    expect(source).toContain("value: 'Set on entry'")
     expect(source).toContain('Find yours')
     expect(source).toContain('results')
     expect(source.indexOf('id="enter-tournament"')).toBeLessThan(

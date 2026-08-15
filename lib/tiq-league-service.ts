@@ -103,7 +103,6 @@ type TiqLeagueRow = {
   id: string
   club_id?: string | null
   club_group_id?: string | null
-  result_mode?: string | null
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
@@ -119,6 +118,7 @@ type TiqLeagueRow = {
   max_weeks?: number | null
   max_match_events?: number | null
   is_public?: boolean | null
+  result_mode?: string | null
   scheduling_mode?: string | null
   default_match_day?: string | null
   default_match_time?: string | null

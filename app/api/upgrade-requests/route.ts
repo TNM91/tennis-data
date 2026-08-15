@@ -7,6 +7,7 @@ import {
   type UpgradeRequestRow,
 } from '@/lib/upgrade-requests'
 import type { BillablePricingPlanId } from '@/lib/pricing-plans'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
 
 export const runtime = 'nodejs'
 
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         ok: false,
-        message: error.message || 'Upgrade request could not be saved.',
+        message: 'Upgrade request could not be saved.',
       },
       { status: 500 },
     )
@@ -135,7 +136,8 @@ export async function PATCH(request: Request) {
     .maybeSingle()
 
   if (loadError) {
-    return Response.json({ ok: false, message: loadError.message }, { status: 500 })
+    console.error('Upgrade request link lookup failed', loadError)
+    return Response.json({ ok: false, message: 'Upgrade request could not be loaded.' }, { status: 500 })
   }
 
   if (!existing) {
@@ -159,7 +161,8 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Upgrade request link failed', error)
+    return Response.json({ ok: false, message: 'Upgrade request could not be linked.' }, { status: 500 })
   }
 
   return Response.json({ ok: true, request: mapUpgradeRequestRow(data as UpgradeRequestRow) })
@@ -223,7 +226,5 @@ function cleanString(value: unknown) {
 
 function sanitizeNextHref(value: unknown) {
   const candidate = cleanString(value)
-  if (!candidate.startsWith('/')) return ''
-  if (candidate.startsWith('//')) return ''
-  return candidate.slice(0, 240)
+  return isSafeLocalNextHref(candidate.slice(0, 240), '')
 }

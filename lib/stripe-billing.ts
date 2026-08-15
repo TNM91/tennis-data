@@ -71,6 +71,12 @@ export const STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS = [
   'invoice.payment_failed',
 ] as const
 
+export const STRIPE_ONE_TIME_REVERSAL_EVENTS = [
+  'charge.refunded',
+  'charge.dispute.created',
+  'refund.created',
+] as const
+
 type SubscriptionPricingPlanId = Extract<PaidPricingPlanId, 'player_plus' | 'coach' | 'captain' | 'full_court'>
 type SubscriptionEntitlementStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
 
@@ -99,6 +105,12 @@ export function buildStripeBillingProfilePayload(session: StripeBillingCheckoutS
 export function isStripeSubscriptionLifecycleEvent(event: StripeSubscriptionLifecycleEvent) {
   return STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS.includes(
     event.type as (typeof STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS)[number],
+  )
+}
+
+export function isStripeOneTimeReversalEvent(event: StripeSubscriptionLifecycleEvent) {
+  return STRIPE_ONE_TIME_REVERSAL_EVENTS.includes(
+    event.type as (typeof STRIPE_ONE_TIME_REVERSAL_EVENTS)[number],
   )
 }
 

@@ -1,5 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { getCoachApiAuth } from '@/lib/coach-api-auth'
 import {
   isTacticalScenario,
   mapTacticalScenarioRow,
@@ -14,7 +13,7 @@ type SaveScenarioBody = {
 }
 
 export async function GET(request: Request) {
-  const auth = await getAuthenticatedClient(request)
+  const auth = await getCoachApiAuth(request)
   if (!auth.ok) return auth.response
 
   const { data, error } = await auth.supabase
@@ -24,7 +23,8 @@ export async function GET(request: Request) {
     .limit(50)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Tactical scenario load failed', error)
+    return Response.json({ ok: false, message: 'Tactical scenarios could not be loaded.' }, { status: 500 })
   }
 
   const scenarios = ((data ?? []) as TacticalScenarioRow[])
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await getAuthenticatedClient(request)
+  const auth = await getCoachApiAuth(request)
   if (!auth.ok) return auth.response
 
   let body: SaveScenarioBody
@@ -67,14 +67,15 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Tactical scenario save failed', error)
+    return Response.json({ ok: false, message: 'The tactical scenario could not be saved.' }, { status: 500 })
   }
 
   return Response.json({ ok: true, scenario: mapTacticalScenarioRow(data as TacticalScenarioRow) })
 }
 
 export async function DELETE(request: Request) {
-  const auth = await getAuthenticatedClient(request)
+  const auth = await getCoachApiAuth(request)
   if (!auth.ok) return auth.response
 
   const url = new URL(request.url)
@@ -87,49 +88,9 @@ export async function DELETE(request: Request) {
     .eq('id', id)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Tactical scenario delete failed', error)
+    return Response.json({ ok: false, message: 'The tactical scenario could not be deleted.' }, { status: 500 })
   }
 
   return Response.json({ ok: true })
-}
-
-async function getAuthenticatedClient(request: Request) {
-  const token = getBearerToken(request)
-  if (!token) {
-    return {
-      ok: false as const,
-      response: Response.json({ ok: false, message: 'Sign in to save tactical scenarios.' }, { status: 401 }),
-    }
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  })
-
-  const { data, error } = await supabase.auth.getUser(token)
-  const userId = data.user?.id ?? ''
-  if (error || !userId) {
-    return {
-      ok: false as const,
-      response: Response.json({ ok: false, message: 'Sign in to save tactical scenarios.' }, { status: 401 }),
-    }
-  }
-
-  return { ok: true as const, supabase, userId }
-}
-
-function getBearerToken(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  return authHeader?.toLowerCase().startsWith('bearer ')
-    ? authHeader.slice('bearer '.length).trim()
-    : ''
 }

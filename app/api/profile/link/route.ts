@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { isMissingProfileLinkSchemaError } from '@/lib/profile-link-storage'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
@@ -105,10 +106,7 @@ export async function GET(request: Request) {
       profile,
     })
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Unable to load your player profile.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not load linked player profile', error, 'Unable to load your player profile.')
   }
 }
 
@@ -194,10 +192,7 @@ export async function POST(request: Request) {
       profile: profileRes,
     })
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Unable to save your player profile.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not save linked player profile', error, 'Unable to save your player profile.')
   }
 }
 

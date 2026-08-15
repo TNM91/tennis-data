@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
 import {
   buildPlayerAssignmentCompletion,
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     .limit(20)
 
   if (linkError) {
-    return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+    return apiServerError('Could not load player coach connections', linkError, 'Coach assignments are temporarily unavailable.')
   }
 
   const coachLinks = ((linkData ?? []) as CoachStudentLinkRow[]).map(mapCoachStudentLinkRow)
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (assignmentError) {
-    return Response.json({ ok: false, message: assignmentError.message }, { status: 500 })
+    return apiServerError('Could not load player coach assignments', assignmentError, 'Coach assignments are temporarily unavailable.')
   }
 
   const assignments = ((assignmentData ?? []) as CoachAssignmentRow[]).map(mapCoachAssignmentRow)
@@ -73,7 +74,7 @@ export async function PATCH(request: Request) {
     .eq('id', assignmentId)
     .maybeSingle()
 
-  if (existingError) return Response.json({ ok: false, message: existingError.message }, { status: 500 })
+  if (existingError) return apiServerError('Could not load player coach assignment', existingError, 'That coach assignment is temporarily unavailable.')
   if (!existingData) return Response.json({ ok: false, message: 'Assignment was not found for this player.' }, { status: 404 })
 
   const existing = mapCoachAssignmentRow(existingData as CoachAssignmentRow)
@@ -88,7 +89,7 @@ export async function PATCH(request: Request) {
     .eq('player_user_id', auth.userId)
     .maybeSingle()
 
-  if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+  if (linkError) return apiServerError('Could not verify player coach connection', linkError, 'That coach assignment is temporarily unavailable.')
   if (!linkData) {
     return Response.json({ ok: false, message: 'Assignment was not found for this player.' }, { status: 404 })
   }
@@ -115,7 +116,7 @@ export async function PATCH(request: Request) {
     .select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at')
     .single()
 
-  if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
+  if (updateError) return apiServerError('Could not update player coach assignment', updateError, 'The coach assignment could not be updated.')
 
   return Response.json({ ok: true, assignment: mapCoachAssignmentRow(updatedData as CoachAssignmentRow) })
 }

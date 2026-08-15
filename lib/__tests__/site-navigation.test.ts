@@ -86,6 +86,7 @@ describe('site navigation language', () => {
   })
 
   it('surfaces Coach from account quick navigation', () => {
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/compete/teams', label: 'My Teams' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/coach', label: 'Coach Hub' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/video-review', label: 'Video Review' })
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' })

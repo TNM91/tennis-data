@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildPlayerAssignmentPackCardCompletion,
   getCoachAssignmentPackProgress,
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     .order('completed_at', { ascending: false })
     .limit(80)
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load player Level Up sessions', error, 'Level Up sessions are temporarily unavailable.')
 
   const sessions = ((data ?? []) as LevelUpSessionRow[]).map(mapLevelUpSessionRow)
   return Response.json({ ok: true, sessions })
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
     .select(sessionSelect)
     .single()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not save player Level Up session', error, 'The Level Up session could not be saved.')
 
   const assignmentSync = accessMode === 'coach_invited' && payload.assignment_id && link
     ? await completeLinkedAssignment(client, payload.assignment_id, link.id, {

@@ -57,7 +57,7 @@ describe('Player Development public cleanup', () => {
     expect(stylesSource).toContain(".hero[data-compact='true'] .actions {\n    display: grid;")
     expect(stylesSource).toContain(".hero:not([data-compact='true']) .heroPanel {\n    display: none;")
     expect(stylesSource).toContain('.overviewDetails:not([open]) > .overviewDetailsContent')
-    expect(stylesSource).toContain('.overviewDetailsMobileGroup:not([open]) > .overviewDetailsMobileGroupBody')
+    expect(systemSource).not.toContain('overviewDetailsMobileGroup')
     expect(stylesSource).toContain('.improveHubMoreActions:not([open]) > div')
     expect(stylesSource).toContain('.playerIdActionPlanMore:not([open]) > div')
     expect(stylesSource).toContain('.playerQuestionStripDrawer:not([open]) > .playerQuestionStripDrawerBody')

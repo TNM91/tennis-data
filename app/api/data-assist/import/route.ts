@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { runDataAssistScorecardImportAction } from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
@@ -67,8 +68,8 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ])
 
-  if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
-  if (draftResult.error) return Response.json({ ok: false, message: draftResult.error.message }, { status: 500 })
+  if (batchResult.error) return apiServerError('Could not load Data Assist import batch', batchResult.error, 'That Data Assist import is temporarily unavailable.')
+  if (draftResult.error) return apiServerError('Could not load Data Assist import draft', draftResult.error, 'That Data Assist import is temporarily unavailable.')
 
   const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null } | null
   const draft = draftResult.data as {

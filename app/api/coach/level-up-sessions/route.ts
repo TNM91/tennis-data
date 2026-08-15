@@ -1,4 +1,5 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import { mapLevelUpSessionRow, type LevelUpSessionRow } from '@/lib/level-up-sessions'
 
 export const runtime = 'nodejs'
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   const { data, error } = await query
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load coach Level Up sessions', error, 'Level Up sessions are temporarily unavailable.')
 
   const sessions = ((data ?? []) as LevelUpSessionRow[]).map(mapLevelUpSessionRow)
   return Response.json({ ok: true, sessions })

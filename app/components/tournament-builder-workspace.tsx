@@ -241,7 +241,6 @@ export default function TournamentBuilderWorkspace() {
     kind: alertKind,
     body: alertBody,
     siteUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}`,
-    preferencesUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}/preferences`,
   }) : ''
   const optedInCount = selectedRecord
     ? selectedRecord.entrants.filter((entrant) => selectedRecord.contacts[entrant]?.smsOptIn && selectedRecord.contacts[entrant]?.phone).length
@@ -948,7 +947,11 @@ export default function TournamentBuilderWorkspace() {
     setScheduleInputs(buildScheduleInputState(updated))
     setAwardRecipients((current) => buildAwardRecipientState(updated, current))
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`)
+    setNotice(
+      'syncWarning' in updated && typeof updated.syncWarning === 'string'
+        ? updated.syncWarning
+        : `${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`,
+    )
   }
 
   async function clearMatchResult(matchId: string) {
@@ -1238,6 +1241,7 @@ export default function TournamentBuilderWorkspace() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          tournamentId: selectedRecord.id,
           entrants: selectedRecord.entrants,
           selfRating: 3.5,
         }),
@@ -1312,6 +1316,7 @@ export default function TournamentBuilderWorkspace() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              tournamentId: selectedRecord.id,
               entrants: [entrantName],
               selfRating: entry.selfRating,
             }),

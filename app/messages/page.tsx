@@ -180,9 +180,10 @@ function formatMessageTime(value: string) {
   }
 }
 
-function conversationTypeLabel(type: InternalConversation['conversationType']) {
+function conversationTypeLabel(type: InternalConversation['conversationType'], roomType = '') {
   if (type === 'support') return 'Support'
   if (type === 'team') return 'Team'
+  if (type === 'league' && roomType === 'team') return 'Team'
   if (type === 'league') return 'League'
   if (type === 'system') return 'System'
   return 'Direct'
@@ -273,7 +274,7 @@ function conversationMatchesThreadSearch(
   const searchable = [
     conversation.subject,
     conversation.lastMessageBody,
-    conversationTypeLabel(conversation.conversationType),
+    conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType),
     statusLabel(conversation.status),
     conversation.conversationType === 'support' ? supportCategoryLabel(conversation.relatedEntityType) : '',
     conversation.conversationType === 'support' ? supportStatusCopy(conversation, identity.role) : '',
@@ -692,10 +693,11 @@ function buildConversationContextPresentation(conversation: InternalConversation
   const entityId = conversation.metadata.entityId || conversation.relatedEntityId
 
   if (conversation.conversationType === 'league') {
+    const isTeamRoom = conversation.metadata.roomType === 'team'
     return {
-      label: 'League context',
-      text: conversation.metadata.leagueName || conversation.relatedEntityId || 'League conversation',
-      cta: 'Open league',
+      label: isTeamRoom ? 'Team context' : 'League context',
+      text: conversation.metadata.teamName || conversation.metadata.leagueName || conversation.relatedEntityId || (isTeamRoom ? 'Team conversation' : 'League conversation'),
+      cta: isTeamRoom ? 'Open team' : 'Open league',
     }
   }
 
@@ -2524,7 +2526,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <small style={threadTypePillStyle}>
                       {conversation.conversationType === 'support'
                         ? supportCategoryLabel(conversation.relatedEntityType)
-                        : conversationTypeLabel(conversation.conversationType)}
+                        : conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType)}
                     </small>
                     {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
                     {isCoachAssignmentConversation(conversation) ? <small style={assignmentPillStyle}>Assignment</small> : null}

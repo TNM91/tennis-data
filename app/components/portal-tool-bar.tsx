@@ -168,7 +168,7 @@ const portalLanes: PortalLane[] = [
       { title: 'Plan practice', detail: 'Schedule practice, invite the roster, and collect RSVPs.', metric: 'Captain', href: '/captain/practice', icon: 'schedule', requiredRoute: '/captain' },
       { title: 'Map tactics', detail: 'Build a court picture for the next point, drill, or team pattern.', metric: 'Coach beta', href: CAPTAIN_TACTICS_BOARD_HREF, icon: 'scenarioBuilder', requiredRoute: '/captain' },
       { title: 'Build lineup', detail: 'Turn the roster into the weekly plan.', metric: 'Captain', href: '/captain/lineup-builder', icon: 'lineupBuilder', requiredRoute: '/captain' },
-      { title: 'Send plan', detail: 'Message the team from Team Hub.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
+      { title: 'Send plan', detail: 'Prepare and send the official match-week plan.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
     ],
   },
   {

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import type { DataAssistImportType } from '@/lib/data-assist'
 import {
@@ -117,8 +118,8 @@ export async function POST(request: Request) {
       .order('upload_order', { ascending: true }),
   ])
 
-  if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
-  if (screenshotResult.error) return Response.json({ ok: false, message: screenshotResult.error.message }, { status: 500 })
+  if (batchResult.error) return apiServerError('Could not load Data Assist OCR batch', batchResult.error, 'That Data Assist upload is temporarily unavailable.')
+  if (screenshotResult.error) return apiServerError('Could not load Data Assist OCR screenshots', screenshotResult.error, 'Those Data Assist screenshots are temporarily unavailable.')
 
   const batch = batchResult.data as {
     requested_import_type?: string | null
@@ -143,10 +144,7 @@ export async function POST(request: Request) {
   try {
   imageInputs = await downloadScreenshotImages(supabase, screenshots)
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Could not download the stored screenshots.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not download stored Data Assist screenshots', error, 'Could not download the stored screenshots.')
   }
   const exportInputs = imageInputs
     .map((input) => ({ ...input, fileBuffer: input.imageBuffer }))
@@ -163,10 +161,7 @@ export async function POST(request: Request) {
   try {
     exportParseResult = exportInputs.length ? parseTennisLinkExportFiles(exportInputs) : null
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'TenAceIQ could not process these TennisLink exports.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not parse TennisLink export', error, 'TenAceIQ could not process this TennisLink export.')
   }
 
   const requestedImportType = batch.requested_import_type as DataAssistImportType
@@ -196,8 +191,8 @@ export async function POST(request: Request) {
         .eq('id', draftId),
     ])
 
-    if (batchTypeUpdate.error) return Response.json({ ok: false, message: batchTypeUpdate.error.message }, { status: 500 })
-    if (draftTypeUpdate.error) return Response.json({ ok: false, message: draftTypeUpdate.error.message }, { status: 500 })
+    if (batchTypeUpdate.error) return apiServerError('Could not update Data Assist OCR batch type', batchTypeUpdate.error, 'The Data Assist upload type could not be updated.')
+    if (draftTypeUpdate.error) return apiServerError('Could not update Data Assist OCR draft type', draftTypeUpdate.error, 'The Data Assist upload type could not be updated.')
   }
 
   if (effectiveImportType === 'schedule') {
@@ -207,10 +202,7 @@ export async function POST(request: Request) {
         ? exportParseResult
         : await recognizeDataAssistScheduleScreenshotsWithTesseract(imageInputs)
     } catch (error) {
-      return Response.json(
-        { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these schedule screenshots.' },
-        { status: 500 },
-      )
+      return apiServerError('Could not OCR Data Assist schedule', error, 'Free OCR could not process these schedule screenshots.')
     }
 
     const parsedDraftBase = buildScheduleOcrDraftFromText(ocrResult.rawText, screenshots, ocrResult.provider)
@@ -238,7 +230,7 @@ export async function POST(request: Request) {
       .select('id')
       .single()
 
-    if (jobError) return Response.json({ ok: false, message: jobError.message }, { status: 500 })
+    if (jobError) return apiServerError('Could not create Data Assist schedule OCR job', jobError, 'OCR verification could not be started.')
     const jobId = cleanText((job as { id?: string | null } | null)?.id)
     if (!jobId) return Response.json({ ok: false, message: 'OCR verification job could not be created.' }, { status: 500 })
 
@@ -269,7 +261,7 @@ export async function POST(request: Request) {
       })
       .eq('id', draftId)
 
-    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+    if (draftUpdate.error) return apiServerError('Could not save Data Assist schedule OCR draft', draftUpdate.error, 'The OCR result could not be saved.')
 
     const batchUpdate = await supabase
       .from('data_assist_batches')
@@ -281,7 +273,7 @@ export async function POST(request: Request) {
       })
       .eq('id', batchId)
 
-    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+    if (batchUpdate.error) return apiServerError('Could not save Data Assist schedule OCR batch', batchUpdate.error, 'The OCR result could not be saved.')
 
     let autoImport: DataAssistScheduleImportActionResult | undefined
     const scheduleReady = parsedDraft.matches.length > 0 && parsedDraft.matches.every((match) => match.reviewNotes.length === 0)
@@ -302,10 +294,11 @@ export async function POST(request: Request) {
           },
         })
       } catch (error) {
+        console.error('Automatic Data Assist schedule import failed', error)
         autoImport = {
           ok: false,
           action: 'commit',
-          message: error instanceof Error ? error.message : 'Automatic schedule import failed.',
+          message: 'Automatic schedule import failed.',
         }
       }
 
@@ -386,7 +379,7 @@ export async function POST(request: Request) {
       .select('id')
       .single()
 
-    if (jobError) return Response.json({ ok: false, message: jobError.message }, { status: 500 })
+    if (jobError) return apiServerError('Could not create Data Assist team summary OCR job', jobError, 'OCR verification could not be started.')
     const jobId = cleanText((job as { id?: string | null } | null)?.id)
     if (!jobId) return Response.json({ ok: false, message: 'OCR verification job could not be created.' }, { status: 500 })
 
@@ -414,7 +407,7 @@ export async function POST(request: Request) {
       })
       .eq('id', draftId)
 
-    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+    if (draftUpdate.error) return apiServerError('Could not save Data Assist team summary OCR draft', draftUpdate.error, 'The OCR result could not be saved.')
 
     const batchUpdate = await supabase
       .from('data_assist_batches')
@@ -426,7 +419,7 @@ export async function POST(request: Request) {
       })
       .eq('id', batchId)
 
-    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+    if (batchUpdate.error) return apiServerError('Could not save Data Assist team summary OCR batch', batchUpdate.error, 'The OCR result could not be saved.')
 
     let autoImport: DataAssistTeamSummaryImportActionResult | undefined
     const teamSummaryReady = isTeamSummaryDraftReadyForImport(parsedDraft)
@@ -447,10 +440,11 @@ export async function POST(request: Request) {
           },
         })
       } catch (error) {
+        console.error('Automatic Data Assist roster import failed', error)
         autoImport = {
           ok: false,
           action: 'commit',
-          message: error instanceof Error ? error.message : 'Automatic roster import failed.',
+          message: 'Automatic roster import failed.',
         }
       }
 
@@ -499,10 +493,7 @@ export async function POST(request: Request) {
       ? exportParseResult
       : await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these screenshots.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not OCR Data Assist scorecard', error, 'Free OCR could not process these screenshots.')
   }
   const parsedDraftBase = buildScorecardOcrDraftFromText(ocrResult.rawText, screenshots, ocrResult.provider)
   const parsedDraft = {
@@ -545,7 +536,7 @@ export async function POST(request: Request) {
     .select('id')
     .single()
 
-  if (jobError) return Response.json({ ok: false, message: jobError.message }, { status: 500 })
+  if (jobError) return apiServerError('Could not create Data Assist scorecard OCR job', jobError, 'OCR verification could not be started.')
   const jobId = cleanText((job as { id?: string | null } | null)?.id)
   if (!jobId) return Response.json({ ok: false, message: 'OCR verification job could not be created.' }, { status: 500 })
 
@@ -575,7 +566,7 @@ export async function POST(request: Request) {
     })
     .eq('id', draftId)
 
-  if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+  if (draftUpdate.error) return apiServerError('Could not save Data Assist scorecard OCR draft', draftUpdate.error, 'The OCR result could not be saved.')
 
   const batchStatus = autoAssessment.decision === 'auto_ready' || autoAssessment.decision === 'member_confirm'
     ? 'ready_to_import'
@@ -597,7 +588,7 @@ export async function POST(request: Request) {
     })
     .eq('id', batchId)
 
-  if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+  if (batchUpdate.error) return apiServerError('Could not save Data Assist scorecard OCR batch', batchUpdate.error, 'The OCR result could not be saved.')
 
   let autoImport: DataAssistScorecardImportActionResult | undefined
   if (autoAssessment.decision === 'auto_ready') {
@@ -618,10 +609,11 @@ export async function POST(request: Request) {
         },
       })
     } catch (error) {
+      console.error('Automatic Data Assist scorecard import failed', error)
       autoImport = {
         ok: false,
         action: 'commit',
-        message: error instanceof Error ? error.message : 'Automatic scorecard import failed.',
+        message: 'Automatic scorecard import failed.',
       }
     }
 

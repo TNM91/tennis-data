@@ -85,7 +85,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (requestLoadError) {
-    return Response.json({ ok: false, message: requestLoadError.message }, { status: 500 })
+    console.error('Checkout confirmation request lookup failed', requestLoadError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not load the purchase.' }, { status: 500 })
   }
 
   const activationTarget = resolveUpgradeActivationTarget(toActivationRequestSource(requestRow as UpgradeRequestActivationRow | null))
@@ -150,7 +151,8 @@ export async function POST(request: Request) {
   )
 
   if (profileError) {
-    return Response.json({ ok: false, message: profileError.message }, { status: 500 })
+    console.error('Checkout confirmation entitlement update failed', profileError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not activate access.' }, { status: 500 })
   }
 
   const { error: requestError } = await supabase
@@ -159,7 +161,8 @@ export async function POST(request: Request) {
     .eq('id', activationTarget.requestId)
 
   if (requestError) {
-    return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    console.error('Checkout confirmation request update failed', requestError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not finalize the purchase.' }, { status: 500 })
   }
 
   return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })

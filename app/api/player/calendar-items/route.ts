@@ -1,4 +1,5 @@
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildPlayerCalendarItemPayload,
   mapPlayerCalendarItemRow,
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not save player calendar item', error, 'The calendar item could not be saved.')
   }
 
   return Response.json({ ok: true, item: mapPlayerCalendarItemRow(data as PlayerCalendarItemRow) })
@@ -94,7 +95,7 @@ export async function DELETE(request: Request) {
     .eq('player_user_id', auth.userId)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not delete player calendar item', error, 'The calendar item could not be deleted.')
   }
 
   return Response.json({ ok: true })
