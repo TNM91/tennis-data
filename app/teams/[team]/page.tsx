@@ -1015,6 +1015,11 @@ function TeamPageContent() {
     { key: 'singles', label: 'Singles options', count: roster.length },
     { key: 'doubles', label: 'Doubles options', count: roster.length },
   ], [roster])
+  const hasRosterParticipationSplit = useMemo(() => {
+    const playedCount = roster.filter((player) => player.appearances > 0).length
+    return playedCount > 0 && playedCount < roster.length
+  }, [roster])
+  const showRosterFilters = !isMobile || hasRosterParticipationSplit
 
   const selectedRosterPlayers = useMemo(() => {
     return selectedRosterPlayerIds
@@ -1764,7 +1769,9 @@ function TeamPageContent() {
             <details style={opponentBreakdownDetailsStyle}>
               <summary style={opponentBreakdownSummaryStyle}>
                 <span>Record vs. opponents</span>
-                <span style={opponentBreakdownCountStyle}>{opponentAnalysis.length}</span>
+                <span style={opponentBreakdownCountStyle}>
+                  {opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}
+                </span>
               </summary>
               <div style={opponentBreakdownBodyStyle}>
                 <div style={opponentListStyle}>
@@ -1819,64 +1826,74 @@ function TeamPageContent() {
             ) : null}
             {isMobile ? (
               <div style={mobileMatchListStyle}>
-                {visibleCards.map((match) => {
-                  const existingReport = myMatchReportByMatchId.get(match.id) || null
-                  return (
-                    <article key={match.id} style={mobileMatchCardStyle}>
-                      <div style={mobileMatchCardHeaderStyle}>
-                        <div style={mobileMatchIdentityStyle}>
-                          <span style={mobileMatchDateStyle}>{formatCompactDate(match.match_date)}</span>
-                          <strong style={mobileMatchOpponentStyle}>
-                            {match.opponent ? (
-                              <EntityDetailLink
-                                href={buildTeamProfileHref(match.opponent, {
-                                  layer: competitionLayer,
-                                  league: match.league_name,
+                {[
+                  { key: 'upcoming', label: 'Upcoming', cards: visibleCards.filter((match) => match.won === null) },
+                  { key: 'recent', label: 'Recent results', cards: visibleCards.filter((match) => match.won !== null) },
+                ].filter((group) => group.cards.length > 0).map((group) => (
+                  <section key={group.key} style={mobileMatchGroupStyle} aria-label={group.label}>
+                    <h3 style={mobileMatchGroupTitleStyle}>{group.label}</h3>
+                    <div style={mobileMatchGroupCardsStyle}>
+                      {group.cards.map((match) => {
+                        const existingReport = myMatchReportByMatchId.get(match.id) || null
+                        return (
+                          <article key={match.id} style={mobileMatchCardStyle}>
+                            <div style={mobileMatchCardHeaderStyle}>
+                              <div style={mobileMatchIdentityStyle}>
+                                <span style={mobileMatchDateStyle}>{formatCompactDate(match.match_date)}</span>
+                                <strong style={mobileMatchOpponentStyle}>
+                                  {match.opponent ? (
+                                    <EntityDetailLink
+                                      href={buildTeamProfileHref(match.opponent, {
+                                        layer: competitionLayer,
+                                        league: match.league_name,
+                                        flight: match.flight,
+                                      })}
+                                    >
+                                      {match.opponent}
+                                    </EntityDetailLink>
+                                  ) : 'Opponent unavailable'}
+                                </strong>
+                              </div>
+                              <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
+                                {match.won === true ? 'Win' : match.won === false ? 'Loss' : getOpenMatchStatus(match.match_date)}
+                              </span>
+                            </div>
+                            <div style={mobileMatchFactsStyle}>
+                              <span>{match.venueLabel}</span>
+                              {match.match_type ? <span>{match.match_type[0].toUpperCase() + match.match_type.slice(1)}</span> : null}
+                              {match.score ? <strong>Score {match.score}</strong> : null}
+                            </div>
+                            {existingReport ? (
+                              <span style={reportStatusBadgeStyle(existingReport.status)}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : match.linkedPlayerAppears ? (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={linkedPlayerName}
+                                matchLabel={`${team} vs ${match.opponent ?? 'opponent'} - ${match.score ?? 'No score'}`}
+                                context={{
+                                  surface: 'team_match_history',
+                                  linkedPlayerId: linkedPlayerId || '',
+                                  teamName: team,
+                                  opponent: match.opponent,
+                                  leagueName: match.league_name,
                                   flight: match.flight,
-                                })}
-                              >
-                                {match.opponent}
-                              </EntityDetailLink>
-                            ) : 'Opponent unavailable'}
-                          </strong>
-                        </div>
-                        <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
-                          {match.won === true ? 'Win' : match.won === false ? 'Loss' : getOpenMatchStatus(match.match_date)}
-                        </span>
-                      </div>
-                      <div style={mobileMatchFactsStyle}>
-                        <span>{match.venueLabel}</span>
-                        {match.match_type ? <span>{match.match_type[0].toUpperCase() + match.match_type.slice(1)}</span> : null}
-                        {match.score ? <strong>Score {match.score}</strong> : null}
-                      </div>
-                      {existingReport ? (
-                        <span style={reportStatusBadgeStyle(existingReport.status)}>
-                          {getReportStatusLabel(existingReport.status)}
-                        </span>
-                      ) : match.linkedPlayerAppears ? (
-                        <MatchAccuracyReportButton
-                          matchId={match.id}
-                          reporterPlayerName={linkedPlayerName}
-                          matchLabel={`${team} vs ${match.opponent ?? 'opponent'} - ${match.score ?? 'No score'}`}
-                          context={{
-                            surface: 'team_match_history',
-                            linkedPlayerId: linkedPlayerId || '',
-                            teamName: team,
-                            opponent: match.opponent,
-                            leagueName: match.league_name,
-                            flight: match.flight,
-                            matchType: match.match_type,
-                            matchDate: match.match_date,
-                            result: match.won === true ? 'W' : match.won === false ? 'L' : null,
-                            reportSource: match.linkedPlayerReportSource,
-                            externalMatchId: match.external_match_id,
-                          }}
-                          onSubmitted={() => void refreshMyMatchReports()}
-                        />
-                      ) : null}
-                    </article>
-                  )
-                })}
+                                  matchType: match.match_type,
+                                  matchDate: match.match_date,
+                                  result: match.won === true ? 'W' : match.won === false ? 'L' : null,
+                                  reportSource: match.linkedPlayerReportSource,
+                                  externalMatchId: match.external_match_id,
+                                }}
+                                onSubmitted={() => void refreshMyMatchReports()}
+                              />
+                            ) : null}
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </section>
+                ))}
               </div>
             ) : (
               <div style={tableWrap}>
@@ -1981,7 +1998,7 @@ function TeamPageContent() {
               <p style={sectionKicker}>Team players</p>
               <h2 style={sectionTitle}>Roster</h2>
             </div>
-            {roster.length ? (
+            {roster.length && (visibleRoster.length !== filteredRoster.length || filteredRoster.length !== roster.length) ? (
               <span style={panelCountPill}>
                 {visibleRoster.length} of {filteredRoster.length} shown
               </span>
@@ -1990,41 +2007,45 @@ function TeamPageContent() {
 
           {roster.length ? (
             <>
-              <div style={rosterFilterRow}>
-                {rosterFilterOptions.filter((option) => !isMobile || option.count > 0).map((option) => {
-                  const active = rosterFilter === option.key
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setRosterFilter(option.key)}
-                      style={active ? rosterFilterButtonActive : rosterFilterButton}
-                    >
-                      <span>{isMobile ? option.label.replace(' options', '') : option.label}</span>
-                      <span style={rosterFilterCount}>{option.count}</span>
-                    </button>
-                  )
-                })}
-              </div>
+              {showRosterFilters ? (
+                <>
+                  <div style={rosterFilterRow}>
+                    {rosterFilterOptions.filter((option) => !isMobile || option.count > 0).map((option) => {
+                      const active = rosterFilter === option.key
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => setRosterFilter(option.key)}
+                          style={active ? rosterFilterButtonActive : rosterFilterButton}
+                        >
+                          <span>{isMobile ? option.label.replace(' options', '') : option.label}</span>
+                          <span style={rosterFilterCount}>{option.count}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
 
-              <div style={rosterFilterHint}>
-                {rosterFilter === 'played'
-                  ? 'Players who have already appeared in reviewed scorecards.'
-                  : rosterFilter === 'roster-only'
-                    ? 'Rostered players who have not played yet.'
-                    : rosterFilter === 'singles'
-                      ? 'Roster sorted by singles strength.'
-                      : rosterFilter === 'doubles'
-                        ? 'Roster sorted by doubles strength.'
-                        : 'Full roster from Player Roster and match history.'}
-              </div>
+                  <div style={rosterFilterHint}>
+                    {rosterFilter === 'played'
+                      ? 'Players who have already appeared in reviewed scorecards.'
+                      : rosterFilter === 'roster-only'
+                        ? 'Rostered players who have not played yet.'
+                        : rosterFilter === 'singles'
+                          ? 'Roster sorted by singles strength.'
+                          : rosterFilter === 'doubles'
+                            ? 'Roster sorted by doubles strength.'
+                            : 'Full roster from Player Roster and match history.'}
+                  </div>
+                </>
+              ) : null}
 
-              <div style={rosterCompareTray}>
+              {selectedRosterPlayerIds.length > 0 ? <div style={rosterCompareTray}>
                 <div style={sectionHeadingCopyStyle}>
                   <div style={rosterCompareKicker}>Matchup</div>
                   <div style={rosterCompareTitle}>
-                    {selectedRosterPlayers.length === 0
-                      ? 'Select two roster players to compare'
+                    {selectedRosterPlayers.length === 1
+                      ? `${selectedRosterPlayers[0].name} selected — choose one more player`
                       : selectedRosterPlayers.map((player) => player.name).join(' vs ')}
                   </div>
                 </div>
@@ -2049,7 +2070,7 @@ function TeamPageContent() {
                     Open Matchup
                   </Link>
                 </div>
-              </div>
+              </div> : null}
 
               {isMobile ? (
                 <div style={mobileRosterListStyle}>
@@ -2360,7 +2381,7 @@ const teamSectionNavLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 36,
+  minHeight: 44,
   padding: '0 13px',
   borderRadius: 999,
   color: 'var(--foreground)',
@@ -3014,7 +3035,7 @@ const rosterFilterButton: CSSProperties = {
   alignItems: 'center',
   gap: '7px',
   maxWidth: '100%',
-  minHeight: '34px',
+  minHeight: '44px',
   padding: '0 12px',
   borderRadius: '999px',
   border: '1px solid rgba(125, 211, 252, 0.18)',
@@ -3095,7 +3116,7 @@ const rosterCompareActions: CSSProperties = {
 
 const rosterCompareClearButton: CSSProperties = {
   maxWidth: '100%',
-  minHeight: '34px',
+  minHeight: '44px',
   padding: '0 12px',
   borderRadius: '999px',
   border: '1px solid rgba(255,255,255,0.12)',
@@ -3113,7 +3134,7 @@ const rosterCompareLinkReady: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   maxWidth: '100%',
-  minHeight: '34px',
+  minHeight: '44px',
   padding: '0 14px',
   borderRadius: '999px',
   border: '1px solid rgba(155,225,29,0.34)',
@@ -3137,8 +3158,8 @@ const rosterCompareLinkDisabled: CSSProperties = {
 
 const rosterSelectButton: CSSProperties = {
   maxWidth: '100%',
-  minHeight: '30px',
-  padding: '0 10px',
+  minHeight: '44px',
+  padding: '0 12px',
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'rgba(255,255,255,0.04)',
@@ -3277,6 +3298,27 @@ const opponentMetricStyle: CSSProperties = {
 
 const mobileMatchListStyle: CSSProperties = {
   display: 'grid',
+  gap: 18,
+  minWidth: 0,
+}
+
+const mobileMatchGroupStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileMatchGroupTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const mobileMatchGroupCardsStyle: CSSProperties = {
+  display: 'grid',
   gap: 10,
   minWidth: 0,
 }
@@ -3339,6 +3381,7 @@ const seasonFilterControlsStyle: CSSProperties = {
 }
 
 const seasonFilterButtonStyle: CSSProperties = {
+  minHeight: 44,
   padding: '5px 11px',
   borderRadius: 999,
   fontSize: 12,
@@ -3359,7 +3402,6 @@ const tableControlRowStyle: CSSProperties = {
 
 const tableToggleButtonStyle: CSSProperties = {
   ...seasonFilterButtonStyle,
-  minHeight: 36,
   border: '1px solid rgba(125, 211, 252, 0.22)',
   background: 'rgba(15, 23, 42, 0.72)',
   color: 'var(--foreground-strong)',
@@ -3527,8 +3569,8 @@ const rosterActionLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   maxWidth: '100%',
-  minHeight: '30px',
-  padding: '0 10px',
+  minHeight: '44px',
+  padding: '0 12px',
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'rgba(255,255,255,0.04)',
