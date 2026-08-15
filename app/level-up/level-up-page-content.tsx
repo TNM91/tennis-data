@@ -6,7 +6,7 @@ import PlayerLiveWorkbench from '@/app/player-development/_components/player-liv
 import styles from '@/app/player-development/_components/player-development.module.css'
 import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard } from '@/lib/level-up/level-up-types'
-import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
+import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan } from '@/lib/level-up/quest-builder'
 import {
   PLAYER_DEVELOPMENT_FOCUS_PATHS,
   PLAYER_DEVELOPMENT_PLAYING_STYLES,
@@ -423,7 +423,7 @@ export default function LevelUpPageContent({
           </details>
         </details>
 
-        <LevelUpMorePanel id="quest-builder" label="Quest Builder" title="Build a scored habit">
+        <LevelUpMorePanel id="quest-builder" label="Quest Builder" title="Build a scored habit" wide>
           <section id="quest-builder-content" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
             <div className={styles.levelUpQuestBuilderHeader}>
               <div>
@@ -455,47 +455,12 @@ export default function LevelUpPageContent({
               </article>
             </div>
 
-            <LevelUpMorePanel label="Templates" title="Show starter quest templates">
-              <div className={styles.levelUpQuestTemplateGrid}>
-                {questBuilder.templates.map((template) => (
-                  <article key={template.id}>
-                    <div>
-                      <span>{formatHabitCategory(template.category)}</span>
-                      <strong>{template.title}</strong>
-                      <p>{template.description}</p>
-                    </div>
-                    <dl>
-                      <div>
-                        <dt>Cadence</dt>
-                        <dd>{template.cadence.replaceAll('-', ' ')}</dd>
-                      </div>
-                      <div>
-                        <dt>XP</dt>
-                        <dd>{template.xp}</dd>
-                      </div>
-                      <div>
-                        <dt>Drill</dt>
-                        <dd>{template.primaryCard.title}</dd>
-                      </div>
-                    </dl>
-                    <small>Starter habit: {template.starterHabit}</small>
-                    <small>Proof: {template.proof}</small>
-                    <Link className="button-primary" href={template.drillHref}>
-                      Start linked drill
-                    </Link>
-                  </article>
-                ))}
-              </div>
-            </LevelUpMorePanel>
-
-            <LevelUpMorePanel label="Quest tool" title="Open Quest Builder tool">
-              <QuestBuilderClient
-                identitySlug={identity.slug}
-                cardOptions={questBuilderCardOptions}
-                templates={questBuilderTemplateOptions}
-                paths={questBuilderPathOptions}
-              />
-            </LevelUpMorePanel>
+            <QuestBuilderClient
+              identitySlug={identity.slug}
+              cardOptions={questBuilderCardOptions}
+              templates={questBuilderTemplateOptions}
+              paths={questBuilderPathOptions}
+            />
           </section>
         </LevelUpMorePanel>
 
@@ -789,9 +754,21 @@ function LevelUpTrainingCard({ card }: { card: LevelUpCard }) {
   )
 }
 
-function LevelUpMorePanel({ id, label, title, children }: { id?: string; label: string; title: string; children: ReactNode }) {
+function LevelUpMorePanel({
+  id,
+  label,
+  title,
+  wide = false,
+  children,
+}: {
+  id?: string
+  label: string
+  title: string
+  wide?: boolean
+  children: ReactNode
+}) {
   return (
-    <details id={id} className={styles.levelUpMorePanel}>
+    <details id={id} className={`${styles.levelUpMorePanel} ${wide ? styles.levelUpWidePanel : ''}`}>
       <summary className={styles.levelUpMoreSummary}>
         <span>{label}</span>
         <strong>{title}</strong>
