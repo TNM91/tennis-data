@@ -254,6 +254,10 @@
   outline: none;
 }
 
+.mobileOnlyAction {
+  display: none;
+}
+
 .storyFooter {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -400,6 +404,42 @@
   color: rgba(228, 238, 251, 0.62);
   font-size: 13px;
   line-height: 1.4;
+}
+
+.singlePointRead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 18px;
+  align-items: center;
+  margin-top: 22px;
+  padding: 18px 20px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(155, 225, 29, 0.08), rgba(116, 190, 255, 0.04));
+}
+
+.singlePointRead span {
+  grid-column: 2;
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.singlePointRead strong {
+  grid-row: 1 / span 2;
+  color: #ffffff;
+  font-size: 38px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.singlePointRead small {
+  grid-column: 2;
+  color: rgba(228, 238, 251, 0.68);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .matchStrip {
@@ -708,15 +748,15 @@
   .storyHero {
     min-height: 0;
     border-radius: 23px;
-    background-position: 70% bottom;
-    background-size: auto 46%;
+    background-position: 78% bottom;
+    background-size: auto 34%;
     background-repeat: no-repeat;
   }
 
   .storyContent {
     width: 100%;
     min-height: 0;
-    padding: 21px 18px 220px;
+    padding: 21px 18px 148px;
   }
 
   .identityTopline {
@@ -757,12 +797,31 @@
   }
 
   .heroActions > * {
-    flex: 1 1 150px;
+    min-width: 0;
+  }
+
+  .heroActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .heroActions .primaryAction {
+    grid-column: 1 / -1;
+  }
+
+  .mobileOnlyAction {
+    display: inline-flex;
   }
 
   .storyFooter {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+  }
+
+  .ratingMeta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
   }
 
   .ratingViews {
@@ -805,6 +864,25 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .playerCardPreview[data-own-profile='true'],
+  .milestoneStrip[data-empty='true'] {
+    display: none;
+  }
+
+  .profileDetails {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .historyGroup {
+    order: -1;
+  }
+
+  .secondaryTrend {
+    display: none !important;
+  }
+
   .milestoneStrip {
     grid-template-columns: auto minmax(0, 1fr);
     padding: 17px 18px;
@@ -817,7 +895,7 @@
 
   .courtImage {
     height: auto;
-    max-height: 260px;
+    max-height: 210px;
     border-right: 0;
     border-bottom: 1px solid rgba(116, 190, 255, 0.18);
   }
@@ -825,22 +903,16 @@
 
 @media (max-width: 390px) {
   .storyContent {
-    padding: 18px 15px 205px;
+    padding: 18px 15px 132px;
   }
 
-  .identityMeta,
-  .ratingMeta {
+  .identityMeta {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .heroActions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .heroActions > * {
-    flex: 0 0 auto;
+  .singlePointRead {
+    padding: 15px;
   }
 
   .matchResult,

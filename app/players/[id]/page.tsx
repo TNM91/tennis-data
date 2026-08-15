@@ -1419,7 +1419,21 @@ function PlayerProfileContent() {
                   <p>{storyChapterBody}</p>
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{storyActionLabel}</Link>
-                    <Link href={playerPathDevelopmentHref} className={profileStory.quietAction}>Open Player ID</Link>
+                    <Link
+                      href={isOwnProfile ? '#profile-matches' : playerPathDevelopmentHref}
+                      className={profileStory.quietAction}
+                    >
+                      {isOwnProfile ? 'Recent matches' : 'Open Player ID'}
+                    </Link>
+                    {isOwnProfile ? (
+                      <button
+                        type="button"
+                        className={`${profileStory.quietAction} ${profileStory.mobileOnlyAction}`}
+                        onClick={() => void sharePlayerProfile()}
+                      >
+                        {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -1460,8 +1474,14 @@ function PlayerProfileContent() {
               <span className={profileStory.matchCount}>{totalMatches} reviewed match{totalMatches === 1 ? '' : 'es'}</span>
             </div>
 
-            {chartPoints.length > 0 ? (
+            {chartPoints.length > 1 ? (
               <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+            ) : chartPoints.length === 1 ? (
+              <div className={profileStory.singlePointRead}>
+                <span>First reviewed result</span>
+                <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                <small>One result sets the starting point. The next reviewed match begins the trend.</small>
+              </div>
             ) : (
               <div className={profileStory.journeyEmpty}>
                 <div className={profileStory.journeyStep}>
@@ -1482,7 +1502,7 @@ function PlayerProfileContent() {
               </div>
             )}
 
-            <div id="profile-matches" className={`${profileStory.matchStrip} ${profileStory.anchorSection}`} aria-label="Last five reviewed matches">
+            <div id="profile-match-strip" className={profileStory.matchStrip} aria-label="Last five reviewed matches">
               {visibleLastFive.length > 0 ? visibleLastFive.map((match) => (
                 <span
                   key={match.id}
@@ -1541,7 +1561,7 @@ function PlayerProfileContent() {
             </div>
           </article>
 
-          <article className={profileStory.playerCardPreview}>
+          <article className={profileStory.playerCardPreview} data-own-profile={isOwnProfile}>
             <span className={profileStory.playerCardEyebrow}>Your player card</span>
             <h3>A profile worth sharing.</h3>
             <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>
@@ -1562,7 +1582,7 @@ function PlayerProfileContent() {
           </article>
         </section>
 
-        <article id="profile-milestones" className={profileStory.milestoneStrip}>
+        <article id="profile-milestones" className={profileStory.milestoneStrip} data-empty={playerAwards.length === 0}>
           <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
           <div className={profileStory.milestoneCopy}>
             <span>Milestones</span>
@@ -1838,7 +1858,7 @@ function PlayerProfileContent() {
         </div>
       </section>
 
-      <section id="profile-teams" className={profileStory.anchorSection} style={contentWrap}>
+      <section id="profile-teams" className={`${profileStory.anchorSection} ${profileStory.profileDetails}`} style={contentWrap}>
         <details style={detailDrawerStyle}>
           <summary style={detailDrawerSummaryStyle}>
             <span style={detailDrawerCopyStyle}>
@@ -2584,9 +2604,9 @@ function PlayerProfileContent() {
         ) : null}
 
         {hasPlayerHistoryData ? (
-        <div style={dynamicContentGrid}>
+        <div className={profileStory.historyGroup} style={dynamicContentGrid}>
           {chartPoints.length > 0 ? (
-          <article style={panelCard}>
+          <article className={profileStory.secondaryTrend} style={panelCard}>
             <div style={panelHead}>
               <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Trend</div>
@@ -2721,7 +2741,7 @@ function PlayerProfileContent() {
           ) : null}
 
           {filteredMatches.length > 0 ? (
-          <article style={panelCard}>
+          <article id="profile-matches" className={`${profileStory.recentResults} ${profileStory.anchorSection}`} style={panelCard}>
             <div style={panelHead}>
               <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Recent results</div>
