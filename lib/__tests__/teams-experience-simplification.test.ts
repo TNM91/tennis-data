@@ -8,6 +8,8 @@ const teamRoom = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'ut
 const teamRoomStyles = readFileSync(join(process.cwd(), 'app/team-room/team-room.module.css'), 'utf8')
 const matchWeekRail = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
 const lineupBuilder = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const portal = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
+const teamConnectionsClient = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
 
 describe('Teams experience simplification', () => {
   it('puts connected teams ahead of redundant access messaging', () => {
@@ -45,5 +47,24 @@ describe('Teams experience simplification', () => {
     expect(matchWeekRail).toContain("return 'Availability'")
     expect(lineupBuilder).toContain('<summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>')
     expect(lineupBuilder).toContain('builderMobileActionStackStyle')
+  })
+
+  it('opens mobile Teams without a staging hero or duplicate active lanes', () => {
+    expect(teamsHub).toContain('compactHome={isMobile}')
+    expect(teamsHub).toContain('<h1 style={mobileTeamsTitleStyle}>')
+    expect(portal).toContain("shortcut.kind === 'lane'")
+    expect(portal).toContain('shortcut.laneId === activeLane.id')
+    expect(portal).toContain('prefetch')
+  })
+
+  it('shows accepted teams before slower directory enrichment finishes', () => {
+    expect(teamsHub).toContain('async function loadConnections()')
+    expect(teamsHub).toContain('async function loadSupportingTeamContext()')
+    expect(teamsHub).toContain('<TeamListLoadingState />')
+    expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
+    expect(teamConnectionsClient).toContain('preloadTeamConnections')
+    expect(portal).toContain('preloadTeamConnections(accessToken)')
+    expect(teamsHub).toContain('buildTeamProfileHref(group.teamName')
+    expect(teamsHub).not.toContain('`/team/${encodeURIComponent(group.teamName)}')
   })
 })

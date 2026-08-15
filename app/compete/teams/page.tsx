@@ -9,10 +9,12 @@ import CompetePageFrame, {
 } from '@/app/compete/_components/compete-page-frame'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { fetchTeamConnections } from '@/lib/team-profile-links-client'
 import { getTeamConnectionRolesLabel, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqTeamParticipations,
@@ -73,11 +75,14 @@ const teamPathActions = [
 ] as const
 
 export default function CompeteTeamsPage() {
+  const { isMobile } = useViewportBreakpoints()
+
   return (
     <CompetePageFrame
       eyebrow="My Teams"
       title="Your teams, one tap away."
       description="Open the roster, schedule, stats, and Team Chat connected to your account."
+      compactHome={isMobile}
       resumeSurface="teams"
       resumeLabel="team directory"
       resumeHref="/compete/teams"
@@ -105,27 +110,40 @@ function CompeteTeamsContent() {
   useEffect(() => {
     let active = true
 
-    async function load() {
+    if (!authResolved && !accessToken) {
+      return () => {
+        active = false
+      }
+    }
+
+    async function loadConnections() {
       setLoading(true)
-      const [participationResult, teamOptions, connectionResult] = await Promise.all([
+      const connectionResult = accessToken
+        ? await fetchTeamConnections(accessToken).catch(() => ({ pending: [], connections: [], offers: null }))
+        : { pending: [], connections: [], offers: null }
+
+      if (!active) return
+
+      setConnections(connectionResult.connections)
+      setPendingConnections(connectionResult.pending)
+      setLoading(false)
+    }
+
+    async function loadSupportingTeamContext() {
+      const [participationResult, teamOptions] = await Promise.all([
         listTiqTeamParticipations(),
         listTeamDirectoryOptions().catch(() => []),
-        accessToken
-          ? fetchTeamConnections(accessToken).catch(() => ({ pending: [], connections: [], offers: null }))
-          : Promise.resolve({ pending: [], connections: [], offers: null }),
       ])
 
       if (!active) return
 
       setParticipations(participationResult.entries)
       setTeamDirectory(teamOptions)
-      setConnections(connectionResult.connections)
-      setPendingConnections(connectionResult.pending)
       setStorageWarning(participationResult.warning || '')
-      setLoading(false)
     }
 
-    void load()
+    void loadConnections()
+    void loadSupportingTeamContext()
 
     return () => {
       active = false
@@ -201,10 +219,14 @@ function CompeteTeamsContent() {
           borderRadius: isMobile ? '20px' : sectionStyle.borderRadius,
         }}
       >
-        <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
+        {isMobile ? (
+          <h1 style={mobileTeamsTitleStyle}>{userId ? 'Your teams' : 'Explore teams'}</h1>
+        ) : (
+          <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
+        )}
         <div style={sectionTextStyle}>
           {loading
-            ? 'Finding your linked teams...'
+            ? 'Getting your teams...'
             : groupedTeams.length > 0
               ? 'Open a team for its roster, schedule, stats, and Team Chat.'
               : userId
@@ -213,13 +235,19 @@ function CompeteTeamsContent() {
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
-        {groupedTeams.length === 0 ? (
+        {loading ? (
+          <TeamListLoadingState />
+        ) : groupedTeams.length === 0 ? (
           <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} />
         ) : (
           <div style={listStyle}>
             {groupedTeams.map((group) => {
               const competitionLayer = group.connection.sourceType === 'tiq_entry' || group.tiqLeagues.length > 0 ? 'tiq' : 'usta'
-              const teamPageHref = `/team/${encodeURIComponent(group.teamName)}?layer=${competitionLayer}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const teamPageHref = buildTeamProfileHref(group.teamName, {
+                layer: competitionLayer,
+                league: group.sourceLeagueName,
+                flight: group.sourceFlight,
+              })
               const lineupHref = `/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
               const teamRoomHref = buildTeamRoomHref({
                 teamName: group.teamName,
@@ -609,6 +637,18 @@ function EmptyTeamsState({ signedIn, pendingTeamCount }: { signedIn: boolean; pe
   )
 }
 
+function TeamListLoadingState() {
+  return (
+    <div style={teamLoadingStyle} role="status" aria-live="polite">
+      <TiqFeatureIcon name="teamRankings" size="sm" variant="ghost" />
+      <span>
+        <strong style={teamLoadingTitleStyle}>Getting your teams</strong>
+        <span style={teamLoadingTextStyle}>Your connected team will appear here as soon as it is ready.</span>
+      </span>
+    </div>
+  )
+}
+
 const sectionStyle = {
   position: 'relative',
   zIndex: 1,
@@ -622,6 +662,44 @@ const sectionStyle = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 } as const
+
+const mobileTeamsTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '28px',
+  lineHeight: 1.05,
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+}
+
+const teamLoadingStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: '12px',
+  minHeight: '88px',
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155, 225, 29, 0.18)',
+  background: 'rgba(7, 18, 36, 0.72)',
+}
+
+const teamLoadingTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.25,
+  fontWeight: 850,
+}
+
+const teamLoadingTextStyle: CSSProperties = {
+  display: 'block',
+  marginTop: '3px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 600,
+}
 
 const accountAccessStyle: CSSProperties = {
   ...sectionStyle,
