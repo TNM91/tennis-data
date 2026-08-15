@@ -300,59 +300,64 @@ export default function LevelUpPageContent({
           initialSavedStyleSlug={initialSavedStyleSlug}
         />
 
-        <section className={styles.levelUpIdentityDrillGuide} aria-labelledby="identity-drill-guide-title">
-          <div className={styles.levelUpIdentityDrillProfile}>
-            <div className={styles.levelUpIdentityDrillHeading}>
+        <section className={styles.levelUpTodayCommand} aria-labelledby="today-training-title">
+          <div className={styles.levelUpTodayPrimary}>
+            <div className={styles.levelUpTodayHeading}>
               <TiqFeatureIcon name="matchPrep" size="md" variant="ghost" />
               <div>
-                <span>{identityKind === 'playing-style' ? 'Playing style profile' : 'Development focus profile'}</span>
-                <h2 id="identity-drill-guide-title">{identity.title.replace(/^The /, '')}</h2>
-                <p>{identity.promise}</p>
-                <small className={styles.levelUpIdentityFitNote}>
-                  {identityKind === 'playing-style'
-                    ? 'Choose this only if it matches how you compete today. Match and practice proof can sharpen it over time.'
-                    : 'Use this as a current training emphasis without replacing your core playing style.'}
-                </small>
+                <span>Today&apos;s training</span>
+                <h2 id="today-training-title">{firstRecommendedCard?.title ?? actionRead.trainingPriority}</h2>
+                <p>{firstRecommendedCard?.useWhen ?? actionRead.matchTrigger}</p>
               </div>
             </div>
-            <dl className={styles.levelUpIdentityDrillSignals}>
-              <div>
-                <dt>Train first</dt>
-                <dd>{actionRead.trainingPriority}</dd>
-              </div>
-              <div>
-                <dt>Leak watch</dt>
-                <dd>{actionRead.leakWatch}</dd>
-              </div>
-              <div>
-                <dt>Match test</dt>
-                <dd>{actionRead.matchTrigger}</dd>
-              </div>
-            </dl>
-            <div className={styles.levelUpIdentityDrillActions}>
+            <div className={styles.levelUpTodayMeta} aria-label="Today&apos;s drill details">
+              <span>{firstRecommendedCard?.pack ?? 'Player ID card'}</span>
+              <strong>{firstRecommendedCard ? `${firstRecommendedCard.durationMinutes} min` : 'One focused rep'}</strong>
+            </div>
+            <div className={styles.levelUpTodayActions}>
               {firstRecommendedCard ? (
                 <Link className="button-primary" href={`/level-up/${identity.slug}?card=${firstRecommendedCard.id}#level-up-flow`}>
-                  Start best-fit drill
+                  Start rep
                 </Link>
               ) : null}
               <LevelUpDisclosureLink className="button-secondary" targetId="path-finder">
-                Find another path
+                Change training path
               </LevelUpDisclosureLink>
             </div>
+            <details className={styles.levelUpTodayFit}>
+              <summary>
+                <span>Why this fits {identity.title.replace(/^The /, '')}</span>
+                <em>View</em>
+              </summary>
+              <p>{identity.promise}</p>
+              <dl className={styles.levelUpTodaySignals}>
+                <div>
+                  <dt>Train first</dt>
+                  <dd>{actionRead.trainingPriority}</dd>
+                </div>
+                <div>
+                  <dt>Leak watch</dt>
+                  <dd>{actionRead.leakWatch}</dd>
+                </div>
+                <div>
+                  <dt>Match test</dt>
+                  <dd>{actionRead.matchTrigger}</dd>
+                </div>
+              </dl>
+            </details>
           </div>
 
-          <div className={styles.levelUpIdentityDrillList} aria-label={`Recommended drills for ${identity.title.replace(/^The /, '')}`}>
-            <div className={styles.levelUpIdentityDrillListHeader}>
-              <span>Recommended drills</span>
-              <strong>Start with the rep that fits your tennis.</strong>
+          <div className={styles.levelUpTodayQueue} aria-label={`Three recommended drills for ${identity.title.replace(/^The /, '')}`}>
+            <div className={styles.levelUpTodayQueueHeader}>
+              <span>Your next 3 reps</span>
+              <strong>Today first. The next two stay ready.</strong>
             </div>
             {quickStartCards.map((card, index) => (
-              <Link key={card.id} href={`/level-up/${identity.slug}?card=${card.id}#level-up-flow`}>
-                <b>{index + 1}</b>
+              <Link key={card.id} data-primary={index === 0 ? 'true' : 'false'} href={`/level-up/${identity.slug}?card=${card.id}#level-up-flow`}>
+                <b>{index === 0 ? 'Today' : index + 1}</b>
                 <div>
                   <span>{card.pack}</span>
                   <strong>{card.title}</strong>
-                  <small>{card.useWhen}</small>
                 </div>
                 <em>{card.durationMinutes} min</em>
               </Link>

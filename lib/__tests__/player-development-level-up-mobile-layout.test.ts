@@ -41,11 +41,13 @@ describe('Player Development Level Up mobile layout', () => {
     expect(stylesSource).toContain('.levelUpToolboxBody,\n  .levelUpToolboxLinks {\n    grid-template-columns: 1fr;')
   })
 
-  it('puts Player ID drill recommendations before the live workbench and removes mobile library overflow', () => {
-    expect(levelUpPageSource.indexOf('levelUpIdentityDrillGuide')).toBeLessThan(levelUpPageSource.indexOf('<PlayerLiveWorkbench'))
-    expect(levelUpPageSource).toContain('Playing style profile')
-    expect(levelUpPageSource).toContain('Start best-fit drill')
-    expect(levelUpPageSource).toContain('Find another path')
+  it('puts today\'s ordered drill queue before the live workbench and removes mobile library overflow', () => {
+    expect(levelUpPageSource.indexOf('levelUpTodayCommand')).toBeLessThan(levelUpPageSource.indexOf('<PlayerLiveWorkbench'))
+    expect(levelUpPageSource).toContain('Today&apos;s training')
+    expect(levelUpPageSource).toContain('Start rep')
+    expect(levelUpPageSource).toContain('Change training path')
+    expect(levelUpPageSource).toContain('Why this fits')
+    expect(levelUpPageSource).toContain('Your next 3 reps')
     expect(levelUpPageSource).toContain('const quickStartCards = recommendedCards.slice(0, 3)')
     expect(stylesSource).toContain('.levelUpCardRail,\n  .levelUpModuleRail {\n    display: grid;')
     expect(stylesSource).toContain('.levelUpLibraryGrid {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
