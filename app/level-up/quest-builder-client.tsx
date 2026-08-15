@@ -714,90 +714,101 @@ export default function QuestBuilderClient({
             </button>
           ))}
         </div>
-        <div className={styles.levelUpQuestGoalWizard} aria-label="Quest Builder goal wizard">
-          <div>
-            <span>Goal wizard</span>
-            <strong>Pick the tennis problem first.</strong>
-            <p>Choose one goal and the builder will load a starter quest, linked drill, proof, and cadence.</p>
-          </div>
-          <div className={styles.levelUpQuestGoalOptions}>
-            {QUEST_GOAL_OPTIONS.map((goal) => (
-              <button
-                key={goal.id}
-                type="button"
-                data-active={selectedGoal?.id === goal.id ? 'true' : 'false'}
-                onClick={() => setSelectedGoalId(goal.id)}
-              >
-                <strong>{goal.title}</strong>
-                <small>{goal.signal}</small>
-              </button>
-            ))}
-          </div>
-          {selectedGoal ? (
-            <article>
-              <span>Recommended path</span>
-              <strong>{selectedGoal.title}</strong>
-              <p>{selectedGoal.detail}</p>
-              <dl>
-                <div>
-                  <dt>Starter</dt>
-                  <dd>{selectedGoalCard?.title ?? selectedGoalTemplate?.primaryCardTitle ?? 'Best matching card'}</dd>
-                </div>
-                <div>
-                  <dt>Pack</dt>
-                  <dd>{selectedGoalPack?.title ?? 'Custom path'}</dd>
-                </div>
-                <div>
-                  <dt>Cadence</dt>
-                  <dd>{selectedGoalTemplate?.cadence ? selectedGoalTemplate.cadence.replace('-', ' ') : 'practice day'}</dd>
-                </div>
-              </dl>
-              <div className={styles.levelUpQuestWeekPlan} aria-label="7-day starter plan">
-                <span>7-day starter plan</span>
-                {selectedGoalWeekPlan.map((item) => (
-                  <section key={item.label}>
-                    <b>{item.label}</b>
-                    <strong>{item.title}</strong>
-                    <small>{item.detail}</small>
-                  </section>
+        <details className={styles.levelUpQuestStarterOptions}>
+          <summary className={styles.levelUpQuestStarterOptionsSummary}>
+            <div>
+              <span>More starter plans</span>
+              <strong>Goal wizard and multi-quest packs</strong>
+            </div>
+            <em>Open</em>
+          </summary>
+          <div className={styles.levelUpQuestStarterOptionsBody}>
+            <div className={styles.levelUpQuestGoalWizard} aria-label="Quest Builder goal wizard">
+              <div>
+                <span>Goal wizard</span>
+                <strong>Pick the tennis problem first.</strong>
+                <p>Choose one goal and the builder will load a starter quest, linked drill, proof, and cadence.</p>
+              </div>
+              <div className={styles.levelUpQuestGoalOptions}>
+                {QUEST_GOAL_OPTIONS.map((goal) => (
+                  <button
+                    key={goal.id}
+                    type="button"
+                    data-active={selectedGoal?.id === goal.id ? 'true' : 'false'}
+                    onClick={() => setSelectedGoalId(goal.id)}
+                  >
+                    <strong>{goal.title}</strong>
+                    <small>{goal.signal}</small>
+                  </button>
                 ))}
               </div>
-              <div className={styles.levelUpQuestHandoffGrid} aria-label="Quest handoff options">
-                <Link href={selectedGoalCoachHref}>
-                  <span>Coach assignment bridge</span>
-                  <strong>Assign through Coach Hub</strong>
-                  <small>Send the same card, proof, and cadence into a coach-ready assignment flow.</small>
-                </Link>
-                <Link href={selectedGoalTeamHref}>
-                  <span>Team challenge mode</span>
-                  <strong>Launch as a team habit</strong>
-                  <small>Aggregate completion only. Private player notes and proof stay with the player.</small>
-                </Link>
-              </div>
-              <div>
-                <button type="button" onClick={() => applyGoalOption(selectedGoal)}>Load starter quest</button>
-                {selectedGoalPack ? (
-                  <button type="button" onClick={() => void createQuestPack(selectedGoalPack)} disabled={creatingPackId === selectedGoalPack.id || accessPending}>
-                    {creatingPackId === selectedGoalPack.id ? 'Adding pack' : 'Add full pack'}
+              {selectedGoal ? (
+                <article>
+                  <span>Recommended path</span>
+                  <strong>{selectedGoal.title}</strong>
+                  <p>{selectedGoal.detail}</p>
+                  <dl>
+                    <div>
+                      <dt>Starter</dt>
+                      <dd>{selectedGoalCard?.title ?? selectedGoalTemplate?.primaryCardTitle ?? 'Best matching card'}</dd>
+                    </div>
+                    <div>
+                      <dt>Pack</dt>
+                      <dd>{selectedGoalPack?.title ?? 'Custom path'}</dd>
+                    </div>
+                    <div>
+                      <dt>Cadence</dt>
+                      <dd>{selectedGoalTemplate?.cadence ? selectedGoalTemplate.cadence.replace('-', ' ') : 'practice day'}</dd>
+                    </div>
+                  </dl>
+                  <div className={styles.levelUpQuestWeekPlan} aria-label="7-day starter plan">
+                    <span>7-day starter plan</span>
+                    {selectedGoalWeekPlan.map((item) => (
+                      <section key={item.label}>
+                        <b>{item.label}</b>
+                        <strong>{item.title}</strong>
+                        <small>{item.detail}</small>
+                      </section>
+                    ))}
+                  </div>
+                  <div className={styles.levelUpQuestHandoffGrid} aria-label="Quest handoff options">
+                    <Link href={selectedGoalCoachHref}>
+                      <span>Coach assignment bridge</span>
+                      <strong>Assign through Coach Hub</strong>
+                      <small>Send the same card, proof, and cadence into a coach-ready assignment flow.</small>
+                    </Link>
+                    <Link href={selectedGoalTeamHref}>
+                      <span>Team challenge mode</span>
+                      <strong>Launch as a team habit</strong>
+                      <small>Aggregate completion only. Private player notes and proof stay with the player.</small>
+                    </Link>
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => applyGoalOption(selectedGoal)}>Load starter quest</button>
+                    {selectedGoalPack ? (
+                      <button type="button" onClick={() => void createQuestPack(selectedGoalPack)} disabled={creatingPackId === selectedGoalPack.id || accessPending}>
+                        {creatingPackId === selectedGoalPack.id ? 'Adding pack' : 'Add full pack'}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ) : null}
+            </div>
+            <div className={styles.levelUpQuestPackList} aria-label="Goal-based quest packs">
+              <strong>Goal packs</strong>
+              {QUEST_PACKS.filter((pack) => pack.audience === 'player').map((pack) => (
+                <article key={pack.id}>
+                  <span>{pack.goal}</span>
+                  <strong>{pack.title}</strong>
+                  <p>{pack.description}</p>
+                  <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
+                    {creatingPackId === pack.id ? 'Adding pack' : 'Add pack'}
                   </button>
-                ) : null}
-              </div>
-            </article>
-          ) : null}
-        </div>
-        <div className={styles.levelUpQuestPackList} aria-label="Goal-based quest packs">
-          <strong>Goal packs</strong>
-          {QUEST_PACKS.filter((pack) => pack.audience === 'player').map((pack) => (
-            <article key={pack.id}>
-              <span>{pack.goal}</span>
-              <strong>{pack.title}</strong>
-              <p>{pack.description}</p>
-              <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
-                {creatingPackId === pack.id ? 'Adding pack' : 'Add pack'}
-              </button>
-            </article>
-          ))}
-        </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </details>
       </div>
 
       <form className={styles.levelUpQuestForm} onSubmit={saveQuest}>

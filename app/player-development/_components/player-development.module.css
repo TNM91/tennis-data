@@ -68,6 +68,11 @@
   box-shadow: none;
 }
 
+.levelUpShell > .levelUpWidePanel {
+  grid-column: 1 / -1;
+  scroll-margin-top: 12px;
+}
+
 .levelUpShell .levelUpMoreSummary {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 7px;
@@ -2952,6 +2957,69 @@
   gap: 8px;
 }
 
+.levelUpQuestStarterOptions {
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.045);
+  overflow: clip;
+}
+
+.levelUpQuestStarterOptionsSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 54px;
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 10px;
+}
+
+.levelUpQuestStarterOptionsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpQuestStarterOptionsSummary div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.levelUpQuestStarterOptionsSummary span {
+  color: var(--brand-green-3);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestStarterOptionsSummary strong {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  line-height: 1.18;
+}
+
+.levelUpQuestStarterOptionsSummary em {
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--brand-green-3);
+  padding: 5px 7px;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.levelUpQuestStarterOptions[open] .levelUpQuestStarterOptionsSummary {
+  border-bottom: 1px solid rgba(155, 225, 29, 0.14);
+}
+
+.levelUpQuestStarterOptionsBody {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
 .levelUpQuestTemplatePicker button {
   appearance: none;
   display: grid;
@@ -2981,6 +3049,11 @@
   color: var(--muted-strong);
   font-size: 0.72rem;
   line-height: 1.25;
+}
+
+.levelUpQuestSaved > div:first-child {
+  display: grid;
+  gap: 5px;
 }
 
 .levelUpQuestPackList,
