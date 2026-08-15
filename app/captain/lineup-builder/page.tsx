@@ -3309,16 +3309,34 @@ function LineupBuilderContent() {
             </span>
           </div>
 
-          <div style={builderControlRowStyle(isSmallMobile)}>
-            <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-              {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
-            </PrimaryBtn>
-            <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
-            <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-              {saveAndAskLabel}
-            </PrimaryBtn>
-            <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
-          </div>
+          {isSmallMobile ? (
+            <div style={builderMobileActionStackStyle}>
+              <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                {saveAndAskLabel}
+              </PrimaryBtn>
+              <details style={builderMoreActionsStyle}>
+                <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
+                <div style={builderMoreActionsBodyStyle}>
+                  <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
+                    {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
+                  </PrimaryBtn>
+                  <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+                  <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+                </div>
+              </details>
+            </div>
+          ) : (
+            <div style={builderControlRowStyle(isSmallMobile)}>
+              <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
+                {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
+              </PrimaryBtn>
+              <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+              <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                {saveAndAskLabel}
+              </PrimaryBtn>
+              <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+            </div>
+          )}
         </section>
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
@@ -4774,6 +4792,36 @@ const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
   gap: 12,
   minWidth: 0,
 })
+
+const builderMobileActionStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const builderMoreActionsStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 14,
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+}
+
+const builderMoreActionsSummaryStyle: CSSProperties = {
+  minHeight: 44,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '8px 12px',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const builderMoreActionsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: '0 8px 8px',
+}
 
 const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   display: 'grid',

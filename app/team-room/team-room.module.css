@@ -2150,10 +2150,10 @@
 }
 
 .browserAlertButton {
-  position: fixed;
-  right: 14px;
-  bottom: calc(88px + env(safe-area-inset-bottom));
-  z-index: 12;
+  position: static;
+  display: flex;
+  width: fit-content;
+  margin: 12px auto 0;
   min-height: 42px;
   border: 1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border));
   border-radius: 999px;
@@ -2329,6 +2329,41 @@
   border-color: color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border));
   background: color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg));
   color: var(--foreground-strong);
+}
+
+.messageMoreActions {
+  position: relative;
+}
+
+.messageMoreActions > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg);
+  color: var(--shell-copy-muted);
+  padding: 0 9px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  cursor: pointer;
+  list-style: none;
+}
+
+.messageMoreActions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.messageMoreActions[open] > summary {
+  border-color: color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border));
+  color: var(--foreground-strong);
+}
+
+.messageMoreMenu {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 5px;
 }
 
 .attachmentCard {
@@ -2617,9 +2652,13 @@
     flex: 1 1 auto;
   }
 
+  .quickActions {
+    overflow-x: visible;
+    flex-wrap: wrap;
+  }
+
   .browserAlertButton {
-    right: 12px;
-    left: 12px;
+    width: calc(100% - 24px);
   }
 
   .matchRecap summary {

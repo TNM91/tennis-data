@@ -180,15 +180,17 @@ function CompeteTeamsContent() {
 
   return (
     <>
-      <TeamAccountAccessPanel
-        authResolved={authResolved}
-        signedIn={Boolean(userId)}
-        linkedTeamCount={connections.length}
-        pendingTeamCount={pendingConnections.length}
-        playerToolsActive={access.canUseAdvancedPlayerInsights}
-        captainToolsActive={access.canUseCaptainWorkflow}
-        isMobile={isMobile}
-      />
+      {!loading && (!userId || groupedTeams.length === 0) ? (
+        <TeamAccountAccessPanel
+          authResolved={authResolved}
+          signedIn={Boolean(userId)}
+          linkedTeamCount={connections.length}
+          pendingTeamCount={pendingConnections.length}
+          playerToolsActive={access.canUseAdvancedPlayerInsights}
+          captainToolsActive={access.canUseCaptainWorkflow}
+          isMobile={isMobile}
+        />
+      ) : null}
 
       <section
         id="tiq-entered-teams"
@@ -303,6 +305,18 @@ function CompeteTeamsContent() {
           </div>
         )}
       </section>
+
+      {!loading && userId && groupedTeams.length > 0 && pendingConnections.length > 0 ? (
+        <TeamAccountAccessPanel
+          authResolved={authResolved}
+          signedIn
+          linkedTeamCount={connections.length}
+          pendingTeamCount={pendingConnections.length}
+          playerToolsActive={access.canUseAdvancedPlayerInsights}
+          captainToolsActive={access.canUseCaptainWorkflow}
+          isMobile={isMobile}
+        />
+      ) : null}
 
       <TeamToolsDisclosure label="Find or manage a team">
         <TeamPathPanel />
