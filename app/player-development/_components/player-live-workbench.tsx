@@ -363,6 +363,7 @@ export default function PlayerLiveWorkbench({
   const trackerRef = useRef<HTMLElement | null>(null)
   const trainingFlowRef = useRef<HTMLDivElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
+  const nextActionRef = useRef<HTMLDivElement | null>(null)
   const finishRef = useRef<HTMLDivElement | null>(null)
   const starterCheckRef = useRef<HTMLDivElement | null>(null)
   const didHashAnchorScrollRef = useRef(false)
@@ -420,6 +421,7 @@ export default function PlayerLiveWorkbench({
   const [selectedProofMomentId, setSelectedProofMomentId] = useState<SavedProofMomentId>('practice')
   const [selectedCoachAskId, setSelectedCoachAskId] = useState<SavedCoachAskId>('next')
   const [timerResetSignal, setTimerResetSignal] = useState(0)
+  const [timerStartSignal, setTimerStartSignal] = useState(0)
   const [pressureRepeatCue, setPressureRepeatCue] = useState('')
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const sentProofRecapStorageKey = `tenaceiq:level-up-recap-sent:${identitySlug}`
@@ -523,6 +525,15 @@ export default function PlayerLiveWorkbench({
   const savedProofRecapSent = lastSavedSession ? sentProofRecapIds.includes(lastSavedSession.id) : false
   const hasActiveSaveReceipt = Boolean(lastSavedSession)
   const hasUnsavedSessionDraft = !hasActiveSaveReceipt && !isEmptySessionDraft(draft, accessMode)
+  const drillJourneyStage = editingStep === 'setup'
+    ? 'setup'
+    : hasActiveSaveReceipt
+    ? 'next'
+    : scoringDrillId === activeDrill.id
+      ? 'score'
+      : (activeTimerSnapshot?.drillId === activeDrill.id && (activeTimerSnapshot.running || activeTimerSnapshot.elapsedSeconds > 0)) || proofCounter > 0
+        ? 'run'
+        : 'setup'
   const courtsideResumeItems = getCourtsideResumeItems(
     activeDrill,
     activeTimerSeconds,
@@ -1187,6 +1198,9 @@ export default function PlayerLiveWorkbench({
       targetSeconds: activeDrill.timerSeconds,
     })
     setSyncState({ status: 'local', message: 'Saved on this device. Undo is available briefly; sync queues next.' })
+    window.setTimeout(() => {
+      nextActionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
 
     const syncTimerId = window.setTimeout(() => {
       queuedSyncTimersRef.current.delete(nextSession.id)
@@ -1283,8 +1297,21 @@ export default function PlayerLiveWorkbench({
     }, 0)
   }
 
+  function startDrillJourney() {
+    setEditingStep(null)
+    setScoringDrillId('')
+    setTimerStartSignal((signal) => signal + 1)
+    window.setTimeout(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
   function showSavedRecap() {
     savedRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
+  function showNextAction() {
+    nextActionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }
 
   function saveTomorrowStarterPlan() {
@@ -2205,6 +2232,55 @@ export default function PlayerLiveWorkbench({
         <span>Go</span>
       </div>
 
+      <nav
+        className={styles.liveDrillJourney}
+        data-stage={drillJourneyStage}
+        data-visible={editingStep === 'focus' || editingStep === 'work' ? 'false' : 'true'}
+        aria-label="Drill flow"
+      >
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'setup' ? 'current' : 'done'}
+          aria-current={drillJourneyStage === 'setup' ? 'step' : undefined}
+          onClick={() => openEditingStep('setup')}
+        >
+          <span>1</span>
+          <strong>Setup</strong>
+          <small>{contextLabels[activeDrill.context]} · {activeDrill.duration}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'setup' ? 'upcoming' : drillJourneyStage === 'run' ? 'current' : 'done'}
+          aria-current={drillJourneyStage === 'run' ? 'step' : undefined}
+          onClick={startDrillJourney}
+        >
+          <span>2</span>
+          <strong>Run the rep</strong>
+          <small>{activeTimerSeconds > 0 ? formatClock(activeTimerSeconds) : `${proofTarget} clean reps`}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'score' ? 'current' : drillJourneyStage === 'next' ? 'done' : 'upcoming'}
+          aria-current={drillJourneyStage === 'score' ? 'step' : undefined}
+          onClick={goToScore}
+        >
+          <span>3</span>
+          <strong>Score proof</strong>
+          <small>{lastSavedSession ? `${lastSavedSession.rating}/5 saved` : 'Honest 0–5'}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'next' ? 'current' : 'upcoming'}
+          aria-current={drillJourneyStage === 'next' ? 'step' : undefined}
+          disabled={!lastSavedSession}
+          onClick={showNextAction}
+        >
+          <span>4</span>
+          <strong>Next action</strong>
+          <small>{smartNextAction?.decision ?? 'Unlock after proof'}</small>
+        </button>
+      </nav>
+
       <div ref={trainingFlowRef} className={styles.liveTrainingFlow}>
         <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'focus' ? 'true' : 'false'}>
           <span>1. Focus</span>
@@ -2401,6 +2477,7 @@ export default function PlayerLiveWorkbench({
               drillTitle={activeDrill.title}
               targetSeconds={activeDrill.timerSeconds}
               resetSignal={timerResetSignal}
+              startSignal={timerStartSignal}
               onDone={goToScore}
               onSnapshotChange={handleTimerSnapshotChange}
             />
@@ -2416,8 +2493,8 @@ export default function PlayerLiveWorkbench({
           </article>
 
           <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
-            <span>3. Submit</span>
-            <strong>Score and save.</strong>
+            <span>3. Score proof</span>
+            <strong>Bank one honest score.</strong>
             <div className={styles.liveQuickScoreDock} aria-label="One tap score and save">
               <div>
                 <span>Quick score</span>
@@ -2546,7 +2623,7 @@ export default function PlayerLiveWorkbench({
             </button>
           </div>
           {smartNextAction ? (
-            <div className={styles.liveNextActionCard} aria-label="Next best action">
+            <div ref={nextActionRef} className={styles.liveNextActionCard} aria-label="Next best action">
               <div>
                 <span>Next best action</span>
                 <strong>{smartNextAction.title}</strong>
@@ -2924,6 +3001,7 @@ function DrillTimer({
   drillTitle,
   targetSeconds,
   resetSignal,
+  startSignal,
   onDone,
   onSnapshotChange,
 }: {
@@ -2931,6 +3009,7 @@ function DrillTimer({
   drillTitle: string
   targetSeconds: number
   resetSignal: number
+  startSignal: number
   onDone: () => void
   onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
 }) {
@@ -2965,6 +3044,17 @@ function DrillTimer({
 
     return () => window.cancelAnimationFrame(id)
   }, [drillId, resetSignal])
+
+  useEffect(() => {
+    if (startSignal === 0) return
+
+    const id = window.requestAnimationFrame(() => {
+      setRunning(true)
+      timerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [startSignal])
 
   useEffect(() => {
     onSnapshotChange({ drillId, elapsedSeconds, running, targetSeconds })

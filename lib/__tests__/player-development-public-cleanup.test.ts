@@ -283,7 +283,7 @@ describe('Player Development public cleanup', () => {
     expect(liveWorkbenchSource).toContain('Repeat')
     expect(liveWorkbenchSource).toContain('Turn on-court logs into a shared development plan.')
     expect(liveWorkbenchSource).toContain('Lesson calendar reminders')
-    expect(liveWorkbenchSource).toContain('Score and save.')
+    expect(liveWorkbenchSource).toContain('Bank one honest score.')
     expect(liveWorkbenchSource).toContain('Over / under')
     expect(liveWorkbenchSource).toContain('window.localStorage')
     expect(liveWorkbenchSource).toContain('tenaceiq:level-up')
