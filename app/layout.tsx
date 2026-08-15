@@ -143,8 +143,12 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
-        <Analytics />
-        <SpeedInsights />
+        {VERCEL_OBSERVABILITY_ENABLED ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"

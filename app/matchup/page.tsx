@@ -1739,7 +1739,7 @@ export default function MatchupPage() {
               <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
               <div style={identitySetupCopyStyle}>
                 <div style={identitySetupKickerStyle}>Finish personalization</div>
-                <h3 style={identitySetupTitleStyle}>Set your profile before running your own matchups.</h3>
+                <h2 style={identitySetupTitleStyle}>Set your profile before running your own matchups.</h2>
                 <p style={identitySetupTextStyle}>
                   You can still explore any players here, but choosing or creating your identity lets Matchup start with you and lets My Lab save the read back to your game.
                 </p>

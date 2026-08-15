@@ -18970,6 +18970,7 @@ function CaptainHubContent() {
               <span style={notesLabel}>Weekly prep notes</span>
               <span style={notesHint}>Travel, arrival plan, court prep, roster reminders, subs, weather, or anything your team needs this week.</span>
               <textarea
+                aria-label="Weekly prep notes"
                 value={weeklyPrepNotes}
                 onChange={(e) => setWeeklyPrepNotes(e.target.value)}
                 placeholder="Arrival time, balls, warm-up courts, weather plan, subs on standby..."
@@ -18982,6 +18983,7 @@ function CaptainHubContent() {
               <span style={notesLabel}>Opponent scouting notes</span>
               <span style={notesHint}>Patterns to exploit, likely pairings, court tendencies, pressure points, or lineup traps to avoid.</span>
               <textarea
+                aria-label="Opponent scouting notes"
                 value={opponentScoutNotes}
                 onChange={(e) => setOpponentScoutNotes(e.target.value)}
                 placeholder="Likely stack on D1, protect S1, target slower second serve pair, expect late lineup changes..."
@@ -20357,6 +20359,7 @@ const primaryButton: CSSProperties = {
 
 const primaryButtonSmall: CSSProperties = {
   ...primaryButton,
+  minHeight: 44,
   padding: '11px 14px',
   fontSize: 13,
 }
@@ -20365,6 +20368,7 @@ const secondaryButtonSmall: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minHeight: 44,
   padding: '11px 14px',
   borderRadius: 14,
   textDecoration: 'none',

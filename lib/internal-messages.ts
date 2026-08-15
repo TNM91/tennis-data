@@ -637,6 +637,27 @@ export async function createLeagueConversation(
   const cleanBody = input.body.trim()
   if (!cleanBody) throw new Error('Add a message before opening the league room.')
 
+  const relatedEntityType = input.entityType || 'tiq_league'
+  const relatedEntityId = input.entityId || input.leagueId
+
+  const { data: existingData } = await supabase
+    .from('internal_conversations')
+    .select('id')
+    .eq('conversation_type', 'league')
+    .eq('related_entity_type', relatedEntityType)
+    .eq('related_entity_id', relatedEntityId)
+    .eq('status', 'open')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingData?.id) {
+    await sendInternalMessage(existingData.id, identity.userId, cleanBody, {
+      senderRole: identity.role,
+    })
+    return existingData.id
+  }
+
   const profileIds = new Set<string>([identity.userId])
   for (const profileId of input.participantProfileIds || []) {
     if (profileId.trim()) profileIds.add(profileId.trim())
@@ -659,11 +680,11 @@ export async function createLeagueConversation(
       subject: input.subject.trim() || `${input.leagueName} league room`,
       status: 'open',
       created_by_user_id: identity.userId,
-      related_entity_type: input.entityType || 'tiq_league',
-      related_entity_id: input.entityId || input.leagueId,
+      related_entity_type: relatedEntityType,
+      related_entity_id: relatedEntityId,
       metadata: {
-        entityType: input.entityType || 'tiq_league',
-        entityId: input.entityId || input.leagueId,
+        entityType: relatedEntityType,
+        entityId: relatedEntityId,
         leagueName: input.leagueName,
         ...input.metadata,
       },
@@ -687,6 +708,38 @@ export async function createLeagueConversation(
     senderRole: identity.role,
   })
   return conversation.id
+}
+
+export async function createTeamConversation(
+  identity: InternalIdentity,
+  input: {
+    teamName: string
+    leagueName?: string
+    flight?: string
+    entityId?: string
+    subject: string
+    body: string
+  },
+) {
+  const cleanBody = input.body.trim()
+  if (!cleanBody) throw new Error('Add a message before opening team chat.')
+
+  const { data, error } = await supabase.rpc('open_team_conversation', {
+    target_team_name: input.teamName.trim(),
+    target_league_name: input.leagueName?.trim() || '',
+    target_flight: input.flight?.trim() || '',
+    target_entity_id: input.entityId?.trim() || '',
+    target_subject: input.subject.trim(),
+  })
+
+  if (error) throw new Error(error.message)
+  const conversationId = typeof data === 'string' ? data : ''
+  if (!conversationId) throw new Error('Team chat could not be opened.')
+
+  await sendInternalMessage(conversationId, identity.userId, cleanBody, {
+    senderRole: identity.role,
+  })
+  return conversationId
 }
 
 export async function sendInternalMessage(

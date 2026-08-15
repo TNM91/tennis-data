@@ -1,4 +1,5 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildCoachStudentLinkPayload,
   mapCoachStudentLinkRow,
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load coach students', error, 'Students are temporarily unavailable.')
   }
 
   const students = ((data ?? []) as CoachStudentLinkRow[]).map(mapCoachStudentLinkRow)
@@ -86,7 +87,7 @@ export async function DELETE(request: Request) {
     .eq('id', id)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not remove coach student', error, 'The student connection could not be removed.')
   }
 
   return Response.json({ ok: true })

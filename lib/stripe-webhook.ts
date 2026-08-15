@@ -12,6 +12,7 @@ export type StripeWebhookEvent = {
       customer?: string | { id?: string | null } | null
       customer_email?: string | null
       subscription?: string | { id?: string | null } | null
+      payment_intent?: string | { id?: string | null } | null
       metadata?: Record<string, string | undefined> | null
     }
   }

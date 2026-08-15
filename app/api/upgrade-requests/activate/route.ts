@@ -56,7 +56,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (requestLoadError) {
-    return Response.json({ ok: false, message: requestLoadError.message }, { status: 500 })
+    console.error('Upgrade activation request lookup failed', requestLoadError)
+    return Response.json({ ok: false, message: 'Upgrade request could not be loaded.' }, { status: 500 })
   }
 
   const activationTarget = resolveUpgradeActivationTarget(requestRow
@@ -91,7 +92,8 @@ export async function POST(request: Request) {
         .eq('id', activationTarget.userId)
 
   if (profileError) {
-    return Response.json({ ok: false, message: profileError.message }, { status: 500 })
+    console.error('Upgrade activation profile update failed', profileError)
+    return Response.json({ ok: false, message: 'Upgrade access could not be activated.' }, { status: 500 })
   }
 
   const { error: requestError } = await supabase
@@ -100,7 +102,8 @@ export async function POST(request: Request) {
     .eq('id', activationTarget.requestId)
 
   if (requestError) {
-    return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    console.error('Upgrade activation request update failed', requestError)
+    return Response.json({ ok: false, message: 'Upgrade request could not be finalized.' }, { status: 500 })
   }
 
   return Response.json({ ok: true, message: `Activated ${activationTarget.planId} access.` })
@@ -135,7 +138,8 @@ async function getAdminUserId(token: string): Promise<
     .maybeSingle()
 
   if (profileError) {
-    return { ok: false, status: 500, message: profileError.message }
+    console.error('Upgrade activation admin lookup failed', profileError)
+    return { ok: false, status: 500, message: 'Admin access could not be verified.' }
   }
 
   if ((profile as { role?: string } | null)?.role !== 'admin') {

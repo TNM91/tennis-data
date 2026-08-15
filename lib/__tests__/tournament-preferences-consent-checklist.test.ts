@@ -52,18 +52,12 @@ describe('tournament preferences consent checklist', () => {
     expect(alertTypesIndex).toBeGreaterThan(formIndex)
   })
 
-  it('keeps alert preference fields keyboard focus-visible', () => {
+  it('keeps the private alert toggle keyboard focus-visible', () => {
     const source = readFileSync(join(process.cwd(), 'app/tournaments/[id]/preferences/page.tsx'), 'utf8')
 
-    expect(source).toContain('const [focusedField, setFocusedField] = useState<string | null>(null)')
-    expect(source).toContain("onFocus={() => setFocusedField('name')}")
-    expect(source).toContain("onFocus={() => setFocusedField('phone')}")
-    expect(source).toContain('const inputFocusStyle: CSSProperties')
-    expect(source).toContain('compactInputStyle')
-    expect(styleBlock(source, 'inputStyle')).toContain("outline: '2px solid transparent'")
-    expect(styleBlock(source, 'inputStyle')).toContain('outlineOffset: 2')
-    expect(styleBlock(source, 'inputStyle')).not.toContain("outline: 'none'")
-    expect(styleBlock(source, 'compactInputStyle')).toContain('minHeight: 42')
+    expect(source).toContain('<input type="checkbox" checked={smsOptIn}')
+    expect(globalsSource).toContain(':focus-visible')
+    expect(globalsSource).not.toContain(':focus-visible {\n  outline: none')
     expect(styleBlock(source, 'compactButtonStyle')).toContain('minHeight: 40')
   })
 

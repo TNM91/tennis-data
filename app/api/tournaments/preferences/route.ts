@@ -1,158 +1,112 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { supabaseUrl } from '@/lib/supabase'
 
-type TournamentRow = {
-  id: string
-  name: string | null
-  entrants: string[] | null
-  contacts: Record<string, Partial<{
-    name: string
-    phone: string
-    smsOptIn: boolean
-    consentNote: string
-    updatedAt: string
-  }>> | null
-  is_public: boolean | null
-}
+export const runtime = 'nodejs'
 
-function cleanText(value: unknown) {
-  return String(value || '').replace(/\s+/g, ' ').trim()
-}
-
-function cleanPhone(value: unknown) {
-  return cleanText(value).replace(/[^\d+().\-\s]/g, '').replace(/\s+/g, ' ').trim()
-}
-
-function comparable(value: unknown) {
-  return cleanText(value).toLowerCase()
-}
-
-function getServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for tournament preference updates.')
-  }
-
-  return createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  })
-}
-
-export async function POST(request: NextRequest) {
-  let body: {
-    tournamentId?: string
-    playerName?: string
-    phone?: string
-    smsOptIn?: boolean
-  }
-
+export async function POST(request: Request) {
+  let body: { tournamentId?: unknown; token?: unknown; smsOptIn?: unknown }
   try {
-    body = await request.json()
+    body = (await request.json()) as typeof body
   } catch {
-    return NextResponse.json({ ok: false, message: 'Preference request could not be read.' }, { status: 400 })
+    return Response.json({ ok: false, message: 'Preference request could not be read.' }, { status: 400 })
   }
 
-  const tournamentId = cleanText(body.tournamentId)
-  const playerName = cleanText(body.playerName)
-  const phone = cleanPhone(body.phone)
+  const tournamentId = cleanText(body.tournamentId, 160)
+  const token = cleanText(body.token, 180)
   const smsOptIn = Boolean(body.smsOptIn)
+  if (!tournamentId || token.length < 32) {
+    return Response.json({ ok: false, message: 'Use the private alert link from your tournament entry.' }, { status: 401 })
+  }
 
-  if (!tournamentId || !playerName || !phone) {
-    return NextResponse.json({ ok: false, message: 'Enter your tournament name and phone number.' }, { status: 400 })
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!serviceKey) {
+    console.error('Tournament preference service key is missing')
+    return Response.json({ ok: false, message: 'Tournament preferences are temporarily unavailable.' }, { status: 503 })
+  }
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+
+  const rateResult = await supabase.rpc('consume_api_rate_limit', {
+    target_scope: 'tournament-preference',
+    target_key_hash: hashValue(`${serviceKey}:${getClientAddress(request)}:${token}`),
+    target_limit: 20,
+    target_window_seconds: 3600,
+  })
+  if (rateResult.error || !rateResult.data) {
+    if (rateResult.error) console.error('Tournament preference rate limit failed', rateResult.error)
+    return Response.json({ ok: false, message: 'Too many preference attempts. Try again later.' }, { status: rateResult.error ? 503 : 429 })
   }
 
   try {
-    const supabase = getServiceClient()
-    const tournamentResult = await supabase
-      .from('tiq_tournaments')
-      .select('id,name,entrants,contacts,is_public')
-      .eq('id', tournamentId)
-      .maybeSingle()
-
-    if (tournamentResult.error) throw tournamentResult.error
-
-    const tournament = tournamentResult.data as TournamentRow | null
-    if (!tournament?.is_public) {
-      return NextResponse.json({ ok: false, message: 'Tournament preferences are not available.' }, { status: 404 })
-    }
-
-    const entriesResult = await supabase
+    const entryResult = await supabase
       .from('tiq_tournament_entries')
-      .select('id,player_name,phone,status')
+      .select('id,tournament_id,player_name,phone,status,preference_token_expires_at')
       .eq('tournament_id', tournamentId)
-
-    if (entriesResult.error) throw entriesResult.error
-
-    const matchedEntry = (entriesResult.data || []).find((entry) => (
-      comparable(entry.player_name) === comparable(playerName)
-      && cleanPhone(entry.phone) === phone
-    ))
-
-    if (!matchedEntry) {
-      return NextResponse.json({ ok: false, message: 'We could not match that name and phone for this tournament.' }, { status: 404 })
+      .eq('preference_token_hash', hashValue(token))
+      .gt('preference_token_expires_at', new Date().toISOString())
+      .maybeSingle()
+    if (entryResult.error) throw entryResult.error
+    const entry = entryResult.data
+    if (!entry) {
+      return Response.json({ ok: false, message: 'This private alert link is invalid or expired.' }, { status: 401 })
     }
 
     const updatedAt = new Date().toISOString()
     const consentNote = smsOptIn
-      ? 'Participant updated SMS preference from tournament link.'
-      : 'Participant opted out from tournament link.'
-
+      ? 'Participant updated SMS preference from a private tournament link.'
+      : 'Participant opted out from a private tournament link.'
     const entryUpdate = await supabase
       .from('tiq_tournament_entries')
-      .update({
+      .update({ sms_opt_in: smsOptIn, consent_note: consentNote, updated_at: updatedAt })
+      .eq('id', entry.id)
+    if (entryUpdate.error) throw entryUpdate.error
+
+    const contactUpdate = await supabase
+      .from('tiq_tournament_contacts')
+      .upsert({
+        tournament_id: tournamentId,
+        entrant_name: entry.player_name,
+        phone: entry.phone,
         sms_opt_in: smsOptIn,
         consent_note: consentNote,
         updated_at: updatedAt,
-      })
-      .eq('id', matchedEntry.id)
+      }, { onConflict: 'tournament_id,entrant_name' })
+    if (contactUpdate.error) throw contactUpdate.error
 
-    if (entryUpdate.error) throw entryUpdate.error
-
-    const contacts = { ...(tournament.contacts || {}) }
-    const entrantName = (tournament.entrants || []).find((entrant) => comparable(entrant) === comparable(playerName)) || playerName
-    contacts[entrantName] = {
-      ...(contacts[entrantName] || {}),
-      name: entrantName,
-      phone,
-      smsOptIn,
-      consentNote,
-      updatedAt,
-    }
-
-    const tournamentUpdate = await supabase
-      .from('tiq_tournaments')
-      .update({ contacts, updated_at: updatedAt })
-      .eq('id', tournamentId)
-
-    if (tournamentUpdate.error) throw tournamentUpdate.error
-
-    const eventInsert = await supabase
-      .from('tiq_tournament_preference_events')
-      .insert({
-        tournament_id: tournamentId,
-        tournament_entry_id: matchedEntry.id,
-        player_name: entrantName,
-        phone,
-        action: smsOptIn ? 'opt_in' : 'opt_out',
-        source: 'tournament_preferences',
-        consent_note: consentNote,
-      })
-
+    const eventInsert = await supabase.from('tiq_tournament_preference_events').insert({
+      tournament_id: tournamentId,
+      tournament_entry_id: entry.id,
+      player_name: entry.player_name,
+      phone: entry.phone,
+      action: smsOptIn ? 'opt_in' : 'opt_out',
+      source: 'tournament_preferences',
+      consent_note: consentNote,
+    })
     if (eventInsert.error) throw eventInsert.error
 
-    return NextResponse.json({
+    return Response.json({
       ok: true,
       message: smsOptIn ? 'Tournament text alerts are on.' : 'Tournament text alerts are off.',
+      phoneLastFour: cleanText(entry.phone, 32).replace(/\D/g, '').slice(-4),
     })
   } catch (error) {
-    return NextResponse.json({
-      ok: false,
-      message: error instanceof Error ? error.message : 'Tournament preference could not be saved.',
-    }, { status: 500 })
+    console.error('Tournament preference update failed', error)
+    return Response.json({ ok: false, message: 'Tournament preference could not be saved.' }, { status: 500 })
   }
+}
+
+function cleanText(value: unknown, maxLength: number) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, maxLength) : ''
+}
+
+function getClientAddress(request: Request) {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')?.trim()
+    || 'unknown'
+}
+
+function hashValue(value: string) {
+  return createHash('sha256').update(value).digest('hex')
 }

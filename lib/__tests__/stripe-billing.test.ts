@@ -8,11 +8,18 @@ import {
   getStripeSubscriptionResultingStatus,
   getStripeObjectId,
   isStripeBillingProfileColumnError,
+  isStripeOneTimeReversalEvent,
   isStripeSubscriptionLifecycleEvent,
   removeStripeBillingProfileFields,
 } from '../stripe-billing'
 
 describe('Stripe billing helpers', () => {
+  it('recognizes one-time payment reversals that must revoke League access', () => {
+    expect(isStripeOneTimeReversalEvent({ type: 'charge.refunded' })).toBe(true)
+    expect(isStripeOneTimeReversalEvent({ type: 'charge.dispute.created' })).toBe(true)
+    expect(isStripeOneTimeReversalEvent({ type: 'checkout.session.completed' })).toBe(false)
+  })
+
   it('normalizes Stripe object references', () => {
     expect(getStripeObjectId('cus_123')).toBe('cus_123')
     expect(getStripeObjectId({ id: 'sub_123' })).toBe('sub_123')

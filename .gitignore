@@ -59,8 +59,21 @@ test-results/
 # local agent/tooling skills
 .agents/
 .codex-worktrees/
+.codex-archive/
+.codex-audits/
+.codex-deck/
+.codex/
+.codex-*.log
 .claude/skills/
+.claude/settings.local.json
 skills-lock.json
+
+# generated review, rendering, and export workspaces
+/artifacts/
+/deliverables/
+/output/
+/design-qa.md
+/docs/audits/
 
 # typescript
 *.tsbuildinfo

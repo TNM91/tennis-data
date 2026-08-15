@@ -306,6 +306,29 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
 
 export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
+export const CLUB_PLANS = {
+  starter: {
+    id: 'starter',
+    name: 'Club Starter',
+    priceLabel: '$99/month',
+    locationLimit: 1,
+    coachStaffLimit: 10,
+    playerProfileLimit: 150,
+    scaleLabel: '1 location - Up to 10 coaches/staff - Up to 150 player profiles',
+    outcome: 'Launch one connected club experience with the complete TenAceIQ club toolset.',
+  },
+  unlimited: {
+    id: 'unlimited',
+    name: 'Club Unlimited',
+    priceLabel: '$199/month',
+    locationLimit: null,
+    coachStaffLimit: null,
+    playerProfileLimit: null,
+    scaleLabel: 'All locations - Unlimited coaches/staff - Unlimited player profiles',
+    outcome: 'Scale the same connected experience across the entire racquet organization.',
+  },
+} as const
+
 export const PRODUCT_PROOF_POINTS = [
   'Less guessing',
   'Clearer match prep',
@@ -403,6 +426,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Search players, teams, leagues, and rankings',
       'Use roster, schedule, stats, and Team Chat for every linked team',
       'Find public tennis context fast',
+      'Open linked team rosters, schedules, stats, and team chat',
       'Understand the landscape before upgrading',
     ],
     primaryCta: { label: 'Get Started Free', href: '/join' },

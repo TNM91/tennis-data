@@ -7,7 +7,9 @@ import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
+  buildExploreLeagueHref,
   getCompetitionLayerLabel,
   inferCompetitionLayerFromValues,
 } from '@/lib/competition-layers'
@@ -20,6 +22,7 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -35,7 +38,8 @@ import {
 } from '@/lib/match-accuracy-reports'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { loadUserProfileLink } from '@/lib/user-profile'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { isProfileLinkedToTeam } from '@/lib/team-membership'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { fetchTeamConnections } from '@/lib/team-profile-links-client'
@@ -368,6 +372,7 @@ function TeamPageContent() {
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setLinkedPlayerName('')
+      setProfileLink(null)
       setMyMatchReports([])
       return
     }
@@ -377,6 +382,7 @@ function TeamPageContent() {
     void (async () => {
       const result = await loadUserProfileLink(currentUserId)
       if (!active) return
+      setProfileLink(result.data)
       setLinkedPlayerId(result.data?.linked_player_id || null)
       setLinkedPlayerName(result.data?.linked_player_name || '')
     })()
@@ -956,6 +962,22 @@ function TeamPageContent() {
     })
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
+  const isLinkedTeamMember = useMemo(() => (
+    Boolean(currentUserId) && isProfileLinkedToTeam(
+      profileLink,
+      rosterMembers.map((entry) => entry.player_id),
+      team,
+      leagueFilter || teamMeta.league,
+      flightFilter || teamMeta.flight,
+    )
+  ), [currentUserId, flightFilter, leagueFilter, profileLink, rosterMembers, team, teamMeta.flight, teamMeta.league])
+
+  const teamChatPlayerIds = useMemo(() => Array.from(new Set(
+    rosterMembers
+      .map((entry) => cleanText(entry.player_id))
+      .filter((playerId) => playerId && !playerId.startsWith('summary:')),
+  )), [rosterMembers])
+
   const teamExistsFromSummary = summaryTeams.length > 0
   const bestSingles = useMemo(() => {
     return [...roster]
@@ -1356,7 +1378,7 @@ function TeamPageContent() {
 
             <div style={heroBadgeRow}>
               <span style={badgeSlate}>{getCompetitionLayerLabel(competitionLayer)}</span>
-              {teamMeta.league ? <span style={badgeBlue}>{teamMeta.league}</span> : null}
+              {teamLeagueHref ? <Link href={teamLeagueHref} style={{ ...badgeBlue, textDecoration: 'none' }}>{teamMeta.league}</Link> : null}
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
               {!isMobile && teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
               {!isMobile ? <span style={badgeSlate}>{matches.length} matches tracked</span> : null}
@@ -2136,7 +2158,7 @@ function TeamPageContent() {
                 </div>
               ) : (
               <div style={tableWrap}>
-                <table style={dataTable}>
+                <table style={{ ...dataTable, minWidth: 980 }}>
                   <thead>
                     <tr>
                       <th style={tableHeaderCell}>Compare</th>
@@ -3425,7 +3447,7 @@ const tableWrap: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 0,
+  minWidth: 680,
 }
 
 const tableHeaderCell: CSSProperties = {
@@ -3436,8 +3458,7 @@ const tableHeaderCell: CSSProperties = {
   fontSize: '12px',
   textTransform: 'uppercase',
   letterSpacing: '.06em',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
 }
 
 const tableCell: CSSProperties = {
@@ -3445,7 +3466,7 @@ const tableCell: CSSProperties = {
   borderTop: '1px solid rgba(125, 211, 252, 0.14)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
-  overflowWrap: 'anywhere',
+  overflowWrap: 'normal',
 }
 
 const scoreCellStackStyle: CSSProperties = {

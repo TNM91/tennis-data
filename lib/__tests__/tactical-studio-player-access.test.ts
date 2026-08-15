@@ -256,7 +256,8 @@ describe('Tactical Studio player access', () => {
   it('uses the uploaded tennis ball image asset for tactical ball markers', () => {
     expect(tokenSource).toContain(TENNIS_BALL_ASSET)
     expect(markerIconsSource).toContain(TENNIS_BALL_ASSET)
-    expect(courtOverlaySource).toContain('<symbol id="tiq-ball-marker"')
+    expect(courtOverlaySource).toContain('<symbol id={definitionIds.ballMarker}')
+    expect(courtOverlaySource).toContain('useId().replace(/:/g')
     expect(courtOverlaySource).toContain(TENNIS_BALL_ASSET)
     expect(studioStyles).toContain('.ballToken')
     expect(studioStyles).toContain('.ballTokenImage')

@@ -328,7 +328,7 @@ Admin workflows:
 - Player access is satisfied by either `player_plus` or `captain`.
 - Captain access requires `captain`.
 - League access requires `league`.
-- Current plan precedence is Captain, then League, then Player, then Free.
+- Current plan precedence is Full-Court, Captain, Coach, League, Player, then Free.
 - Recommended next plan:
   - Public/member without paid access: Player.
   - Captain without League tools: League.

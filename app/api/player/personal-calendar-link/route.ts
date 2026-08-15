@@ -1,4 +1,5 @@
 import { createCalendarFeedToken, hashCalendarFeedToken } from '@/lib/calendar-feed-tokens'
+import { apiServerError } from '@/lib/api-error-response'
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
 
 export const runtime = 'nodejs'
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load personal calendar link', error, 'Your calendar link is temporarily unavailable.')
   }
 
   const activeFeed = data as CalendarFeedStatusRow | null
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not refresh personal calendar link', revokeError, 'Your calendar link could not be refreshed.')
   }
 
   const { error: insertError } = await auth.supabase
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     })
 
   if (insertError) {
-    return Response.json({ ok: false, message: insertError.message }, { status: 500 })
+    return apiServerError('Could not create personal calendar link', insertError, 'Your calendar link could not be created.')
   }
 
   return Response.json({
@@ -100,7 +101,7 @@ export async function DELETE(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not revoke personal calendar link', revokeError, 'Your calendar link could not be revoked.')
   }
 
   return Response.json({ ok: true })

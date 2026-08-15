@@ -7,7 +7,7 @@ export function getPlanDestinationHref(planId: BillablePricingPlanId) {
   if (planId === 'captain') return '/captain'
   if (planId === 'league') return '/league-coordinator'
   if (planId === 'player_plus') return '/profile'
-  return '/mylab'
+  return '/explore'
 }
 
 export function getPlanUnlockHref(planId: BillablePricingPlanId, nextHref = getPlanDestinationHref(planId)) {
@@ -21,9 +21,19 @@ export function getPlanSignupHref(planId: BillablePricingPlanId, nextHref = getP
 
 export function isSafeLocalNextHref(candidate: string | null | undefined, fallback: string) {
   if (!candidate) return fallback
-  if (!candidate.startsWith('/')) return fallback
-  if (candidate.startsWith('//')) return fallback
-  if (candidate.startsWith('/login')) return fallback
-  if (candidate.startsWith('/join')) return fallback
-  return candidate
+  if (candidate !== candidate.trim()) return fallback
+  if (!candidate.startsWith('/') || candidate.startsWith('//')) return fallback
+  if (/\\|%5c|[\u0000-\u001f\u007f]/i.test(candidate)) return fallback
+
+  try {
+    const base = new URL('https://tenaceiq.invalid')
+    const parsed = new URL(candidate, base)
+    if (parsed.origin !== base.origin) return fallback
+
+    const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`
+    if (/^\/(login|join)(?:\/|$)/i.test(parsed.pathname)) return fallback
+    return normalized
+  } catch {
+    return fallback
+  }
 }

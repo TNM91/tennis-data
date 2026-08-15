@@ -85,6 +85,11 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
+import {
+  getClubCompetitionRatingModeDescription,
+  getClubCompetitionRatingModeLabel,
+  type ClubCompetitionRatingMode,
+} from '@/lib/club-competition'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
 const CLUB_TOURNAMENT_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coordinator', 'coach']
@@ -174,6 +179,7 @@ export default function TournamentBuilderWorkspace() {
   const [directorNotes, setDirectorNotes] = useState('')
   const [entrantsText, setEntrantsText] = useState(sampleEntrants.join('\n'))
   const [isPublic, setIsPublic] = useState(false)
+  const [ratingMode, setRatingMode] = useState<ClubCompetitionRatingMode>('tiq_rated')
   const [selectedId, setSelectedId] = useState('')
   const [notice, setNotice] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
@@ -241,7 +247,6 @@ export default function TournamentBuilderWorkspace() {
     kind: alertKind,
     body: alertBody,
     siteUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}`,
-    preferencesUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}/preferences`,
   }) : ''
   const optedInCount = selectedRecord
     ? selectedRecord.entrants.filter((entrant) => selectedRecord.contacts[entrant]?.smsOptIn && selectedRecord.contacts[entrant]?.phone).length
@@ -921,6 +926,7 @@ export default function TournamentBuilderWorkspace() {
       directorNotes,
       entrants: draftEntrants,
       isPublic,
+      ratingMode,
     }, selectedId, userId)
 
     refreshRecords(saved.data.id)
@@ -948,7 +954,11 @@ export default function TournamentBuilderWorkspace() {
     setScheduleInputs(buildScheduleInputState(updated))
     setAwardRecipients((current) => buildAwardRecipientState(updated, current))
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`)
+    setNotice(
+      'syncWarning' in updated && typeof updated.syncWarning === 'string'
+        ? updated.syncWarning
+        : `${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`,
+    )
   }
 
   async function clearMatchResult(matchId: string) {
@@ -1238,6 +1248,7 @@ export default function TournamentBuilderWorkspace() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          tournamentId: selectedRecord.id,
           entrants: selectedRecord.entrants,
           selfRating: 3.5,
         }),
@@ -1312,6 +1323,7 @@ export default function TournamentBuilderWorkspace() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              tournamentId: selectedRecord.id,
               entrants: [entrantName],
               selfRating: entry.selfRating,
             }),
@@ -1432,6 +1444,7 @@ export default function TournamentBuilderWorkspace() {
     setDirectorNotes(record.directorNotes)
     setEntrantsText(record.entrants.join('\n'))
     setIsPublic(record.isPublic)
+    setRatingMode(record.ratingMode ?? 'tiq_rated')
     setScoreInputs(buildScoreInputState(record))
     setScheduleInputs(buildScheduleInputState(record))
     setContactInputs(buildContactInputState(record))
@@ -1455,10 +1468,11 @@ export default function TournamentBuilderWorkspace() {
     setFormat('single_elimination')
     setEntrantType('players')
     setStartsOn('')
-    setLocationLabel('')
+    setLocationLabel(requestedClubName)
     setDirectorNotes('')
     setEntrantsText(sampleEntrants.join('\n'))
     setIsPublic(false)
+    setRatingMode('tiq_rated')
     setScoreInputs({})
     setScheduleInputs({})
     setContactInputs({})

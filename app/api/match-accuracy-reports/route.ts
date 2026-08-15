@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import type { MatchAccuracyIssueType, MatchAccuracyReportStatus } from '@/lib/match-accuracy-reports'
 
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .limit(25)
 
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (error) return apiServerError('Could not load match accuracy reports', error, 'Match accuracy reports are temporarily unavailable.')
     return Response.json({ ok: true, reports: data || [] })
   }
 
@@ -72,12 +73,12 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load player match accuracy reports', error, 'Match accuracy reports are temporarily unavailable.')
   let uploaderTrusts: Record<string, unknown> = {}
   try {
     uploaderTrusts = await loadUploaderTrusts(service, data || [])
   } catch (trustError) {
-    return Response.json({ ok: false, message: trustError instanceof Error ? trustError.message : 'Could not load uploader trust history.' }, { status: 500 })
+    return apiServerError('Could not load uploader trust history', trustError, 'Uploader trust history is temporarily unavailable.')
   }
   return Response.json({ ok: true, reports: data || [], uploaderTrusts })
 }
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
     .select(REPORT_SELECT)
     .single()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not create match accuracy report', error, 'The match accuracy report could not be submitted.')
   return Response.json({ ok: true, report: data })
 }
 
@@ -180,7 +181,7 @@ export async function PATCH(request: Request) {
     .eq('id', reportId)
     .single()
 
-  if (existingError) return Response.json({ ok: false, message: existingError.message }, { status: 500 })
+  if (existingError) return apiServerError('Could not load match accuracy report for update', existingError, 'That match accuracy report is temporarily unavailable.')
   const sourceUploaderUserId = cleanText((existing as { source_uploader_user_id?: string | null } | null)?.source_uploader_user_id)
   const now = new Date().toISOString()
 
@@ -197,7 +198,7 @@ export async function PATCH(request: Request) {
     .select(REPORT_SELECT)
     .single()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not update match accuracy report', error, 'The match accuracy report could not be updated.')
 
   if (sourceUploaderUserId && typeof body.uploaderCanUploadScorecards === 'boolean') {
     const canUpload = body.uploaderCanUploadScorecards
@@ -211,7 +212,7 @@ export async function PATCH(request: Request) {
         upload_suspended_at: canUpload ? null : now,
       }, { onConflict: 'profile_id' })
 
-    if (trustError) return Response.json({ ok: false, message: trustError.message }, { status: 500 })
+    if (trustError) return apiServerError('Could not update uploader trust history', trustError, 'The uploader trust update could not be saved.')
   }
 
   return Response.json({ ok: true, report: data })

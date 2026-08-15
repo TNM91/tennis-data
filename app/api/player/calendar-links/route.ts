@@ -1,4 +1,5 @@
 import { createCalendarFeedToken, hashCalendarFeedToken } from '@/lib/calendar-feed-tokens'
+import { apiServerError } from '@/lib/api-error-response'
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
 
 export const runtime = 'nodejs'
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load player coach calendar links', error, 'Calendar links are temporarily unavailable.')
   }
 
   const rows = (data ?? []) as PlayerCoachCalendarFeedStatusRow[]
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     .eq('player_user_id', auth.userId)
     .maybeSingle()
 
-  if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+  if (linkError) return apiServerError('Could not load player coach link', linkError, 'That coach calendar is temporarily unavailable.')
 
   const coachLink = linkData as PlayerCoachCalendarLinkRow | null
   if (!coachLink?.id) {
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not refresh player coach calendar link', revokeError, 'The calendar link could not be refreshed.')
   }
 
   const { error: insertError } = await auth.supabase
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
     })
 
   if (insertError) {
-    return Response.json({ ok: false, message: insertError.message }, { status: 500 })
+    return apiServerError('Could not create player coach calendar link', insertError, 'The calendar link could not be created.')
   }
 
   const calendarUrl = new URL(
@@ -147,7 +148,7 @@ export async function DELETE(request: Request) {
     .eq('player_user_id', auth.userId)
     .maybeSingle()
 
-  if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+  if (linkError) return apiServerError('Could not load player coach link', linkError, 'That coach calendar is temporarily unavailable.')
 
   const coachLink = linkData as PlayerCoachCalendarLinkRow | null
   if (!coachLink?.id) {
@@ -163,7 +164,7 @@ export async function DELETE(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not revoke player coach calendar link', revokeError, 'The calendar link could not be revoked.')
   }
 
   return Response.json({ ok: true })

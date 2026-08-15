@@ -6,6 +6,7 @@ import {
   createDirectConversation,
   createLeagueConversation,
   createSupportConversation,
+  createTeamConversation,
   getInternalIdentity,
   resolveInternalRecipient,
   type InternalIdentity,
@@ -13,7 +14,7 @@ import {
   type InternalSupportCategory,
 } from '@/lib/internal-messages'
 
-type QuickMessageMode = 'direct' | 'support' | 'league'
+type QuickMessageMode = 'direct' | 'support' | 'league' | 'team'
 
 export default function QuickMessageComposer({
   mode,
@@ -28,6 +29,9 @@ export default function QuickMessageComposer({
   entityId = '',
   leagueId = '',
   leagueName = '',
+  teamName = '',
+  teamLeagueName = '',
+  teamFlight = '',
   participantPlayerIds = [],
   participantProfileIds = [],
   participantNames = [],
@@ -44,6 +48,9 @@ export default function QuickMessageComposer({
   entityId?: string
   leagueId?: string
   leagueName?: string
+  teamName?: string
+  teamLeagueName?: string
+  teamFlight?: string
   participantPlayerIds?: string[]
   participantProfileIds?: string[]
   participantNames?: string[]
@@ -127,15 +134,26 @@ export default function QuickMessageComposer({
           entityType,
           entityId,
         })
+      } else if (mode === 'team') {
+        nextConversationId = await createTeamConversation(identity, {
+          teamName: teamName || leagueName,
+          leagueName: teamLeagueName,
+          flight: teamFlight,
+          entityId: entityId || leagueId,
+          subject: draftSubject,
+          body: draftBody,
+        })
       } else if (mode === 'league') {
         nextConversationId = await createLeagueConversation(identity, {
           leagueId: entityId || leagueId,
-          leagueName,
+          leagueName: leagueName || 'League conversation',
           subject: draftSubject,
           body: draftBody,
           participantPlayerIds,
           participantProfileIds,
           participantNames,
+          entityType: entityType || 'tiq_league',
+          entityId: entityId || leagueId,
         })
       } else {
         const nextRecipient = recipient ?? await resolveInternalRecipient({
@@ -151,7 +169,7 @@ export default function QuickMessageComposer({
       }
 
       setConversationId(nextConversationId)
-      setStatus(mode === 'support' ? 'Support thread opened.' : mode === 'league' ? 'League room started.' : 'Message sent.')
+      setStatus(mode === 'support' ? 'Support thread opened.' : mode === 'team' ? 'Team chat opened.' : mode === 'league' ? 'League room started.' : 'Message sent.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Message could not be sent.')
     } finally {
@@ -170,7 +188,7 @@ export default function QuickMessageComposer({
             <div style={headerStyle}>
               <div>
                 <div style={kickerStyle}>
-                  {mode === 'support' ? 'Support' : mode === 'league' ? 'League room' : 'Message'}
+                  {mode === 'support' ? 'Support' : mode === 'team' ? 'Team chat' : mode === 'league' ? 'League room' : 'Message'}
                 </div>
                 <h2 style={titleStyle}>{subject || triggerLabel}</h2>
               </div>
@@ -186,10 +204,10 @@ export default function QuickMessageComposer({
               </div>
             ) : null}
 
-            {mode === 'league' ? (
+            {mode === 'league' || mode === 'team' ? (
               <div style={targetStyle}>
                 <span>Room</span>
-                <strong>{leagueName || 'League conversation'}</strong>
+                <strong>{mode === 'team' ? teamName || leagueName || 'Team chat' : leagueName || 'League conversation'}</strong>
               </div>
             ) : null}
 

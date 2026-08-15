@@ -825,6 +825,7 @@ function CaptainAvailabilityContent() {
               </select>
 
               <input
+                aria-label="Selected match date"
                 value={weekLabel}
                 readOnly
                 style={textInputStyle}

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     .in('id', notificationIds)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load notification fallback context', error, 'The fallback email could not be prepared.')
   }
 
   const notifications = ((data || []) as NotificationRow[]).filter((notification) => {

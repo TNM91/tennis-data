@@ -1,4 +1,5 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildCoachAssignmentReview,
   buildCoachAssignmentPayload,
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
   const { data, error } = await query
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load coach assignments', error, 'Assignments are temporarily unavailable.')
   }
 
   const assignments = ((data ?? []) as CoachAssignmentRow[]).map(mapCoachAssignmentRow)
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not save coach assignment', error, 'The assignment could not be saved.')
   }
 
   return Response.json({ ok: true, assignment: mapCoachAssignmentRow(data as CoachAssignmentRow) })
@@ -98,7 +99,7 @@ export async function PATCH(request: Request) {
     .eq('id', assignmentId)
     .maybeSingle()
 
-  if (existingError) return Response.json({ ok: false, message: existingError.message }, { status: 500 })
+  if (existingError) return apiServerError('Could not load coach assignment', existingError, 'That assignment is temporarily unavailable.')
   if (!existingData) return Response.json({ ok: false, message: 'Assignment was not found.' }, { status: 404 })
 
   const existing = mapCoachAssignmentRow(existingData as CoachAssignmentRow)
@@ -123,7 +124,7 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not update coach assignment', error, 'The assignment could not be updated.')
   }
 
   return Response.json({ ok: true, assignment: mapCoachAssignmentRow(data as CoachAssignmentRow) })
@@ -143,7 +144,7 @@ export async function DELETE(request: Request) {
     .eq('id', id)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not delete coach assignment', error, 'The assignment could not be deleted.')
   }
 
   return Response.json({ ok: true })
