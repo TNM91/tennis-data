@@ -254,27 +254,21 @@ function CompeteTeamsContent() {
                 leagueName: group.sourceLeagueName,
                 flight: group.sourceFlight,
               })
-              const teamReadinessItems = [
+              const teamFacts = [
                 {
-                  label: 'Leagues',
-                  value: group.tiqLeagues.length > 0 ? `${group.tiqLeagues.length}` : 'Waiting',
-                  ready: group.tiqLeagues.length > 0,
+                  label: 'League connection',
+                  value: group.tiqLeagues.length > 0
+                    ? `${group.tiqLeagues.length} TIQ league${group.tiqLeagues.length === 1 ? '' : 's'}`
+                    : 'Not linked',
                 },
                 {
-                  label: 'History',
+                  label: 'Match history',
                   value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'No matches',
-                  ready: Boolean(group.directoryOption),
-                },
-                {
-                  label: 'Team Chat',
-                  value: 'Included',
-                  ready: true,
                 },
               ]
               const teamMetaItems = [
                 group.sourceLeagueName,
                 group.sourceFlight,
-                `${group.tiqLeagues.length} TIQ league${group.tiqLeagues.length === 1 ? '' : 's'}`,
               ].filter(Boolean)
 
               return (
@@ -294,37 +288,22 @@ function CompeteTeamsContent() {
                     <div style={rowSubtleStyle}>
                       {getTeamConnectionRolesLabel(group.connection.roles)} connection
                     </div>
-                    <div
-                      style={{
-                        ...teamReadinessGridStyle,
-                        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : teamReadinessGridStyle.gridTemplateColumns,
-                      }}
-                    >
-                      {teamReadinessItems.map((item) => (
-                        <div
-                          key={item.label}
-                          style={isMobile ? { ...teamReadinessItemStyle, ...teamReadinessItemMobileStyle } : teamReadinessItemStyle}
-                        >
-                          <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
-                          <span style={teamReadinessLabelStyle}>{item.label}</span>
-                          <strong style={isMobile ? teamReadinessValueMobileStyle : teamReadinessValueStyle}>{item.value}</strong>
+                    <dl style={teamFactsStyle} aria-label={`${group.teamName} team status`}>
+                      {teamFacts.map((item) => (
+                        <div key={item.label} style={teamFactStyle}>
+                          <dt style={teamFactLabelStyle}>{item.label}</dt>
+                          <dd style={teamFactValueStyle}>{item.value}</dd>
                         </div>
                       ))}
-                      <Link href={teamPageHref} style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}>
-                        Open team
-                      </Link>
-                    </div>
+                    </dl>
+                    <Link href={teamPageHref} style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}>
+                      Open team
+                    </Link>
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
                     {access.canUseCaptainWorkflow ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
-                    ) : null}
-                    {access.canUseAdvancedPlayerInsights ? (
-                      <Link href="/mylab" style={teamSecondaryLinkStyle}>My Lab</Link>
-                    ) : null}
-                    {!access.canUseCaptainWorkflow ? (
-                      <Link href={teamPageHref} style={teamSecondaryLinkStyle}>Stats</Link>
                     ) : null}
                   </div>
                 </div>
@@ -1183,70 +1162,52 @@ const rowSubtleStyle = {
   overflowWrap: 'anywhere',
 } as const
 
-const teamReadinessGridStyle = {
+const teamFactsStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
-  gap: '8px',
-  marginTop: '12px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '12px',
+  margin: '12px 0',
+  padding: '10px 0',
+  borderTop: '1px solid rgba(116,190,255,0.10)',
+  borderBottom: '1px solid rgba(116,190,255,0.10)',
   minWidth: 0,
 } as const
 
-const teamReadinessItemStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  minHeight: '34px',
+const teamFactStyle = {
   minWidth: 0,
-  padding: '7px 9px',
-  borderRadius: '12px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.035)',
-  color: 'rgba(223,238,255,0.84)',
-  fontSize: '12px',
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
 } as const
 
-const teamReadinessItemMobileStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
-  alignContent: 'center',
-  minHeight: 62,
-  padding: '9px 10px',
-}
-
-const teamReadinessLabelStyle: CSSProperties = {
+const teamFactLabelStyle: CSSProperties = {
   minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 750,
+  lineHeight: 1.3,
   overflowWrap: 'anywhere',
 }
 
-const teamReadinessValueStyle: CSSProperties = {
-  marginLeft: 'auto',
+const teamFactValueStyle: CSSProperties = {
+  margin: '3px 0 0',
   minWidth: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 11,
-  lineHeight: 1.25,
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.35,
   overflowWrap: 'anywhere',
-}
-
-const teamReadinessValueMobileStyle: CSSProperties = {
-  ...teamReadinessValueStyle,
-  gridColumn: '1 / -1',
-  marginLeft: 0,
 }
 
 const teamPrimaryActionStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '34px',
+  minHeight: '42px',
   minWidth: 0,
   padding: '7px 12px',
   borderRadius: '12px',
   border: '1px solid rgba(155,225,29,0.28)',
   background: 'rgba(155,225,29,0.11)',
   color: '#f5ffe2',
-  fontSize: '12px',
+  fontSize: '13px',
   fontWeight: 900,
   textDecoration: 'none',
   overflowWrap: 'anywhere',
@@ -1286,21 +1247,6 @@ const teamRowActionMobileStyle: CSSProperties = {
   justifyContent: 'stretch',
   width: '100%',
 }
-
-const readinessDotReadyStyle = {
-  width: 9,
-  height: 9,
-  borderRadius: '50%',
-  background: 'var(--brand-lime)',
-  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
-  flex: '0 0 auto',
-} as const
-
-const readinessDotWaitingStyle = {
-  ...readinessDotReadyStyle,
-  background: 'rgba(116,190,255,0.46)',
-  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
-} as const
 
 const warningStyle = {
   padding: '10px 14px',
