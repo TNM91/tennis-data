@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { mergeMyLabLevelUpProofRecords } from '@/lib/level-up/mylab-proof-continuity'
+import {
+  buildMyLabWeeklyImprovementPlan,
+  mergeMyLabLevelUpProofRecords,
+} from '@/lib/level-up/mylab-proof-continuity'
 import type { LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
 
@@ -73,5 +76,40 @@ describe('My Lab Level Up proof continuity', () => {
 
     expect(proof.cardId).toBe('short-ball-close-split')
     expect(proof.identitySlug).toBe('smart-attacker-4-0-to-4-5')
+  })
+
+  it('repeats a weak proof cleaner and counts only the current week', () => {
+    const proofs = mergeMyLabLevelUpProofRecords([], [
+      remoteSession({ id: 'weak-now', rating: 2, completedAt: '2026-08-15T20:00:00.000Z' }),
+      remoteSession({ id: 'old-proof', rating: 4, completedAt: '2026-08-02T20:00:00.000Z' }),
+    ])
+    const plan = buildMyLabWeeklyImprovementPlan(proofs, new Date('2026-08-15T22:00:00.000Z'))
+
+    expect(plan).toMatchObject({
+      mode: 'repeat',
+      modeLabel: 'Repeat cleaner',
+      completedSessions: 1,
+      targetSessions: 4,
+      progressPercent: 25,
+    })
+    expect(plan.why).toContain('scored 2/5')
+    expect(plan.nextAction).toContain('Remove')
+  })
+
+  it('adds pressure after a strong proof and reports the recent trend', () => {
+    const proofs = mergeMyLabLevelUpProofRecords([], [
+      remoteSession({ id: 'strong-now', rating: 5, completedAt: '2026-08-15T20:00:00.000Z' }),
+      remoteSession({ id: 'strong-prior', rating: 4, completedAt: '2026-08-14T20:00:00.000Z' }),
+    ])
+    const plan = buildMyLabWeeklyImprovementPlan(proofs, new Date('2026-08-15T22:00:00.000Z'))
+
+    expect(plan).toMatchObject({
+      mode: 'pressure',
+      modeLabel: 'Add pressure',
+      completedSessions: 2,
+      trendLabel: 'Improving +1',
+    })
+    expect(plan.why).toContain('scored 5/5')
+    expect(plan.coachSummary).toContain('Next:')
   })
 })
