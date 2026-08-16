@@ -9398,6 +9398,7 @@ async function postPortalCompletion({
           sharedWithCoach,
           completedAt: completion.completedAt,
           identitySlug,
+          cardId: card.id,
           assignmentId: completion.assignmentId,
         },
       }),
