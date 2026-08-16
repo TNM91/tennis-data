@@ -13,6 +13,7 @@ export type LevelUpSessionStarterRead = {
 export type LevelUpSessionJson = {
   source?: string
   quickNote?: string
+  cardId?: string
   starterRead?: LevelUpSessionStarterRead
 }
 
@@ -82,6 +83,7 @@ export type LevelUpSessionInput = {
   assignmentId?: unknown
   studentLinkId?: unknown
   identitySlug?: unknown
+  cardId?: unknown
   starterRead?: unknown
 }
 
@@ -129,6 +131,7 @@ export function buildLevelUpSessionPayload(
   const accessMode = normalizeAccessMode(input.accessMode)
   const sharedWithCoach = accessMode === 'coach_invited' && Boolean(input.sharedWithCoach)
   const note = stringOrEmpty(input.note).trim()
+  const cardId = stringOrEmpty(input.cardId).trim()
   const starterRead = normalizeStarterRead(input.starterRead)
 
   return {
@@ -152,6 +155,7 @@ export function buildLevelUpSessionPayload(
     session_json: {
       source: 'level-up-workbench',
       quickNote: note.slice(0, 220),
+      ...(cardId ? { cardId: cardId.slice(0, 120) } : {}),
       ...(starterRead ? { starterRead } : {}),
     },
     completed_at: normalizeIsoDate(input.completedAt) || now,
@@ -205,11 +209,13 @@ function normalizeSessionJson(value: unknown): LevelUpSessionJson {
 
   const source = stringOrEmpty(value.source).trim()
   const quickNote = stringOrEmpty(value.quickNote).trim()
+  const cardId = stringOrEmpty(value.cardId).trim()
   const starterRead = normalizeStarterRead(value.starterRead)
 
   return {
     ...(source ? { source } : {}),
     ...(quickNote ? { quickNote } : {}),
+    ...(cardId ? { cardId } : {}),
     ...(starterRead ? { starterRead } : {}),
   }
 }

@@ -29,6 +29,7 @@ type PostRepReturn = {
   nextAction: string
   nextHref: string
   nextCta: string
+  syncLabel: string
 }
 
 type MyLabCommandCenterProps = {
@@ -137,7 +138,10 @@ export default function MyLabCommandCenter({
           <div className={styles.postRepProof}>
             <span className={styles.postRepIcon} aria-hidden="true">✓</span>
             <div>
-              <p className={styles.cardEyebrow}>Rep saved · {postRepReturn.timeLabel}</p>
+              <div className={styles.postRepTopline}>
+                <p className={styles.cardEyebrow}>Rep saved · {postRepReturn.timeLabel}</p>
+                <span className={styles.postRepSync}>{postRepReturn.syncLabel}</span>
+              </div>
               <h2 id="post-rep-return-title">{postRepReturn.cardTitle} is in the books.</h2>
               <div className={styles.postRepProofLine}>
                 <strong>{postRepReturn.proofLabel}</strong>

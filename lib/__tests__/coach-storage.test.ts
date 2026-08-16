@@ -507,6 +507,7 @@ describe('coach storage helpers', () => {
     const levelUpPayload = buildLevelUpSessionPayload(
       {
         id: 'level-up-session-serve-target',
+        cardId: 'serve-target-call',
         assignmentId: 'assignment-serve-target',
         studentLinkId: 'student-link-1',
         identitySlug: 'relentless-competitor-4-0',
@@ -547,6 +548,7 @@ describe('coach storage helpers', () => {
       note: 'Target call stayed clear.',
       session_json: {
         source: 'level-up-workbench',
+        cardId: 'serve-target-call',
         quickNote: 'Target call stayed clear.',
         starterRead: {
           starterRep: 'Run one serve rep where target is called before the toss.',
@@ -566,6 +568,9 @@ describe('coach storage helpers', () => {
       coachUserId: 'coach-1',
       studentLinkId: 'student-link-1',
       assignmentId: 'assignment-serve-target',
+      sessionJson: {
+        cardId: 'serve-target-call',
+      },
       rating: 4,
       sharedWithCoach: true,
       starterRead: {

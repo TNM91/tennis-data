@@ -72,8 +72,13 @@ import {
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import {
+  mergeMyLabLevelUpProofRecords,
+  type MyLabLevelUpProofRecord,
+} from '@/lib/level-up/mylab-proof-continuity'
 import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import type { LevelUpSession } from '@/lib/level-up-sessions'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getCoachAssignmentDueState,
@@ -281,6 +286,15 @@ type MyLabLevelUpProof = {
   note: string
   completedAt: string
   timeLabel: string
+  rating: number | null
+  source: MyLabLevelUpProofRecord['source']
+  sourceLabel: string
+  sharedWithCoach: boolean
+}
+
+type LevelUpProofSyncState = {
+  status: 'device' | 'syncing' | 'account' | 'fallback'
+  message: string
 }
 
 const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
@@ -513,25 +527,31 @@ function readLocalLevelUpCompletions(): LevelUpCompletion[] {
   }
 }
 
-function buildMyLabLevelUpProofs(completions: LevelUpCompletion[]): MyLabLevelUpProof[] {
-  return completions.map((completion) => {
-    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === completion.cardId)
-    const proofRating = typeof completion.proofRating === 'number' ? completion.proofRating : null
-    const primaryIdentitySlug = card?.identitySlugs?.[0] || PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+function buildMyLabLevelUpProofs(records: MyLabLevelUpProofRecord[]): MyLabLevelUpProof[] {
+  return records.map((record) => {
+    const proofRating = record.rating
 
     return {
-      id: completion.id,
-      cardId: completion.cardId,
-      cardTitle: card?.title || 'Level Up card',
+      id: record.id,
+      cardId: record.cardId,
+      cardTitle: record.cardTitle,
       proofLabel: proofRating === null ? 'Proof logged' : `${proofRating}/5 proof`,
-      nextAction: getMyLabLevelUpNextAction(proofRating),
-      nextHref: `/player-development/${primaryIdentitySlug}/level-up?card=${encodeURIComponent(completion.cardId)}`,
-      questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`,
-      note: completion.note?.trim() || '',
-      completedAt: completion.completedAt,
-      timeLabel: timeAgo(completion.completedAt),
+      nextAction: record.nextCue || getMyLabLevelUpNextAction(proofRating),
+      nextHref: `/level-up/${record.identitySlug}?card=${encodeURIComponent(record.cardId)}#level-up-flow`,
+      questHref: `/level-up/${record.identitySlug}?questCard=${encodeURIComponent(record.cardId)}#quest-builder`,
+      note: record.note,
+      completedAt: record.completedAt,
+      timeLabel: timeAgo(record.completedAt),
+      rating: proofRating,
+      source: record.source,
+      sourceLabel: getMyLabLevelUpProofSourceLabel(record.source),
+      sharedWithCoach: record.sharedWithCoach,
     }
   })
+}
+
+function getMyLabLevelUpProofSourceLabel(source: MyLabLevelUpProofRecord['source']) {
+  return source === 'device' ? 'This device' : 'Account synced'
 }
 
 function getMyLabLevelUpNextAction(rating: number | null) {
@@ -928,7 +948,12 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
-  const [levelUpCompletions, setLevelUpCompletions] = useState<LevelUpCompletion[]>([])
+  const [localLevelUpCompletions, setLocalLevelUpCompletions] = useState<LevelUpCompletion[]>([])
+  const [remoteLevelUpSessions, setRemoteLevelUpSessions] = useState<LevelUpSession[]>([])
+  const [levelUpProofSyncState, setLevelUpProofSyncState] = useState<LevelUpProofSyncState>({
+    status: 'device',
+    message: 'Recent proof from this device.',
+  })
   const { isMobile, isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -1092,16 +1117,61 @@ function MyLabPageInner() {
   }, [])
 
   useEffect(() => {
-    setLevelUpCompletions(readLocalLevelUpCompletions())
+    setLocalLevelUpCompletions(readLocalLevelUpCompletions())
 
     function handleStorage(event: StorageEvent) {
       if (event.key && event.key !== LEVEL_UP_COMPLETIONS_KEY) return
-      setLevelUpCompletions(readLocalLevelUpCompletions())
+      setLocalLevelUpCompletions(readLocalLevelUpCompletions())
     }
 
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    if (!accessToken) {
+      setRemoteLevelUpSessions([])
+      setLevelUpProofSyncState({ status: 'device', message: 'Recent proof from this device.' })
+      return
+    }
+
+    let active = true
+    setLevelUpProofSyncState({ status: 'syncing', message: 'Refreshing Level Up proof...' })
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/level-up-sessions', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; sessions?: LevelUpSession[]; message?: string }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not refresh Level Up proof.')
+        }
+
+        if (!active) return
+        const sessions = json.sessions ?? []
+        setRemoteLevelUpSessions(sessions)
+        setLevelUpProofSyncState({
+          status: 'account',
+          message: sessions.length ? 'Account proof is current across devices.' : 'Account history is connected.',
+        })
+      } catch {
+        if (!active) return
+        setRemoteLevelUpSessions([])
+        setLevelUpProofSyncState({
+          status: 'fallback',
+          message: 'Account proof is unavailable. Showing this device instead.',
+        })
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, refreshTick, session?.access_token])
 
   useEffect(() => {
     const linkedPlayerId = profileLink?.linked_player_id || ''
@@ -2534,7 +2604,11 @@ function MyLabPageInner() {
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
-  const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpCompletions), [levelUpCompletions])
+  const levelUpProofRecords = useMemo(
+    () => mergeMyLabLevelUpProofRecords(localLevelUpCompletions, remoteLevelUpSessions),
+    [localLevelUpCompletions, remoteLevelUpSessions],
+  )
+  const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpProofRecords), [levelUpProofRecords])
   const latestLevelUpProof = levelUpProofs[0]
   const fallbackLevelUpIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
   const latestLevelUpProofCard = latestLevelUpProof
@@ -3292,7 +3366,10 @@ function MyLabPageInner() {
           ? 'Connect player'
           : !hasMyLabFocus
             ? 'Choose focus'
-            : 'Repeat this rep',
+            : latestLevelUpProof.rating !== null && latestLevelUpProof.rating >= 4
+              ? 'Add pressure'
+              : 'Repeat cleaner',
+        syncLabel: latestLevelUpProof.sourceLabel,
       }
     : null
 
@@ -3620,6 +3697,7 @@ function MyLabPageInner() {
                   <LevelUpReturnStatePanel
                     proofs={levelUpProofs}
                     signedIn={Boolean(session?.access_token)}
+                    syncState={levelUpProofSyncState}
                     playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
                     nextMoveLabel={nextMoveCta}
                   />
@@ -3668,6 +3746,7 @@ function MyLabPageInner() {
               <LevelUpReturnStatePanel
                 proofs={levelUpProofs}
                 signedIn={Boolean(session?.access_token)}
+                syncState={levelUpProofSyncState}
                 playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
                 nextMoveLabel={nextMoveCta}
               />
@@ -4773,11 +4852,13 @@ function PlayerDevelopmentPathPanel({
 function LevelUpReturnStatePanel({
   proofs,
   signedIn,
+  syncState,
   playerLabel,
   nextMoveLabel,
 }: {
   proofs: MyLabLevelUpProof[]
   signedIn: boolean
+  syncState: LevelUpProofSyncState
   playerLabel: string
   nextMoveLabel: string
 }) {
@@ -4844,7 +4925,7 @@ function LevelUpReturnStatePanel({
     },
     {
       label: 'After court',
-      body: signedIn ? 'Sync history can support Player or coach-linked follow-up.' : 'Sign in before expecting proof to follow this phone.',
+      body: signedIn ? syncState.message : 'Sign in before expecting proof to follow this phone.',
     },
   ]
   const proofHandoffItems = [
@@ -4875,7 +4956,9 @@ function LevelUpReturnStatePanel({
       label: 'Coach',
       title: signedIn ? 'Share the useful signal' : 'Sign in before handoff',
       body: signedIn
-        ? 'Coach-linked proof can support assignment recaps and the next lesson ask.'
+        ? latestProof?.sharedWithCoach
+          ? 'This proof is synced and ready for coach-linked follow-up.'
+          : 'Account proof can support the next lesson ask when coach sharing is on.'
         : 'Local proof stays on this device until Player or coach invite sync is available.',
       href: signedIn ? '/mylab#coach-assignments' : '/login',
       action: signedIn ? 'Coach work' : 'Sign in',
@@ -4899,8 +4982,12 @@ function LevelUpReturnStatePanel({
     {
       label: 'Refresh boundary',
       body: latestProof
-        ? 'Recent Level Up proof appears from this browser cache; sync depends on signed-in Player or coach link.'
-        : 'No Level Up proof is shown unless this browser has saved it.',
+        ? latestProof.source === 'device'
+          ? 'This rep is on this device. Signed-in account proof takes priority when available.'
+          : 'The newest account proof follows you across signed-in devices.'
+        : signedIn
+          ? 'Account history is connected. Finish a Level Up rep to start the proof trail.'
+          : 'No Level Up proof is shown unless this browser has saved it.',
     },
   ]
   const playerIdProofSignals = [
@@ -4936,7 +5023,7 @@ function LevelUpReturnStatePanel({
           <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>Level Up return state</p>
             <h3 style={compactSectionTitleStyle}>
-              {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof in this browser yet'}
+              {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof yet'}
             </h3>
             <p style={sectionTextStyle}>
               My Lab pulls recent Level Up proof forward so the next practice starts with one clear court action.
@@ -5071,19 +5158,17 @@ function LevelUpReturnStatePanel({
         </div>
 
         <div style={levelUpReturnMetricGridStyle}>
-          <SummaryCard label="Proofs cached" value={proofCountLabel} note="Recent Level Up work on this device" />
+          <SummaryCard label="Proof history" value={proofCountLabel} note={signedIn ? 'Account and device proof merged' : 'Recent work on this device'} />
           <SummaryCard label="Latest score" value={latestProof?.proofLabel || 'Not yet'} note={latestProof?.cardTitle || 'Score one Level Up card'} />
           <SummaryCard label="Next card" value={nextProof?.cardTitle || latestProof?.cardTitle || 'Choose'} note={nextProof?.nextAction || 'Repeat what is useful'} />
         </div>
       </div>
 
       <div style={levelUpReturnStorageNoteStyle}>
-        <strong style={levelUpReturnStorageNoteStrongStyle}>{signedIn ? 'Signed-in sync check' : 'Local-only proof'}</strong>
-        <span>
-          {signedIn
-            ? 'This panel shows the Level Up cache on this device. Signed-in Player or coach-linked proof can sync history, but private windows may clear unsynced work.'
-            : 'This panel is reading this browser only. Private windows can forget it; sign in through Player or a coach invite before expecting proof to follow you across devices.'}
-        </span>
+        <strong style={levelUpReturnStorageNoteStrongStyle}>
+          {signedIn ? (syncState.status === 'account' ? 'Account proof connected' : 'Account proof fallback') : 'Local-only proof'}
+        </strong>
+        <span>{signedIn ? syncState.message : 'This panel is reading this browser only. Sign in before expecting proof to follow you across devices.'}</span>
       </div>
 
       <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh check">

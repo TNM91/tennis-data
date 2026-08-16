@@ -31,10 +31,15 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("? 'Connect your player record so this proof stays with your tennis.'")
     expect(pageSource).toContain("? 'Tie this proof to one focus for your next match or practice.'")
     expect(componentSource).toContain('Rep saved · {postRepReturn.timeLabel}')
+    expect(componentSource).toContain('{postRepReturn.syncLabel}')
     expect(componentSource).toContain('Weekly proof')
     expect(componentSource).toContain('Recommended next move')
     expect(componentSource).toContain('href={postRepReturn.nextHref}')
     expect(styleSource).toContain('.postRepReturn')
+    expect(styleSource).toContain('.postRepSync')
+    expect(pageSource).toContain("'Account proof is current across devices.'")
+    expect(pageSource).toContain("? 'Add pressure'")
+    expect(pageSource).toContain(": 'Repeat cleaner'")
   })
 
   it('guides first use with real setup progress and retires the path after the first rep', () => {

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import type { LevelUpSessionJson } from '@/lib/level-up-sessions'
 import {
   LEVEL_UP_QUEST_HANDOFF_KEY,
   buildLevelUpQuestHandoff,
@@ -208,6 +209,7 @@ type DrillOption = {
 
 type SavedSession = {
   id: string
+  cardId?: string
   focusId: string
   focusTitle: string
   workType: WorkType
@@ -241,6 +243,7 @@ type RemoteLevelUpSession = SavedSession & {
   studentLinkId: string | null
   assignmentId: string | null
   identitySlug: string
+  sessionJson: LevelUpSessionJson
   createdAt: string
   updatedAt: string
 }
@@ -1150,6 +1153,7 @@ export default function PlayerLiveWorkbench({
     const savedStarterReadNotes = getStarterReadNotes(identityCourtsideRead)
     const nextSession: SavedSession = {
       id: `${Date.now()}-${activeFocus.id}-${activeDrill.id}`,
+      cardId: savedSourceCard?.id,
       focusId: activeFocus.id,
       focusTitle: formatFocusTitle(activeFocus.title),
       workType,
@@ -3696,6 +3700,7 @@ function getTomorrowStarterCompletion(plan: TomorrowStarterPlan, rating: number)
 function remoteToSavedSession(session: RemoteLevelUpSession): SavedSession {
   return {
     id: session.id,
+    cardId: session.sessionJson.cardId,
     focusId: session.focusId,
     focusTitle: session.focusTitle,
     workType: session.workType,
