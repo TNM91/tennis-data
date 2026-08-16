@@ -30,6 +30,10 @@ type PostRepReturn = {
   nextHref: string
   nextCta: string
   syncLabel: string
+  planLabel: string
+  planWhy: string
+  proofTarget: string
+  trendLabel: string
 }
 
 type MyLabCommandCenterProps = {
@@ -152,7 +156,7 @@ export default function MyLabCommandCenter({
 
           <div className={styles.postRepProgress}>
             <div>
-              <p className={styles.supportEyebrow}>Weekly proof</p>
+              <p className={styles.supportEyebrow}>This week</p>
               <strong>{safeCompletedSessions} of {sessionTarget}</strong>
             </div>
             <span className={styles.postRepTrack} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly reps complete`}>
@@ -162,8 +166,13 @@ export default function MyLabCommandCenter({
           </div>
 
           <div className={styles.postRepNext}>
-            <p className={styles.supportEyebrow}>Recommended next move</p>
+            <p className={styles.supportEyebrow}>Weekly plan · {postRepReturn.planLabel}</p>
             <strong>{postRepReturn.nextAction}</strong>
+            <p className={styles.postRepWhy}>{postRepReturn.planWhy}</p>
+            <div className={styles.postRepPlanMeta}>
+              <span><small>Proof</small>{postRepReturn.proofTarget}</span>
+              <span><small>Trend</small>{postRepReturn.trendLabel}</span>
+            </div>
             <Link href={postRepReturn.nextHref}>
               {postRepReturn.nextCta} <span aria-hidden="true">→</span>
             </Link>

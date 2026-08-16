@@ -25,21 +25,25 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('postRepReturn={postRepReturn}')
   })
 
-  it('returns completed players to proof, progress, and one recommended next move', () => {
+  it('returns completed players to proof and one score-adjusted weekly plan', () => {
     expect(pageSource).toContain('const postRepReturn = latestLevelUpProof')
-    expect(pageSource).toContain('latestLevelUpProof.nextAction')
+    expect(pageSource).toContain('buildMyLabWeeklyImprovementPlan(levelUpProofRecords)')
+    expect(pageSource).toContain('weeklyImprovementPlan.nextAction')
     expect(pageSource).toContain("? 'Connect your player record so this proof stays with your tennis.'")
     expect(pageSource).toContain("? 'Tie this proof to one focus for your next match or practice.'")
     expect(componentSource).toContain('Rep saved · {postRepReturn.timeLabel}')
     expect(componentSource).toContain('{postRepReturn.syncLabel}')
-    expect(componentSource).toContain('Weekly proof')
-    expect(componentSource).toContain('Recommended next move')
+    expect(componentSource).toContain('This week')
+    expect(componentSource).toContain('Weekly plan · {postRepReturn.planLabel}')
+    expect(componentSource).toContain('{postRepReturn.planWhy}')
+    expect(componentSource).toContain('{postRepReturn.proofTarget}')
+    expect(componentSource).toContain('{postRepReturn.trendLabel}')
     expect(componentSource).toContain('href={postRepReturn.nextHref}')
     expect(styleSource).toContain('.postRepReturn')
     expect(styleSource).toContain('.postRepSync')
     expect(pageSource).toContain("'Account proof is current across devices.'")
-    expect(pageSource).toContain("? 'Add pressure'")
-    expect(pageSource).toContain(": 'Repeat cleaner'")
+    expect(pageSource).toContain('weeklyImprovementPlan.nextCta')
+    expect(styleSource).toContain('.postRepPlanMeta')
   })
 
   it('guides first use with real setup progress and retires the path after the first rep', () => {

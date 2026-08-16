@@ -73,8 +73,10 @@ import {
 } from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import {
+  buildMyLabWeeklyImprovementPlan,
   mergeMyLabLevelUpProofRecords,
   type MyLabLevelUpProofRecord,
+  type MyLabWeeklyImprovementPlan,
 } from '@/lib/level-up/mylab-proof-continuity'
 import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
@@ -2608,6 +2610,10 @@ function MyLabPageInner() {
     () => mergeMyLabLevelUpProofRecords(localLevelUpCompletions, remoteLevelUpSessions),
     [localLevelUpCompletions, remoteLevelUpSessions],
   )
+  const weeklyImprovementPlan = useMemo(
+    () => buildMyLabWeeklyImprovementPlan(levelUpProofRecords),
+    [levelUpProofRecords],
+  )
   const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpProofRecords), [levelUpProofRecords])
   const latestLevelUpProof = levelUpProofs[0]
   const fallbackLevelUpIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
@@ -3287,20 +3293,23 @@ function MyLabPageInner() {
     },
   ]
   const commandCenterPlayerName = linkedPlayer?.name || profileLink?.linked_player_name || ''
-  const commandCenterCompletedSessions = Math.min(4, levelUpProofs.length)
+  const commandCenterCompletedSessions = weeklyImprovementPlan.completedSessions
   const hasMyLabFocus = Boolean(activeGoal.goal.trim())
   const commandCenterRepTitle = !isProfileConfirmed
     ? 'Find your player record'
     : !hasMyLabFocus
       ? 'Choose one tennis focus'
-      : latestLevelUpProofCard?.title
+      : weeklyImprovementPlan.cardTitle
+        || latestLevelUpProofCard?.title
         || activeGoal.goal.trim()
         || (topMatchupCandidate ? 'Sharpen the first four shots' : 'Choose one focused court rep')
   const commandCenterRepNote = !isProfileConfirmed
     ? 'Connect your tennis so every read, matchup, and rep belongs to you.'
     : !hasMyLabFocus
       ? 'Name the one thing you want to improve before you step on court.'
-      : latestLevelUpProofCard?.cue
+      : latestLevelUpProof
+        ? weeklyImprovementPlan.nextAction
+        : latestLevelUpProofCard?.cue
         || activeGoal.improveNext.trim()
         || (topMatchupCandidate
           ? `Build one repeatable pattern before you play ${topMatchupCandidate.player.name}.`
@@ -3309,7 +3318,9 @@ function MyLabPageInner() {
     ? '/profile'
     : !hasMyLabFocus
       ? MY_LAB_GOAL_PROGRESS_HREF
-      : courtModeHref
+      : latestLevelUpProof
+        ? weeklyImprovementPlan.nextHref
+        : courtModeHref
   const commandCenterRepCta = !isProfileConfirmed
     ? 'Find yourself'
     : !hasMyLabFocus
@@ -3356,20 +3367,22 @@ function MyLabPageInner() {
           ? 'Connect your player record so this proof stays with your tennis.'
           : !hasMyLabFocus
             ? 'Tie this proof to one focus for your next match or practice.'
-            : latestLevelUpProof.nextAction,
+            : weeklyImprovementPlan.nextAction,
         nextHref: !isProfileConfirmed
           ? '/profile'
           : !hasMyLabFocus
             ? MY_LAB_GOAL_PROGRESS_HREF
-            : latestLevelUpProof.nextHref,
+            : weeklyImprovementPlan.nextHref,
         nextCta: !isProfileConfirmed
           ? 'Connect player'
           : !hasMyLabFocus
             ? 'Choose focus'
-            : latestLevelUpProof.rating !== null && latestLevelUpProof.rating >= 4
-              ? 'Add pressure'
-              : 'Repeat cleaner',
+            : weeklyImprovementPlan.nextCta,
         syncLabel: latestLevelUpProof.sourceLabel,
+        planLabel: weeklyImprovementPlan.modeLabel,
+        planWhy: weeklyImprovementPlan.why,
+        proofTarget: weeklyImprovementPlan.proofTarget,
+        trendLabel: weeklyImprovementPlan.trendLabel,
       }
     : null
 
@@ -3696,6 +3709,7 @@ function MyLabPageInner() {
 
                   <LevelUpReturnStatePanel
                     proofs={levelUpProofs}
+                    plan={weeklyImprovementPlan}
                     signedIn={Boolean(session?.access_token)}
                     syncState={levelUpProofSyncState}
                     playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
@@ -3745,6 +3759,7 @@ function MyLabPageInner() {
 
               <LevelUpReturnStatePanel
                 proofs={levelUpProofs}
+                plan={weeklyImprovementPlan}
                 signedIn={Boolean(session?.access_token)}
                 syncState={levelUpProofSyncState}
                 playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
@@ -4851,12 +4866,14 @@ function PlayerDevelopmentPathPanel({
 
 function LevelUpReturnStatePanel({
   proofs,
+  plan,
   signedIn,
   syncState,
   playerLabel,
   nextMoveLabel,
 }: {
   proofs: MyLabLevelUpProof[]
+  plan: MyLabWeeklyImprovementPlan
   signedIn: boolean
   syncState: LevelUpProofSyncState
   playerLabel: string
@@ -5014,6 +5031,23 @@ function LevelUpReturnStatePanel({
       note: latestProof ? 'Use this signal for My Lab progress, matchup prep, or coach follow-up.' : todayIdentityRead.coachPrompt,
     },
   ]
+  const weeklyPlanSteps = [
+    {
+      label: 'Train',
+      title: plan.modeLabel,
+      body: plan.nextAction,
+    },
+    {
+      label: 'Prove',
+      title: plan.proofTarget,
+      body: 'Save one honest 0-5 score. Keep a note only when it changes the next rep.',
+    },
+    {
+      label: 'Adjust',
+      title: plan.trendLabel,
+      body: `${nextMoveLabel || 'The next My Lab move'} updates after the next scored rep.`,
+    },
+  ]
 
   return (
     <section id="level-up-proof" style={levelUpReturnPanelStyle} aria-label="My Lab Level Up proof return state">
@@ -5021,19 +5055,78 @@ function LevelUpReturnStatePanel({
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
-            <p style={sectionKickerStyle}>Level Up return state</p>
+            <p style={sectionKickerStyle}>This week</p>
             <h3 style={compactSectionTitleStyle}>
-              {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof yet'}
+              {plan.cardTitle}: {plan.modeLabel}
             </h3>
             <p style={sectionTextStyle}>
-              My Lab pulls recent Level Up proof forward so the next practice starts with one clear court action.
+              One plan built from your latest proof. Score the next rep and My Lab will adjust it again.
             </p>
           </div>
         </div>
-        <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
-          {latestProof ? 'Repeat in Level Up' : 'Open court mode'}
+        <Link href={plan.nextHref} style={quickStartButtonStyle}>
+          {plan.nextCta}
         </Link>
       </div>
+
+      <div style={myLabLevelUpTodayCardStyle} aria-label="My Lab weekly improvement plan">
+        <div style={myLabTodayFeedHeaderStyle}>
+          <div>
+            <span style={metricLabelStyle}>{plan.focusLabel}</span>
+            <strong style={levelUpReturnStorageNoteStrongStyle}>{plan.why}</strong>
+          </div>
+          <span style={weeklyImprovementPlanStatusStyle}>{plan.modeLabel}</span>
+        </div>
+
+        <div style={levelUpReturnGridStyle}>
+          <div style={levelUpReturnPrimaryStyle}>
+            <div style={metricLabelStyle}>Next court action</div>
+            <strong style={levelUpReturnPrimaryTitleStyle}>{plan.nextAction}</strong>
+            <span style={levelUpReturnPrimaryTextStyle}>Proof: {plan.proofTarget}</span>
+            <Link href={plan.nextHref} style={miniActionPillStyle}>{plan.nextCta}</Link>
+          </div>
+          <div style={levelUpTodayHabitStyle}>
+            <div style={myLabTodayFeedHeaderStyle}>
+              <span style={metricLabelStyle}>Weekly proof</span>
+              <strong style={levelUpReturnStorageNoteStrongStyle}>{plan.progressLabel}</strong>
+            </div>
+            <div style={weeklyImprovementProgressTrackStyle} aria-label={`${plan.progressLabel} complete`}>
+              <span style={weeklyImprovementProgressFillStyle(plan.progressPercent)} />
+            </div>
+            <span style={levelUpReturnPrimaryTextStyle}>{plan.trendLabel}</span>
+          </div>
+        </div>
+
+        <div style={myLabTodayFeedGridStyle} aria-label="Weekly improvement plan steps">
+          {weeklyPlanSteps.map((step) => (
+            <article key={step.label} style={myLabTodayFeedCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{step.label}</span>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{step.title}</strong>
+              <p style={myLabRefreshProofTextStyle}>{step.body}</p>
+            </article>
+          ))}
+        </div>
+
+        <div style={weeklyImprovementCoachSummaryStyle}>
+          <div style={weeklyImprovementCoachSummaryCopyStyle}>
+            <span style={myLabRefreshProofLabelStyle}>Coach-ready summary</span>
+            <strong>{plan.coachSummary}</strong>
+          </div>
+          <Link href={signedIn ? '/mylab#coach-assignments' : '/login'} style={miniActionLinkStyle}>
+            {signedIn ? 'Coach follow-up' : 'Sign in'}
+          </Link>
+        </div>
+      </div>
+
+      <details style={labDrawerDetailsStyle}>
+        <summary style={labDrawerSummaryStyle}>
+          <span style={labDrawerSummaryCopyStyle}>
+            <strong>Proof history and handoffs</strong>
+            <em style={labDrawerSummaryHintStyle}>Recent scores, habits, coach sharing, and sync details.</em>
+          </span>
+          <span style={optionalContextCountStyle}>{proofs.length ? `${proofs.length} proofs` : 'Open'}</span>
+        </summary>
+        <div style={labDrawerContentStyle}>
 
       <div style={myLabCourtHandoffStyle} aria-label="Level Up court handoff">
         {courtHandoffItems.map((item) => (
@@ -5185,6 +5278,8 @@ function LevelUpReturnStatePanel({
           ))}
         </div>
       </div>
+        </div>
+      </details>
     </section>
   )
 }
@@ -7146,6 +7241,59 @@ const myLabLevelUpTodayCardStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 34%, var(--shell-panel-border) 66%)',
   background:
     'radial-gradient(circle at 88% 18%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(155,225,29,0.13), rgba(116,190,255,0.07))',
+}
+
+const weeklyImprovementPlanStatusStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 32,
+  alignItems: 'center',
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
+}
+
+const weeklyImprovementProgressTrackStyle: CSSProperties = {
+  height: 9,
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+}
+
+const weeklyImprovementProgressFillStyle = (progressPercent: number): CSSProperties => ({
+  display: 'block',
+  width: `${Math.max(0, Math.min(100, progressPercent))}%`,
+  height: '100%',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-lime))',
+})
+
+const weeklyImprovementCoachSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%)',
+}
+
+const weeklyImprovementCoachSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  flex: '1 1 320px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const myLabLevelUpTodayMetricGridStyle: CSSProperties = {

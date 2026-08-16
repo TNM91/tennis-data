@@ -386,6 +386,43 @@
   line-height: 1.35;
 }
 
+.postRepWhy {
+  margin: -4px 0 0;
+  color: #91a6bd;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.postRepPlanMeta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.postRepPlanMeta > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 11px;
+  background: rgba(12, 32, 60, 0.7);
+  color: #eaf3ff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.postRepPlanMeta small {
+  color: #79bfff;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .postRepNext > a {
   display: flex;
   min-height: 44px;
