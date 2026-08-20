@@ -1273,6 +1273,7 @@ function PlayerProfileContent() {
     border: `1px solid ${meterTheme.trendBorder}`,
   }
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const shouldShowPlayerAccessHint = authResolved && !access.canUseAdvancedPlayerInsights
   const tiqParticipationCount = tiqParticipations.length
   const featuredPlayerAwards = playerAwards.slice(0, 1)
   const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
@@ -1435,6 +1436,12 @@ function PlayerProfileContent() {
                       </button>
                     ) : null}
                   </div>
+                  {shouldShowPlayerAccessHint ? (
+                    <div className={profileStory.playerAccessHint}>
+                      <span>Player access unlocks saved Player ID reads, matchup prep, and My Lab.</span>
+                      <Link href="/pricing">See Player access</Link>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -3080,6 +3087,30 @@ function PlayerProfileContent() {
             <p style={sectionText}>
               Match record, singles/doubles split, and cumulative rating movement grouped by calendar year.
             </p>
+            {isMobile ? (
+              <div style={seasonMobileListStyle} aria-label="Season performance">
+                {seasonBreakdown.map((s) => {
+                  const positive = s.netDelta !== null && s.netDelta > 0
+                  const negative = s.netDelta !== null && s.netDelta < 0
+                  const goodWR = s.winRate >= 60
+                  const poorWR = s.winRate < 40
+                  return (
+                    <article key={s.year} style={seasonMobileCardStyle}>
+                      <div style={seasonMobileTopStyle}>
+                        <strong>{s.year}</strong>
+                        <span style={{ ...seasonMobileWinRateStyle, color: goodWR ? '#d9f84a' : poorWR ? '#fca5a5' : 'var(--shell-copy-muted)' }}>{s.winRate}% wins</span>
+                      </div>
+                      <div style={seasonMobileMetricGridStyle}>
+                        <span style={seasonMobileMetricStyle}><small style={seasonMobileMetricLabelStyle}>Record</small><strong>{s.wins}W-{s.losses}L</strong></span>
+                        <span style={seasonMobileMetricStyle}><small style={seasonMobileMetricLabelStyle}>Singles</small><strong>{s.singles}</strong></span>
+                        <span style={seasonMobileMetricStyle}><small style={seasonMobileMetricLabelStyle}>Doubles</small><strong>{s.doubles}</strong></span>
+                        <span style={seasonMobileMetricStyle}><small style={seasonMobileMetricLabelStyle}>Movement</small><strong style={{ color: positive ? '#9be11d' : negative ? '#fca5a5' : 'var(--shell-copy-muted)' }}>{s.netDelta == null ? '--' : `${s.netDelta > 0 ? '+' : ''}${s.netDelta.toFixed(3)}`}</strong></span>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
             <div style={seasonTableWrapStyle}>
               <table style={seasonTableStyle}>
                 <thead>
@@ -3128,6 +3159,7 @@ function PlayerProfileContent() {
                 </tbody>
               </table>
             </div>
+            )}
           </article>
         ) : null}
 
@@ -5809,6 +5841,64 @@ const seasonTableWrapStyle: CSSProperties = {
 const seasonTableStyle: CSSProperties = {
   ...dataTable,
   minWidth: 620,
+}
+
+const seasonMobileListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  marginTop: 16,
+  minWidth: 0,
+}
+
+const seasonMobileCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '14px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  borderRadius: 16,
+  background: 'rgba(7,17,33,0.72)',
+}
+
+const seasonMobileTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  fontWeight: 900,
+}
+
+const seasonMobileWinRateStyle: CSSProperties = {
+  flex: '0 0 auto',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const seasonMobileMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const seasonMobileMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 800,
+}
+
+const seasonMobileMetricLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
 }
 
 const nearbyListStyle: CSSProperties = {

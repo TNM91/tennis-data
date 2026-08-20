@@ -27,6 +27,12 @@ describe('free Explore search', () => {
     expect(exploreSearch).toContain('{!hasQuery ? (')
   })
 
+  it('keeps an active search compact so player cards appear before secondary controls', () => {
+    expect(exploreSearch).toContain("compact={hasQuery}")
+    expect(exploreSearch).toContain('compactResultTabStyle')
+    expect(exploreSearch).toContain("!hasQuery && scope === 'players'")
+  })
+
   it('keeps the mobile player profile from becoming a horizontal scroll surface', () => {
     expect(playerProfileStory).toContain('overflow-x: clip')
     expect(playerProfileStory).toContain('overflow: hidden')

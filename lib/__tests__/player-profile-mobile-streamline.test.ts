@@ -41,4 +41,11 @@ describe('player profile mobile streamline', () => {
     expect(styles).toMatch(/\.playerFocusVisual\s*\{[\s\S]*?min-height:\s*148px/)
     expect(styles).toMatch(/@media \(max-width: 390px\)[\s\S]*?\.playerFocusProof,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
   })
+
+  it('uses phone-first season cards and explains the Player upgrade without a large interruption', () => {
+    expect(page).toContain('isMobile ? (')
+    expect(page).toContain('seasonMobileListStyle')
+    expect(page).toContain('Player access unlocks saved Player ID reads, matchup prep, and My Lab.')
+    expect(styles).toContain('.playerAccessHint')
+  })
 })
