@@ -87,12 +87,21 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       const alreadyMapped = new Set((existing.data || []).filter((row) => row.canonical_player_id || row.status === 'rejected').map((row) => row.staged_player_id))
       const local = await service.from('players').select('id,normalized_name,name').in('normalized_name', staged.map((player) => player.normalized_name))
       if (local.error) throw new Error(local.error.message)
-      const localNames = new Set((local.data || []).map((player) => player.normalized_name || normalizedTennisRecordPlayerName({ name: player.name } as Parameters<typeof normalizedTennisRecordPlayerName>[0])))
-      const collisions = staged.filter((player) => !alreadyMapped.has(player.id) && localNames.has(player.normalized_name))
-      const provisional = staged.filter((player) => !alreadyMapped.has(player.id) && !localNames.has(player.normalized_name))
+      const localByName = new Map<string, string[]>()
+      for (const player of local.data || []) {
+        const name = player.normalized_name || normalizedTennisRecordPlayerName({ name: player.name } as Parameters<typeof normalizedTennisRecordPlayerName>[0])
+        localByName.set(name, [...(localByName.get(name) || []), player.id])
+      }
+      const collisions = staged.filter((player) => !alreadyMapped.has(player.id) && (localByName.get(player.normalized_name)?.length || 0) > 1)
+      const uniqueLocal = staged.filter((player) => !alreadyMapped.has(player.id) && (localByName.get(player.normalized_name)?.length || 0) === 1)
+      const provisional = staged.filter((player) => !alreadyMapped.has(player.id) && !localByName.has(player.normalized_name))
       if (collisions.length) {
         const review = await service.from('tennisrecord_player_identities').upsert(collisions.map((player) => ({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['same_name_local_player_requires_review'] })), { onConflict: 'staged_player_id' })
         if (review.error) throw new Error(review.error.message)
+      }
+      if (uniqueLocal.length) {
+        const linked = await service.from('tennisrecord_player_identities').upsert(uniqueLocal.map((player) => ({ staged_player_id: player.id, canonical_player_id: localByName.get(player.normalized_name)?.[0], status: 'matched', confidence: 0.75, signals: ['unique_local_name_match', 'tennisrecord_low_authority_evidence'] })), { onConflict: 'staged_player_id' })
+        if (linked.error) throw new Error(linked.error.message)
       }
       if (provisional.length) {
         const created = await service.from('players').upsert(provisional.map((player) => ({ name: player.name, normalized_name: player.normalized_name, location: [player.city, player.state].filter(Boolean).join(', ') || null, rating_source: 'self', external_source: 'tennisrecord', external_source_key: player.source_player_key, is_external_provisional: true })), { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
