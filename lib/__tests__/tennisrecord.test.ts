@@ -17,6 +17,15 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.leagues[0]).toMatchObject({ flight: '4.0', seasonYear: 2026 })
   })
 
+  it('parses the current public div-wrapped court labels', () => {
+    const liveLayout = fixture
+      .replace('<h3>Singles #1</h3>', '<div class="wrapper496"><div style="font-size:12px;">Singles #1</div></div><div class="container496">')
+      .replace('<h3>Doubles #1</h3>', '</div><div class="wrapper496"><div style="font-size:12px;">Doubles #1</div></div><div class="container496">')
+    const parsed = parseTennisRecordMatchPage(liveLayout, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.matches.map((match) => match.courtNumber)).toEqual([1, 1])
+    expect(parsed.matches.map((match) => match.discipline)).toEqual(['singles', 'doubles'])
+  })
+
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {
     const [match] = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026').matches
     const corrected = { ...match, scoreText: '6-4 7-5' }

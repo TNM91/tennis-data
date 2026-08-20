@@ -45,7 +45,9 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const leagueName = getText(html.match(/<h2[^>]*>\s*Match Results\s*<\/h2>\s*<div[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '')
   const flight = leagueName.match(/\b[1-7](?:\.0|\.5)\b/)?.[0] || ''
   const matches: TennisRecordMatch[] = []
-  const heading = /<h[1-6][^>]*>\s*(Singles|Doubles)\s*#?\s*(\d+)\s*<\/h[1-6]>\s*<table[^>]*>([\s\S]*?)<\/table>/gi
+  // Older pages use headings; current public pages use a styled inner div in a
+  // wrapper. Both are labels immediately followed by the court result table.
+  const heading = /<(?:h[1-6]|div)[^>]*>\s*(Singles|Doubles)\s*#?\s*(\d+)\s*<\/(?:h[1-6]|div)>[\s\S]*?<table[^>]*>([\s\S]*?)<\/table>/gi
   for (const block of html.matchAll(heading)) {
     const discipline = block[1].toLowerCase() as 'singles' | 'doubles'
     const courtNumber = Number(block[2])
