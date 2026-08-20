@@ -39,6 +39,11 @@ type PlayerSearchRow = {
   overall_usta_dynamic_rating?: number | null
 }
 
+type PlayerSearchResponse = {
+  players: PlayerSearchRow[]
+  usedSpellingHelp: boolean
+}
+
 type TeamMatchRow = {
   id: string
   home_team: string | null
@@ -170,6 +175,7 @@ function ExploreSearchContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [players, setPlayers] = useState<PlayerSearchRow[]>([])
+  const [usedSpellingHelp, setUsedSpellingHelp] = useState(false)
   const [teams, setTeams] = useState<TeamSearchResult[]>([])
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [searchReady, setSearchReady] = useState(false)
@@ -221,6 +227,7 @@ function ExploreSearchContent() {
 
     if (!trimmedQuery) {
       setPlayers([])
+      setUsedSpellingHelp(false)
       setTeams([])
       setLeagues([])
       setError('')
@@ -233,6 +240,7 @@ function ExploreSearchContent() {
     async function runSearch() {
       setLoading(true)
       setError('')
+      setUsedSpellingHelp(false)
 
       try {
         const [playersResult, teamsResult, leagueResult] = await Promise.all([
@@ -243,7 +251,8 @@ function ExploreSearchContent() {
 
         if (!active) return
 
-        setPlayers(playersResult)
+        setPlayers(playersResult.players)
+        setUsedSpellingHelp(playersResult.usedSpellingHelp)
         setTeams(teamsResult)
         setLeagues(leagueResult)
       } catch (err) {
@@ -372,6 +381,29 @@ function ExploreSearchContent() {
       cta: 'Start Level Up',
     },
   ] as const
+  const searchNextActionsPanel = (
+    <section style={searchNextActionsStyle} aria-label="Search next actions">
+      <div style={isMobile ? compactSearchNextActionsHeaderStyle : searchNextActionsHeaderStyle}>
+        {!isMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
+        <div style={searchNextActionsCopyStyle}>
+          <span style={searchNextActionsKickerStyle}>After search</span>
+          <h2 style={searchNextActionsTitleStyle}>Open the record, then act on it.</h2>
+        </div>
+      </div>
+      <div style={isMobile ? compactSearchNextActionsGridStyle : searchNextActionsGridStyle}>
+        {searchNextActions.map((action) => (
+          <article key={action.label} style={isMobile ? compactSearchNextActionCardStyle : searchNextActionCardStyle}>
+            <span style={searchNextActionsLabelStyle}>{action.label}</span>
+            <strong style={searchNextActionsValueStyle}>{action.value}</strong>
+            {!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}
+            <Link href={action.href} style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}>
+              {action.cta}
+            </Link>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
 
   return (
     <div
@@ -380,6 +412,8 @@ function ExploreSearchContent() {
           display: 'grid',
           gap: isMobile ? 18 : 24,
           paddingTop: isMobile ? 14 : 20,
+          minWidth: 0,
+          overflowX: 'clip',
         }}
       >
         <ExploreResumeTracker
@@ -524,27 +558,7 @@ function ExploreSearchContent() {
           </div>
         </section>
 
-        <section style={searchNextActionsStyle} aria-label="Search next actions">
-          <div style={isMobile ? compactSearchNextActionsHeaderStyle : searchNextActionsHeaderStyle}>
-            {!isMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
-            <div style={searchNextActionsCopyStyle}>
-              <span style={searchNextActionsKickerStyle}>After search</span>
-              <h2 style={searchNextActionsTitleStyle}>Open the record, then act on it.</h2>
-            </div>
-          </div>
-          <div style={isMobile ? compactSearchNextActionsGridStyle : searchNextActionsGridStyle}>
-            {searchNextActions.map((action) => (
-              <article key={action.label} style={isMobile ? compactSearchNextActionCardStyle : searchNextActionCardStyle}>
-                <span style={searchNextActionsLabelStyle}>{action.label}</span>
-                <strong style={searchNextActionsValueStyle}>{action.value}</strong>
-                {!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}
-                <Link href={action.href} style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}>
-                  {action.cta}
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
+        {!hasQuery ? searchNextActionsPanel : null}
 
         <section style={sectionStack}>
           <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
@@ -609,6 +623,12 @@ function ExploreSearchContent() {
                   ctaHref="/explore/players"
                   ctaLabel="Open player directory"
                 >
+                  {usedSpellingHelp ? (
+                    <div style={spellingHelpStyle} role="status">
+                      <strong>Closest name matches</strong>
+                      <span>We could not find an exact spelling, so these are the nearest player records.</span>
+                    </div>
+                  ) : null}
                   {filteredPlayers.map((player) => (
                     <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle()}>
                       <div style={resultHeaderStyle}>
@@ -762,11 +782,13 @@ function ExploreSearchContent() {
           ) : null}
         </section>
 
+        {hasQuery ? searchNextActionsPanel : null}
+
     </div>
   )
 }
 
-async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
+async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
   const pattern = `%${term.trim()}%`
   const select = 'id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating'
   const [nameResult, locationResult] = await Promise.all([
@@ -787,12 +809,34 @@ async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
   if (nameResult.error) throw new Error(nameResult.error.message)
   if (locationResult.error) throw new Error(locationResult.error.message)
 
-  return Array.from(
+  const directMatches = Array.from(
     new Map(
       [...((nameResult.data || []) as PlayerSearchRow[]), ...((locationResult.data || []) as PlayerSearchRow[])]
         .map((player) => [player.id, player]),
     ).values(),
   ).slice(0, 8)
+
+  if (directMatches.length > 0) {
+    return { players: directMatches, usedSpellingHelp: false }
+  }
+
+  const { data, error } = await supabase.rpc('search_public_players', {
+    search_text: term.trim(),
+    result_limit: 8,
+  })
+
+  if (error) {
+    // Search still works while an older deployment is waiting on the database migration.
+    if (error.message.toLowerCase().includes('search_public_players')) {
+      return { players: [], usedSpellingHelp: false }
+    }
+    throw new Error(error.message)
+  }
+
+  return {
+    players: (data || []) as PlayerSearchRow[],
+    usedSpellingHelp: (data || []).length > 0,
+  }
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
@@ -1406,6 +1450,19 @@ const resultGroupListStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
   minWidth: 0,
+}
+
+const spellingHelpStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  borderRadius: 14,
+  color: 'var(--shell-copy-muted)',
+  background: 'rgba(155,225,29,0.06)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 function getResultCardStyle(): CSSProperties {
