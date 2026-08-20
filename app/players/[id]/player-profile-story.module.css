@@ -217,6 +217,30 @@
   margin-top: 10px;
 }
 
+.playerAccessHint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin-top: 12px;
+  color: rgba(228, 238, 251, 0.68);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.playerAccessHint a {
+  color: #d9f84a;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.playerAccessHint a:hover,
+.playerAccessHint a:focus-visible {
+  color: #ffffff;
+  outline: none;
+}
+
 .primaryAction,
 .quietAction {
   display: inline-flex;
