@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
-  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown } | null
+  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown } | null
   const action = typeof body?.action === 'string' ? body.action : ''
   try {
     if (action === 'set_enabled') {
@@ -22,6 +22,17 @@ export async function POST(request: Request) {
       const { error } = await auth.service.from('tennisrecord_collector_settings').update({ enabled: body.enabled, updated_by_user_id: auth.userId }).eq('id', true)
       if (error) throw error
       return Response.json({ ok: true, enabled: body.enabled })
+    }
+    if (action === 'set_automation_state') {
+      const automationState = body?.automationState
+      if (automationState !== 'manual' && automationState !== 'bootstrap' && automationState !== 'weekly') return Response.json({ ok: false, message: 'Choose a valid collector automation state.' }, { status: 400 })
+      const now = new Date().toISOString()
+      const updates = automationState === 'bootstrap'
+        ? { automation_state: automationState, bootstrap_started_at: now, bootstrap_completed_at: null, updated_by_user_id: auth.userId }
+        : { automation_state: automationState, updated_by_user_id: auth.userId }
+      const { error } = await auth.service.from('tennisrecord_collector_settings').update(updates).eq('id', true)
+      if (error) throw error
+      return Response.json({ ok: true, automationState })
     }
     if (action === 'enqueue') {
       const urls = Array.isArray(body?.urls) ? body.urls.filter((url): url is string => typeof url === 'string') : []
