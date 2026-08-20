@@ -6,10 +6,10 @@ import { canonicalTennisRecordFingerprint, sourcePriority } from './reconcile'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
-type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; weekly_refresh_started_at: string | null }
-type QueueRow = { id: string; source_url: string; page_kind: string }
+type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
+type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
-type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[] }
+type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
 const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 5
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number) {
@@ -29,22 +29,23 @@ export function isWeeklyTennisRecordRefreshDue(lastRefreshStartedAt: string | nu
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, pending, conflicts, identities] = await Promise.all([
+  const [settings, lastRun, pending, conflicts, identities, campaigns] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
+    service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
   ])
-  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error) throw new Error('TennisRecord operations status is unavailable.')
-  return { settings: settings.data, lastRun: lastRun.data, pendingPages: pending.count || 0, conflicts: conflicts.count || 0, identityReview: identities.data || [] }
+  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error || campaigns.error) throw new Error('TennisRecord operations status is unavailable.')
+  return { settings: settings.data, lastRun: lastRun.data, pendingPages: pending.count || 0, conflicts: conflicts.count || 0, identityReview: identities.data || [], campaigns: campaigns.data || [] }
 }
 
-export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[]) {
+export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[], campaignId?: string | null) {
   const cleaned = [...new Set(urls.map((url) => url.trim()).filter(Boolean))]
   const supported = cleaned.flatMap((sourceUrl) => {
     const pageKind = tennisRecordRecordPageKind(sourceUrl)
-    return pageKind ? [{ source_url: sourceUrl, page_kind: pageKind, status: 'pending', last_seen_at: new Date().toISOString() }] : []
+    return pageKind ? [{ source_url: sourceUrl, page_kind: pageKind, status: 'pending', campaign_id: campaignId || null, last_seen_at: new Date().toISOString() }] : []
   })
   if (!supported.length) return 0
   const { error } = await service.from('tennisrecord_crawl_queue').upsert(supported, { onConflict: 'source_url' })
@@ -63,8 +64,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const runId = run.id as string
   const summary = emptySummary('completed')
   try {
-    let jobsQuery = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind').eq('status', 'pending')
+    let jobsQuery = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id').eq('status', 'pending')
     if (input.pageKinds?.length) jobsQuery = jobsQuery.in('page_kind', input.pageKinds)
+    if (input.campaignId) jobsQuery = jobsQuery.eq('campaign_id', input.campaignId)
     const { data: jobs, error: jobsError } = await jobsQuery.order('page_kind').order('first_seen_at').limit(Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run))
     if (jobsError) throw new Error(jobsError.message)
     for (const job of (jobs || []) as QueueRow[]) {
@@ -80,7 +82,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           continue
         }
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
-        await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined)
+        await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined, job.campaign_id)
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
         await service.from('tennisrecord_crawl_queue').update({ status: 'done', failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
@@ -110,7 +112,9 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run)
 
   if (cadence === 'bootstrap') {
-    const { count, error: countError } = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    if (settings.active_campaign_id) pendingQuery = pendingQuery.eq('campaign_id', settings.active_campaign_id)
+    const { count, error: countError } = await pendingQuery
     if (countError) throw new Error(countError.message)
     const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, count || 0)
     if (decision === 'skip') return emptySummary('skipped')
@@ -119,9 +123,11 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       if (finishError) throw new Error(finishError.message)
       return emptySummary('completed')
     }
-    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team'] })
+    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team'], campaignId: settings.active_campaign_id })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
-    const { count: remaining, error: remainingError } = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
+    const { count: remaining, error: remainingError } = await remainingQuery
     if (remainingError) throw new Error(remainingError.message)
     if (!remaining) {
       const { error: finishError } = await service.from('tennisrecord_collector_settings').update({ automation_state: 'weekly', bootstrap_completed_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'bootstrap')
@@ -131,15 +137,17 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   }
 
   if (tennisRecordAutomationDecision(settings.automation_state, cadence, 1) === 'skip') return emptySummary('skipped')
-  const { count: pending, error: pendingError } = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('page_kind', 'match')
+  let weeklyPendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('page_kind', 'match')
+  if (settings.active_campaign_id) weeklyPendingQuery = weeklyPendingQuery.eq('campaign_id', settings.active_campaign_id)
+  const { count: pending, error: pendingError } = await weeklyPendingQuery
   if (pendingError) throw new Error(pendingError.message)
   if (!pending) {
     if (!isWeeklyTennisRecordRefreshDue(settings.weekly_refresh_started_at)) return emptySummary('skipped')
-    await queueRecentWeeklyMatchPages(service, settings.weekly_lookback_days)
+    await queueRecentWeeklyMatchPages(service, settings.weekly_lookback_days, settings.active_campaign_id)
     const { error: refreshError } = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'weekly')
     if (refreshError) throw new Error(refreshError.message)
   }
-  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['match'] })
+  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['match'], campaignId: settings.active_campaign_id })
 }
 
 /** The single plan-safe cron route picks the Admin-selected cadence. */
@@ -150,13 +158,15 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   return runScheduledTennisRecordSync(service, data.automation_state)
 }
 
-async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number) {
+async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number, campaignId?: string | null) {
   const cutoff = new Date(Date.now() - lookbackDays * 86_400_000).toISOString().slice(0, 10)
   const { data: recent, error } = await service.from('tennisrecord_staged_matches').select('source_url').gte('played_on', cutoff).limit(100)
   if (error) throw new Error(error.message)
   const urls = [...new Set((recent || []).map((match) => match.source_url as string).filter(Boolean))]
   if (!urls.length) return 0
-  const { error: updateError } = await service.from('tennisrecord_crawl_queue').update({ status: 'pending', failure_reason: '', completed_at: null }).eq('status', 'done').eq('page_kind', 'match').in('source_url', urls)
+  let requeue = service.from('tennisrecord_crawl_queue').update({ status: 'pending', failure_reason: '', completed_at: null }).eq('status', 'done').eq('page_kind', 'match').in('source_url', urls)
+  if (campaignId) requeue = requeue.eq('campaign_id', campaignId)
+  const { error: updateError } = await requeue
   if (updateError) throw new Error(updateError.message)
   return urls.length
 }
@@ -165,7 +175,7 @@ function isActiveRunLockError(error: { code?: string; message?: string }) {
   return error.code === '23505' && /tennisrecord_sync_runs_one_active_idx/i.test(error.message || '')
 }
 
-async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, pageId?: string) {
+async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, pageId?: string, campaignId?: string | null) {
   if (parsed.players.length) {
     const { data: staged, error } = await service.from('tennisrecord_staged_players').upsert(parsed.players.map((player) => ({ source_player_key: player.sourcePlayerKey, name: player.name, normalized_name: normalizedTennisRecordPlayerName(player), city: player.city || null, state: player.state || null, ntrp_label: player.ntrpLabel || null, published_rating: player.publishedRating || null, source_url: player.sourceUrl, raw: player, last_seen_at: new Date().toISOString() })), { onConflict: 'source_player_key' }).select('id,source_player_key,name,normalized_name,city,state')
     if (error) throw new Error(error.message)
@@ -227,7 +237,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       if (observation.error) throw new Error(observation.error.message)
     }
   }
-  if (parsed.discoveredUrls.length) await enqueueTennisRecordUrls(service, parsed.discoveredUrls)
+  if (parsed.discoveredUrls.length) await enqueueTennisRecordUrls(service, parsed.discoveredUrls, campaignId)
 }
 
 async function reconcileTennisRecordMatches(service: SupabaseClient) {
