@@ -8,6 +8,25 @@ function sourceKey(prefix: string, value: string) { return `${prefix}_${createHa
 function htmlDecode(value: string) { return value.replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"') }
 
 function getText(html: string) { return stripTags(html) }
+
+export type TennisRecordRecordPageKind = 'match' | 'player' | 'team'
+
+/**
+ * Only record pages that this collector understands are eligible for follow-up
+ * crawling. This deliberately excludes navigation, search, static assets, and
+ * any future route we have not explicitly reviewed.
+ */
+export function tennisRecordRecordPageKind(value: string): TennisRecordRecordPageKind | null {
+  let url: URL
+  try { url = new URL(value) } catch { return null }
+  if (!/^www\.tennisrecord\.com$/i.test(url.hostname)) return null
+  const pathname = url.pathname.toLowerCase()
+  if (pathname === '/adult/matchresults.aspx' && url.searchParams.has('mid')) return 'match'
+  if (pathname === '/adult/profile.aspx' && url.searchParams.has('playername')) return 'player'
+  if (pathname === '/adult/teamprofile.aspx' && url.searchParams.has('teamname')) return 'team'
+  return null
+}
+
 function readDate(text: string) {
   const match = text.match(/Scheduled\s+Date\s*:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i)
   return match ? `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}` : ''
@@ -87,7 +106,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const teams: TennisRecordTeam[] = [homeTeam, awayTeam].filter(Boolean).map((name) => ({ sourceTeamKey: sourceKey('trt', `${name}::${leagueName}::${flight}::${seasonYear || ''}`), name, leagueName, flight, seasonYear, sourceUrl }))
   const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
     .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
-    .filter((url) => /^https:\/\/(?:www\.)?tennisrecord\.com\//i.test(url))
+    .filter((url) => Boolean(tennisRecordRecordPageKind(url)))
   return { players: [...players.values()], teams, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)] }
 }
 

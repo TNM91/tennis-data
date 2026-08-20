@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
+import { parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -34,6 +34,29 @@ describe('TennisRecord ingestion safety', () => {
     const parsed = parseTennisRecordMatchPage(liveTable, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches[0]).toMatchObject({ discipline: 'singles', scoreText: '6-3 6-7 1-0' })
     expect(parsed.matches[0].participants.map((player) => player.name)).toEqual(['Charles Kern', 'John Uy'])
+  })
+
+  it('discovers only explicitly supported public record URLs', () => {
+    const withNavigation = fixture.replace('</body>', [
+      '<a href="/adult/profile.aspx?playername=Charles+Kern">Player</a>',
+      '<a href="/adult/teamprofile.aspx?teamname=Example">Team</a>',
+      '<a href="/adult/matchresults.aspx?mid=123">Match</a>',
+      '<a href="/adult/search.aspx">Search</a>',
+      '<a href="/favicon-16x16.png">Icon</a>',
+      '</body>',
+    ].join(''))
+    const parsed = parseTennisRecordMatchPage(withNavigation, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.discoveredUrls).toEqual(expect.arrayContaining([
+      'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern',
+      'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example',
+      'https://www.tennisrecord.com/adult/matchresults.aspx?mid=123',
+    ]))
+    expect(parsed.discoveredUrls).not.toEqual(expect.arrayContaining([
+      'https://www.tennisrecord.com/adult/search.aspx',
+      'https://www.tennisrecord.com/favicon-16x16.png',
+    ]))
+    expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern')).toBe('player')
+    expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/search.aspx')).toBeNull()
   })
 
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {

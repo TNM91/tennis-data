@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
-import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName } from './parser'
+import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
 import { canonicalTennisRecordFingerprint, sourcePriority } from './reconcile'
 import type { TennisRecordRunSummary } from './types'
 
@@ -21,10 +21,14 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
 
 export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[]) {
   const cleaned = [...new Set(urls.map((url) => url.trim()).filter(Boolean))]
-  if (!cleaned.length) return 0
-  const { error } = await service.from('tennisrecord_crawl_queue').upsert(cleaned.map((source_url) => ({ source_url, page_kind: source_url.includes('matchresults') ? 'match' : 'unknown', status: 'pending', last_seen_at: new Date().toISOString() })), { onConflict: 'source_url' })
+  const supported = cleaned.flatMap((sourceUrl) => {
+    const pageKind = tennisRecordRecordPageKind(sourceUrl)
+    return pageKind ? [{ source_url: sourceUrl, page_kind: pageKind, status: 'pending', last_seen_at: new Date().toISOString() }] : []
+  })
+  if (!supported.length) return 0
+  const { error } = await service.from('tennisrecord_crawl_queue').upsert(supported, { onConflict: 'source_url' })
   if (error) throw new Error(error.message)
-  return cleaned.length
+  return supported.length
 }
 
 export async function runTennisRecordSync(service: SupabaseClient, input: { triggerKind: 'manual' | 'weekly'; requestedByUserId?: string; limit?: number }): Promise<TennisRecordRunSummary> {
