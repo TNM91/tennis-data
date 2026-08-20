@@ -6,6 +6,7 @@ import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBl
 import { isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
+const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
 
 describe('TennisRecord ingestion safety', () => {
   it('parses representative singles, doubles, and set scores without treating published ratings as a rating input', () => {
@@ -76,6 +77,21 @@ describe('TennisRecord ingestion safety', () => {
     expect(isAllowedTennisRecordDiscovery(profileSource, matchUrl)).toBe(true)
     expect(isAllowedTennisRecordDiscovery(profileSource, playerUrl)).toBe(false)
     expect(isAllowedTennisRecordDiscovery(profileSource, teamUrl)).toBe(false)
+  })
+
+  it('uses an explicit-season history page only to discover direct result pages', () => {
+    const sourceUrl = 'https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Example+Player&year=2025'
+    const parsed = parseTennisRecordMatchPage(historyFixture, sourceUrl)
+    expect(tennisRecordRecordPageKind(sourceUrl)).toBe('history')
+    expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Example+Player&year=Recent')).toBeNull()
+    expect(isAllowedTennisRecordDiscovery(sourceUrl, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=234349&year=2025')).toBe(true)
+    expect(isAllowedTennisRecordDiscovery(sourceUrl, 'https://www.tennisrecord.com/adult/profile.aspx?playername=Another+Player')).toBe(false)
+    expect(parsed.matches).toEqual([])
+    expect(parsed.players).toEqual([])
+    expect(parsed.discoveredUrls).toEqual([
+      'https://www.tennisrecord.com/adult/matchresults.aspx?mid=234349&year=2025',
+      'https://www.tennisrecord.com/adult/matchresults.aspx?mid=234338&year=2025',
+    ])
   })
 
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {

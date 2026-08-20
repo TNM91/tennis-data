@@ -9,7 +9,7 @@ function htmlDecode(value: string) { return value.replace(/&amp;/gi, '&').replac
 
 function getText(html: string) { return stripTags(html) }
 
-export type TennisRecordRecordPageKind = 'match' | 'player' | 'team'
+export type TennisRecordRecordPageKind = 'match' | 'player' | 'team' | 'history'
 const MAX_DISCOVERED_RECORD_URLS_PER_PAGE = 25
 
 /**
@@ -25,14 +25,18 @@ export function tennisRecordRecordPageKind(value: string): TennisRecordRecordPag
   if (pathname === '/adult/matchresults.aspx' && url.searchParams.has('mid')) return 'match'
   if (pathname === '/adult/profile.aspx' && url.searchParams.has('playername')) return 'player'
   if (pathname === '/adult/teamprofile.aspx' && url.searchParams.has('teamname')) return 'team'
+  // A history page is a discovery-only seed. It must name a player and an
+  // explicit season; its contents are never treated as a rating source.
+  if (pathname === '/adult/matchhistory.aspx' && url.searchParams.has('playername') && /^20\d{2}$/.test(url.searchParams.get('year') || '')) return 'history'
   return null
 }
 
 /**
  * Bootstrap breadth is deliberately limited. A seed match may introduce its
- * participants and teams; subsequent player/team pages may introduce match
- * evidence only. This prevents profile-link fan-out from becoming a broad
- * crawl while still allowing the source graph to grow through actual results.
+ * participants and teams; player/team/history pages may introduce direct match
+ * evidence only. This prevents profile/history-link fan-out from becoming a
+ * broad crawl while still allowing the source graph to grow through actual
+ * results.
  */
 export function isAllowedTennisRecordDiscovery(sourceUrl: string, candidateUrl: string) {
   const sourceKind = tennisRecordRecordPageKind(sourceUrl)
@@ -117,7 +121,10 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
       city: '', state: '', ntrpLabel: '', publishedRating: participant.publishedRating, sourceUrl: match.sourceUrl,
     })
   }
-  if (!players.size) {
+  // Only player profiles are eligible to provide player-level provenance when
+  // there are no court rows. A history page is discovery-only, so its display
+  // of an external rating can never enter staging, reconciliation, or ratings.
+  if (!players.size && tennisRecordRecordPageKind(sourceUrl) === 'player') {
     const url = new URL(sourceUrl)
     const name = getText(html.match(/<(?:h1|h2)[^>]*>([\s\S]*?)<\/(?:h1|h2)>/i)?.[1] || '') || url.searchParams.get('playername')?.replace(/\+/g, ' ') || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
