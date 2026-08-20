@@ -71,6 +71,15 @@ function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: numb
 function parseWinnerSide(html: string, a: TennisRecordParticipant[]) {
   return /winner/i.test(html) && a.length ? 'A' as const : null
 }
+function winnerFromScoreText(scoreText: string) {
+  let a = 0; let b = 0
+  for (const score of scoreText.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)) {
+    const left = Number(score[1]); const right = Number(score[2])
+    if (left > right) a += 1
+    else if (right > left) b += 1
+  }
+  return a > b ? 'A' as const : b > a ? 'B' as const : null
+}
 
 export function parseTennisRecordMatchPage(html: string, sourceUrl: string): ParsedTennisRecordPage {
   const plain = getText(html)
@@ -96,7 +105,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const scoreCell = resultRow.find((cell) => /\b\d+\s*-\s*\d+\b/.test(cell)) || ''
     const scoreText = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
     const participants = [...left, ...right]
-    const winnerSide = parseWinnerSide(profileCells[0] || '', left)
+    const winnerSide = parseWinnerSide(profileCells[0] || '', left) || winnerFromScoreText(scoreText)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
     matches.push({ sourceMatchKey, sourceUrl, playedOn, leagueName, flight, homeTeam, awayTeam, discipline, courtNumber, scoreText, winnerSide, participants })
   }

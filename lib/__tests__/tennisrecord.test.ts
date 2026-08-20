@@ -36,6 +36,12 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.matches[0].participants.map((player) => player.name)).toEqual(['Charles Kern', 'John Uy'])
   })
 
+  it('derives the winner from factual set scores when the source omits a winner marker', () => {
+    const scoreOnly = fixture.replace(/\sclass="winner"/gi, '')
+    const parsed = parseTennisRecordMatchPage(scoreOnly, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.matches[0]?.winnerSide).toBe('A')
+  })
+
   it('discovers only explicitly supported public record URLs', () => {
     const withNavigation = fixture.replace('</body>', [
       '<a href="/adult/profile.aspx?playername=Charles+Kern">Player</a>',
