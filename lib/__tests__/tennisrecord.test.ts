@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { isWeeklyTennisRecordRefreshDue, tennisRecordAutomationDecision } from '../tennisrecord/service'
+import { isUstaTrackMatch } from '../recalculateRatings'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 
@@ -115,5 +116,10 @@ describe('TennisRecord ingestion safety', () => {
     expect(isWeeklyTennisRecordRefreshDue(null)).toBe(true)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-26T23:59:59.000Z'))).toBe(false)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
+  })
+
+  it('uses TennisRecord match facts in TiQ without treating the source as an official USTA-track input', () => {
+    expect(isUstaTrackMatch('usta')).toBe(true)
+    expect(isUstaTrackMatch('tennisrecord')).toBe(false)
   })
 })

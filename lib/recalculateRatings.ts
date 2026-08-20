@@ -15,7 +15,7 @@ type PlayerRow = {
   overall_dynamic_rating: number | null
 }
 
-type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
+type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament' | 'tennisrecord'
 
 type MatchRow = {
   id: string
@@ -417,7 +417,7 @@ function processSinglesMatch(
   )
 
   // USTA track — USTA matches only
-  if ((match.match_source ?? 'usta') === 'usta') {
+  if (isUstaTrackMatch(match.match_source)) {
     const ustaExpectedA = expectedScore(playerA.singlesUstaDynamic, playerB.singlesUstaDynamic)
     const ustaMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesUstaDynamic, playerB.singlesUstaDynamic, actualA, actualB, recencyWeight)
 
@@ -500,7 +500,7 @@ function processDoublesMatch(
   }
 
   // USTA track — USTA matches only
-  if ((match.match_source ?? 'usta') === 'usta') {
+  if (isUstaTrackMatch(match.match_source)) {
     const ustaTeamARating = average(teamA.map((p) => p.doublesUstaDynamic))
     const ustaTeamBRating = average(teamB.map((p) => p.doublesUstaDynamic))
     const ustaTeamAOverall = average(teamA.map((p) => p.overallUstaDynamic))
@@ -538,6 +538,11 @@ function processDoublesMatch(
       )
     }
   }
+}
+
+/** TennisRecord results inform TiQ's independent model, never USTA proximity. */
+export function isUstaTrackMatch(matchSource: MatchSource | null | undefined) {
+  return (matchSource ?? 'usta') === 'usta'
 }
 
 function buildSnapshot(
