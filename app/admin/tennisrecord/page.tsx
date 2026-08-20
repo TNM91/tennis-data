@@ -7,7 +7,7 @@ import { AdminReviewFrame, AdminReviewHero } from '@/app/admin/_components/admin
 import { supabase } from '@/lib/supabase'
 
 type Status = {
-  settings: { enabled?: boolean; bootstrap_region?: string } | null
+  settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly' } | null
   lastRun: Record<string, unknown> | null
   pendingPages: number
   conflicts: number
@@ -51,14 +51,18 @@ export default function TennisRecordAdminPage() {
   }
 
   const run = status?.lastRun || {}
+  const automationState = status?.settings?.automation_state || 'manual'
+  const automationButtonLabel = automationState === 'bootstrap' ? 'Pause regional automation' : automationState === 'weekly' ? 'Pause scheduled sync' : 'Start regional automation'
+  const nextAutomationState = automationState === 'manual' ? 'bootstrap' : 'manual'
   return (
     <SiteShell active="/admin"><AdminGate><AdminReviewFrame>
-      <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill" actions={<button className="button-primary" disabled={busy} onClick={() => void act({ action: 'run' })}>Run small sync</button>}>
-        Seed reviewed St. Louis / Missouri results without replacing verified local scorecards.
+      <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill" actions={<button className="button-primary" disabled={busy} onClick={() => void act({ action: 'run' })}>Run one page now</button>}>
+        Seed reviewed St. Louis / Missouri results without replacing verified local scorecards. Regional automation safely resumes from its checkpoint until the approved queue is clear.
       </AdminReviewHero>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
+          <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />
           <Metric label="Last status" value={String(run.status || 'Never')} />
@@ -72,6 +76,8 @@ export default function TennisRecordAdminPage() {
         <p className="subtle-text" style={{ marginTop: 16 }}>The collector remains off until both this switch and the production environment safety flag are enabled. Blocked pages stop at the source; no access controls are bypassed.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
           <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Disable collector' : 'Enable collector'}</button>
+          <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: nextAutomationState })}>{automationButtonLabel}</button>
+          {automationState === 'manual' ? <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: 'weekly' })}>Enable weekly sync</button> : null}
           <input aria-label="Public TennisRecord seed URL" value={seedUrl} onChange={(event) => setSeedUrl(event.target.value)} placeholder="Public TennisRecord match URL" style={{ minWidth: 280, flex: '1 1 280px' }} />
           <button className="button-secondary" disabled={busy || !seedUrl.trim()} onClick={() => void act({ action: 'enqueue', urls: [seedUrl] })}>Queue page</button>
         </div>

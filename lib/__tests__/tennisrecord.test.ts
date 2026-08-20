@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
+import { isWeeklyTennisRecordRefreshDue, tennisRecordAutomationDecision } from '../tennisrecord/service'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 
@@ -103,5 +104,16 @@ describe('TennisRecord ingestion safety', () => {
     const [match] = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026').matches
     const reprocessed = { ...match, sourceMatchKey: 'reprocessed' }
     expect(canonicalTennisRecordFingerprint(match)).toBe(canonicalTennisRecordFingerprint(reprocessed))
+  })
+
+  it('keeps scheduled collection paused until an admin selects a cadence and completes bootstrap without player-profile work', () => {
+    expect(tennisRecordAutomationDecision('manual', 'bootstrap', 10)).toBe('skip')
+    expect(tennisRecordAutomationDecision('weekly', 'bootstrap', 10)).toBe('skip')
+    expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 10)).toBe('run')
+    expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 0)).toBe('complete_bootstrap')
+    expect(tennisRecordAutomationDecision('weekly', 'weekly', 0)).toBe('run')
+    expect(isWeeklyTennisRecordRefreshDue(null)).toBe(true)
+    expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-26T23:59:59.000Z'))).toBe(false)
+    expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
   })
 })
