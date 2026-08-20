@@ -60,6 +60,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Community uploads',
   },
   {
+    title: 'TennisRecord Backfill',
+    href: '/admin/tennisrecord',
+    description: 'Review the staged backup source, queue a small sync, and inspect conflicts.',
+    badge: 'Source sync',
+    accent: 'slate',
+    icon: 'reports',
+    highlights: ['Disabled by default', 'Blocked-page stop', 'Local data wins', 'Run metrics'],
+    statLabel: 'Best for',
+    statValue: 'Backfill ops',
+  },
+  {
     title: 'Match Accuracy Reports',
     href: '/admin/match-reports',
     description: 'Resolve reported match errors and uploader trust issues.',
