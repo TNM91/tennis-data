@@ -125,7 +125,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run)
 
   if (cadence === 'bootstrap') {
-    let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team', 'history'])
     if (settings.active_campaign_id) pendingQuery = pendingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count, error: countError } = await pendingQuery
     if (countError) throw new Error(countError.message)
@@ -136,9 +136,9 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       if (finishError) throw new Error(finishError.message)
       return emptySummary('completed')
     }
-    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team'], campaignId: settings.active_campaign_id })
+    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team', 'history'], campaignId: settings.active_campaign_id })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
-    let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
+    let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team', 'history'])
     if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count: remaining, error: remainingError } = await remainingQuery
     if (remainingError) throw new Error(remainingError.message)
