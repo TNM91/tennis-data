@@ -26,6 +26,16 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.matches.map((match) => match.discipline)).toEqual(['singles', 'doubles'])
   })
 
+  it('skips the live table header and selects the participant row', () => {
+    const liveTable = fixture.replace(
+      '<table><tr><td><a href="/adult/profile.aspx?playername=Charles+Kern">',
+      '<table><tr><td>Home Team</td><td>Score</td><td>Visiting Team</td></tr><tr><td><a href="/adult/profile.aspx?playername=Charles+Kern">',
+    )
+    const parsed = parseTennisRecordMatchPage(liveTable, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.matches[0]).toMatchObject({ discipline: 'singles', scoreText: '6-3 6-7 1-0' })
+    expect(parsed.matches[0].participants.map((player) => player.name)).toEqual(['Charles Kern', 'John Uy'])
+  })
+
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {
     const [match] = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026').matches
     const corrected = { ...match, scoreText: '6-4 7-5' }
