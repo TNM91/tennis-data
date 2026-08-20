@@ -10,6 +10,11 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[] }
+const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 5
+
+export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number) {
+  return Math.min(maxRequestsPerRun, SCHEDULED_TENNISRECORD_BATCH_LIMIT)
+}
 
 export function tennisRecordAutomationDecision(state: AutomationState, cadence: 'bootstrap' | 'weekly', pendingPages: number) {
   if (state !== cadence) return 'skip' as const
@@ -94,14 +99,15 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
 }
 
 /**
- * Runs one page per scheduled invocation. This intentionally fits the route's
- * execution budget and relies on the queue checkpoint for continuation.
+ * Runs a small checkpointed batch per scheduled invocation. The cap is based
+ * on observed Pro runtime headroom and stays below the Admin-configured limit.
  */
 export async function runScheduledTennisRecordSync(service: SupabaseClient, cadence: 'bootstrap' | 'weekly') {
   const { data: rawSettings, error } = await service.from('tennisrecord_collector_settings').select('*').eq('id', true).single()
   if (error) throw new Error(error.message)
   const settings = rawSettings as Settings
   if (!settings.enabled || process.env.TENNISRECORD_COLLECTOR_ENABLED !== 'true') return emptySummary('disabled')
+  const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run)
 
   if (cadence === 'bootstrap') {
     const { count, error: countError } = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
@@ -113,7 +119,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       if (finishError) throw new Error(finishError.message)
       return emptySummary('completed')
     }
-    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: 1, pageKinds: ['match', 'team'] })
+    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team'] })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
     const { count: remaining, error: remainingError } = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team'])
     if (remainingError) throw new Error(remainingError.message)
@@ -133,7 +139,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     const { error: refreshError } = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'weekly')
     if (refreshError) throw new Error(refreshError.message)
   }
-  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: 1, pageKinds: ['match'] })
+  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['match'] })
 }
 
 /** The single plan-safe cron route picks the Admin-selected cadence. */
