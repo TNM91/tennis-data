@@ -88,7 +88,7 @@ const phaseLabels: Record<string, string> = {
   'fetching-matches': 'Loading matches...',
   'fetching-participants': 'Loading participants...',
   processing: 'Processing matches...',
-  'applying-decay': 'Applying inactivity decay...',
+  finalizing: 'Finalizing match-based ratings...',
   'saving-ratings': 'Saving ratings...',
   'saving-snapshots': 'Saving snapshots...',
   done: 'Done',
