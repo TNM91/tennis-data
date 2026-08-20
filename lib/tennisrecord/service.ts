@@ -9,14 +9,15 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, pending, conflicts] = await Promise.all([
+  const [settings, lastRun, pending, conflicts, identities] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
+    service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
   ])
-  if (settings.error || lastRun.error || pending.error || conflicts.error) throw new Error('TennisRecord operations status is unavailable.')
-  return { settings: settings.data, lastRun: lastRun.data, pendingPages: pending.count || 0, conflicts: conflicts.count || 0 }
+  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error) throw new Error('TennisRecord operations status is unavailable.')
+  return { settings: settings.data, lastRun: lastRun.data, pendingPages: pending.count || 0, conflicts: conflicts.count || 0, identityReview: identities.data || [] }
 }
 
 export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[]) {

@@ -11,6 +11,7 @@ type Status = {
   lastRun: Record<string, unknown> | null
   pendingPages: number
   conflicts: number
+  identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
 }
 
 export default function TennisRecordAdminPage() {
@@ -18,6 +19,7 @@ export default function TennisRecordAdminPage() {
   const [seedUrl, setSeedUrl] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [mappingIds, setMappingIds] = useState<Record<string, string>>({})
 
   const request = useCallback(async (body?: Record<string, unknown>) => {
     const session = await supabase.auth.getSession()
@@ -40,7 +42,7 @@ export default function TennisRecordAdminPage() {
     setBusy(true); setMessage('')
     try {
       const result = await request(body)
-      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : 'Collector settings saved.')
+      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : body.action === 'resolve_identity' ? 'Verified player mapping saved.' : 'Collector settings saved.')
       if (body.action === 'enqueue') setSeedUrl('')
       if ('settings' in result) setStatus(result)
       await refresh()
@@ -74,6 +76,23 @@ export default function TennisRecordAdminPage() {
           <button className="button-secondary" disabled={busy || !seedUrl.trim()} onClick={() => void act({ action: 'enqueue', urls: [seedUrl] })}>Queue page</button>
         </div>
         {message ? <p role="status" className="subtle-text" style={{ marginTop: 14 }}>{message}</p> : null}
+      </section>
+      <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Identity review</h2>
+        <p className="subtle-text">Only verify a mapping when you have roster, team, season, or match-history evidence. Unmatched source players remain safely staged.</p>
+        {status?.identityReview?.length ? <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          {status.identityReview.map((identity) => {
+            const player = identity.tennisrecord_staged_players
+            return <div key={identity.staged_player_id} className="metric-card" style={{ display: 'grid', gap: 8 }}>
+              <div><strong>{player?.name || 'Unknown player'}</strong>{player?.city || player?.state ? ` · ${[player.city, player.state].filter(Boolean).join(', ')}` : ''}{player?.ntrp_label ? ` · ${player.ntrp_label}` : ''}</div>
+              <a className="subtle-text" href={player?.source_url} target="_blank" rel="noreferrer">View source record</a>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <input aria-label={`TenAceIQ player ID for ${player?.name || 'staged player'}`} value={mappingIds[identity.staged_player_id] || ''} onChange={(event) => setMappingIds((current) => ({ ...current, [identity.staged_player_id]: event.target.value }))} placeholder="Verified TenAceIQ player ID" style={{ minWidth: 280, flex: '1 1 280px' }} />
+                <button className="button-secondary" disabled={busy || !(mappingIds[identity.staged_player_id] || '').trim()} onClick={() => void act({ action: 'resolve_identity', stagedPlayerId: identity.staged_player_id, canonicalPlayerId: mappingIds[identity.staged_player_id] })}>Confirm mapping</button>
+              </div>
+            </div>
+          })}
+        </div> : <p className="subtle-text" style={{ marginTop: 12 }}>No identity reviews are waiting.</p>}
       </section>
     </AdminReviewFrame></AdminGate></SiteShell>
   )
