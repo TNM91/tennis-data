@@ -5,12 +5,8 @@
       "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/cron/tennisrecord-bootstrap",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/tennisrecord-weekly",
-      "schedule": "*/15 * * * *"
+      "path": "/api/cron/tennisrecord-automation",
+      "schedule": "0 3 * * *"
     }
   ]
 }

@@ -136,6 +136,14 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   return runTennisRecordSync(service, { triggerKind: 'weekly', limit: 1, pageKinds: ['match'] })
 }
 
+/** The single plan-safe cron route picks the Admin-selected cadence. */
+export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
+  const { data, error } = await service.from('tennisrecord_collector_settings').select('automation_state').eq('id', true).single()
+  if (error) throw new Error(error.message)
+  if (data?.automation_state !== 'bootstrap' && data?.automation_state !== 'weekly') return emptySummary('skipped')
+  return runScheduledTennisRecordSync(service, data.automation_state)
+}
+
 async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number) {
   const cutoff = new Date(Date.now() - lookbackDays * 86_400_000).toISOString().slice(0, 10)
   const { data: recent, error } = await service.from('tennisrecord_staged_matches').select('source_url').gte('played_on', cutoff).limit(100)
