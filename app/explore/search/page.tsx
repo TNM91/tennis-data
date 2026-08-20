@@ -426,9 +426,9 @@ function ExploreSearchContent() {
         <section
           style={{
             ...surfaceCardStrong,
-            padding: isSmallMobile ? 12 : isMobile ? 14 : 28,
+            padding: hasQuery ? (isSmallMobile ? 10 : isMobile ? 12 : 18) : (isSmallMobile ? 12 : isMobile ? 14 : 28),
             display: 'grid',
-            gap: isMobile ? 9 : 16,
+            gap: hasQuery ? 8 : isMobile ? 9 : 16,
             overflow: 'hidden',
             position: 'relative',
             border: '1px solid rgba(116,190,255,0.15)',
@@ -455,36 +455,46 @@ function ExploreSearchContent() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(0, auto)',
+              gridTemplateColumns: hasQuery
+                ? isMobile
+                  ? 'minmax(0, 1fr) minmax(96px, auto)'
+                  : 'minmax(0, 1fr) minmax(128px, auto)'
+                : isMobile
+                  ? 'minmax(0, 1fr)'
+                  : isTablet
+                    ? 'minmax(0, 1fr)'
+                    : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(0, auto)',
               gap: 10,
               minWidth: 0,
               overflowWrap: 'anywhere',
-              alignItems: isMobile ? 'stretch' : 'end',
+              alignItems: hasQuery ? 'end' : isMobile ? 'stretch' : 'end',
             }}
           >
-            <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
-              <span style={searchLabelStyle}>Search by</span>
-              <select
-                className="tiq-focus-ring"
-                value={scope}
-                onChange={(event) => {
-                  const nextScope = event.target.value as SearchScope
-                  setScope(nextScope)
-                  syncUrl(query, nextScope)
-                }}
-                style={getSearchSelectStyle(isMobile)}
-                aria-label="Search by scope"
-              >
-                {searchScopes.map((item) => (
-                  <option key={item.value} value={item.value} style={getSearchOptionStyle()}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!hasQuery ? (
+              <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
+                <span style={searchLabelStyle}>Search by</span>
+                <select
+                  className="tiq-focus-ring"
+                  value={scope}
+                  onChange={(event) => {
+                    const nextScope = event.target.value as SearchScope
+                    setScope(nextScope)
+                    syncUrl(query, nextScope)
+                  }}
+                  style={getSearchSelectStyle(isMobile)}
+                  aria-label="Search by scope"
+                >
+                  {searchScopes.map((item) => (
+                    <option key={item.value} value={item.value} style={getSearchOptionStyle()}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
-              <span style={searchLabelStyle}>Search term</span>
+              <span style={searchLabelStyle}>{hasQuery ? selectedScopeLabel : 'Search term'}</span>
               <div style={getSearchInputWrapStyle(isMobile)}>
                 <SearchIcon />
                 <input
@@ -502,10 +512,10 @@ function ExploreSearchContent() {
               type="submit"
               style={{
                 ...buttonPrimary,
-                minHeight: isMobile ? 42 : 56,
+                minHeight: hasQuery || isMobile ? 42 : 56,
                 minWidth: 0,
                 maxWidth: '100%',
-                width: isMobile ? '100%' : undefined,
+                width: hasQuery ? undefined : isMobile ? '100%' : undefined,
                 border: 'none',
                 overflowWrap: 'anywhere',
               }}
@@ -514,7 +524,7 @@ function ExploreSearchContent() {
             </button>
           </form>
 
-          {scope === 'players' && players.length > 0 ? (
+          {!hasQuery && scope === 'players' && players.length > 0 ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, minWidth: 0, marginTop: 12 }}>
               <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, alignSelf: 'center', overflowWrap: 'anywhere' }}>Rating band:</span>
               {(['all', '2.5', '3.0', '3.5', '4.0', '4.5+'] as const).map((band) => (
@@ -530,7 +540,7 @@ function ExploreSearchContent() {
             </div>
           ) : null}
 
-          {leagues.length > 0 ? (
+          {!hasQuery && leagues.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, minWidth: 0, marginTop: 12 }}>
               <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} />
               <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} />
@@ -539,6 +549,7 @@ function ExploreSearchContent() {
             </div>
           ) : null}
 
+          {!hasQuery ? (
           <div
             style={{
               position: 'relative',
@@ -558,17 +569,18 @@ function ExploreSearchContent() {
               {hasQuery ? `${totalResults} results for "${query.trim()}"` : 'Ready to search'}
             </span>
           </div>
+          ) : null}
         </section>
 
         {!hasQuery ? searchNextActionsPanel : null}
 
-        <section style={sectionStack}>
-          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-            <div style={sectionKicker}>Search results</div>
-            <h2 style={sectionTitle}>
-              {query.trim() ? 'Open the match.' : selectedScopeGuide.eyebrow}
-            </h2>
-          </div>
+        <section style={hasQuery ? { ...sectionStack, gap: isMobile ? 12 : 16 } : sectionStack}>
+          {!hasQuery ? (
+            <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+              <div style={sectionKicker}>Search results</div>
+              <h2 style={sectionTitle}>{selectedScopeGuide.eyebrow}</h2>
+            </div>
+          ) : null}
 
           {error ? (
             <section style={{ ...portalInsetCardStyle, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
@@ -624,6 +636,7 @@ function ExploreSearchContent() {
                   emptyMessage="No player matches yet. Try broadening the name or switching scope."
                   ctaHref="/explore/players"
                   ctaLabel="Open player directory"
+                  compact={hasQuery}
                 >
                   {usedSpellingHelp ? (
                     <div style={spellingHelpStyle} role="status">
@@ -670,6 +683,7 @@ function ExploreSearchContent() {
                   emptyMessage="Once at least two player results match, Player comparison actions show up here."
                   ctaHref="/mylab"
                   ctaLabel="Open My Lab"
+                  compact={hasQuery}
                 >
                   {matchupSuggestions.map((item) => (
                     <Link key={item.key} href={item.href} style={getResultCardStyle()}>
@@ -696,6 +710,7 @@ function ExploreSearchContent() {
                   emptyMessage="No team matches found yet. Try a league or broader team search."
                   ctaHref="/explore/teams"
                   ctaLabel="Open teams"
+                  compact={hasQuery}
                 >
                   {showTeamResults ? teams.map((team) => (
                     <Link
@@ -725,6 +740,7 @@ function ExploreSearchContent() {
                   emptyMessage="No league matches found yet. Try a section, district, area, or different league name."
                   ctaHref="/explore/leagues"
                   ctaLabel="Open leagues"
+                  compact={hasQuery}
                 >
                   {showLeagueResults ? filteredLeagues.map((league) => (
                     <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle()}>
@@ -1016,6 +1032,7 @@ function ResultGroup({
   emptyMessage,
   ctaHref,
   ctaLabel,
+  compact = false,
   children,
 }: {
   title: string
@@ -1023,18 +1040,28 @@ function ResultGroup({
   emptyMessage: string
   ctaHref: string
   ctaLabel: string
+  compact?: boolean
   children: ReactNode
 }) {
   return (
-    <section style={resultGroupStyle}>
+    <section style={compact ? compactResultGroupStyle : resultGroupStyle}>
       <div style={resultGroupHeaderStyle}>
         <div style={resultGroupCopyStyle}>
-          <div style={sectionKicker}>{title}</div>
-          <div style={resultGroupTitleStyle}>
-            {count} {title.toLowerCase()} found
-          </div>
+          {compact ? (
+            <div style={compactResultTabStyle}>
+              <span>{title}</span>
+              <span style={compactResultTabCountStyle}>{count}</span>
+            </div>
+          ) : (
+            <>
+              <div style={sectionKicker}>{title}</div>
+              <div style={resultGroupTitleStyle}>
+                {count} {title.toLowerCase()} found
+              </div>
+            </>
+          )}
         </div>
-        <Link href={ctaHref} style={resultGroupActionStyle}>
+        <Link href={ctaHref} style={compact ? compactResultGroupActionStyle : resultGroupActionStyle}>
           {ctaLabel}
         </Link>
       </div>
@@ -1408,6 +1435,12 @@ const resultGroupStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactResultGroupStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
 const resultGroupHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1424,6 +1457,34 @@ const resultGroupCopyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactResultTabStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  minHeight: 32,
+  padding: '6px 9px 6px 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+const compactResultTabCountStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  minWidth: 20,
+  minHeight: 20,
+  padding: '0 5px',
+  borderRadius: 999,
+  background: 'rgba(7,17,33,0.78)',
+  color: '#d9f84a',
+  fontSize: 11,
+}
+
 const resultGroupTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 20,
@@ -1438,6 +1499,14 @@ const resultGroupActionStyle: CSSProperties = {
   minWidth: 0,
   textAlign: 'center',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const compactResultGroupActionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 800,
+  textDecoration: 'none',
   overflowWrap: 'anywhere',
 }
 
