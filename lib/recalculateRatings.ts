@@ -114,6 +114,7 @@ const K_OVERALL = 0.052
 const RATING_DIVISOR = 0.45
 const MAX_MULTIPLIER = 2.02
 const MIN_MULTIPLIER = 0.82
+const GAME_SHARE_DIVISOR = 1.6
 
 const RATING_BANDS = [
   1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
@@ -124,7 +125,7 @@ export type RecalcPhase =
   | 'fetching-matches'
   | 'fetching-participants'
   | 'processing'
-  | 'applying-decay'
+  | 'finalizing'
   | 'saving-ratings'
   | 'saving-snapshots'
   | 'done'
@@ -242,7 +243,7 @@ export async function recalculateDynamicRatings(
   onPhase?.('processing', `${matches.length} matches`)
   // (processing loop ran above)
 
-  onPhase?.('applying-decay')
+  onPhase?.('finalizing')
   applyInactivityDecay(playersById.values())
 
   onPhase?.('saving-ratings', `${players.length} players`)
@@ -386,12 +387,13 @@ function processSinglesMatch(
 
   // TIQ track — all matches
   const tiqExpectedA = expectedScore(playerA.singlesDynamic, playerB.singlesDynamic)
-  const tiqMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesDynamic, playerB.singlesDynamic, actualA, actualB, recencyWeight)
+  const tiqPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, playerA.singlesDynamic, playerB.singlesDynamic)
+  const tiqMultiplier = buildMatchMultiplier(playerA.singlesDynamic, playerB.singlesDynamic, actualA, actualB, recencyWeight)
 
-  const deltaTiqSinglesA = K_SINGLES * kA * (actualA - tiqExpectedA) * tiqMultiplier.a
-  const deltaTiqSinglesB = K_SINGLES * kB * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
-  const deltaTiqOverallA = K_OVERALL * kA * (actualA - tiqExpectedA) * tiqMultiplier.a
-  const deltaTiqOverallB = K_OVERALL * kB * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
+  const deltaTiqSinglesA = K_SINGLES * kA * tiqPerformance.a * tiqMultiplier.a
+  const deltaTiqSinglesB = K_SINGLES * kB * tiqPerformance.b * tiqMultiplier.b
+  const deltaTiqOverallA = K_OVERALL * kA * tiqPerformance.a * tiqMultiplier.a
+  const deltaTiqOverallB = K_OVERALL * kB * tiqPerformance.b * tiqMultiplier.b
 
   const preTiqSinglesA = playerA.singlesDynamic
   const preTiqSinglesB = playerB.singlesDynamic
@@ -419,12 +421,13 @@ function processSinglesMatch(
   // USTA track — USTA matches only
   if ((match.match_source ?? 'usta') === 'usta') {
     const ustaExpectedA = expectedScore(playerA.singlesUstaDynamic, playerB.singlesUstaDynamic)
-    const ustaMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesUstaDynamic, playerB.singlesUstaDynamic, actualA, actualB, recencyWeight)
+    const ustaPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, playerA.singlesUstaDynamic, playerB.singlesUstaDynamic)
+    const ustaMultiplier = buildMatchMultiplier(playerA.singlesUstaDynamic, playerB.singlesUstaDynamic, actualA, actualB, recencyWeight)
 
-    const deltaUstaSinglesA = K_SINGLES * kA * (actualA - ustaExpectedA) * ustaMultiplier.a
-    const deltaUstaSinglesB = K_SINGLES * kB * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
-    const deltaUstaOverallA = K_OVERALL * kA * (actualA - ustaExpectedA) * ustaMultiplier.a
-    const deltaUstaOverallB = K_OVERALL * kB * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+    const deltaUstaSinglesA = K_SINGLES * kA * ustaPerformance.a * ustaMultiplier.a
+    const deltaUstaSinglesB = K_SINGLES * kB * ustaPerformance.b * ustaMultiplier.b
+    const deltaUstaOverallA = K_OVERALL * kA * ustaPerformance.a * ustaMultiplier.a
+    const deltaUstaOverallB = K_OVERALL * kB * ustaPerformance.b * ustaMultiplier.b
 
     const preUstaSinglesA = playerA.singlesUstaDynamic
     const preUstaSinglesB = playerB.singlesUstaDynamic
@@ -465,10 +468,11 @@ function processDoublesMatch(
   const tiqTeamAOverall = average(teamA.map((p) => p.overallDynamic))
   const tiqTeamBOverall = average(teamB.map((p) => p.overallDynamic))
   const tiqExpectedA = expectedScore(tiqTeamARating, tiqTeamBRating)
-  const tiqMultiplier = buildMatchMultiplier(scoreMetrics, tiqTeamARating, tiqTeamBRating, actualA, actualB, recencyWeight)
+  const tiqPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, tiqTeamARating, tiqTeamBRating)
+  const tiqMultiplier = buildMatchMultiplier(tiqTeamARating, tiqTeamBRating, actualA, actualB, recencyWeight)
 
-  const tiqRawDoublesA = (actualA - tiqExpectedA) * tiqMultiplier.a
-  const tiqRawDoublesB = (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
+  const tiqRawDoublesA = tiqPerformance.a * tiqMultiplier.a
+  const tiqRawDoublesB = tiqPerformance.b * tiqMultiplier.b
 
   const tiqWpA = Math.round(tiqExpectedA * 100)
   const tiqWpB = 100 - tiqWpA
@@ -506,10 +510,11 @@ function processDoublesMatch(
     const ustaTeamAOverall = average(teamA.map((p) => p.overallUstaDynamic))
     const ustaTeamBOverall = average(teamB.map((p) => p.overallUstaDynamic))
     const ustaExpectedA = expectedScore(ustaTeamARating, ustaTeamBRating)
-    const ustaMultiplier = buildMatchMultiplier(scoreMetrics, ustaTeamARating, ustaTeamBRating, actualA, actualB, recencyWeight)
+    const ustaPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, ustaTeamARating, ustaTeamBRating)
+    const ustaMultiplier = buildMatchMultiplier(ustaTeamARating, ustaTeamBRating, actualA, actualB, recencyWeight)
 
-    const ustaRawDoublesA = (actualA - ustaExpectedA) * ustaMultiplier.a
-    const ustaRawDoublesB = (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+    const ustaRawDoublesA = ustaPerformance.a * ustaMultiplier.a
+    const ustaRawDoublesB = ustaPerformance.b * ustaMultiplier.b
 
     const ustaWpA = Math.round(ustaExpectedA * 100)
     const ustaWpB = 100 - ustaWpA
@@ -621,10 +626,8 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
   const dedupedRows = Array.from(
     snapshotRows
       .reduce((map, row) => {
-        const key = `${row.player_id}__${row.match_id}__${row.rating_type}`
-        if (!map.has(key) || row.track === 'tiq') {
-          map.set(key, row)
-        }
+        const key = `${row.player_id}__${row.match_id}__${row.rating_type}__${row.track}`
+        map.set(key, row)
         return map
       }, new Map<string, RatingSnapshotInsert>())
       .values(),
@@ -634,7 +637,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
     const { error } = await client
       .from('rating_snapshots')
       .upsert(chunk, {
-        onConflict: 'player_id,match_id,rating_type',
+        onConflict: 'player_id,match_id,rating_type,track',
       })
 
     if (error) {
@@ -648,7 +651,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
         const stripped = chunk.map(stripSnapshotMetrics)
         const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
-          onConflict: 'player_id,match_id,rating_type',
+          onConflict: 'player_id,match_id,rating_type,track',
         })
         if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
           const { error: insertFallbackError } = await client.from('rating_snapshots').insert(stripped)
@@ -845,7 +848,6 @@ function buildFallbackScoreMetrics(): ScoreMetrics {
 }
 
 function buildMatchMultiplier(
-  scoreMetrics: ScoreMetrics,
   ratingA: number,
   ratingB: number,
   actualA: number,
@@ -869,24 +871,37 @@ function buildMatchMultiplier(
     }
   }
 
-  const expectedCompressionA = clampNumber(
-    0.96 + Math.abs(actualA - expectedScore(ratingA, ratingB)) * 0.14,
-    0.96,
-    1.08,
-  )
-
-  const expectedCompressionB = clampNumber(
-    0.96 + Math.abs(actualB - expectedScore(ratingB, ratingA)) * 0.14,
-    0.96,
-    1.08,
-  )
-
-  const baseMultiplier = scoreMetrics.multiplier
-
   return {
-    a: roundRating(baseMultiplier * upsetBoostA * expectedCompressionA * recencyWeight),
-    b: roundRating(baseMultiplier * upsetBoostB * expectedCompressionB * recencyWeight),
+    a: roundRating(upsetBoostA * recencyWeight),
+    b: roundRating(upsetBoostB * recencyWeight),
   }
+}
+
+/**
+ * Score-aware performance mirrors the public USTA principle: compare the
+ * actual game share with the rating-based expected game share. A close loss to
+ * a substantially stronger opponent can therefore be a positive performance.
+ * When no usable score is available, retain the conservative win/loss fallback.
+ */
+export function getScoreAwarePerformance(scoreMetrics: ScoreMetrics, winnerSide: MatchSide, ratingA: number, ratingB: number) {
+  const outcomeA = winnerSide === 'A' ? 1 : 0
+  const outcomeB = 1 - outcomeA
+
+  if (!scoreMetrics.parsed || scoreMetrics.totalGames <= 0) {
+    const expectedA = expectedScore(ratingA, ratingB)
+    return { a: outcomeA - expectedA, b: outcomeB - (1 - expectedA) }
+  }
+
+  const actualGameShareA = scoreMetrics.totalGamesA / scoreMetrics.totalGames
+  const expectedGameShareA = expectedGameShare(ratingA, ratingB)
+  return {
+    a: actualGameShareA - expectedGameShareA,
+    b: (1 - actualGameShareA) - (1 - expectedGameShareA),
+  }
+}
+
+export function expectedGameShare(ratingA: number, ratingB: number) {
+  return 1 / (1 + Math.pow(10, (ratingB - ratingA) / GAME_SHARE_DIVISOR))
 }
 
 function normalizeScoreString(score: string) {
@@ -895,11 +910,10 @@ function normalizeScoreString(score: string) {
     .replace(/\bL\b/gi, '')
     .replace(/\([^)]*\)/g, '')
     .replace(/\[[^\]]*\]/g, '')
-    .replace(/\s+/g, '')
+    .replace(/\s*[-:–—]\s*/g, '-')
+    .replace(/\s+/g, ',')
     .replace(/\/+/g, ',')
-    .replace(/:+/g, '-')
-    .replace(/–/g, '-')
-    .replace(/—/g, '-')
+    .replace(/,+/g, ',')
     .replace(/RET|DEF|W\/O|WO|ABD|CANC/gi, '')
     .trim()
 }
@@ -953,29 +967,10 @@ function registerDelta(player: WorkingPlayer, matchDate: string) {
 }
 
 export function applyInactivityDecay(players: IterableIterator<WorkingPlayer>, now = Date.now()) {
-  const DECAY_START_DAYS = 90
-  const DECAY_RATE_PER_MONTH = 0.02
-
-  for (const player of players) {
-    if (!player.lastMatchDate || player.matchesProcessed === 0) continue
-
-    const daysSinceLast = Math.max(
-      0,
-      (now - new Date(player.lastMatchDate).getTime()) / (1000 * 60 * 60 * 24),
-    )
-
-    if (daysSinceLast <= DECAY_START_DAYS) continue
-
-    const decayMonths = (daysSinceLast - DECAY_START_DAYS) / 30
-    const retainFactor = Math.pow(1 - DECAY_RATE_PER_MONTH, decayMonths)
-
-    player.singlesDynamic = clampAndRoundRating(DEFAULT_RATING + (player.singlesDynamic - DEFAULT_RATING) * retainFactor)
-    player.doublesDynamic = clampAndRoundRating(DEFAULT_RATING + (player.doublesDynamic - DEFAULT_RATING) * retainFactor)
-    player.overallDynamic = clampAndRoundRating(DEFAULT_RATING + (player.overallDynamic - DEFAULT_RATING) * retainFactor)
-    player.singlesUstaDynamic = clampAndRoundRating(DEFAULT_RATING + (player.singlesUstaDynamic - DEFAULT_RATING) * retainFactor)
-    player.doublesUstaDynamic = clampAndRoundRating(DEFAULT_RATING + (player.doublesUstaDynamic - DEFAULT_RATING) * retainFactor)
-    player.overallUstaDynamic = clampAndRoundRating(DEFAULT_RATING + (player.overallUstaDynamic - DEFAULT_RATING) * retainFactor)
-  }
+  // Inactivity changes confidence, not demonstrated playing strength. Dynamic
+  // ratings and USTA-proximity must move only through eligible match results.
+  void players
+  void now
 }
 
 function average(values: number[]) {

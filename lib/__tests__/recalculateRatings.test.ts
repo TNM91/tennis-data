@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseScoreMetrics,
+  getScoreAwarePerformance,
   getRecencyWeight,
   getProvisionalkMultiplier,
   applyInactivityDecay,
@@ -71,6 +72,14 @@ describe('parseScoreMetrics', () => {
     expect(m.tiebreakSets).toBe(0)
     expect(m.gamesWonByWinner).toBe(12)
     expect(m.gamesWonByLoser).toBe(7)
+  })
+
+  it('parses whitespace-separated set scores from TennisRecord', () => {
+    const m = parseScoreMetrics('6-4 6-4', 'A')
+    expect(m.parsed).toBe(true)
+    expect(m.sets).toHaveLength(2)
+    expect(m.totalGamesA).toBe(12)
+    expect(m.totalGamesB).toBe(8)
   })
 
   it('7-5 is NOT counted as a tiebreak set', () => {
@@ -210,14 +219,13 @@ describe('applyInactivityDecay', () => {
     expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('decays a player inactive for 1 year', () => {
+  it('does not change a player inactive for 1 year', () => {
     const player = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2025-04-24' })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeLessThan(4.5)
-    expect(player.singlesDynamic).toBeGreaterThan(3.5)
+    expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('decays all six dynamic ratings together', () => {
+  it('preserves all six dynamic ratings during inactivity', () => {
     const player = makePlayer({
       singlesDynamic: 4.5,
       doublesDynamic: 4.0,
@@ -228,19 +236,18 @@ describe('applyInactivityDecay', () => {
       lastMatchDate: '2025-04-24',
     })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeLessThan(4.5)
-    expect(player.doublesDynamic).toBeLessThan(4.0)
-    expect(player.overallDynamic).toBeLessThan(4.2)
-    expect(player.singlesUstaDynamic).toBeLessThan(4.5)
-    expect(player.doublesUstaDynamic).toBeLessThan(4.0)
-    expect(player.overallUstaDynamic).toBeLessThan(4.2)
+    expect(player.singlesDynamic).toBe(4.5)
+    expect(player.doublesDynamic).toBe(4.0)
+    expect(player.overallDynamic).toBe(4.2)
+    expect(player.singlesUstaDynamic).toBe(4.5)
+    expect(player.doublesUstaDynamic).toBe(4.0)
+    expect(player.overallUstaDynamic).toBe(4.2)
   })
 
-  it('regresses toward 3.5 (not toward 0)', () => {
+  it('does not regress lower-rated players upward toward 3.5', () => {
     const player = makePlayer({ singlesDynamic: 2.0, lastMatchDate: '2023-01-01' })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeGreaterThan(2.0)
-    expect(player.singlesDynamic).toBeLessThan(3.5)
+    expect(player.singlesDynamic).toBe(2.0)
   })
 
   it('skips players with null lastMatchDate', () => {
@@ -255,12 +262,28 @@ describe('applyInactivityDecay', () => {
     expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('longer inactivity produces more decay', () => {
+  it('does not vary ratings by inactivity duration', () => {
     const p1 = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2025-01-01' })
     const p2 = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2024-01-01' })
     applyInactivityDecay([p1].values(), NOW)
     applyInactivityDecay([p2].values(), NOW)
-    expect(p2.singlesDynamic).toBeLessThan(p1.singlesDynamic)
+    expect(p2.singlesDynamic).toBe(p1.singlesDynamic)
+  })
+})
+
+describe('getScoreAwarePerformance', () => {
+  it('keeps a close contest between equal ratings near-neutral', () => {
+    const tight = parseScoreMetrics('7-6, 7-6', 'A')
+    const dominant = parseScoreMetrics('6-0, 6-0', 'A')
+    expect(getScoreAwarePerformance(tight, 'A', 4.0, 4.0).a).toBeCloseTo(1 / 26, 3)
+    expect(getScoreAwarePerformance(dominant, 'A', 4.0, 4.0).a).toBeCloseTo(0.5, 3)
+  })
+
+  it('allows a close loss to a much stronger player to be positive', () => {
+    const closeLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const performance = getScoreAwarePerformance(closeLoss, 'B', 4.1, 4.9)
+    expect(performance.a).toBeGreaterThan(0)
+    expect(performance.b).toBeLessThan(0)
   })
 })
 
