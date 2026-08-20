@@ -12,7 +12,7 @@ const dataAssistMethodologyHref = '/data-assist?intent=request-review&context=Me
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Methodology',
   description:
-    'How TenAceIQ calculates dynamic player ratings -- the Elo-based algorithm, K-factors, score multipliers, recency weighting, and inactivity decay.',
+    'How TenAceIQ calculates dynamic player ratings -- expected performance, game-score context, K-factors, and recency weighting.',
   path: '/methodology',
 })
 
@@ -24,7 +24,7 @@ const methodologyCards: InfoActionCard[] = [
   },
   {
     title: 'Match signal',
-    text: 'Expected outcome, score quality, recency, and inactivity shape movement.',
+    text: 'Expected performance, game score, and recency shape movement.',
     icon: 'matchupAnalysis',
   },
   {
@@ -43,7 +43,7 @@ export default function MethodologyPage() {
       <InfoPage
         kicker="Methodology"
         title="How TenAceIQ calculates dynamic ratings."
-        intro="Use this when you want to know why a rating moved. The short version: every match compares expectation, score quality, recency, source, and activity level."
+        intro="Use this when you want to know why a rating moved. Every eligible result compares expected performance with the score, then applies recency and result context. Time away alone never changes a rating."
       >
         <InfoActionGrid cards={methodologyCards} />
 
@@ -63,7 +63,7 @@ export default function MethodologyPage() {
             <p>
               Every player carries two parallel sets of dynamic ratings: a <strong>TIQ track</strong> that
               updates from all matches regardless of source, and a <strong>USTA track</strong> that updates
-              only from reviewed USTA/TennisLink league results added through Data Assist or admin review.
+              only from eligible USTA results, including reviewed local uploads and factual USTA-match evidence.
               TIQ ratings reflect full competitive activity across all leagues; USTA ratings mirror what
               a USTA-only result set would produce. Both tracks maintain separate singles, doubles, and
               overall ratings -- six dynamic values per player in total.
@@ -71,18 +71,20 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Expected score and the Elo formula</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Expected performance</h2>
             <p>
-              Before each match the system computes an expected win probability for each player:
+              Before each scored match the system estimates each side&rsquo;s expected share of games from
+              their current ratings:
             </p>
             <p style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 14px', margin: '10px 0', fontSize: 14, overflowWrap: 'anywhere' }}>
-              expected = 1 / (1 + 10 ^ ((opponent_rating - your_rating) / 0.45))
+              expected game share = 1 / (1 + 10 ^ ((opponent rating - your rating) / 1.6))
             </p>
             <p>
-              A player rated 4.0 facing a 3.5 opponent has roughly a 78% expected win chance. That
-              expectation anchors how much the result moves each player&rsquo;s rating -- beating a
-              heavily favored opponent moves the needle more than beating someone you were expected to
-              beat. The Win% column on a player&rsquo;s match history shows this pre-match probability.
+              The rating change starts with actual game share minus expected game share. A result close
+              to expectation makes only a small move. A lower-rated player who keeps a strong opponent
+              close can therefore gain rating despite losing; a favorite who wins less decisively than
+              expected can give some rating back. The Win% column remains a pre-match win estimate,
+              separate from this score-aware performance calculation.
             </p>
           </div>
 
@@ -91,8 +93,9 @@ export default function MethodologyPage() {
             <p>
               The K-factor controls how much a single match can shift a rating. TenAceIQ uses three
               separate K values: <strong>0.12 for singles</strong>, <strong>0.107 for doubles</strong>,
-              and <strong>0.052 for the overall rating</strong>. A win moves a rating by roughly
-              K x (1 - expected), and a loss by K x (0 - expected).
+              and <strong>0.052 for the overall rating</strong>. For a usable score, the movement is
+              roughly K x (actual game share - expected game share). When a score is unavailable, the
+              system uses a conservative expected win/loss fallback.
             </p>
             <p style={{ marginTop: 10 }}>
               New players are in a <strong>provisional phase</strong> where the K-factor is temporarily
@@ -111,23 +114,16 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Score quality multiplier</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How the score changes the signal</h2>
             <p>
-              A 6-0 6-0 win and a 7-6 7-6 win are not the same signal. The system applies a score
-              multiplier (ranging from 0.82 to 2.02) based on what the scoreline says about how
-              dominant the win was:
+              A 7-6, 7-6 result between similarly rated players is nearly what the ratings predict, so
+              it moves them only slightly. A 6-0, 6-0 result or a close loss by a substantially lower-
+              rated player is more informative because the game share differs more from expectation.
             </p>
-            <ul style={{ paddingLeft: 20, marginTop: 8, display: 'grid', gap: 6 }}>
-              <li><strong>Dominance ratio</strong> -- games won by the winner as a share of all games played. Higher ratio produces a larger multiplier.</li>
-              <li><strong>Straight-sets win</strong> -- small bonus for winning without dropping a set.</li>
-              <li><strong>Bagel (6-0) or breadstick (6-1) set</strong> -- additional bonus per shutout set won.</li>
-              <li><strong>Tiebreak sets</strong> -- slight reduction; a tiebreak signals a close set.</li>
-              <li><strong>Deciding (third) set</strong> -- slight reduction; both players won a set.</li>
-              <li><strong>Close sets (margin {'<='} 2 games)</strong> -- minor reduction per non-tiebreak close set.</li>
-            </ul>
             <p style={{ marginTop: 10 }}>
-              Upset wins receive an additional boost: if the lower-rated player wins, their multiplier
-              scales up based on the rating gap, rewarding results the algorithm did not expect.
+              Recent results carry somewhat more weight, and an upset win receives a modest additional
+              boost. These adjustments refine the performance signal; they do not use TennisRecord&rsquo;s
+              proprietary rating.
             </p>
           </div>
 
@@ -142,14 +138,11 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Inactivity decay</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Inactivity and confidence</h2>
             <p>
-              Ratings do not freeze permanently when a player stops competing. After 90 days of
-              inactivity, dynamic ratings begin a slow regression toward 3.5 at 2% of the gap per
-              month. A player rated 4.5 who stops playing for one year decays to roughly 4.33; after
-              two years, roughly 4.15. Players who return to competition re-enter the provisional K
-              phase, which helps them re-calibrate quickly. A staleness indicator appears on a player
-              profile when the last recorded match was more than 90 days ago.
+              Time away does not regress a player toward a default rating. TenAceIQ changes rating
+              strength only when an eligible match result is processed. Match volume and the age of a
+              player&rsquo;s last result provide context for how much evidence sits behind that rating.
             </p>
           </div>
 
@@ -159,8 +152,8 @@ export default function MethodologyPage() {
               Scores are normalized before processing. Tiebreak notation like 7-6(3) has the
               point score stripped, leaving 7-6. Match tiebreaks stored without brackets (e.g. 10-8)
               are excluded from the set-level calculation to avoid inflating game counts. A 7-5 set
-              is treated as a regular close set, not a tiebreak. Retirements and walkovers produce a
-              neutral multiplier of 1.0 -- the result counts but the margin does not.
+              is treated as a regular set, not a tiebreak. Retirements and walkovers use the
+              conservative win/loss fallback because they do not provide a complete game-share signal.
             </p>
           </div>
         </MethodologyDetails>
