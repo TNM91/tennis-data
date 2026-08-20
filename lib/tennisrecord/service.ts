@@ -7,13 +7,19 @@ import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
-type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null }
+type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
 const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 5
+const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number) {
   return Math.min(maxRequestsPerRun, SCHEDULED_TENNISRECORD_BATCH_LIMIT)
+}
+
+export function tennisRecordFailureDisposition(message: string, retryCount: number) {
+  const transient = /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
+  return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
 }
 
 export function tennisRecordAutomationDecision(state: AutomationState, cadence: 'bootstrap' | 'weekly', pendingPages: number) {
@@ -64,7 +70,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const runId = run.id as string
   const summary = emptySummary('completed')
   try {
-    let jobsQuery = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id').eq('status', 'pending')
+    let jobsQuery = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count').eq('status', 'pending')
     if (input.pageKinds?.length) jobsQuery = jobsQuery.in('page_kind', input.pageKinds)
     if (input.campaignId) jobsQuery = jobsQuery.eq('campaign_id', input.campaignId)
     const { data: jobs, error: jobsError } = await jobsQuery.order('page_kind').order('first_seen_at').limit(Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run))
@@ -84,10 +90,17 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
         await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined, job.campaign_id)
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
-        await service.from('tennisrecord_crawl_queue').update({ status: 'done', failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
+        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
         summary.parserFailures += 1
-        await service.from('tennisrecord_crawl_queue').update({ status: 'error', failure_reason: error instanceof Error ? error.message : 'Unknown collector failure' }).eq('id', job.id)
+        const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
+        const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
+        await service.from('tennisrecord_crawl_queue').update({
+          status: disposition === 'retry' ? 'pending' : 'error',
+          retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
+          failure_reason: failureReason,
+          last_error_at: new Date().toISOString(),
+        }).eq('id', job.id)
       }
     }
     const reconciled = await reconcileTennisRecordMatches(service)

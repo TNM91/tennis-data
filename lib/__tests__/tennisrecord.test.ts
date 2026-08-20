@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision } from '../tennisrecord/service'
+import { isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 
@@ -120,6 +120,13 @@ describe('TennisRecord ingestion safety', () => {
   it('uses a bounded five-page scheduled batch without exceeding the admin limit', () => {
     expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
     expect(scheduledTennisRecordBatchLimit(3)).toBe(3)
+  })
+
+  it('retries only transient source failures and quarantines them after the bounded limit', () => {
+    expect(tennisRecordFailureDisposition('fetch failed', 0)).toBe('retry')
+    expect(tennisRecordFailureDisposition('network timeout', 2)).toBe('retry')
+    expect(tennisRecordFailureDisposition('fetch failed', 3)).toBe('quarantine')
+    expect(tennisRecordFailureDisposition('Unexpected result-page markup', 0)).toBe('quarantine')
   })
 
 })
