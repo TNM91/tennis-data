@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useId, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/components/auth-provider'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
@@ -9,6 +9,7 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { supabase } from '@/lib/supabase'
 
 type SearchGroup =
   | 'Players'
@@ -26,6 +27,13 @@ type SearchResult = {
   href: string
   keywords: string[]
   requiredPlan?: PricingPlanId
+}
+
+type PlayerSuggestion = {
+  id: string
+  name: string
+  location?: string | null
+  overall_dynamic_rating?: number | null
 }
 
 const results: SearchResult[] = [
@@ -200,11 +208,40 @@ export default function UniversalSearch({
   const [activeGroup, setActiveGroup] = useState<SearchGroup | 'All'>('All')
   const [inputFocused, setInputFocused] = useState(false)
   const [focusedControl, setFocusedControl] = useState<string | null>(null)
+  const [playerSuggestions, setPlayerSuggestions] = useState<PlayerSuggestion[]>([])
+  const [playerSuggestionLoading, setPlayerSuggestionLoading] = useState(false)
   const { isMobile } = useViewportBreakpoints()
   const searchId = useId()
   const resultRegionId = `${searchId}-results`
   const router = useRouter()
   const { session } = useAuth()
+
+  useEffect(() => {
+    const trimmedQuery = query.trim()
+    if (trimmedQuery.length < 2) {
+      return
+    }
+
+    let active = true
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        setPlayerSuggestionLoading(true)
+        const { data, error } = await supabase.rpc('search_public_players', {
+          search_text: trimmedQuery,
+          result_limit: 5,
+        })
+
+        if (!active) return
+        setPlayerSuggestions(error ? [] : ((data || []) as PlayerSuggestion[]))
+        setPlayerSuggestionLoading(false)
+      })()
+    }, 180)
+
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+    }
+  }, [query])
 
   const visibleResults = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -232,6 +269,7 @@ export default function UniversalSearch({
       items: visibleResults.filter((result) => result.group === group),
     }))
     .filter((group) => group.items.length > 0)
+  const showPlayerSuggestions = query.trim().length >= 2 && (inputFocused || playerSuggestions.length > 0 || playerSuggestionLoading)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -264,6 +302,14 @@ export default function UniversalSearch({
       },
     })
     router.push(destination)
+  }
+
+  function handleQueryChange(nextQuery: string) {
+    setQuery(nextQuery)
+    if (nextQuery.trim().length < 2) {
+      setPlayerSuggestions([])
+      setPlayerSuggestionLoading(false)
+    }
   }
 
   function trackResultClick(item: SearchResult) {
@@ -315,11 +361,15 @@ export default function UniversalSearch({
           id={`tiq-universal-search-${searchId}`}
           name="q"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => handleQueryChange(event.target.value)}
           onBlur={() => setInputFocused(false)}
           onFocus={() => setInputFocused(true)}
           placeholder={placeholder}
           aria-controls={resultRegionId}
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          aria-expanded={showPlayerSuggestions}
           suppressHydrationWarning
           style={{
             ...inputStyle,
@@ -341,6 +391,30 @@ export default function UniversalSearch({
           {isMobile ? 'Search' : 'Search Tennis'}
         </button>
       </form>
+      {showPlayerSuggestions ? (
+        <section style={playerSuggestionPanelStyle} aria-label="Player name suggestions" aria-live="polite" role="listbox">
+          <div style={playerSuggestionHeaderStyle}>
+            <strong>Player matches</strong>
+            <span>{playerSuggestionLoading ? 'Searching names…' : 'Pick a player or keep searching'}</span>
+          </div>
+          {playerSuggestions.length > 0 ? (
+            <div style={playerSuggestionListStyle}>
+              {playerSuggestions.map((player) => (
+                <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerSuggestionLinkStyle} role="option">
+                  <span style={playerSuggestionNameStyle}>{player.name}</span>
+                  <span style={playerSuggestionMetaStyle}>
+                    {[player.location, typeof player.overall_dynamic_rating === 'number' ? `TIQ ${player.overall_dynamic_rating.toFixed(2)}` : null]
+                      .filter(Boolean)
+                      .join(' · ') || 'Open player profile'}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : !playerSuggestionLoading ? (
+            <div style={playerSuggestionEmptyStyle}>No close player name yet. Press Search to widen the tennis lookup.</div>
+          ) : null}
+        </section>
+      ) : null}
       {showResults && !compact ? (
         <div style={categoryRowStyle} aria-label="Search categories">
           {(['All', ...availableGroups] as Array<SearchGroup | 'All'>).map((group) => (
@@ -490,6 +564,8 @@ const searchShellStyle: CSSProperties = {
   gap: 12,
   width: '100%',
   minWidth: 0,
+  maxWidth: '100%',
+  overflowX: 'clip',
 }
 
 const formStyle = (isMobile: boolean, stackOnMobile: boolean): CSSProperties => ({
@@ -589,6 +665,68 @@ const resultGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const playerSuggestionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: 12,
+  border: '1px solid rgba(155,225,29,0.24)',
+  borderRadius: 18,
+  background: 'var(--home-dropdown-bg)',
+  boxShadow: 'var(--home-dropdown-shadow)',
+  overflow: 'hidden',
+}
+
+const playerSuggestionHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+}
+
+const playerSuggestionListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const playerSuggestionLinkStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const playerSuggestionNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 900,
+}
+
+const playerSuggestionMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const playerSuggestionEmptyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const resultGroupStyle: CSSProperties = {

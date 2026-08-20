@@ -437,15 +437,17 @@ function ExploreSearchContent() {
           }}
         >
           <div aria-hidden="true" style={watermarkStyle} />
-          <SearchCommandPanel
-            activeScope={scope}
-            query={query}
-            totalResults={totalResults}
-            onScopeChange={(nextScope) => {
-              setScope(nextScope)
-              syncUrl(query, nextScope)
-            }}
-          />
+          {!hasQuery ? (
+            <SearchCommandPanel
+              activeScope={scope}
+              query={query}
+              totalResults={totalResults}
+              onScopeChange={(nextScope) => {
+                setScope(nextScope)
+                syncUrl(query, nextScope)
+              }}
+            />
+          ) : null}
 
           <form
             onSubmit={handleSubmit}

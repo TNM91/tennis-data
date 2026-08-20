@@ -24,6 +24,7 @@ describe('free Explore search', () => {
     expect(exploreSearch).toContain("supabase.rpc('search_public_players'")
     expect(exploreSearch).toContain('Closest name matches')
     expect(exploreSearch.indexOf('sectionKicker}>Search results')).toBeLessThan(exploreSearch.lastIndexOf('{hasQuery ? searchNextActionsPanel : null}'))
+    expect(exploreSearch).toContain('{!hasQuery ? (')
   })
 
   it('keeps the mobile player profile from becoming a horizontal scroll surface', () => {

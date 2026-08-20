@@ -123,4 +123,12 @@ describe('universal search result model', () => {
     expect(source).toContain("formData.get('q')")
     expect(source).toContain("typeof submittedQuery === 'string' ? submittedQuery : query")
   })
+
+  it('offers live player-name autocomplete before someone has to leave the search field', () => {
+    expect(source).toContain("supabase.rpc('search_public_players'")
+    expect(source).toContain('Player name suggestions')
+    expect(source).toContain('Player matches')
+    expect(source).toContain('aria-autocomplete="list"')
+    expect(source).toContain('aria-expanded={showPlayerSuggestions}')
+  })
 })
