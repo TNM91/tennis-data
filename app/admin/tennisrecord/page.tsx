@@ -7,11 +7,12 @@ import { AdminReviewFrame, AdminReviewHero } from '@/app/admin/_components/admin
 import { supabase } from '@/lib/supabase'
 
 type Status = {
-  settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly' } | null
+  settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; active_campaign_id?: string | null } | null
   lastRun: Record<string, unknown> | null
   pendingPages: number
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
+  campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string }>
 }
 
 export default function TennisRecordAdminPage() {
@@ -52,6 +53,7 @@ export default function TennisRecordAdminPage() {
 
   const run = status?.lastRun || {}
   const automationState = status?.settings?.automation_state || 'manual'
+  const activeCampaign = status?.campaigns?.find((campaign) => campaign.id === status?.settings?.active_campaign_id)
   const automationButtonLabel = automationState === 'bootstrap' ? 'Pause regional automation' : automationState === 'weekly' ? 'Pause scheduled sync' : 'Start regional automation'
   const nextAutomationState = automationState === 'manual' ? 'bootstrap' : 'manual'
   return (
@@ -63,6 +65,7 @@ export default function TennisRecordAdminPage() {
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
           <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
+          <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />
           <Metric label="Last status" value={String(run.status || 'Never')} />
@@ -78,6 +81,10 @@ export default function TennisRecordAdminPage() {
           <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Disable collector' : 'Enable collector'}</button>
           <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: nextAutomationState })}>{automationButtonLabel}</button>
           {automationState === 'manual' ? <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: 'weekly' })}>Enable weekly sync</button> : null}
+          <select aria-label="Active historical campaign" value={status?.settings?.active_campaign_id || ''} disabled={busy || !status?.campaigns?.length} onChange={(event) => void act({ action: 'set_active_campaign', campaignId: event.target.value })}>
+            <option value="">Choose campaign</option>
+            {status?.campaigns?.filter((campaign) => campaign.status !== 'completed').map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.starts_on} to {campaign.ends_on}</option>)}
+          </select>
           <input aria-label="Public TennisRecord seed URL" value={seedUrl} onChange={(event) => setSeedUrl(event.target.value)} placeholder="Public TennisRecord match URL" style={{ minWidth: 280, flex: '1 1 280px' }} />
           <button className="button-secondary" disabled={busy || !seedUrl.trim()} onClick={() => void act({ action: 'enqueue', urls: [seedUrl] })}>Queue page</button>
         </div>

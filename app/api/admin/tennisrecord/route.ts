@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
-  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown } | null
+  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown; campaignId?: unknown } | null
   const action = typeof body?.action === 'string' ? body.action : ''
   try {
     if (action === 'set_enabled') {
@@ -36,8 +36,20 @@ export async function POST(request: Request) {
     }
     if (action === 'enqueue') {
       const urls = Array.isArray(body?.urls) ? body.urls.filter((url): url is string => typeof url === 'string') : []
-      const queued = await enqueueTennisRecordUrls(auth.service, urls)
+      const settings = await auth.service.from('tennisrecord_collector_settings').select('active_campaign_id').eq('id', true).single()
+      if (settings.error) throw settings.error
+      const queued = await enqueueTennisRecordUrls(auth.service, urls, settings.data.active_campaign_id)
       return Response.json({ ok: true, queued })
+    }
+    if (action === 'set_active_campaign') {
+      const campaignId = typeof body?.campaignId === 'string' ? body.campaignId.trim() : ''
+      if (!campaignId) return Response.json({ ok: false, message: 'Choose a historical campaign.' }, { status: 400 })
+      const campaign = await auth.service.from('tennisrecord_campaigns').select('id,status').eq('id', campaignId).maybeSingle()
+      if (campaign.error) throw campaign.error
+      if (!campaign.data || campaign.data.status === 'completed') return Response.json({ ok: false, message: 'That campaign is not available for collection.' }, { status: 400 })
+      const { error } = await auth.service.from('tennisrecord_collector_settings').update({ active_campaign_id: campaignId, updated_by_user_id: auth.userId }).eq('id', true)
+      if (error) throw error
+      return Response.json({ ok: true, campaignId })
     }
     if (action === 'resolve_identity') {
       const stagedPlayerId = typeof body?.stagedPlayerId === 'string' ? body.stagedPlayerId.trim() : ''
