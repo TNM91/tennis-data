@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
+import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -49,14 +49,26 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.discoveredUrls).toEqual(expect.arrayContaining([
       'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern',
       'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example',
-      'https://www.tennisrecord.com/adult/matchresults.aspx?mid=123',
     ]))
     expect(parsed.discoveredUrls).not.toEqual(expect.arrayContaining([
+      'https://www.tennisrecord.com/adult/matchresults.aspx?mid=123',
       'https://www.tennisrecord.com/adult/search.aspx',
       'https://www.tennisrecord.com/favicon-16x16.png',
     ]))
     expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern')).toBe('player')
     expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/search.aspx')).toBeNull()
+  })
+
+  it('keeps bootstrap discovery anchored to results and prevents profile fan-out', () => {
+    const profileSource = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern'
+    const matchUrl = 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=123'
+    const playerUrl = 'https://www.tennisrecord.com/adult/profile.aspx?playername=John+Uy'
+    const teamUrl = 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example'
+    expect(isAllowedTennisRecordDiscovery('https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487', playerUrl)).toBe(true)
+    expect(isAllowedTennisRecordDiscovery('https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487', teamUrl)).toBe(true)
+    expect(isAllowedTennisRecordDiscovery(profileSource, matchUrl)).toBe(true)
+    expect(isAllowedTennisRecordDiscovery(profileSource, playerUrl)).toBe(false)
+    expect(isAllowedTennisRecordDiscovery(profileSource, teamUrl)).toBe(false)
   })
 
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {

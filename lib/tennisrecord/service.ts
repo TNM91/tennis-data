@@ -41,7 +41,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: { trig
   const runId = run.id as string
   const summary = emptySummary('completed')
   try {
-    const { data: jobs, error: jobsError } = await service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind').eq('status', 'pending').order('first_seen_at').limit(Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run))
+    const { data: jobs, error: jobsError } = await service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind').eq('status', 'pending').order('page_kind').order('first_seen_at').limit(Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run))
     if (jobsError) throw new Error(jobsError.message)
     for (const job of (jobs || []) as QueueRow[]) {
       summary.pagesAttempted += 1
