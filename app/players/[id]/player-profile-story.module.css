@@ -1,7 +1,10 @@
 .profileExperience {
   width: min(100%, 1480px);
+  min-width: 0;
+  max-width: 100%;
   margin: 0 auto;
   padding: 18px 18px 0;
+  overflow-x: clip;
   color: #f8fbff;
 }
 
@@ -14,6 +17,7 @@
   gap: 6px;
   width: fit-content;
   max-width: 100%;
+  box-sizing: border-box;
   margin: 0 auto 12px;
   padding: 6px;
   overflow-x: auto;
@@ -803,15 +807,20 @@
   .profileNav {
     position: relative;
     top: auto;
-    justify-content: flex-start;
+    justify-content: center;
     width: 100%;
     margin-bottom: 8px;
     border-radius: 18px;
+    overflow: hidden;
+    flex-wrap: wrap;
   }
 
   .profileNav a {
+    flex: 1 1 29%;
     min-height: 38px;
     padding: 9px 13px;
+    text-align: center;
+    white-space: normal;
   }
 
   .storyHero {

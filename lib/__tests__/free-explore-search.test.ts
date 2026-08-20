@@ -6,6 +6,7 @@ const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
 const universalSearch = read('app/components/universal-search.tsx')
 const exploreSearch = read('app/explore/search/page.tsx')
 const exploreHome = read('app/explore/page.tsx')
+const playerProfileStory = read('app/players/[id]/player-profile-story.module.css')
 
 describe('free Explore search', () => {
   it('sends an unmatched home or Explore query into the free player search path', () => {
@@ -17,6 +18,18 @@ describe('free Explore search', () => {
     expect(exploreSearch).toContain(".ilike('name', pattern)")
     expect(exploreSearch).toContain(".ilike('location', pattern)")
     expect(exploreSearch).not.toContain(".limit(250)")
+  })
+
+  it('offers close player-name matches and puts the player result ahead of follow-up actions', () => {
+    expect(exploreSearch).toContain("supabase.rpc('search_public_players'")
+    expect(exploreSearch).toContain('Closest name matches')
+    expect(exploreSearch.indexOf('sectionKicker}>Search results')).toBeLessThan(exploreSearch.lastIndexOf('{hasQuery ? searchNextActionsPanel : null}'))
+  })
+
+  it('keeps the mobile player profile from becoming a horizontal scroll surface', () => {
+    expect(playerProfileStory).toContain('overflow-x: clip')
+    expect(playerProfileStory).toContain('overflow: hidden')
+    expect(playerProfileStory).toContain('flex-wrap: wrap')
   })
 
   it('keeps Explore free while giving searchers a clear plan comparison path', () => {
