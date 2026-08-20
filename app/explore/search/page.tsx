@@ -767,21 +767,32 @@ function ExploreSearchContent() {
 }
 
 async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating')
-    .order('name', { ascending: true })
-    .limit(250)
+  const pattern = `%${term.trim()}%`
+  const select = 'id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating'
+  const [nameResult, locationResult] = await Promise.all([
+    supabase
+      .from('players')
+      .select(select)
+      .ilike('name', pattern)
+      .order('name', { ascending: true })
+      .limit(8),
+    supabase
+      .from('players')
+      .select(select)
+      .ilike('location', pattern)
+      .order('name', { ascending: true })
+      .limit(8),
+  ])
 
-  if (error) throw new Error(error.message)
+  if (nameResult.error) throw new Error(nameResult.error.message)
+  if (locationResult.error) throw new Error(locationResult.error.message)
 
-  const normalizedTerm = term.toLowerCase()
-  return (((data || []) as PlayerSearchRow[]) || [])
-    .filter((row) => {
-      const haystack = [row.name, row.location || ''].join(' ').toLowerCase()
-      return haystack.includes(normalizedTerm)
-    })
-    .slice(0, 8)
+  return Array.from(
+    new Map(
+      [...((nameResult.data || []) as PlayerSearchRow[]), ...((locationResult.data || []) as PlayerSearchRow[])]
+        .map((player) => [player.id, player]),
+    ).values(),
+  ).slice(0, 8)
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {

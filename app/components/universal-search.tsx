@@ -251,7 +251,7 @@ export default function UniversalSearch({
     const first = visibleResults[0]
     const destination = first
       ? buildResultHref(first, q, Boolean(session?.user))
-      : `/explore/search?q=${encodeURIComponent(q)}`
+      : buildFreePlayerSearchHref(q)
     const searchEvent = getSearchIntentEvent(q, first?.group)
     void trackProductUsageEvent({
       eventName: visibleResults.length ? searchEvent.eventName : 'zero_result_seen',
@@ -479,6 +479,10 @@ function appendSearchQuery(href: string, query: string) {
   const [pathWithSearch, hash = ''] = href.split('#')
   const separator = pathWithSearch.includes('?') ? '&' : '?'
   return `${pathWithSearch}${separator}q=${encodeURIComponent(q)}${hash ? `#${hash}` : ''}`
+}
+
+function buildFreePlayerSearchHref(query: string) {
+  return `/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`
 }
 
 const searchShellStyle: CSSProperties = {
