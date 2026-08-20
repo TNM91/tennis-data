@@ -51,14 +51,18 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   for (const block of html.matchAll(heading)) {
     const discipline = block[1].toLowerCase() as 'singles' | 'doubles'
     const courtNumber = Number(block[2])
-    const cells = [...block[3].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => cell[1])
-    const left = parseProfileLinks(cells[0] || '', 'A', 1)
-    const right = parseProfileLinks(cells[cells.length - 1] || '', 'B', 1)
+    const resultRow = [...block[3].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)]
+      .map((row) => [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => cell[1]))
+      .find((cells) => cells.filter((cell) => /profile\.aspx/i.test(cell)).length >= 2) || []
+    const profileCells = resultRow.filter((cell) => /profile\.aspx/i.test(cell))
+    const left = parseProfileLinks(profileCells[0] || '', 'A', 1)
+    const right = parseProfileLinks(profileCells[profileCells.length - 1] || '', 'B', 1)
     const expected = discipline === 'singles' ? 1 : 2
     if (left.length !== expected || right.length !== expected) continue
-    const scoreText = [...(cells[1] || '').matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
+    const scoreCell = resultRow.find((cell) => /\b\d+\s*-\s*\d+\b/.test(cell)) || ''
+    const scoreText = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
     const participants = [...left, ...right]
-    const winnerSide = parseWinnerSide(cells[0] || '', left)
+    const winnerSide = parseWinnerSide(profileCells[0] || '', left)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
     matches.push({ sourceMatchKey, sourceUrl, playedOn, leagueName, flight, homeTeam, awayTeam, discipline, courtNumber, scoreText, winnerSide, participants })
   }
