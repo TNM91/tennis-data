@@ -10,6 +10,7 @@ function htmlDecode(value: string) { return value.replace(/&amp;/gi, '&').replac
 function getText(html: string) { return stripTags(html) }
 
 export type TennisRecordRecordPageKind = 'match' | 'player' | 'team'
+const MAX_DISCOVERED_RECORD_URLS_PER_PAGE = 25
 
 /**
  * Only record pages that this collector understands are eligible for follow-up
@@ -25,6 +26,20 @@ export function tennisRecordRecordPageKind(value: string): TennisRecordRecordPag
   if (pathname === '/adult/profile.aspx' && url.searchParams.has('playername')) return 'player'
   if (pathname === '/adult/teamprofile.aspx' && url.searchParams.has('teamname')) return 'team'
   return null
+}
+
+/**
+ * Bootstrap breadth is deliberately limited. A seed match may introduce its
+ * participants and teams; subsequent player/team pages may introduce match
+ * evidence only. This prevents profile-link fan-out from becoming a broad
+ * crawl while still allowing the source graph to grow through actual results.
+ */
+export function isAllowedTennisRecordDiscovery(sourceUrl: string, candidateUrl: string) {
+  const sourceKind = tennisRecordRecordPageKind(sourceUrl)
+  const candidateKind = tennisRecordRecordPageKind(candidateUrl)
+  if (!sourceKind || !candidateKind) return false
+  if (sourceKind === 'match') return candidateKind === 'player' || candidateKind === 'team'
+  return candidateKind === 'match'
 }
 
 function readDate(text: string) {
@@ -106,8 +121,8 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const teams: TennisRecordTeam[] = [homeTeam, awayTeam].filter(Boolean).map((name) => ({ sourceTeamKey: sourceKey('trt', `${name}::${leagueName}::${flight}::${seasonYear || ''}`), name, leagueName, flight, seasonYear, sourceUrl }))
   const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
     .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
-    .filter((url) => Boolean(tennisRecordRecordPageKind(url)))
-  return { players: [...players.values()], teams, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)] }
+    .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
+  return { players: [...players.values()], teams, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, MAX_DISCOVERED_RECORD_URLS_PER_PAGE) }
 }
 
 export function normalizedTennisRecordPlayerName(player: TennisRecordPlayer) { return normalizeTennisIdentity(player.name) }
