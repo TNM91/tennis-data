@@ -85,7 +85,15 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       const existing = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id,status').in('staged_player_id', staged.map((player) => player.id))
       if (existing.error) throw new Error(existing.error.message)
       const alreadyMapped = new Set((existing.data || []).filter((row) => row.canonical_player_id || row.status === 'rejected').map((row) => row.staged_player_id))
-      const provisional = staged.filter((player) => !alreadyMapped.has(player.id))
+      const local = await service.from('players').select('id,normalized_name,name').in('normalized_name', staged.map((player) => player.normalized_name))
+      if (local.error) throw new Error(local.error.message)
+      const localNames = new Set((local.data || []).map((player) => player.normalized_name || normalizedTennisRecordPlayerName({ name: player.name } as Parameters<typeof normalizedTennisRecordPlayerName>[0])))
+      const collisions = staged.filter((player) => !alreadyMapped.has(player.id) && localNames.has(player.normalized_name))
+      const provisional = staged.filter((player) => !alreadyMapped.has(player.id) && !localNames.has(player.normalized_name))
+      if (collisions.length) {
+        const review = await service.from('tennisrecord_player_identities').upsert(collisions.map((player) => ({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['same_name_local_player_requires_review'] })), { onConflict: 'staged_player_id' })
+        if (review.error) throw new Error(review.error.message)
+      }
       if (provisional.length) {
         const created = await service.from('players').upsert(provisional.map((player) => ({ name: player.name, normalized_name: player.normalized_name, location: [player.city, player.state].filter(Boolean).join(', ') || null, rating_source: 'self', external_source: 'tennisrecord', external_source_key: player.source_player_key, is_external_provisional: true })), { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
         if (created.error) throw new Error(created.error.message)
