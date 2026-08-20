@@ -360,7 +360,10 @@ function buildStructuredScorecardLines(rows: HtmlRow[]) {
 
 function normalizeScorecardLineLabel(value: string) {
   const triLevelMatch = value.match(/\b[2-5](?:\.[05])\s*(Singles|Doubles)\s*#\s*([1-5])/i)
-  if (triLevelMatch) return `${triLevelMatch[2]} ${triLevelMatch[1]}`
+  if (triLevelMatch) {
+    const rating = value.match(/\b([2-5](?:\.[05]))\b/)?.[1]
+    return rating ? `${rating} ${triLevelMatch[1]} #${triLevelMatch[2]}` : ''
+  }
 
   const match = value.match(/\b([1-5])#?\s*(Singles|Doubles)/i)
   return match ? `${match[1]} ${match[2]}` : ''
