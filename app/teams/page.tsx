@@ -15,6 +15,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { isPublicTeamDirectoryName } from '@/lib/team-directory'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -191,7 +192,7 @@ export default function TeamsPage() {
         const homeTeam = cleanText(row.home_team)
         const awayTeam = cleanText(row.away_team)
 
-        return Boolean(homeTeam && awayTeam)
+        return isPublicTeamDirectoryName(homeTeam, row.league_name) && isPublicTeamDirectoryName(awayTeam, row.league_name)
       })
 
       if (!matches.length) {
@@ -234,7 +235,7 @@ export default function TeamsPage() {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
 
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryName(homeTeam, match.league_name) || !isPublicTeamDirectoryName(awayTeam, match.league_name)) continue
 
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
@@ -352,7 +353,7 @@ export default function TeamsPage() {
       for (const match of matches) {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryName(homeTeam, match.league_name) || !isPublicTeamDirectoryName(awayTeam, match.league_name)) continue
 
         matchMetaById.set(match.id, {
           league: cleanText(match.league_name),
