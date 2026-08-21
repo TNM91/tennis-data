@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName } from '../team-directory'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '../team-directory'
 
 describe('public team directory trust filter', () => {
   it('keeps factual team names while rejecting page headings and league metadata', () => {
@@ -23,5 +23,10 @@ describe('public team directory trust filter', () => {
       awayTeam: '2026 Adult 18+ Missouri Valley M 4.0',
       source: 'tennisrecord',
     })).toBe(false)
+  })
+
+  it('recognizes underscore-delimited schedule source identifiers', () => {
+    expect(isScheduleTeamSource('tennislink_schedule | 2026 STL Tri-Level 18 & Over')).toBe(true)
+    expect(isScheduleTeamSource('tennislink_scorecard_data_assist')).toBe(false)
   })
 })

@@ -77,6 +77,11 @@ export function isPublicTeamDirectoryMatch(match: {
   return true
 }
 
+/** Source identifiers use underscores (for example, tennislink_schedule). */
+export function isScheduleTeamSource(source: string | null | undefined) {
+  return normalizeName(source).includes('schedule')
+}
+
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`
 }
