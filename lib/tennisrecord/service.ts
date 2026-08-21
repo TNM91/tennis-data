@@ -6,7 +6,7 @@ import { canonicalTennisRecordFingerprint, sourcePriority } from './reconcile'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
-type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
+type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
@@ -60,6 +60,24 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     countCampaignPages('error'),
   ])
   if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
+  const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
+  const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
+    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status).eq('page_kind', 'match')
+    if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
+    if (weeklyStartedAt) query = query.gte(timestampColumn, weeklyStartedAt)
+    return query
+  }
+  const emptyWeeklyCount = { count: 0, error: null }
+  const [weeklyPending, weeklyCompleted, weeklyRunning, weeklyBlocked, weeklyErrors] = weeklyStartedAt
+    ? await Promise.all([
+      countWeeklyPages('pending', 'last_seen_at'),
+      countWeeklyPages('done', 'completed_at'),
+      countWeeklyPages('running', 'last_seen_at'),
+      countWeeklyPages('blocked', 'completed_at'),
+      countWeeklyPages('error', 'completed_at'),
+    ])
+    : [emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount]
+  if (weeklyPending.error || weeklyCompleted.error || weeklyRunning.error || weeklyBlocked.error || weeklyErrors.error) throw new Error('TennisRecord weekly progress is unavailable.')
   return {
     settings: settings.data,
     lastRun: lastRun.data,
@@ -70,6 +88,14 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       running: campaignRunning.count || 0,
       blocked: campaignBlocked.count || 0,
       errors: campaignErrors.count || 0,
+    },
+    weeklyProgress: {
+      startedAt: weeklyStartedAt,
+      pending: weeklyPending.count || 0,
+      completed: weeklyCompleted.count || 0,
+      running: weeklyRunning.count || 0,
+      blocked: weeklyBlocked.count || 0,
+      errors: weeklyErrors.count || 0,
     },
     conflicts: conflicts.count || 0,
     identityReview: identities.data || [],
