@@ -10,7 +10,9 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
-const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 5
+// Eight serial requests retain generous headroom inside the 300-second Pro
+// function limit while preserving the configured per-request pacing.
+const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 8
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number) {
