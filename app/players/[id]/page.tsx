@@ -1543,6 +1543,31 @@ function PlayerProfileContent() {
           </aside>
         </article>
 
+        {mostRecentMatches.length > 0 ? (
+          <article className={profileStory.mobileResultsPreview} aria-label="Recent form preview">
+            <div className={profileStory.mobileResultsPreviewHead}>
+              <div>
+                <span>Recent form</span>
+                <h2>Latest scorecards</h2>
+              </div>
+              <a href="#profile-matches">All results</a>
+            </div>
+            <div className={profileStory.mobileResultsPreviewGrid}>
+              {mostRecentMatches.slice(0, 2).map((match) => (
+                <a key={match.id} href="#profile-matches" className={profileStory.mobileResultPreviewCard} data-result={match.result} aria-label={`${match.result === 'W' ? 'Win' : 'Loss'} against ${match.opponent}: ${match.score}`}>
+                  <div>
+                    <span>{formatDate(match.date)}</span>
+                    <b>{match.result}</b>
+                  </div>
+                  <strong>{match.opponent}</strong>
+                  <small>{match.score || 'Score awaiting review'}</small>
+                </a>
+              ))}
+            </div>
+            <a href="#profile-matches" className={profileStory.mobileResultsPreviewAction}>Open match history</a>
+          </article>
+        ) : null}
+
         <section id="profile-player-id" className={profileStory.playerIdentityPanel}>
           <article className={profileStory.playerIdStory}>
             <div className={profileStory.playerFocusVisual} aria-hidden="true">

@@ -48,4 +48,13 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('Player access unlocks saved Player ID reads, matchup prep, and My Lab.')
     expect(styles).toContain('.playerAccessHint')
   })
+
+  it('surfaces recent scorecards as large phone-first cards before the deeper profile reads', () => {
+    expect(page).toContain('aria-label="Recent form preview"')
+    expect(page).toContain('Latest scorecards')
+    expect(page).toContain('Open match history')
+    expect(page.indexOf('mobileResultsPreview')).toBeLessThan(page.indexOf('id="profile-player-id"'))
+    expect(styles).toContain('.mobileResultsPreviewGrid')
+    expect(styles).toContain(".mobileResultPreviewCard[data-result='W']")
+  })
 })
