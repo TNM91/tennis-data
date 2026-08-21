@@ -1132,29 +1132,30 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
           const total = row.wins + row.losses
           const winPct = Math.round((row.wins / total) * 100)
           return (
-            <div style={teamRecordBarWrap}>
+            <div style={teamSnapshotStyle} aria-label={`${row.team} team form`}>
+              <div style={teamSnapshotHeadingStyle}>
+                <span>Team form</span>
+                <strong>{row.wins}W - {row.losses}L</strong>
+              </div>
               <div style={teamRecordBar}>
-                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.65),rgba(74,222,128,0.65))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
-                <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
+                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.72),rgba(74,222,128,0.72))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
+                <div style={{ flex: 1, background: 'rgba(239,68,68,0.24)' }} />
               </div>
-              <div style={teamRecordLegend}>
-                <span style={teamRecordWinText}>{row.wins}W - {winPct}%</span>
-                <span style={teamRecordLossText}>{row.losses}L</span>
-              </div>
+              <span style={teamRecordWinText}>{winPct}% win rate</span>
+
+              {row.recentForm.length > 0 ? (
+                <div style={recentFormRow}>
+                  <span style={recentFormLabel}>Last five</span>
+                  {row.recentForm.map((r, i) => (
+                    <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )
         })() : null}
-
-        {row.recentForm.length > 0 ? (
-          <div style={recentFormRow}>
-            <span style={recentFormLabel}>Form</span>
-            {row.recentForm.map((r, i) => (
-              <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
-                {r}
-              </span>
-            ))}
-          </div>
-        ) : null}
 
         <div style={metricsGrid}>
           <Metric label="Matches" value={String(row.matchCount)} />
@@ -2010,9 +2011,27 @@ const teamAwardPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordBarWrap: CSSProperties = {
-  marginBottom: 10,
+const teamSnapshotStyle: CSSProperties = {
+  marginTop: 16,
+  padding: '12px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.06))',
   minWidth: 0,
+}
+
+const teamSnapshotHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  flexWrap: 'wrap',
 }
 
 const teamRecordBar: CSSProperties = {
@@ -2021,15 +2040,7 @@ const teamRecordBar: CSSProperties = {
   overflow: 'hidden',
   height: 7,
   background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
-  marginBottom: 5,
-  minWidth: 0,
-}
-
-const teamRecordLegend: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 8,
-  flexWrap: 'wrap',
+  marginBottom: 7,
   minWidth: 0,
 }
 
@@ -2040,18 +2051,11 @@ const teamRecordWinText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordLossText: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#fca5a5',
-  overflowWrap: 'anywhere',
-}
-
 const recentFormRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  marginBottom: 10,
+  marginTop: 10,
   flexWrap: 'wrap',
   minWidth: 0,
 }
