@@ -156,4 +156,15 @@ describe('player profile mobile streamline', () => {
     expect(migration).toContain('Public can read player achievement showcases')
     expect(migration).toContain('Players can update their own achievement showcase')
   })
+
+  it('uses the Trophy Case badge collection for the public profile showcase', () => {
+    const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
+    const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile-story.module.css'), 'utf8')
+
+    expect(page).toContain('buildPlayerTrophyBadges')
+    expect(page).toContain('featuredTrophyBadge')
+    expect(page).toContain('Featured trophy')
+    expect(page).toContain('badge{earnedTrophyBadges.length === 1')
+    expect(styles).toContain('.featuredTrophyBadge')
+  })
 })
