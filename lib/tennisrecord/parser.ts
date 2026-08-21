@@ -9,6 +9,14 @@ function htmlDecode(value: string) { return value.replace(/&amp;/gi, '&').replac
 
 function getText(html: string) { return stripTags(html) }
 
+const NON_TEAM_LABELS = new Set(['match results', 'team name', 'home team', 'visiting team', 'score', 'courts won'])
+
+function isTeamName(value: string) {
+  const name = value.trim().replace(/\s+/g, ' ')
+  const normalized = name.toLowerCase()
+  return name.length >= 2 && name.length <= 160 && !NON_TEAM_LABELS.has(normalized) && !/^20\d{2}\s+adult\b/i.test(name)
+}
+
 export type TennisRecordRecordPageKind = 'match' | 'player' | 'team' | 'history'
 const MAX_DISCOVERED_RECORD_URLS_PER_PAGE = 25
 
@@ -51,8 +59,20 @@ function readDate(text: string) {
   return match ? `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}` : ''
 }
 function readTeamNames(html: string) {
-  const table = html.match(/<table[^>]*>[\s\S]*?<th[^>]*>\s*Team Name\s*<\/th>[\s\S]*?<\/table>/i)?.[0] || ''
-  return [...table.matchAll(/<tr[^>]*>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => getText(match[1])).filter(Boolean).slice(0, 2)
+  const teamTable = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)]
+    .map((match) => match[0])
+    .find((table) => /<th[^>]*>\s*Team Name\s*<\/th>/i.test(table)) || ''
+
+  return [...teamTable.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)]
+    .map((row) => row[1].match(/<td[^>]*>([\s\S]*?)<\/td>/i)?.[1] || '')
+    .map(getText)
+    .filter(isTeamName)
+    .slice(0, 2)
+}
+
+function readLeagueName(plain: string) {
+  const currentOrLegacy = plain.match(/Match\s+Results\s+(.+?)\s+Scheduled\s+Date\s*:/i)?.[1] || ''
+  return currentOrLegacy.trim()
 }
 function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: number) {
   const participants: TennisRecordParticipant[] = []
@@ -89,7 +109,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const plain = getText(html)
   const playedOn = readDate(plain)
   const [homeTeam = '', awayTeam = ''] = readTeamNames(html)
-  const leagueName = getText(html.match(/<h2[^>]*>\s*Match Results\s*<\/h2>\s*<div[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '')
+  const leagueName = readLeagueName(plain)
   const flight = leagueName.match(/\b[1-7](?:\.0|\.5)\b/)?.[0] || ''
   const matches: TennisRecordMatch[] = []
   // Older pages use headings; current public pages use a styled inner div in a
@@ -111,6 +131,9 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const participants = [...left, ...right]
     const winnerSide = parseWinnerSide(profileCells[0] || '', left) || winnerFromScoreText(scoreText)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
+    // Do not turn a page heading or league label into a team. A court result
+    // only becomes staging evidence when the event context is complete.
+    if (!playedOn || !leagueName || !isTeamName(homeTeam) || !isTeamName(awayTeam)) continue
     matches.push({ sourceMatchKey, sourceUrl, playedOn, leagueName, flight, homeTeam, awayTeam, discipline, courtNumber, scoreText, winnerSide, participants })
   }
   const players = new Map<string, TennisRecordPlayer>()
@@ -134,7 +157,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   }
   const seasonYear = Number(leagueName.match(/\b(20\d{2})\b/)?.[1]) || null
   const leagues: TennisRecordLeague[] = leagueName ? [{ sourceLeagueKey: sourceKey('trl', `${leagueName}::${flight}::${seasonYear || ''}`), name: leagueName, flight, seasonYear, sourceUrl }] : []
-  const teams: TennisRecordTeam[] = [homeTeam, awayTeam].filter(Boolean).map((name) => ({ sourceTeamKey: sourceKey('trt', `${name}::${leagueName}::${flight}::${seasonYear || ''}`), name, leagueName, flight, seasonYear, sourceUrl }))
+  const teams: TennisRecordTeam[] = [homeTeam, awayTeam].filter(isTeamName).map((name) => ({ sourceTeamKey: sourceKey('trt', `${name}::${leagueName}::${flight}::${seasonYear || ''}`), name, leagueName, flight, seasonYear, sourceUrl }))
   const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
     .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
