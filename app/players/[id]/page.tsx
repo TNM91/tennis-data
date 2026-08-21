@@ -1361,10 +1361,9 @@ function PlayerProfileContent() {
   ]
   const visibleLastFive = filteredMatches.slice(0, 5)
   const publicRecentResults = filteredMatches.slice(0, showAllPublicResults ? undefined : 3).map((match) => {
-    const snapshot = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
     return {
       ...match,
-      opponentRating: snapshot?.opponent_rating ?? null,
+      context: match.leagueName || `${capitalize(match.matchType)} match`,
     }
   })
   const publicTrendPoints = chartPoints.slice(-10)
@@ -1787,19 +1786,25 @@ function PlayerProfileContent() {
             {publicRecentResults.length > 0 ? (
               <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
                 <div className={profileStory.recentResultSnapshotHeading}>
-                  <span>Recent scorecards</span>
+                  <span>Match tape</span>
                   <small>{showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`}</small>
                 </div>
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => (
                     <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
-                      <div>
-                        <strong>{match.result}</strong>
+                      <div className={profileStory.recentResultTileTopline}>
+                        <strong aria-label={match.result === 'W' ? 'Win' : 'Loss'}>{match.result}</strong>
                         <span>{capitalize(match.matchType)} · {formatChartDate(match.date)}</span>
+                        <b>{match.score || 'Score pending'}</b>
                       </div>
-                      <b>{match.score || 'Score pending'}</b>
-                      <small>vs {match.opponent}</small>
-                      <em>{formatChartDate(match.date)}{match.opponentRating !== null ? ` · ${match.opponentRating.toFixed(2)}` : ''}</em>
+                      <div className={profileStory.recentResultOpponent}>
+                        <span>Opponent</span>
+                        <strong>{match.opponent}</strong>
+                      </div>
+                      <div className={profileStory.recentResultTileMeta}>
+                        <span>{match.context}</span>
+                        {match.partner ? <span>With {match.partner}</span> : null}
+                      </div>
                     </article>
                   ))}
                 </div>
@@ -1810,7 +1815,7 @@ function PlayerProfileContent() {
                     aria-expanded={showAllPublicResults}
                     onClick={() => setShowAllPublicResults((current) => !current)}
                   >
-                    {showAllPublicResults ? 'Show recent three' : `View all ${filteredMatches.length} matches`}
+                    {showAllPublicResults ? 'Show recent three' : `View full match tape (${filteredMatches.length})`}
                   </button>
                 ) : null}
               </div>
