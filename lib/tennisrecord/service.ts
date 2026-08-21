@@ -28,6 +28,11 @@ const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 2
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
+// Profiles and team pages carry factual location and roster context. They
+// must travel with match/history pages, otherwise the campaign cannot safely
+// grow from its own verified source graph.
+export const TENNISRECORD_BOOTSTRAP_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
+export const TENNISRECORD_WEEKLY_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
 // Revision 3 adds source roster observations from explicitly-labelled team
 // roster tables. Captured public pages replay gradually through the existing
 // bounded checkpoint, so historical team pages benefit without a re-crawl.
@@ -98,7 +103,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
   const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
   const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
-    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status).eq('page_kind', 'match')
+    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status).in('page_kind', TENNISRECORD_WEEKLY_PAGE_KINDS)
     if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
     if (weeklyStartedAt) query = query.gte(timestampColumn, weeklyStartedAt)
     return query
@@ -263,7 +268,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run, cadence)
 
   if (cadence === 'bootstrap') {
-    let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team', 'history'])
+    let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
     if (settings.active_campaign_id) pendingQuery = pendingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count, error: countError } = await pendingQuery
     if (countError) throw new Error(countError.message)
@@ -280,7 +285,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       }
     }
     const refreshedPending = settings.active_campaign_id
-      ? await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('campaign_id', settings.active_campaign_id).in('page_kind', ['match', 'team', 'history'])
+      ? await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('campaign_id', settings.active_campaign_id).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
       : { count, error: null }
     if (refreshedPending.error) throw new Error(refreshedPending.error.message)
     const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, refreshedPending.count || 0, knownPages)
@@ -291,9 +296,9 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       if (finishError) throw new Error(finishError.message)
       return emptySummary('completed')
     }
-    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: ['match', 'team', 'history'], campaignId: settings.active_campaign_id })
+    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: [...TENNISRECORD_BOOTSTRAP_PAGE_KINDS], campaignId: settings.active_campaign_id })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
-    let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team', 'history'])
+    let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
     if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count: remaining, error: remainingError } = await remainingQuery
     if (remainingError) throw new Error(remainingError.message)
@@ -305,7 +310,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   }
 
   if (tennisRecordAutomationDecision(settings.automation_state, cadence, 1) === 'skip') return emptySummary('skipped')
-  let weeklyPendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('page_kind', 'match')
+  let weeklyPendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', TENNISRECORD_WEEKLY_PAGE_KINDS)
   if (settings.active_campaign_id) weeklyPendingQuery = weeklyPendingQuery.eq('campaign_id', settings.active_campaign_id)
   const { count: pending, error: pendingError } = await weeklyPendingQuery
   if (pendingError) throw new Error(pendingError.message)
@@ -315,7 +320,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     const { error: refreshError } = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'weekly')
     if (refreshError) throw new Error(refreshError.message)
   }
-  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['history', 'match'], campaignId: settings.active_campaign_id })
+  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: [...TENNISRECORD_WEEKLY_PAGE_KINDS], campaignId: settings.active_campaign_id })
 }
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */

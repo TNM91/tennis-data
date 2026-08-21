@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordFailureDisposition, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -203,6 +203,8 @@ describe('TennisRecord ingestion safety', () => {
     expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(8)
     expect(scheduledTennisRecordBatchLimit(8, 'weekly')).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5, 'weekly')).toBe(5)
+    expect(TENNISRECORD_BOOTSTRAP_PAGE_KINDS).toEqual(['history', 'match', 'player', 'team'])
+    expect(TENNISRECORD_WEEKLY_PAGE_KINDS).toEqual(['history', 'match', 'player', 'team'])
   })
 
   it('retries only transient source failures and quarantines them after the bounded limit', () => {
