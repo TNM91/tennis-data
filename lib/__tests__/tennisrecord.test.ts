@@ -169,11 +169,12 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFrontierStatus(1, urls.length)).toBe('seeded')
   })
 
-  it('uses a bounded eight-page scheduled batch without exceeding the admin limit', () => {
-    expect(scheduledTennisRecordBatchLimit(12)).toBe(8)
-    expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
-    expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
-    expect(scheduledTennisRecordBatchLimit(3)).toBe(3)
+  it('uses a low-I/O two-page scheduled batch without exceeding the admin limit', () => {
+    expect(scheduledTennisRecordBatchLimit(12)).toBe(2)
+    expect(scheduledTennisRecordBatchLimit(8)).toBe(2)
+    expect(scheduledTennisRecordBatchLimit(5)).toBe(2)
+    expect(scheduledTennisRecordBatchLimit(2)).toBe(2)
+    expect(scheduledTennisRecordBatchLimit(1)).toBe(1)
   })
 
   it('retries only transient source failures and quarantines them after the bounded limit', () => {

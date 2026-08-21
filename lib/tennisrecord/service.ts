@@ -11,9 +11,11 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
-// Eight serial requests retain generous headroom inside the 300-second Pro
-// function limit while preserving the configured per-request pacing.
-const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 8
+// Historical backfill is intentionally gentler than the Admin-configured
+// ceiling. This keeps the automatic checkpoint safely below the database I/O
+// budget while preserving resumable progress.
+const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 2
+const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const TENNISRECORD_PARSER_REVISION = 2
 
@@ -163,6 +165,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const summary = emptySummary('completed')
   try {
     const replay = await reparseCapturedTennisRecordMatchPages(service, runId, input.campaignId)
+    const touchedSourceMatchKeys = new Set<string>()
     summary.pagesProcessed += replay.pagesProcessed
     summary.playersDiscovered += replay.playersDiscovered
     summary.teamsDiscovered += replay.teamsDiscovered
@@ -195,7 +198,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           }).eq('id', job.id)
           continue
         }
-        await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined, job.campaign_id, TENNISRECORD_PARSER_REVISION)
+        for (const sourceMatchKey of await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined, job.campaign_id, TENNISRECORD_PARSER_REVISION)) {
+          touchedSourceMatchKeys.add(sourceMatchKey)
+        }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
         await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
@@ -210,7 +215,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         }).eq('id', job.id)
       }
     }
-    const reconciled = await reconcileTennisRecordMatches(service)
+    const reconciled = await reconcileTennisRecordMatches(service, [...replay.sourceMatchKeys, ...touchedSourceMatchKeys])
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures }).eq('id', runId)
     return summary
@@ -334,10 +339,10 @@ function isActiveRunLockError(error: { code?: string; message?: string }) {
   return error.code === '23505' && /tennisrecord_sync_runs_one_active_idx/i.test(error.message || '')
 }
 
-type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'>
+type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[] }
 
 async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, runId: string, campaignId?: string | null): Promise<ParserReplaySummary> {
-  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0 }
+  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [] }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
     .select('id,source_url,raw_html')
@@ -345,7 +350,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     .lt('parser_revision', TENNISRECORD_PARSER_REVISION)
     .not('raw_html', 'is', null)
     .order('last_seen_at', { ascending: false })
-    .limit(SCHEDULED_TENNISRECORD_BATCH_LIMIT)
+    .limit(SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT)
   if (error) throw new Error(error.message)
 
   for (const page of pages || []) {
@@ -367,7 +372,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     if (isMatchPage && !hasCompleteMatches) {
       summary.parserFailures += 1
     } else {
-      await stageParsedPage(service, parsed, page.id as string, campaignId, TENNISRECORD_PARSER_REVISION)
+      summary.sourceMatchKeys.push(...await stageParsedPage(service, parsed, page.id as string, campaignId, TENNISRECORD_PARSER_REVISION))
       summary.pagesProcessed += 1
       summary.playersDiscovered += parsed.players.length
       summary.teamsDiscovered += parsed.teams.length
@@ -381,6 +386,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
 }
 
 async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, pageId?: string, campaignId?: string | null, parserRevision = TENNISRECORD_PARSER_REVISION) {
+  let savedSourceMatchKeys: string[] = []
   if (parsed.players.length) {
     const { data: staged, error } = await service.from('tennisrecord_staged_players').upsert(parsed.players.map((player) => ({ source_player_key: player.sourcePlayerKey, name: player.name, normalized_name: normalizedTennisRecordPlayerName(player), city: player.city || null, state: player.state || null, ntrp_label: player.ntrpLabel || null, published_rating: player.publishedRating || null, source_url: player.sourceUrl, raw: player, last_seen_at: new Date().toISOString() })), { onConflict: 'source_player_key' }).select('id,source_player_key,name,normalized_name,city,state')
     if (error) throw new Error(error.message)
@@ -437,16 +443,20 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
     const { data: saved, error } = await service.from('tennisrecord_staged_matches').upsert(rows, { onConflict: 'source_match_key' }).select('id,fingerprint,source_match_key,source_url,score_text,winner_side,participants')
     if (error) throw new Error(error.message)
     if (saved?.length) {
+      savedSourceMatchKeys = saved.map((match) => match.source_match_key as string)
       const observationRows = saved.map((match) => ({ fingerprint: match.fingerprint, source: 'tennisrecord', source_priority: sourcePriority('tennisrecord'), source_record_id: match.source_match_key, source_url: match.source_url, staged_match_id: match.id, score_text: match.score_text, winner_side: match.winner_side, participants: match.participants, raw: { stagedMatchId: match.id }, confidence: 0.55, captured_at: now, last_seen_at: now }))
       const observation = await service.from('tennisrecord_match_observations').upsert(observationRows, { onConflict: 'fingerprint,source,source_record_id' })
       if (observation.error) throw new Error(observation.error.message)
     }
   }
   if (parsed.discoveredUrls.length) await enqueueTennisRecordUrls(service, parsed.discoveredUrls, campaignId)
+  return savedSourceMatchKeys
 }
 
-async function reconcileTennisRecordMatches(service: SupabaseClient) {
-  const { data: staged, error } = await service.from('tennisrecord_staged_matches').select('id,source_match_key,source_url,fingerprint,played_on,league_name,flight,home_team,away_team,discipline,court_number,score_text,winner_side,participants').eq('parse_status', 'valid').order('last_seen_at', { ascending: false }).limit(500)
+async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatchKeys: string[]) {
+  const uniqueSourceMatchKeys = [...new Set(sourceMatchKeys.filter(Boolean))]
+  if (!uniqueSourceMatchKeys.length) return { created: 0, duplicates: 0, conflicts: 0 }
+  const { data: staged, error } = await service.from('tennisrecord_staged_matches').select('id,source_match_key,source_url,fingerprint,played_on,league_name,flight,home_team,away_team,discipline,court_number,score_text,winner_side,participants').eq('parse_status', 'valid').in('source_match_key', uniqueSourceMatchKeys)
   if (error) throw new Error(error.message)
   let created = 0; let duplicates = 0; let conflicts = 0
   let ratingChanged = false
