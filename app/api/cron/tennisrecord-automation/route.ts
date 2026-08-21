@@ -2,8 +2,8 @@ import { createServerSupabaseClient } from '@/lib/ingestion/autoImport'
 import { runAutomaticTennisRecordSync } from '@/lib/tennisrecord/service'
 
 export const runtime = 'nodejs'
-// A single page can trigger reconciliation and a TenAceIQ rating recalculation.
-// On Pro, retain the one-page checkpoint but allow that bounded work to finish.
+// The collector uses small, resumable checkpoints and may trigger a TenAceIQ
+// rating recalculation. Retain enough time for the bounded work to finish.
 export const maxDuration = 300
 
 export async function GET(request: Request) {
