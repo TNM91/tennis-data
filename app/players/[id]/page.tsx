@@ -1306,11 +1306,33 @@ function PlayerProfileContent() {
   const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
   const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
   const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches ? 'Compare players' : storyActionLabel
-  const heroSecondaryHref = '#profile-matches'
-  const heroSecondaryLabel = isPublicExplorerProfile ? 'View results' : 'Recent matches'
+  const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'
+  const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'
   const ratingJourneyTitle = hasPersonalPlayerExperience
     ? hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Your first result starts the trend'
     : hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Rating history'
+  const publicPerformanceStats = [
+    {
+      label: 'Record',
+      value: `${wins}–${losses}`,
+      note: 'Verified results',
+    },
+    {
+      label: 'Win rate',
+      value: `${winPct}%`,
+      note: `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}`,
+    },
+    {
+      label: 'Match mix',
+      value: `${singlesRecord.total}S · ${doublesRecord.total}D`,
+      note: 'Singles · doubles',
+    },
+    {
+      label: 'TIQ movement',
+      value: recentTrendDelta === null ? '—' : `${recentTrendDelta > 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`,
+      note: recentTrendDelta === null ? 'More results needed' : 'Recent rating change',
+    },
+  ]
   const visibleLastFive = filteredMatches.slice(0, 5)
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1401,7 +1423,7 @@ function PlayerProfileContent() {
         <nav className={profileStory.profileNav} aria-label="Player profile sections">
           <a href="#profile-overview">Overview</a>
           <a href="#profile-rating-journey">Rating</a>
-          <a href="#profile-matches">Matches</a>
+          <a href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}>{isPublicExplorerProfile ? 'Stats' : 'Matches'}</a>
           {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
           <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link>
         </nav>
@@ -1485,6 +1507,27 @@ function PlayerProfileContent() {
             </div>
           </div>
         </article>
+
+        {isPublicExplorerProfile && hasTrackedMatches ? (
+          <section id="profile-performance" className={profileStory.performanceSnapshot} aria-label="Player performance snapshot">
+            <div className={profileStory.performanceSnapshotHeading}>
+              <div>
+                <span>Performance snapshot</span>
+                <h2>Verified match evidence</h2>
+              </div>
+              <span>{ratingViewLabel}</span>
+            </div>
+            <div className={profileStory.performanceStatGrid}>
+              {publicPerformanceStats.map((stat) => (
+                <article key={stat.label} className={profileStory.performanceStat}>
+                  <span>{stat.label}</span>
+                  <strong>{stat.value}</strong>
+                  <small>{stat.note}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <article id="profile-rating-journey" className={profileStory.journeyPanel}>
           <div className={profileStory.journeyMain}>
