@@ -11,6 +11,8 @@ describe('TennisRecord Admin import progress', () => {
   it('returns scoped campaign queue states for an active historical import', () => {
     expect(service).toContain('campaignProgress: {')
     expect(service).toContain('weeklyProgress: {')
+    expect(service).toContain('tennisrecord_admin_coverage_summary')
+    expect(service).toContain('coverage: (coverage.data as CoverageSummary | null)')
     expect(service).toContain("countCampaignPages('pending')")
     expect(service).toContain("countCampaignPages('done')")
     expect(service).toContain('seedTennisRecordCampaignFrontier')
@@ -27,6 +29,9 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Pause automatic collection')
     expect(adminPage).toContain('Next refresh: Wednesday')
     expect(adminPage).toContain('Missouri history starts automatically')
+    expect(adminPage).toContain('aria-label="TennisRecord data coverage"')
+    expect(adminPage).toContain('Filterable teams')
+    expect(adminPage).toContain('Awaiting promotion')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {
