@@ -97,6 +97,15 @@ describe('Players Player ID launchpad', () => {
     expect(styleBlock('playerCardTrustBodyStyle')).toContain('minWidth: 0')
   })
 
+  it('adds real recent match form to the player directory cards', () => {
+    expect(source).toContain('const matchEvidenceByPlayer = new Map')
+    expect(source).toContain("recentForm: Array<'W' | 'L'>")
+    expect(source).toContain('aria-label={`${player.name} recent match form`}')
+    expect(source).toContain('style={playerFormRail}')
+    expect(source).toContain("data-result={result}")
+    expect(styleBlock('playerFormRail')).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto auto'")
+  })
+
   it('keeps the mobile player directory controls compact', () => {
     expect(source).toContain("padding: isMobile ? '10px' : '18px'")
     expect(source).toContain("borderRadius: isMobile ? '16px' : controlsShell.borderRadius")
