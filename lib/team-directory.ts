@@ -21,9 +21,35 @@ export type TeamDirectoryOption = {
   mostRecentMatchDate: string | null
 }
 
+const NON_TEAM_LABELS = new Set([
+  'match results',
+  'home team',
+  'away team',
+  'team name',
+  'team',
+  'tbd',
+  'unknown',
+  'n/a',
+])
+
 function cleanText(value: string | null | undefined) {
   const text = (value || '').trim()
   return text.length > 0 ? text : null
+}
+
+function normalizeName(value: string | null | undefined) {
+  return (cleanText(value) || '').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').toLowerCase()
+}
+
+/** Reject source headings and league metadata that have leaked into team columns. */
+export function isPublicTeamDirectoryName(value: string | null | undefined, league?: string | null) {
+  const name = cleanText(value)
+  const normalizedName = normalizeName(value)
+  const normalizedLeague = normalizeName(league)
+  if (!name || normalizedName.length < 2 || NON_TEAM_LABELS.has(normalizedName)) return false
+  if (normalizedLeague && normalizedName === normalizedLeague) return false
+  if (/^20\d{2}\s+adult\b/i.test(name)) return false
+  return true
 }
 
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
@@ -58,7 +84,7 @@ export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]>
   const matches = ((data || []) as TeamMatchRow[]).filter((row) => {
     const home = cleanText(row.home_team)
     const away = cleanText(row.away_team)
-    return Boolean(home && away)
+    return isPublicTeamDirectoryName(home, row.league_name) && isPublicTeamDirectoryName(away, row.league_name)
   })
 
   const directory = new Map<string, TeamDirectoryOption>()
@@ -66,7 +92,7 @@ export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]>
   for (const match of matches) {
     const home = cleanText(match.home_team)
     const away = cleanText(match.away_team)
-    if (!home || !away) continue
+    if (!home || !away || !isPublicTeamDirectoryName(home, match.league_name) || !isPublicTeamDirectoryName(away, match.league_name)) continue
 
     const league = cleanText(match.league_name)
     const flight = cleanText(match.flight)

@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
+import { isPublicTeamDirectoryName } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
@@ -887,7 +888,7 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
     const flight = cleanText(row.flight) || null
     const allowedTeams = allowedTeamsByScope.get(buildTeamKey('', league, flight))
     for (const teamName of [cleanText(row.home_team), cleanText(row.away_team)]) {
-      if (!teamName) continue
+      if (!isPublicTeamDirectoryName(teamName, league)) continue
       if (allowedTeams?.size && !allowedTeams.has(normalizeTeamName(teamName))) continue
       const haystack = [teamName, league || '', flight || ''].join(' ').toLowerCase()
       if (!haystack.includes(normalizedTerm)) continue
