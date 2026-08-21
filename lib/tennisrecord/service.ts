@@ -48,6 +48,11 @@ export function isTennisRecordWeeklyWindowOpen(now = new Date()) {
   return weekday === 'Wed'
 }
 
+/** Start once for a newly provisioned collector; later Admin pauses stay paused. */
+export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'automation_state' | 'bootstrap_started_at' | 'bootstrap_completed_at'> | null) {
+  return settings?.automation_state === 'manual' && !settings.bootstrap_started_at && !settings.bootstrap_completed_at
+}
+
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
   const [settings, lastRun, pending, conflicts, identities, campaigns] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
@@ -268,10 +273,23 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
-  const { data, error } = await service.from('tennisrecord_collector_settings').select('automation_state').eq('id', true).single()
+  const { data, error } = await service.from('tennisrecord_collector_settings').select('automation_state,bootstrap_started_at,bootstrap_completed_at').eq('id', true).single()
   if (error) throw new Error(error.message)
-  if (data?.automation_state !== 'bootstrap' && data?.automation_state !== 'weekly') return emptySummary('skipped')
-  return runScheduledTennisRecordSync(service, data.automation_state)
+  let automationState = data?.automation_state as AutomationState | undefined
+  if (shouldSelfStartTennisRecordBootstrap(data as Pick<Settings, 'automation_state' | 'bootstrap_started_at' | 'bootstrap_completed_at'> | null)) {
+    const { data: activated, error: activationError } = await service.from('tennisrecord_collector_settings')
+      .update({ enabled: true, automation_state: 'bootstrap', bootstrap_started_at: new Date().toISOString(), bootstrap_completed_at: null })
+      .eq('id', true)
+      .eq('automation_state', 'manual')
+      .is('bootstrap_started_at', null)
+      .is('bootstrap_completed_at', null)
+      .select('automation_state')
+      .maybeSingle()
+    if (activationError) throw new Error(activationError.message)
+    automationState = activated?.automation_state as AutomationState | undefined
+  }
+  if (automationState !== 'bootstrap' && automationState !== 'weekly') return emptySummary('skipped')
+  return runScheduledTennisRecordSync(service, automationState)
 }
 
 async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number, campaignId?: string | null) {
