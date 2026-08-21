@@ -1291,6 +1291,21 @@ function PlayerProfileContent() {
   const storyChapterBody = hasTrackedMatches
     ? `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'} now shape this ${ratingViewLabel.toLowerCase()} read. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
     : 'Add the first reviewed scorecard to turn this official baseline into form, movement, and matchup insight.'
+  const isPublicExplorerProfile = !isOwnProfile
+  const publicProfileTitle = hasTrackedMatches
+    ? `${ratingStatus} based on ${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}.`
+    : isRosterOnlyProfile
+      ? 'Rostered player. Match history is still building.'
+      : 'Match history is still building.'
+  const publicProfileBody = hasTrackedMatches
+    ? 'Review recent scorecards, rating movement, and team history below.'
+    : 'The verified USTA baseline is available now; scorecards add form and rating movement as they arrive.'
+  const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'
+  const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
+  const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
+  const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches ? 'Compare players' : storyActionLabel
+  const heroSecondaryHref = isPublicExplorerProfile ? '#profile-matches' : isOwnProfile ? '#profile-matches' : playerPathDevelopmentHref
+  const heroSecondaryLabel = isPublicExplorerProfile ? 'View results' : isOwnProfile ? 'Recent matches' : 'Open Player ID'
   const visibleLastFive = filteredMatches.slice(0, 5)
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1386,7 +1401,7 @@ function PlayerProfileContent() {
           <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link>
         </nav>
 
-        <article id="profile-overview" className={profileStory.storyHero}>
+        <article id="profile-overview" className={profileStory.storyHero} data-public-profile={isPublicExplorerProfile}>
           <div className={profileStory.storyContent}>
             <div>
               <div className={profileStory.identityTopline}>
@@ -1415,17 +1430,12 @@ function PlayerProfileContent() {
                 </div>
 
                 <div className={profileStory.journeyCopy}>
-                  <span>Your tennis journey</span>
-                  <h2>{storyChapter}</h2>
-                  <p>{storyChapterBody}</p>
+                  <span>{heroEyebrow}</span>
+                  <h2>{heroStoryTitle}</h2>
+                  <p>{heroStoryBody}</p>
                   <div className={profileStory.heroActions}>
-                    <Link href={storyActionHref} className={profileStory.primaryAction}>{storyActionLabel}</Link>
-                    <Link
-                      href={isOwnProfile ? '#profile-matches' : playerPathDevelopmentHref}
-                      className={profileStory.quietAction}
-                    >
-                      {isOwnProfile ? 'Recent matches' : 'Open Player ID'}
-                    </Link>
+                    <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
+                    <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
                     {isOwnProfile ? (
                       <button
                         type="button"
@@ -1438,7 +1448,7 @@ function PlayerProfileContent() {
                   </div>
                   {shouldShowPlayerAccessHint ? (
                     <div className={profileStory.playerAccessHint}>
-                      <span>Player access unlocks saved Player ID reads, matchup prep, and My Lab.</span>
+                      <span>Player access adds saved reads, matchup prep, and My Lab.</span>
                       <Link href="/pricing">See Player access</Link>
                     </div>
                   ) : null}

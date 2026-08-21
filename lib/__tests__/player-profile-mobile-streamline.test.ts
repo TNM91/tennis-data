@@ -7,8 +7,8 @@ const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile
 
 describe('player profile mobile streamline', () => {
   it('puts owner actions and actual match history on the shortest path', () => {
-    expect(page).toContain("{isOwnProfile ? 'Recent matches' : 'Open Player ID'}")
-    expect(page).toContain("href={isOwnProfile ? '#profile-matches' : playerPathDevelopmentHref}")
+    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-matches'")
+    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
     expect(page).toContain("'Share profile'")
     expect(page).toContain('profileStory.mobileOnlyAction')
     expect(page).toContain('id="profile-matches"')
@@ -45,7 +45,7 @@ describe('player profile mobile streamline', () => {
   it('uses phone-first season cards and explains the Player upgrade without a large interruption', () => {
     expect(page).toContain('isMobile ? (')
     expect(page).toContain('seasonMobileListStyle')
-    expect(page).toContain('Player access unlocks saved Player ID reads, matchup prep, and My Lab.')
+    expect(page).toContain('Player access adds saved reads, matchup prep, and My Lab.')
     expect(styles).toContain('.playerAccessHint')
   })
 
@@ -56,5 +56,13 @@ describe('player profile mobile streamline', () => {
     expect(page.indexOf('mobileResultsPreview')).toBeLessThan(page.indexOf('id="profile-player-id"'))
     expect(styles).toContain('.mobileResultsPreviewGrid')
     expect(styles).toContain(".mobileResultPreviewCard[data-result='W']")
+  })
+
+  it('gives free explorers a compact player snapshot instead of an owner-style journey', () => {
+    expect(page).toContain("const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'")
+    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
+    expect(page).toContain("data-public-profile={isPublicExplorerProfile}")
+    expect(page).toContain("'Compare players'")
+    expect(styles).toContain(".storyHero[data-public-profile='true'] .storyContent")
   })
 })
