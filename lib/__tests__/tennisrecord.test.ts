@@ -133,7 +133,9 @@ describe('TennisRecord ingestion safety', () => {
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
   })
 
-  it('uses a bounded five-page scheduled batch without exceeding the admin limit', () => {
+  it('uses a bounded eight-page scheduled batch without exceeding the admin limit', () => {
+    expect(scheduledTennisRecordBatchLimit(12)).toBe(8)
+    expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
     expect(scheduledTennisRecordBatchLimit(3)).toBe(3)
   })
