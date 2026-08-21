@@ -34,6 +34,12 @@ type TeamSummaryLeagueRow = {
   source?: string | null
 }
 
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+}
+
 export type LeagueCard = {
   key: string
   leagueId?: string
@@ -402,6 +408,22 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
   if (!summaryTeamError) {
     for (const row of (summaryTeamRows || []) as TeamSummaryLeagueRow[]) {
       addLeagueSummaryTeam(leagueMap, row)
+    }
+  }
+
+  const { data: tennisRecordTeamRows, error: tennisRecordTeamError } = await supabase
+    .from('tennisrecord_public_team_context')
+    .select('team_name, league_name, flight')
+    .limit(LEAGUE_SUMMARY_FETCH_LIMIT)
+
+  if (!tennisRecordTeamError) {
+    for (const row of (tennisRecordTeamRows || []) as TennisRecordTeamContextRow[]) {
+      addLeagueSummaryTeam(leagueMap, {
+        ...row,
+        usta_section: null,
+        district_area: null,
+        source: 'tennisrecord',
+      })
     }
   }
 

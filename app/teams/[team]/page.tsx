@@ -113,6 +113,12 @@ type TeamSummaryTeamRow = {
   raw_capture_json?: unknown
 }
 
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+}
+
 type RosterPlayer = Player & {
   appearances: number
   singlesAppearances: number
@@ -432,6 +438,35 @@ function TeamPageContent() {
 
       const { data: exactSummaryTeamData, error: summaryTeamError } = await summaryTeamQuery
       let summaryTeamData = (exactSummaryTeamData || []) as TeamSummaryTeamRow[]
+
+      let tennisRecordContextQuery = supabase
+        .from('tennisrecord_public_team_context')
+        .select('team_name, league_name, flight')
+        .ilike('team_name', team)
+        .limit(20)
+
+      if (leagueFilter) tennisRecordContextQuery = tennisRecordContextQuery.eq('league_name', leagueFilter)
+      if (flightFilter) tennisRecordContextQuery = tennisRecordContextQuery.eq('flight', flightFilter)
+
+      const { data: tennisRecordContextData, error: tennisRecordContextError } = await tennisRecordContextQuery
+      if (!tennisRecordContextError) {
+        const existingScopes = new Set(
+          summaryTeamData.map((row) => `${cleanText(row.team_name)}__${cleanText(row.league_name)}__${cleanText(row.flight)}`),
+        )
+        for (const row of (tennisRecordContextData || []) as TennisRecordTeamContextRow[]) {
+          const key = `${cleanText(row.team_name)}__${cleanText(row.league_name)}__${cleanText(row.flight)}`
+          if (existingScopes.has(key)) continue
+          summaryTeamData.push({
+            team_name: row.team_name,
+            league_name: row.league_name,
+            flight: row.flight,
+            usta_section: null,
+            district_area: null,
+            raw_capture_json: null,
+          })
+          existingScopes.add(key)
+        }
+      }
 
       if (!summaryTeamError && summaryTeamData.length === 0 && (leagueFilter || flightFilter)) {
         let scopedSummaryTeamQuery = supabase
