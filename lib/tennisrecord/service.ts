@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
-import { canonicalTennisRecordFingerprint, sourcePriority } from './reconcile'
+import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
 import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
@@ -437,6 +437,18 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   }
   if (parsed.teams.length) {
     const { error } = await service.from('tennisrecord_staged_teams').upsert(parsed.teams.map((team) => ({ source_team_key: team.sourceTeamKey, name: team.name, league_name: team.leagueName || null, flight: team.flight || null, season_year: team.seasonYear, source_url: team.sourceUrl, raw: team, last_seen_at: new Date().toISOString() })), { onConflict: 'source_team_key' })
+    if (error) throw new Error(error.message)
+  }
+  if (parsed.teamMembers.length) {
+    const { error } = await service.from('tennisrecord_staged_team_memberships').upsert(parsed.teamMembers.map((member) => ({
+      team_name: member.teamName,
+      normalized_team_name: normalizeTennisIdentity(member.teamName),
+      source_player_key: member.sourcePlayerKey,
+      player_name: member.name,
+      source_url: member.sourceUrl,
+      raw: member,
+      last_seen_at: new Date().toISOString(),
+    })), { onConflict: 'normalized_team_name,source_player_key' })
     if (error) throw new Error(error.message)
   }
   if (parsed.matches.length) {

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './reconcile'
-import type { ParsedTennisRecordPage, TennisRecordLeague, TennisRecordMatch, TennisRecordParticipant, TennisRecordPlayer, TennisRecordSide, TennisRecordTeam } from './types'
+import type { ParsedTennisRecordPage, TennisRecordLeague, TennisRecordMatch, TennisRecordParticipant, TennisRecordPlayer, TennisRecordSide, TennisRecordTeam, TennisRecordTeamMember } from './types'
 
 function clean(value: string) { return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim() }
 function stripTags(value: string) { return clean(value.replace(/<br\s*\/?\s*>/gi, ' ')) }
@@ -95,6 +95,45 @@ function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: numb
 function parseWinnerSide(html: string, a: TennisRecordParticipant[]) {
   return /winner/i.test(html) && a.length ? 'A' as const : null
 }
+
+/**
+ * Team membership is intentionally stricter than participant parsing. A
+ * player becomes a source roster observation only when a team-profile page
+ * contains a table explicitly labelled as a roster. Match-result participants
+ * are never inferred to be team members because court side does not prove
+ * which team listing they belong to on every historical layout.
+ */
+function parseExplicitTeamRoster(html: string, sourceUrl: string): TennisRecordTeamMember[] {
+  if (tennisRecordRecordPageKind(sourceUrl) !== 'team') return []
+
+  let url: URL
+  try { url = new URL(sourceUrl) } catch { return [] }
+  const teamName = clean(url.searchParams.get('teamname')?.replace(/\+/g, ' ') || '')
+  if (!isTeamName(teamName)) return []
+
+  const members = new Map<string, TennisRecordTeamMember>()
+  for (const table of html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)) {
+    const tableHtml = table[0]
+    const precedingHtml = html.slice(Math.max(0, (table.index || 0) - 500), table.index || 0)
+    const scope = `${getText(precedingHtml)} ${getText(tableHtml)}`
+    if (!/\b(?:team\s+roster|player\s+roster|roster)\b/i.test(scope)) continue
+
+    const headerText = [...tableHtml.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((header) => getText(header[1])).join(' ')
+    if (!/\b(?:player|name)\b/i.test(headerText)) continue
+
+    for (const participant of parseProfileLinks(tableHtml, 'A', 1)) {
+      if (!participant.name || members.has(participant.sourcePlayerKey)) continue
+      members.set(participant.sourcePlayerKey, {
+        teamName,
+        sourcePlayerKey: participant.sourcePlayerKey,
+        name: participant.name,
+        sourceUrl,
+      })
+    }
+  }
+
+  return [...members.values()]
+}
 function winnerFromScoreText(scoreText: string) {
   let a = 0; let b = 0
   for (const score of scoreText.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)) {
@@ -144,6 +183,14 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
       city: '', state: '', ntrpLabel: '', publishedRating: participant.publishedRating, sourceUrl: match.sourceUrl,
     })
   }
+  const teamMembers = parseExplicitTeamRoster(html, sourceUrl)
+  for (const member of teamMembers) {
+    players.set(member.sourcePlayerKey, {
+      sourcePlayerKey: member.sourcePlayerKey,
+      name: member.name,
+      city: '', state: '', ntrpLabel: '', sourceUrl: member.sourceUrl,
+    })
+  }
   // Only player profiles are eligible to provide player-level provenance when
   // there are no court rows. A history page is discovery-only, so its display
   // of an external rating can never enter staging, reconciliation, or ratings.
@@ -161,7 +208,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
     .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
-  return { players: [...players.values()], teams, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, MAX_DISCOVERED_RECORD_URLS_PER_PAGE) }
+  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, MAX_DISCOVERED_RECORD_URLS_PER_PAGE) }
 }
 
 export function normalizedTennisRecordPlayerName(player: TennisRecordPlayer) { return normalizeTennisIdentity(player.name) }

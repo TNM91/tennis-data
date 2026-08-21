@@ -114,6 +114,21 @@ describe('TennisRecord ingestion safety', () => {
     ])
   })
 
+  it('only treats explicitly labelled team-roster tables as source membership context', () => {
+    const teamUrl = 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example+Team'
+    const explicitRoster = `
+      <h2>Example Team</h2>
+      <h3>Team Roster</h3>
+      <table><tr><th>Player Name</th></tr>
+      <tr><td><a href="/adult/profile.aspx?playername=Taylor+Smith">Taylor Smith</a></td></tr></table>`
+    const parsed = parseTennisRecordMatchPage(explicitRoster, teamUrl)
+    expect(parsed.teamMembers).toEqual([expect.objectContaining({ teamName: 'Example Team', name: 'Taylor Smith' })])
+    expect(parsed.players.map((player) => player.name)).toEqual(['Taylor Smith'])
+
+    const participantTable = explicitRoster.replace('Team Roster', 'Recent results')
+    expect(parseTennisRecordMatchPage(participantTable, teamUrl).teamMembers).toEqual([])
+  })
+
   it('keeps the same canonical fingerprint when a verified local score corrects TennisRecord', () => {
     const [match] = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026').matches
     const corrected = { ...match, scoreText: '6-4 7-5' }
