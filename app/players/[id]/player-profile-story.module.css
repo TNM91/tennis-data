@@ -548,6 +548,105 @@
   line-height: 1.35;
 }
 
+.matchQualitySnapshot {
+  display: grid;
+  gap: 10px;
+}
+
+.matchQualitySnapshotHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.matchQualitySnapshotHeading > span {
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.matchQualitySnapshotHeading > small {
+  color: rgba(228, 238, 251, 0.56);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.matchQualityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(4, 15, 29, 0.54);
+}
+
+.matchQualityMetric {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.matchQualityMetric:nth-child(even) {
+  border-left: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.matchQualityMetric:nth-child(n + 3) {
+  border-top: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.matchQualityMetric > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.matchQualityMetric span {
+  min-width: 0;
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.matchQualityMetric strong {
+  flex: 0 0 auto;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.matchQualityMetric small {
+  overflow: hidden;
+  color: rgba(228, 238, 251, 0.6);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matchQualityMetric > i {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.16);
+}
+
+.matchQualityMetric > i > b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4d9fff, #d9f84a);
+}
+
 .recentResultSnapshot {
   display: grid;
   gap: 10px;
@@ -712,6 +811,37 @@
 
 .journeyHeadingRow h2 {
   font-size: 28px;
+}
+
+.ratingHistorySummary {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 16px;
+  color: rgba(228, 238, 251, 0.66);
+  background: rgba(4, 15, 29, 0.42);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.ratingHistoryAction {
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(116, 190, 255, 0.26);
+  border-radius: 12px;
+  color: #d9f84a;
+  background: rgba(11, 29, 52, 0.54);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ratingHistoryAction:hover {
+  border-color: rgba(155, 225, 29, 0.48);
+  background: rgba(155, 225, 29, 0.1);
 }
 
 .matchCount {

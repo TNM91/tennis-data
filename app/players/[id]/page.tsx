@@ -623,6 +623,7 @@ function PlayerProfileContent() {
   const totalMatches = filteredMatches.length
   const hasTrackedMatches = totalMatches > 0
   const winPct = totalMatches > 0 ? String(Math.round((wins / totalMatches) * 100)) : '0'
+  const [showMobileRatingHistory, setShowMobileRatingHistory] = useState(false)
   const [showAllPublicResults, setShowAllPublicResults] = useState(false)
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
@@ -1343,6 +1344,38 @@ function PlayerProfileContent() {
     }
   })
   const publicTrendPoints = chartPoints.slice(-10)
+  const scoredMatches = filteredMatches.filter((match) => /\d+\s*[-:]\s*\d+/.test(match.score || ''))
+  const competitiveScorecards = scoredMatches.filter((match) => {
+    const sets = Array.from((match.score || '').matchAll(/(\d+)\s*[-:]\s*(\d+)/g))
+    return sets.some((set) => Math.abs(Number(set[1]) - Number(set[2])) <= 2)
+  }).length
+  const publicMatchQuality = [
+    {
+      label: 'Singles',
+      value: singlesRecord.total ? `${singlesRecord.w}–${singlesRecord.l}` : '—',
+      note: singlesRecord.total ? `${Math.round((singlesRecord.w / singlesRecord.total) * 100)}% wins` : 'No results yet',
+      percent: singlesRecord.total ? Math.round((singlesRecord.w / singlesRecord.total) * 100) : 0,
+    },
+    {
+      label: 'Doubles',
+      value: doublesRecord.total ? `${doublesRecord.w}–${doublesRecord.l}` : '—',
+      note: doublesRecord.total ? `${Math.round((doublesRecord.w / doublesRecord.total) * 100)}% wins` : 'No results yet',
+      percent: doublesRecord.total ? Math.round((doublesRecord.w / doublesRecord.total) * 100) : 0,
+    },
+    {
+      label: 'Close scorecards',
+      value: scoredMatches.length ? `${competitiveScorecards}/${scoredMatches.length}` : '—',
+      note: scoredMatches.length ? 'At least one close set' : 'Scores still arriving',
+      percent: scoredMatches.length ? Math.round((competitiveScorecards / scoredMatches.length) * 100) : 0,
+    },
+    {
+      label: 'Avg opponent',
+      value: avgOpponentRating !== null ? avgOpponentRating.toFixed(2) : '—',
+      note: avgOpponentRating !== null ? `${ratingViewLabel} TIQ rating` : 'More context needed',
+      percent: avgOpponentRating !== null ? Math.min(100, Math.round((avgOpponentRating / 7) * 100)) : 0,
+    },
+  ]
+  const showDetailedRatingHistory = !isMobile || showMobileRatingHistory
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
   const hasPlayerDetailPanels =
@@ -1553,6 +1586,24 @@ function PlayerProfileContent() {
                 </article>
               ))}
             </div>
+            <div className={profileStory.matchQualitySnapshot} aria-label="Match quality snapshot">
+              <div className={profileStory.matchQualitySnapshotHeading}>
+                <span>Match quality</span>
+                <small>Scorecards and competition context</small>
+              </div>
+              <div className={profileStory.matchQualityGrid}>
+                {publicMatchQuality.map((metric) => (
+                  <article key={metric.label} className={profileStory.matchQualityMetric}>
+                    <div>
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
+                    </div>
+                    <small>{metric.note}</small>
+                    <i aria-hidden="true"><b style={{ width: `${metric.percent}%` }} /></i>
+                  </article>
+                ))}
+              </div>
+            </div>
             {publicRecentResults.length > 0 ? (
               <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
                 <div className={profileStory.recentResultSnapshotHeading}>
@@ -1597,8 +1648,12 @@ function PlayerProfileContent() {
               <span className={profileStory.matchCount}>{totalMatches} reviewed match{totalMatches === 1 ? '' : 'es'}</span>
             </div>
 
-            {chartPoints.length > 1 ? (
+            {chartPoints.length > 1 && showDetailedRatingHistory ? (
               <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+            ) : chartPoints.length > 1 ? (
+              <div className={profileStory.ratingHistorySummary}>
+                <span>Detailed rating history is ready when you want the full chart.</span>
+              </div>
             ) : chartPoints.length === 1 ? (
               <div className={profileStory.singlePointRead}>
                 <span>First reviewed result</span>
@@ -1624,6 +1679,17 @@ function PlayerProfileContent() {
                 </div>
               </div>
             )}
+
+            {isMobile && chartPoints.length > 1 ? (
+              <button
+                type="button"
+                className={profileStory.ratingHistoryAction}
+                aria-expanded={showMobileRatingHistory}
+                onClick={() => setShowMobileRatingHistory((current) => !current)}
+              >
+                {showMobileRatingHistory ? 'Hide rating history' : 'View rating history'}
+              </button>
+            ) : null}
 
             {!isPublicExplorerProfile ? <div id="profile-match-strip" className={profileStory.matchStrip} aria-label="Last five reviewed matches">
               {visibleLastFive.length > 0 ? visibleLastFive.map((match) => (
