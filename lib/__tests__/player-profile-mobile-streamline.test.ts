@@ -6,9 +6,9 @@ const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf
 const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile-story.module.css'), 'utf8')
 
 describe('player profile mobile streamline', () => {
-  it('puts one public results path ahead of personal tooling', () => {
-    expect(page).toContain("const heroSecondaryHref = '#profile-matches'")
-    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
+  it('puts the public stats path ahead of personal tooling', () => {
+    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
+    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'")
     expect(page).toContain('id="profile-matches"')
     expect(page).toContain('className={profileStory.historyGroup}')
   })
@@ -31,7 +31,8 @@ describe('player profile mobile streamline', () => {
   it('reserves the Player ID coaching read for a linked Player member', () => {
     expect(page).toContain('const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights')
     expect(page).toContain('{hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}')
-    expect(page).toContain('{hasPersonalPlayerExperience ? (\n        <section id="profile-player-id"')
+    expect(page).toContain('{hasPersonalPlayerExperience ? (')
+    expect(page).toContain('<section id="profile-player-id"')
     expect(page).toContain('Player focus')
     expect(page).toContain('Train next')
     expect(page).toContain('Start this focus')
@@ -60,9 +61,23 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience')
     expect(page).toContain('const isPublicExplorerProfile = !hasPersonalPlayerExperience')
     expect(page).toContain("const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'")
-    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
+    expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'")
     expect(page).toContain("data-public-profile={isPublicExplorerProfile}")
     expect(page).toContain("'Compare players'")
     expect(styles).toContain(".storyHero[data-public-profile='true'] .storyContent")
+  })
+
+  it('puts verified visual stats on the public profile before deeper reads', () => {
+    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
+    expect(page).toContain("{isPublicExplorerProfile ? 'Stats' : 'Matches'}")
+    expect(page).toContain('const publicPerformanceStats = [')
+    expect(page).toContain('id="profile-performance"')
+    expect(page).toContain('aria-label="Player performance snapshot"')
+    expect(page).toContain("label: 'Record'")
+    expect(page).toContain("label: 'Win rate'")
+    expect(page).toContain("label: 'Match mix'")
+    expect(page).toContain("label: 'TIQ movement'")
+    expect(styles).toContain('.performanceStatGrid')
+    expect(styles).toMatch(/\.performanceStatGrid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/)
   })
 })
