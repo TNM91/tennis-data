@@ -568,7 +568,7 @@
 
 .recentResultTileGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid rgba(116, 190, 255, 0.16);
   border-radius: 18px;
@@ -650,6 +650,25 @@
 .recentResultTile > em {
   color: rgba(142, 197, 255, 0.76);
   font-size: 10px;
+}
+
+.recentResultSnapshotAction {
+  justify-self: start;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(116, 190, 255, 0.26);
+  border-radius: 12px;
+  color: #d9f84a;
+  background: rgba(11, 29, 52, 0.54);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.recentResultSnapshotAction:hover {
+  border-color: rgba(155, 225, 29, 0.48);
+  background: rgba(155, 225, 29, 0.1);
 }
 
 .journeyPanel {
@@ -1263,21 +1282,68 @@
   }
 
   .recentResultTileGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .recentResultTile {
-    min-height: 112px;
-    padding: 13px;
+    grid-template-columns: 28px minmax(0, 1fr) max-content;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 2px 10px;
+    min-height: 0;
+    padding: 12px 14px;
   }
 
-  .recentResultTile:nth-child(3),
-  .recentResultTile:nth-child(5) {
+  .recentResultTile + .recentResultTile {
     border-left: 0;
+    border-top: 1px solid rgba(116, 190, 255, 0.16);
   }
 
-  .recentResultTile:nth-child(n + 3) {
-    border-top: 1px solid rgba(116, 190, 255, 0.16);
+  .recentResultTile[data-result='W'] {
+    box-shadow: inset 3px 0 0 rgba(155, 225, 29, 0.78);
+  }
+
+  .recentResultTile[data-result='L'] {
+    box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.68);
+  }
+
+  .recentResultTile > div {
+    display: contents;
+  }
+
+  .recentResultTile > div strong {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 25px;
+    height: 25px;
+  }
+
+  .recentResultTile > div span {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 10px;
+  }
+
+  .recentResultTile > b {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    padding-left: 8px;
+    font-size: 16px;
+  }
+
+  .recentResultTile > small {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 12px;
+  }
+
+  .recentResultTile > em {
+    display: none;
+  }
+
+  .recentResultSnapshotAction {
+    width: 100%;
+    margin-top: 2px;
   }
 
   .performanceStatGrid {

@@ -623,6 +623,7 @@ function PlayerProfileContent() {
   const totalMatches = filteredMatches.length
   const hasTrackedMatches = totalMatches > 0
   const winPct = totalMatches > 0 ? String(Math.round((wins / totalMatches) * 100)) : '0'
+  const [showAllPublicResults, setShowAllPublicResults] = useState(false)
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
@@ -1334,7 +1335,7 @@ function PlayerProfileContent() {
     },
   ]
   const visibleLastFive = filteredMatches.slice(0, 5)
-  const publicRecentResults = visibleLastFive.map((match) => {
+  const publicRecentResults = filteredMatches.slice(0, showAllPublicResults ? undefined : 3).map((match) => {
     const snapshot = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
     return {
       ...match,
@@ -1556,14 +1557,14 @@ function PlayerProfileContent() {
               <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
                 <div className={profileStory.recentResultSnapshotHeading}>
                   <span>Recent scorecards</span>
-                  <small>Latest {publicRecentResults.length}</small>
+                  <small>{showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`}</small>
                 </div>
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => (
                     <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
                       <div>
                         <strong>{match.result}</strong>
-                        <span>{match.matchType}</span>
+                        <span>{capitalize(match.matchType)} · {formatChartDate(match.date)}</span>
                       </div>
                       <b>{match.score || 'Score pending'}</b>
                       <small>vs {match.opponent}</small>
@@ -1571,6 +1572,16 @@ function PlayerProfileContent() {
                     </article>
                   ))}
                 </div>
+                {filteredMatches.length > 3 ? (
+                  <button
+                    type="button"
+                    className={profileStory.recentResultSnapshotAction}
+                    aria-expanded={showAllPublicResults}
+                    onClick={() => setShowAllPublicResults((current) => !current)}
+                  >
+                    {showAllPublicResults ? 'Show recent three' : `View all ${filteredMatches.length} matches`}
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </section>
