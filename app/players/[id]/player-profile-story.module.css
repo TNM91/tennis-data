@@ -418,6 +418,99 @@
   font-weight: 900;
 }
 
+.ratingPulse {
+  display: grid;
+  grid-template-columns: minmax(132px, 0.58fr) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(108deg, rgba(27, 78, 135, 0.25), rgba(4, 15, 29, 0.52));
+}
+
+.ratingPulseRead {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 17px;
+  border-right: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.ratingPulseRead > span,
+.recentResultSnapshotHeading > span {
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ratingPulseRead strong {
+  color: #ffffff;
+  font-size: clamp(31px, 3.4vw, 42px);
+  font-weight: 950;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.ratingPulseRead small {
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.ratingPulseChart {
+  display: grid;
+  grid-template-rows: minmax(48px, 1fr) auto;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px 16px 12px;
+}
+
+.ratingPulseChart svg,
+.ratingPulseEmpty {
+  width: 100%;
+  height: 62px;
+}
+
+.ratingPulseEmpty {
+  display: grid;
+  align-items: center;
+}
+
+.ratingPulseEmpty i {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(88, 166, 255, 0.28), rgba(217, 248, 74, 0.68));
+}
+
+.ratingPulseChart > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ratingPulseChart > div span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(228, 238, 251, 0.56);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ratingPulseChart > div strong {
+  flex: 0 0 auto;
+  color: #d9f84a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .performanceStatGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -453,6 +546,110 @@
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.recentResultSnapshot {
+  display: grid;
+  gap: 10px;
+}
+
+.recentResultSnapshotHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.recentResultSnapshotHeading small {
+  color: rgba(228, 238, 251, 0.56);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.recentResultTileGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(4, 15, 29, 0.54);
+}
+
+.recentResultTile {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 128px;
+  padding: 14px;
+}
+
+.recentResultTile + .recentResultTile {
+  border-left: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.recentResultTile > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.recentResultTile > div strong {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.recentResultTile[data-result='W'] > div strong {
+  color: #d9f84a;
+  background: rgba(155, 225, 29, 0.11);
+}
+
+.recentResultTile[data-result='L'] > div strong {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.recentResultTile > div span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(228, 238, 251, 0.56);
+  font-size: 10px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.recentResultTile > b {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentResultTile > small,
+.recentResultTile > em {
+  overflow: hidden;
+  color: rgba(228, 238, 251, 0.68);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentResultTile > em {
+  color: rgba(142, 197, 255, 0.76);
+  font-size: 10px;
 }
 
 .journeyPanel {
@@ -1050,6 +1247,37 @@
 
   .performanceSnapshotHeading h2 {
     font-size: 22px;
+  }
+
+  .ratingPulse {
+    grid-template-columns: minmax(118px, 0.6fr) minmax(0, 1fr);
+  }
+
+  .ratingPulseRead {
+    min-height: 104px;
+    padding: 14px;
+  }
+
+  .ratingPulseChart {
+    padding: 12px 13px 10px;
+  }
+
+  .recentResultTileGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recentResultTile {
+    min-height: 112px;
+    padding: 13px;
+  }
+
+  .recentResultTile:nth-child(3),
+  .recentResultTile:nth-child(5) {
+    border-left: 0;
+  }
+
+  .recentResultTile:nth-child(n + 3) {
+    border-top: 1px solid rgba(116, 190, 255, 0.16);
   }
 
   .performanceStatGrid {
