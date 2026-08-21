@@ -15,7 +15,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
-import { isPublicTeamDirectoryMatch } from '@/lib/team-directory'
+import { isPublicTeamDirectoryMatch, isScheduleTeamSource } from '@/lib/team-directory'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -75,10 +75,6 @@ function buildTeamKey(team: string, league: string | null, flight: string | null
 
 function buildScopeKey(league: string | null, flight: string | null) {
   return `${(league || '').toLowerCase()}__${(flight || '').toLowerCase()}`
-}
-
-function isScheduleLikeMatch(match: MatchRow) {
-  return /\bschedule\b/i.test(cleanText(match.source))
 }
 
 function compareNullableDatesDesc(left: string | null, right: string | null) {
@@ -224,7 +220,7 @@ export default function TeamsPage() {
       }
 
       for (const match of matches) {
-        if (!isScheduleLikeMatch(match)) continue
+        if (!isScheduleTeamSource(match.source)) continue
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
         const scopeKey = buildScopeKey(league, flight)

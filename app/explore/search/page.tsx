@@ -25,7 +25,7 @@ import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
-import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName } from '@/lib/team-directory'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
@@ -873,7 +873,7 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
   const allowedTeamsByScope = new Map<string, Set<string>>()
 
   for (const row of ((data || []) as TeamMatchRow[]) || []) {
-    if (!/\bschedule\b/i.test(cleanText(row.source))) continue
+    if (!isScheduleTeamSource(row.source)) continue
     const scopeKey = buildTeamKey('', cleanText(row.league_name), cleanText(row.flight))
     if (!allowedTeamsByScope.has(scopeKey)) allowedTeamsByScope.set(scopeKey, new Set<string>())
     const allowed = allowedTeamsByScope.get(scopeKey)!
