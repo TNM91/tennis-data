@@ -1784,7 +1784,7 @@ function PlayerProfileContent() {
               </div>
             </div>
             {publicRecentResults.length > 0 ? (
-              <div className={profileStory.recentResultSnapshot} aria-label="Match tape">
+              <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
                 <div className={profileStory.recentResultSnapshotHeading}>
                   <span>Match tape</span>
                   <small>{showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`}</small>

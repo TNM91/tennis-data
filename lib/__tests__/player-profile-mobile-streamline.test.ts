@@ -89,7 +89,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('const publicRecentResults = filteredMatches.slice(0, showAllPublicResults ? undefined : 3).map')
     expect(page).toContain('const publicTrendPoints = chartPoints.slice(-10)')
     expect(page).toContain('<RatingSparkline points={publicTrendPoints} />')
-    expect(page).toContain('aria-label="Match tape"')
+    expect(page).toContain('aria-label="Recent scorecards"')
     expect(page).toContain('>Match tape</span>')
     expect(page).toContain('<span>Opponent</span>')
     expect(page).toContain('{match.context}</span>')
