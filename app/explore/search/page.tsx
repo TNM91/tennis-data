@@ -646,33 +646,21 @@ function ExploreSearchContent() {
                     </div>
                   ) : null}
                   {filteredPlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle()}>
-                      <div style={resultHeaderStyle}>
-                        <div style={resultPrimaryStyle}>
-                          <div style={resultTitleStyle}>{player.name}</div>
-                          <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
-                        </div>
-                        <div style={resultBadgeWrapStyle}>
-                          {typeof player.overall_usta_dynamic_rating === 'number' ? (
-                            <span style={miniBadgeBlue}>USTA {player.overall_usta_dynamic_rating.toFixed(2)}</span>
-                          ) : null}
-                          {typeof player.overall_dynamic_rating === 'number' ? (
-                            <span style={miniBadgeGreen}>TIQ {player.overall_dynamic_rating.toFixed(2)}</span>
-                          ) : null}
-                          {(() => {
-                            const base = player.overall_rating
-                            const usta = player.overall_usta_dynamic_rating
-                            if (typeof base !== 'number' || typeof usta !== 'number') return null
-                            const diff = usta - base
-                            const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
-                            const style: CSSProperties = diff >= 0.07
-                              ? { ...miniBadgeGreen, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.22)' }
-                              : diff <= -0.07
-                                ? { ...miniBadgeBlue, background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
-                                : { ...miniBadgeBlue }
-                            return <span style={style}>{status}</span>
-                          })()}
-                        </div>
+                    <Link key={player.id} href={`/players/${player.id}`} style={getPlayerSearchResultStyle()}>
+                      <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
+                      <div style={playerSearchIdentityStyle}>
+                        <div style={resultTitleStyle}>{player.name}</div>
+                        <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
+                        <span style={playerSearchContextStyle}>
+                          {typeof player.overall_usta_dynamic_rating === 'number'
+                            ? `USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline`
+                            : 'Public player record'}
+                        </span>
+                      </div>
+                      <div style={playerSearchRatingStyle}>
+                        <span style={playerSearchRatingLabelStyle}>TIQ overall</span>
+                        <strong style={playerSearchRatingValueStyle}>{typeof (player.overall_dynamic_rating ?? player.overall_rating) === 'number' ? (player.overall_dynamic_rating ?? player.overall_rating)!.toFixed(2) : '—'}</strong>
+                        <small style={playerSearchRatingActionStyle}>View profile</small>
                       </div>
                     </Link>
                   ))}
@@ -1556,6 +1544,22 @@ function getResultCardStyle(): CSSProperties {
   }
 }
 
+function getPlayerSearchResultStyle(): CSSProperties {
+  return {
+    ...portalInsetCardStyle,
+    display: 'grid',
+    gridTemplateColumns: '32px minmax(0, 1fr) auto',
+    gap: 10,
+    alignItems: 'center',
+    minWidth: 0,
+    maxWidth: '100%',
+    padding: '12px 13px',
+    textDecoration: 'none',
+    border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+    background: 'rgba(7,17,33,0.78)',
+  }
+}
+
 const resultHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1568,6 +1572,51 @@ const resultHeaderStyle: CSSProperties = {
 const resultPrimaryStyle: CSSProperties = {
   minWidth: 0,
   maxWidth: '100%',
+}
+
+const playerSearchIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const playerSearchContextStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const playerSearchRatingStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'end',
+  gap: 1,
+  minWidth: 54,
+  paddingLeft: 10,
+  borderLeft: '1px solid rgba(116,190,255,0.14)',
+}
+
+const playerSearchRatingLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const playerSearchRatingValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 950,
+  letterSpacing: '-0.05em',
+  lineHeight: 1,
+}
+
+const playerSearchRatingActionStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 850,
 }
 
 const resultTitleStyle: CSSProperties = {

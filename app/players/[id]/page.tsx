@@ -19,7 +19,7 @@ import {
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import {
   formatRatingValue,
@@ -1375,6 +1375,44 @@ function PlayerProfileContent() {
       percent: avgOpponentRating !== null ? Math.min(100, Math.round((avgOpponentRating / 7) * 100)) : 0,
     },
   ]
+  const profileAchievementShowcase = useMemo(() => {
+    const showcase: Array<{ key: string; label: string; detail: string; icon: TiqFeatureIconName }> = []
+
+    if (playerAwards.length > 0) {
+      showcase.push({
+        key: 'verified-honors',
+        label: playerAwards.length === 1 ? 'Verified honor' : 'Verified honors',
+        detail: `${playerAwards.length} earned`,
+        icon: 'competeTennis',
+      })
+    }
+    if (longestWinStreak >= 3) {
+      showcase.push({
+        key: 'match-streak',
+        label: 'Match streak',
+        detail: `${longestWinStreak} wins`,
+        icon: 'matchPrep',
+      })
+    }
+    if (totalMatches >= 10) {
+      showcase.push({
+        key: 'reviewed-competitor',
+        label: 'Reviewed competitor',
+        detail: `${totalMatches} matches`,
+        icon: 'reliabilityIndex',
+      })
+    }
+    if (showcase.length === 0 && hasTrackedMatches) {
+      showcase.push({
+        key: 'first-evidence',
+        label: 'Match record started',
+        detail: `${totalMatches} reviewed`,
+        icon: 'playerRatings',
+      })
+    }
+
+    return showcase.slice(0, 3)
+  }, [hasTrackedMatches, longestWinStreak, playerAwards.length, totalMatches])
   const showDetailedRatingHistory = !isMobile || showMobileRatingHistory
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1491,11 +1529,38 @@ function PlayerProfileContent() {
                 </div>
               </div>
 
+              {profileAchievementShowcase.length > 0 ? (
+                <section className={profileStory.achievementShelf} aria-label="Player achievements">
+                  <div className={profileStory.achievementShelfHeading}>
+                    <span>Achievements</span>
+                    <small>{hasPersonalPlayerExperience ? 'Your public showcase' : 'Player showcase'}</small>
+                  </div>
+                  <div className={profileStory.achievementShelfItems}>
+                    {profileAchievementShowcase.map((achievement) => (
+                      <article key={achievement.key} className={profileStory.achievementShelfItem}>
+                        <TiqFeatureIcon name={achievement.icon} size="sm" variant="surface" />
+                        <div>
+                          <strong>{achievement.label}</strong>
+                          <small>{achievement.detail}</small>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
               <div className={profileStory.heroMain}>
                 <div className={profileStory.ratingBlock}>
                   <span>TIQ {ratingViewLabel}</span>
                   <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
                   <small>{hasTrackedMatches ? ratingStatus : 'Holding'}</small>
+                  {!isSelfRatedProfile ? (
+                    <div className={profileStory.ratingTrajectory} aria-label={`USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}`}>
+                      <span>{baseRating.toFixed(1)}</span>
+                      <i><b style={{ width: `${storyNextLevelProgress}%` }} /></i>
+                      <strong>{nextThreshold.toFixed(1)}</strong>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className={profileStory.journeyCopy}>
