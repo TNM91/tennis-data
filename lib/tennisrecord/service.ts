@@ -18,7 +18,10 @@ const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 2
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
-const TENNISRECORD_PARSER_REVISION = 2
+// Revision 3 adds source roster observations from explicitly-labelled team
+// roster tables. Captured public pages replay gradually through the existing
+// bounded checkpoint, so historical team pages benefit without a re-crawl.
+const TENNISRECORD_PARSER_REVISION = 3
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
