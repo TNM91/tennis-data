@@ -256,7 +256,11 @@ export default function UniversalSearch({
       ? scored
       : scored.filter((item) => item.result.group === activeGroup)
 
-    return filtered.map((item) => item.result).slice(0, compact ? 6 : 10)
+    const intentFiltered = isLikelyPlayerLookupQuery(q)
+      ? filtered.filter((item) => item.result.group !== 'Actions')
+      : filtered
+
+    return intentFiltered.map((item) => item.result).slice(0, compact ? 6 : 10)
   }, [activeGroup, compact, query])
 
   const availableGroups = groupOrder.filter((group) =>
@@ -286,7 +290,8 @@ export default function UniversalSearch({
       return
     }
 
-    const first = visibleResults[0]
+    const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)
+    const first = shouldOpenPlayerSearch ? undefined : visibleResults[0]
     const destination = first
       ? buildResultHref(first, q, Boolean(session?.user))
       : buildFreePlayerSearchHref(q)
@@ -557,6 +562,19 @@ function appendSearchQuery(href: string, query: string) {
 
 function buildFreePlayerSearchHref(query: string) {
   return `/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`
+}
+
+function isLikelyPlayerLookupQuery(query: string) {
+  const q = query.trim().toLowerCase()
+  if (q.length < 2 || !/^[a-z][a-z .'-]*$/.test(q)) return false
+
+  const topicTerms = [
+    'player', 'team', 'league', 'tournament', 'coach', 'resource', 'matchup', 'compare',
+    'captain', 'lineup', 'scorecard', 'upload', 'report', 'issue', 'data', 'review',
+    'schedule', 'standing', 'ranking', 'draw', 'practice', 'drill', 'improve', 'lab',
+  ]
+
+  return !topicTerms.some((term) => q.includes(term))
 }
 
 const searchShellStyle: CSSProperties = {
