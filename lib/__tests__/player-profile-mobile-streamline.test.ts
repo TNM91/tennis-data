@@ -130,4 +130,15 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.matchQualityGrid')
     expect(styles).toContain('.matchQualityMetric')
   })
+
+  it('uses earned tennis evidence for the profile achievement shelf and keeps TIQ separate from USTA proximity', () => {
+    expect(page).toContain('const profileAchievementShowcase = useMemo')
+    expect(page).toContain("label: 'Match streak'")
+    expect(page).toContain("label: 'Reviewed competitor'")
+    expect(page).toContain('aria-label="Player achievements"')
+    expect(page).toContain('className={profileStory.ratingTrajectory}')
+    expect(page).toContain('USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}')
+    expect(styles).toContain('.achievementShelf')
+    expect(styles).toContain('.ratingTrajectory')
+  })
 })

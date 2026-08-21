@@ -157,6 +157,71 @@
   text-decoration: none;
 }
 
+.achievementShelf {
+  display: grid;
+  gap: 9px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.achievementShelfHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.achievementShelfHeading > span {
+  color: #8ec5ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.achievementShelfHeading > small {
+  color: rgba(228, 238, 251, 0.58);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.achievementShelfItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievementShelfItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(100%, 162px);
+  padding: 7px 10px 7px 7px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 14px;
+  background: rgba(6, 19, 36, 0.54);
+}
+
+.achievementShelfItem > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.achievementShelfItem strong {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.achievementShelfItem small {
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 11px;
+  font-weight: 750;
+}
+
 .verified {
   color: #d9f84a;
 }
@@ -203,6 +268,37 @@
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.ratingTrajectory {
+  display: grid;
+  grid-template-columns: auto minmax(40px, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  margin-top: 10px;
+  color: rgba(228, 238, 251, 0.68);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ratingTrajectory i {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.18);
+}
+
+.ratingTrajectory i b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #b8f20d;
+}
+
+.ratingTrajectory strong {
+  color: #d9f84a;
+  font-size: 11px;
 }
 
 .journeyCopy {
