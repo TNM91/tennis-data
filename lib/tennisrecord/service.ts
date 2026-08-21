@@ -37,6 +37,17 @@ export function isWeeklyTennisRecordRefreshDue(lastRefreshStartedAt: string | nu
   return !Number.isFinite(last) || now - last >= 7 * 86_400_000
 }
 
+/**
+ * The recurring sync starts on Wednesday morning in the league's home time
+ * zone. The fifteen-minute cron keeps draining that same weekly queue until
+ * it is clear, rather than waiting another week after history pages discover
+ * new match-result links.
+ */
+export function isTennisRecordWeeklyWindowOpen(now = new Date()) {
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', weekday: 'short' }).format(now)
+  return weekday === 'Wed'
+}
+
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
   const [settings, lastRun, pending, conflicts, identities, campaigns] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
@@ -138,7 +149,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const { data: rawSettings, error: settingsError } = await service.from('tennisrecord_collector_settings').select('*').eq('id', true).single()
   if (settingsError) throw new Error(settingsError.message)
   const settings = rawSettings as Settings
-  if (!settings.enabled || process.env.TENNISRECORD_COLLECTOR_ENABLED !== 'true') return emptySummary('disabled')
+  if (!settings.enabled) return emptySummary('disabled')
   const { data: run, error: runError } = await service.from('tennisrecord_sync_runs').insert({ trigger_kind: input.triggerKind, requested_by_user_id: input.requestedByUserId || null }).select('id').single()
   if (runError && isActiveRunLockError(runError)) return emptySummary('skipped')
   if (runError || !run?.id) throw new Error(runError?.message || 'Could not create TennisRecord sync run.')
@@ -196,7 +207,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const { data: rawSettings, error } = await service.from('tennisrecord_collector_settings').select('*').eq('id', true).single()
   if (error) throw new Error(error.message)
   const settings = rawSettings as Settings
-  if (!settings.enabled || process.env.TENNISRECORD_COLLECTOR_ENABLED !== 'true') return emptySummary('disabled')
+  if (!settings.enabled) return emptySummary('disabled')
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run)
 
   if (cadence === 'bootstrap') {
@@ -247,15 +258,15 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const { count: pending, error: pendingError } = await weeklyPendingQuery
   if (pendingError) throw new Error(pendingError.message)
   if (!pending) {
-    if (!isWeeklyTennisRecordRefreshDue(settings.weekly_refresh_started_at)) return emptySummary('skipped')
+    if (!isTennisRecordWeeklyWindowOpen() || !isWeeklyTennisRecordRefreshDue(settings.weekly_refresh_started_at)) return emptySummary('skipped')
     await queueRecentWeeklyMatchPages(service, settings.weekly_lookback_days, settings.active_campaign_id)
     const { error: refreshError } = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'weekly')
     if (refreshError) throw new Error(refreshError.message)
   }
-  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['match'], campaignId: settings.active_campaign_id })
+  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: ['history', 'match'], campaignId: settings.active_campaign_id })
 }
 
-/** The single plan-safe cron route picks the Admin-selected cadence. */
+/** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   const { data, error } = await service.from('tennisrecord_collector_settings').select('automation_state').eq('id', true).single()
   if (error) throw new Error(error.message)
@@ -273,7 +284,16 @@ async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays
   if (campaignId) requeue = requeue.eq('campaign_id', campaignId)
   const { error: updateError } = await requeue
   if (updateError) throw new Error(updateError.message)
-  return urls.length
+  if (!campaignId) return urls.length
+
+  const { data: campaign, error: campaignError } = await service.from('tennisrecord_campaigns').select('slug,starts_on,ends_on').eq('id', campaignId).maybeSingle()
+  if (campaignError) throw new Error(campaignError.message)
+  if (!campaign) return urls.length
+  const currentYear = String(new Date().getFullYear())
+  const discoveryUrls = getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: campaign.ends_on })
+    .filter((url) => new URL(url).searchParams.get('year') === currentYear)
+  const queuedHistory = await enqueueTennisRecordUrls(service, discoveryUrls, campaignId)
+  return urls.length + queuedHistory
 }
 
 function isActiveRunLockError(error: { code?: string; message?: string }) {

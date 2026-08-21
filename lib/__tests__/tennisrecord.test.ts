@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
 import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -123,7 +123,7 @@ describe('TennisRecord ingestion safety', () => {
     expect(canonicalTennisRecordFingerprint(match)).toBe(canonicalTennisRecordFingerprint(reprocessed))
   })
 
-  it('keeps scheduled collection paused until an admin selects a cadence and completes bootstrap without player-profile work', () => {
+  it('keeps checkpoints bounded, completes bootstrap only after its queue clears, and opens weekly refresh on Wednesday', () => {
     expect(tennisRecordAutomationDecision('manual', 'bootstrap', 10)).toBe('skip')
     expect(tennisRecordAutomationDecision('weekly', 'bootstrap', 10)).toBe('skip')
     expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 10)).toBe('run')
@@ -133,6 +133,8 @@ describe('TennisRecord ingestion safety', () => {
     expect(isWeeklyTennisRecordRefreshDue(null)).toBe(true)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-26T23:59:59.000Z'))).toBe(false)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
+    expect(isTennisRecordWeeklyWindowOpen(new Date('2026-08-26T14:00:00.000Z'))).toBe(true)
+    expect(isTennisRecordWeeklyWindowOpen(new Date('2026-08-27T14:00:00.000Z'))).toBe(false)
   })
 
   it('seeds the Missouri frontier from explicit-season public history pages and never marks an empty campaign complete', () => {

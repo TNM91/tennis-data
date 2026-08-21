@@ -61,8 +61,6 @@ export default function TennisRecordAdminPage() {
   const run = status?.lastRun || {}
   const automationState = status?.settings?.automation_state || 'manual'
   const activeCampaign = status?.campaigns?.find((campaign) => campaign.id === status?.settings?.active_campaign_id)
-  const automationButtonLabel = automationState === 'bootstrap' ? 'Pause regional automation' : automationState === 'weekly' ? 'Pause scheduled sync' : 'Start regional automation'
-  const nextAutomationState = automationState === 'manual' ? 'bootstrap' : 'manual'
   const progress = status?.campaignProgress
   const knownPages = progress ? progress.pending + progress.completed + progress.running + progress.blocked + progress.errors : 0
   const settledPages = progress ? progress.completed + progress.blocked + progress.errors : 0
@@ -96,13 +94,13 @@ export default function TennisRecordAdminPage() {
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
   return (
     <SiteShell active="/admin"><AdminGate><AdminReviewFrame>
-      <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill" actions={<button className="button-primary" disabled={busy} onClick={() => void act({ action: 'run' })}>Run one page now</button>}>
-        Seed reviewed St. Louis / Missouri results without replacing verified local scorecards. Regional automation safely resumes from its checkpoint until the approved queue is clear.
+      <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill">
+        Historical collection runs automatically in small, resumable checkpoints. After the 2025 mission, each Wednesday refreshes the prior seven days without replacing verified local scorecards.
       </AdminReviewHero>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
-          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Ready to start Missouri history' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? 'Importing 2025 match history' : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Historical import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are ready to queue. Starting regional automation will seed them automatically.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Uses ${checkpointLimit}-page checkpoints; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
-          <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent match history' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Waiting for the next refresh' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={weeklyEstimatedRemaining} detail={weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. This scan prioritizes the most recent seven days.` : 'After the historical mission, this runs automatically every seven days and only checks recent, active records.'} />
+          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? 'Importing 2025 match history' : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Uses ${checkpointLimit}-page checkpoints; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
+          <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent match history' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={weeklyEstimatedRemaining} detail={weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. This scan refreshes the prior Wednesday-to-Wednesday window.` : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'} />
         </div>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
@@ -118,12 +116,9 @@ export default function TennisRecordAdminPage() {
           <Metric label="Blocked requests" value={String(run.blocked_requests ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
         </div>
-        <p className="subtle-text" style={{ marginTop: 16 }}>The collector remains off until both this switch and the production environment safety flag are enabled. Blocked pages stop at the source; no access controls are bypassed.</p>
+        <p className="subtle-text" style={{ marginTop: 16 }}>Automatic collection stays on after deployment. Use the pause control only to stop source requests temporarily; blocked pages stop at the source and no access controls are bypassed.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-          <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Disable collector' : 'Enable collector'}</button>
-          <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: nextAutomationState })}>{automationButtonLabel}</button>
-          {status?.frontier.status === 'ready_to_seed' ? <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'seed_frontier' })}>Seed Missouri frontier</button> : null}
-          {automationState === 'manual' ? <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: 'weekly' })}>Enable weekly sync</button> : null}
+          <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Pause automatic collection' : 'Resume automatic collection'}</button>
           <select aria-label="Active historical campaign" value={status?.settings?.active_campaign_id || ''} disabled={busy || !status?.campaigns?.length} onChange={(event) => void act({ action: 'set_active_campaign', campaignId: event.target.value })}>
             <option value="">Choose campaign</option>
             {status?.campaigns?.filter((campaign) => campaign.status !== 'completed').map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.starts_on} to {campaign.ends_on}</option>)}
