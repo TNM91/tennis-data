@@ -186,6 +186,27 @@
   font-weight: 750;
 }
 
+.achievementEditButton,
+.achievementFeatureButton {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.achievementEditButton {
+  padding: 0;
+  color: #d9f84a;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.achievementEditButton:hover,
+.achievementEditButton:focus-visible {
+  color: #ffffff;
+  outline: none;
+}
+
 .achievementShelfItems {
   display: flex;
   flex-wrap: wrap;
@@ -201,6 +222,12 @@
   border: 1px solid rgba(155, 225, 29, 0.24);
   border-radius: 14px;
   background: rgba(6, 19, 36, 0.54);
+}
+
+.achievementShelfItem[data-featured='true'] {
+  border-color: rgba(217, 248, 74, 0.78);
+  background: linear-gradient(135deg, rgba(155, 225, 29, 0.17), rgba(6, 19, 36, 0.74));
+  box-shadow: 0 0 0 1px rgba(155, 225, 29, 0.08), 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 .achievementShelfItem > div {
@@ -220,6 +247,37 @@
   color: rgba(228, 238, 251, 0.62);
   font-size: 11px;
   font-weight: 750;
+}
+
+.achievementFeatureButton {
+  margin-left: auto;
+  padding: 6px 8px;
+  border: 1px solid rgba(116, 190, 255, 0.3);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(6, 19, 36, 0.72);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.achievementFeatureButton:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.achievementShelfNote {
+  margin: 0;
+  color: rgba(228, 238, 251, 0.58);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.achievementShelfNote[data-tone='saved'] {
+  color: #d9f84a;
+}
+
+.achievementShelfNote[data-tone='error'] {
+  color: #ffb0bb;
 }
 
 .verified {
