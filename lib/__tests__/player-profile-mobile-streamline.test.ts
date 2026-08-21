@@ -82,7 +82,7 @@ describe('player profile mobile streamline', () => {
   })
 
   it('uses a compact rating trend and score-aware result tiles for public profiles', () => {
-    expect(page).toContain('const publicRecentResults = visibleLastFive.map')
+    expect(page).toContain('const publicRecentResults = filteredMatches.slice(0, showAllPublicResults ? undefined : 3).map')
     expect(page).toContain('const publicTrendPoints = chartPoints.slice(-10)')
     expect(page).toContain('<RatingSparkline points={publicTrendPoints} />')
     expect(page).toContain('aria-label="Recent scorecards"')
@@ -92,6 +92,17 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.ratingPulse')
     expect(styles).toContain('.recentResultTileGrid')
     expect(styles).toContain(".recentResultTile[data-result='W']")
-    expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr)')
+  })
+
+  it('uses a short, expandable timeline instead of five equal phone cards', () => {
+    expect(page).toContain('const [showAllPublicResults, setShowAllPublicResults] = useState(false)')
+    expect(page).toContain('filteredMatches.slice(0, showAllPublicResults ? undefined : 3)')
+    expect(page).toContain('View all ${filteredMatches.length} matches')
+    expect(page).toContain('Show recent three')
+    expect(page).toContain('aria-expanded={showAllPublicResults}')
+    expect(styles).toContain('.recentResultSnapshotAction')
+    expect(styles).toContain(".recentResultTile[data-result='W'] {")
+    expect(styles).toContain('grid-template-columns: 28px minmax(0, 1fr) max-content')
   })
 })
