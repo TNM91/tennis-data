@@ -35,6 +35,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
@@ -1441,6 +1442,24 @@ function PlayerProfileContent() {
     const order = new Map(featuredAchievementKeys.map((key, index) => [key, index]))
     return [...profileAchievementShowcase].sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99))
   }, [featuredAchievementKeys, profileAchievementShowcase])
+  const trophyBadges = useMemo(
+    () => buildPlayerTrophyBadges({
+      verifiedHonors: playerAwards.length,
+      reviewedMatches: totalMatches,
+      longestWinStreak,
+    }),
+    [longestWinStreak, playerAwards.length, totalMatches],
+  )
+  const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
+  const featuredTrophyBadge = useMemo(() => {
+    const badgeForAchievement: Record<string, string> = {
+      'verified-honors': 'verified-honor',
+      'match-streak': 'streak-keeper',
+      'reviewed-competitor': 'match-builder',
+    }
+    const selectedBadgeKey = featuredAchievementKeys.map((key) => badgeForAchievement[key]).find(Boolean)
+    return trophyBadges.find((badge) => badge.key === selectedBadgeKey && badge.earned) || earnedTrophyBadges[0] || null
+  }, [earnedTrophyBadges, featuredAchievementKeys, trophyBadges])
   const saveFeaturedAchievement = useCallback(async (achievementKey: string) => {
     if (!currentUserId || !hasPersonalPlayerExperience) return
     setAchievementSaveStatus('saving')
@@ -1602,6 +1621,16 @@ function PlayerProfileContent() {
                       <small>Player showcase</small>
                     )}
                   </div>
+                  {featuredTrophyBadge ? (
+                    <div className={profileStory.featuredTrophyBadge} aria-label={`Featured badge: ${featuredTrophyBadge.label}`}>
+                      <TiqFeatureIcon name={featuredTrophyBadge.icon} size="sm" variant="surface" />
+                      <div>
+                        <span>Featured trophy</span>
+                        <strong>{featuredTrophyBadge.label}</strong>
+                        <small>{earnedTrophyBadges.length} badge{earnedTrophyBadges.length === 1 ? '' : 's'} earned</small>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={profileStory.achievementShelfItems}>
                     {orderedAchievementShowcase.map((achievement) => (
                       <article

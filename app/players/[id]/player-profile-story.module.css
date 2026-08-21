@@ -213,6 +213,44 @@
   gap: 8px;
 }
 
+.featuredTrophyBadge {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  max-width: 310px;
+  padding: 9px;
+  border: 1px solid rgba(217, 248, 74, 0.58);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(155, 225, 29, 0.2), rgba(6, 19, 36, 0.68));
+}
+
+.featuredTrophyBadge > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.featuredTrophyBadge span {
+  color: rgba(228, 238, 251, 0.62);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.featuredTrophyBadge strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.featuredTrophyBadge small {
+  color: #d9f84a;
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .achievementShelfItem {
   display: flex;
   align-items: center;
