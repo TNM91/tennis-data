@@ -52,6 +52,31 @@ export function isPublicTeamDirectoryName(value: string | null | undefined, leag
   return true
 }
 
+/**
+ * Treat TennisRecord observations as untrusted source material until their
+ * team fields pass the stricter name check. Other TenAceIQ sources already
+ * provide explicit schedule or upload team fields, so keep those records in
+ * the directory unless the value is a known column heading.
+ */
+export function isPublicTeamDirectoryMatch(match: {
+  homeTeam: string | null | undefined
+  awayTeam: string | null | undefined
+  league?: string | null
+  source?: string | null
+}) {
+  const home = cleanText(match.homeTeam)
+  const away = cleanText(match.awayTeam)
+  const source = normalizeName(match.source)
+
+  if (!home || !away || NON_TEAM_LABELS.has(normalizeName(home)) || NON_TEAM_LABELS.has(normalizeName(away))) return false
+
+  if (source.includes('tennisrecord')) {
+    return isPublicTeamDirectoryName(home, match.league) && isPublicTeamDirectoryName(away, match.league)
+  }
+
+  return true
+}
+
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`
 }
