@@ -11,6 +11,16 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
+type CoverageSummary = {
+  staged_player_count: number
+  filterable_team_count: number
+  filterable_league_count: number
+  filterable_flight_count: number
+  source_roster_listing_count: number
+  source_team_history_count: number
+  unpromoted_team_history_count: number
+  promoted_match_count: number
+}
 // Historical backfill is intentionally gentler than the Admin-configured
 // ceiling. This keeps the automatic checkpoint safely below the database I/O
 // budget while preserving resumable progress.
@@ -62,15 +72,16 @@ export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'a
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, pending, conflicts, identities, campaigns] = await Promise.all([
+  const [settings, lastRun, pending, conflicts, identities, campaigns, coverage] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
+    service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
   ])
-  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error || campaigns.error) throw new Error('TennisRecord operations status is unavailable.')
+  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
     let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
@@ -129,6 +140,16 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       errors: weeklyErrors.count || 0,
     },
     conflicts: conflicts.count || 0,
+    coverage: (coverage.data as CoverageSummary | null) || {
+      staged_player_count: 0,
+      filterable_team_count: 0,
+      filterable_league_count: 0,
+      filterable_flight_count: 0,
+      source_roster_listing_count: 0,
+      source_team_history_count: 0,
+      unpromoted_team_history_count: 0,
+      promoted_match_count: 0,
+    },
     identityReview: identities.data || [],
     campaigns: campaignRows.map((campaign) => ({
       ...campaign,

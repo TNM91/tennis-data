@@ -12,6 +12,7 @@ type Status = {
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; blocked: number; errors: number }
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
+  coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
   campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string; availableSeedPages: number }>
@@ -116,6 +117,22 @@ export default function TennisRecordAdminPage() {
           <Metric label="Blocked requests" value={String(run.blocked_requests ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
         </div>
+        <section aria-label="TennisRecord data coverage" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
+          <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>Collected data coverage</strong>
+            <span className="subtle-text">Counts update automatically as source pages are staged, reconciled, and made available to Team, League, and Flight filters.</span>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Filterable teams" value={status?.coverage?.filterable_team_count ?? '—'} />
+            <Metric label="Leagues" value={status?.coverage?.filterable_league_count ?? '—'} />
+            <Metric label="Flights" value={status?.coverage?.filterable_flight_count ?? '—'} />
+            <Metric label="Staged players" value={status?.coverage?.staged_player_count ?? '—'} />
+            <Metric label="Source roster listings" value={status?.coverage?.source_roster_listing_count ?? '—'} />
+            <Metric label="Team history lines" value={status?.coverage?.source_team_history_count ?? '—'} />
+            <Metric label="Awaiting promotion" value={status?.coverage?.unpromoted_team_history_count ?? '—'} />
+            <Metric label="Promoted matches" value={status?.coverage?.promoted_match_count ?? '—'} />
+          </div>
+        </section>
         <p className="subtle-text" style={{ marginTop: 16 }}>Automatic collection stays on after deployment. Use the pause control only to stop source requests temporarily; blocked pages stop at the source and no access controls are bypassed.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
           <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Pause automatic collection' : 'Resume automatic collection'}</button>
