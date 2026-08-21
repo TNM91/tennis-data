@@ -105,4 +105,25 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain(".recentResultTile[data-result='W'] {")
     expect(styles).toContain('grid-template-columns: 28px minmax(0, 1fr) max-content')
   })
+
+  it('keeps the compact trend primary on phones and makes the full chart optional', () => {
+    expect(page).toContain('const [showMobileRatingHistory, setShowMobileRatingHistory] = useState(false)')
+    expect(page).toContain('const showDetailedRatingHistory = !isMobile || showMobileRatingHistory')
+    expect(page).toContain('chartPoints.length > 1 && showDetailedRatingHistory')
+    expect(page).toContain('View rating history')
+    expect(page).toContain('Hide rating history')
+    expect(page).toContain('aria-expanded={showMobileRatingHistory}')
+    expect(styles).toContain('.ratingHistorySummary')
+    expect(styles).toContain('.ratingHistoryAction')
+  })
+
+  it('adds factual match-quality visuals to the public performance read', () => {
+    expect(page).toContain('const publicMatchQuality = [')
+    expect(page).toContain("label: 'Close scorecards'")
+    expect(page).toContain("label: 'Avg opponent'")
+    expect(page).toContain('aria-label="Match quality snapshot"')
+    expect(styles).toContain('.matchQualitySnapshot')
+    expect(styles).toContain('.matchQualityGrid')
+    expect(styles).toContain('.matchQualityMetric')
+  })
 })
