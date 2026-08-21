@@ -1,5 +1,5 @@
 import { getAdminApiAuth } from '@/lib/admin-api-auth'
-import { enqueueTennisRecordUrls, getTennisRecordOperationalStatus, runTennisRecordSync } from '@/lib/tennisrecord/service'
+import { enqueueTennisRecordUrls, getTennisRecordOperationalStatus, runTennisRecordSync, seedTennisRecordCampaignFrontier } from '@/lib/tennisrecord/service'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -39,6 +39,13 @@ export async function POST(request: Request) {
       const settings = await auth.service.from('tennisrecord_collector_settings').select('active_campaign_id').eq('id', true).single()
       if (settings.error) throw settings.error
       const queued = await enqueueTennisRecordUrls(auth.service, urls, settings.data.active_campaign_id)
+      return Response.json({ ok: true, queued })
+    }
+    if (action === 'seed_frontier') {
+      const settings = await auth.service.from('tennisrecord_collector_settings').select('active_campaign_id').eq('id', true).single()
+      if (settings.error) throw settings.error
+      if (!settings.data.active_campaign_id) return Response.json({ ok: false, message: 'Choose a historical campaign before seeding its public frontier.' }, { status: 400 })
+      const queued = await seedTennisRecordCampaignFrontier(auth.service, settings.data.active_campaign_id)
       return Response.json({ ok: true, queued })
     }
     if (action === 'set_active_campaign') {

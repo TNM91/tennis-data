@@ -13,6 +13,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain('weeklyProgress: {')
     expect(service).toContain("countCampaignPages('pending')")
     expect(service).toContain("countCampaignPages('done')")
+    expect(service).toContain('seedTennisRecordCampaignFrontier')
+    expect(service).toContain("return emptySummary('awaiting_seed')")
   })
 
   it('shows separate live historical and weekly delivery-style trackers', () => {
@@ -22,6 +24,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('weeklyPercent')
     expect(adminPage).toContain('window.setInterval')
     expect(adminPage).toContain('newly discovered public match pages can extend the queue.')
+    expect(adminPage).toContain('Seed Missouri frontier')
+    expect(adminPage).toContain('Ready to start Missouri history')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {

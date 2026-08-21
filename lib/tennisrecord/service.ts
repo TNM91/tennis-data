@@ -3,6 +3,7 @@ import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
 import { canonicalTennisRecordFingerprint, sourcePriority } from './reconcile'
+import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
@@ -24,9 +25,9 @@ export function tennisRecordFailureDisposition(message: string, retryCount: numb
   return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
 }
 
-export function tennisRecordAutomationDecision(state: AutomationState, cadence: 'bootstrap' | 'weekly', pendingPages: number) {
+export function tennisRecordAutomationDecision(state: AutomationState, cadence: 'bootstrap' | 'weekly', pendingPages: number, knownPages = pendingPages) {
   if (state !== cadence) return 'skip' as const
-  if (cadence === 'bootstrap' && pendingPages === 0) return 'complete_bootstrap' as const
+  if (cadence === 'bootstrap' && pendingPages === 0) return knownPages === 0 ? 'awaiting_seed' as const : 'complete_bootstrap' as const
   return 'run' as const
 }
 
@@ -78,6 +79,12 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     ])
     : [emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount]
   if (weeklyPending.error || weeklyCompleted.error || weeklyRunning.error || weeklyBlocked.error || weeklyErrors.error) throw new Error('TennisRecord weekly progress is unavailable.')
+  const campaignRows = campaigns.data || []
+  const activeCampaign = campaignRows.find((campaign) => campaign.id === activeCampaignId)
+  const activeSeedUrls = activeCampaign
+    ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: activeCampaign.ends_on })
+    : []
+  const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
   return {
     settings: settings.data,
     lastRun: lastRun.data,
@@ -99,7 +106,11 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     },
     conflicts: conflicts.count || 0,
     identityReview: identities.data || [],
-    campaigns: campaigns.data || [],
+    campaigns: campaignRows.map((campaign) => ({
+      ...campaign,
+      availableSeedPages: getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: campaign.ends_on }).length,
+    })),
+    frontier: { status: tennisRecordFrontierStatus(knownCampaignPages, activeSeedUrls.length) },
   }
 }
 
@@ -113,6 +124,14 @@ export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: str
   const { error } = await service.from('tennisrecord_crawl_queue').upsert(supported, { onConflict: 'source_url' })
   if (error) throw new Error(error.message)
   return supported.length
+}
+
+export async function seedTennisRecordCampaignFrontier(service: SupabaseClient, campaignId: string) {
+  const { data: campaign, error } = await service.from('tennisrecord_campaigns').select('id,slug,starts_on,ends_on,status').eq('id', campaignId).maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!campaign || campaign.status === 'completed') throw new Error('Choose an active historical campaign before seeding its public frontier.')
+  const urls = getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: campaign.ends_on })
+  return enqueueTennisRecordUrls(service, urls, campaign.id)
 }
 
 export async function runTennisRecordSync(service: SupabaseClient, input: SyncInput): Promise<TennisRecordRunSummary> {
@@ -185,8 +204,25 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     if (settings.active_campaign_id) pendingQuery = pendingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count, error: countError } = await pendingQuery
     if (countError) throw new Error(countError.message)
-    const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, count || 0)
+    let knownPages = count || 0
+    if (settings.active_campaign_id) {
+      const allCampaignPages = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', settings.active_campaign_id)
+      if (allCampaignPages.error) throw new Error(allCampaignPages.error.message)
+      knownPages = allCampaignPages.count || 0
+      if (knownPages === 0) {
+        await seedTennisRecordCampaignFrontier(service, settings.active_campaign_id)
+        const seededPages = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', settings.active_campaign_id)
+        if (seededPages.error) throw new Error(seededPages.error.message)
+        knownPages = seededPages.count || 0
+      }
+    }
+    const refreshedPending = settings.active_campaign_id
+      ? await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('campaign_id', settings.active_campaign_id).in('page_kind', ['match', 'team', 'history'])
+      : { count, error: null }
+    if (refreshedPending.error) throw new Error(refreshedPending.error.message)
+    const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, refreshedPending.count || 0, knownPages)
     if (decision === 'skip') return emptySummary('skipped')
+    if (decision === 'awaiting_seed') return emptySummary('awaiting_seed')
     if (decision === 'complete_bootstrap') {
       const { error: finishError } = await service.from('tennisrecord_collector_settings').update({ automation_state: 'weekly', bootstrap_completed_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'bootstrap')
       if (finishError) throw new Error(finishError.message)
