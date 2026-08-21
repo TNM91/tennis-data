@@ -3,7 +3,7 @@ import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
-import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from './frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
@@ -454,6 +454,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         }
       }
     }
+    await enqueueDiscoveredCampaignPlayerHistory(service, parsed.players, campaignId)
   }
   if (parsed.leagues.length) {
     const { error } = await service.from('tennisrecord_staged_leagues').upsert(parsed.leagues.map((league) => ({ source_league_key: league.sourceLeagueKey, name: league.name, flight: league.flight || null, season_year: league.seasonYear, source_url: league.sourceUrl, raw: league, last_seen_at: new Date().toISOString() })), { onConflict: 'source_league_key' })
@@ -489,6 +490,39 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   }
   if (parsed.discoveredUrls.length) await enqueueTennisRecordUrls(service, parsed.discoveredUrls, campaignId)
   return savedSourceMatchKeys
+}
+
+/**
+ * A profile's own location is the campaign-boundary signal. We never use a
+ * name from an arbitrary search result or a match participant with unknown
+ * geography to grow historical crawl scope.
+ */
+async function enqueueDiscoveredCampaignPlayerHistory(
+  service: SupabaseClient,
+  players: Array<{ name: string; state: string; sourceUrl: string }>,
+  campaignId?: string | null,
+) {
+  if (!campaignId) return 0
+
+  const { data: campaign, error } = await service
+    .from('tennisrecord_campaigns')
+    .select('slug,starts_on,ends_on')
+    .eq('id', campaignId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!campaign) return 0
+
+  const urls = [...new Set(players.flatMap((player) => {
+    if (tennisRecordRecordPageKind(player.sourceUrl) !== 'player') return []
+    return getTennisRecordCampaignPlayerHistoryUrls({
+      slug: campaign.slug,
+      startsOn: campaign.starts_on,
+      endsOn: campaign.ends_on,
+      playerName: player.name,
+      state: player.state,
+    })
+  }))]
+  return enqueueTennisRecordUrls(service, urls, campaignId)
 }
 
 async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatchKeys: string[]) {

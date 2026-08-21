@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
-import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
@@ -182,6 +182,16 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFrontierStatus(0, urls.length)).toBe('ready_to_seed')
     expect(tennisRecordFrontierStatus(0, 0)).toBe('needs_admin_seed')
     expect(tennisRecordFrontierStatus(1, urls.length)).toBe('seeded')
+  })
+
+  it('expands Missouri only from source profiles that explicitly resolve to Missouri', () => {
+    const campaign = { slug: 'missouri-2025-current', startsOn: '2025-01-01', endsOn: '2026-08-21' }
+    expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Example Player', state: 'MO' })).toEqual([
+      'https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Example+Player&year=2025',
+      'https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Example+Player&year=2026',
+    ])
+    expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Kansas Example', state: 'KS' })).toEqual([])
+    expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Unknown Example', state: '' })).toEqual([])
   })
 
   it('keeps history gentle and restores higher bounded throughput for weekly refreshes', () => {
