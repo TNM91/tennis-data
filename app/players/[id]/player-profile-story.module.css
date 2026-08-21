@@ -865,6 +865,10 @@
     padding: 21px 18px 148px;
   }
 
+  .storyHero[data-public-profile='true'] .storyContent {
+    padding-bottom: 104px;
+  }
+
   .identityTopline {
     margin-bottom: 18px;
   }
@@ -900,6 +904,19 @@
 
   .journeyCopy h2 {
     font-size: 31px;
+  }
+
+  .storyHero[data-public-profile='true'] .journeyCopy {
+    gap: 8px;
+  }
+
+  .storyHero[data-public-profile='true'] .journeyCopy h2 {
+    font-size: 27px;
+  }
+
+  .storyHero[data-public-profile='true'] .journeyCopy p {
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   .heroActions > * {
@@ -1161,6 +1178,10 @@
 @media (max-width: 390px) {
   .storyContent {
     padding: 18px 15px 132px;
+  }
+
+  .storyHero[data-public-profile='true'] .storyContent {
+    padding-bottom: 96px;
   }
 
   .identityMeta {
