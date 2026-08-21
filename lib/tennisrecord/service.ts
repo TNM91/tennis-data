@@ -14,13 +14,15 @@ type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; lim
 // Historical backfill is intentionally gentler than the Admin-configured
 // ceiling. This keeps the automatic checkpoint safely below the database I/O
 // budget while preserving resumable progress.
-const SCHEDULED_TENNISRECORD_BATCH_LIMIT = 2
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 2
+const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const TENNISRECORD_PARSER_REVISION = 2
 
-export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number) {
-  return Math.min(maxRequestsPerRun, SCHEDULED_TENNISRECORD_BATCH_LIMIT)
+export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
+  const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
+  return Math.min(maxRequestsPerRun, ceiling)
 }
 
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
@@ -234,7 +236,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   if (error) throw new Error(error.message)
   const settings = rawSettings as Settings
   if (!settings.enabled) return emptySummary('disabled')
-  const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run)
+  const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run, cadence)
 
   if (cadence === 'bootstrap') {
     let pendingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', ['match', 'team', 'history'])
