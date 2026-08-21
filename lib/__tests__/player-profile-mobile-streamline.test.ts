@@ -80,4 +80,18 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.performanceStatGrid')
     expect(styles).toMatch(/\.performanceStatGrid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/)
   })
+
+  it('uses a compact rating trend and score-aware result tiles for public profiles', () => {
+    expect(page).toContain('const publicRecentResults = visibleLastFive.map')
+    expect(page).toContain('const publicTrendPoints = chartPoints.slice(-10)')
+    expect(page).toContain('<RatingSparkline points={publicTrendPoints} />')
+    expect(page).toContain('aria-label="Recent scorecards"')
+    expect(page).toContain('vs {match.opponent}')
+    expect(page).toContain('{!isPublicExplorerProfile ? <div id="profile-match-strip"')
+    expect(page).toContain('function RatingSparkline')
+    expect(styles).toContain('.ratingPulse')
+    expect(styles).toContain('.recentResultTileGrid')
+    expect(styles).toContain(".recentResultTile[data-result='W']")
+    expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
+  })
 })

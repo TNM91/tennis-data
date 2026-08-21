@@ -1334,6 +1334,14 @@ function PlayerProfileContent() {
     },
   ]
   const visibleLastFive = filteredMatches.slice(0, 5)
+  const publicRecentResults = visibleLastFive.map((match) => {
+    const snapshot = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
+    return {
+      ...match,
+      opponentRating: snapshot?.opponent_rating ?? null,
+    }
+  })
+  const publicTrendPoints = chartPoints.slice(-10)
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
   const hasPlayerDetailPanels =
@@ -1517,6 +1525,24 @@ function PlayerProfileContent() {
               </div>
               <span>{ratingViewLabel}</span>
             </div>
+            <div className={profileStory.ratingPulse} aria-label={`${ratingViewLabel} rating trend`}>
+              <div className={profileStory.ratingPulseRead}>
+                <span>TIQ rating</span>
+                <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                <small>
+                  {recentTrendDelta === null
+                    ? `USTA ${isSelfRatedProfile ? 'pending' : baseRating.toFixed(2)}`
+                    : `${recentTrendDelta >= 0 ? '▲' : '▼'} ${Math.abs(recentTrendDelta).toFixed(2)} in recent results`}
+                </small>
+              </div>
+              <div className={profileStory.ratingPulseChart}>
+                <RatingSparkline points={publicTrendPoints} />
+                <div>
+                  <span>{publicTrendPoints.length > 1 ? `${publicTrendPoints.length} reviewed results` : 'Trend building'}</span>
+                  <strong>{getTrendShortLabel(trendDirection)}</strong>
+                </div>
+              </div>
+            </div>
             <div className={profileStory.performanceStatGrid}>
               {publicPerformanceStats.map((stat) => (
                 <article key={stat.label} className={profileStory.performanceStat}>
@@ -1526,6 +1552,27 @@ function PlayerProfileContent() {
                 </article>
               ))}
             </div>
+            {publicRecentResults.length > 0 ? (
+              <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
+                <div className={profileStory.recentResultSnapshotHeading}>
+                  <span>Recent scorecards</span>
+                  <small>Latest {publicRecentResults.length}</small>
+                </div>
+                <div className={profileStory.recentResultTileGrid}>
+                  {publicRecentResults.map((match) => (
+                    <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
+                      <div>
+                        <strong>{match.result}</strong>
+                        <span>{match.matchType}</span>
+                      </div>
+                      <b>{match.score || 'Score pending'}</b>
+                      <small>vs {match.opponent}</small>
+                      <em>{formatChartDate(match.date)}{match.opponentRating !== null ? ` · ${match.opponentRating.toFixed(2)}` : ''}</em>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1567,7 +1614,7 @@ function PlayerProfileContent() {
               </div>
             )}
 
-            <div id="profile-match-strip" className={profileStory.matchStrip} aria-label="Last five reviewed matches">
+            {!isPublicExplorerProfile ? <div id="profile-match-strip" className={profileStory.matchStrip} aria-label="Last five reviewed matches">
               {visibleLastFive.length > 0 ? visibleLastFive.map((match) => (
                 <span
                   key={match.id}
@@ -1581,7 +1628,7 @@ function PlayerProfileContent() {
               )) : Array.from({ length: 5 }, (_, index) => (
                 <span key={index} className={profileStory.matchEmpty} aria-hidden="true">—</span>
               ))}
-            </div>
+            </div> : null}
           </div>
 
           {hasPersonalPlayerExperience ? (
@@ -3408,6 +3455,39 @@ function StatChip({
 }
 
 type ChartPoint = { x: number; date: string; rating: number; delta: number | null; winProbability: number | null }
+
+function RatingSparkline({ points }: { points: ChartPoint[] }) {
+  if (points.length < 2) {
+    return <div className={profileStory.ratingPulseEmpty} aria-hidden="true"><i /></div>
+  }
+
+  const width = 220
+  const height = 68
+  const padding = 5
+  const min = Math.min(...points.map((point) => point.rating))
+  const max = Math.max(...points.map((point) => point.rating))
+  const spread = Math.max(max - min, 0.08)
+  const path = points.map((point, index) => {
+    const x = padding + (index / (points.length - 1)) * (width - padding * 2)
+    const y = height - padding - ((point.rating - min) / spread) * (height - padding * 2)
+    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
+  }).join(' ')
+  const last = points[points.length - 1]
+  const lastY = height - padding - ((last.rating - min) / spread) * (height - padding * 2)
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Recent TIQ rating movement" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="publicProfileSparkline" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#58a6ff" />
+          <stop offset="100%" stopColor="#b7ed23" />
+        </linearGradient>
+      </defs>
+      <path d={path} fill="none" stroke="url(#publicProfileSparkline)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={width - padding} cy={lastY} r="4.5" fill="#d9f84a" stroke="#09192d" strokeWidth="3" />
+    </svg>
+  )
+}
 
 function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } {
   const { delta, winProbability } = point
