@@ -25,7 +25,7 @@ import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
-import { isPublicTeamDirectoryName } from '@/lib/team-directory'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
@@ -886,6 +886,12 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
   for (const row of ((data || []) as TeamMatchRow[]) || []) {
     const league = cleanText(row.league_name) || null
     const flight = cleanText(row.flight) || null
+    if (!isPublicTeamDirectoryMatch({
+      homeTeam: row.home_team,
+      awayTeam: row.away_team,
+      league,
+      source: row.source,
+    })) continue
     const allowedTeams = allowedTeamsByScope.get(buildTeamKey('', league, flight))
     for (const teamName of [cleanText(row.home_team), cleanText(row.away_team)]) {
       if (!isPublicTeamDirectoryName(teamName, league)) continue
