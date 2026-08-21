@@ -141,4 +141,19 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.achievementShelf')
     expect(styles).toContain('.ratingTrajectory')
   })
+
+  it('lets only a linked Player feature an earned achievement on the public showcase', () => {
+    const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'app/api/player/achievement-showcase/route.ts'), 'utf8')
+    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260821000100_create_player_achievement_showcases.sql'), 'utf8')
+
+    expect(page).toContain("'Feature one'")
+    expect(page).toContain('saveFeaturedAchievement')
+    expect(page).toContain("data-featured={featuredAchievementKeys.includes(achievement.key)}")
+    expect(route).toContain('getPlayerApiAuth')
+    expect(route).toContain("linked_player_id !== playerId")
+    expect(route).toContain('loadEligibleAchievementKeys')
+    expect(migration).toContain('Public can read player achievement showcases')
+    expect(migration).toContain('Players can update their own achievement showcase')
+  })
 })

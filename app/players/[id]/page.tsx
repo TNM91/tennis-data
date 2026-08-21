@@ -244,6 +244,10 @@ function PlayerProfileContent() {
   const [playerAwards, setPlayerAwards] = useState<TiqAwardRecord[]>([])
   const [detailReady, setDetailReady] = useState(false)
   const [profileShareStatus, setProfileShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
+  const [featuredAchievementKeys, setFeaturedAchievementKeys] = useState<string[]>([])
+  const [achievementEditorOpen, setAchievementEditorOpen] = useState(false)
+  const [achievementSaveStatus, setAchievementSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [achievementSaveMessage, setAchievementSaveMessage] = useState('')
 
   const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const useSplitProfileHero = screenWidth >= 1180
@@ -319,6 +323,25 @@ function PlayerProfileContent() {
       active = false
     }
   }, [authResolved, currentUserId])
+
+  useEffect(() => {
+    let active = true
+    void supabase
+      .from('player_achievement_showcases')
+      .select('featured_keys')
+      .eq('player_id', playerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return
+        const keys = Array.isArray((data as { featured_keys?: unknown } | null)?.featured_keys)
+          ? (data as { featured_keys: unknown[] }).featured_keys.filter((key): key is string => typeof key === 'string').slice(0, 3)
+          : []
+        setFeaturedAchievementKeys(keys)
+      })
+    return () => {
+      active = false
+    }
+  }, [playerId])
 
   const refreshMyMatchReports = useCallback(async () => {
     if (!authResolved) return
@@ -1413,6 +1436,40 @@ function PlayerProfileContent() {
 
     return showcase.slice(0, 3)
   }, [hasTrackedMatches, longestWinStreak, playerAwards.length, totalMatches])
+  const orderedAchievementShowcase = useMemo(() => {
+    if (!featuredAchievementKeys.length) return profileAchievementShowcase
+    const order = new Map(featuredAchievementKeys.map((key, index) => [key, index]))
+    return [...profileAchievementShowcase].sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99))
+  }, [featuredAchievementKeys, profileAchievementShowcase])
+  const saveFeaturedAchievement = useCallback(async (achievementKey: string) => {
+    if (!currentUserId || !hasPersonalPlayerExperience) return
+    setAchievementSaveStatus('saving')
+    setAchievementSaveMessage('')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) {
+      setAchievementSaveStatus('error')
+      setAchievementSaveMessage('Sign in again to save your showcase.')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/player/achievement-showcase', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, featuredKeys: [achievementKey] }),
+      })
+      const body = (await response.json().catch(() => null)) as { ok?: boolean; featuredKeys?: unknown; message?: string } | null
+      if (!response.ok || !body?.ok) throw new Error(body?.message || 'Your showcase could not be saved.')
+      setFeaturedAchievementKeys(Array.isArray(body.featuredKeys) ? body.featuredKeys.filter((key): key is string => typeof key === 'string').slice(0, 3) : [])
+      setAchievementSaveStatus('saved')
+      setAchievementSaveMessage('Featured on your public profile.')
+      setAchievementEditorOpen(false)
+    } catch (saveError) {
+      setAchievementSaveStatus('error')
+      setAchievementSaveMessage(saveError instanceof Error ? saveError.message : 'Your showcase could not be saved.')
+    }
+  }, [currentUserId, hasPersonalPlayerExperience, playerId])
   const showDetailedRatingHistory = !isMobile || showMobileRatingHistory
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1533,19 +1590,48 @@ function PlayerProfileContent() {
                 <section className={profileStory.achievementShelf} aria-label="Player achievements">
                   <div className={profileStory.achievementShelfHeading}>
                     <span>Achievements</span>
-                    <small>{hasPersonalPlayerExperience ? 'Your public showcase' : 'Player showcase'}</small>
+                    {hasPersonalPlayerExperience ? (
+                      <button
+                        type="button"
+                        className={profileStory.achievementEditButton}
+                        onClick={() => setAchievementEditorOpen((open) => !open)}
+                      >
+                        {achievementEditorOpen ? 'Done' : 'Feature one'}
+                      </button>
+                    ) : (
+                      <small>Player showcase</small>
+                    )}
                   </div>
                   <div className={profileStory.achievementShelfItems}>
-                    {profileAchievementShowcase.map((achievement) => (
-                      <article key={achievement.key} className={profileStory.achievementShelfItem}>
+                    {orderedAchievementShowcase.map((achievement) => (
+                      <article
+                        key={achievement.key}
+                        className={profileStory.achievementShelfItem}
+                        data-featured={featuredAchievementKeys.includes(achievement.key)}
+                      >
                         <TiqFeatureIcon name={achievement.icon} size="sm" variant="surface" />
                         <div>
                           <strong>{achievement.label}</strong>
                           <small>{achievement.detail}</small>
                         </div>
+                        {achievementEditorOpen ? (
+                          <button
+                            type="button"
+                            className={profileStory.achievementFeatureButton}
+                            disabled={achievementSaveStatus === 'saving'}
+                            onClick={() => void saveFeaturedAchievement(achievement.key)}
+                          >
+                            {featuredAchievementKeys.includes(achievement.key) ? 'Featured' : 'Feature'}
+                          </button>
+                        ) : null}
                       </article>
                     ))}
                   </div>
+                  {hasPersonalPlayerExperience ? (
+                    <p className={profileStory.achievementShelfNote} data-tone={achievementSaveStatus}>
+                      {achievementSaveMessage || 'Choose one earned achievement to lead your public profile.'}
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 
