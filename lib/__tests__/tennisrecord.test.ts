@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
 import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -135,6 +135,9 @@ describe('TennisRecord ingestion safety', () => {
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
     expect(isTennisRecordWeeklyWindowOpen(new Date('2026-08-26T14:00:00.000Z'))).toBe(true)
     expect(isTennisRecordWeeklyWindowOpen(new Date('2026-08-27T14:00:00.000Z'))).toBe(false)
+    expect(shouldSelfStartTennisRecordBootstrap({ automation_state: 'manual', bootstrap_started_at: null, bootstrap_completed_at: null })).toBe(true)
+    expect(shouldSelfStartTennisRecordBootstrap({ automation_state: 'bootstrap', bootstrap_started_at: '2026-08-21T00:00:00.000Z', bootstrap_completed_at: null })).toBe(false)
+    expect(shouldSelfStartTennisRecordBootstrap({ automation_state: 'manual', bootstrap_started_at: '2026-08-21T00:00:00.000Z', bootstrap_completed_at: null })).toBe(false)
   })
 
   it('seeds the Missouri frontier from explicit-season public history pages and never marks an empty campaign complete', () => {
