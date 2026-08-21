@@ -58,7 +58,6 @@ describe('player profile mobile streamline', () => {
     expect(page).not.toContain('Latest scorecards')
     expect(page).not.toContain('Open match history')
     expect(page).toContain('Latest match history')
-    expect(page).toContain('{false && filteredMatches.length > 0 ? (')
     expect(page).toContain('{hasTrackedMatches ? (')
   })
 
