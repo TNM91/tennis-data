@@ -33,6 +33,8 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('{hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}')
     expect(page).toContain('{hasPersonalPlayerExperience ? (')
     expect(page).toContain('<section id="profile-player-id"')
+    expect(page).toContain('<details className={profileStory.playerFocusDisclosure}>')
+    expect(page).toContain('Open focus')
     expect(page).toContain('Player focus')
     expect(page).toContain('Train next')
     expect(page).toContain('Start this focus')
@@ -40,6 +42,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('/player-profile/journey-hero.png')
     expect(page).not.toContain('/player-profile/player-id-court.png')
     expect(styles).toMatch(/\.playerFocusVisual\s*\{[\s\S]*?min-height:\s*148px/)
+    expect(styles).toContain('.playerFocusDisclosureContent')
     expect(styles).toMatch(/@media \(max-width: 390px\)[\s\S]*?\.playerFocusProof,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
   })
 
@@ -55,6 +58,8 @@ describe('player profile mobile streamline', () => {
     expect(page).not.toContain('Latest scorecards')
     expect(page).not.toContain('Open match history')
     expect(page).toContain('Latest match history')
+    expect(page).toContain('{false && filteredMatches.length > 0 ? (')
+    expect(page).toContain('{hasTrackedMatches ? (')
   })
 
   it('gives linked free accounts the same compact public snapshot as explorers', () => {

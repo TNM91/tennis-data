@@ -1004,11 +1004,76 @@
 }
 
 .playerIdentityPanel {
+  margin-top: 14px;
+  scroll-margin-top: 82px;
+}
+
+.playerFocusDisclosure {
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 26px;
+  background: #09192d;
+}
+
+.playerFocusDisclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.playerFocusDisclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.playerFocusDisclosure > summary > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.playerFocusDisclosure > summary span:first-child {
+  color: #8ec5ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.playerFocusDisclosure > summary strong {
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.playerFocusDisclosure > summary small {
+  overflow: hidden;
+  color: rgba(220, 234, 250, 0.68);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playerFocusDisclosureAction {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid rgba(155, 225, 29, 0.3);
+  border-radius: 999px;
+  color: #d9f84a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.playerFocusDisclosureContent {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
   gap: 14px;
-  margin-top: 14px;
-  scroll-margin-top: 82px;
+  padding: 14px;
+  border-top: 1px solid rgba(116, 190, 255, 0.18);
 }
 
 .playerIdStory,
@@ -1701,6 +1766,19 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .playerFocusDisclosure {
+    border-radius: 22px;
+  }
+
+  .playerFocusDisclosure > summary {
+    padding: 16px 18px;
+  }
+
+  .playerFocusDisclosureContent {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
   .playerFocusVisual {
     min-height: 148px;
     border-right: 0;
@@ -1794,6 +1872,11 @@
 
   .playerFocusProof > div {
     padding: 11px 12px;
+  }
+
+  .playerFocusDisclosure > summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

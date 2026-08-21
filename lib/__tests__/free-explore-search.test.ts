@@ -12,6 +12,9 @@ describe('free Explore search', () => {
   it('sends an unmatched home or Explore query into the free player search path', () => {
     expect(universalSearch).toContain('buildFreePlayerSearchHref(q)')
     expect(universalSearch).toContain('`/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`')
+    expect(universalSearch).toContain('function isLikelyPlayerLookupQuery')
+    expect(universalSearch).toContain("filtered.filter((item) => item.result.group !== 'Actions')")
+    expect(universalSearch).toContain('const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)')
   })
 
   it('queries player names and locations in the database instead of filtering a fixed alphabetized slice', () => {

@@ -1550,7 +1550,7 @@ function PlayerProfileContent() {
           </div>
         </article>
 
-        {isPublicExplorerProfile && hasTrackedMatches ? (
+        {hasTrackedMatches ? (
           <section id="profile-performance" className={profileStory.performanceSnapshot} aria-label="Player performance snapshot">
             <div className={profileStory.performanceSnapshotHeading}>
               <div>
@@ -1729,65 +1729,77 @@ function PlayerProfileContent() {
 
         {hasPersonalPlayerExperience ? (
         <section id="profile-player-id" className={profileStory.playerIdentityPanel}>
-          <article className={profileStory.playerIdStory}>
-            <div className={profileStory.playerFocusVisual} aria-hidden="true">
-              <Image
-                src="/player-profile/journey-hero.png"
-                alt=""
-                width={1896}
-                height={829}
-                className={profileStory.playerFocusImage}
-              />
-              <div className={profileStory.playerFocusVisualLabel}>
-                <TiqFeatureIcon name="improveTennis" size="md" variant="surface" />
-                <span>Next match</span>
-                <strong>One focus</strong>
+          <details className={profileStory.playerFocusDisclosure}>
+            <summary>
+              <div>
+                <span>Player focus</span>
+                <strong>{playerPathIdentityRead.label}</strong>
+                <small>{playerPathIdentityRead.trainingPriority}</small>
               </div>
-            </div>
-            <div className={profileStory.playerIdCopy}>
-              <span className={profileStory.playerIdEyebrow}>Player focus</span>
-              <h2>{playerPathIdentityRead.label}</h2>
-              <p>{playerPathIdentityRead.title}</p>
-              <div className={profileStory.playerFocusPrimary}>
-                <span>Train next</span>
-                <strong>{playerPathIdentityRead.trainingPriority}</strong>
-              </div>
-              <dl className={profileStory.playerFocusProof}>
-                <div>
-                  <dt>Prove it</dt>
-                  <dd>{playerPathIdentityRead.proofTarget}</dd>
+              <span className={profileStory.playerFocusDisclosureAction}>Open focus</span>
+            </summary>
+            <div className={profileStory.playerFocusDisclosureContent}>
+              <article className={profileStory.playerIdStory}>
+                <div className={profileStory.playerFocusVisual} aria-hidden="true">
+                  <Image
+                    src="/player-profile/journey-hero.png"
+                    alt=""
+                    width={1896}
+                    height={829}
+                    className={profileStory.playerFocusImage}
+                  />
+                  <div className={profileStory.playerFocusVisualLabel}>
+                    <TiqFeatureIcon name="improveTennis" size="md" variant="surface" />
+                    <span>Next match</span>
+                    <strong>One focus</strong>
+                  </div>
                 </div>
-                <div>
-                  <dt>Test it</dt>
-                  <dd>{playerPathIdentityRead.matchTrigger}</dd>
+                <div className={profileStory.playerIdCopy}>
+                  <span className={profileStory.playerIdEyebrow}>Player focus</span>
+                  <h2>{playerPathIdentityRead.label}</h2>
+                  <p>{playerPathIdentityRead.title}</p>
+                  <div className={profileStory.playerFocusPrimary}>
+                    <span>Train next</span>
+                    <strong>{playerPathIdentityRead.trainingPriority}</strong>
+                  </div>
+                  <dl className={profileStory.playerFocusProof}>
+                    <div>
+                      <dt>Prove it</dt>
+                      <dd>{playerPathIdentityRead.proofTarget}</dd>
+                    </div>
+                    <div>
+                      <dt>Test it</dt>
+                      <dd>{playerPathIdentityRead.matchTrigger}</dd>
+                    </div>
+                  </dl>
+                  <div className={profileStory.playerFocusActions}>
+                    <Link href={playerPathLevelUpHref} className={profileStory.primaryAction}>Start this focus</Link>
+                    <Link href={playerPathDevelopmentHref} className={profileStory.quietAction}>Full Player ID</Link>
+                  </div>
                 </div>
-              </dl>
-              <div className={profileStory.playerFocusActions}>
-                <Link href={playerPathLevelUpHref} className={profileStory.primaryAction}>Start this focus</Link>
-                <Link href={playerPathDevelopmentHref} className={profileStory.quietAction}>Full Player ID</Link>
-              </div>
-            </div>
-          </article>
+              </article>
 
-          <article className={profileStory.playerCardPreview} data-own-profile={hasPersonalPlayerExperience}>
-            <span className={profileStory.playerCardEyebrow}>Your player card</span>
-            <h3>A profile worth sharing.</h3>
-            <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>
-              <div className={profileStory.playerCardName}>
-                <strong>{player.name}</strong>
-                <span>{storyTeamName}</span>
-              </div>
-              <div className={profileStory.playerCardRating}>
-                {formatPublicRating(selectedDynamicRating, player)} <small>TIQ {ratingViewLabel}</small>
-              </div>
+              <article className={profileStory.playerCardPreview} data-own-profile={hasPersonalPlayerExperience}>
+                <span className={profileStory.playerCardEyebrow}>Your player card</span>
+                <h3>A profile worth sharing.</h3>
+                <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>
+                  <div className={profileStory.playerCardName}>
+                    <strong>{player.name}</strong>
+                    <span>{storyTeamName}</span>
+                  </div>
+                  <div className={profileStory.playerCardRating}>
+                    {formatPublicRating(selectedDynamicRating, player)} <small>TIQ {ratingViewLabel}</small>
+                  </div>
+                </div>
+                <div className={profileStory.playerCardFooter}>
+                  <span>Share your progress with a teammate or coach.</span>
+                  <button type="button" className={profileStory.quietAction} onClick={() => void sharePlayerProfile()}>
+                    {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
+                  </button>
+                </div>
+              </article>
             </div>
-            <div className={profileStory.playerCardFooter}>
-              <span>Share your progress with a teammate or coach.</span>
-              <button type="button" className={profileStory.quietAction} onClick={() => void sharePlayerProfile()}>
-                {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
-              </button>
-            </div>
-          </article>
+          </details>
         </section>
         ) : null}
 
@@ -2949,7 +2961,7 @@ function PlayerProfileContent() {
           </article>
           ) : null}
 
-          {filteredMatches.length > 0 ? (
+          {false && filteredMatches.length > 0 ? (
           <article id="profile-matches" className={`${profileStory.recentResults} ${profileStory.anchorSection}`} style={panelCard}>
             <div style={panelHead}>
               <div style={panelHeadCopyStyle}>
