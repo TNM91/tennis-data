@@ -1360,6 +1360,8 @@ function PlayerProfileContent() {
     },
   ]
   const visibleLastFive = filteredMatches.slice(0, 5)
+  const recentFormWins = visibleLastFive.filter((match) => match.result === 'W').length
+  const recentFormLosses = visibleLastFive.filter((match) => match.result === 'L').length
   const publicRecentResults = filteredMatches.slice(0, showAllPublicResults ? undefined : 3).map((match) => {
     return {
       ...match,
@@ -1754,6 +1756,24 @@ function PlayerProfileContent() {
                   <span>{publicTrendPoints.length > 1 ? `${publicTrendPoints.length} reviewed results` : 'Trend building'}</span>
                   <strong>{getTrendShortLabel(trendDirection)}</strong>
                 </div>
+              </div>
+              <div className={profileStory.courtFormRail} aria-label="Recent result form">
+                <div>
+                  <span>Recent form</span>
+                  <small>Last {visibleLastFive.length} verified result{visibleLastFive.length === 1 ? '' : 's'}</small>
+                </div>
+                <div className={profileStory.courtFormMarks} aria-label={`${recentFormWins} wins and ${recentFormLosses} losses in recent results`}>
+                  {visibleLastFive.map((match) => (
+                    <span
+                      key={match.id}
+                      data-result={match.result}
+                      title={`${match.result === 'W' ? 'Win' : 'Loss'} vs ${match.opponent}`}
+                    >
+                      {match.result}
+                    </span>
+                  ))}
+                </div>
+                <strong>{recentFormWins}–{recentFormLosses}</strong>
               </div>
             </div>
             <div className={profileStory.performanceStatGrid}>
