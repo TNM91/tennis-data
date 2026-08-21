@@ -62,6 +62,7 @@ import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
@@ -2704,6 +2705,13 @@ function MyLabPageInner() {
     if (match.result !== 'W') break
     currentWinStreak += 1
   }
+  const trophyBadges = buildPlayerTrophyBadges({
+    verifiedHonors: earnedAwardCards.length,
+    reviewedMatches: recentDecisionMatches.length,
+    longestWinStreak: bestWinStreak,
+  })
+  const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
+  const nextTrophyBadge = trophyBadges.find((badge) => !badge.earned) || null
   const seasonRecords = new Map<string, { wins: number; losses: number }>()
   const leagueRecords = new Map<string, { wins: number; losses: number }>()
   recentDecisionMatches.forEach((match) => {
@@ -4070,6 +4078,25 @@ function MyLabPageInner() {
                         <strong>Best marks</strong>
                         <em>{trophyRoomCards.length - earnedAwardCards.length}</em>
                       </div>
+                    </div>
+                    <div style={trophyBadgeHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Earned badges</div>
+                        <strong style={trophyBadgeTitleStyle}>{earnedTrophyBadges.length} collected</strong>
+                      </div>
+                      {nextTrophyBadge ? <span style={trophyNextBadgeStyle}>Next: {nextTrophyBadge.label} · {nextTrophyBadge.progressLabel}</span> : <span style={trophyNextBadgeStyle}>Full collection</span>}
+                    </div>
+                    <div style={trophyBadgeGridStyle} aria-label="Player trophy badges">
+                      {trophyBadges.map((badge) => (
+                        <div key={badge.key} style={{ ...trophyBadgeCardStyle, opacity: badge.earned ? 1 : 0.58 }} data-earned={badge.earned}>
+                          <TiqFeatureIcon name={badge.icon} size="sm" variant="surface" />
+                          <div>
+                            <strong style={trophyBadgeNameStyle}>{badge.label}</strong>
+                            <span style={trophyBadgeProgressStyle}>{badge.earned ? 'Earned' : badge.progressLabel}</span>
+                            <small style={metricNoteStyle}>{badge.detail}</small>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <div style={trophyRoomGridStyle(isTablet)}>
                       {trophyRoomCards.map((record) => (
@@ -8991,6 +9018,61 @@ const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
   gap: 12,
   minWidth: 0,
 })
+
+const trophyBadgeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const trophyBadgeTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.05rem',
+  fontWeight: 950,
+}
+
+const trophyNextBadgeStyle: CSSProperties = {
+  color: 'var(--foreground-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const trophyBadgeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const trophyBadgeCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const trophyBadgeNameStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const trophyBadgeProgressStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+}
 
 const trophyProofGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
