@@ -14,7 +14,8 @@ type Status = {
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
-  campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string }>
+  campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string; availableSeedPages: number }>
+  frontier: { status: 'seeded' | 'ready_to_seed' | 'needs_admin_seed' }
 }
 
 export default function TennisRecordAdminPage() {
@@ -49,7 +50,7 @@ export default function TennisRecordAdminPage() {
     setBusy(true); setMessage('')
     try {
       const result = await request(body)
-      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : body.action === 'resolve_identity' ? 'Verified player mapping saved.' : 'Collector settings saved.')
+      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : body.action === 'seed_frontier' ? 'Missouri public history pages are queued. Regional automation will continue from this checkpoint.' : body.action === 'resolve_identity' ? 'Verified player mapping saved.' : 'Collector settings saved.')
       if (body.action === 'enqueue') setSeedUrl('')
       if ('settings' in result) setStatus(result)
       await refresh()
@@ -69,7 +70,11 @@ export default function TennisRecordAdminPage() {
   const checkpointLimit = Math.max(1, status?.settings?.max_requests_per_run || 8)
   const checkpointsRemaining = progress ? Math.ceil((progress.pending + progress.running) / checkpointLimit) : 0
   const estimatedMinutesRemaining = checkpointsRemaining * 15
-  const estimatedRemaining = automationState === 'bootstrap' && checkpointsRemaining === 0
+  const estimatedRemaining = status?.frontier.status === 'ready_to_seed'
+    ? 'Ready to seed'
+    : status?.frontier.status === 'needs_admin_seed'
+      ? 'Needs approved seed pages'
+    : automationState === 'bootstrap' && checkpointsRemaining === 0
     ? 'Finalizing this import'
     : estimatedMinutesRemaining < 60
       ? `About ${estimatedMinutesRemaining} min remaining`
@@ -96,7 +101,7 @@ export default function TennisRecordAdminPage() {
       </AdminReviewHero>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
-          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={automationState === 'bootstrap' ? 'Importing 2025 match history' : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Historical import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Uses ${checkpointLimit}-page checkpoints; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
+          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Ready to start Missouri history' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? 'Importing 2025 match history' : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Historical import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are ready to queue. Starting regional automation will seed them automatically.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Uses ${checkpointLimit}-page checkpoints; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
           <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent match history' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Waiting for the next refresh' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={weeklyEstimatedRemaining} detail={weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. This scan prioritizes the most recent seven days.` : 'After the historical mission, this runs automatically every seven days and only checks recent, active records.'} />
         </div>
         <div className="metric-grid">
@@ -117,6 +122,7 @@ export default function TennisRecordAdminPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
           <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'set_enabled', enabled: !status?.settings?.enabled })}>{status?.settings?.enabled ? 'Disable collector' : 'Enable collector'}</button>
           <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: nextAutomationState })}>{automationButtonLabel}</button>
+          {status?.frontier.status === 'ready_to_seed' ? <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'seed_frontier' })}>Seed Missouri frontier</button> : null}
           {automationState === 'manual' ? <button className="button-secondary" disabled={busy || !status?.settings?.enabled} onClick={() => void act({ action: 'set_automation_state', automationState: 'weekly' })}>Enable weekly sync</button> : null}
           <select aria-label="Active historical campaign" value={status?.settings?.active_campaign_id || ''} disabled={busy || !status?.campaigns?.length} onChange={(event) => void act({ action: 'set_active_campaign', campaignId: event.target.value })}>
             <option value="">Choose campaign</option>

@@ -47,7 +47,7 @@ export type ParsedTennisRecordPage = {
 }
 
 export type TennisRecordRunSummary = {
-  status: 'completed' | 'blocked' | 'failed' | 'disabled' | 'skipped'
+  status: 'completed' | 'blocked' | 'failed' | 'disabled' | 'skipped' | 'awaiting_seed'
   pagesAttempted: number
   pagesProcessed: number
   playersDiscovered: number

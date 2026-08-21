@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, tennisRecordAutomationDecision, tennisRecordFailureDisposition } from '../tennisrecord/service'
+import { getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
@@ -126,11 +127,22 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordAutomationDecision('manual', 'bootstrap', 10)).toBe('skip')
     expect(tennisRecordAutomationDecision('weekly', 'bootstrap', 10)).toBe('skip')
     expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 10)).toBe('run')
-    expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 0)).toBe('complete_bootstrap')
+    expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 0, 0)).toBe('awaiting_seed')
+    expect(tennisRecordAutomationDecision('bootstrap', 'bootstrap', 0, 12)).toBe('complete_bootstrap')
     expect(tennisRecordAutomationDecision('weekly', 'weekly', 0)).toBe('run')
     expect(isWeeklyTennisRecordRefreshDue(null)).toBe(true)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-26T23:59:59.000Z'))).toBe(false)
     expect(isWeeklyTennisRecordRefreshDue('2026-08-20T00:00:00.000Z', Date.parse('2026-08-27T00:00:00.000Z'))).toBe(true)
+  })
+
+  it('seeds the Missouri frontier from explicit-season public history pages and never marks an empty campaign complete', () => {
+    const urls = getTennisRecordCampaignSeedUrls({ slug: 'missouri-2025-current', startsOn: '2025-01-01', endsOn: '2026-08-21' })
+    expect(urls).toContain('https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Nathan+Meinert&year=2025')
+    expect(urls).toContain('https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Nathan+Meinert&year=2026')
+    expect(urls.every((url) => tennisRecordRecordPageKind(url) === 'history')).toBe(true)
+    expect(tennisRecordFrontierStatus(0, urls.length)).toBe('ready_to_seed')
+    expect(tennisRecordFrontierStatus(0, 0)).toBe('needs_admin_seed')
+    expect(tennisRecordFrontierStatus(1, urls.length)).toBe('seeded')
   })
 
   it('uses a bounded eight-page scheduled batch without exceeding the admin limit', () => {
