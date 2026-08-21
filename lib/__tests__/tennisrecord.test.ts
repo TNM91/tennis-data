@@ -29,6 +29,25 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.matches.map((match) => match.discipline)).toEqual(['singles', 'doubles'])
   })
 
+  it('parses the current table-cell match heading and league value', () => {
+    const currentPublicLayout = fixture.replace(
+      '<h2>Match Results</h2><div>2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0</div>',
+      '<table><tr><td>Match Results</td></tr></table><table><tr><td colspan="2">2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0</td></tr></table>',
+    )
+    const parsed = parseTennisRecordMatchPage(currentPublicLayout, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.leagues[0]).toMatchObject({ name: '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0', flight: '4.0' })
+    expect(parsed.matches).toHaveLength(2)
+    expect(parsed.teams.map((team) => team.name)).toEqual(['Masengill/Suddarth (S)', 'Dickerson/Nash (S)'])
+  })
+
+  it('quarantines a match page that has no trustworthy team context', () => {
+    const missingTeamTable = fixture.replace(/<table><tr><th>Team Name<\/th>[\s\S]*?<\/table>/, '')
+    const parsed = parseTennisRecordMatchPage(missingTeamTable, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.matches).toEqual([])
+    expect(parsed.teams).toEqual([])
+    expect(parsed.players).toEqual([])
+  })
+
   it('skips the live table header and selects the participant row', () => {
     const liveTable = fixture.replace(
       '<table><tr><td><a href="/adult/profile.aspx?playername=Charles+Kern">',
