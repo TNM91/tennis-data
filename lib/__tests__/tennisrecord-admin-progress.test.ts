@@ -24,8 +24,9 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('weeklyPercent')
     expect(adminPage).toContain('window.setInterval')
     expect(adminPage).toContain('newly discovered public match pages can extend the queue.')
-    expect(adminPage).toContain('Seed Missouri frontier')
-    expect(adminPage).toContain('Ready to start Missouri history')
+    expect(adminPage).toContain('Pause automatic collection')
+    expect(adminPage).toContain('Next refresh: Wednesday')
+    expect(adminPage).toContain('Missouri history starts automatically')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {
