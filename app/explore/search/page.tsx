@@ -62,6 +62,14 @@ type TeamSearchResult = {
   flight: string | null
   matchCount: number
   latestMatchDate: string | null
+  source?: 'canonical' | 'tennisrecord'
+}
+
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
 }
 
 type MatchupSuggestion = {
@@ -714,7 +722,7 @@ function ExploreSearchContent() {
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{team.team}</div>
                           <div style={resultMetaStyle}>
-                            {[team.league, team.flight, `${team.matchCount} matches`].filter(Boolean).join(' - ')}
+                            {[team.league, team.flight, team.source === 'tennisrecord' ? 'TennisRecord context' : `${team.matchCount} matches`].filter(Boolean).join(' - ')}
                           </div>
                         </div>
                         <span style={miniBadgeBlue}>{formatCompactDate(team.latestMatchDate)}</span>
@@ -903,8 +911,39 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
           flight,
           matchCount: 1,
           latestMatchDate: row.match_date || null,
+          source: 'canonical',
         })
       }
+    }
+  }
+
+  const { data: tennisRecordContext, error: tennisRecordContextError } = await supabase
+    .from('tennisrecord_public_team_context')
+    .select('team_name, league_name, flight, last_seen_at')
+    .limit(700)
+
+  if (!tennisRecordContextError) {
+    for (const row of (tennisRecordContext || []) as TennisRecordTeamContextRow[]) {
+      const teamName = cleanText(row.team_name)
+      const league = cleanText(row.league_name) || null
+      const flight = cleanText(row.flight) || null
+      if (!teamName || !isPublicTeamDirectoryName(teamName, league)) continue
+
+      const haystack = [teamName, league || '', flight || ''].join(' ').toLowerCase()
+      if (!haystack.includes(normalizedTerm)) continue
+
+      const key = buildTeamKey(teamName, league, flight)
+      if (teamMap.has(key)) continue
+
+      teamMap.set(key, {
+        key,
+        team: teamName,
+        league,
+        flight,
+        matchCount: 0,
+        latestMatchDate: row.last_seen_at || null,
+        source: 'tennisrecord',
+      })
     }
   }
 

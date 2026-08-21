@@ -29,4 +29,9 @@ describe('public team directory trust filter', () => {
     expect(isScheduleTeamSource('tennislink_schedule | 2026 STL Tri-Level 18 & Over')).toBe(true)
     expect(isScheduleTeamSource('tennislink_scorecard_data_assist')).toBe(false)
   })
+
+  it('accepts factual TennisRecord team names for a source-labeled directory context', () => {
+    expect(isPublicTeamDirectoryName('Masengill/Suddarth (S)', '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0')).toBe(true)
+    expect(isPublicTeamDirectoryName('Visiting Team', '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0')).toBe(false)
+  })
 })

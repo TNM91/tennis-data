@@ -19,12 +19,21 @@ export type TeamDirectoryOption = {
   flight: string | null
   matchCount: number
   mostRecentMatchDate: string | null
+  source?: 'canonical' | 'tennisrecord'
+}
+
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
 }
 
 const NON_TEAM_LABELS = new Set([
   'match results',
   'home team',
   'away team',
+  'visiting team',
   'team name',
   'team',
   'tbd',
@@ -137,6 +146,7 @@ export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]>
           flight,
           matchCount: 0,
           mostRecentMatchDate: null,
+          source: 'canonical',
         })
       }
 
@@ -150,6 +160,35 @@ export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]>
       ) {
         current.mostRecentMatchDate = match.match_date
       }
+    }
+  }
+
+  const { data: tennisRecordContext, error: tennisRecordContextError } = await supabase
+    .from('tennisrecord_public_team_context')
+    .select('team_name, league_name, flight, last_seen_at')
+    .limit(10000)
+
+  // The view is delivered by a separate migration. Preserve existing team
+  // discovery if a local environment has not applied it yet.
+  if (!tennisRecordContextError) {
+    for (const row of (tennisRecordContext || []) as TennisRecordTeamContextRow[]) {
+      const team = cleanText(row.team_name)
+      const league = cleanText(row.league_name)
+      const flight = cleanText(row.flight)
+      if (!team || !isPublicTeamDirectoryName(team, league)) continue
+
+      const key = buildTeamKey(team, league, flight)
+      if (directory.has(key)) continue
+
+      directory.set(key, {
+        key,
+        team,
+        league,
+        flight,
+        matchCount: 0,
+        mostRecentMatchDate: cleanText(row.last_seen_at),
+        source: 'tennisrecord',
+      })
     }
   }
 

@@ -15,7 +15,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
-import { isPublicTeamDirectoryMatch, isScheduleTeamSource } from '@/lib/team-directory'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '@/lib/team-directory'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -51,6 +51,13 @@ type MatchPlayerRow = {
     | null
 }
 
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
+}
+
 type TeamDirectoryEntry = {
   key: string
   team: string
@@ -62,6 +69,7 @@ type TeamDirectoryEntry = {
   recentForm: Array<'W' | 'L'>
   playerIds: Set<string>
   mostRecentMatchDate: string | null
+  source: 'canonical' | 'tennisrecord'
 }
 
 type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
@@ -176,11 +184,17 @@ export default function TeamsPage() {
     setError('')
 
     try {
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
+      const [{ data: matchData, error: matchError }, { data: tennisRecordContext, error: tennisRecordContextError }] = await Promise.all([
+        supabase
+          .from('matches')
+          .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
+          .is('line_number', null)
+          .order('match_date', { ascending: false }),
+        supabase
+          .from('tennisrecord_public_team_context')
+          .select('team_name, league_name, flight, last_seen_at')
+          .limit(10000),
+      ])
 
       if (matchError) throw new Error(matchError.message)
 
@@ -196,7 +210,11 @@ export default function TeamsPage() {
         })
       })
 
-      if (!matches.length) {
+      const sourceContexts = tennisRecordContextError
+        ? []
+        : (tennisRecordContext || []) as TennisRecordTeamContextRow[]
+
+      if (!matches.length && !sourceContexts.length) {
         setRows([])
         return
       }
@@ -264,6 +282,7 @@ export default function TeamsPage() {
             recentForm: [],
             playerIds: new Set<string>(),
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -279,6 +298,7 @@ export default function TeamsPage() {
             recentForm: [],
             playerIds: new Set<string>(),
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -385,6 +405,30 @@ export default function TeamsPage() {
         if (!playerId) continue
 
         entry.playerIds.add(playerId)
+      }
+
+      for (const context of sourceContexts) {
+        const team = cleanText(context.team_name)
+        const league = cleanText(context.league_name)
+        const flight = cleanText(context.flight)
+        if (!team || !isPublicTeamDirectoryName(team, league)) continue
+
+        const key = buildTeamKey(team, league, flight)
+        if (directoryMap.has(key)) continue
+
+        directoryMap.set(key, {
+          key,
+          team,
+          league,
+          flight,
+          matchCount: 0,
+          wins: 0,
+          losses: 0,
+          recentForm: [],
+          playerIds: new Set<string>(),
+          mostRecentMatchDate: cleanText(context.last_seen_at),
+          source: 'tennisrecord',
+        })
       }
 
       setRows(
@@ -1086,6 +1130,7 @@ function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }
 
 function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry; awards: TiqAwardRecord[] }) {
   const [hovered, setHovered] = useState(false)
+  const isTennisRecordContext = row.source === 'tennisrecord'
 
   return (
     <article
@@ -1158,23 +1203,33 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
         })() : null}
 
         <div style={metricsGrid}>
-          <Metric label="Matches" value={String(row.matchCount)} />
-          <Metric label="Players" value={String(row.playerIds.size)} />
-          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+          {isTennisRecordContext ? (
+            <>
+              <Metric label="Source" value="TennisRecord" />
+              <Metric label="Context" value="Team / flight" />
+              <Metric label="Last seen" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          ) : (
+            <>
+              <Metric label="Matches" value={String(row.matchCount)} />
+              <Metric label="Players" value={String(row.playerIds.size)} />
+              <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          )}
         </div>
         <details style={teamCardTrustDetailsStyle}>
           <summary style={teamCardTrustSummaryStyle}>
             <span>Data check</span>
-            <strong>{row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
+            <strong>{isTennisRecordContext ? 'Source context' : row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
           </summary>
           <div style={teamCardTrustBodyStyle}>
             <TiqTrustStrip
               label={`${row.team} data trust signals`}
               signals={[
-                { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
+                { label: 'Source', value: isTennisRecordContext ? 'TennisRecord context' : 'Scorecards / rosters', tone: 'info' },
                 { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
                 { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
-                { label: 'Status', value: 'Reviewable', tone: 'good' },
+                { label: 'Status', value: isTennisRecordContext ? 'Context only' : 'Reviewable', tone: 'good' },
               ]}
               reviewContext={`Team ${row.team}`}
             />
