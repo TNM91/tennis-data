@@ -10,7 +10,7 @@ type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
-type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; campaignId?: string | null }
+type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null }
 type CoverageSummary = {
   staged_player_count: number
   filterable_team_count: number
@@ -33,6 +33,19 @@ const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 // grow from its own verified source graph.
 export const TENNISRECORD_BOOTSTRAP_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
 export const TENNISRECORD_WEEKLY_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
+
+/**
+ * Keep bounded checkpoints balanced. A profile carries explicit location
+ * evidence, while a history/match/team page carries result and roster
+ * evidence. Without this plan, alphabetical queue ordering can let one page
+ * type monopolize a long-running bootstrap.
+ */
+export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly', limit: number) {
+  const cycle = cadence === 'bootstrap'
+    ? [['player'], ['history', 'match', 'team']]
+    : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
+  return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
+}
 // Revision 3 adds source roster observations from explicitly-labelled team
 // roster tables. Captured public pages replay gradually through the existing
 // bounded checkpoint, so historical team pages benefit without a re-crawl.
@@ -202,12 +215,12 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     summary.teamsDiscovered += replay.teamsDiscovered
     summary.matchesStaged += replay.matchesStaged
     summary.parserFailures += replay.parserFailures
-    let jobsQuery = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count').eq('status', 'pending')
-    if (input.pageKinds?.length) jobsQuery = jobsQuery.in('page_kind', input.pageKinds)
-    if (input.campaignId) jobsQuery = jobsQuery.eq('campaign_id', input.campaignId)
-    const { data: jobs, error: jobsError } = await jobsQuery.order('page_kind').order('first_seen_at').limit(Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run))
-    if (jobsError) throw new Error(jobsError.message)
-    for (const job of (jobs || []) as QueueRow[]) {
+    const requestedLimit = Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run)
+    for (let index = 0; index < requestedLimit; index += 1) {
+      const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
+      const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds)
+        || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
+      if (!job) break
       summary.pagesAttempted += 1
       await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
       try {
@@ -296,7 +309,13 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       if (finishError) throw new Error(finishError.message)
       return emptySummary('completed')
     }
-    const summary = await runTennisRecordSync(service, { triggerKind: 'bootstrap', limit: scheduledBatchLimit, pageKinds: [...TENNISRECORD_BOOTSTRAP_PAGE_KINDS], campaignId: settings.active_campaign_id })
+    const summary = await runTennisRecordSync(service, {
+      triggerKind: 'bootstrap',
+      limit: scheduledBatchLimit,
+      pageKinds: [...TENNISRECORD_BOOTSTRAP_PAGE_KINDS],
+      pageKindPlan: tennisRecordScheduledPageKindPlan('bootstrap', scheduledBatchLimit),
+      campaignId: settings.active_campaign_id,
+    })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
     let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
     if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
@@ -320,7 +339,22 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     const { error: refreshError } = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'weekly')
     if (refreshError) throw new Error(refreshError.message)
   }
-  return runTennisRecordSync(service, { triggerKind: 'weekly', limit: scheduledBatchLimit, pageKinds: [...TENNISRECORD_WEEKLY_PAGE_KINDS], campaignId: settings.active_campaign_id })
+  return runTennisRecordSync(service, {
+    triggerKind: 'weekly',
+    limit: scheduledBatchLimit,
+    pageKinds: [...TENNISRECORD_WEEKLY_PAGE_KINDS],
+    pageKindPlan: tennisRecordScheduledPageKindPlan('weekly', scheduledBatchLimit),
+    campaignId: settings.active_campaign_id,
+  })
+}
+
+async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
+  let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count').eq('status', 'pending')
+  if (pageKinds.length) query = query.in('page_kind', pageKinds)
+  if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
+  const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as QueueRow | null
 }
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
