@@ -46,7 +46,35 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
   ])
   if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error || campaigns.error) throw new Error('TennisRecord operations status is unavailable.')
-  return { settings: settings.data, lastRun: lastRun.data, pendingPages: pending.count || 0, conflicts: conflicts.count || 0, identityReview: identities.data || [], campaigns: campaigns.data || [] }
+  const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
+  const countCampaignPages = (status: string) => {
+    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
+    if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
+    return query
+  }
+  const [campaignPending, campaignCompleted, campaignRunning, campaignBlocked, campaignErrors] = await Promise.all([
+    countCampaignPages('pending'),
+    countCampaignPages('done'),
+    countCampaignPages('running'),
+    countCampaignPages('blocked'),
+    countCampaignPages('error'),
+  ])
+  if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
+  return {
+    settings: settings.data,
+    lastRun: lastRun.data,
+    pendingPages: activeCampaignId ? campaignPending.count || 0 : pending.count || 0,
+    campaignProgress: {
+      pending: campaignPending.count || 0,
+      completed: campaignCompleted.count || 0,
+      running: campaignRunning.count || 0,
+      blocked: campaignBlocked.count || 0,
+      errors: campaignErrors.count || 0,
+    },
+    conflicts: conflicts.count || 0,
+    identityReview: identities.data || [],
+    campaigns: campaigns.data || [],
+  }
 }
 
 export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[], campaignId?: string | null) {
