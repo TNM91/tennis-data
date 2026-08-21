@@ -249,6 +249,7 @@ function PlayerProfileContent() {
   const useSplitProfileHero = screenWidth >= 1180
   const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !currentUserId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
   const sharePlayerProfile = useCallback(async () => {
     if (!player) return
@@ -953,13 +954,15 @@ function PlayerProfileContent() {
   }, [matches, rosterMemberships])
 
   const isOwnProfile = linkedPlayerId === playerId
+  const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights
+  const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
     ? `/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayerId)}&playerB=${encodeURIComponent(playerId)}`
     : `/matchup?type=singles&playerA=${encodeURIComponent(playerId)}`
-  const primaryActionHref = isOwnProfile ? '/mylab' : matchupHref
-  const primaryActionLabel = isOwnProfile ? 'Open My Lab' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
-  const secondaryActionHref = isOwnProfile ? '/matchup?type=singles' : '/mylab'
-  const secondaryActionLabel = isOwnProfile ? 'Find a matchup' : 'Open My Lab'
+  const primaryActionHref = hasPersonalPlayerExperience ? '/mylab' : isLinkedFreeProfile ? '/pricing' : matchupHref
+  const primaryActionLabel = hasPersonalPlayerExperience ? 'Open My Lab' : isLinkedFreeProfile ? 'Unlock Player' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
+  const secondaryActionHref = hasPersonalPlayerExperience ? '/matchup?type=singles' : matchupHref
+  const secondaryActionLabel = hasPersonalPlayerExperience ? 'Find a matchup' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
   const playerPathActions = [
     {
       question: 'What should I work on?',
@@ -1272,14 +1275,13 @@ function PlayerProfileContent() {
     color: meterTheme.trendColor,
     border: `1px solid ${meterTheme.trendBorder}`,
   }
-  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const shouldShowPlayerAccessHint = authResolved && !access.canUseAdvancedPlayerInsights
+  const shouldShowPlayerAccessHint = authResolved && isLinkedFreeProfile
   const tiqParticipationCount = tiqParticipations.length
   const featuredPlayerAwards = playerAwards.slice(0, 1)
   const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
   const storyActionHref = hasTrackedMatches ? primaryActionHref : DATA_ASSIST_STORY.href
   const storyActionLabel = hasTrackedMatches
-    ? isOwnProfile
+    ? hasPersonalPlayerExperience
       ? 'Open My Lab'
       : primaryActionLabel
     : 'Add first scorecard'
@@ -1291,7 +1293,7 @@ function PlayerProfileContent() {
   const storyChapterBody = hasTrackedMatches
     ? `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'} now shape this ${ratingViewLabel.toLowerCase()} read. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
     : 'Add the first reviewed scorecard to turn this official baseline into form, movement, and matchup insight.'
-  const isPublicExplorerProfile = !isOwnProfile
+  const isPublicExplorerProfile = !hasPersonalPlayerExperience
   const publicProfileTitle = hasTrackedMatches
     ? `${ratingStatus} based on ${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}.`
     : isRosterOnlyProfile
@@ -1304,8 +1306,11 @@ function PlayerProfileContent() {
   const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
   const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
   const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches ? 'Compare players' : storyActionLabel
-  const heroSecondaryHref = isPublicExplorerProfile ? '#profile-matches' : isOwnProfile ? '#profile-matches' : playerPathDevelopmentHref
-  const heroSecondaryLabel = isPublicExplorerProfile ? 'View results' : isOwnProfile ? 'Recent matches' : 'Open Player ID'
+  const heroSecondaryHref = '#profile-matches'
+  const heroSecondaryLabel = isPublicExplorerProfile ? 'View results' : 'Recent matches'
+  const ratingJourneyTitle = hasPersonalPlayerExperience
+    ? hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Your first result starts the trend'
+    : hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Rating history'
   const visibleLastFive = filteredMatches.slice(0, 5)
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1397,7 +1402,7 @@ function PlayerProfileContent() {
           <a href="#profile-overview">Overview</a>
           <a href="#profile-rating-journey">Rating</a>
           <a href="#profile-matches">Matches</a>
-          <a href="#profile-player-id">Player ID</a>
+          {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
           <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link>
         </nav>
 
@@ -1406,7 +1411,7 @@ function PlayerProfileContent() {
             <div>
               <div className={profileStory.identityTopline}>
                 <Link href="/players" className={profileStory.backLink}>Back to players</Link>
-                <span className={profileStory.profileLabel}>{isOwnProfile ? 'Your player profile' : 'Player profile'}</span>
+                <span className={profileStory.profileLabel}>{hasPersonalPlayerExperience ? 'Your player profile' : 'Player profile'}</span>
               </div>
 
               <div className={profileStory.identityBlock}>
@@ -1436,7 +1441,7 @@ function PlayerProfileContent() {
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
                     <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
-                    {isOwnProfile ? (
+                    {hasPersonalPlayerExperience ? (
                       <button
                         type="button"
                         className={`${profileStory.quietAction} ${profileStory.mobileOnlyAction}`}
@@ -1448,8 +1453,8 @@ function PlayerProfileContent() {
                   </div>
                   {shouldShowPlayerAccessHint ? (
                     <div className={profileStory.playerAccessHint}>
-                      <span>Player access adds saved reads, matchup prep, and My Lab.</span>
-                      <Link href="/pricing">See Player access</Link>
+                      <span>Unlock Player for My Lab, saved reads, and personal coaching.</span>
+                      <Link href="/pricing">Unlock Player</Link>
                     </div>
                   ) : null}
                 </div>
@@ -1486,7 +1491,7 @@ function PlayerProfileContent() {
             <div className={profileStory.journeyHeadingRow}>
               <div>
                 <span className={profileStory.journeyPanelTitle}>Rating journey</span>
-                <h2>{hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Your first result starts the trend'}</h2>
+                <h2>{ratingJourneyTitle}</h2>
               </div>
               <span className={profileStory.matchCount}>{totalMatches} reviewed match{totalMatches === 1 ? '' : 'es'}</span>
             </div>
@@ -1504,17 +1509,17 @@ function PlayerProfileContent() {
                 <div className={profileStory.journeyStep}>
                   <span>Official baseline</span>
                   <strong>{isSelfRatedProfile ? 'USTA pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
-                  <small>Your verified starting point.</small>
+                  <small>{isPublicExplorerProfile ? 'Verified starting point.' : 'Your verified starting point.'}</small>
                 </div>
                 <div className={profileStory.journeyStep}>
                   <span>First reviewed match</span>
                   <strong>Not started</strong>
-                  <small>Add one scorecard to create your first evidence point.</small>
+                  <small>{isPublicExplorerProfile ? 'Scorecards create the first evidence point.' : 'Add one scorecard to create your first evidence point.'}</small>
                 </div>
                 <div className={profileStory.journeyStep}>
                   <span>Measurable trend</span>
                   <strong>Locked</strong>
-                  <small>Form and movement appear as match history builds.</small>
+                  <small>{isPublicExplorerProfile ? 'Form and movement appear as match history builds.' : 'Form and movement appear as match history builds.'}</small>
                 </div>
               </div>
             )}
@@ -1536,6 +1541,7 @@ function PlayerProfileContent() {
             </div>
           </div>
 
+          {hasPersonalPlayerExperience ? (
           <aside className={profileStory.journeyAside}>
             <span className={profileStory.journeyPanelTitle}>Toward the next level</span>
             <h3>{nextThreshold.toFixed(1)} is the next marker.</h3>
@@ -1551,33 +1557,10 @@ function PlayerProfileContent() {
             </div>
             <Link href={storyActionHref} className={profileStory.quietAction}>{storyActionLabel}</Link>
           </aside>
+          ) : null}
         </article>
 
-        {mostRecentMatches.length > 0 ? (
-          <article className={profileStory.mobileResultsPreview} aria-label="Recent form preview">
-            <div className={profileStory.mobileResultsPreviewHead}>
-              <div>
-                <span>Recent form</span>
-                <h2>Latest scorecards</h2>
-              </div>
-              <a href="#profile-matches">All results</a>
-            </div>
-            <div className={profileStory.mobileResultsPreviewGrid}>
-              {mostRecentMatches.slice(0, 2).map((match) => (
-                <a key={match.id} href="#profile-matches" className={profileStory.mobileResultPreviewCard} data-result={match.result} aria-label={`${match.result === 'W' ? 'Win' : 'Loss'} against ${match.opponent}: ${match.score}`}>
-                  <div>
-                    <span>{formatDate(match.date)}</span>
-                    <b>{match.result}</b>
-                  </div>
-                  <strong>{match.opponent}</strong>
-                  <small>{match.score || 'Score awaiting review'}</small>
-                </a>
-              ))}
-            </div>
-            <a href="#profile-matches" className={profileStory.mobileResultsPreviewAction}>Open match history</a>
-          </article>
-        ) : null}
-
+        {hasPersonalPlayerExperience ? (
         <section id="profile-player-id" className={profileStory.playerIdentityPanel}>
           <article className={profileStory.playerIdStory}>
             <div className={profileStory.playerFocusVisual} aria-hidden="true">
@@ -1619,7 +1602,7 @@ function PlayerProfileContent() {
             </div>
           </article>
 
-          <article className={profileStory.playerCardPreview} data-own-profile={isOwnProfile}>
+          <article className={profileStory.playerCardPreview} data-own-profile={hasPersonalPlayerExperience}>
             <span className={profileStory.playerCardEyebrow}>Your player card</span>
             <h3>A profile worth sharing.</h3>
             <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>
@@ -1639,22 +1622,23 @@ function PlayerProfileContent() {
             </div>
           </article>
         </section>
+        ) : null}
 
-        <article id="profile-milestones" className={profileStory.milestoneStrip} data-empty={playerAwards.length === 0}>
+        {playerAwards.length > 0 ? (
+        <article id="profile-milestones" className={profileStory.milestoneStrip}>
           <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
           <div className={profileStory.milestoneCopy}>
             <span>Milestones</span>
-            <strong>{playerAwards.length ? `${playerAwards.length} honor${playerAwards.length === 1 ? '' : 's'} earned` : 'Your first milestones are ahead.'}</strong>
-            <small>{playerAwards.length ? 'Every verified honor stays connected to this player record.' : 'Reviewed results and TIQ events build the proof behind future honors.'}</small>
+            <strong>{playerAwards.length} honor{playerAwards.length === 1 ? '' : 's'} earned</strong>
+            <small>Every verified honor stays connected to this player record.</small>
           </div>
-          {playerAwards.length ? (
             <div className={profileStory.awardLinks}>
               {playerAwards.slice(0, 3).map((award) => (
                 <Link key={award.id} href={`/awards/${encodeURIComponent(award.id)}`}>{award.badgeLabel}</Link>
               ))}
             </div>
-          ) : null}
         </article>
+        ) : null}
       </section>
 
       <section style={{ display: 'none' }} aria-hidden="true">

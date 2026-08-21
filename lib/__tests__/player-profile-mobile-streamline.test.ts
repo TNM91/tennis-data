@@ -6,11 +6,9 @@ const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf
 const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile-story.module.css'), 'utf8')
 
 describe('player profile mobile streamline', () => {
-  it('puts owner actions and actual match history on the shortest path', () => {
-    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-matches'")
+  it('puts one public results path ahead of personal tooling', () => {
+    expect(page).toContain("const heroSecondaryHref = '#profile-matches'")
     expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
-    expect(page).toContain("'Share profile'")
-    expect(page).toContain('profileStory.mobileOnlyAction')
     expect(page).toContain('id="profile-matches"')
     expect(page).toContain('className={profileStory.historyGroup}')
   })
@@ -23,15 +21,17 @@ describe('player profile mobile streamline', () => {
     expect(styles).toMatch(/\.secondaryTrend\s*\{[\s\S]*?display:\s*none\s*!important;/)
   })
 
-  it('preserves premium visuals while removing empty and duplicate interruptions', () => {
-    expect(page).toContain("data-own-profile={isOwnProfile}")
-    expect(page).toContain("data-empty={playerAwards.length === 0}")
+  it('preserves paid visuals while removing empty interruptions', () => {
+    expect(page).toContain("data-own-profile={hasPersonalPlayerExperience}")
+    expect(page).toContain('{playerAwards.length > 0 ? (')
     expect(styles).toContain(".playerCardPreview[data-own-profile='true']")
-    expect(styles).toContain(".milestoneStrip[data-empty='true']")
     expect(styles).toMatch(/\.ratingMeta\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
   })
 
-  it('turns Player ID into one focused, actionable mobile read', () => {
+  it('reserves the Player ID coaching read for a linked Player member', () => {
+    expect(page).toContain('const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights')
+    expect(page).toContain('{hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}')
+    expect(page).toContain('{hasPersonalPlayerExperience ? (\n        <section id="profile-player-id"')
     expect(page).toContain('Player focus')
     expect(page).toContain('Train next')
     expect(page).toContain('Start this focus')
@@ -42,23 +42,23 @@ describe('player profile mobile streamline', () => {
     expect(styles).toMatch(/@media \(max-width: 390px\)[\s\S]*?\.playerFocusProof,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
   })
 
-  it('uses phone-first season cards and explains the Player upgrade without a large interruption', () => {
+  it('uses phone-first season cards and keeps the Player upgrade small', () => {
     expect(page).toContain('isMobile ? (')
     expect(page).toContain('seasonMobileListStyle')
-    expect(page).toContain('Player access adds saved reads, matchup prep, and My Lab.')
+    expect(page).toContain('Unlock Player for My Lab, saved reads, and personal coaching.')
     expect(styles).toContain('.playerAccessHint')
   })
 
-  it('surfaces recent scorecards as large phone-first cards before the deeper profile reads', () => {
-    expect(page).toContain('aria-label="Recent form preview"')
-    expect(page).toContain('Latest scorecards')
-    expect(page).toContain('Open match history')
-    expect(page.indexOf('mobileResultsPreview')).toBeLessThan(page.indexOf('id="profile-player-id"'))
-    expect(styles).toContain('.mobileResultsPreviewGrid')
-    expect(styles).toContain(".mobileResultPreviewCard[data-result='W']")
+  it('does not duplicate scorecards before the complete results history', () => {
+    expect(page).not.toContain('aria-label="Recent form preview"')
+    expect(page).not.toContain('Latest scorecards')
+    expect(page).not.toContain('Open match history')
+    expect(page).toContain('Latest match history')
   })
 
-  it('gives free explorers a compact player snapshot instead of an owner-style journey', () => {
+  it('gives linked free accounts the same compact public snapshot as explorers', () => {
+    expect(page).toContain('const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience')
+    expect(page).toContain('const isPublicExplorerProfile = !hasPersonalPlayerExperience')
     expect(page).toContain("const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'")
     expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'View results'")
     expect(page).toContain("data-public-profile={isPublicExplorerProfile}")
