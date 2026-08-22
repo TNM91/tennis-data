@@ -94,6 +94,12 @@ describe('My Lab command center', () => {
     expect(styleSource).not.toContain('right: -44px;')
   })
 
+  it('keeps the active-player context compact on a phone', () => {
+    expect(styleSource).toContain('.playerLink {\n    display: flex;\n    width: fit-content;')
+    expect(styleSource).toContain('max-width: min(220px, 58vw);')
+    expect(styleSource).toContain('font-size: clamp(2rem, 9.6vw, 2.8rem);')
+  })
+
   it('keeps the deeper legacy workspace behind one mobile disclosure', () => {
     expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
     expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
