@@ -1843,7 +1843,9 @@ function RankingCompactCard({
             {player.name}
           </Link>
           <RankingAwardBadges player={player} compact />
-          <span style={compactPlayerMetaStyle}>{player.location || 'No location'} | top {player.percentile}%</span>
+          <span style={compactPlayerMetaStyle}>
+            {player.location || 'No location'} · {player.matches} reviewed match{player.matches === 1 ? '' : 'es'}
+          </span>
           {dense ? (
             <span
               style={{
