@@ -28,6 +28,7 @@ const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
+const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
 // grow from its own verified source graph.
@@ -74,6 +75,29 @@ export function tennisRecordCheckpointForecast(pendingPages: number, runningPage
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
   const transient = /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
   return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
+}
+
+export function isTennisRecordRunStale(startedAt: string, now = Date.now()) {
+  const started = Date.parse(startedAt)
+  return !Number.isFinite(started) || now - started >= STALE_TENNISRECORD_RUN_MS
+}
+
+export function buildTennisRecordQueueDiscoveryPlan(
+  urls: string[],
+  existingSourceUrls: Iterable<string>,
+  campaignId?: string | null,
+  observedAt = new Date().toISOString(),
+) {
+  const existing = new Set(existingSourceUrls)
+  const cleaned = [...new Set(urls.map((url) => url.trim()).filter(Boolean))]
+  const supported = cleaned.flatMap((sourceUrl) => {
+    const pageKind = tennisRecordRecordPageKind(sourceUrl)
+    return pageKind ? [{ source_url: sourceUrl, page_kind: pageKind, status: 'pending' as const, campaign_id: campaignId || null, last_seen_at: observedAt }] : []
+  })
+  return {
+    newRows: supported.filter((row) => !existing.has(row.source_url)),
+    rediscoveredUrls: supported.filter((row) => existing.has(row.source_url)).map((row) => row.source_url),
+  }
 }
 
 export function tennisRecordAutomationDecision(state: AutomationState, cadence: 'bootstrap' | 'weekly', pendingPages: number, knownPages = pendingPages) {
@@ -215,15 +239,40 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
 }
 
 export async function enqueueTennisRecordUrls(service: SupabaseClient, urls: string[], campaignId?: string | null) {
-  const cleaned = [...new Set(urls.map((url) => url.trim()).filter(Boolean))]
-  const supported = cleaned.flatMap((sourceUrl) => {
-    const pageKind = tennisRecordRecordPageKind(sourceUrl)
-    return pageKind ? [{ source_url: sourceUrl, page_kind: pageKind, status: 'pending', campaign_id: campaignId || null, last_seen_at: new Date().toISOString() }] : []
-  })
-  if (!supported.length) return 0
-  const { error } = await service.from('tennisrecord_crawl_queue').upsert(supported, { onConflict: 'source_url' })
-  if (error) throw new Error(error.message)
-  return supported.length
+  const observedAt = new Date().toISOString()
+  const candidates = buildTennisRecordQueueDiscoveryPlan(urls, [], campaignId, observedAt)
+  if (!candidates.newRows.length) return 0
+  const sourceUrls = candidates.newRows.map((row) => row.source_url)
+  const { data: existing, error: existingError } = await service
+    .from('tennisrecord_crawl_queue')
+    .select('source_url')
+    .in('source_url', sourceUrls)
+  if (existingError) throw new Error(existingError.message)
+  const plan = buildTennisRecordQueueDiscoveryPlan(
+    urls,
+    (existing || []).map((row) => row.source_url as string),
+    campaignId,
+    observedAt,
+  )
+
+  // Discovery refreshes provenance only. Reopening a completed, blocked, or
+  // quarantined page here would create an endless crawl loop and corrupt the
+  // queue-progress estimate. Explicit weekly refresh logic is the only path
+  // allowed to return a completed page to pending.
+  if (plan.rediscoveredUrls.length) {
+    const { error } = await service
+      .from('tennisrecord_crawl_queue')
+      .update({ last_seen_at: observedAt })
+      .in('source_url', plan.rediscoveredUrls)
+    if (error) throw new Error(error.message)
+  }
+  if (plan.newRows.length) {
+    const { error } = await service
+      .from('tennisrecord_crawl_queue')
+      .upsert(plan.newRows, { onConflict: 'source_url', ignoreDuplicates: true })
+    if (error) throw new Error(error.message)
+  }
+  return plan.newRows.length
 }
 
 export async function seedTennisRecordCampaignFrontier(service: SupabaseClient, campaignId: string) {
@@ -239,6 +288,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   if (settingsError) throw new Error(settingsError.message)
   const settings = rawSettings as Settings
   if (!settings.enabled) return emptySummary('disabled')
+  await reclaimStaleTennisRecordRuns(service)
   const { data: run, error: runError } = await service.from('tennisrecord_sync_runs').insert({ trigger_kind: input.triggerKind, requested_by_user_id: input.requestedByUserId || null }).select('id').single()
   if (runError && isActiveRunLockError(runError)) return emptySummary('skipped')
   if (runError || !run?.id) throw new Error(runError?.message || 'Could not create TennisRecord sync run.')
@@ -306,6 +356,37 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     await service.from('tennisrecord_sync_runs').update({ status: 'failed', completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : 'Unknown sync failure' }).eq('id', runId)
     throw error
   }
+}
+
+/**
+ * A serverless interruption must not hold the partial unique run lock forever.
+ * Ten minutes is safely beyond the route's five-minute runtime allowance.
+ */
+async function reclaimStaleTennisRecordRuns(service: SupabaseClient) {
+  const staleBefore = new Date(Date.now() - STALE_TENNISRECORD_RUN_MS).toISOString()
+  const { data: staleRuns, error } = await service
+    .from('tennisrecord_sync_runs')
+    .select('id')
+    .eq('status', 'running')
+    .lt('started_at', staleBefore)
+  if (error) throw new Error(error.message)
+  const runIds = (staleRuns || []).map((run) => run.id as string).filter(Boolean)
+  if (!runIds.length) return 0
+  const reclaimedAt = new Date().toISOString()
+  const [queueResult, runResult] = await Promise.all([
+    service
+      .from('tennisrecord_crawl_queue')
+      .update({ status: 'pending', failure_reason: 'Interrupted checkpoint reclaimed for retry.', last_error_at: reclaimedAt })
+      .in('last_run_id', runIds)
+      .eq('status', 'running'),
+    service
+      .from('tennisrecord_sync_runs')
+      .update({ status: 'failed', completed_at: reclaimedAt, error_message: 'Interrupted checkpoint reclaimed for retry.' })
+      .in('id', runIds)
+      .eq('status', 'running'),
+  ])
+  if (queueResult.error || runResult.error) throw new Error(queueResult.error?.message || runResult.error?.message || 'Could not reclaim an interrupted TennisRecord run.')
+  return runIds.length
 }
 
 /**

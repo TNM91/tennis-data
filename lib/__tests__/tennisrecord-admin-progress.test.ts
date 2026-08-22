@@ -41,6 +41,12 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Source failures')
     expect(service).toContain('summary.transientRetries += 1')
     expect(service).toContain('summary.sourceFailures += 1')
+    expect(service).toContain('Discovery refreshes provenance only.')
+    expect(service).toContain("update({ last_seen_at: observedAt })")
+    expect(service).toContain('buildTennisRecordQueueDiscoveryPlan')
+    expect(service).toContain("onConflict: 'source_url', ignoreDuplicates: true")
+    expect(service).toContain('await reclaimStaleTennisRecordRuns(service)')
+    expect(service).toContain('Interrupted checkpoint reclaimed for retry.')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {
