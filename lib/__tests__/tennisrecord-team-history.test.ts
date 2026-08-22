@@ -19,7 +19,7 @@ describe('TennisRecord public team history', () => {
   it('shows only unpromoted source history alongside clear source labels', () => {
     expect(teamPage).toContain(".is('canonical_match_id', null)")
     expect(teamPage).toContain('Imported team history')
-    expect(teamPage).toContain('TennisRecord-listed player')
+    expect(teamPage).toContain('External roster listing')
     expect(teamPage).toContain('Source record')
   })
 
@@ -30,5 +30,17 @@ describe('TennisRecord public team history', () => {
     expect(teamsDirectory).toContain(".from('tennisrecord_public_team_roster_counts')")
     expect(teamsDirectory).toContain('getDirectoryPlayerCount')
     expect(teamsDirectory).toContain('sourceRosterCount')
+  })
+
+  it('keeps the provider name out of normal-user source copy', () => {
+    const teamsDirectory = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
+    const searchPage = readFileSync(join(process.cwd(), 'app/explore/search/page.tsx'), 'utf8')
+
+    expect(teamsDirectory).toContain("value=\"External record\"")
+    expect(teamsDirectory).toContain("'External public context'")
+    expect(searchPage).toContain("'External public context'")
+    expect(teamPage).toContain('External public context')
+    expect(teamPage).not.toContain('>TennisRecord context<')
+    expect(teamPage).not.toContain('TennisRecord-listed player')
   })
 })
