@@ -69,10 +69,30 @@ export default function MyLabCommandCenter({
   firstServeSteps,
   postRepReturn,
 }: MyLabCommandCenterProps) {
-  const greeting = firstName ? `Good afternoon, ${firstName}.` : 'Your next move starts here.'
+  const greeting = firstName ? `Ready, ${firstName}.` : 'Your next move starts here.'
   const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
   const completedFirstServeSteps = firstServeSteps.filter((step) => step.complete).length
   const nextFirstServeStep = firstServeSteps.findIndex((step) => !step.complete)
+  const dailyPulseItems = [
+    {
+      label: 'Court time',
+      value: repDuration ? `${repDuration} min` : 'Set rep',
+      note: repDuration ? 'Today\'s rep' : 'Choose a focus',
+      href: repHref,
+    },
+    {
+      label: 'This week',
+      value: `${safeCompletedSessions}/${sessionTarget}`,
+      note: `${safeCompletedSessions} session${safeCompletedSessions === 1 ? '' : 's'} complete`,
+      href: progressHref,
+    },
+    {
+      label: 'Matchup',
+      value: matchup ? 'Ready' : 'Build',
+      note: matchup?.opponentName || 'Find an opponent',
+      href: matchup?.href || '/matchup',
+    },
+  ]
 
   return (
     <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
@@ -177,6 +197,18 @@ export default function MyLabCommandCenter({
               {postRepReturn.nextCta} <span aria-hidden="true">→</span>
             </Link>
           </div>
+        </section>
+      ) : null}
+
+      {!postRepReturn ? (
+        <section className={styles.dailyPulse} aria-label="My Lab daily pulse">
+          {dailyPulseItems.map((item) => (
+            <Link key={item.label} className={styles.dailyPulseItem} href={item.href}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.note}</small>
+            </Link>
+          ))}
         </section>
       ) : null}
 

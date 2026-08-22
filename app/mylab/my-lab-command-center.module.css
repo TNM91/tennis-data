@@ -446,6 +446,10 @@
   transform: translateY(-2px);
 }
 
+.dailyPulse {
+  display: none;
+}
+
 .primaryGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.8fr);
@@ -794,6 +798,68 @@
     white-space: nowrap;
   }
 
+  .dailyPulse {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin: 0 0 12px;
+  }
+
+  .dailyPulseItem {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+    min-height: 90px;
+    padding: 11px 9px;
+    border: 1px solid rgba(116, 190, 255, 0.18);
+    border-radius: 16px;
+    background: rgba(10, 25, 45, 0.76);
+    color: #f8fbff;
+    text-decoration: none;
+  }
+
+  .dailyPulseItem:first-child {
+    border-color: rgba(185, 239, 50, 0.42);
+    background: linear-gradient(145deg, rgba(169, 235, 8, 0.16), rgba(10, 25, 45, 0.84));
+  }
+
+  .dailyPulseItem span {
+    color: #82c5ff;
+    font-size: 0.57rem;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .dailyPulseItem strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dailyPulseItem small {
+    min-width: 0;
+    overflow: hidden;
+    color: #91a6bd;
+    font-size: 0.61rem;
+    font-weight: 750;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dailyPulseItem:hover,
+  .dailyPulseItem:focus-visible {
+    border-color: rgba(185, 239, 50, 0.62);
+    outline: none;
+  }
+
   .firstServe {
     margin-bottom: 14px;
     padding: 16px;
@@ -900,6 +966,7 @@
   }
 
   .momentumCard {
+    display: none;
     min-height: 142px;
     gap: 14px;
     padding: 16px;
