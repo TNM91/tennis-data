@@ -30,6 +30,8 @@ describe('TennisRecord public team history', () => {
     expect(teamsDirectory).toContain(".from('tennisrecord_public_team_roster_counts')")
     expect(teamsDirectory).toContain('getDirectoryPlayerCount')
     expect(teamsDirectory).toContain('sourceRosterCount')
+    expect(teamsDirectory).toContain('TeamPulseSignal label="Roster"')
+    expect(teamsDirectory).toContain('value={rosterCount > 0 ? `${rosterCount} listed` : \'Building\'}')
   })
 
   it('keeps the provider name out of normal-user source copy', () => {
