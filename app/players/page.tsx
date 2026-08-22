@@ -1002,8 +1002,12 @@ export default function PlayersPage() {
                         <strong style={scoreMiniValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</strong>
                       </div>
                       <div style={scoreMini}>
-                        <span style={scoreMiniLabel}>Confidence</span>
-                        <strong style={scoreMiniValue}>{player.confidence}</strong>
+                        <span style={scoreMiniLabel}>TIQ vs USTA</span>
+                        <strong style={scoreMiniValue}>
+                          {isSelfRatedPlayer(player)
+                            ? 'Pending'
+                            : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -1086,21 +1090,6 @@ export default function PlayersPage() {
                       />
                     </div>
                   </details>
-
-                  <div style={deltaRow}>
-                    <div style={deltaStat}>
-                      <span style={deltaLabel}>USTA</span>
-                      <span style={deltaValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</span>
-                    </div>
-                    <div style={deltaStat}>
-                      <span style={deltaLabel}>TIQ vs USTA</span>
-                      <span style={deltaValue}>
-                        {isSelfRatedPlayer(player)
-                          ? 'Pending'
-                          : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
-                      </span>
-                    </div>
-                  </div>
 
                   <div style={playerCardFooter}>
                     <Link
@@ -2395,41 +2384,6 @@ const playerCardTrustSummaryStyle: CSSProperties = {
 const playerCardTrustBodyStyle: CSSProperties = {
   padding: '0 10px 10px',
   minWidth: 0,
-}
-
-const deltaRow: CSSProperties = {
-  position: 'relative',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
-  gap: '10px',
-  marginTop: '12px',
-  zIndex: 2,
-}
-
-const deltaStat: CSSProperties = {
-  borderRadius: '16px',
-  padding: '10px 12px',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(7,17,33,0.72)',
-  minWidth: 0,
-}
-
-const deltaLabel: CSSProperties = {
-  display: 'block',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '11px',
-  fontWeight: 700,
-  marginBottom: '6px',
-  letterSpacing: 0,
-  textTransform: 'uppercase',
-}
-
-const deltaValue: CSSProperties = {
-  display: 'block',
-  color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  fontWeight: 900,
-  letterSpacing: 0,
 }
 
 const playerFormRail: CSSProperties = {
