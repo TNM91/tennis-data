@@ -1369,6 +1369,12 @@ function PlayerProfileContent() {
     }
   })
   const publicTrendPoints = chartPoints.slice(-10)
+  const compactJourneyPoints = chartPoints.slice(-6)
+  const journeyStartRating = chartPoints[0]?.rating ?? selectedDynamicRating
+  const journeyCurrentRating = chartPoints.at(-1)?.rating ?? selectedDynamicRating
+  const journeyRecentChange = recentTrendDelta === null
+    ? null
+    : `${recentTrendDelta >= 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`
   const scoredMatches = filteredMatches.filter((match) => /\d+\s*[-:]\s*\d+/.test(match.score || ''))
   const competitiveScorecards = scoredMatches.filter((match) => {
     const sets = Array.from((match.score || '').matchAll(/(\d+)\s*[-:]\s*(\d+)/g))
@@ -1892,8 +1898,23 @@ function PlayerProfileContent() {
             {chartPoints.length > 1 && showDetailedRatingHistory ? (
               <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
             ) : chartPoints.length > 1 ? (
-              <div className={profileStory.ratingHistorySummary}>
-                <span>Detailed rating history is ready when you want the full chart.</span>
+              <div className={profileStory.ratingHistorySummary} aria-label="Compact TIQ rating journey">
+                <div className={profileStory.ratingJourneyPulse}>
+                  <div>
+                    <span>First result</span>
+                    <strong>{formatPublicRating(journeyStartRating, player)}</strong>
+                  </div>
+                  <RatingSparkline points={compactJourneyPoints} />
+                  <div>
+                    <span>TIQ now</span>
+                    <strong>{formatPublicRating(journeyCurrentRating, player)}</strong>
+                  </div>
+                  <div data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
+                    <span>Recent move</span>
+                    <strong>{journeyRecentChange ?? 'Building'}</strong>
+                  </div>
+                </div>
+                <small>Open the full chart when you want every reviewed result.</small>
               </div>
             ) : chartPoints.length === 1 ? (
               <div className={profileStory.singlePointRead}>

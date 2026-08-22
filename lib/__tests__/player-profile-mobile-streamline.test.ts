@@ -132,6 +132,16 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.ratingHistoryAction')
   })
 
+  it('turns the collapsed rating history into a compact TIQ journey read', () => {
+    expect(page).toContain('const compactJourneyPoints = chartPoints.slice(-6)')
+    expect(page).toContain('aria-label="Compact TIQ rating journey"')
+    expect(page).toContain('<span>First result</span>')
+    expect(page).toContain('<span>TIQ now</span>')
+    expect(page).toContain('<span>Recent move</span>')
+    expect(page).toContain('<RatingSparkline points={compactJourneyPoints} />')
+    expect(styles).toContain('.ratingJourneyPulse')
+  })
+
   it('adds factual match-quality visuals to the public performance read', () => {
     expect(page).toContain('const publicMatchQuality = [')
     expect(page).toContain("label: 'Close scorecards'")
