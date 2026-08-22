@@ -45,6 +45,8 @@ describe('Captain lineup projection mobile layout guards', () => {
     expect(styleBlock('orbTwo')).toContain("width: 'min(100%, 320px)'")
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"projection\" teamLabel={selectedTeam || 'Team week'} /> : null}")
+    expect(source).toContain('const mobileProjectionQuickRead = useMemo(() => {')
+    expect(source).toContain('aria-label="Captain projection quick read"')
     expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
       source.indexOf('contentWrap'),
     )
@@ -87,6 +89,9 @@ describe('Captain lineup projection mobile layout guards', () => {
     expect(functionBlock('listRowResponsive')).toContain('minWidth: 0')
     expect(styleBlock('listRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('badgeBase')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('mobileProjectionReadGridStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(styleBlock('mobileProjectionReadCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('mobileProjectionReadDetailStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps dense ranking rows and the footer mobile-safe', () => {

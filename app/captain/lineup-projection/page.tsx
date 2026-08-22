@@ -757,6 +757,40 @@ function LineupProjectionContent() {
     ]
   }, [availabilitySummary, confidenceLabel, roster])
 
+  const mobileProjectionQuickRead = useMemo(() => {
+    const topSingles = suggestedLineup.singles[0] ?? null
+    const topDoubles = suggestedLineup.doubles[0] ?? null
+    const playableCount = roster.filter((player) => player.availabilityStatus !== 'unavailable').length
+    const restrictionCount = availabilitySummary.singlesOnly + availabilitySummary.doublesOnly + availabilitySummary.limited
+
+    return [
+      {
+        label: 'Top singles',
+        value: topSingles ? formatRating(topSingles.singlesDynamic) : 'Open',
+        detail: topSingles ? topSingles.name : 'No eligible singles player yet',
+        tone: topSingles ? 'ready' : 'waiting',
+      },
+      {
+        label: 'Top doubles',
+        value: topDoubles ? topDoubles.combinedDoubles.toFixed(2) : 'Open',
+        detail: topDoubles ? `${topDoubles.player1.name} / ${topDoubles.player2.name}` : 'No eligible pair yet',
+        tone: topDoubles ? 'ready' : 'waiting',
+      },
+      {
+        label: 'Playable',
+        value: String(playableCount),
+        detail: playableCount >= 7 ? 'Comfortable coverage' : 'Bench is thin',
+        tone: playableCount >= 7 ? 'ready' : 'waiting',
+      },
+      {
+        label: 'Watch',
+        value: restrictionCount ? `${restrictionCount} flag${restrictionCount === 1 ? '' : 's'}` : 'Clear',
+        detail: restrictionCount ? 'Role or availability limits' : 'No lineup flags',
+        tone: restrictionCount ? 'attention' : 'ready',
+      },
+    ]
+  }, [availabilitySummary, roster, suggestedLineup])
+
   const builderHrefResolved = useMemo(() => {
     const params = new URLSearchParams()
     if (selectedLeagueKey) {
@@ -992,7 +1026,34 @@ function LineupProjectionContent() {
               />
             </section>
 
-            <section style={sectionCard}>
+            {isMobile ? (
+              <section style={mobileProjectionReadStyle} aria-label="Captain projection quick read">
+                <div>
+                  <p style={sectionKicker}>Captain quick read</p>
+                  <h2 style={mobileProjectionReadTitleStyle}>See the courts at a glance.</h2>
+                </div>
+                <div style={mobileProjectionReadGridStyle}>
+                  {mobileProjectionQuickRead.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileProjectionReadCardStyle,
+                        ...(item.tone === 'ready'
+                          ? mobileProjectionReadCardReadyStyle
+                          : item.tone === 'attention'
+                            ? mobileProjectionReadCardAttentionStyle
+                            : mobileProjectionReadCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileProjectionReadLabelStyle}>{item.label}</span>
+                      <strong style={mobileProjectionReadValueStyle}>{item.value}</strong>
+                      <small style={mobileProjectionReadDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <PrimaryLink href={builderHrefResolved}>Open Builder</PrimaryLink>
+              </section>
+            ) : <section style={sectionCard}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Captain action read</p>
@@ -1015,7 +1076,7 @@ function LineupProjectionContent() {
                   </div>
                 ))}
               </div>
-            </section>
+            </section>}
 
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
@@ -1750,6 +1811,83 @@ const actionReadDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.92rem',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const mobileProjectionReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg-strong) 94%)',
+  minWidth: 0,
+}
+
+const mobileProjectionReadTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.25rem',
+  lineHeight: 1.12,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileProjectionReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileProjectionReadCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '10px 9px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileProjectionReadCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileProjectionReadCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+}
+
+const mobileProjectionReadCardAttentionStyle: CSSProperties = {
+  borderColor: 'rgba(245,158,11,0.30)',
+  background: 'rgba(92,40,10,0.22)',
+}
+
+const mobileProjectionReadLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileProjectionReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileProjectionReadDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.35,
+  fontWeight: 700,
   overflowWrap: 'anywhere',
 }
 
