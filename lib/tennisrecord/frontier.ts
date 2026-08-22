@@ -30,6 +30,8 @@ const CAMPAIGN_ALLOWED_STATES: Record<string, readonly string[]> = {
   'us-2025-current': [],
 }
 
+const MISSOURI_VALLEY_DIRECTORY_MARKER = /missouri(?:[+\s]|%20)*valley/i
+
 function campaignYears(campaign: TennisRecordFrontierCampaign) {
   const startYear = Number(campaign.startsOn.slice(0, 4))
   const endYear = Number(campaign.endsOn.slice(0, 4))
@@ -46,7 +48,11 @@ export function getTennisRecordCampaignSeedUrls(campaign: TennisRecordFrontierCa
   }
   if (campaign.slug !== 'missouri-2025-current') return []
 
-  const urls: string[] = []
+  // Begin at the ordinary public league directory too, but keep subsequent
+  // directory traversal explicitly bounded to the Missouri Valley branch.
+  // This discovers team and flight pages that a player-history-only seed can
+  // never reach, without turning the Missouri campaign into a U.S. crawl.
+  const urls: string[] = years.map((year) => `https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=${year}`)
   for (const year of years) {
     for (const playerName of MISSOURI_PUBLIC_HISTORY_PLAYERS) {
       const params = new URLSearchParams({ playername: playerName, year: String(year) })
@@ -54,6 +60,35 @@ export function getTennisRecordCampaignSeedUrls(campaign: TennisRecordFrontierCa
     }
   }
   return urls
+}
+
+function isLeagueDirectoryUrl(url: URL) {
+  return url.pathname.toLowerCase().startsWith('/adult/league')
+}
+
+function isMissouriValleyDirectoryUrl(url: URL) {
+  return MISSOURI_VALLEY_DIRECTORY_MARKER.test(`${url.pathname}?${url.searchParams.toString()}`)
+}
+
+/**
+ * The initial league type and section directory pages have no geographic
+ * parameter. They are a small public index. Every deeper Missouri campaign
+ * directory link must explicitly identify Missouri Valley before it is queued.
+ */
+export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string) {
+  if (campaignSlug !== 'missouri-2025-current') return true
+  try {
+    const source = new URL(sourceUrl)
+    const candidate = new URL(candidateUrl)
+    if (!isLeagueDirectoryUrl(source)) return true
+    if (isMissouriValleyDirectoryUrl(source)) return true
+
+    const candidatePath = candidate.pathname.toLowerCase()
+    if (candidatePath === '/adult/league/leaguetype.aspx' || candidatePath === '/adult/league/leaguesection.aspx') return true
+    return isLeagueDirectoryUrl(candidate) && isMissouriValleyDirectoryUrl(candidate)
+  } catch {
+    return false
+  }
 }
 
 /**
