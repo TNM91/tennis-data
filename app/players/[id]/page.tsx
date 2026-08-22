@@ -1337,21 +1337,22 @@ function PlayerProfileContent() {
   const ratingJourneyTitle = hasPersonalPlayerExperience
     ? hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Your first result starts the trend'
     : hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Rating history'
+  const selectedMatchLabel = ratingView === 'overall' ? 'All matches' : `${capitalize(ratingView)} only`
   const publicPerformanceStats = [
     {
       label: 'Record',
       value: `${wins}–${losses}`,
-      note: 'Verified results',
+      note: selectedMatchLabel,
     },
     {
       label: 'Win rate',
       value: `${winPct}%`,
-      note: `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}`,
+      note: `${totalMatches} reviewed ${ratingView === 'overall' ? 'match' : ratingView} result${totalMatches === 1 ? '' : 's'}`,
     },
     {
-      label: 'Match mix',
-      value: `${singlesRecord.total}S · ${doublesRecord.total}D`,
-      note: 'Singles · doubles',
+      label: ratingView === 'overall' ? 'Match mix' : 'Reviewed',
+      value: ratingView === 'overall' ? `${singlesRecord.total}S · ${doublesRecord.total}D` : `${totalMatches}`,
+      note: ratingView === 'overall' ? 'Singles · doubles' : `${capitalize(ratingView)} match evidence`,
     },
     {
       label: 'TIQ movement',
@@ -1382,16 +1383,16 @@ function PlayerProfileContent() {
   }).length
   const publicMatchQuality = [
     {
-      label: 'Singles',
-      value: singlesRecord.total ? `${singlesRecord.w}–${singlesRecord.l}` : '—',
-      note: singlesRecord.total ? `${Math.round((singlesRecord.w / singlesRecord.total) * 100)}% wins` : 'No results yet',
-      percent: singlesRecord.total ? Math.round((singlesRecord.w / singlesRecord.total) * 100) : 0,
+      label: 'Scores captured',
+      value: totalMatches ? `${scoredMatches.length}/${totalMatches}` : '—',
+      note: totalMatches ? 'Results with a final score' : 'No results yet',
+      percent: totalMatches ? Math.round((scoredMatches.length / totalMatches) * 100) : 0,
     },
     {
-      label: 'Doubles',
-      value: doublesRecord.total ? `${doublesRecord.w}–${doublesRecord.l}` : '—',
-      note: doublesRecord.total ? `${Math.round((doublesRecord.w / doublesRecord.total) * 100)}% wins` : 'No results yet',
-      percent: doublesRecord.total ? Math.round((doublesRecord.w / doublesRecord.total) * 100) : 0,
+      label: 'Current streak',
+      value: winStreak.count ? `${winStreak.count}${winStreak.type}` : '—',
+      note: winStreak.count ? `${winStreak.type === 'W' ? 'Wins' : 'Losses'} in a row` : 'Trend building',
+      percent: totalMatches ? Math.min(100, Math.round((winStreak.count / totalMatches) * 100)) : 0,
     },
     {
       label: 'Close scorecards',
@@ -1765,7 +1766,7 @@ function PlayerProfileContent() {
             <div className={profileStory.performanceSnapshotHeading}>
               <div>
                 <span>Performance snapshot</span>
-                <h2>Verified match evidence</h2>
+                <h2>{selectedMatchLabel} match evidence</h2>
               </div>
               <span>{ratingViewLabel}</span>
             </div>
