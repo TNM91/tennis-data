@@ -32,6 +32,10 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('aria-label="TennisRecord data coverage"')
     expect(adminPage).toContain('Filterable teams')
     expect(adminPage).toContain('Awaiting promotion')
+    expect(adminPage).toContain('Transient retries')
+    expect(adminPage).toContain('Source failures')
+    expect(service).toContain('summary.transientRetries += 1')
+    expect(service).toContain('summary.sourceFailures += 1')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {

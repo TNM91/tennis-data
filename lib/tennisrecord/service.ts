@@ -248,9 +248,10 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
         await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
-        summary.parserFailures += 1
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
+        if (disposition === 'retry') summary.transientRetries += 1
+        else summary.sourceFailures += 1
         await service.from('tennisrecord_crawl_queue').update({
           status: disposition === 'retry' ? 'pending' : 'error',
           retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
@@ -261,7 +262,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     }
     const reconciled = await reconcileTennisRecordMatches(service, [...replay.sourceMatchKeys, ...touchedSourceMatchKeys])
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
-    await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures }).eq('id', runId)
+    await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
     return summary
   } catch (error) {
     await service.from('tennisrecord_sync_runs').update({ status: 'failed', completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : 'Unknown sync failure' }).eq('id', runId)
@@ -680,5 +681,5 @@ async function promoteTennisRecordMatch(service: SupabaseClient, staged: Record<
 }
 
 function emptySummary(status: TennisRecordRunSummary['status']): TennisRecordRunSummary {
-  return { status, pagesAttempted: 0, pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, canonicalMatchesCreated: 0, duplicatesDetected: 0, conflictsFound: 0, blockedRequests: 0, parserFailures: 0 }
+  return { status, pagesAttempted: 0, pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, canonicalMatchesCreated: 0, duplicatesDetected: 0, conflictsFound: 0, blockedRequests: 0, parserFailures: 0, transientRetries: 0, sourceFailures: 0 }
 }

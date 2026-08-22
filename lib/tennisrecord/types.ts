@@ -70,4 +70,6 @@ export type TennisRecordRunSummary = {
   conflictsFound: number
   blockedRequests: number
   parserFailures: number
+  transientRetries: number
+  sourceFailures: number
 }
