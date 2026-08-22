@@ -21,10 +21,10 @@ type CoverageSummary = {
   unpromoted_team_history_count: number
   promoted_match_count: number
 }
-// Historical backfill is intentionally gentler than the Admin-configured
-// ceiling. This keeps the automatic checkpoint safely below the database I/O
-// budget while preserving resumable progress.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 2
+// Historical backfill uses the Admin-configured safe ceiling. Requests remain
+// sequentially paced, while the bounded batch keeps the checkpoint resumable
+// and within the cron runtime.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3

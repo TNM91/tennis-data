@@ -194,10 +194,10 @@ describe('TennisRecord ingestion safety', () => {
     expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Unknown Example', state: '' })).toEqual([])
   })
 
-  it('keeps history gentle and restores higher bounded throughput for weekly refreshes', () => {
-    expect(scheduledTennisRecordBatchLimit(12)).toBe(2)
-    expect(scheduledTennisRecordBatchLimit(8)).toBe(2)
-    expect(scheduledTennisRecordBatchLimit(5)).toBe(2)
+  it('uses the bounded configured throughput for historical and weekly refreshes', () => {
+    expect(scheduledTennisRecordBatchLimit(12)).toBe(8)
+    expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
+    expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
     expect(scheduledTennisRecordBatchLimit(2)).toBe(2)
     expect(scheduledTennisRecordBatchLimit(1)).toBe(1)
     expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(8)
