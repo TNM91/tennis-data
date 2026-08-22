@@ -1032,10 +1032,11 @@
 
 .recentResultTile {
   display: grid;
-  align-content: start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 12px;
   min-width: 0;
-  min-height: 146px;
+  min-height: 132px;
   padding: 14px;
 }
 
@@ -1043,56 +1044,70 @@
   border-left: 1px solid rgba(116, 190, 255, 0.16);
 }
 
-.recentResultTileTopline {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.recentResultTileTopline > strong {
+.recentResultOutcome {
   display: grid;
-  flex: 0 0 auto;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border: 1px solid currentColor;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 950;
 }
 
-.recentResultTile[data-result='W'] .recentResultTileTopline > strong {
+.recentResultTile[data-result='W'] .recentResultOutcome {
   color: #d9f84a;
   background: rgba(155, 225, 29, 0.11);
 }
 
-.recentResultTile[data-result='L'] .recentResultTileTopline > strong {
+.recentResultTile[data-result='L'] .recentResultOutcome {
   color: #fecaca;
   background: rgba(248, 113, 113, 0.1);
 }
 
-.recentResultTileTopline > span {
+.recentResultTileMain {
+  display: grid;
+  align-content: center;
+  gap: 7px;
   min-width: 0;
+}
+
+.recentResultTileTopline {
   overflow: hidden;
   color: rgba(228, 238, 251, 0.56);
   font-size: 10px;
   font-weight: 850;
+  letter-spacing: 0.07em;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.recentResultTileTopline > b {
-  margin-left: auto;
+.recentResultScore {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
+}
+
+.recentResultScore > strong {
+  overflow: hidden;
   color: #ffffff;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 900;
   letter-spacing: -0.025em;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.recentResultScore > span {
+  color: rgba(228, 238, 251, 0.48);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .recentResultOpponent {
@@ -1113,13 +1128,23 @@
   white-space: nowrap;
 }
 
-.recentResultOpponent > strong {
+.recentResultOpponent > strong,
+.recentResultOpponent > a {
   overflow: hidden;
   color: rgba(255, 255, 255, 0.95);
   font-size: 14px;
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.recentResultOpponent > a {
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.recentResultOpponent > a:hover {
+  color: #d9f84a;
 }
 
 .recentResultTileMeta {
@@ -1908,7 +1933,7 @@
   }
 
   .recentResultTile {
-    gap: 10px;
+    gap: 11px;
     min-height: 0;
     padding: 12px 14px;
   }
@@ -1926,21 +1951,22 @@
     box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.68);
   }
 
-  .recentResultTileTopline > strong {
-    width: 25px;
-    height: 25px;
-  }
-
-  .recentResultTileTopline > span {
+  .recentResultTileTopline {
     font-size: 10px;
   }
 
-  .recentResultTileTopline > b {
-    max-width: 42%;
+  .recentResultOutcome {
+    width: 28px;
+    height: 28px;
+  }
+
+  .recentResultScore > strong {
+    max-width: 112px;
     font-size: 16px;
   }
 
-  .recentResultOpponent > strong {
+  .recentResultOpponent > strong,
+  .recentResultOpponent > a {
     font-size: 13px;
   }
 

@@ -1835,18 +1835,31 @@ function PlayerProfileContent() {
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => (
                     <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
-                      <div className={profileStory.recentResultTileTopline}>
-                        <strong aria-label={match.result === 'W' ? 'Win' : 'Loss'}>{match.result}</strong>
-                        <span>{capitalize(match.matchType)} · {formatChartDate(match.date)}</span>
-                        <b>{match.score || 'Score pending'}</b>
+                      <strong className={profileStory.recentResultOutcome} aria-label={match.result === 'W' ? 'Win' : 'Loss'}>
+                        {match.result}
+                      </strong>
+                      <div className={profileStory.recentResultTileMain}>
+                        <span className={profileStory.recentResultTileTopline}>
+                          {capitalize(match.matchType)} · {formatChartDate(match.date)}
+                        </span>
+                        <div className={profileStory.recentResultOpponent}>
+                          <span>Opponent</span>
+                          {match.opponentIds.length === 1 ? (
+                            <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
+                              {match.opponent}
+                            </Link>
+                          ) : (
+                            <strong>{match.opponent}</strong>
+                          )}
+                        </div>
+                        <div className={profileStory.recentResultTileMeta}>
+                          <span>{match.context}</span>
+                          {match.partner ? <span>With {match.partner}</span> : null}
+                        </div>
                       </div>
-                      <div className={profileStory.recentResultOpponent}>
-                        <span>Opponent</span>
-                        <strong>{match.opponent}</strong>
-                      </div>
-                      <div className={profileStory.recentResultTileMeta}>
-                        <span>{match.context}</span>
-                        {match.partner ? <span>With {match.partner}</span> : null}
+                      <div className={profileStory.recentResultScore}>
+                        <strong>{match.score || '—'}</strong>
+                        <span>{match.score ? 'Final score' : 'Score pending'}</span>
                       </div>
                     </article>
                   ))}
