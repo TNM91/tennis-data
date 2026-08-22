@@ -236,14 +236,15 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
   const shortcutCardStyle = mobile
     ? {
         ...findCommandCard,
-        gridTemplateColumns: 'minmax(0, 1fr)',
-        minHeight: 48,
-        padding: '6px',
-        gap: '3px',
+        gridTemplateColumns: '32px minmax(0, 1fr)',
+        minHeight: 58,
+        padding: '8px',
+        gap: '7px',
+        alignItems: 'center',
       }
     : findCommandCard
   const shortcutTitleStyle = mobile
-    ? { ...findCommandCardTitle, fontSize: '10px', lineHeight: 1.1 }
+    ? { ...findCommandCardTitle, fontSize: '12px', lineHeight: 1.1 }
     : findCommandCardTitle
   const headerStyle = mobile
     ? compactFindCommandHeader
@@ -305,7 +306,7 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
               ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
               event={step.event}
             >
-              {!mobile ? <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" /> : null}
+              <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
               <span style={findCommandCardCopy}>
                 <span style={findCommandLabel}>{step.label}</span>
                 <strong style={shortcutTitleStyle}>{step.title}</strong>
