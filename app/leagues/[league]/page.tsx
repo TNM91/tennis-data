@@ -467,6 +467,11 @@ export default function LeagueDetailPage() {
   }, [validRows])
 
   const leagueLeader = teamSummaries[0] ?? null
+  const leagueChaser = teamSummaries[1] ?? null
+  const completedTeamMatches = useMemo(
+    () => teamSummaries.reduce((total, team) => total + team.completedMatches, 0) / 2,
+    [teamSummaries],
+  )
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -843,6 +848,41 @@ export default function LeagueDetailPage() {
               ) : null}
 
               <section>
+                {isMobile && leagueLeader && leagueLeader.completedMatches > 0 ? (
+                  <div style={leaguePulseStyle} aria-label="League standings pulse">
+                    <div style={leaguePulseHeaderStyle}>
+                      <div>
+                        <div style={sectionKicker}>League pulse</div>
+                        <div style={leaguePulseTitleStyle}>The race at a glance</div>
+                      </div>
+                      <span style={leaguePulseRankStyle}>#1</span>
+                    </div>
+
+                    <Link
+                      href={buildTeamHref(leagueLeader.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)}
+                      style={leaguePulseLeaderStyle}
+                    >
+                      <span style={leaguePulseLeaderLabelStyle}>Current leader</span>
+                      <span style={leaguePulseLeaderNameStyle}>{leagueLeader.name}</span>
+                      <span style={leaguePulseLeaderRecordStyle}>
+                        {leagueLeader.wins}-{leagueLeader.losses} record
+                        {leagueLeader.completedMatches > 0 ? ` · ${Math.round(leagueLeader.winPct * 100)}% win` : ''}
+                      </span>
+                    </Link>
+
+                    <div style={leaguePulseFactsStyle}>
+                      <div style={leaguePulseFactStyle}>
+                        <span style={leaguePulseFactLabelStyle}>Next in line</span>
+                        <span style={leaguePulseFactValueStyle}>{leagueChaser ? leagueChaser.name : 'Standings building'}</span>
+                      </div>
+                      <div style={leaguePulseFactStyle}>
+                        <span style={leaguePulseFactLabelStyle}>Completed</span>
+                        <span style={leaguePulseFactValueStyle}>{Math.round(completedTeamMatches)} matches</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div style={dynamicSectionHead}>
                   <div>
                     <div style={sectionKicker}>Team overview</div>
@@ -1757,6 +1797,119 @@ const captainAccessTextStyle: CSSProperties = {
 
 const teamCardCopyStyle: CSSProperties = {
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginBottom: 18,
+  padding: '16px',
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+  boxShadow: '0 16px 34px rgba(0,0,0,0.16)',
+  minWidth: 0,
+}
+
+const leaguePulseHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const leaguePulseTitleStyle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseRankStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: '0 0 auto',
+  minWidth: 36,
+  minHeight: 32,
+  padding: '4px 9px',
+  borderRadius: 999,
+  color: 'var(--brand-lime)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  fontSize: 14,
+  lineHeight: 1,
+  fontWeight: 900,
+}
+
+const leaguePulseLeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: '13px 14px',
+  borderRadius: 16,
+  color: 'inherit',
+  textDecoration: 'none',
+  background: 'rgba(5, 14, 31, 0.54)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  minWidth: 0,
+}
+
+const leaguePulseLeaderLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+}
+
+const leaguePulseLeaderNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseLeaderRecordStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseFactsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leaguePulseFactStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const leaguePulseFactLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 800,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+}
+
+const leaguePulseFactValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 

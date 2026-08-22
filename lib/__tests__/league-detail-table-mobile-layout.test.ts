@@ -31,6 +31,20 @@ describe('league detail table mobile layout guards', () => {
     expect(styleBlock('standingsTableStyle')).not.toContain("minWidth: 'min(100%, 620px)'")
   })
 
+  it('puts a compact standings pulse ahead of the detailed view on phones', () => {
+    expect(source).toContain('const leagueLeader = teamSummaries[0] ?? null')
+    expect(source).toContain('const leagueChaser = teamSummaries[1] ?? null')
+    expect(source).toContain('const completedTeamMatches = useMemo(')
+    expect(source).toContain('isMobile && leagueLeader && leagueLeader.completedMatches > 0')
+    expect(source).toContain('aria-label="League standings pulse"')
+    expect(source).toContain('The race at a glance')
+    expect(source).toContain('Current leader')
+    expect(source).toContain('Next in line')
+    expect(source).toContain('const leaguePulseStyle: CSSProperties')
+    expect(styleBlock('leaguePulseFactsStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(styleBlock('leaguePulseLeaderNameStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('keeps the team filter select labeled and visibly focused', () => {
     expect(source).toContain('<label htmlFor="teamFilter" style={inputLabel}>')
     expect(source).toContain('onFocus={() => setTeamFilterFocused(true)}')
