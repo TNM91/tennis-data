@@ -16434,6 +16434,23 @@ function CaptainHubContent() {
     const item = captainMobileActionById.get(id)
     return item ? [item] : []
   })
+  const captainMobileTeamPulse = [
+    {
+      label: 'Team lines',
+      value: quickStats.matches ? `${quickStats.wins}–${quickStats.losses}` : 'Building',
+      detail: quickStats.matches ? `${quickStats.matches} reviewed` : 'Match data',
+    },
+    {
+      label: 'Replies',
+      value: captainAvailabilityPendingCount > 0 ? `${captainAvailabilityPendingCount} open` : captainAvailabilityHasReplies ? 'Clear' : 'Not asked',
+      detail: captainAvailabilityInvitedCount ? `${captainAvailabilityAnsweredCount}/${captainAvailabilityInvitedCount} answered` : 'Availability',
+    },
+    {
+      label: 'Lineup',
+      value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
+      detail: workspaceState.lineupReady ? 'Saved for week' : 'Build next',
+    },
+  ]
 
   function handleCaptainMobileCommandAction(item: CaptainMobileCommandAction) {
     if (item.id === 'chat') {
@@ -16771,6 +16788,16 @@ function CaptainHubContent() {
       ) : null}
 
       {captainMobileNow}
+
+      <div className={mobileCommandStyles.pulseRail} aria-label="Captain team pulse">
+        {captainMobileTeamPulse.map((item) => (
+          <div key={item.label} className={mobileCommandStyles.pulse}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </div>
+        ))}
+      </div>
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileVisibleActions.map((item) => {
