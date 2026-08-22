@@ -60,6 +60,16 @@ const PLAN_JOB_FIT: Record<CorePricingPlanId, string> = {
   full_court: 'You support more than one tennis role and need My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk connected.',
 }
 
+const MOBILE_ROLE_SHORTCUTS: Array<{
+  planId: CorePricingPlanId
+  label: string
+  detail: string
+}> = [
+  { planId: 'free', label: 'Explore', detail: 'Public tennis' },
+  { planId: 'player_plus', label: 'Player', detail: 'My Lab' },
+  { planId: 'captain', label: 'Captain', detail: 'Team Hub' },
+]
+
 const WORKSPACE_PREVIEWS: Array<{
   planId: CorePricingPlanId
   title: string
@@ -273,6 +283,19 @@ function PricingContent() {
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
           <Link href="#choose" style={secondaryButtonStyle}>See plans</Link>
         </div>
+        {isMobile ? (
+          <nav aria-label="Choose a tennis path" style={mobileRoleShortcutsStyle}>
+            <span style={mobileRoleShortcutsLabelStyle}>Start with your role</span>
+            <div style={mobileRoleShortcutGridStyle}>
+              {MOBILE_ROLE_SHORTCUTS.map((shortcut) => (
+                <Link key={shortcut.planId} href={`#${shortcut.planId}`} style={mobileRoleShortcutStyle}>
+                  <strong>{shortcut.label}</strong>
+                  <span style={mobileRoleShortcutDetailStyle}>{shortcut.detail}</span>
+                </Link>
+              ))}
+            </div>
+          </nav>
+        ) : null}
       </section>
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
@@ -653,6 +676,49 @@ const heroActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   alignItems: 'center',
+}
+
+const mobileRoleShortcutsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  paddingTop: 5,
+  borderTop: '1px solid rgba(116,190,255,0.14)',
+}
+
+const mobileRoleShortcutsLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const mobileRoleShortcutGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileRoleShortcutStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  minHeight: 54,
+  padding: '9px 8px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const mobileRoleShortcutDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.15,
 }
 
 const checkoutPauseStyle: CSSProperties = {
