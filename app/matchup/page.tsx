@@ -254,6 +254,7 @@ export default function MatchupPage() {
   })
   const { access, user, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
+  const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
 
   useEffect(() => {
     void loadPlayers()
@@ -2247,21 +2248,35 @@ export default function MatchupPage() {
                     <div style={decisionPill}>{projection.upsetIndicator}</div>
 
                     <div style={decisionCtaRow}>
-                      <Link href={labTakeawayHref} style={ctaPrimary}>
-                        Log in My Lab
-                      </Link>
-                      <Link href="/captain/lineup-builder" style={ctaPrimary}>
-                        Build lineup
-                      </Link>
-                      <Link href="/captain/messaging" style={ctaSecondary}>
-                        Send to team
-                      </Link>
+                      {access.canUseAdvancedPlayerInsights ? (
+                        <Link href={labTakeawayHref} style={ctaPrimary}>
+                          Save to My Lab
+                        </Link>
+                      ) : authResolved ? (
+                        <Link href="/pricing" style={ctaPrimary}>
+                          Unlock full Matchup
+                        </Link>
+                      ) : null}
+                      {canUseCaptainTools ? (
+                        <>
+                          <Link href="/captain/lineup-builder" style={ctaPrimary}>
+                            Build lineup
+                          </Link>
+                          <Link href="/captain/messaging" style={ctaSecondary}>
+                            Send to team
+                          </Link>
+                        </>
+                      ) : (
+                        <Link href="/explore/players" style={ctaSecondary}>
+                          Open player records
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
               ) : null}
 
-              {projection ? (
+              {projection && !isMobile ? (
                 <div style={prepReadGrid}>
                   <div style={prepReadCardAccent}>
                     <div style={prepReadLabel}>Who has the edge?</div>

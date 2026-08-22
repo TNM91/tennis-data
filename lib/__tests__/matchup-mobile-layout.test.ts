@@ -68,6 +68,11 @@ describe('matchup mobile layout guards', () => {
     expect(functionBlock('dynamicCompareGrid')).toContain("? 'minmax(0, 1fr)'")
     expect(functionBlock('dynamicCompareGrid')).toContain("minmax(min(100%, 180px), 220px)")
     expect(functionBlock('dynamicCompareGrid')).not.toContain("'minmax(0, 1fr) 220px minmax(0, 1fr)'")
+    expect(matchupSource).toContain('const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow')
+    expect(matchupSource).toContain('{projection && !isMobile ? (')
+    expect(matchupSource).toContain('Unlock full Matchup')
+    expect(matchupSource).toContain('Open player records')
+    expect(matchupSource).toContain('{canUseCaptainTools ? (')
   })
 
   it('keeps long matchup names and head-to-head rows from forcing overflow', () => {
