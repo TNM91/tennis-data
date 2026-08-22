@@ -12,14 +12,15 @@ describe('captain tri-level first run', () => {
   const playerProfileSource = source('app/players/[id]/page.tsx')
   const importEngineSource = source('lib/ingestion/importEngine.ts')
 
-  it('puts the league scoreboard at the top of Team Hub with a real feature icon', () => {
+  it('keeps the league scoreboard first on desktop and puts the Captain command center first on phones', () => {
     expect(captainSource).toContain('currentLeagueStatsHref')
     expect(captainSource).toContain('Ultimate scoreboard')
     expect(captainSource).toContain('League scoreboard')
     expect(captainSource).toContain('Open league rankings')
     expect(captainSource).toContain('name="captainDashboard"')
     expect(captainSource).toContain('name="teamRankings"')
-    expect(captainSource.indexOf('aria-label="League rankings"')).toBeLessThan(captainSource.indexOf('{captainMobileCommandCenter}'))
+    expect(captainSource.indexOf('{isMobile ? captainMobileCommandCenter : null}')).toBeLessThan(captainSource.indexOf('aria-label="League rankings"'))
+    expect(captainSource.indexOf('aria-label="League rankings"')).toBeLessThan(captainSource.indexOf('{!isMobile ? captainMobileCommandCenter : null}'))
     expect(captainSource).not.toContain('watermarkStyle')
   })
 
