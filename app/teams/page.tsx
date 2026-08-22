@@ -1320,7 +1320,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
         <div style={metricsGrid}>
           {isTennisRecordContext ? (
             <>
-              <Metric label="Source" value="TennisRecord" />
+              <Metric label="Source" value="External record" />
               <Metric label="Context" value="Team / flight" />
               <Metric label="Last seen" value={formatShortDate(row.mostRecentMatchDate, '--')} />
             </>
@@ -1341,7 +1341,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
             <TiqTrustStrip
               label={`${row.team} data trust signals`}
               signals={[
-                { label: 'Source', value: isTennisRecordContext ? 'TennisRecord context' : 'Scorecards / rosters', tone: 'info' },
+                { label: 'Source', value: isTennisRecordContext ? 'External public context' : 'Scorecards / rosters', tone: 'info' },
                 { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
                 { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
                 { label: 'Status', value: isTennisRecordContext ? 'Context only' : 'Reviewable', tone: 'good' },

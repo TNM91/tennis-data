@@ -1698,7 +1698,7 @@ function TeamPageContent() {
               title="Team data trust"
               body="Team pages combine reviewed Player Rosters, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
               signals={[
-                { label: 'Source', value: tennisRecordHistory.length || tennisRecordRoster.length ? 'Player Rosters, scorecards, TIQ entries, TennisRecord context' : 'Player Rosters, scorecards, TIQ league entries' },
+                { label: 'Source', value: tennisRecordHistory.length || tennisRecordRoster.length ? 'Player rosters, scorecards, TIQ entries, and external public context' : 'Player rosters, scorecards, TIQ league entries' },
                 { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
                 { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
                 { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
@@ -1736,7 +1736,7 @@ function TeamPageContent() {
           <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-schedule">
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>TennisRecord context</p>
+                <p style={sectionKicker}>External public context</p>
                 <h2 style={sectionTitle}>Imported team history</h2>
                 <p style={bodyText}>Public source match evidence that has not yet become a reviewed TenAceIQ scorecard.</p>
               </div>
@@ -2470,12 +2470,12 @@ function TeamPageContent() {
             </>
           ) : tennisRecordRoster.length ? (
             <div style={stackList}>
-              <p style={bodyText}>These players were explicitly listed on a public TennisRecord roster page. They are source context only until a verified roster or scorecard confirms the TenAceIQ team record.</p>
+              <p style={bodyText}>These players were explicitly listed in an external public roster. They are source context only until a verified roster or scorecard confirms the TenAceIQ team record.</p>
               {tennisRecordRoster.map((player) => (
                 <div key={`${player.canonical_player_id || 'source'}-${player.player_name}`} style={dynamicListRow}>
                   <div style={listRowCopyStyle}>
                     {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
-                    <div style={mutedText}>TennisRecord-listed player</div>
+                    <div style={mutedText}>External roster listing</div>
                   </div>
                   {player.source_url ? <a href={player.source_url} target="_blank" rel="noreferrer" style={rosterActionLink}>Source roster</a> : null}
                 </div>

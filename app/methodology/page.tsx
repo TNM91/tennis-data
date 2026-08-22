@@ -122,7 +122,7 @@ export default function MethodologyPage() {
             </p>
             <p style={{ marginTop: 10 }}>
               Recent results carry somewhat more weight, and an upset win receives a modest additional
-              boost. These adjustments refine the performance signal; they do not use TennisRecord&rsquo;s
+              boost. These adjustments refine the performance signal; they do not use an external source&rsquo;s
               proprietary rating.
             </p>
           </div>
