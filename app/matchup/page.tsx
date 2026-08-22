@@ -1442,6 +1442,25 @@ export default function MatchupPage() {
   const labTakeawayText = projection
     ? `Log ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
     : 'Compare, then log the one thing you want to test next.'
+  const mobileQuickReadItems = projection
+    ? [
+        {
+          label: 'Edge',
+          value: projection.favoriteEdgeText,
+          detail: projection.confidenceLabel,
+        },
+        {
+          label: 'Gap',
+          value: projection.ratingDiffText,
+          detail: `${capitalize(ratingView)} TIQ`,
+        },
+        {
+          label: 'Watch',
+          value: projection.isSwingMatch ? 'Swing court' : projection.matchTier,
+          detail: projection.upsetIndicator,
+        },
+      ]
+    : []
 
   const dynamicToolbarTop: CSSProperties = {
     ...toolbarTop,
@@ -2299,6 +2318,18 @@ export default function MatchupPage() {
                     <div style={prepReadText}>{labTakeawayText}</div>
                   </Link>
                 </div>
+              ) : null}
+
+              {projection && isMobile ? (
+                <section style={mobileQuickReadGridStyle(isSmallMobile)} aria-label="Matchup quick read">
+                  {mobileQuickReadItems.map((item) => (
+                    <article key={item.label} style={mobileQuickReadItemStyle}>
+                      <span style={mobileQuickReadLabelStyle}>{item.label}</span>
+                      <strong style={mobileQuickReadValueStyle}>{item.value}</strong>
+                      <span style={mobileQuickReadDetailStyle}>{item.detail}</span>
+                    </article>
+                  ))}
+                </section>
               ) : null}
 
               <div style={dynamicCompareGrid}>
@@ -4444,6 +4475,50 @@ const prepReadText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+  gap: '8px',
+  marginBottom: '12px',
+  minWidth: 0,
+})
+
+const mobileQuickReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '11px 10px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '10px',
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 750,
+  lineHeight: 1.3,
   overflowWrap: 'anywhere',
 }
 
