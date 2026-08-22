@@ -225,6 +225,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
       try {
         const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms)
+        summary.transientRetries += page.transientRetries
         const pageUpsert = await service.from('tennisrecord_source_pages').upsert({ source_url: page.url, content_hash: page.contentHash, http_status: page.status, captured_at: new Date().toISOString(), last_seen_at: new Date().toISOString(), blocked: Boolean(page.blockReason), block_reason: page.blockReason, raw_html: page.html || null, sync_run_id: runId, parser_revision: TENNISRECORD_PARSER_REVISION }, { onConflict: 'source_url,content_hash' }).select('id').single()
         if (pageUpsert.error) throw new Error(pageUpsert.error.message)
         if (page.blockReason) {
