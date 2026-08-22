@@ -322,6 +322,47 @@
     padding-top: 2px;
   }
 
+  .pulseRail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .pulse {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px 8px;
+    border: 1px solid rgba(125, 211, 252, 0.16);
+    border-radius: 12px;
+    background: rgba(5, 11, 22, 0.42);
+  }
+
+  .pulse > span {
+    color: var(--brand-blue-2);
+    font-size: 0.58rem;
+    font-weight: 920;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .pulse > strong {
+    overflow-wrap: anywhere;
+    color: var(--foreground-strong);
+    font-size: 0.88rem;
+    font-weight: 950;
+    line-height: 1.1;
+  }
+
+  .pulse > small {
+    overflow-wrap: anywhere;
+    color: var(--shell-copy-muted);
+    font-size: 0.62rem;
+    font-weight: 780;
+    line-height: 1.25;
+  }
+
   .actionGrid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
