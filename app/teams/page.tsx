@@ -794,8 +794,19 @@ export default function TeamsPage() {
               </div>
             </section>
           ) : (
-            <section style={cardsGrid(isTablet, isMobile)}>
-              {visibleRows.map((row) => {
+            <section style={teamDiscoveryResultsStyle}>
+              <TeamPulseFeature
+                href={{
+                  pathname: `/teams/${encodeTeamRouteSegment(visibleRows[0].team)}`,
+                  query: {
+                    ...(visibleRows[0].league ? { league: visibleRows[0].league } : {}),
+                    ...(visibleRows[0].flight ? { flight: visibleRows[0].flight } : {}),
+                  },
+                }}
+                row={visibleRows[0]}
+              />
+              <section style={cardsGrid(isTablet, isMobile)}>
+              {visibleRows.slice(1).map((row) => {
                 const teamHref = {
                   pathname: `/teams/${encodeTeamRouteSegment(row.team)}`,
                   query: {
@@ -827,6 +838,8 @@ export default function TeamsPage() {
                   </button>
                 </div>
               ) : null}
+              </section>
+              <CaptainDiscoveryTease />
             </section>
           )}
         </section>
@@ -1126,6 +1139,76 @@ function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }
         </div>
       </div>
     </article>
+  )
+}
+
+function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry }) {
+  const totalDecisions = row.wins + row.losses
+  const record = totalDecisions > 0 ? `${row.wins}-${row.losses}` : 'New'
+  const formLabel = totalDecisions > 0
+    ? row.wins >= row.losses ? 'Winning form' : 'Competitive form'
+    : 'Fresh team context'
+
+  return (
+    <article style={teamPulseFeatureStyle}>
+      <div style={teamPulseFeatureTopStyle}>
+        <div style={teamPulseFeatureCopyStyle}>
+          <span style={teamPulseEyebrowStyle}>Team pulse</span>
+          <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
+          <div style={teamPulseMetaStyle}>
+            {row.league ? <span>{row.league}</span> : null}
+            {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
+          </div>
+        </div>
+        <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Public source context' : 'Verified team record'}</span>
+      </div>
+
+      <div style={teamPulseMainStyle}>
+        <div style={teamPulseRecordStyle}>
+          <strong style={teamPulseRecordValueStyle}>{record}</strong>
+          <span style={teamPulseRecordLabelStyle}>{totalDecisions > 0 ? `Last ${totalDecisions} decisions` : 'Ready to explore'}</span>
+        </div>
+        <div style={teamPulseFormStyle}>
+          <span style={teamPulseEyebrowStyle}>{formLabel}</span>
+          <strong style={teamPulseFormTitleStyle}>{totalDecisions > 0 ? `${Math.round((row.wins / totalDecisions) * 100)}% win rate` : 'League and flight added'}</strong>
+          {row.recentForm.length ? (
+            <div style={teamPulseBadgesStyle} aria-label={`${row.team} recent form`}>
+              {row.recentForm.map((result, index) => (
+                <span key={`${result}-${index}`} style={{ ...recentFormBadgeBase, background: result === 'W' ? 'rgba(155,225,29,0.15)' : 'rgba(239,68,68,0.12)', color: result === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${result === 'W' ? 'rgba(155,225,29,0.3)' : 'rgba(239,68,68,0.24)'}` }}>{result}</span>
+              ))}
+            </div>
+          ) : <span style={teamPulseSupportStyle}>Results appear as reviewed scorecards connect.</span>}
+        </div>
+      </div>
+
+      <div style={teamPulseFooterStyle}>
+        <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
+        <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
+      </div>
+    </article>
+  )
+}
+
+function CaptainDiscoveryTease() {
+  return (
+    <section style={captainDiscoveryTeaseStyle}>
+      <div style={captainDiscoveryTeaseCopyStyle}>
+        <span style={teamPulseEyebrowStyle}>For captains</span>
+        <strong>Claim your team when you are ready to lead it.</strong>
+        <span>Unlock lineup preparation, availability, and opponent scouting while public team discovery stays free.</span>
+      </div>
+      <TrackedProductLink
+        href="/captain"
+        style={captainDiscoveryTeaseActionStyle}
+        event={{
+          eventName: 'captain_tools_clicked',
+          surface: 'teams',
+          metadata: { location: 'team_discovery_tease' },
+        }}
+      >
+        Explore Captain tools
+      </TrackedProductLink>
+    </section>
   )
 }
 
@@ -1917,6 +2000,85 @@ const emptyActionRow: CSSProperties = {
   marginTop: '12px',
   maxWidth: '100%',
   minWidth: 0,
+}
+
+const teamDiscoveryResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  marginTop: 18,
+  minWidth: 0,
+}
+
+const teamPulseFeatureStyle: CSSProperties = {
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+  padding: 'clamp(18px, 4vw, 30px)',
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, rgba(8,16,34,0.94) 88%), rgba(7,17,33,0.94) 64%)',
+  boxShadow: '0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+  overflow: 'hidden',
+}
+
+const teamPulseFeatureTopStyle: CSSProperties = {
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0,
+}
+
+const teamPulseFeatureCopyStyle: CSSProperties = { display: 'grid', gap: 6, minWidth: 0 }
+
+const teamPulseEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase',
+}
+
+const teamPulseTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 'clamp(1.8rem, 6vw, 3.2rem)', lineHeight: 0.98, letterSpacing: '-0.04em', fontWeight: 950, textDecoration: 'none', overflowWrap: 'anywhere',
+}
+
+const teamPulseMetaStyle: CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 13, fontWeight: 760, overflowWrap: 'anywhere',
+}
+
+const teamPulseFlightStyle: CSSProperties = { color: 'var(--brand-lime)' }
+
+const teamPulseSourceStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', minHeight: 28, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(7,17,33,0.58)', color: 'var(--foreground-strong)', fontSize: 11, fontWeight: 820, maxWidth: '100%', overflowWrap: 'anywhere',
+}
+
+const teamPulseMainStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(130px, 0.72fr) minmax(0, 1.28fr)', gap: 16, alignItems: 'stretch', minWidth: 0,
+}
+
+const teamPulseRecordStyle: CSSProperties = {
+  display: 'grid', alignContent: 'center', gap: 4, minWidth: 0, padding: '16px', borderRadius: 18, border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)', background: 'rgba(5,14,29,0.56)', color: 'var(--brand-lime)',
+}
+
+const teamPulseRecordValueStyle: CSSProperties = { fontSize: 'clamp(2.5rem, 9vw, 4.6rem)', lineHeight: 0.9, letterSpacing: '-0.07em', fontWeight: 950 }
+const teamPulseRecordLabelStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 820, textTransform: 'uppercase', letterSpacing: '0.08em' }
+
+const teamPulseFormStyle: CSSProperties = { display: 'grid', alignContent: 'center', gap: 7, minWidth: 0, padding: '16px 4px' }
+const teamPulseFormTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(1.25rem, 4vw, 2rem)', lineHeight: 1.04, fontWeight: 930, overflowWrap: 'anywhere' }
+const teamPulseBadgesStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
+const teamPulseSupportStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, fontWeight: 700, overflowWrap: 'anywhere' }
+
+const teamPulseFooterStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0, paddingTop: 14, borderTop: '1px solid rgba(116,190,255,0.14)',
+}
+
+const teamPulseActionStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: '0 16px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 950, textDecoration: 'none',
+}
+
+const captainDiscoveryTeaseStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, minWidth: 0, padding: '18px', borderRadius: 20, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 32%, var(--shell-panel-border) 68%)', background: 'linear-gradient(135deg, rgba(38,120,255,0.13), rgba(7,17,33,0.78))',
+}
+
+const captainDiscoveryTeaseCopyStyle: CSSProperties = {
+  display: 'grid', gap: 5, minWidth: 0, maxWidth: 660, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5, fontWeight: 700,
+}
+
+const captainDiscoveryTeaseActionStyle: CSSProperties = {
+  ...secondaryIntroButton, flex: '0 0 auto', borderColor: 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
 }
 
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
