@@ -331,6 +331,7 @@ function TeamPageContent() {
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
   const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const [showFullRoster, setShowFullRoster] = useState(false)
+  const [rosterSearch, setRosterSearch] = useState('')
   const [detailReady, setDetailReady] = useState(false)
   const [selectedRosterPlayerIds, setSelectedRosterPlayerIds] = useState<string[]>([])
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
@@ -1087,7 +1088,9 @@ function TeamPageContent() {
   }, [roster])
 
   const filteredRoster = useMemo(() => {
+    const searchTerm = cleanText(rosterSearch).toLowerCase()
     const nextRoster = roster.filter((player) => {
+      if (searchTerm && !player.name.toLowerCase().includes(searchTerm)) return false
       if (rosterFilter === 'played') return player.appearances > 0
       if (rosterFilter === 'roster-only') return player.appearances === 0
       return true
@@ -1112,8 +1115,8 @@ function TeamPageContent() {
     }
 
     return nextRoster
-  }, [roster, rosterFilter])
-  const mobileRosterPreviewLimit = isMobile ? 6 : 12
+  }, [roster, rosterFilter, rosterSearch])
+  const mobileRosterPreviewLimit = isMobile ? 4 : 12
   const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
 
   const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => [
@@ -1128,6 +1131,7 @@ function TeamPageContent() {
     return playedCount > 0 && playedCount < roster.length
   }, [roster])
   const showRosterFilters = !isMobile || hasRosterParticipationSplit
+  const showRosterTools = !isMobile || showFullRoster
 
   const selectedRosterPlayers = useMemo(() => {
     return selectedRosterPlayerIds
@@ -1147,6 +1151,11 @@ function TeamPageContent() {
       if (current.length >= 2) return [current[1], playerId]
       return [...current, playerId]
     })
+  }
+
+  function toggleFullRoster() {
+    if (showFullRoster) setRosterSearch('')
+    setShowFullRoster(!showFullRoster)
   }
 
   const pairings = useMemo<PairingCard[]>(() => {
@@ -1985,8 +1994,10 @@ function TeamPageContent() {
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Team activity</p>
-              <h2 style={sectionTitle}>Schedule &amp; results</h2>
+              <h2 style={sectionTitle}>Match history</h2>
+              <p style={sectionHeadingTextStyle}>A quick read of what happened most recently. Open the full history only when you need it.</p>
             </div>
+            <span style={panelCountPill}>{matches.length} {matches.length === 1 ? 'match' : 'matches'}</span>
           </div>
 
           {opponentAnalysis.length > 0 ? (
@@ -2200,7 +2211,7 @@ function TeamPageContent() {
             {orderedCards.length > previewCards.length ? (
               <div style={tableControlRowStyle}>
                 <button type="button" onClick={() => setShowFullMatchHistory((value) => !value)} style={tableToggleButtonStyle}>
-                  {showFullMatchHistory ? 'Show fewer matches' : `Show all ${filteredCards.length} matches`}
+                  {showFullMatchHistory ? 'Return to match preview' : `Explore all ${filteredCards.length} matches`}
                 </button>
               </div>
             ) : null}
@@ -2220,7 +2231,8 @@ function TeamPageContent() {
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Team players</p>
-              <h2 style={sectionTitle}>Roster</h2>
+              <h2 style={sectionTitle}>{isMobile ? 'Lineup snapshot' : 'Lineup & roster'}</h2>
+              <p style={sectionHeadingTextStyle}>{isMobile ? 'Start with the group most visible in current team context.' : 'Explore the roster, compare two players, and open the full depth when you need it.'}</p>
             </div>
             {roster.length && (visibleRoster.length !== filteredRoster.length || filteredRoster.length !== roster.length) ? (
               <span style={panelCountPill}>
@@ -2231,7 +2243,7 @@ function TeamPageContent() {
 
           {roster.length ? (
             <>
-              {showRosterFilters ? (
+              {showRosterFilters && showRosterTools ? (
                 <>
                   <div style={rosterFilterRow}>
                     {rosterFilterOptions.filter((option) => !isMobile || option.count > 0).map((option) => {
@@ -2264,7 +2276,20 @@ function TeamPageContent() {
                 </>
               ) : null}
 
-              {selectedRosterPlayerIds.length > 0 ? <div style={rosterCompareTray}>
+              {isMobile && showFullRoster ? (
+                <label style={rosterSearchFieldStyle}>
+                  <span>Find a teammate</span>
+                  <input
+                    type="search"
+                    value={rosterSearch}
+                    onChange={(event) => setRosterSearch(event.target.value)}
+                    placeholder="Search this roster"
+                    style={rosterSearchInputStyle}
+                  />
+                </label>
+              ) : null}
+
+              {showRosterTools && selectedRosterPlayerIds.length > 0 ? <div style={rosterCompareTray}>
                 <div style={sectionHeadingCopyStyle}>
                   <div style={rosterCompareKicker}>Matchup</div>
                   <div style={rosterCompareTitle}>
@@ -2317,7 +2342,7 @@ function TeamPageContent() {
                           </div>
                           {player.id.startsWith('summary:') ? (
                             <span style={mobileRosterPendingStyle}>Link pending</span>
-                          ) : (
+                          ) : showRosterTools ? (
                             <button
                               type="button"
                               onClick={() => handleRosterCompareToggle(player.id)}
@@ -2326,7 +2351,7 @@ function TeamPageContent() {
                             >
                               {selected ? 'Selected' : 'Compare'}
                             </button>
-                          )}
+                          ) : null}
                         </div>
                         <div style={mobileRosterCompactRowStyle}>
                           <dl style={mobileRosterMetricGridStyle} aria-label={`${player.name} roster stats`}>
@@ -2343,7 +2368,7 @@ function TeamPageContent() {
                               <dd style={mobileRosterMetricValueStyle}>{player.wins}-{player.losses}</dd>
                             </div>
                           </dl>
-                          {!player.id.startsWith('summary:') && access.canUseAdvancedPlayerInsights ? (
+                          {!player.id.startsWith('summary:') && showRosterTools && access.canUseAdvancedPlayerInsights ? (
                             <Link
                               href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`}
                               style={mobileRosterMatchupLink}
@@ -2437,8 +2462,8 @@ function TeamPageContent() {
               )}
               {filteredRoster.length > mobileRosterPreviewLimit ? (
                 <div style={tableControlRowStyle}>
-                  <button type="button" onClick={() => setShowFullRoster((value) => !value)} style={tableToggleButtonStyle}>
-                    {showFullRoster ? 'Show fewer players' : `Show all ${filteredRoster.length} players`}
+                  <button type="button" onClick={toggleFullRoster} style={tableToggleButtonStyle}>
+                    {showFullRoster ? 'Return to lineup snapshot' : `Explore all ${filteredRoster.length} players`}
                   </button>
                 </div>
               ) : null}
@@ -3270,6 +3295,15 @@ const sectionHeadingCopyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const sectionHeadingTextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.5,
+  maxWidth: 620,
+  overflowWrap: 'anywhere',
+}
+
 const sectionKicker: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontWeight: 800,
@@ -3452,6 +3486,31 @@ const rosterFilterHint: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.55,
   overflowWrap: 'anywhere',
+}
+
+const rosterSearchFieldStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  marginBottom: 12,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const rosterSearchInputStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  padding: '0 12px',
+  boxSizing: 'border-box',
+  borderRadius: 12,
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.6)',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  outline: 'none',
 }
 
 const rosterCompareTray: CSSProperties = {
@@ -3677,7 +3736,7 @@ const opponentMetricStyle: CSSProperties = {
 
 const mobileMatchListStyle: CSSProperties = {
   display: 'grid',
-  gap: 18,
+  gap: 14,
   minWidth: 0,
 }
 
@@ -3698,18 +3757,20 @@ const mobileMatchGroupTitleStyle: CSSProperties = {
 
 const mobileMatchGroupCardsStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 0,
   minWidth: 0,
+  overflow: 'hidden',
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.42)',
 }
 
 const mobileMatchCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid rgba(125, 211, 252, 0.14)',
-  background: 'rgba(15, 23, 42, 0.58)',
+  padding: '13px 14px',
+  borderBottom: '1px solid rgba(125, 211, 252, 0.12)',
 }
 
 const mobileMatchCardHeaderStyle: CSSProperties = {
@@ -3866,18 +3927,20 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
 
 const mobileRosterListStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
+  gap: 0,
   minWidth: 0,
+  overflow: 'hidden',
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.42)',
 }
 
 const mobileRosterCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 9,
   minWidth: 0,
-  padding: 12,
-  borderRadius: 14,
-  border: '1px solid rgba(125, 211, 252, 0.14)',
-  background: 'rgba(15, 23, 42, 0.58)',
+  padding: '13px 14px',
+  borderBottom: '1px solid rgba(125, 211, 252, 0.12)',
 }
 
 const mobileRosterHeaderStyle: CSSProperties = {

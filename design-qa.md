@@ -116,6 +116,32 @@ final result: blocked
 
 ---
 
+# Team Profile depth refinement visual QA
+
+- Source visual direction: the selected Team Profile concept 2 (`C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`).
+- Target viewport: 390 × 844 mobile web content.
+- Implementation route: `/teams/[team]`.
+- Intended state: a public team with completed results and a roster larger than four players.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The required browser-control service still cannot establish its trusted runtime connection in this environment. A same-viewport rendered capture, focused comparison, interaction test, and console review are therefore unavailable.
+
+## Implemented hierarchy
+
+- Mobile results use one grouped, compact row surface per result group rather than a stack of large cards.
+- Match history initially shows a short preview and requires an explicit action to open all results.
+- Mobile roster starts as a four-player lineup snapshot. Full roster tools, comparison, and teammate search appear only after the visitor expands the roster.
+
+## Required follow-up
+
+Capture a populated team page at 390 × 844 and compare result-row density, roster expansion, touch targets, and horizontal overflow with the selected direction before visual approval.
+
+final result: blocked
+
+---
+
 # Premium Team Profile concept 2 design QA
 
 - Source visual truth: `C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`
