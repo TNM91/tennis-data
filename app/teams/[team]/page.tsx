@@ -1461,9 +1461,9 @@ function TeamPageContent() {
         />
         <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
           <a href="#team-overview" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Overview</a>
-          <a href="#team-schedule" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Schedule</a>
+          <a href="#team-schedule" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Activity</a>
           <a href="#team-roster" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Roster</a>
-          <a href="#team-chat" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Team chat</a>
+          {isLinkedTeamMember ? <a href="#team-chat" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Team chat</a> : null}
         </nav>
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
@@ -1529,9 +1529,9 @@ function TeamPageContent() {
               />
               <MetricCard
                 compact={isMobile}
-                label={nextMatch ? 'Next match' : 'Last result'}
-                value={isMobile ? formatCompactDate(summaryMatch?.match_date) : formatDate(summaryMatch?.match_date)}
-                subtle={summaryMatch ? `vs ${getOpponent(summaryMatch, team) ?? '--'}` : 'No match yet'}
+                label={nextMatch ? 'Next match' : summaryMatch ? 'Last result' : tennisRecordHistory.length ? 'Source history' : 'Last result'}
+                value={summaryMatch ? (isMobile ? formatCompactDate(summaryMatch.match_date) : formatDate(summaryMatch.match_date)) : tennisRecordHistory.length ? String(tennisRecordHistory.length) : '—'}
+                subtle={summaryMatch ? `vs ${getOpponent(summaryMatch, team) ?? '--'}` : tennisRecordHistory.length ? 'Public source lines' : 'No match yet'}
               />
             </div>
 
@@ -1585,42 +1585,28 @@ function TeamPageContent() {
           </div>
         </section>
 
-        <section id="team-chat" style={{ ...surfaceCard, order: 1, scrollMarginTop: 16 }}>
+        {isLinkedTeamMember ? <section id="team-chat" style={{ ...surfaceCard, order: 4, scrollMarginTop: 16 }}>
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Team chat</p>
-              <h2 style={sectionTitle}>
-                {isLinkedTeamMember ? 'Talk with the roster.' : 'Private for linked team members.'}
-              </h2>
-              <p style={bodyText}>
-                {isLinkedTeamMember
-                  ? 'Start or continue the team conversation. Replies also appear in your Messages inbox.'
-                  : 'Register and connect this team to join its conversation.'}
-              </p>
+              <h2 style={sectionTitle}>Talk with the roster.</h2>
+              <p style={bodyText}>Start or continue the team conversation. Replies also appear in your Messages inbox.</p>
             </div>
           </div>
           <div style={dynamicHeroActions}>
-            {isLinkedTeamMember ? (
-              <>
-                <QuickMessageComposer
-                  mode="team"
-                  triggerLabel="Open Team Chat"
-                  subject={`${team} team chat`}
-                  leagueName={team}
-                  teamName={team}
-                  teamLeagueName={leagueFilter || teamMeta.league}
-                  teamFlight={flightFilter || teamMeta.flight}
-                  entityType="team"
-                  entityId={stableFollowId}
-                  participantPlayerIds={teamChatPlayerIds}
-                />
-                <GhostLink href={teamRoomHref}>Open full room</GhostLink>
-              </>
-            ) : currentUserId ? (
-              <PrimaryLink href="/team-connections">Connect this team</PrimaryLink>
-            ) : (
-              <PrimaryLink href={`/join?next=${encodeURIComponent(`${exploreResumeHref}#team-chat`)}`}>Register Free</PrimaryLink>
-            )}
+            <QuickMessageComposer
+              mode="team"
+              triggerLabel="Open Team Chat"
+              subject={`${team} team chat`}
+              leagueName={team}
+              teamName={team}
+              teamLeagueName={leagueFilter || teamMeta.league}
+              teamFlight={flightFilter || teamMeta.flight}
+              entityType="team"
+              entityId={stableFollowId}
+              participantPlayerIds={teamChatPlayerIds}
+            />
+            <GhostLink href={teamRoomHref}>Open full room</GhostLink>
           </div>
 
           {isLinkedTeamMember && access.canUseAdvancedPlayerInsights ? (
@@ -1640,7 +1626,7 @@ function TeamPageContent() {
               <SecondaryLink href={captainLinks[1].href}>Open captain team tools</SecondaryLink>
             </div>
           ) : null}
-        </section>
+        </section> : null}
 
         {canManageThisTeam ? (
         <section style={{ ...teamWeekPathStyle(isTablet), order: 1 }} aria-label="Captain team week tools">

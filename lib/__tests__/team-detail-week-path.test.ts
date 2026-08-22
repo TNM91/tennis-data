@@ -47,6 +47,14 @@ describe('team detail week path', () => {
     expect(source).not.toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
   })
 
+  it('keeps public team exploration data-first while preserving private roster chat', () => {
+    expect(source).toContain("{isLinkedTeamMember ? <a href=\"#team-chat\"")
+    expect(source).toContain("{isLinkedTeamMember ? <section id=\"team-chat\"")
+    expect(source).toContain("tennisRecordHistory.length ? 'Source history' : 'Last result'")
+    expect(source).toContain("tennisRecordHistory.length ? 'Public source lines' : 'No match yet'")
+    expect(source).toContain('>Activity</a>')
+  })
+
   it('renders a purpose-built phone roster instead of compressing nine table columns', () => {
     const mobileRosterStart = source.indexOf('style={mobileRosterListStyle}')
     const mobileRosterEnd = source.indexOf('<div style={tableWrap}>', mobileRosterStart)
