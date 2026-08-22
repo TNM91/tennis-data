@@ -984,7 +984,7 @@ function CaptainAnalyticsContent() {
 
         </div>
 
-        <div style={captainReadCard}>
+        {!isMobile ? <div style={captainReadCard}>
           <div style={captainReadTop}>
             <div>
               <p style={sectionKicker}>Live edge</p>
@@ -1003,7 +1003,7 @@ function CaptainAnalyticsContent() {
             <span style={badgeSlate}>{teamName && opponentTeam ? 'Matchup set' : 'Set matchup'}</span>
             <span style={badgeSlate}>{scenarioOptions.length > 1 ? 'Compare ready' : 'Save another'}</span>
           </div>
-        </div>
+        </div> : null}
       </section>
 
         <section style={decisionBoardStyle}>
