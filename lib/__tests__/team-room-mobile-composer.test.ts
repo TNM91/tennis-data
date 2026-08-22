@@ -1,0 +1,22 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+describe('Team Room mobile composer', () => {
+  const page = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
+  const styles = readFileSync(join(process.cwd(), 'app/team-room/team-room.module.css'), 'utf8')
+
+  it('keeps the captain availability action visible while folding optional message templates into a compact menu', () => {
+    expect(page).toContain('aria-label="Quick team messages"')
+    expect(page).toContain("{hasActiveAvailability ? 'Review availability' : 'Ask availability'}")
+    expect(page).toContain('<details className={styles.quickMessageTemplates}>')
+    expect(page).toContain('<summary className={styles.quickMessageTemplatesSummary}>')
+    expect(page).toContain('Quick notes')
+    expect(page).toContain('<div className={styles.quickMessageTemplatesBody}>')
+    expect(page).toContain('QUICK_MESSAGES.map')
+    expect(page).toContain("event.currentTarget.closest('details')?.removeAttribute('open')")
+    expect(styles).toContain('.quickMessageTemplatesBody')
+    expect(styles).toContain('bottom: calc(100% + 8px);')
+    expect(styles).toContain('width: min(244px, calc(100vw - 40px));')
+  })
+})
