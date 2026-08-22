@@ -450,6 +450,30 @@ function CaptainWeeklyBriefContent() {
     responseSummary.late +
     responseSummary.noResponse +
     (lineupRows.length ? 0 : 1)
+  const mobileWeekPulse = [
+    {
+      label: 'Courts',
+      value: lineupRows.length ? `${lineupRows.length} set` : 'Open',
+      detail: lineupRows.length ? `${lineupReadyPercent}% lineup read` : 'Build the lineup first',
+      tone: lineupRows.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Available',
+      value: String(availabilitySummary.available),
+      detail: availabilitySummary.tentative + availabilitySummary.noResponse
+        ? `${availabilitySummary.tentative + availabilitySummary.noResponse} to clear`
+        : 'No reply gaps',
+      tone: availabilityReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Replies',
+      value: String(responseSummary.confirmed),
+      detail: responseSummary.late + responseSummary.noResponse
+        ? `${responseSummary.late + responseSummary.noResponse} to chase`
+        : 'Replies steady',
+      tone: responseReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+  ]
 
   const readinessItems = [
     {
@@ -609,7 +633,23 @@ function CaptainWeeklyBriefContent() {
               </div>
             </div>
 
-            <div style={briefSignalGridStyle}>
+            {isMobile ? (
+              <div style={mobileWeekPulseStyle} aria-label="Weekly brief match pulse">
+                {mobileWeekPulse.map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      ...mobileWeekPulseCardStyle,
+                      ...(item.tone === 'ready' ? mobileWeekPulseCardReadyStyle : mobileWeekPulseCardWaitingStyle),
+                    }}
+                  >
+                    <span style={mobileWeekPulseLabelStyle}>{item.label}</span>
+                    <strong style={mobileWeekPulseValueStyle}>{item.value}</strong>
+                    <small style={mobileWeekPulseDetailStyle}>{item.detail}</small>
+                  </div>
+                ))}
+              </div>
+            ) : <div style={briefSignalGridStyle}>
               <BriefSignal
                 label="Lineup"
                 value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'}
@@ -631,7 +671,7 @@ function CaptainWeeklyBriefContent() {
                 percent={responseReadyPercent}
                 accent={responseReadyPercent >= 75}
               />
-            </div>
+            </div>}
 
           </section>
 
@@ -1045,6 +1085,60 @@ const briefSignalGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const mobileWeekPulseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '10px 8px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileWeekPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileWeekPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const briefSignalCardStyle: CSSProperties = {
