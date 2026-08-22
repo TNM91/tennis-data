@@ -5,7 +5,7 @@ import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecor
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
-import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
@@ -190,14 +190,26 @@ describe('TennisRecord ingestion safety', () => {
     expect(shouldSelfStartTennisRecordBootstrap({ automation_state: 'manual', bootstrap_started_at: '2026-08-21T00:00:00.000Z', bootstrap_completed_at: null })).toBe(false)
   })
 
-  it('seeds the Missouri frontier from explicit-season public history pages and never marks an empty campaign complete', () => {
+  it('seeds the Missouri frontier from explicit-season public history and bounded league directory pages', () => {
     const urls = getTennisRecordCampaignSeedUrls({ slug: 'missouri-2025-current', startsOn: '2025-01-01', endsOn: '2026-08-21' })
     expect(urls).toContain('https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Nathan+Meinert&year=2025')
     expect(urls).toContain('https://www.tennisrecord.com/adult/matchhistory.aspx?playername=Nathan+Meinert&year=2026')
-    expect(urls.every((url) => tennisRecordRecordPageKind(url) === 'history')).toBe(true)
+    expect(urls).toContain('https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=2025')
+    expect(urls.every((url) => ['history', 'league'].includes(tennisRecordRecordPageKind(url) || ''))).toBe(true)
     expect(tennisRecordFrontierStatus(0, urls.length)).toBe('ready_to_seed')
     expect(tennisRecordFrontierStatus(0, 0)).toBe('needs_admin_seed')
     expect(tennisRecordFrontierStatus(1, urls.length)).toBe('seeded')
+  })
+
+  it('keeps the Missouri league-directory path inside the Missouri Valley branch', () => {
+    const root = 'https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=2026'
+    const section = 'https://www.tennisrecord.com/adult/league/leaguesection.aspx?lt=adult&year=2026'
+    const missouri = 'https://www.tennisrecord.com/adult/league/leaguedistrict.aspx?lt=adult&sectionname=Missouri+Valley&year=2026'
+    const otherSection = 'https://www.tennisrecord.com/adult/league/leaguedistrict.aspx?lt=adult&sectionname=Southern&year=2026'
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', root, section)).toBe(true)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', section, missouri)).toBe(true)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', section, otherSection)).toBe(false)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', missouri, 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Sample')).toBe(true)
   })
 
   it('queues the nationwide public league directory only after its planned campaign activates', () => {

@@ -3,7 +3,7 @@ import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
-import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from './frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
@@ -295,7 +295,12 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const runId = run.id as string
   const summary = emptySummary('completed')
   try {
-    const replay = await reparseCapturedTennisRecordMatchPages(service, runId, input.campaignId)
+    const campaign = input.campaignId
+      ? await service.from('tennisrecord_campaigns').select('slug').eq('id', input.campaignId).maybeSingle()
+      : { data: null, error: null }
+    if (campaign.error) throw new Error(campaign.error.message)
+    const campaignSlug = campaign.data?.slug as string | undefined
+    const replay = await reparseCapturedTennisRecordMatchPages(service, runId, input.campaignId, campaignSlug)
     const touchedSourceMatchKeys = new Set<string>()
     summary.pagesProcessed += replay.pagesProcessed
     summary.playersDiscovered += replay.playersDiscovered
@@ -330,7 +335,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           }).eq('id', job.id)
           continue
         }
-        for (const sourceMatchKey of await stageParsedPage(service, parsed, pageUpsert.data?.id as string | undefined, job.campaign_id, TENNISRECORD_PARSER_REVISION)) {
+        for (const sourceMatchKey of await stageParsedPage(service, parsed, page.url, pageUpsert.data?.id as string | undefined, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)) {
           touchedSourceMatchKeys.add(sourceMatchKey)
         }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
@@ -410,12 +415,14 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       const allCampaignPages = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', settings.active_campaign_id)
       if (allCampaignPages.error) throw new Error(allCampaignPages.error.message)
       knownPages = allCampaignPages.count || 0
-      if (knownPages === 0) {
-        await seedTennisRecordCampaignFrontier(service, settings.active_campaign_id)
-        const seededPages = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', settings.active_campaign_id)
-        if (seededPages.error) throw new Error(seededPages.error.message)
-        knownPages = seededPages.count || 0
-      }
+      // Seed discovery is idempotent: every checkpoint can safely introduce a
+      // newly approved frontier URL without reopening completed queue rows.
+      // This lets a running Missouri mission gain its bounded league path
+      // rather than waiting for the old player-only queue to exhaust.
+      await seedTennisRecordCampaignFrontier(service, settings.active_campaign_id)
+      const seededPages = await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', settings.active_campaign_id)
+      if (seededPages.error) throw new Error(seededPages.error.message)
+      knownPages = seededPages.count || 0
     }
     const refreshedPending = settings.active_campaign_id
       ? await service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('campaign_id', settings.active_campaign_id).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
@@ -557,7 +564,7 @@ function isActiveRunLockError(error: { code?: string; message?: string }) {
 
 type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[] }
 
-async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, runId: string, campaignId?: string | null): Promise<ParserReplaySummary> {
+async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, runId: string, campaignId?: string | null, campaignSlug?: string): Promise<ParserReplaySummary> {
   const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [] }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
@@ -588,7 +595,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     if (isMatchPage && !hasCompleteMatches) {
       summary.parserFailures += 1
     } else {
-      summary.sourceMatchKeys.push(...await stageParsedPage(service, parsed, page.id as string, campaignId, TENNISRECORD_PARSER_REVISION))
+      summary.sourceMatchKeys.push(...await stageParsedPage(service, parsed, sourceUrl, page.id as string, campaignId, campaignSlug, TENNISRECORD_PARSER_REVISION))
       summary.pagesProcessed += 1
       summary.playersDiscovered += parsed.players.length
       summary.teamsDiscovered += parsed.teams.length
@@ -601,7 +608,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
   return summary
 }
 
-async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, pageId?: string, campaignId?: string | null, parserRevision = TENNISRECORD_PARSER_REVISION) {
+async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION) {
   let savedSourceMatchKeys: string[] = []
   if (parsed.players.length) {
     const { data: staged, error } = await service.from('tennisrecord_staged_players').upsert(parsed.players.map((player) => ({ source_player_key: player.sourcePlayerKey, name: player.name, normalized_name: normalizedTennisRecordPlayerName(player), city: player.city || null, state: player.state || null, ntrp_label: player.ntrpLabel || null, published_rating: player.publishedRating || null, source_url: player.sourceUrl, raw: player, last_seen_at: new Date().toISOString() })), { onConflict: 'source_player_key' }).select('id,source_player_key,name,normalized_name,city,state')
@@ -678,7 +685,8 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       if (observation.error) throw new Error(observation.error.message)
     }
   }
-  if (parsed.discoveredUrls.length) await enqueueTennisRecordUrls(service, parsed.discoveredUrls, campaignId)
+  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl))
+  if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
   return savedSourceMatchKeys
 }
 
