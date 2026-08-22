@@ -3255,6 +3255,28 @@ function LineupBuilderContent() {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
+  const completedCourtCount = analysis.lines.filter((line) => isProjectedLineComplete(line)).length
+  const availablePlayerCount = myPlayerPool.filter((player) => {
+    const status = (player.availabilityStatus ?? '').trim().toLowerCase()
+    return status === 'available' || status === 'yes' || status === 'in' || status === 'maybe'
+  }).length
+  const mobileLineupPulse = [
+    {
+      label: 'Courts set',
+      value: `${completedCourtCount}/${analysis.lines.length}`,
+      detail: completedCourtCount === analysis.lines.length ? 'Ready to review' : 'Need players',
+    },
+    {
+      label: 'Available',
+      value: `${availablePlayerCount}/${myPlayerPool.length}`,
+      detail: myPlayerPool.length ? 'Player pool' : 'Add roster',
+    },
+    {
+      label: 'Confidence',
+      value: confidenceScore.label,
+      detail: confidenceScore.tier,
+    },
+  ]
 
   if (!authResolved) {
     return (
@@ -3538,6 +3560,15 @@ function LineupBuilderContent() {
                   ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
                   : 'Start with the three team courts. TIQ can fill a balanced first draft for you.'}
               </p>
+              <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
+                {mobileLineupPulse.map((item) => (
+                  <div key={item.label} style={mobileLineupPulseCardStyle}>
+                    <span style={mobileLineupPulseLabelStyle}>{item.label}</span>
+                    <strong style={mobileLineupPulseValueStyle}>{item.value}</strong>
+                    <small style={mobileLineupPulseDetailStyle}>{item.detail}</small>
+                  </div>
+                ))}
+              </div>
             </div>
             <div style={mobileCourtFocusActionsStyle}>
               <Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>
@@ -5376,6 +5407,49 @@ const mobileCourtFocusActionsStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, .7fr)',
   gap: 8,
+}
+
+const mobileLineupPulseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  marginTop: 13,
+  minWidth: 0,
+}
+
+const mobileLineupPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '9px 8px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  borderRadius: 12,
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 74%, transparent)',
+}
+
+const mobileLineupPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  fontWeight: 950,
+  lineHeight: 1.1,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }
 
 const hiddenMobileContextStyle: CSSProperties = {
