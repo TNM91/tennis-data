@@ -421,6 +421,97 @@
   line-height: 1.55;
 }
 
+.publicEvidenceRail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 17px;
+  background: rgba(4, 15, 29, 0.56);
+}
+
+.publicEvidenceRail > div {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 13px;
+}
+
+.publicEvidenceRail > div + div {
+  border-left: 1px solid rgba(116, 190, 255, 0.16);
+}
+
+.publicEvidenceRail span {
+  color: #8ec5ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.publicEvidenceRail strong {
+  min-width: 0;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.publicEvidenceRail strong[data-direction='up'] {
+  color: #d9f84a;
+}
+
+.publicEvidenceRail strong[data-direction='down'] {
+  color: #fecaca;
+}
+
+.publicEvidenceRail small {
+  overflow: hidden;
+  color: rgba(228, 238, 251, 0.58);
+  font-size: 10px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publicFormMarks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.publicFormMarks i {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 1px solid rgba(116, 190, 255, 0.22);
+  border-radius: 7px;
+  color: rgba(228, 238, 251, 0.7);
+  background: rgba(6, 19, 36, 0.66);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.publicFormMarks i[data-result='W'] {
+  border-color: rgba(155, 225, 29, 0.46);
+  color: #d9f84a;
+  background: rgba(155, 225, 29, 0.11);
+}
+
+.publicFormMarks i[data-result='L'] {
+  border-color: rgba(248, 113, 113, 0.36);
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.08);
+}
+
 .heroActions {
   gap: 10px;
   margin-top: 10px;
@@ -1748,6 +1839,27 @@
     line-height: 1.45;
   }
 
+  .publicEvidenceRail > div {
+    padding: 11px 10px;
+  }
+
+  .publicEvidenceRail strong {
+    font-size: 18px;
+  }
+
+  .publicEvidenceRail small {
+    font-size: 9px;
+  }
+
+  .publicFormMarks {
+    gap: 3px;
+  }
+
+  .publicFormMarks i {
+    width: 18px;
+    height: 18px;
+  }
+
   .storyHero[data-public-profile='true'] .heroActions {
     margin-top: 4px;
   }
@@ -2136,6 +2248,23 @@
   .identityMeta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .publicEvidenceRail {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
+  .publicEvidenceRail > div {
+    padding: 10px 8px;
+  }
+
+  .publicEvidenceRail span,
+  .publicEvidenceRail small {
+    font-size: 8px;
+  }
+
+  .publicEvidenceRail strong {
+    font-size: 16px;
   }
 
   .singlePointRead {

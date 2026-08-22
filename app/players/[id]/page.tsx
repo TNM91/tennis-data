@@ -1683,6 +1683,29 @@ function PlayerProfileContent() {
                   <span>{heroEyebrow}</span>
                   <h2>{heroStoryTitle}</h2>
                   <p>{heroStoryBody}</p>
+                  {isPublicExplorerProfile ? (
+                    <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
+                      <div>
+                        <span>Record</span>
+                        <strong>{trackedRecordLabel}</strong>
+                        <small>{totalMatches} reviewed</small>
+                      </div>
+                      <div>
+                        <span>Recent form</span>
+                        <strong className={profileStory.publicFormMarks} aria-label={`${recentFormWins} wins and ${recentFormLosses} losses in recent results`}>
+                          {visibleLastFive.length > 0 ? visibleLastFive.map((match) => <i key={match.id} data-result={match.result}>{match.result}</i>) : '—'}
+                        </strong>
+                        <small>{trackedFormLabel}</small>
+                      </div>
+                      <div>
+                        <span>TIQ movement</span>
+                        <strong data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
+                          {recentTrendDelta === null ? '—' : `${recentTrendDelta >= 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`}
+                        </strong>
+                        <small>{recentTrendDelta === null ? 'Trend building' : 'Recent results'}</small>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
                     <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
