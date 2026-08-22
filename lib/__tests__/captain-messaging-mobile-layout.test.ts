@@ -55,6 +55,8 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('messageControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"messaging\" teamLabel={teamFilter || 'Team week'} /> : null}")
     expect(source).toContain('<PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>')
+    expect(source).toContain('const mobileSendPulse = [')
+    expect(source).toContain('aria-label="Captain message send pulse"')
     expect(source).toContain('<section id="captain-message-composer" style={surfaceCard}>')
     expect(source.indexOf('messageControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
       source.indexOf('messagePlaybookSurfaceStyle'),
@@ -93,6 +95,9 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('composerBodyPreviewStyle')).toContain("overflowWrap: 'anywhere'")
     expect(functionBlock('messagePlaybookGridResponsive')).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
     expect(functionBlock('messagePlaybookCardResponsive')).toContain('minHeight: isMobile ? 112')
+    expect(styleBlock('mobileSendPulseGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('mobileSendPulseCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('mobileWeekStatusButtonRowStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
 
   it('keeps tables, recipient controls, lineup cards, templates, and repeated grids mobile-safe', () => {

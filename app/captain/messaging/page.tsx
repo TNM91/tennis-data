@@ -1871,6 +1871,26 @@ function CaptainMessagingContent() {
       label: ready ? 'Ready to send' : 'Needs captain attention',
     }
   }, [lineupRows, availabilitySummary, responseSummary])
+  const mobileSendPulse = [
+    {
+      label: 'Lineup',
+      value: finalizationReadiness.lineupComplete ? 'Ready' : lineupRows.length ? 'Open spots' : 'Not loaded',
+      detail: lineupRows.length ? `${lineupRows.length} court${lineupRows.length === 1 ? '' : 's'} in this week` : 'Build the courts first',
+      tone: finalizationReadiness.lineupComplete ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Audience',
+      value: selectedRecipients.length ? String(selectedRecipients.length) : 'Open',
+      detail: selectedRecipients.length ? 'Contacts selected' : 'Choose recipients',
+      tone: selectedRecipients.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Message',
+      value: messageBody.trim() ? 'Drafted' : 'Open',
+      detail: messageBody.trim() ? `${messageBody.trim().length} characters ready` : 'Load a send first',
+      tone: messageBody.trim() ? 'ready' : 'waiting',
+    },
+  ]
 
   const followUpTargets = useMemo(() => {
     return scopedContacts.filter((contact) => {
@@ -2666,7 +2686,40 @@ function importScenarioToLineup() {
               </div>
             </div>
 
-            <div style={heroStatusShell}>
+            {isMobile ? (
+              <div style={mobileSendPulseShellStyle} aria-label="Captain message send pulse">
+                <div style={mobileSendPulseGridStyle}>
+                  {mobileSendPulse.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileSendPulseCardStyle,
+                        ...(item.tone === 'ready' ? mobileSendPulseCardReadyStyle : mobileSendPulseCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileSendPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileSendPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileSendPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div style={mobileWeekStatusHeaderStyle}>
+                  <span style={sectionKicker}>This week</span>
+                  <strong style={mobileWeekStatusValueStyle}>{weekStatusMeta.label}</strong>
+                </div>
+                <div style={mobileWeekStatusButtonRowStyle}>
+                  <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Draft
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Ready
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Final
+                  </button>
+                </div>
+              </div>
+            ) : <div style={heroStatusShell}>
               <div>
                 <div style={sectionKicker}>This week</div>
                 <div style={heroStatusValue}>{weekStatusMeta.label}</div>
@@ -2683,7 +2736,7 @@ function importScenarioToLineup() {
                   Finalized
                 </button>
               </div>
-            </div>
+            </div>}
           </section>
          ) : null}
 
@@ -4693,6 +4746,92 @@ const heroStatusButtonRow: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
+  minWidth: 0,
+}
+
+const mobileSendPulseShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg-strong) 94%)',
+  minWidth: 0,
+}
+
+const mobileSendPulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileSendPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '9px 7px',
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileSendPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileSendPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileSendPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileWeekStatusValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusButtonRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
