@@ -91,7 +91,7 @@ describe('team detail week path', () => {
     expect(source).toContain('const upcomingCards = filteredCards')
     expect(source).toContain('const completedCards = filteredCards')
     expect(source).toContain('...upcomingCards.slice(0, 2), ...completedCards.slice(0, 2)')
-    expect(source).toContain('const visibleCards = showFullMatchHistory ? orderedCards : previewCards')
+    expect(source).toContain('const visibleCards = showFullMatchHistory ? activityCards : previewCards')
     expect(source).toContain('Show how this team page is checked')
     expect(source).toContain('detailDrawerStyle')
     expect(source).toContain('tableControlRowStyle')

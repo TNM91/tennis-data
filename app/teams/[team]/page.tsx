@@ -70,6 +70,7 @@ type LineMatch = {
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles'
+type TeamActivityFilter = 'all' | 'upcoming' | 'results'
 
 type Player = {
   id: string
@@ -328,6 +329,7 @@ function TeamPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
+  const [activityFilter, setActivityFilter] = useState<TeamActivityFilter>('all')
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
   const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const [showFullRoster, setShowFullRoster] = useState(false)
@@ -371,6 +373,10 @@ function TeamPageContent() {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
     setSeasonFilter(query.get('season') || 'all')
+    const nextActivity = query.get('activity')
+    if (nextActivity === 'upcoming' || nextActivity === 'results' || nextActivity === 'all') {
+      setActivityFilter(nextActivity)
+    }
     const nextRoster = query.get('roster')
     if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'all') {
       setRosterFilter(nextRoster)
@@ -384,10 +390,11 @@ function TeamPageContent() {
     if (leagueFilter) query.set('league', leagueFilter)
     if (flightFilter) query.set('flight', flightFilter)
     if (seasonFilter !== 'all') query.set('season', seasonFilter)
+    if (activityFilter !== 'all') query.set('activity', activityFilter)
     if (rosterFilter !== 'all') query.set('roster', rosterFilter)
     const search = query.toString()
     return `/teams/${rawTeam}${search ? `?${search}` : ''}`
-  }, [flightFilter, layerFilter, leagueFilter, rawTeam, rosterFilter, seasonFilter])
+  }, [activityFilter, flightFilter, layerFilter, leagueFilter, rawTeam, rosterFilter, seasonFilter])
 
   useEffect(() => {
     if (!detailReady) return
@@ -2043,10 +2050,17 @@ function TeamPageContent() {
               .filter((match) => match.won !== null)
               .sort((left, right) => (right.match_date || '').localeCompare(left.match_date || ''))
             const orderedCards = [...upcomingCards, ...completedCards]
+            const activityCards = activityFilter === 'upcoming'
+              ? upcomingCards
+              : activityFilter === 'results'
+                ? completedCards
+                : orderedCards
             const previewCards = isMobile
-              ? [...upcomingCards.slice(0, 2), ...completedCards.slice(0, 2)]
-              : orderedCards.slice(0, 8)
-            const visibleCards = showFullMatchHistory ? orderedCards : previewCards
+              ? activityFilter === 'all'
+                ? [...upcomingCards.slice(0, 2), ...completedCards.slice(0, 2)]
+                : activityCards.slice(0, 4)
+              : activityCards.slice(0, 8)
+            const visibleCards = showFullMatchHistory ? activityCards : previewCards
             return (
             <>
             {seasonOptions.length > 1 ? (
@@ -2057,6 +2071,34 @@ function TeamPageContent() {
                     {y === 'all' ? 'All seasons' : y}
                   </button>
                 ))}
+              </div>
+            ) : null}
+            {isMobile ? (
+              <div style={activityFilterControlsStyle} aria-label="Team activity filter">
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'upcoming', label: `Upcoming ${upcomingCards.length}` },
+                  { key: 'results', label: `Results ${completedCards.length}` },
+                ] as const).map((option) => {
+                  const active = activityFilter === option.key
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        setActivityFilter(option.key)
+                        setShowFullMatchHistory(false)
+                      }}
+                      style={{
+                        ...activityFilterButtonStyle,
+                        ...(active ? activityFilterButtonActiveStyle : null),
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
               </div>
             ) : null}
             {isMobile ? (
@@ -3818,6 +3860,36 @@ const seasonFilterControlsStyle: CSSProperties = {
   marginBottom: 12,
   alignItems: 'center',
   minWidth: 0,
+}
+
+const activityFilterControlsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  marginBottom: 12,
+  minWidth: 0,
+}
+
+const activityFilterButtonStyle: CSSProperties = {
+  minHeight: 40,
+  minWidth: 0,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  borderRadius: 12,
+  background: 'rgba(15, 23, 42, 0.45)',
+  color: 'var(--shell-copy-muted)',
+  padding: '6px 8px',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.15,
+  textAlign: 'center',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const activityFilterButtonActiveStyle: CSSProperties = {
+  borderColor: 'rgba(155, 225, 29, 0.32)',
+  background: 'rgba(155, 225, 29, 0.12)',
+  color: 'var(--foreground-strong)',
 }
 
 const seasonFilterButtonStyle: CSSProperties = {

@@ -25,6 +25,19 @@ describe('Teams experience simplification', () => {
     expect(teamDetail).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
     expect(teamDetail).toContain('teamSectionNavLinkMobileStyle')
     expect(teamDetail).toContain("whiteSpace: 'normal'")
+    expect(teamDetail).toContain('aria-label="Team activity filter"')
+    expect(teamDetail).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(teamDetail).toContain('activityFilterButtonActiveStyle')
+  })
+
+  it('keeps upcoming matches and results easy to isolate on phones', () => {
+    expect(teamDetail).toContain("type TeamActivityFilter = 'all' | 'upcoming' | 'results'")
+    expect(teamDetail).toContain("const [activityFilter, setActivityFilter] = useState<TeamActivityFilter>('all')")
+    expect(teamDetail).toContain("query.get('activity')")
+    expect(teamDetail).toContain("query.set('activity', activityFilter)")
+    expect(teamDetail).toContain("activityFilter === 'upcoming'")
+    expect(teamDetail).toContain("activityFilter === 'results'")
+    expect(teamDetail).toContain('setShowFullMatchHistory(false)')
   })
 
   it('keeps the primary team action in the hero and moves repeated tools down the page on phones', () => {
