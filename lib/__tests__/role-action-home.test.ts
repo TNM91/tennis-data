@@ -52,4 +52,12 @@ describe('role action home', () => {
     expect(league).toContain('contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName')
     expect(league).toContain('{canUseLeagueTools ? (')
   })
+
+  it('keeps public Compete discovery useful while reserving lineup work for Captain', () => {
+    expect(competeHome).toContain("title: 'See rankings'")
+    expect(competeHome).toContain("title: 'Unlock Captain'")
+    expect(competeHome).toContain("title: 'Build lineup'")
+    expect(competeHome).toContain('access.canUseCaptainWorkflow')
+    expect(competeHome).toContain("href: '/pricing'")
+  })
 })
