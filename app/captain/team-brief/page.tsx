@@ -278,6 +278,32 @@ function CaptainTeamBriefContent() {
     : alertLines.length
       ? 'Handle alerts before this goes out.'
       : 'Add lineup or logistics before sharing.'
+  const hasMatchPlan = Boolean(
+    (eventDate || currentMatch?.match_date)
+    && resolvedOpponent
+    && eventDetail?.location
+    && eventDetail?.arrivalTime,
+  )
+  const teamBriefReadiness = [
+    {
+      label: 'Match plan',
+      value: hasMatchPlan ? 'Ready' : 'Need details',
+      detail: hasMatchPlan ? 'Opponent, arrival, and location set' : 'Add the match details',
+      tone: hasMatchPlan ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Courts',
+      value: lineupRows.length ? `${lineupRows.length} set` : 'Open',
+      detail: lineupRows.length ? 'Assignments ready to share' : 'Build the lineup first',
+      tone: lineupRows.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Risk watch',
+      value: alertLines.length ? `${alertLines.length} open` : 'Clear',
+      detail: alertLines.length ? 'Follow up before sending' : 'No saved response risks',
+      tone: alertLines.length ? 'attention' : 'ready',
+    },
+  ]
 
   const generatedTeamMessage = [
     `Team update for ${formatDate(eventDate || currentMatch?.match_date)}${resolvedOpponent ? ` vs ${resolvedOpponent}` : ''}.`,
@@ -418,7 +444,27 @@ function CaptainTeamBriefContent() {
               </div>
             </div>
 
-            <div style={signalGridStyle}>
+            {isMobile ? (
+              <div style={mobileReadinessRailStyle} aria-label="Team send readiness">
+                {teamBriefReadiness.map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      ...mobileReadinessCardStyle,
+                      ...(item.tone === 'ready'
+                        ? mobileReadinessCardReadyStyle
+                        : item.tone === 'attention'
+                          ? mobileReadinessCardAttentionStyle
+                          : mobileReadinessCardWaitingStyle),
+                    }}
+                  >
+                    <span style={mobileReadinessLabelStyle}>{item.label}</span>
+                    <strong style={mobileReadinessValueStyle}>{item.value}</strong>
+                    <small style={mobileReadinessDetailStyle}>{item.detail}</small>
+                  </div>
+                ))}
+              </div>
+            ) : <div style={signalGridStyle}>
               <div style={signalCardStyle}>
                 <div style={signalLabelStyle}>When</div>
                 <div style={signalValueStyle}>{formatDate(eventDate || currentMatch?.match_date)}</div>
@@ -439,7 +485,7 @@ function CaptainTeamBriefContent() {
                 <div style={signalValueStyle}>{alertLines.length ? String(alertLines.length) : 'Clear'}</div>
                 <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'No saved response risks'}</div>
               </div>
-            </div>
+            </div>}
 
           </section>
 
@@ -680,6 +726,14 @@ const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: 
 const signalLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
 const signalValueStyle: CSSProperties = { marginTop: 10, color: 'var(--foreground-strong)', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0, overflowWrap: 'anywhere' }
 const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6, overflowWrap: 'anywhere' }
+const mobileReadinessRailStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, minWidth: 0 }
+const mobileReadinessCardStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0, padding: '10px 8px', borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+const mobileReadinessCardReadyStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)' }
+const mobileReadinessCardWaitingStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-blue-2) 25%, var(--shell-panel-border) 75%)' }
+const mobileReadinessCardAttentionStyle: CSSProperties = { borderColor: 'rgba(245,158,11,0.30)', background: 'rgba(92,40,10,0.22)' }
+const mobileReadinessLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 9, lineHeight: 1.1, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', overflowWrap: 'anywhere' }
+const mobileReadinessValueStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 14, lineHeight: 1.1, fontWeight: 950, overflowWrap: 'anywhere' }
+const mobileReadinessDetailStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', fontSize: 10, lineHeight: 1.3, fontWeight: 700, overflowWrap: 'anywhere' }
 const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
 const metricCardAccent: CSSProperties = { ...metricCard, border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)', background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)' }
 const metricLabel: CSSProperties = { color: 'rgba(197,213,234,0.86)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, overflowWrap: 'anywhere' }
