@@ -82,7 +82,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('const recentFormLosses = visibleLastFive.filter')
     expect(page).toContain("label: 'Record'")
     expect(page).toContain("label: 'Win rate'")
-    expect(page).toContain("label: 'Match mix'")
+    expect(page).toContain("label: ratingView === 'overall' ? 'Match mix' : 'Reviewed'")
     expect(page).toContain("label: 'TIQ movement'")
     expect(styles).toContain('.performanceStatGrid')
     expect(styles).toContain('.courtFormRail')
@@ -144,6 +144,10 @@ describe('player profile mobile streamline', () => {
 
   it('adds factual match-quality visuals to the public performance read', () => {
     expect(page).toContain('const publicMatchQuality = [')
+    expect(page).toContain("const selectedMatchLabel = ratingView === 'overall' ? 'All matches' : `${capitalize(ratingView)} only`")
+    expect(page).toContain("label: ratingView === 'overall' ? 'Match mix' : 'Reviewed'")
+    expect(page).toContain("label: 'Scores captured'")
+    expect(page).toContain("label: 'Current streak'")
     expect(page).toContain("label: 'Close scorecards'")
     expect(page).toContain("label: 'Avg opponent'")
     expect(page).toContain('aria-label="Match quality snapshot"')
