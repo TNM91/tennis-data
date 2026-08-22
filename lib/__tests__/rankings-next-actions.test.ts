@@ -77,6 +77,8 @@ describe('rankings next actions', () => {
     expect(source).toContain('compactSignalRowStyle')
     expect(source).toContain('compactTrendPillStyle')
     expect(source).toContain("player.trendDirection === 'flat' ? 'Holding steady'")
+    expect(source).toContain("{player.location || 'No location'} · {player.matches} reviewed match{player.matches === 1 ? '' : 'es'}")
+    expect(source).not.toContain("{player.location || 'No location'} | top {player.percentile}%")
   })
 
   it('keeps closed ranking drawers out of measured layout', () => {
