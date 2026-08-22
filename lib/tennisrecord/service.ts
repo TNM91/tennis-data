@@ -56,6 +56,21 @@ export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, caden
   return Math.min(maxRequestsPerRun, ceiling)
 }
 
+/**
+ * A transparent projection for the currently known queue. Public source pages
+ * can discover more eligible pages, so this is deliberately a queue estimate,
+ * not a promise that a historical campaign is fully exhausted.
+ */
+export function tennisRecordCheckpointForecast(pendingPages: number, runningPages: number, maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
+  const pagesPerCheckpoint = Math.max(1, scheduledTennisRecordBatchLimit(maxRequestsPerRun, cadence))
+  const checkpointsRemaining = Math.ceil(Math.max(0, pendingPages + runningPages) / pagesPerCheckpoint)
+  return {
+    pagesPerCheckpoint,
+    checkpointsRemaining,
+    estimatedMinutesRemaining: checkpointsRemaining * 15,
+  }
+}
+
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
   const transient = /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
   return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
@@ -138,10 +153,16 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   if (weeklyPending.error || weeklyCompleted.error || weeklyRunning.error || weeklyBlocked.error || weeklyErrors.error) throw new Error('TennisRecord weekly progress is unavailable.')
   const campaignRows = campaigns.data || []
   const activeCampaign = campaignRows.find((campaign) => campaign.id === activeCampaignId)
+  const nextCampaign = campaignRows.find((campaign) => campaign.status === 'planned') || null
   const activeSeedUrls = activeCampaign
     ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: activeCampaign.ends_on })
     : []
   const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
+  const campaignForecast = tennisRecordCheckpointForecast(
+    campaignPending.count || 0,
+    campaignRunning.count || 0,
+    (settings.data as Settings | null)?.max_requests_per_run || BOOTSTRAP_TENNISRECORD_BATCH_LIMIT,
+  )
   return {
     settings: settings.data,
     lastRun: lastRun.data,
@@ -153,6 +174,18 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       blocked: campaignBlocked.count || 0,
       errors: campaignErrors.count || 0,
     },
+    campaignForecast: {
+      ...campaignForecast,
+      estimateBasis: 'known_queue' as const,
+    },
+    nextCampaign: nextCampaign ? {
+      id: nextCampaign.id,
+      name: nextCampaign.name,
+      region_label: nextCampaign.region_label,
+      starts_on: nextCampaign.starts_on,
+      ends_on: nextCampaign.ends_on,
+      status: nextCampaign.status,
+    } : null,
     weeklyProgress: {
       startedAt: weeklyStartedAt,
       pending: weeklyPending.count || 0,

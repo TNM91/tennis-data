@@ -11,6 +11,8 @@ type Status = {
   lastRun: Record<string, unknown> | null
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; blocked: number; errors: number }
+  campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; estimateBasis: 'known_queue' }
+  nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
   conflicts: number
@@ -67,8 +69,9 @@ export default function TennisRecordAdminPage() {
   const settledPages = progress ? progress.completed + progress.blocked + progress.errors : 0
   const progressPercent = knownPages > 0 ? Math.min(100, Math.round((settledPages / knownPages) * 100)) : 0
   const checkpointLimit = Math.max(1, status?.settings?.max_requests_per_run || 8)
-  const checkpointsRemaining = progress ? Math.ceil((progress.pending + progress.running) / checkpointLimit) : 0
-  const estimatedMinutesRemaining = checkpointsRemaining * 15
+  const campaignForecast = status?.campaignForecast
+  const checkpointsRemaining = campaignForecast?.checkpointsRemaining ?? (progress ? Math.ceil((progress.pending + progress.running) / checkpointLimit) : 0)
+  const estimatedMinutesRemaining = campaignForecast?.estimatedMinutesRemaining ?? checkpointsRemaining * 15
   const estimatedRemaining = status?.frontier.status === 'ready_to_seed'
     ? 'Ready to seed'
     : status?.frontier.status === 'needs_admin_seed'
@@ -100,9 +103,21 @@ export default function TennisRecordAdminPage() {
       </AdminReviewHero>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
-          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? 'Importing 2025 match history' : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Uses ${checkpointLimit}-page checkpoints; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
+          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}` : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. At the current queue pace: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages every 15 minutes; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
           <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={weeklyEstimatedRemaining} detail={weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.` : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'} />
         </div>
+        <section aria-label="TennisRecord campaign path" style={{ display: 'grid', gap: 12, marginBottom: 18, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>Automatic campaign path</strong>
+            <span className="subtle-text">The collector advances only after the active queue is clear; no daily action is required.</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12 }}>
+            <CampaignStep label="Now" title={activeCampaign?.region_label || 'Historical campaign'} detail={automationState === 'bootstrap' ? `${status?.pendingPages ?? 0} queued pages · ${checkpointsRemaining} checkpoint${checkpointsRemaining === 1 ? '' : 's'} at current pace` : 'Waiting for historical collection'} tone="active" />
+            <CampaignStep label="Next" title={status?.nextCampaign?.region_label || 'Weekly refresh'} detail={status?.nextCampaign ? `${status.nextCampaign.name} starts automatically when the active queue clears.` : 'Starts after historical campaigns are complete.'} />
+            <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." />
+          </div>
+          <span className="subtle-text">Time remaining reflects the currently known queue at 15-minute checkpoints. The estimate updates automatically as public pages reveal additional eligible matches.</span>
+        </section>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
           <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
@@ -170,6 +185,14 @@ export default function TennisRecordAdminPage() {
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return <div className="metric-card"><div className="metric-label">{label}</div><div className="metric-value">{value}</div></div>
+}
+
+function CampaignStep({ label, title, detail, tone }: { label: string; title: string; detail: string; tone?: 'active' }) {
+  return <div className="metric-card" style={{ display: 'grid', gap: 6, borderColor: tone === 'active' ? 'rgba(155,225,29,0.45)' : undefined }}>
+    <div className="metric-label" style={{ color: tone === 'active' ? '#d9f84a' : undefined }}>{label}</div>
+    <strong style={{ color: 'var(--foreground-strong)' }}>{title}</strong>
+    <span className="subtle-text">{detail}</span>
+  </div>
 }
 
 function ProgressTracker({ ariaLabel, label, title, percent, processed, total, eta, detail }: { ariaLabel: string; label: string; title: string; percent: number; processed: number; total: number; eta: string; detail: string }) {
