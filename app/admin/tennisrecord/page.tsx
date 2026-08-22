@@ -115,6 +115,8 @@ export default function TennisRecordAdminPage() {
           <Metric label="Staged matches" value={String(run.matches_staged ?? '—')} />
           <Metric label="Promoted matches" value={String(run.canonical_matches_created ?? '—')} />
           <Metric label="Blocked requests" value={String(run.blocked_requests ?? '—')} />
+          <Metric label="Transient retries" value={String(run.transient_retries ?? '—')} />
+          <Metric label="Source failures" value={String(run.source_failures ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
         </div>
         <section aria-label="TennisRecord data coverage" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
