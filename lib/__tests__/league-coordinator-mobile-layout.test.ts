@@ -76,12 +76,16 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('League Office approval required')
     expect(source).toContain('League Office approval keeps join requests')
     expect(source).toContain('const leagueDeskContent = (')
-    expect(source).toContain('<details className="leagueCoordinatorDetailsSection" style={leaguePathMobileDetailsStyle} aria-label="Today\'s League Office desk">')
-    expect(source).toContain('<summary style={leaguePathMobileSummaryStyle}>')
-    expect(source).toContain('<div style={leaguePathMobileBodyStyle}>{leagueDeskContent}</div>')
+    expect(source).toContain('const leagueMobileSeasonPulse = hasSavedLeague && isMobile ? (')
+    expect(source).toContain('aria-label="League season pulse"')
+    expect(source).toContain('Season pulse')
+    expect(source).toContain('Keep the season moving.')
+    expect(source).toContain('leagueDeskCompleteCount')
+    expect(source).toContain('leagueMobilePulseGridStyle')
+    expect(source).toContain('{leagueMobileSeasonPulse}')
     expect(source).toContain('<section style={leaguePathStyle} aria-labelledby="league-office-desk-title">')
-    expect(source.indexOf('<details className="leagueCoordinatorDetailsSection" style={leaguePathMobileDetailsStyle} aria-label="Today\'s League Office desk">')).toBeLessThan(
-      source.indexOf('<details className="leagueCoordinatorDetailsSection" id="shared-calendar" style={responsiveCommandCard} open={!isCompactViewport}>'),
+    expect(source.indexOf('{leagueMobileSeasonPulse}')).toBeLessThan(
+      source.indexOf('{canUseLeagueTools ? <OrganizerScheduleAttention /> : null}'),
     )
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
@@ -210,9 +214,11 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOfficeOperationProofStepStyle',
       'leaguePathGridStyle',
       'leaguePathCardStyle',
-      'leaguePathMobileDetailsStyle',
-      'leaguePathMobileSummaryStyle',
-      'leaguePathMobileBodyStyle',
+      'leagueMobilePulseStyle',
+      'leagueMobilePulseHeaderStyle',
+      'leagueMobilePulseGridStyle',
+      'leagueMobilePulseItemStyle',
+      'leagueMobilePulseItemCopyStyle',
       'leagueSecondaryToolsDetailsStyle',
       'leagueSecondaryToolsSummaryStyle',
       'leagueSecondaryToolsBodyStyle',
