@@ -16375,7 +16375,7 @@ function CaptainHubContent() {
       id: 'chat',
       label: captainPostArrivalStep === 'send_lineup_change'
         ? 'Send lineup change'
-        : captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
+        : captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Send team note',
       detail: captainLateArrival
         ? `${captainLateArrival.playerName} · ${captainLateArrival.courtLabel}`
         : captainPostArrivalStep === 'send_lineup_change' && captainOpenLineupChange
@@ -16384,7 +16384,7 @@ function CaptainHubContent() {
         ? `${captainArrivalFollowUp.count} still waiting`
         : teamRoomSummary.unreadCount > 0
         ? `${teamRoomSummary.unreadCount} unread`
-        : 'Open team chat',
+        : 'Open Team Chat',
       href: captainLateArrivalMessageHref || (captainPostArrivalStep === 'send_lineup_change' ? captainLineupChangeCourtHref : '') || captainArrivalFollowUpHref || teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
@@ -18099,6 +18099,7 @@ function CaptainHubContent() {
           <h1 style={visuallyHiddenHeadingStyle}>Captain Home</h1>
         ) : null}
         {!isMobile && hasTeamScope ? captainHomeShortcut : null}
+        {isMobile ? captainMobileCommandCenter : null}
         <section style={dynamicCaptainScoreboardBannerStyle} aria-label="League rankings">
           <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
           <div style={captainScoreboardBannerCopyStyle}>
@@ -18122,7 +18123,7 @@ function CaptainHubContent() {
             </span>
           </Link>
         </section>
-        {captainMobileCommandCenter}
+        {!isMobile ? captainMobileCommandCenter : null}
         {!isMobile ? (
         <>
         <details

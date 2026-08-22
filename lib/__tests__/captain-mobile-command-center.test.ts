@@ -56,13 +56,13 @@ describe('Captain mobile command center', () => {
     expect(page).toContain('onClick={() => handleCaptainMobileCommandAction(item)}')
     expect(page).toContain("label: 'Who can play'")
     expect(page).toContain("? 'Send lineup change'")
-    expect(page).toContain(": captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat'")
+    expect(page).toContain(": captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Send team note'")
     expect(page).toContain('teamRoomSummary.unreadCount')
     expect(chatAction).toContain('`${captainArrivalFollowUp.count} still waiting`')
     expect(chatAction).toContain("captainPostArrivalStep === 'send_lineup_change' ? captainLineupChangeCourtHref : ''")
     expect(chatAction).toContain("Boolean(captainLateArrival || captainPostArrivalStep === 'send_lineup_change' || captainArrivalFollowUp)")
     expect(chatAction).toContain('`${teamRoomSummary.unreadCount} unread`')
-    expect(chatAction).toContain("'Open team chat'")
+    expect(chatAction).toContain("'Open Team Chat'")
     expect(chatAction).not.toContain('unresolvedCount')
     expect(chatAction).not.toContain('pendingCount')
     expect(chatAction).not.toContain('maybeCount')
@@ -116,7 +116,8 @@ describe('Captain mobile command center', () => {
   it('hides the catalog-style Captain surfaces and overlapping action bar on phones', () => {
     expect(page).toContain('{!isMobile ? (')
     expect(page).toContain("display: 'none',")
-    expect(page).toContain('{captainMobileCommandCenter}')
+    expect(page).toContain('{isMobile ? captainMobileCommandCenter : null}')
+    expect(page).toContain('{!isMobile ? captainMobileCommandCenter : null}')
   })
 
   it('turns the already-open Captain connection action into Team Chat', () => {
