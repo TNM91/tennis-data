@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { shouldRestrictTeamDirectoryToLocalRoster } from '../team-directory'
 
 const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
 
@@ -29,5 +30,11 @@ describe('TennisRecord public inventory repair', () => {
     expect(service).toContain('home_team: staged.home_team')
     expect(service).toContain('away_team: staged.away_team')
     expect(service).toContain('rating_eligible: true')
+  })
+
+  it('does not let a partial local roster hide a valid TennisRecord team', () => {
+    expect(shouldRestrictTeamDirectoryToLocalRoster('tennisrecord')).toBe(false)
+    expect(shouldRestrictTeamDirectoryToLocalRoster('captain_upload')).toBe(true)
+    expect(read('app/teams/page.tsx')).toContain('shouldRestrictTeamDirectoryToLocalRoster(match.source)')
   })
 })

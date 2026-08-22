@@ -91,6 +91,16 @@ export function isScheduleTeamSource(source: string | null | undefined) {
   return normalizeName(source).includes('schedule')
 }
 
+/**
+ * A local roster is useful to validate locally uploaded schedule rows, but it
+ * is not a complete authority over separately sourced TennisRecord evidence.
+ * Otherwise a newly discovered public team disappears simply because the
+ * local roster for that same league/flight has not been uploaded yet.
+ */
+export function shouldRestrictTeamDirectoryToLocalRoster(source: string | null | undefined) {
+  return !normalizeName(source).includes('tennisrecord')
+}
+
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`
 }
