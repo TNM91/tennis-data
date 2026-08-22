@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
+import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
@@ -249,6 +250,32 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFailureDisposition('network timeout', 2)).toBe('retry')
     expect(tennisRecordFailureDisposition('fetch failed', 3)).toBe('quarantine')
     expect(tennisRecordFailureDisposition('Unexpected result-page markup', 0)).toBe('quarantine')
+  })
+
+  it('reclaims only runs that have exceeded the serverless recovery window', () => {
+    const now = Date.parse('2026-08-22T12:10:00.000Z')
+    expect(isTennisRecordRunStale('2026-08-22T12:00:01.000Z', now)).toBe(false)
+    expect(isTennisRecordRunStale('2026-08-22T12:00:00.000Z', now)).toBe(true)
+    expect(isTennisRecordRunStale('not-a-date', now)).toBe(true)
+  })
+
+  it('keeps terminal queue rows terminal when source evidence is rediscovered', () => {
+    const knownPlayer = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Known+Player'
+    const newMatch = 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=987&year=2026'
+    const plan = buildTennisRecordQueueDiscoveryPlan(
+      [knownPlayer, newMatch, knownPlayer, 'https://www.tennisrecord.com/adult/search.aspx'],
+      [knownPlayer],
+      'campaign-1',
+      '2026-08-22T12:00:00.000Z',
+    )
+    expect(plan.rediscoveredUrls).toEqual([knownPlayer])
+    expect(plan.newRows).toEqual([expect.objectContaining({
+      source_url: newMatch,
+      page_kind: 'match',
+      status: 'pending',
+      campaign_id: 'campaign-1',
+      last_seen_at: '2026-08-22T12:00:00.000Z',
+    })])
   })
 
 })
