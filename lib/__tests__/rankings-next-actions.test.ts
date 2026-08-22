@@ -16,7 +16,7 @@ describe('rankings next actions', () => {
     expect(source).toContain('RankingNextActionRail')
     expect(source).toContain('Ranking next actions')
     expect(source).toContain('Turn the board into a next check.')
-    expect(source).toContain('const rankingDefaultRowLimit = isMobile ? 2 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT')
+    expect(source).toContain('const rankingDefaultRowLimit = isMobile ? 3 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT')
     expect(source).not.toContain('Top three are in the field drawer.')
     expect(source).not.toContain('Top 3 in field drawer')
     expect(source).toContain('rankingDecisionBoardStyle')
@@ -75,6 +75,8 @@ describe('rankings next actions', () => {
     expect(source).toContain('compactRankingTopDenseStyle')
     expect(source).toContain('compactRatingStackDenseStyle')
     expect(source).toContain('compactSignalRowStyle')
+    expect(source).toContain('compactTrendPillStyle')
+    expect(source).toContain("player.trendDirection === 'flat' ? 'Holding steady'")
   })
 
   it('keeps closed ranking drawers out of measured layout', () => {
