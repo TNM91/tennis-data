@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -114,6 +114,21 @@ describe('TennisRecord ingestion safety', () => {
     ])
   })
 
+  it('follows only reviewed public league-directory routes into team evidence', () => {
+    const directory = 'https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=2025'
+    const section = 'https://www.tennisrecord.com/adult/league/leaguesection.aspx?year=2025&lt=1'
+    const team = 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example&year=2025'
+    const navigation = 'https://www.tennisrecord.com/adult/league/index.aspx'
+    expect(tennisRecordRecordPageKind(directory)).toBe('league')
+    expect(tennisRecordRecordPageKind(section)).toBe('league')
+    expect(tennisRecordRecordPageKind(navigation)).toBeNull()
+    expect(isAllowedTennisRecordDiscovery(directory, section)).toBe(true)
+    expect(isAllowedTennisRecordDiscovery(directory, team)).toBe(true)
+    expect(isAllowedTennisRecordDiscovery(directory, navigation)).toBe(false)
+    const parsed = parseTennisRecordMatchPage(`<a href="${section}">Adult 18+</a><a href="${navigation}">Index</a><a href="${team}">Team</a>`, directory)
+    expect(parsed.discoveredUrls).toEqual([section, team])
+  })
+
   it('only treats explicitly labelled team-roster tables as source membership context', () => {
     const teamUrl = 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example+Team'
     const explicitRoster = `
@@ -184,6 +199,17 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFrontierStatus(1, urls.length)).toBe('seeded')
   })
 
+  it('queues the nationwide public league directory only after its planned campaign activates', () => {
+    const urls = getTennisRecordCampaignSeedUrls({ slug: 'us-2025-current', startsOn: '2025-01-01', endsOn: '2026-08-21' })
+    expect(urls).toEqual([
+      'https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=2025',
+      'https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=2026',
+    ])
+    expect(urls.every((url) => tennisRecordRecordPageKind(url) === 'league')).toBe(true)
+    expect(tennisRecordCampaignCompletionAction(true)).toBe('advance_campaign')
+    expect(tennisRecordCampaignCompletionAction(false)).toBe('start_weekly')
+  })
+
   it('expands Missouri only from source profiles that explicitly resolve to Missouri', () => {
     const campaign = { slug: 'missouri-2025-current', startsOn: '2025-01-01', endsOn: '2026-08-21' }
     expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Example Player', state: 'MO' })).toEqual([
@@ -192,6 +218,7 @@ describe('TennisRecord ingestion safety', () => {
     ])
     expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Kansas Example', state: 'KS' })).toEqual([])
     expect(getTennisRecordCampaignPlayerHistoryUrls({ ...campaign, playerName: 'Unknown Example', state: '' })).toEqual([])
+    expect(getTennisRecordCampaignPlayerHistoryUrls({ slug: 'us-2025-current', startsOn: campaign.startsOn, endsOn: campaign.endsOn, playerName: 'National Example', state: 'CA' })).toHaveLength(2)
   })
 
   it('uses the bounded configured throughput for historical and weekly refreshes', () => {
@@ -203,9 +230,9 @@ describe('TennisRecord ingestion safety', () => {
     expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(8)
     expect(scheduledTennisRecordBatchLimit(8, 'weekly')).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5, 'weekly')).toBe(5)
-    expect(TENNISRECORD_BOOTSTRAP_PAGE_KINDS).toEqual(['history', 'match', 'player', 'team'])
+    expect(TENNISRECORD_BOOTSTRAP_PAGE_KINDS).toEqual(['history', 'league', 'match', 'player', 'team'])
     expect(TENNISRECORD_WEEKLY_PAGE_KINDS).toEqual(['history', 'match', 'player', 'team'])
-    expect(tennisRecordScheduledPageKindPlan('bootstrap', 2)).toEqual([['player'], ['history', 'match', 'team']])
+    expect(tennisRecordScheduledPageKindPlan('bootstrap', 3)).toEqual([['league'], ['player'], ['history', 'match', 'team']])
     expect(tennisRecordScheduledPageKindPlan('weekly', 8)).toEqual([
       ['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history'],
       ['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history'],

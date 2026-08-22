@@ -27,6 +27,7 @@ export type TennisRecordCampaignPlayerSeed = TennisRecordFrontierCampaign & {
 
 const CAMPAIGN_ALLOWED_STATES: Record<string, readonly string[]> = {
   'missouri-2025-current': ['MO'],
+  'us-2025-current': [],
 }
 
 function campaignYears(campaign: TennisRecordFrontierCampaign) {
@@ -37,9 +38,13 @@ function campaignYears(campaign: TennisRecordFrontierCampaign) {
 }
 
 export function getTennisRecordCampaignSeedUrls(campaign: TennisRecordFrontierCampaign) {
-  if (campaign.slug !== 'missouri-2025-current') return []
   const years = campaignYears(campaign)
   if (!years.length) return []
+
+  if (campaign.slug === 'us-2025-current') {
+    return years.map((year) => `https://www.tennisrecord.com/adult/league/leaguetype.aspx?year=${year}`)
+  }
+  if (campaign.slug !== 'missouri-2025-current') return []
 
   const urls: string[] = []
   for (const year of years) {
@@ -61,7 +66,8 @@ export function getTennisRecordCampaignPlayerHistoryUrls(seed: TennisRecordCampa
   const allowedStates = CAMPAIGN_ALLOWED_STATES[seed.slug] || []
   const state = seed.state.trim().toUpperCase()
   const playerName = seed.playerName.trim()
-  if (!playerName || !allowedStates.includes(state)) return []
+  const allowed = seed.slug === 'us-2025-current' ? /^[A-Z]{2}$/.test(state) : allowedStates.includes(state)
+  if (!playerName || !allowed) return []
 
   return campaignYears(seed).map((year) => {
     const params = new URLSearchParams({ playername: playerName, year: String(year) })
