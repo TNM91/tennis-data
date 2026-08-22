@@ -16434,6 +16434,7 @@ function CaptainHubContent() {
     const item = captainMobileActionById.get(id)
     return item ? [item] : []
   })
+  const captainMobileMatchPocketLinks = captainMatchDayPocketLinks.filter((handoff) => handoff.href)
   const captainMobileTeamPulse = [
     {
       label: 'Team lines',
@@ -16752,6 +16753,35 @@ function CaptainHubContent() {
             ))
           )}
         </select>
+      ) : null}
+
+      {hasTeamScope ? (
+        <section className={mobileCommandStyles.matchPocket} aria-label="Captain next match">
+          <div className={mobileCommandStyles.matchPocketCopy}>
+            <span>Next match</span>
+            <strong>vs {weekAtGlance.opponentLabel}</strong>
+            <small>{weekAtGlance.eventDateLabel} · Arrive {matchDayArrivalLabel}</small>
+            <small>{matchDayLocationLabel}</small>
+          </div>
+          {captainMobileMatchPocketLinks.length ? (
+            <div className={mobileCommandStyles.matchPocketActions}>
+              {captainMobileMatchPocketLinks.map((handoff) => (
+                <a key={handoff.id} className={mobileCommandStyles.matchPocketAction} href={handoff.href} title={handoff.detail}>
+                  {handoff.label}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={mobileCommandStyles.matchPocketAction}
+              disabled={!premiumEnabled}
+              onClick={() => handleCaptainAction(weeklyBriefHref, 'brief')}
+            >
+              Add details
+            </button>
+          )}
+        </section>
       ) : null}
 
       {captainImportHandoff ? (
