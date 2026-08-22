@@ -16,6 +16,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain("countCampaignPages('pending')")
     expect(service).toContain("countCampaignPages('done')")
     expect(service).toContain('seedTennisRecordCampaignFrontier')
+    expect(service).toContain('campaignForecast: {')
+    expect(service).toContain('nextCampaign: nextCampaign ?')
     expect(service).toContain("return emptySummary('awaiting_seed')")
   })
 
@@ -26,6 +28,9 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('weeklyPercent')
     expect(adminPage).toContain('window.setInterval')
     expect(adminPage).toContain('newly discovered public match pages can extend the queue.')
+    expect(adminPage).toContain('aria-label="TennisRecord campaign path"')
+    expect(adminPage).toContain('Automatic campaign path')
+    expect(adminPage).toContain('Time remaining reflects the currently known queue')
     expect(adminPage).toContain('Pause automatic collection')
     expect(adminPage).toContain('Next refresh: Wednesday')
     expect(adminPage).toContain('Missouri history starts automatically')

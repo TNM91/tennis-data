@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -237,6 +237,11 @@ describe('TennisRecord ingestion safety', () => {
       ['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history'],
       ['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history'],
     ])
+  })
+
+  it('bases campaign timing on the currently known queue and bounded checkpoints', () => {
+    expect(tennisRecordCheckpointForecast(17, 1, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 3, estimatedMinutesRemaining: 45 })
+    expect(tennisRecordCheckpointForecast(0, 0, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
   })
 
   it('retries only transient source failures and quarantines them after the bounded limit', () => {
