@@ -9,6 +9,7 @@ import CompetitionResponseSummary from '@/app/components/competition-response-su
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
 import {
@@ -154,6 +155,7 @@ const tournamentDeskPaths = [
 export default function TournamentBuilderWorkspace() {
   const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved, session } = useAuth()
+  const { isMobile } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const requestedClubId = searchParams.get('clubId') || ''
@@ -1595,25 +1597,45 @@ export default function TournamentBuilderWorkspace() {
           </p>
         </div>
         <div style={tournamentPathCommandStyle} aria-label="Tournament Desk command center">
-          <div style={tournamentPathGridStyle}>
-            {tournamentPathActions.map((path) => (
-              <a
-                key={path.job}
-                href={path.href}
-                style={tournamentPathCardStyle}
-                data-tournament-path-job={path.job}
-                aria-label={`${path.cta}: ${path.question}`}
-              >
-                <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
-                <span style={tournamentPathCopyStyle}>
-                  <em>{path.label}</em>
-                  <strong>{path.title}</strong>
-                  <span>{path.body}</span>
-                </span>
-                <span style={tournamentPathCtaStyle}>{path.cta}</span>
-              </a>
-            ))}
-          </div>
+          {isMobile ? (
+            <div style={tournamentMobileActionRailStyle} aria-label="Tournament actions">
+              {tournamentPathActions.map((path) => (
+                <a
+                  key={path.job}
+                  href={path.href}
+                  style={tournamentMobileActionStyle}
+                  data-tournament-path-job={path.job}
+                  aria-label={`${path.cta}: ${path.question}`}
+                >
+                  <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                  <span style={tournamentMobileActionCopyStyle}>
+                    <small>{path.label}</small>
+                    <strong>{path.cta}</strong>
+                  </span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div style={tournamentPathGridStyle}>
+              {tournamentPathActions.map((path) => (
+                <a
+                  key={path.job}
+                  href={path.href}
+                  style={tournamentPathCardStyle}
+                  data-tournament-path-job={path.job}
+                  aria-label={`${path.cta}: ${path.question}`}
+                >
+                  <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                  <span style={tournamentPathCopyStyle}>
+                    <em>{path.label}</em>
+                    <strong>{path.title}</strong>
+                    <span>{path.body}</span>
+                  </span>
+                  <span style={tournamentPathCtaStyle}>{path.cta}</span>
+                </a>
+              ))}
+            </div>
+          )}
           <details className="tournamentBuilderDetailsSection" style={tournamentPathStatusPanelStyle}>
             <summary style={lockedPreviewDetailsSummaryStyle}>
               <span style={sectionEyebrowStyle}>Room scan</span>
@@ -3534,6 +3556,40 @@ const tournamentPathGridStyle: CSSProperties = {
   gap: 8,
   alignContent: 'start',
   minWidth: 0,
+}
+
+const tournamentMobileActionRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const tournamentMobileActionStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '30px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 66,
+  border: '1px solid rgba(223,248,194,0.13)',
+  borderRadius: 14,
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--foreground-strong)',
+  padding: '9px',
+  textDecoration: 'none',
+  overflow: 'hidden',
+}
+
+const tournamentMobileActionCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
 }
 
 const tournamentPathCardStyle: CSSProperties = {
