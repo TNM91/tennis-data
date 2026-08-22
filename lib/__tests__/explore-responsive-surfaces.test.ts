@@ -207,7 +207,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'tableWrap')).toContain("WebkitOverflowScrolling: 'touch'")
     expect(styleBlock(rankingsSource, 'tableWrap')).toContain("overscrollBehaviorX: 'contain'")
     expect(rankingsSource).toContain('const useCompactLeaderboard = isMobile || isTablet')
-    expect(rankingsSource).toContain('const rankingDefaultRowLimit = isMobile ? 2 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT')
+    expect(rankingsSource).toContain('const rankingDefaultRowLimit = isMobile ? 3 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT')
     expect(rankingsSource).toContain('{useCompactLeaderboard ? (')
     expect(rankingsSource).not.toContain('Top 3 in field drawer')
     expect(rankingsSource).not.toContain('Top three are in the field drawer. Open the full board when you need every ranked player.')
