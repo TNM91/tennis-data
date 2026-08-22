@@ -58,6 +58,11 @@ type TennisRecordTeamContextRow = {
   last_seen_at: string | null
 }
 
+type TennisRecordTeamRosterCountRow = {
+  normalized_team_name: string | null
+  listed_player_count: number | null
+}
+
 type TeamDirectoryEntry = {
   key: string
   team: string
@@ -68,6 +73,7 @@ type TeamDirectoryEntry = {
   losses: number
   recentForm: Array<'W' | 'L'>
   playerIds: Set<string>
+  sourceRosterCount: number
   mostRecentMatchDate: string | null
   source: 'canonical' | 'tennisrecord'
 }
@@ -98,6 +104,10 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   if (Number.isNaN(rightTime)) return -1
 
   return rightTime - leftTime
+}
+
+function getDirectoryPlayerCount(row: TeamDirectoryEntry) {
+  return Math.max(row.playerIds.size, row.sourceRosterCount)
 }
 
 
@@ -184,7 +194,11 @@ export default function TeamsPage() {
     setError('')
 
     try {
-      const [{ data: matchData, error: matchError }, { data: tennisRecordContext, error: tennisRecordContextError }] = await Promise.all([
+      const [
+        { data: matchData, error: matchError },
+        { data: tennisRecordContext, error: tennisRecordContextError },
+        { data: tennisRecordRosterCounts, error: tennisRecordRosterCountsError },
+      ] = await Promise.all([
         supabase
           .from('matches')
           .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
@@ -193,6 +207,10 @@ export default function TeamsPage() {
         supabase
           .from('tennisrecord_public_team_context')
           .select('team_name, league_name, flight, last_seen_at')
+          .limit(10000),
+        supabase
+          .from('tennisrecord_public_team_roster_counts')
+          .select('normalized_team_name, listed_player_count')
           .limit(10000),
       ])
 
@@ -213,6 +231,16 @@ export default function TeamsPage() {
       const sourceContexts = tennisRecordContextError
         ? []
         : (tennisRecordContext || []) as TennisRecordTeamContextRow[]
+      const sourceRosterCounts = tennisRecordRosterCountsError
+        ? []
+        : (tennisRecordRosterCounts || []) as TennisRecordTeamRosterCountRow[]
+
+      const sourceRosterCountByTeam = new Map<string, number>()
+      for (const row of sourceRosterCounts) {
+        const normalizedTeam = normalizeTeamName(row.normalized_team_name)
+        if (!normalizedTeam) continue
+        sourceRosterCountByTeam.set(normalizedTeam, Math.max(0, Number(row.listed_player_count) || 0))
+      }
 
       if (!matches.length && !sourceContexts.length) {
         setRows([])
@@ -282,6 +310,7 @@ export default function TeamsPage() {
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(homeTeam)) || 0,
             mostRecentMatchDate: null,
             source: 'canonical',
           })
@@ -298,6 +327,7 @@ export default function TeamsPage() {
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(awayTeam)) || 0,
             mostRecentMatchDate: null,
             source: 'canonical',
           })
@@ -427,6 +457,7 @@ export default function TeamsPage() {
           losses: 0,
           recentForm: [],
           playerIds: new Set<string>(),
+          sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(team)) || 0,
           mostRecentMatchDate: cleanText(context.last_seen_at),
           source: 'tennisrecord',
         })
@@ -483,7 +514,7 @@ export default function TeamsPage() {
     next.sort((left, right) => {
       if (sortBy === 'team') return left.team.localeCompare(right.team)
       if (sortBy === 'players') {
-        const diff = right.playerIds.size - left.playerIds.size
+        const diff = getDirectoryPlayerCount(right) - getDirectoryPlayerCount(left)
         if (diff !== 0) return diff
         return left.team.localeCompare(right.team)
       }
@@ -525,7 +556,7 @@ export default function TeamsPage() {
     const uniqueTeams = new Set(rowsForTotals.map((row) => row.key))
     const leagues = new Set(rowsForTotals.map((row) => row.league).filter(Boolean))
     const flights = new Set(rowsForTotals.map((row) => row.flight).filter(Boolean))
-    const players = rowsForTotals.reduce((sum, row) => sum + row.playerIds.size, 0)
+    const players = rowsForTotals.reduce((sum, row) => sum + getDirectoryPlayerCount(row), 0)
 
     return {
       teams: uniqueTeams.size,
@@ -1296,7 +1327,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
           ) : (
             <>
               <Metric label="Matches" value={String(row.matchCount)} />
-              <Metric label="Players" value={String(row.playerIds.size)} />
+              <Metric label="Players" value={String(getDirectoryPlayerCount(row))} />
               <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
             </>
           )}

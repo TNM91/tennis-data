@@ -4,7 +4,9 @@ import { join } from 'node:path'
 
 describe('TennisRecord public team history', () => {
   const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260821000500_add_tennisrecord_public_team_history.sql'), 'utf8')
+  const rosterCountsMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260822000500_add_tennisrecord_public_team_roster_counts.sql'), 'utf8')
   const teamPage = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
+  const teamsDirectory = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
 
   it('keeps source roster and match history isolated from canonical tables', () => {
     expect(migration).toContain('tennisrecord_staged_team_memberships')
@@ -19,5 +21,14 @@ describe('TennisRecord public team history', () => {
     expect(teamPage).toContain('Imported team history')
     expect(teamPage).toContain('TennisRecord-listed player')
     expect(teamPage).toContain('Source record')
+  })
+
+  it('uses source-labeled roster counts to avoid understating team directory players', () => {
+    expect(rosterCountsMigration).toContain('tennisrecord_public_team_roster_counts')
+    expect(rosterCountsMigration).toContain('count(distinct membership.source_player_key)')
+    expect(rosterCountsMigration).toContain('do not establish canonical TenAceIQ team membership')
+    expect(teamsDirectory).toContain(".from('tennisrecord_public_team_roster_counts')")
+    expect(teamsDirectory).toContain('getDirectoryPlayerCount')
+    expect(teamsDirectory).toContain('sourceRosterCount')
   })
 })
