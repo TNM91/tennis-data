@@ -1947,11 +1947,27 @@ function TeamRoomContent() {
                 {hasActiveAvailability ? 'Review availability' : 'Ask availability'}
               </button>
             ) : null}
-            {QUICK_MESSAGES.map((quick) => (
-              <button key={quick.label} className={styles.quickButton} type="button" onClick={() => setMessageBody(quick.body)}>
-                {quick.label}
-              </button>
-            ))}
+            <details className={styles.quickMessageTemplates}>
+              <summary className={styles.quickMessageTemplatesSummary}>
+                Quick notes
+              </summary>
+              <div className={styles.quickMessageTemplatesBody}>
+                {QUICK_MESSAGES.map((quick) => (
+                  <button
+                    key={quick.label}
+                    className={styles.quickButton}
+                    type="button"
+                    onClick={(event) => {
+                      setMessageBody(quick.body)
+                      event.currentTarget.closest('details')?.removeAttribute('open')
+                      window.requestAnimationFrame(() => composerRef.current?.focus())
+                    }}
+                  >
+                    {quick.label}
+                  </button>
+                ))}
+              </div>
+            </details>
           </div>
           {replyTo ? (
             <div className={styles.composerContext}>
