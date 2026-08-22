@@ -1604,7 +1604,7 @@ function TeamPageContent() {
           </div>
         </section>
 
-        {!canManageThisTeam ? (
+        {!canManageThisTeam && !isMobile ? (
           <section style={captainAccessTeaseStyle} aria-label="Captain tools">
             <div style={captainAccessCopyStyle}>
               <p style={sectionKicker}>{CAPTAIN_STORY.eyebrow}</p>
