@@ -117,7 +117,8 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('aria-expanded={showAllPublicResults}')
     expect(styles).toContain('.recentResultSnapshotAction')
     expect(styles).toContain(".recentResultTile[data-result='W'] {")
-    expect(styles).toContain('.recentResultTileTopline > b')
+    expect(styles).toContain('.recentResultOutcome')
+    expect(styles).toContain('.recentResultScore > strong')
   })
 
   it('keeps the compact trend primary on phones and makes the full chart optional', () => {
