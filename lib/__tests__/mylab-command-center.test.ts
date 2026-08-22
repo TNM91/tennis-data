@@ -100,6 +100,18 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('font-size: clamp(2rem, 9.6vw, 2.8rem);')
   })
 
+  it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
+    expect(componentSource).toContain('const dailyPulseItems = [')
+    expect(componentSource).toContain("label: 'Court time'")
+    expect(componentSource).toContain("label: 'This week'")
+    expect(componentSource).toContain("label: 'Matchup'")
+    expect(componentSource).toContain('aria-label="My Lab daily pulse"')
+    expect(componentSource).toContain('{!postRepReturn ? (')
+    expect(styleSource).toContain('.dailyPulse')
+    expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(styleSource).toContain('.momentumCard {\n    display: none;')
+  })
+
   it('keeps the deeper legacy workspace behind one mobile disclosure', () => {
     expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
     expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
