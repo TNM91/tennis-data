@@ -53,6 +53,7 @@ describe('team detail week path', () => {
     expect(source).toContain('Public source history')
     expect(source).toContain('results ready to review')
     expect(source).toContain('>Activity</a>')
+    expect(source).toContain('{!canManageThisTeam && !isMobile ? (')
   })
 
   it('renders a purpose-built phone roster instead of compressing nine table columns', () => {
