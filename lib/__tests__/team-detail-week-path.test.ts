@@ -50,8 +50,8 @@ describe('team detail week path', () => {
   it('keeps public team exploration data-first while preserving private roster chat', () => {
     expect(source).toContain("{isLinkedTeamMember ? <a href=\"#team-chat\"")
     expect(source).toContain("{isLinkedTeamMember ? <section id=\"team-chat\"")
-    expect(source).toContain("tennisRecordHistory.length ? 'Source history' : 'Last result'")
-    expect(source).toContain("tennisRecordHistory.length ? 'Public source lines' : 'No match yet'")
+    expect(source).toContain('Public source history')
+    expect(source).toContain('results ready to review')
     expect(source).toContain('>Activity</a>')
   })
 

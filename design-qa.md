@@ -113,3 +113,29 @@ The local page returned HTTP 200, but the required browser-control runtime could
 Capture `/teams` with directory results visible at 390 × 844, compare it with the source visual, and resolve any responsive layout issue before visual approval.
 
 final result: blocked
+
+---
+
+# Premium Team Profile concept 2 design QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`
+- Target viewport: 390 × 844 mobile web content.
+- Intended state: public team profile with completed matches, roster context, and no linked Captain permission.
+- Implementation route: `/teams/[team]`.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The local Next development server was available at `http://localhost:3000`, but the required browser-control runtime could not establish its trusted browser-service connection. No browser-rendered 390 × 844 capture, focused region capture, interaction check, console check, or source-to-implementation comparison could be completed.
+
+## Implemented alignment
+
+- The existing page now leads with the selected concept's real record, computed win rate, roster count, five-result form markers, singles/doubles split, and one latest-result link.
+- The detailed schedule remains the single full match-history destination; the overview does not render a second result list.
+- Captain planning remains role-aware and uses the centralized Captain product story rather than exposing private tools to public visitors.
+
+## Required follow-up
+
+Capture a public `/teams/[team]` page at 390 × 844 with completed results and compare the header, metrics, format split, latest-result row, and Captain teaser against the source visual. Resolve any P0/P1/P2 responsive or hierarchy differences before visual approval.
+
+final result: blocked

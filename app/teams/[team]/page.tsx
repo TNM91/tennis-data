@@ -35,7 +35,7 @@ import {
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -889,17 +889,10 @@ function TeamPageContent() {
     }
   }, [matches, summaryTeams, leagueFilter, flightFilter])
 
-  const nextMatch = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    return matches
-      .filter((match) => didTeamWin(match, team) === null && Boolean(match.match_date) && match.match_date!.slice(0, 10) >= today)
-      .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))[0] || null
-  }, [matches, team])
   const latestCompletedMatch = useMemo(
     () => matches.find((match) => didTeamWin(match, team) !== null) || null,
     [matches, team],
   )
-  const summaryMatch = nextMatch || latestCompletedMatch
   const competitionLayer = inferCompetitionLayerFromValues({
     layerHint: layerFilter,
     leagueName: teamMeta.league,
@@ -926,7 +919,7 @@ function TeamPageContent() {
       const won = didTeamWin(match, team)
       if (won === null) continue
       if (match.match_type === 'singles') { if (won) singlesW++; else singlesL++ }
-      else { if (won) doublesW++; else doublesL++ }
+      if (match.match_type === 'doubles') { if (won) doublesW++; else doublesL++ }
     }
     return { singlesW, singlesL, doublesW, doublesL }
   }, [matches, team])
@@ -938,6 +931,11 @@ function TeamPageContent() {
       .filter((r): r is boolean => r !== null)
       .map((won) => (won ? 'W' : 'L'))
   }, [matches, team])
+
+  const completedMatchCount = record.wins + record.losses
+  const winRate = completedMatchCount > 0 ? Math.round((record.wins / completedMatchCount) * 100) : null
+  const latestResult = latestCompletedMatch
+  const latestResultOpponent = latestResult ? getOpponent(latestResult, team) : null
 
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
@@ -1469,19 +1467,22 @@ function TeamPageContent() {
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
             <Link href="/teams" style={heroBackLinkStyle}>Back to teams</Link>
-            <p style={eyebrow}>Team Intelligence</p>
+            <p style={eyebrow}>Team profile</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
-            <p style={heroText}>
-              {isMobile ? 'Roster, schedule, results, and team tools in one place.' : 'See the roster, schedule, stats, recent form, and the team context that helps everyone stay ready.'}
-            </p>
 
             <div style={heroBadgeRow}>
               <span style={badgeSlate}>{getCompetitionLayerLabel(competitionLayer)}</span>
               {teamLeagueHref ? <Link href={teamLeagueHref} style={{ ...badgeBlue, textDecoration: 'none' }}>{teamMeta.league}</Link> : null}
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
-              {!isMobile && teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
-              {!isMobile ? <span style={badgeSlate}>{matches.length} matches tracked</span> : null}
+              {teamMeta.district ? <span style={badgeSlate}>{teamMeta.district}</span> : null}
+              {!teamMeta.district && teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
             </div>
+
+            <p style={heroContextText}>
+              {completedMatchCount > 0
+                ? `${completedMatchCount} reviewed ${completedMatchCount === 1 ? 'result' : 'results'} shape this team view.`
+                : 'See the team context that helps everyone stay ready.'}
+            </p>
 
             <div style={dynamicHeroActions}>
               {!authResolved ? (
@@ -1517,21 +1518,21 @@ function TeamPageContent() {
           </div>
 
           <div style={dynamicSummaryCard}>
-            <div style={isMobile ? mobileSummaryTitle : summaryTitle}>{isMobile ? 'At a glance' : 'Team snapshot'}</div>
+            <div style={isMobile ? mobileSummaryTitle : summaryTitle}>Season pulse</div>
 
             <div style={dynamicSummaryMetricGrid}>
-              <MetricCard compact={isMobile} label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
+              <MetricCard compact={isMobile} label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses" />
               <MetricCard
                 compact={isMobile}
-                label={roster.length ? 'Players' : tennisRecordRoster.length ? 'Listed players' : 'Players'}
-                value={String(roster.length || tennisRecordRoster.length)}
-                subtle={roster.length ? 'Roster and match history' : tennisRecordRoster.length ? 'Source roster context' : 'Roster and match history'}
+                label="Win rate"
+                value={winRate == null ? '—' : `${winRate}%`}
+                subtle={completedMatchCount ? `${completedMatchCount} decisions` : 'No completed results'}
               />
               <MetricCard
                 compact={isMobile}
-                label={nextMatch ? 'Next match' : summaryMatch ? 'Last result' : tennisRecordHistory.length ? 'Source history' : 'Last result'}
-                value={summaryMatch ? (isMobile ? formatCompactDate(summaryMatch.match_date) : formatDate(summaryMatch.match_date)) : tennisRecordHistory.length ? String(tennisRecordHistory.length) : '—'}
-                subtle={summaryMatch ? `vs ${getOpponent(summaryMatch, team) ?? '--'}` : tennisRecordHistory.length ? 'Public source lines' : 'No match yet'}
+                label={roster.length ? 'Roster' : tennisRecordRoster.length ? 'Listed' : 'Roster'}
+                value={String(roster.length || tennisRecordRoster.length)}
+                subtle={roster.length ? 'Players tracked' : tennisRecordRoster.length ? 'Source roster' : 'Not listed'}
               />
             </div>
 
@@ -1539,24 +1540,16 @@ function TeamPageContent() {
               <div style={summarySplitRowStyle}>
                 {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
                   <div style={summarySplitItemStyle}>
-                    <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>Singles</span>{' '}
-                    {matchTypeSplit.singlesW}-{matchTypeSplit.singlesL}
-                    {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
-                      <span style={{ color: 'rgba(190,210,240,0.4)', marginLeft: 4 }}>
-                        ({Math.round((matchTypeSplit.singlesW / (matchTypeSplit.singlesW + matchTypeSplit.singlesL)) * 100)}% win)
-                      </span>
-                    ) : null}
+                    <span style={summarySplitLabelStyle}>Singles</span>
+                    <strong>{matchTypeSplit.singlesW}-{matchTypeSplit.singlesL}</strong>
+                    <span>{Math.round((matchTypeSplit.singlesW / (matchTypeSplit.singlesW + matchTypeSplit.singlesL)) * 100)}% win</span>
                   </div>
                 ) : null}
                 {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
                   <div style={summarySplitItemStyle}>
-                    <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>Doubles</span>{' '}
-                    {matchTypeSplit.doublesW}-{matchTypeSplit.doublesL}
-                    {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
-                      <span style={{ color: 'rgba(190,210,240,0.4)', marginLeft: 4 }}>
-                        ({Math.round((matchTypeSplit.doublesW / (matchTypeSplit.doublesW + matchTypeSplit.doublesL)) * 100)}% win)
-                      </span>
-                    ) : null}
+                    <span style={summarySplitLabelStyle}>Doubles</span>
+                    <strong>{matchTypeSplit.doublesW}-{matchTypeSplit.doublesL}</strong>
+                    <span>{Math.round((matchTypeSplit.doublesW / (matchTypeSplit.doublesW + matchTypeSplit.doublesL)) * 100)}% win</span>
                   </div>
                 ) : null}
               </div>
@@ -1576,14 +1569,42 @@ function TeamPageContent() {
               </div>
             ) : null}
 
-            {teamMeta.district ? <div style={summaryHint}>{teamMeta.district}</div> : null}
-            {tiqParticipations.length > 0 ? (
-              <div style={summaryHint}>
-                Entered in {tiqParticipations.length} TIQ {tiqParticipations.length === 1 ? 'league' : 'leagues'}.
-              </div>
+            {latestResult ? (
+              <a href="#team-schedule" style={featuredTeamResultStyle}>
+                <span style={latestResult.winner_side === teamSideForMatch(latestResult, team) ? resultWinMarkStyle : resultLossMarkStyle}>
+                  {didTeamWin(latestResult, team) ? 'W' : 'L'}
+                </span>
+                <span style={featuredTeamResultCopyStyle}>
+                  <span style={featuredTeamResultKickerStyle}>Latest result · {formatCompactDate(latestResult.match_date)}</span>
+                  <strong>vs {latestResultOpponent || 'Opponent pending'}</strong>
+                </span>
+                <span style={featuredTeamResultScoreStyle}>{latestResult.score || 'View'}</span>
+              </a>
+            ) : tennisRecordHistory.length > 0 ? (
+              <a href="#team-schedule" style={featuredTeamResultStyle}>
+                <span style={sourceHistoryMarkStyle}>•</span>
+                <span style={featuredTeamResultCopyStyle}>
+                  <span style={featuredTeamResultKickerStyle}>Public source history</span>
+                  <strong>{tennisRecordHistory.length} results ready to review</strong>
+                </span>
+                <span style={featuredTeamResultScoreStyle}>View</span>
+              </a>
             ) : null}
+
+            <a href="#team-schedule" style={summaryHistoryLinkStyle}>View full match history</a>
           </div>
         </section>
+
+        {!canManageThisTeam ? (
+          <section style={captainAccessTeaseStyle} aria-label="Captain tools">
+            <div style={captainAccessCopyStyle}>
+              <p style={sectionKicker}>{CAPTAIN_STORY.eyebrow}</p>
+              <h2 style={captainAccessTitleStyle}>Get the lineup ready before match day.</h2>
+              <p style={captainAccessTextStyle}>Availability, pairings, and team messaging stay in one weekly flow.</p>
+            </div>
+            <SecondaryLink href="/captain">{CAPTAIN_STORY.quickStartKicker}</SecondaryLink>
+          </section>
+        ) : null}
 
         {isLinkedTeamMember ? <section id="team-chat" style={{ ...surfaceCard, order: 4, scrollMarginTop: 16 }}>
           <div style={sectionHeadingRow}>
@@ -2692,12 +2713,12 @@ const heroTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const heroText: CSSProperties = {
-  margin: '0 0 20px',
+const heroContextText: CSSProperties = {
+  margin: '0 0 18px',
   color: 'var(--shell-copy-muted)',
-  fontSize: '18px',
-  lineHeight: 1.6,
-  maxWidth: '720px',
+  fontSize: '15px',
+  lineHeight: 1.55,
+  maxWidth: '560px',
   overflowWrap: 'anywhere',
 }
 
@@ -2931,14 +2952,6 @@ const mobileSummaryMetricValue: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const summaryHint: CSSProperties = {
-  marginTop: '14px',
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '14px',
-  overflowWrap: 'anywhere',
-}
-
 const summaryHintSmall: CSSProperties = {
   marginTop: '8px',
   color: 'var(--shell-copy-muted)',
@@ -2949,17 +2962,145 @@ const summaryHintSmall: CSSProperties = {
 
 const summarySplitRowStyle: CSSProperties = {
   marginTop: 14,
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 12,
-  flexWrap: 'wrap',
   minWidth: 0,
 }
 
 const summarySplitItemStyle: CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
-  color: 'var(--shell-copy-muted)',
+  display: 'grid',
+  gap: 3,
+  padding: '11px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.48)',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 850,
+  lineHeight: 1.2,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const summarySplitLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+const featuredTeamResultStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  marginTop: 14,
+  paddingTop: 14,
+  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const resultWinMarkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: '0 0 auto',
+  width: 34,
+  height: 34,
+  borderRadius: '50%',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--brand-lime)',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const resultLossMarkStyle: CSSProperties = {
+  ...resultWinMarkStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 52%, var(--shell-panel-border) 48%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--brand-blue-2)',
+}
+
+const sourceHistoryMarkStyle: CSSProperties = {
+  ...resultWinMarkStyle,
+  color: 'var(--brand-blue-2)',
+  fontSize: 24,
+}
+
+const featuredTeamResultCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  flex: 1,
+  overflowWrap: 'anywhere',
+}
+
+const featuredTeamResultKickerStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const featuredTeamResultScoreStyle: CSSProperties = {
+  flex: '0 1 auto',
+  color: 'var(--brand-lime)',
+  fontSize: 14,
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const summaryHistoryLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  width: 'fit-content',
+  marginTop: 14,
+  color: 'var(--brand-blue-2)',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const captainAccessTeaseStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 16,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: '18px 20px',
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-panel-border) 74%)',
+  background: 'rgba(8, 13, 28, 0.72)',
+}
+
+const captainAccessCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  maxWidth: 620,
+}
+
+const captainAccessTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.16,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const captainAccessTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }
 
