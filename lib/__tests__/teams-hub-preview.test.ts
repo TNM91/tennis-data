@@ -96,4 +96,16 @@ describe('Teams Hub preview', () => {
     expect(styleBlock('teamCardTrustSummaryStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamCardTrustBodyStyle')).toContain('minWidth: 0')
   })
+
+  it('gives the leading public team a compact pulse and keeps captain value as an upgrade path', () => {
+    expect(source).toContain('TeamPulseFeature')
+    expect(source).toContain('Team pulse')
+    expect(source).toContain('Winning form')
+    expect(source).toContain('Public source context')
+    expect(source).toContain('CaptainDiscoveryTease')
+    expect(source).toContain('Claim your team when you are ready to lead it.')
+    expect(source).toContain('public team discovery stays free')
+    expect(source).toContain("location: 'team_discovery_tease'")
+    expect(source).toContain('visibleRows.slice(1).map')
+  })
 })

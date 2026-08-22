@@ -87,3 +87,29 @@ Final result: **passed**
 5. Browser console warnings/errors: none.
 
 The oversized-raster P2 issue is resolved. No remaining P0, P1, or P2 visual issues were found in the watermark layer.
+
+---
+
+# Premium Team Discovery design QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-36477341-1b31-4b59-907f-4d41043a3adc.png`
+- Target viewport: 390 × 844 mobile web content.
+- Intended state: public Team Discovery after **Browse teams** or a search/filter selection.
+- Implementation route: `/teams`.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The local page returned HTTP 200, but the required browser-control runtime could not establish a trusted browser-service connection in this environment. No browser-rendered mobile capture, same-viewport comparison, interaction test, or console check is available.
+
+## Code-level verification
+
+- Focused Team/mobile tests passed.
+- Full suite passed: 404 files, 1,982 tests.
+- Typecheck, lint, and production build passed.
+
+## Required follow-up
+
+Capture `/teams` with directory results visible at 390 × 844, compare it with the source visual, and resolve any responsive layout issue before visual approval.
+
+final result: blocked
