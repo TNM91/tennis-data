@@ -1176,6 +1176,7 @@ function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }
 function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry }) {
   const totalDecisions = row.wins + row.losses
   const record = totalDecisions > 0 ? `${row.wins}-${row.losses}` : 'New'
+  const rosterCount = getDirectoryPlayerCount(row)
   const formLabel = totalDecisions > 0
     ? row.wins >= row.losses ? 'Winning form' : 'Competitive form'
     : 'Fresh team context'
@@ -1212,11 +1213,26 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
         </div>
       </div>
 
+      <div style={teamPulseSignalGridStyle} aria-label={`${row.team} scouting signals`}>
+        <TeamPulseSignal label="Roster" value={rosterCount > 0 ? `${rosterCount} listed` : 'Building'} />
+        <TeamPulseSignal label="Match record" value={row.matchCount > 0 ? `${row.matchCount} logged` : 'New'} />
+        <TeamPulseSignal label="Latest" value={formatShortDate(row.mostRecentMatchDate, 'Pending')} />
+      </div>
+
       <div style={teamPulseFooterStyle}>
         <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
         <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
       </div>
     </article>
+  )
+}
+
+function TeamPulseSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={teamPulseSignalStyle}>
+      <span>{label}</span>
+      <strong style={teamPulseSignalValueStyle}>{value}</strong>
+    </div>
   )
 }
 
@@ -2091,6 +2107,20 @@ const teamPulseFormStyle: CSSProperties = { display: 'grid', alignContent: 'cent
 const teamPulseFormTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(1.25rem, 4vw, 2rem)', lineHeight: 1.04, fontWeight: 930, overflowWrap: 'anywhere' }
 const teamPulseBadgesStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
 const teamPulseSupportStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, fontWeight: 700, overflowWrap: 'anywhere' }
+
+const teamPulseSignalGridStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, minWidth: 0,
+}
+
+const teamPulseSignalStyle: CSSProperties = {
+  display: 'grid', gap: 4, minWidth: 0, padding: '10px', borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)', background: 'rgba(7,17,33,0.5)', overflowWrap: 'anywhere',
+  color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 850, letterSpacing: '0.06em', textTransform: 'uppercase',
+}
+
+const teamPulseSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 13, lineHeight: 1.1, fontWeight: 950, letterSpacing: 0, textTransform: 'none',
+}
 
 const teamPulseFooterStyle: CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0, paddingTop: 14, borderTop: '1px solid rgba(116,190,255,0.14)',
