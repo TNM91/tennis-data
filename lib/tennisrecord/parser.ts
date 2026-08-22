@@ -17,8 +17,27 @@ function isTeamName(value: string) {
   return name.length >= 2 && name.length <= 160 && !NON_TEAM_LABELS.has(normalized) && !/^20\d{2}\s+adult\b/i.test(name)
 }
 
-export type TennisRecordRecordPageKind = 'match' | 'player' | 'team' | 'history'
+export type TennisRecordRecordPageKind = 'match' | 'player' | 'team' | 'history' | 'league'
 const MAX_DISCOVERED_RECORD_URLS_PER_PAGE = 25
+const MAX_DISCOVERED_DIRECTORY_URLS_PER_PAGE = 100
+
+function isExplicitSeason(value: string | null) { return /^20\d{2}$/.test(value || '') }
+
+/** Public league-directory routes reviewed for the staged U.S. campaign. */
+function isReviewedLeagueDirectoryUrl(url: URL) {
+  if (!isExplicitSeason(url.searchParams.get('year'))) return false
+  const has = (...names: string[]) => names.every((name) => Boolean(url.searchParams.get(name)?.trim()))
+  switch (url.pathname.toLowerCase()) {
+    case '/adult/league/leaguetype.aspx': return true
+    case '/adult/league/leaguesection.aspx': return has('lt')
+    case '/adult/league/leaguedistrict.aspx': return has('lt', 'sectionname')
+    case '/adult/league/leaguearea.aspx': return has('lt', 'sectionname', 'districtname')
+    case '/adult/league/leaguegender.aspx': return has('lt', 'sectionname', 'districtname', 'areaname')
+    case '/adult/league/leaguefind.aspx': return has('lt', 'sectionname', 'districtname', 'areaname', 'gender')
+    case '/adult/league.aspx': return has('flightname')
+    default: return false
+  }
+}
 
 /**
  * Only record pages that this collector understands are eligible for follow-up
@@ -35,7 +54,8 @@ export function tennisRecordRecordPageKind(value: string): TennisRecordRecordPag
   if (pathname === '/adult/teamprofile.aspx' && url.searchParams.has('teamname')) return 'team'
   // A history page is a discovery-only seed. It must name a player and an
   // explicit season; its contents are never treated as a rating source.
-  if (pathname === '/adult/matchhistory.aspx' && url.searchParams.has('playername') && /^20\d{2}$/.test(url.searchParams.get('year') || '')) return 'history'
+  if (pathname === '/adult/matchhistory.aspx' && url.searchParams.has('playername') && isExplicitSeason(url.searchParams.get('year'))) return 'history'
+  if (isReviewedLeagueDirectoryUrl(url)) return 'league'
   return null
 }
 
@@ -50,6 +70,12 @@ export function isAllowedTennisRecordDiscovery(sourceUrl: string, candidateUrl: 
   const sourceKind = tennisRecordRecordPageKind(sourceUrl)
   const candidateKind = tennisRecordRecordPageKind(candidateUrl)
   if (!sourceKind || !candidateKind) return false
+  if (sourceKind === 'league') {
+    const sourceYear = new URL(sourceUrl).searchParams.get('year')
+    const candidate = new URL(candidateUrl)
+    if (candidateKind === 'league') return candidate.searchParams.get('year') === sourceYear
+    return candidateKind === 'team' || candidateKind === 'match'
+  }
   if (sourceKind === 'match') return candidateKind === 'player' || candidateKind === 'team'
   return candidateKind === 'match'
 }
@@ -208,7 +234,10 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
     .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
-  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, MAX_DISCOVERED_RECORD_URLS_PER_PAGE) }
+  const discoveryLimit = tennisRecordRecordPageKind(sourceUrl) === 'league'
+    ? MAX_DISCOVERED_DIRECTORY_URLS_PER_PAGE
+    : MAX_DISCOVERED_RECORD_URLS_PER_PAGE
+  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, discoveryLimit) }
 }
 
 export function normalizedTennisRecordPlayerName(player: TennisRecordPlayer) { return normalizeTennisIdentity(player.name) }

@@ -31,7 +31,7 @@ const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
 // grow from its own verified source graph.
-export const TENNISRECORD_BOOTSTRAP_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
+export const TENNISRECORD_BOOTSTRAP_PAGE_KINDS = ['history', 'league', 'match', 'player', 'team'] as const
 export const TENNISRECORD_WEEKLY_PAGE_KINDS = ['history', 'match', 'player', 'team'] as const
 
 /**
@@ -42,7 +42,7 @@ export const TENNISRECORD_WEEKLY_PAGE_KINDS = ['history', 'match', 'player', 'te
  */
 export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly', limit: number) {
   const cycle = cadence === 'bootstrap'
-    ? [['player'], ['history', 'match', 'team']]
+    ? [['league'], ['player'], ['history', 'match', 'team']]
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
@@ -65,6 +65,10 @@ export function tennisRecordAutomationDecision(state: AutomationState, cadence: 
   if (state !== cadence) return 'skip' as const
   if (cadence === 'bootstrap' && pendingPages === 0) return knownPages === 0 ? 'awaiting_seed' as const : 'complete_bootstrap' as const
   return 'run' as const
+}
+
+export function tennisRecordCampaignCompletionAction(hasPlannedCampaign: boolean) {
+  return hasPlannedCampaign ? 'advance_campaign' as const : 'start_weekly' as const
 }
 
 export function isWeeklyTennisRecordRefreshDue(lastRefreshStartedAt: string | null, now = Date.now()) {
@@ -307,8 +311,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     if (decision === 'skip') return emptySummary('skipped')
     if (decision === 'awaiting_seed') return emptySummary('awaiting_seed')
     if (decision === 'complete_bootstrap') {
-      const { error: finishError } = await service.from('tennisrecord_collector_settings').update({ automation_state: 'weekly', bootstrap_completed_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'bootstrap')
-      if (finishError) throw new Error(finishError.message)
+      await completeActiveTennisRecordCampaign(service, settings.active_campaign_id)
       return emptySummary('completed')
     }
     const summary = await runTennisRecordSync(service, {
@@ -323,10 +326,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
     const { count: remaining, error: remainingError } = await remainingQuery
     if (remainingError) throw new Error(remainingError.message)
-    if (!remaining) {
-      const { error: finishError } = await service.from('tennisrecord_collector_settings').update({ automation_state: 'weekly', bootstrap_completed_at: new Date().toISOString() }).eq('id', true).eq('automation_state', 'bootstrap')
-      if (finishError) throw new Error(finishError.message)
-    }
+    if (!remaining) await completeActiveTennisRecordCampaign(service, settings.active_campaign_id)
     return summary
   }
 
@@ -348,6 +348,41 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     pageKindPlan: tennisRecordScheduledPageKindPlan('weekly', scheduledBatchLimit),
     campaignId: settings.active_campaign_id,
   })
+}
+
+/** Advance only after a campaign queue is exhausted; never replace an active frontier mid-run. */
+async function completeActiveTennisRecordCampaign(service: SupabaseClient, activeCampaignId?: string | null) {
+  const now = new Date().toISOString()
+  const planned = await service.from('tennisrecord_campaigns').select('id').eq('status', 'planned').order('starts_on').order('created_at').limit(1).maybeSingle()
+  if (planned.error) throw new Error(planned.error.message)
+  const action = tennisRecordCampaignCompletionAction(Boolean(planned.data?.id))
+
+  if (action === 'advance_campaign' && planned.data?.id) {
+    let settingsUpdate = service.from('tennisrecord_collector_settings')
+      .update({ active_campaign_id: planned.data.id, automation_state: 'bootstrap', bootstrap_started_at: now, bootstrap_completed_at: null })
+      .eq('id', true).eq('automation_state', 'bootstrap')
+    settingsUpdate = activeCampaignId
+      ? settingsUpdate.eq('active_campaign_id', activeCampaignId)
+      : settingsUpdate.is('active_campaign_id', null)
+    const { data: switched, error: settingsError } = await settingsUpdate.select('id').maybeSingle()
+    if (settingsError) throw new Error(settingsError.message)
+    if (!switched) return
+    if (activeCampaignId) {
+      const { error: currentError } = await service.from('tennisrecord_campaigns').update({ status: 'completed' }).eq('id', activeCampaignId)
+      if (currentError) throw new Error(currentError.message)
+    }
+    const { error: nextError } = await service.from('tennisrecord_campaigns').update({ status: 'active' }).eq('id', planned.data.id)
+    if (nextError) throw new Error(nextError.message)
+    return
+  }
+
+  if (activeCampaignId) {
+    const { error: currentError } = await service.from('tennisrecord_campaigns').update({ status: 'completed' }).eq('id', activeCampaignId)
+    if (currentError) throw new Error(currentError.message)
+  }
+  const { error: settingsError } = await service.from('tennisrecord_collector_settings')
+    .update({ automation_state: 'weekly', bootstrap_completed_at: now }).eq('id', true).eq('automation_state', 'bootstrap')
+  if (settingsError) throw new Error(settingsError.message)
 }
 
 async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
