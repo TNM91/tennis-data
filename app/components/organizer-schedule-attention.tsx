@@ -37,6 +37,16 @@ function formatReminderAge(value: string) {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+function getDecisionSummary(item: OrganizerScheduleAttentionItem) {
+  if (item.state === 'unavailable') {
+    return `${item.unavailableCount} unavailable · ${item.availableCount} ready`
+  }
+  if (item.state === 'changed') {
+    return `${item.changedCount} changed · ${item.availableCount} confirmed`
+  }
+  return `${item.waitingCount} ${item.waitingCount === 1 ? 'reply' : 'replies'} still needed`
+}
+
 export default function OrganizerScheduleAttention() {
   const { session, userId, authResolved } = useAuth()
   const { isMobile } = useViewportBreakpoints()
@@ -134,8 +144,9 @@ export default function OrganizerScheduleAttention() {
 
 function AttentionRow({ item, compact }: { item: OrganizerScheduleAttentionItem; compact: boolean }) {
   const copy = stateCopy[item.state]
+  const decisionSummary = getDecisionSummary(item)
   return (
-    <Link href={item.href} style={compact ? compactRowStyle : rowStyle}>
+    <Link href={item.href} style={compact ? compactRowStyle : rowStyle} aria-label={`${item.matchLabel}: ${decisionSummary}. ${copy.action}.`}>
       <span style={item.state === 'unavailable' ? urgentMarkerStyle : markerStyle} aria-hidden="true" />
       <span style={rowCopyStyle}>
         <span style={metaStyle}>{item.competitionKind === 'league' ? 'League' : 'Tournament'} · {item.competitionName}</span>
@@ -143,14 +154,21 @@ function AttentionRow({ item, compact }: { item: OrganizerScheduleAttentionItem;
         <span>{formatMatchDate(item.date)}{item.time ? ` · ${item.time}` : ''}{item.location ? ` · ${item.location}` : ''}</span>
         {item.lastReminderAt ? <em style={reminderMetaStyle}>Reminder sent {formatReminderAge(item.lastReminderAt)}</em> : null}
       </span>
-      <span style={compact ? compactCountsStyle : countsStyle}>
-        <span style={item.state === 'unavailable' ? urgentPillStyle : attentionPillStyle}>{copy.label}</span>
-        <span>{item.availableCount} yes</span>
-        {item.unavailableCount ? <span>{item.unavailableCount} can’t</span> : null}
-        {item.changedCount ? <span>{item.changedCount} changed</span> : null}
-        {item.waitingCount ? <span>{item.waitingCount} waiting</span> : null}
-        {item.remindedCount ? <span style={remindedPillStyle}>{item.remindedCount} reminded</span> : null}
-      </span>
+      {compact ? (
+        <span style={compactDecisionStyle}>
+          <span style={item.state === 'unavailable' ? urgentPillStyle : attentionPillStyle}>{copy.label}</span>
+          <span>{decisionSummary}</span>
+        </span>
+      ) : (
+        <span style={countsStyle}>
+          <span style={item.state === 'unavailable' ? urgentPillStyle : attentionPillStyle}>{copy.label}</span>
+          <span>{item.availableCount} yes</span>
+          {item.unavailableCount ? <span>{item.unavailableCount} can’t</span> : null}
+          {item.changedCount ? <span>{item.changedCount} changed</span> : null}
+          {item.waitingCount ? <span>{item.waitingCount} waiting</span> : null}
+          {item.remindedCount ? <span style={remindedPillStyle}>{item.remindedCount} reminded</span> : null}
+        </span>
+      )}
       <span style={compact ? compactActionStyle : actionStyle}>{copy.action}</span>
     </Link>
   )
@@ -232,8 +250,29 @@ const attentionPillStyle: CSSProperties = { padding: '5px 8px', borderRadius: 99
 const urgentPillStyle: CSSProperties = { ...attentionPillStyle, color: '#fecdd3', background: 'rgba(136, 19, 55, 0.42)' }
 const remindedPillStyle: CSSProperties = { ...attentionPillStyle, color: '#bfdbfe', background: 'rgba(30, 64, 175, 0.34)' }
 const actionStyle: CSSProperties = { color: '#d9f99d', fontSize: 12, fontWeight: 950, whiteSpace: 'nowrap' }
-const compactCountsStyle: CSSProperties = { ...countsStyle, gridColumn: '2', justifyContent: 'flex-start' }
-const compactActionStyle: CSSProperties = { ...actionStyle, gridColumn: '2' }
+const compactDecisionStyle: CSSProperties = {
+  display: 'flex',
+  gridColumn: '2',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+  color: '#cbd5e1',
+  fontSize: 11,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+const compactActionStyle: CSSProperties = {
+  ...actionStyle,
+  gridColumn: '2',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  width: 'fit-content',
+  borderRadius: 999,
+  background: 'rgba(163, 230, 53, 0.1)',
+  padding: '5px 9px',
+}
 
 const moreStyle: CSSProperties = { display: 'grid', gap: 8 }
 const moreSummaryStyle: CSSProperties = { cursor: 'pointer', color: '#cbd5e1', fontSize: 12, fontWeight: 900 }
