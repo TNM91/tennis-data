@@ -87,12 +87,15 @@ describe('League unlock language', () => {
     expect(tiqLeagueDetailSource).not.toContain('coordinator approval')
     expect(tiqLeagueDetailSource).not.toContain('Coordinator Required')
 
-    for (const source of [leagueLayoutSource, seasonDashboardLayoutSource]) {
+    for (const source of [leagueLayoutSource]) {
       expect(source).toContain('League Office | TenAceIQ')
       expect(source).toContain('Use League Office')
       expect(source).not.toContain('League Coordinator | TenAceIQ')
       expect(source).not.toContain('Use TIQ League Coordinator')
     }
+
+    expect(seasonDashboardLayoutSource).toContain('Captain Season | TenAceIQ')
+    expect(seasonDashboardLayoutSource).not.toContain('League Office | TenAceIQ')
   })
 
   it('keeps result-entry login handoffs on the League Office path', () => {
