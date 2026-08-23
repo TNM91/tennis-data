@@ -68,6 +68,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
+import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -173,6 +174,8 @@ type PersonalMatchRow = {
   result: 'W' | 'L' | '-'
   opponent: string
 }
+
+type RatingSnapshotRow = RatingJourneySnapshot
 
 const MATCHBOOK_FILTERS: MatchbookFilter[] = ['all', 'singles', 'doubles']
 
@@ -909,6 +912,7 @@ function MyLabPageInner() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [personalMatches, setPersonalMatches] = useState<PersonalMatchRow[]>([])
+  const [ratingSnapshots, setRatingSnapshots] = useState<RatingSnapshotRow[]>([])
   const [matchbookFilter, setMatchbookFilter] = useState<MatchbookFilter>('all')
   const [showFullMatchbook, setShowFullMatchbook] = useState(false)
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
@@ -1299,16 +1303,46 @@ function MyLabPageInner() {
     }
 
     if (linkedPlayerIdForWorkshop) {
+      const ratingSnapshotsRequest = supabase
+        .from('rating_snapshots')
+        .select('id, snapshot_date, dynamic_rating, delta')
+        .eq('player_id', linkedPlayerIdForWorkshop)
+        .eq('rating_type', 'overall')
+        .eq('track', 'tiq')
+        .order('snapshot_date', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(12)
       const { data: playerMatchRefs } = await supabase
         .from('match_players')
         .select('match_id')
         .eq('player_id', linkedPlayerIdForWorkshop)
         .limit(80)
+      const { data: ratingSnapshotRows, error: ratingSnapshotsError } = await ratingSnapshotsRequest
+
+      if (ratingSnapshotsError) {
+        console.warn('Rating Journey snapshots unavailable:', ratingSnapshotsError.message)
+      }
+      setRatingSnapshots(
+        ((ratingSnapshotRows || []) as Array<{
+          id: string
+          snapshot_date: string | null
+          dynamic_rating: number | null
+          delta: number | null
+        }>).map((snapshot) => ({
+          id: snapshot.id,
+          snapshotDate: snapshot.snapshot_date,
+          dynamicRating: snapshot.dynamic_rating,
+          delta: snapshot.delta,
+        })),
+      )
 
       const personalMatchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id).filter(Boolean))]
 
       if (personalMatchIds.length) {
-        const [{ data: personalMatchRows }, { data: personalParticipantRows }] = await Promise.all([
+        const [
+          { data: personalMatchRows },
+          { data: personalParticipantRows },
+        ] = await Promise.all([
           supabase
             .from('matches')
             .select('id, match_date, match_type, league_name, score, winner_side')
@@ -1368,9 +1402,11 @@ function MyLabPageInner() {
         )
       } else {
         setPersonalMatches([])
+        setRatingSnapshots([])
       }
     } else {
       setPersonalMatches([])
+      setRatingSnapshots([])
     }
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
@@ -3258,6 +3294,19 @@ function MyLabPageInner() {
     activeFocus: activeGoal.goal,
     activeFocusNote: activeGoal.improveNext || activeGoal.progressUpdate,
   })
+  const ratingJourney = buildPlayerRatingJourneyRead({
+    snapshots: ratingSnapshots,
+    decidedMatches: recentDecisionMatches.length,
+  })
+  const ratingJourneyValues = [currentTiq, ...ratingJourney.snapshotPoints.map((point) => point.rating)]
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  const ratingJourneyMin = ratingJourneyValues.length ? Math.min(...ratingJourneyValues) : 0
+  const ratingJourneyMax = ratingJourneyValues.length ? Math.max(...ratingJourneyValues) : 0
+  const ratingJourneyRange = Math.max(0.02, ratingJourneyMax - ratingJourneyMin)
+  const ratingJourneyPoints = ratingJourney.snapshotPoints.map((point) => ({
+    ...point,
+    position: Math.max(8, Math.min(100, ((point.rating - ratingJourneyMin) / ratingJourneyRange) * 92 + 8)),
+  }))
   const starterActionCards = [
     {
       title: 'Upload scores',
@@ -3864,6 +3913,63 @@ function MyLabPageInner() {
                   </div>
                 </div>
               </section>
+
+              {canUseAdvancedPlayerInsights ? (
+                <section style={ratingJourneyPanelStyle} aria-label="Rating Journey">
+                  <div style={ratingJourneyHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Rating Journey</p>
+                        <h3 style={compactSectionTitleStyle}>See the evidence behind your TIQ read.</h3>
+                        <p style={sectionTextStyle}>{ratingJourney.explainer}</p>
+                      </div>
+                    </div>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open Matchbook</Link>
+                  </div>
+                  <div style={ratingJourneyGridStyle(isTablet)}>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>TIQ overall</div>
+                      <div style={ratingJourneyValueStyle}>{formatRating(currentTiq)}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.movementLabel} · {ratingJourney.movementNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Evidence</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.evidenceLabel}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.evidenceNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Latest TIQ update</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.latestDeltaLabel}</div>
+                      <div style={metricNoteStyle}>{ustaBase == null ? 'Add your USTA context to compare your current starting point.' : `USTA reference: ${ustaBase.toFixed(1)}.`}</div>
+                    </div>
+                  </div>
+                  <div style={ratingJourneyTrendStyle}>
+                    <div style={ratingJourneyTrendHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Recent TIQ checkpoints</div>
+                        <div style={metricNoteStyle}>Up to four of your latest overall rating updates.</div>
+                      </div>
+                      <span style={ratingJourney.hasSnapshotTrend ? pillBlueStyle : pillSlateStyle}>{ratingJourney.hasSnapshotTrend ? 'Trend connected' : 'Trend building'}</span>
+                    </div>
+                    {ratingJourneyPoints.length ? (
+                      <div style={ratingJourneyPlotStyle} aria-label="Recent TIQ rating checkpoints">
+                        {ratingJourneyPoints.map((point) => (
+                          <div key={point.id} style={ratingJourneyPlotPointStyle}>
+                            <strong style={ratingJourneyPlotValueStyle}>{point.rating.toFixed(2)}</strong>
+                            <div style={ratingJourneyPlotRailStyle}>
+                              <span style={ratingJourneyPlotFillStyle(point.position)} />
+                            </div>
+                            <small style={ratingJourneyPlotDateStyle}>{safeDate(point.date)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={ratingJourneyEmptyStyle}>Your first TIQ checkpoint appears as scored results are reconciled to your player record.</div>
+                    )}
+                  </div>
+                </section>
+              ) : null}
 
               {isNewSelfRatedProfile ? (
                 <section style={starterPanelStyle}>
@@ -8778,6 +8884,142 @@ const matchIntelligenceFocusCardStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
   color: 'inherit',
   textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 32%, var(--shell-panel-border) 68%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const ratingJourneyHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const ratingJourneyCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 86%, transparent)',
+  padding: 14,
+  minHeight: 118,
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 5vw, 2.8rem)',
+  lineHeight: 0.94,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyTrendStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(4, 12, 28, 0.42)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const ratingJourneyTrendHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 72px), 1fr))',
+  alignItems: 'end',
+  gap: 8,
+  minHeight: 126,
+  minWidth: 0,
+}
+
+const ratingJourneyPlotPointStyle: CSSProperties = {
+  minWidth: 0,
+  display: 'grid',
+  gridTemplateRows: 'auto 72px auto',
+  justifyItems: 'center',
+  alignItems: 'end',
+  gap: 7,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotRailStyle: CSSProperties = {
+  width: '100%',
+  height: 72,
+  display: 'flex',
+  alignItems: 'flex-end',
+  borderRadius: 10,
+  padding: 3,
+  background: 'color-mix(in srgb, var(--foreground-strong) 8%, var(--shell-chip-bg) 92%)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotFillStyle = (position: number): CSSProperties => ({
+  display: 'block',
+  width: '100%',
+  height: `${position}%`,
+  minHeight: 9,
+  borderRadius: 7,
+  background: 'linear-gradient(180deg, var(--brand-lime), var(--brand-blue-2))',
+  boxShadow: '0 0 18px color-mix(in srgb, var(--brand-lime) 34%, transparent)',
+})
+
+const ratingJourneyPlotDateStyle: CSSProperties = {
+  maxWidth: '100%',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyEmptyStyle: CSSProperties = {
+  borderRadius: 12,
+  border: '1px dashed var(--shell-panel-border)',
+  padding: 12,
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 800,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
