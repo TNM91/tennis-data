@@ -36,6 +36,7 @@ export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 5
 const TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS = 30 * 60_000
 const TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS = 15 * 60_000
 const TENNISRECORD_LONG_CHECKPOINT_MS = 3 * 60_000
+const TENNISRECORD_TRANSIENT_RETRY_BACKOFF_THRESHOLD = 4
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
 // grow from its own verified source graph.
@@ -85,6 +86,7 @@ type TennisRecordRunSafetySample = {
   blocked_requests?: number | null
   parser_failures?: number | null
   source_failures?: number | null
+  transient_retries?: number | null
 }
 
 export type TennisRecordCadenceSafety = {
@@ -96,7 +98,8 @@ export type TennisRecordCadenceSafety = {
 /**
  * Keep the faster schedule polite. This never changes source pacing or opens
  * parallel fetches: it simply holds the next checkpoints when the last run
- * reports a block, repeated failures, or unexpected runtime pressure.
+ * reports a block, retry pressure, repeated failures, or unexpected runtime
+ * pressure.
  */
 export function tennisRecordCadenceSafetyStatus(lastRun: TennisRecordRunSafetySample | null | undefined, now = Date.now()): TennisRecordCadenceSafety {
   const completedAt = Date.parse(lastRun?.completed_at || '')
@@ -106,17 +109,21 @@ export function tennisRecordCadenceSafetyStatus(lastRun: TennisRecordRunSafetySa
   const durationMs = Number.isFinite(startedAt) ? Math.max(0, completedAt - startedAt) : 0
   const hasBlock = Number(lastRun.blocked_requests || 0) > 0
   const hasRepeatedFailures = Number(lastRun.parser_failures || 0) >= 2 || Number(lastRun.source_failures || 0) >= 2
+  const hasRetryPressure = Number(lastRun.transient_retries || 0) >= TENNISRECORD_TRANSIENT_RETRY_BACKOFF_THRESHOLD
   const ranLong = durationMs >= TENNISRECORD_LONG_CHECKPOINT_MS
-  const backoffMs = hasBlock ? TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS : hasRepeatedFailures || ranLong ? TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS : 0
+  const backoffMs = hasBlock ? TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS : hasRepeatedFailures || hasRetryPressure || ranLong ? TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS : 0
   if (!backoffMs) return { active: false, reason: null, resumesAt: null }
 
   const resumesAtMs = completedAt + backoffMs
+  if (now >= resumesAtMs) return { active: false, reason: null, resumesAt: null }
   const reason = hasBlock
     ? 'A source access block was observed.'
     : hasRepeatedFailures
       ? 'The latest checkpoint reported repeated source or parser failures.'
-      : 'The latest checkpoint ran longer than expected.'
-  return { active: now < resumesAtMs, reason, resumesAt: new Date(resumesAtMs).toISOString() }
+      : hasRetryPressure
+        ? 'The latest checkpoint needed repeated temporary source retries.'
+        : 'The latest checkpoint ran longer than expected.'
+  return { active: true, reason, resumesAt: new Date(resumesAtMs).toISOString() }
 }
 
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
@@ -621,7 +628,7 @@ async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, ca
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   const [settingsResult, recentRunResult] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('automation_state,bootstrap_started_at,bootstrap_completed_at').eq('id', true).single(),
-    service.from('tennisrecord_sync_runs').select('started_at,completed_at,blocked_requests,parser_failures,source_failures').not('completed_at', 'is', null).order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+    service.from('tennisrecord_sync_runs').select('started_at,completed_at,blocked_requests,parser_failures,source_failures,transient_retries').not('completed_at', 'is', null).order('completed_at', { ascending: false }).limit(1).maybeSingle(),
   ])
   if (settingsResult.error || recentRunResult.error) throw new Error(settingsResult.error?.message || recentRunResult.error?.message || 'TennisRecord automation status is unavailable.')
   const data = settingsResult.data
