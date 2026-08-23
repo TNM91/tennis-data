@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -253,8 +253,27 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('bases campaign timing on the currently known queue and bounded checkpoints', () => {
-    expect(tennisRecordCheckpointForecast(17, 1, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 3, estimatedMinutesRemaining: 45 })
+    expect(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES).toBe(5)
+    expect(tennisRecordCheckpointForecast(17, 1, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 3, estimatedMinutesRemaining: 15 })
     expect(tennisRecordCheckpointForecast(0, 0, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
+  })
+
+  it('backs off the faster cadence when the most recent checkpoint shows source pressure', () => {
+    const now = Date.parse('2026-08-23T12:00:00.000Z')
+    expect(tennisRecordCadenceSafetyStatus({
+      started_at: '2026-08-23T11:58:00.000Z',
+      completed_at: '2026-08-23T11:59:00.000Z',
+      blocked_requests: 1,
+    }, now)).toEqual({
+      active: true,
+      reason: 'A source access block was observed.',
+      resumesAt: '2026-08-23T12:29:00.000Z',
+    })
+    expect(tennisRecordCadenceSafetyStatus({
+      started_at: '2026-08-23T11:56:00.000Z',
+      completed_at: '2026-08-23T11:59:30.000Z',
+    }, now)).toMatchObject({ active: true, reason: 'The latest checkpoint ran longer than expected.' })
+    expect(tennisRecordCadenceSafetyStatus({ completed_at: '2026-08-23T11:59:00.000Z' }, now)).toEqual({ active: false, reason: null, resumesAt: null })
   })
 
   it('retries only transient source failures and quarantines them after the bounded limit', () => {

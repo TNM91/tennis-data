@@ -31,6 +31,9 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('aria-label="TennisRecord campaign path"')
     expect(adminPage).toContain('Automatic campaign path')
     expect(adminPage).toContain('Time remaining reflects the currently known queue')
+    expect(adminPage).toContain('Checkpoint pace')
+    expect(adminPage).toContain('Safety throttle')
+    expect(adminPage).toContain('every ${checkpointIntervalMinutes} minutes')
     expect(adminPage).toContain('Pause automatic collection')
     expect(adminPage).toContain('Next refresh: Wednesday')
     expect(adminPage).toContain('Missouri history starts automatically')
@@ -46,6 +49,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain('buildTennisRecordQueueDiscoveryPlan')
     expect(service).toContain("onConflict: 'source_url', ignoreDuplicates: true")
     expect(service).toContain('await reclaimStaleTennisRecordRuns(service)')
+    expect(service).toContain('tennisRecordCadenceSafetyStatus')
+    expect(service).toContain('TENNISRECORD_AUTOMATION_INTERVAL_MINUTES')
     expect(service).toContain('Interrupted checkpoint reclaimed for retry.')
   })
 

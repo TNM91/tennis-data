@@ -32,6 +32,10 @@ const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
 const DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT = 4
 const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
+export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 5
+const TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS = 30 * 60_000
+const TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS = 15 * 60_000
+const TENNISRECORD_LONG_CHECKPOINT_MS = 3 * 60_000
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
 // grow from its own verified source graph.
@@ -71,8 +75,48 @@ export function tennisRecordCheckpointForecast(pendingPages: number, runningPage
   return {
     pagesPerCheckpoint,
     checkpointsRemaining,
-    estimatedMinutesRemaining: checkpointsRemaining * 15,
+    estimatedMinutesRemaining: checkpointsRemaining * TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
   }
+}
+
+type TennisRecordRunSafetySample = {
+  started_at?: string | null
+  completed_at?: string | null
+  blocked_requests?: number | null
+  parser_failures?: number | null
+  source_failures?: number | null
+}
+
+export type TennisRecordCadenceSafety = {
+  active: boolean
+  reason: string | null
+  resumesAt: string | null
+}
+
+/**
+ * Keep the faster schedule polite. This never changes source pacing or opens
+ * parallel fetches: it simply holds the next checkpoints when the last run
+ * reports a block, repeated failures, or unexpected runtime pressure.
+ */
+export function tennisRecordCadenceSafetyStatus(lastRun: TennisRecordRunSafetySample | null | undefined, now = Date.now()): TennisRecordCadenceSafety {
+  const completedAt = Date.parse(lastRun?.completed_at || '')
+  if (!lastRun || !Number.isFinite(completedAt)) return { active: false, reason: null, resumesAt: null }
+
+  const startedAt = Date.parse(lastRun.started_at || '')
+  const durationMs = Number.isFinite(startedAt) ? Math.max(0, completedAt - startedAt) : 0
+  const hasBlock = Number(lastRun.blocked_requests || 0) > 0
+  const hasRepeatedFailures = Number(lastRun.parser_failures || 0) >= 2 || Number(lastRun.source_failures || 0) >= 2
+  const ranLong = durationMs >= TENNISRECORD_LONG_CHECKPOINT_MS
+  const backoffMs = hasBlock ? TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS : hasRepeatedFailures || ranLong ? TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS : 0
+  if (!backoffMs) return { active: false, reason: null, resumesAt: null }
+
+  const resumesAtMs = completedAt + backoffMs
+  const reason = hasBlock
+    ? 'A source access block was observed.'
+    : hasRepeatedFailures
+      ? 'The latest checkpoint reported repeated source or parser failures.'
+      : 'The latest checkpoint ran longer than expected.'
+  return { active: now < resumesAtMs, reason, resumesAt: new Date(resumesAtMs).toISOString() }
 }
 
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
@@ -136,7 +180,7 @@ export function isWeeklyTennisRecordRefreshDue(lastRefreshStartedAt: string | nu
 
 /**
  * The recurring sync starts on Wednesday morning in the league's home time
- * zone. The fifteen-minute cron keeps draining that same weekly queue until
+ * zone. The scheduled checkpoints keep draining that same weekly queue until
  * it is clear, rather than waiting another week after history pages discover
  * new match-result links.
  */
@@ -208,6 +252,8 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   return {
     settings: settings.data,
     lastRun: lastRun.data,
+    automationCadenceMinutes: TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
+    safetyThrottle: tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null),
     pendingPages: activeCampaignId ? campaignPending.count || 0 : pending.count || 0,
     campaignProgress: {
       pending: campaignPending.count || 0,
@@ -573,8 +619,12 @@ async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, ca
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
-  const { data, error } = await service.from('tennisrecord_collector_settings').select('automation_state,bootstrap_started_at,bootstrap_completed_at').eq('id', true).single()
-  if (error) throw new Error(error.message)
+  const [settingsResult, recentRunResult] = await Promise.all([
+    service.from('tennisrecord_collector_settings').select('automation_state,bootstrap_started_at,bootstrap_completed_at').eq('id', true).single(),
+    service.from('tennisrecord_sync_runs').select('started_at,completed_at,blocked_requests,parser_failures,source_failures').not('completed_at', 'is', null).order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+  if (settingsResult.error || recentRunResult.error) throw new Error(settingsResult.error?.message || recentRunResult.error?.message || 'TennisRecord automation status is unavailable.')
+  const data = settingsResult.data
   let automationState = data?.automation_state as AutomationState | undefined
   if (shouldSelfStartTennisRecordBootstrap(data as Pick<Settings, 'automation_state' | 'bootstrap_started_at' | 'bootstrap_completed_at'> | null)) {
     const { data: activated, error: activationError } = await service.from('tennisrecord_collector_settings')
@@ -589,6 +639,7 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
     automationState = activated?.automation_state as AutomationState | undefined
   }
   if (automationState !== 'bootstrap' && automationState !== 'weekly') return emptySummary('skipped')
+  if (tennisRecordCadenceSafetyStatus(recentRunResult.data as TennisRecordRunSafetySample | null).active) return emptySummary('skipped')
   return runScheduledTennisRecordSync(service, automationState)
 }
 
