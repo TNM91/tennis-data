@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -262,6 +262,14 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFailureDisposition('network timeout', 2)).toBe('retry')
     expect(tennisRecordFailureDisposition('fetch failed', 3)).toBe('quarantine')
     expect(tennisRecordFailureDisposition('Unexpected result-page markup', 0)).toBe('quarantine')
+  })
+
+  it('schedules only bounded deferred retries for exhausted transport failures', () => {
+    const now = Date.parse('2026-08-22T12:00:00.000Z')
+    expect(tennisRecordDeferredRetryAt('fetch failed', 0, now)).toBe('2026-08-22T18:00:00.000Z')
+    expect(tennisRecordDeferredRetryAt('network timeout', 1, now)).toBe('2026-08-23T12:00:00.000Z')
+    expect(tennisRecordDeferredRetryAt('fetch failed', 2, now)).toBeNull()
+    expect(tennisRecordDeferredRetryAt('Access block detected', 0, now)).toBeNull()
   })
 
   it('reclaims only runs that have exceeded the serverless recovery window', () => {
