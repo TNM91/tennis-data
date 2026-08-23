@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 type Status = {
   settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; active_campaign_id?: string | null; max_requests_per_run?: number; bootstrap_started_at?: string | null; bootstrap_completed_at?: string | null; weekly_refresh_started_at?: string | null } | null
   lastRun: Record<string, unknown> | null
+  automationCadenceMinutes: number
+  safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; blocked: number; errors: number }
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; estimateBasis: 'known_queue' }
@@ -69,9 +71,11 @@ export default function TennisRecordAdminPage() {
   const settledPages = progress ? progress.completed + progress.blocked + progress.errors : 0
   const progressPercent = knownPages > 0 ? Math.min(100, Math.round((settledPages / knownPages) * 100)) : 0
   const checkpointLimit = Math.max(1, status?.settings?.max_requests_per_run || 8)
+  const checkpointIntervalMinutes = Math.max(1, status?.automationCadenceMinutes || 5)
+  const safetyThrottle = status?.safetyThrottle
   const campaignForecast = status?.campaignForecast
   const checkpointsRemaining = campaignForecast?.checkpointsRemaining ?? (progress ? Math.ceil((progress.pending + progress.running) / checkpointLimit) : 0)
-  const estimatedMinutesRemaining = campaignForecast?.estimatedMinutesRemaining ?? checkpointsRemaining * 15
+  const estimatedMinutesRemaining = campaignForecast?.estimatedMinutesRemaining ?? checkpointsRemaining * checkpointIntervalMinutes
   const estimatedRemaining = status?.frontier.status === 'ready_to_seed'
     ? 'Ready to seed'
     : status?.frontier.status === 'needs_admin_seed'
@@ -86,7 +90,7 @@ export default function TennisRecordAdminPage() {
   const weeklySettledPages = weekly ? weekly.completed + weekly.blocked + weekly.errors : 0
   const weeklyPercent = weeklyKnownPages > 0 ? Math.min(100, Math.round((weeklySettledPages / weeklyKnownPages) * 100)) : 0
   const weeklyCheckpointsRemaining = weekly ? Math.ceil((weekly.pending + weekly.running) / checkpointLimit) : 0
-  const weeklyEstimatedMinutes = weeklyCheckpointsRemaining * 15
+  const weeklyEstimatedMinutes = weeklyCheckpointsRemaining * checkpointIntervalMinutes
   const weeklyEstimatedRemaining = automationState !== 'weekly'
     ? 'Starts after historical import'
     : !weekly?.startedAt
@@ -103,7 +107,7 @@ export default function TennisRecordAdminPage() {
       </AdminReviewHero>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
-          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}` : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. At the current queue pace: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages every 15 minutes; newly discovered public match pages can extend the queue.` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
+          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}` : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. At the current queue pace: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages every ${checkpointIntervalMinutes} minutes; newly discovered public match pages can extend the queue.${safetyThrottle?.active ? ` Safety pause: ${safetyThrottle.reason} Resume after ${formatDateTime(safetyThrottle.resumesAt)}.` : ''}` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
           <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={weeklyEstimatedRemaining} detail={weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.` : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'} />
         </div>
         <section aria-label="TennisRecord campaign path" style={{ display: 'grid', gap: 12, marginBottom: 18, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
@@ -112,15 +116,17 @@ export default function TennisRecordAdminPage() {
             <span className="subtle-text">The collector advances only after the active queue is clear; no daily action is required.</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12 }}>
-            <CampaignStep label="Now" title={activeCampaign?.region_label || 'Historical campaign'} detail={automationState === 'bootstrap' ? `${status?.pendingPages ?? 0} queued pages · ${checkpointsRemaining} checkpoint${checkpointsRemaining === 1 ? '' : 's'} at current pace` : 'Waiting for historical collection'} tone="active" />
+            <CampaignStep label="Now" title={activeCampaign?.region_label || 'Historical campaign'} detail={automationState === 'bootstrap' ? `${status?.pendingPages ?? 0} queued pages · ${checkpointsRemaining} checkpoint${checkpointsRemaining === 1 ? '' : 's'} at ${checkpointIntervalMinutes}-minute pace` : 'Waiting for historical collection'} tone="active" />
             <CampaignStep label="Next" title={status?.nextCampaign?.region_label || 'Weekly refresh'} detail={status?.nextCampaign ? `${status.nextCampaign.name} starts automatically when the active queue clears.` : 'Starts after historical campaigns are complete.'} />
             <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." />
           </div>
-          <span className="subtle-text">Time remaining reflects the currently known queue at 15-minute checkpoints. The estimate updates automatically as public pages reveal additional eligible matches.</span>
+          <span className="subtle-text">Time remaining reflects the currently known queue at {checkpointIntervalMinutes}-minute checkpoints. The estimate updates automatically as public pages reveal additional eligible matches.</span>
         </section>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
           <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
+          <Metric label="Checkpoint pace" value={`Every ${checkpointIntervalMinutes} min`} />
+          <Metric label="Safety throttle" value={safetyThrottle?.active ? 'Cooling down' : 'Clear'} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />
