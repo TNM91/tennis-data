@@ -42,6 +42,7 @@ type TeamOption = {
 }
 
 type AvailabilityStatus = 'in' | 'out' | 'maybe' | 'unanswered'
+type AvailabilityInboxFilter = 'attention' | 'in-play' | 'all'
 
 type AvailabilityPlayer = {
   id: string
@@ -186,6 +187,7 @@ function CaptainAvailabilityContent() {
   const [error, setError] = useState('')
 
   const [players, setPlayers] = useState<AvailabilityPlayer[]>([])
+  const [availabilityInboxFilter, setAvailabilityInboxFilter] = useState<AvailabilityInboxFilter>('attention')
   const [scheduledMatches, setScheduledMatches] = useState<TeamRosterMatchRow[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [weekLabel, setWeekLabel] = useState(
@@ -691,6 +693,28 @@ function CaptainAvailabilityContent() {
       : counts.in === 0 && counts.out === 0 && counts.maybe === 0
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
+  const attentionPlayerCount = counts.unanswered + counts.maybe
+  const visibleAvailabilityPlayers = useMemo(() => {
+    const statusOrder: Record<AvailabilityStatus, number> = {
+      unanswered: 0,
+      maybe: 1,
+      in: 2,
+      out: 3,
+    }
+
+    return players
+      .filter((player) => (
+        availabilityInboxFilter === 'attention'
+          ? player.status === 'unanswered' || player.status === 'maybe'
+          : availabilityInboxFilter === 'in-play'
+            ? player.status === 'in' || player.status === 'maybe'
+            : true
+      ))
+      .toSorted((left, right) => (
+        statusOrder[left.status] - statusOrder[right.status]
+        || left.name.localeCompare(right.name)
+      ))
+  }, [availabilityInboxFilter, players])
   const availabilityActionCards = useMemo<AvailabilityActionCard[]>(() => {
     const responseValue =
       responseTotal > 0
@@ -1073,6 +1097,14 @@ function CaptainAvailabilityContent() {
                 <Link href={messagingHref} style={sectionCtaSecondary}>
                   Text Team
                 </Link>
+                <button
+                  type="button"
+                  style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }}
+                  onClick={() => void shareAvailabilityRequest()}
+                  disabled={!canShareAvailability}
+                >
+                  Send reminder
+                </button>
                 {selectedTeam ? (
                   <ScheduleMessageComposer
                     mode="captain-practice"
@@ -1101,7 +1133,39 @@ function CaptainAvailabilityContent() {
               </div>
             ) : (
               <div style={playerList}>
-                {players.map((player) => (
+                <div style={availabilityInboxHeaderStyle}>
+                  <div style={availabilityInboxHeaderCopyStyle}>
+                    <span style={availabilityInboxLabelStyle}>Response inbox</span>
+                    <strong style={availabilityInboxTitleStyle}>
+                      {attentionPlayerCount ? `${attentionPlayerCount} need attention` : 'Everyone is accounted for'}
+                    </strong>
+                  </div>
+                  <div style={availabilityInboxFilterRowStyle} role="group" aria-label="Availability inbox filter">
+                    <button
+                      type="button"
+                      style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'attention' ? availabilityInboxFilterActiveStyle : {}) }}
+                      onClick={() => setAvailabilityInboxFilter('attention')}
+                    >
+                      Needs action
+                    </button>
+                    <button
+                      type="button"
+                      style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'in-play' ? availabilityInboxFilterActiveStyle : {}) }}
+                      onClick={() => setAvailabilityInboxFilter('in-play')}
+                    >
+                      In play
+                    </button>
+                    <button
+                      type="button"
+                      style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'all' ? availabilityInboxFilterActiveStyle : {}) }}
+                      onClick={() => setAvailabilityInboxFilter('all')}
+                    >
+                      All
+                    </button>
+                  </div>
+                </div>
+
+                {visibleAvailabilityPlayers.length ? visibleAvailabilityPlayers.map((player) => (
                   <div key={player.id} style={playerRowResponsive(isSmallMobile)}>
                     <div>
                       <div style={playerName}>{player.name}</div>
@@ -1143,7 +1207,15 @@ function CaptainAvailabilityContent() {
                       </button>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div style={availabilityInboxEmptyStyle}>
+                    <strong>Nothing needs attention right now.</strong>
+                    <span>Review the full roster when you are ready to shape the courts.</span>
+                    <button type="button" style={inlineRetryButton} onClick={() => setAvailabilityInboxFilter('all')}>
+                      Show all players
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -1819,6 +1891,80 @@ const playerList: CSSProperties = {
   display: 'grid',
   gap: '12px',
   minWidth: 0,
+}
+
+const availabilityInboxHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: '2px 0 4px',
+}
+
+const availabilityInboxHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const availabilityInboxLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const availabilityInboxTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const availabilityInboxFilterRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const availabilityInboxFilterStyle: CSSProperties = {
+  minHeight: 34,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const availabilityInboxFilterActiveStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+}
+
+const availabilityInboxEmptyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  padding: 15,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const playerRow: CSSProperties = {
