@@ -1311,6 +1311,40 @@ function TeamPageContent() {
     })
   }, [lineMatches, linePlayers, linkedPlayerId, matches, players, team])
 
+  const nextScheduledMatch = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    return matchCards
+      .filter((match) => match.won === null && Boolean(match.match_date) && (match.match_date || '').slice(0, 10) >= today)
+      .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))[0] ?? null
+  }, [matchCards])
+
+  const playedRosterCount = useMemo(
+    () => roster.filter((player) => player.appearances > 0).length,
+    [roster],
+  )
+
+  const teamCourtLead = useMemo(() => {
+    const topPair = pairings.find((pair) => pair.avgRating !== null)
+    if (topPair) {
+      return {
+        label: 'Top doubles read',
+        value: formatRating(topPair.avgRating),
+        detail: topPair.names.join(' / '),
+      }
+    }
+
+    const topSingles = bestSingles.find((player) => player.singles_dynamic_rating !== null)
+    if (topSingles) {
+      return {
+        label: 'Top singles read',
+        value: formatRating(topSingles.singles_dynamic_rating),
+        detail: topSingles.name,
+      }
+    }
+
+    return null
+  }, [bestSingles, pairings])
+
   const captainLinks = [
     {
       question: 'Who is available?',
@@ -1424,6 +1458,10 @@ function TeamPageContent() {
 
   const dynamicSummaryCard: CSSProperties = isMobile ? mobileSummaryCard : summaryCard
   const dynamicSummaryMetricGrid: CSSProperties = isMobile ? mobileSummaryMetricGrid : summaryMetricGrid
+  const dynamicTeamMatchPulseMetricGrid: CSSProperties = {
+    ...teamMatchPulseMetricGridStyle,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+  }
 
   const dynamicListRow: CSSProperties = {
     ...listRow,
@@ -1608,6 +1646,45 @@ function TeamPageContent() {
             <a href="#team-schedule" style={summaryHistoryLinkStyle}>View full match history</a>
           </div>
         </section>
+
+        {nextScheduledMatch || roster.length || teamCourtLead ? (
+          <section style={teamMatchPulseStyle} aria-label="Team match pulse">
+            <div style={teamMatchPulseHeadingStyle}>
+              <div>
+                <p style={sectionKicker}>Match pulse</p>
+                <h2 style={teamMatchPulseTitleStyle}>{nextScheduledMatch ? 'Ready for the next opponent.' : 'Team readiness at a glance.'}</h2>
+              </div>
+              {canManageThisTeam ? <Link href={captainLinks[1].href} style={teamMatchPulseActionStyle}>Open lineup</Link> : null}
+            </div>
+
+            {nextScheduledMatch ? (
+              <a href="#team-schedule" style={teamNextMatchReadStyle}>
+                <span style={teamPulseLabelStyle}>Next up</span>
+                <strong>vs {nextScheduledMatch.opponent || 'Opponent pending'}</strong>
+                <span style={teamPulseDetailStyle}>
+                  {formatCompactDate(nextScheduledMatch.match_date)} · {nextScheduledMatch.venueLabel}
+                </span>
+              </a>
+            ) : null}
+
+            <div style={dynamicTeamMatchPulseMetricGrid}>
+              {roster.length ? (
+                <a href="#team-roster" style={teamPulseMetricStyle}>
+                  <span style={teamPulseLabelStyle}>Roster active</span>
+                  <strong>{playedRosterCount}/{roster.length}</strong>
+                  <span style={teamPulseDetailStyle}>players with a tracked start</span>
+                </a>
+              ) : null}
+              {teamCourtLead ? (
+                <a href="#team-roster" style={teamPulseMetricStyle}>
+                  <span style={teamPulseLabelStyle}>{teamCourtLead.label}</span>
+                  <strong>{teamCourtLead.value}</strong>
+                  <span style={teamPulseDetailStyle}>{teamCourtLead.detail}</span>
+                </a>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         {!canManageThisTeam && !isMobile ? (
           <section style={captainAccessTeaseStyle} aria-label="Captain tools">
@@ -3128,6 +3205,100 @@ const summaryHistoryLinkStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   textDecoration: 'none',
+}
+
+const teamMatchPulseStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '18px',
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(8,13,28,0.84) 56%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const teamMatchPulseHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamMatchPulseTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  fontWeight: 900,
+  letterSpacing: 0,
+  lineHeight: 1.08,
+  overflowWrap: 'anywhere',
+}
+
+const teamMatchPulseActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 38,
+  padding: '8px 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'rgba(155,225,29,0.1)',
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+}
+
+const teamNextMatchReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '13px 14px',
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.25)',
+  background: 'rgba(5,21,28,0.58)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamMatchPulseMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const teamPulseMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '12px 13px',
+  borderRadius: 15,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(8,13,28,0.52)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamPulseLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const teamPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 650,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const captainAccessTeaseStyle: CSSProperties = {

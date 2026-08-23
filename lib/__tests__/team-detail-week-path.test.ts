@@ -26,6 +26,17 @@ describe('team detail week path', () => {
     expect(source).toContain('aria-label={`${item.cta}: ${item.question}`}')
   })
 
+  it('leads the profile with an actionable next-match, roster, and court read', () => {
+    expect(source).toContain('const nextScheduledMatch = useMemo')
+    expect(source).toContain('const playedRosterCount = useMemo')
+    expect(source).toContain('const teamCourtLead = useMemo')
+    expect(source).toContain('aria-label="Team match pulse"')
+    expect(source).toContain('Ready for the next opponent.')
+    expect(source).toContain('players with a tracked start')
+    expect(source).toContain('Top doubles read')
+    expect(source).toContain('Top singles read')
+  })
+
   it('keeps the team week path compact and mobile-safe', () => {
     expect(source).toContain('teamWeekPathStyle(isTablet)')
     expect(styleBlock('teamWeekPathStyle')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
