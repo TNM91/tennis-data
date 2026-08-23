@@ -66,6 +66,7 @@ import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -3241,16 +3242,11 @@ function MyLabPageInner() {
       display: `${formatRating(linkedPlayer?.doubles_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
     },
   ]
-  const scorecardSummaryCards = [
-    { label: 'Recent record', value: recentRecordLabel, note: `${recentDecisionMatches.length} connected decisions` },
-    { label: 'Win rate', value: recentDecisionMatches.length ? `${recentWinRate}%` : 'New', note: lastMatchSummary },
-    {
-      label: 'Matchup read',
-      value: matchupReadLabel,
-      note: topMatchupCandidate ? `${topMatchupCandidate.player.name} - gap ${topMatchupCandidate.gap.toFixed(2)}` : 'Use Matchup to compare',
-    },
-    { label: 'Current focus', value: activeGoal.goal || 'Optional', note: activeGoal.progressUpdate || 'Add a goal only when it helps' },
-  ]
+  const matchIntelligence = buildMatchIntelligenceRead({
+    matches: personalMatches,
+    activeFocus: activeGoal.goal,
+    activeFocusNote: activeGoal.improveNext || activeGoal.progressUpdate,
+  })
   const starterActionCards = [
     {
       title: 'Upload scores',
@@ -3883,21 +3879,43 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
-              <section style={todayReadPanelStyle}>
-                <div style={workshopContextRowStyle}>
-                  <span>Today&apos;s read</span>
-                  <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
-                </div>
-                <div style={todayReadGridStyle(isTablet)}>
-                  {scorecardSummaryCards.map((item) => (
-                    <div key={item.label} style={todayReadCardStyle}>
-                      <div style={metricLabelStyle}>{item.label}</div>
-                      <div style={todayReadValueStyle}>{item.value}</div>
-                      <div style={metricNoteStyle}>{item.note}</div>
+              {canUseAdvancedPlayerInsights ? (
+                <section style={matchIntelligencePanelStyle} aria-label="Match Intelligence">
+                  <div style={matchIntelligenceHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Match Intelligence</p>
+                        <h3 style={compactSectionTitleStyle}>A clearer read on your tennis.</h3>
+                        <p style={sectionTextStyle}>{matchIntelligence.evidenceNote}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open match history</Link>
+                  </div>
+                  <div style={matchIntelligenceGridStyle(isTablet)}>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Rating evidence</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.confidenceLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.confidenceNote}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>{matchIntelligence.patternLabel}</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.record}</div>
+                      <div style={metricNoteStyle}>Last five: {matchIntelligence.pattern}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Singles / doubles</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.courtMixLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.courtMixNote}</div>
+                    </div>
+                    <Link href={MY_LAB_NOTEBOOK_HREF} style={matchIntelligenceFocusCardStyle}>
+                      <div style={metricLabelStyle}>Your next focus</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.focusTitle}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.focusNote}</div>
+                    </Link>
+                  </div>
+                </section>
+              ) : null}
 
               <section style={matchupSpotlightStyle}>
                 <div style={matchupSpotlightHeroStyle(isTablet)}>
@@ -8640,14 +8658,23 @@ const quickProfileValueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const todayReadPanelStyle: CSSProperties = {
+const matchIntelligencePanelStyle: CSSProperties = {
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055))',
   padding: 18,
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchIntelligenceHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -8684,7 +8711,7 @@ const starterCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
+const matchIntelligenceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
     ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
@@ -8693,15 +8720,25 @@ const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const todayReadCardStyle: CSSProperties = {
+const matchIntelligenceCardStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, rgba(116,190,255,0.10) 10%)',
   padding: 12,
   minHeight: 106,
   display: 'grid',
   gap: 6,
   alignContent: 'start',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchIntelligenceFocusCardStyle: CSSProperties = {
+  ...matchIntelligenceCardStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  color: 'inherit',
+  textDecoration: 'none',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
