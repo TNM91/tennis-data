@@ -60,8 +60,14 @@ type LeagueScopeDiagnostic = {
   leagueNames: string[]
 }
 
+type LeagueMatchActivity = 'all' | 'scheduled' | 'results'
+
 function normalizeCompareText(value: string | null | undefined): string {
   return (value || '').trim().toLowerCase()
+}
+
+function isCompletedLeagueMatch(row: LeagueMatchRow) {
+  return Boolean(row.winner_side || cleanText(row.score) || row.status === 'completed')
 }
 
 function buildTeamHref(teamName: string, leagueName: string, flight: string, competitionLayer: string) {
@@ -83,6 +89,7 @@ function buildLeagueScopeHref(
   format = '',
   team = 'all',
   view = 'cards',
+  activity: LeagueMatchActivity = 'all',
 ) {
   const params = new URLSearchParams()
 
@@ -93,6 +100,7 @@ function buildLeagueScopeHref(
   if (format) params.set('format', format)
   if (team !== 'all') params.set('team', team)
   if (view !== 'cards') params.set('view', view)
+  if (activity !== 'all') params.set('activity', activity)
 
   const query = params.toString()
   return `/leagues/${encodeURIComponent(leagueName || 'league')}${query ? `?${query}` : ''}`
@@ -121,6 +129,10 @@ export default function LeagueDetailPage() {
   const [teamFilter, setTeamFilter] = useState(() => searchParams.get('team') || 'all')
   const [teamFilterFocused, setTeamFilterFocused] = useState(false)
   const [standingsView, setStandingsView] = useState<'cards' | 'table'>(() => searchParams.get('view') === 'table' ? 'table' : 'cards')
+  const [matchActivity, setMatchActivity] = useState<LeagueMatchActivity>(() => {
+    const activity = searchParams.get('activity')
+    return activity === 'scheduled' || activity === 'results' ? activity : 'all'
+  })
   const [showAllTeams, setShowAllTeams] = useState(false)
   const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -134,6 +146,7 @@ export default function LeagueDetailPage() {
     formatHint,
     teamFilter,
     standingsView,
+    matchActivity,
   )
 
   useEffect(() => {
@@ -316,7 +329,7 @@ export default function LeagueDetailPage() {
       away.matches += 1
       away.awayMatches += 1
 
-      const isCompleted = Boolean(row.winner_side || cleanText(row.score) || row.status === 'completed')
+      const isCompleted = isCompletedLeagueMatch(row)
       if (isCompleted) {
         home.completedMatches += 1
         away.completedMatches += 1
@@ -371,11 +384,25 @@ export default function LeagueDetailPage() {
       return home === teamFilter || away === teamFilter
     })
   }, [validRows, teamFilter])
+  const scheduledMatches = useMemo(
+    () => filteredMatches.filter((row) => !isCompletedLeagueMatch(row)),
+    [filteredMatches],
+  )
+  const completedMatches = useMemo(
+    () => filteredMatches.filter(isCompletedLeagueMatch),
+    [filteredMatches],
+  )
+  const activityMatches =
+    matchActivity === 'scheduled'
+      ? scheduledMatches
+      : matchActivity === 'results'
+        ? completedMatches
+        : filteredMatches
   const hasActiveTeamFilter = teamFilter !== 'all'
   const standingsPreviewLimit = isMobile ? 6 : 12
   const visibleTeamSummaries = showAllTeams ? teamSummaries : teamSummaries.slice(0, standingsPreviewLimit)
   const matchPreviewLimit = isMobile ? 4 : 8
-  const visibleMatches = showFullMatchHistory ? filteredMatches : filteredMatches.slice(0, matchPreviewLimit)
+  const visibleMatches = showFullMatchHistory ? activityMatches : activityMatches.slice(0, matchPreviewLimit)
   const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
 
   const stats = useMemo(() => {
@@ -1069,7 +1096,7 @@ export default function LeagueDetailPage() {
                     <div style={sectionKicker}>Season Matches</div>
                     <h2 style={sectionTitle}>Match History</h2>
                     <div style={sectionSub}>
-                      Recent results and upcoming dates first. Filter the season when you need a deeper read.
+                      Start with the schedule or finished results, then open the rest of the season when you need it.
                     </div>
                   </div>
 
@@ -1080,7 +1107,10 @@ export default function LeagueDetailPage() {
                     <select
                       id="teamFilter"
                       value={teamFilter}
-                      onChange={(e) => setTeamFilter(e.target.value)}
+                      onChange={(e) => {
+                        setTeamFilter(e.target.value)
+                        setShowFullMatchHistory(false)
+                      }}
                       onFocus={() => setTeamFilterFocused(true)}
                       onBlur={() => setTeamFilterFocused(false)}
                       style={{
@@ -1098,7 +1128,10 @@ export default function LeagueDetailPage() {
                     {hasActiveTeamFilter ? (
                       <button
                         type="button"
-                        onClick={() => setTeamFilter('all')}
+                        onClick={() => {
+                          setTeamFilter('all')
+                          setShowFullMatchHistory(false)
+                        }}
                         style={clearFilterButton}
                       >
                         Clear team filter
@@ -1107,12 +1140,35 @@ export default function LeagueDetailPage() {
                   </div>
                 </div>
 
-                {filteredMatches.length === 0 ? (
+                {isMobile ? (
+                  <div style={leagueMatchActivityFilterStyle} aria-label="League match activity filter">
+                    {([
+                      ['all', 'All ' + filteredMatches.length],
+                      ['scheduled', 'Schedule ' + scheduledMatches.length],
+                      ['results', 'Results ' + completedMatches.length],
+                    ] as const).map(([activity, label]) => (
+                      <button
+                        key={activity}
+                        type="button"
+                        onClick={() => {
+                          setMatchActivity(activity)
+                          setShowFullMatchHistory(false)
+                        }}
+                        style={leagueMatchActivityButtonStyle(matchActivity === activity)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {activityMatches.length === 0 ? (
                   <div style={stateBox}>
-                    No matches matched the selected team filter.
+                    No {matchActivity === 'scheduled' ? 'scheduled matches' : matchActivity === 'results' ? 'results' : 'matches'} matched the selected filters.
                     <div style={stateHelperText}>
-                      Clear the active filter to return to the full season view, or choose another team from the season
-                      summary above.
+                      {hasActiveTeamFilter
+                        ? 'Clear the team filter to return to the full season view.'
+                        : 'Choose another match view to return to the full season activity.'}
                     </div>
                   </div>
                 ) : null}
@@ -1156,7 +1212,7 @@ export default function LeagueDetailPage() {
                     )
                   })}
                 </div>
-                {filteredMatches.length > matchPreviewLimit ? (
+                {activityMatches.length > matchPreviewLimit ? (
                   <div style={leaguePreviewControlRowStyle}>
                     <button
                       type="button"
@@ -1165,7 +1221,7 @@ export default function LeagueDetailPage() {
                     >
                       {showFullMatchHistory
                         ? 'Show recent match preview'
-                        : `Show all ${filteredMatches.length} matches`}
+                        : 'Show all ' + activityMatches.length + ' matches'}
                     </button>
                   </div>
                 ) : null}
@@ -2321,6 +2377,35 @@ const matchList: CSSProperties = {
   flexDirection: 'column',
   gap: '14px',
   minWidth: 0,
+}
+
+const leagueMatchActivityFilterStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  marginBottom: 14,
+  minWidth: 0,
+}
+
+function leagueMatchActivityButtonStyle(active: boolean): CSSProperties {
+  return {
+    minWidth: 0,
+    minHeight: 40,
+    padding: '8px 7px',
+    borderRadius: 14,
+    cursor: 'pointer',
+    color: active ? 'var(--foreground-strong)' : 'var(--shell-copy-muted)',
+    background: active
+      ? 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-bg) 84%)'
+      : 'rgba(8, 13, 28, 0.48)',
+    border: '1px solid ' + (active
+      ? 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)'
+      : 'rgba(125, 211, 252, 0.14)'),
+    fontSize: 12,
+    lineHeight: 1.15,
+    fontWeight: 850,
+    overflowWrap: 'anywhere',
+  }
 }
 
 const matchCard: CSSProperties = {

@@ -10,8 +10,8 @@ describe('league public overview', () => {
     expect(source).toContain('const visibleTeamSummaries = showAllTeams ? teamSummaries : teamSummaries.slice(0, standingsPreviewLimit)')
     expect(source).toContain('Show all ${teamSummaries.length} teams')
     expect(source).toContain('const matchPreviewLimit = isMobile ? 4 : 8')
-    expect(source).toContain('const visibleMatches = showFullMatchHistory ? filteredMatches : filteredMatches.slice(0, matchPreviewLimit)')
-    expect(source).toContain('Show all ${filteredMatches.length} matches')
+    expect(source).toContain('const visibleMatches = showFullMatchHistory ? activityMatches : activityMatches.slice(0, matchPreviewLimit)')
+    expect(source).toContain("'Show all ' + activityMatches.length + ' matches'")
   })
 
   it('keeps Captain-only actions out of the public league path', () => {

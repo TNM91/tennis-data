@@ -56,6 +56,20 @@ describe('league detail table mobile layout guards', () => {
     expect(styleBlock('selectStyle')).not.toContain("outline: 'none'")
   })
 
+  it('keeps league match activity scannable on phones without replacing the team filter', () => {
+    expect(source).toContain("type LeagueMatchActivity = 'all' | 'scheduled' | 'results'")
+    expect(source).toContain('const [matchActivity, setMatchActivity]')
+    expect(source).toContain('const scheduledMatches = useMemo(')
+    expect(source).toContain('const completedMatches = useMemo(')
+    expect(source).toContain('const activityMatches =')
+    expect(source).toContain('aria-label="League match activity filter"')
+    expect(source).toContain("['scheduled', 'Schedule ' + scheduledMatches.length]")
+    expect(source).toContain("['results', 'Results ' + completedMatches.length]")
+    expect(source).toContain('const leagueMatchActivityFilterStyle: CSSProperties')
+    expect(styleBlock('leagueMatchActivityFilterStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(source).toContain('function leagueMatchActivityButtonStyle(active: boolean): CSSProperties')
+  })
+
   it('keeps no-data league detail short and explanation on request', () => {
     expect(source).toContain('const hasLeagueData = validRows.length > 0')
     expect(source).toContain('Show how this league page is checked')
