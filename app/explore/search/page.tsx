@@ -28,6 +28,8 @@ import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-fo
 import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import { useProductAccess } from '@/lib/use-product-access'
+import { MY_LAB_STORY } from '@/lib/product-story'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -173,6 +175,7 @@ export default function ExploreSearchPage() {
 
 function ExploreSearchContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { access, authResolved } = useProductAccess()
 
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
@@ -365,6 +368,8 @@ function ExploreSearchContent() {
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
   const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
+  const shouldOfferPlayerUnlock = authResolved && !access.canUseAdvancedPlayerInsights && Boolean(topPlayerResult)
+  const playerUnlockHref = `/upgrade?plan=player_plus&next=${encodeURIComponent(resumeHref)}&source=explore_search`
   const searchNextActions = [
     {
       label: 'Open profile',
@@ -675,14 +680,23 @@ function ExploreSearchContent() {
                 </ResultGroup>
 
                 <ResultGroup
-                  title="My Lab shortcuts"
-                  count={matchupSuggestions.length}
+                  title={shouldOfferPlayerUnlock ? 'Make it yours' : 'My Lab shortcuts'}
+                  count={shouldOfferPlayerUnlock ? 1 : matchupSuggestions.length}
                   emptyMessage="Once at least two player results match, Player comparison actions show up here."
-                  ctaHref="/mylab"
-                  ctaLabel="Open My Lab"
+                  ctaHref={shouldOfferPlayerUnlock ? playerUnlockHref : '/mylab'}
+                  ctaLabel={shouldOfferPlayerUnlock ? 'See Player plan' : 'Open My Lab'}
                   compact={hasQuery}
                 >
-                  {matchupSuggestions.map((item) => (
+                  {shouldOfferPlayerUnlock ? (
+                    <Link href={playerUnlockHref} style={searchPlayerUnlockCardStyle}>
+                      <span style={searchPlayerUnlockKickerStyle}>Player unlock</span>
+                      <strong style={searchPlayerUnlockTitleStyle}>Turn this search into your tennis.</strong>
+                      <span style={searchPlayerUnlockTextStyle}>
+                        {topPlayerResult?.name ? `${topPlayerResult.name} stays public. ` : ''}{MY_LAB_STORY.upgradeBody}
+                      </span>
+                      <span style={searchPlayerUnlockActionStyle}>{MY_LAB_STORY.upgradeCta}</span>
+                    </Link>
+                  ) : matchupSuggestions.map((item) => (
                     <Link key={item.key} href={item.href} style={getResultCardStyle()}>
                       <div style={resultTitleStyle}>{item.title}</div>
                       <div style={resultMetaStyle}>{item.text}</div>
@@ -1458,6 +1472,56 @@ const searchNextActionsTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 34%, var(--shell-panel-border) 66%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-panel-bg) 87%), var(--shell-panel-bg))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockActionStyle: CSSProperties = {
+  justifySelf: 'start',
+  maxWidth: '100%',
+  borderRadius: 999,
+  padding: '7px 11px',
+  background: 'var(--brand-lime)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 

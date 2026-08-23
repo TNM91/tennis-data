@@ -32,6 +32,16 @@ describe('Explore Search next actions', () => {
     expect(source).not.toContain('Search Player ID starter read')
   })
 
+  it('keeps public player search free while giving free members a clear Player upgrade path', () => {
+    expect(source).toContain('useProductAccess')
+    expect(source).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+    expect(source).toContain("title={shouldOfferPlayerUnlock ? 'Make it yours' : 'My Lab shortcuts'}")
+    expect(source).toContain('Turn this search into your tennis.')
+    expect(source).toContain('MY_LAB_STORY.upgradeBody')
+    expect(source).toContain('MY_LAB_STORY.upgradeCta')
+    expect(source).toContain('playerUnlockHref')
+  })
+
   it('keeps the search next actions compact and mobile-safe', () => {
     expect(styleBlock('searchNextActionsStyle')).toContain('minWidth: 0')
     expect(styleBlock('searchNextActionsStyle')).toContain("overflowWrap: 'anywhere'")
@@ -42,5 +52,7 @@ describe('Explore Search next actions', () => {
     expect(styleBlock('searchNextActionCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('searchNextActionLinkStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('searchNextActionsTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('searchPlayerUnlockCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('searchPlayerUnlockActionStyle')).toContain("whiteSpace: 'normal'")
   })
 })
