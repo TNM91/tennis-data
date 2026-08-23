@@ -8,7 +8,7 @@ import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
-type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number }
+type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null }
 type CoverageSummary = {
@@ -28,6 +28,9 @@ const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
+const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
+const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
+const DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT = 4
 const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
@@ -73,8 +76,23 @@ export function tennisRecordCheckpointForecast(pendingPages: number, runningPage
 }
 
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
-  const transient = /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
+  const transient = isTennisRecordTransientFailure(message)
   return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
+}
+
+export function isTennisRecordTransientFailure(message: string) {
+  return /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
+}
+
+/**
+ * Transport failures get two later, rate-limited attempts after the normal
+ * retry budget. Blocks, malformed pages, and access restrictions remain
+ * terminal and are never requeued by this path.
+ */
+export function tennisRecordDeferredRetryAt(message: string, deferredRetryCount: number, now = Date.now()) {
+  if (!isTennisRecordTransientFailure(message) || deferredRetryCount >= MAX_DEFERRED_TENNISRECORD_RETRIES) return null
+  const delay = DEFERRED_TENNISRECORD_RETRY_DELAYS_MS[deferredRetryCount]
+  return new Date(now + delay).toISOString()
 }
 
 export function isTennisRecordRunStale(startedAt: string, now = Date.now()) {
@@ -295,6 +313,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const runId = run.id as string
   const summary = emptySummary('completed')
   try {
+    summary.transientRetries += await requeueDueDeferredTennisRecordRetries(service, input.campaignId)
     const campaign = input.campaignId
       ? await service.from('tennisrecord_campaigns').select('slug').eq('id', input.campaignId).maybeSingle()
       : { data: null, error: null }
@@ -343,13 +362,18 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       } catch (error) {
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
+        const deferredRetryAt = disposition === 'quarantine'
+          ? tennisRecordDeferredRetryAt(failureReason, job.deferred_retry_count || 0)
+          : null
         if (disposition === 'retry') summary.transientRetries += 1
+        else if (deferredRetryAt) summary.transientRetries += 1
         else summary.sourceFailures += 1
         await service.from('tennisrecord_crawl_queue').update({
           status: disposition === 'retry' ? 'pending' : 'error',
           retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
           failure_reason: failureReason,
           last_error_at: new Date().toISOString(),
+          deferred_retry_at: deferredRetryAt,
         }).eq('id', job.id)
       }
     }
@@ -507,12 +531,44 @@ async function completeActiveTennisRecordCampaign(service: SupabaseClient, activ
 }
 
 async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
-  let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count').eq('status', 'pending')
+  let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
   if (pageKinds.length) query = query.in('page_kind', pageKinds)
   if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
   const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
   if (error) throw new Error(error.message)
   return data as QueueRow | null
+}
+
+async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, campaignId?: string | null) {
+  let dueQuery = service
+    .from('tennisrecord_crawl_queue')
+    .select('id,deferred_retry_count')
+    .eq('status', 'error')
+    .not('deferred_retry_at', 'is', null)
+    .lte('deferred_retry_at', new Date().toISOString())
+    .lt('deferred_retry_count', MAX_DEFERRED_TENNISRECORD_RETRIES)
+    .order('deferred_retry_at')
+    .limit(DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT)
+  if (campaignId) dueQuery = dueQuery.eq('campaign_id', campaignId)
+  const { data: dueRows, error } = await dueQuery
+  if (error) throw new Error(error.message)
+
+  for (const row of dueRows || []) {
+    const { error: updateError } = await service
+      .from('tennisrecord_crawl_queue')
+      .update({
+        status: 'pending',
+        retry_count: 0,
+        deferred_retry_count: (row.deferred_retry_count || 0) + 1,
+        deferred_retry_at: null,
+        failure_reason: 'Deferred transient retry scheduled.',
+      })
+      .eq('id', row.id)
+      .eq('status', 'error')
+    if (updateError) throw new Error(updateError.message)
+  }
+
+  return (dueRows || []).length
 }
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
