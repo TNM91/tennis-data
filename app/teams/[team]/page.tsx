@@ -1654,7 +1654,9 @@ function TeamPageContent() {
                 <p style={sectionKicker}>Match pulse</p>
                 <h2 style={teamMatchPulseTitleStyle}>{nextScheduledMatch ? 'Ready for the next opponent.' : 'Team readiness at a glance.'}</h2>
               </div>
-              {canManageThisTeam ? <Link href={captainLinks[1].href} style={teamMatchPulseActionStyle}>Open lineup</Link> : null}
+              <Link href={canManageThisTeam ? captainLinks[1].href : '/captain'} style={teamMatchPulseActionStyle}>
+                {canManageThisTeam ? 'Open lineup' : 'Explore Captain'}
+              </Link>
             </div>
 
             {nextScheduledMatch ? (
@@ -1683,10 +1685,20 @@ function TeamPageContent() {
                 </a>
               ) : null}
             </div>
+
+            {!canManageThisTeam ? (
+              <Link href="/captain" style={teamPulseCaptainPreviewStyle}>
+                <span style={teamPulseCaptainCopyStyle}>
+                  <span style={teamPulseLabelStyle}>{CAPTAIN_STORY.quickStartKicker}</span>
+                  <strong>Turn this team read into a clear lineup.</strong>
+                </span>
+                <span aria-hidden="true" style={teamPulseCaptainArrowStyle}>→</span>
+              </Link>
+            ) : null}
           </section>
         ) : null}
 
-        {!canManageThisTeam && !isMobile ? (
+        {!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (
           <section style={captainAccessTeaseStyle} aria-label="Captain tools">
             <div style={captainAccessCopyStyle}>
               <p style={sectionKicker}>{CAPTAIN_STORY.eyebrow}</p>
@@ -3251,6 +3263,36 @@ const teamMatchPulseActionStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
+}
+
+const teamPulseCaptainPreviewStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid rgba(88, 163, 255, 0.24)',
+  background: 'rgba(13, 35, 59, 0.62)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+}
+
+const teamPulseCaptainCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  fontSize: 14,
+  lineHeight: 1.3,
+  overflowWrap: 'anywhere',
+}
+
+const teamPulseCaptainArrowStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-lime)',
+  fontSize: 20,
+  fontWeight: 900,
 }
 
 const teamNextMatchReadStyle: CSSProperties = {

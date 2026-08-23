@@ -35,6 +35,9 @@ describe('team detail week path', () => {
     expect(source).toContain('players with a tracked start')
     expect(source).toContain('Top doubles read')
     expect(source).toContain('Top singles read')
+    expect(source).toContain("{canManageThisTeam ? 'Open lineup' : 'Explore Captain'}")
+    expect(source).toContain('Turn this team read into a clear lineup.')
+    expect(source).toContain('teamPulseCaptainPreviewStyle')
   })
 
   it('keeps the team week path compact and mobile-safe', () => {
@@ -64,7 +67,7 @@ describe('team detail week path', () => {
     expect(source).toContain('Team activity')
     expect(source).toContain('results ready to review')
     expect(source).toContain('>Activity</a>')
-    expect(source).toContain('{!canManageThisTeam && !isMobile ? (')
+    expect(source).toContain('{!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (')
   })
 
   it('renders a purpose-built phone roster instead of compressing nine table columns', () => {
