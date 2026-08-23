@@ -124,7 +124,6 @@ type TennisRecordTeamRosterContextRow = {
   team_name: string | null
   player_name: string | null
   canonical_player_id: string | null
-  source_url: string | null
 }
 
 type TennisRecordTeamHistoryRow = {
@@ -138,7 +137,6 @@ type TennisRecordTeamHistoryRow = {
   score_text: string | null
   winner_side: 'A' | 'B' | null
   team_side: 'A' | 'B' | null
-  source_url: string | null
 }
 
 type RosterPlayer = Player & {
@@ -529,14 +527,14 @@ function TeamPageContent() {
 
       const tennisRecordRosterQuery = supabase
         .from('tennisrecord_public_team_roster_context')
-        .select('team_name, player_name, canonical_player_id, source_url')
+        .select('team_name, player_name, canonical_player_id')
         .eq('normalized_team_name', normalizeTeamName(team))
         .order('player_name')
         .limit(100)
 
       let tennisRecordHistoryQuery = supabase
         .from('tennisrecord_public_team_match_history')
-        .select('source_match_key, opponent_team, played_on, league_name, flight, discipline, court_number, score_text, winner_side, team_side, source_url')
+        .select('source_match_key, opponent_team, played_on, league_name, flight, discipline, court_number, score_text, winner_side, team_side')
         .ilike('team_name', team)
         .is('canonical_match_id', null)
         .order('played_on', { ascending: false })
@@ -1548,7 +1546,7 @@ function TeamPageContent() {
                 compact={isMobile}
                 label={roster.length ? 'Roster' : tennisRecordRoster.length ? 'Listed' : 'Roster'}
                 value={String(roster.length || tennisRecordRoster.length)}
-                subtle={roster.length ? 'Players tracked' : tennisRecordRoster.length ? 'Source roster' : 'Not listed'}
+                subtle={roster.length ? 'Players tracked' : tennisRecordRoster.length ? 'Recorded roster' : 'Not listed'}
               />
             </div>
 
@@ -1600,7 +1598,7 @@ function TeamPageContent() {
               <a href="#team-schedule" style={featuredTeamResultStyle}>
                 <span style={sourceHistoryMarkStyle}>•</span>
                 <span style={featuredTeamResultCopyStyle}>
-                  <span style={featuredTeamResultKickerStyle}>Public source history</span>
+                  <span style={featuredTeamResultKickerStyle}>Team activity</span>
                   <strong>{tennisRecordHistory.length} results ready to review</strong>
                 </span>
                 <span style={featuredTeamResultScoreStyle}>View</span>
@@ -1705,7 +1703,7 @@ function TeamPageContent() {
               title="Team data trust"
               body="Team pages combine reviewed Player Rosters, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
               signals={[
-                { label: 'Source', value: tennisRecordHistory.length || tennisRecordRoster.length ? 'Player rosters, scorecards, TIQ entries, and external public context' : 'Player rosters, scorecards, TIQ league entries' },
+                { label: 'Source', value: 'Player rosters, scorecards, and TIQ entries' },
                 { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
                 { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
                 { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
@@ -1743,9 +1741,9 @@ function TeamPageContent() {
           <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-schedule">
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>External public context</p>
-                <h2 style={sectionTitle}>Imported team history</h2>
-                <p style={bodyText}>Public source match evidence that has not yet become a reviewed TenAceIQ scorecard.</p>
+                <p style={sectionKicker}>Team activity</p>
+                <h2 style={sectionTitle}>Recorded match history</h2>
+                <p style={bodyText}>Match results that are still being connected to this team record.</p>
               </div>
               <span style={panelCountPill}>{tennisRecordHistory.length} {tennisRecordHistory.length === 1 ? 'line' : 'lines'}</span>
             </div>
@@ -1763,13 +1761,12 @@ function TeamPageContent() {
                     <div style={dynamicHeroActions}>
                       {match.score_text ? <strong>{match.score_text}</strong> : <span style={mutedText}>Score pending</span>}
                       {won != null ? <span style={won ? badgeGreen : badgeBlue}>{won ? 'Win' : 'Loss'}</span> : null}
-                      {match.source_url ? <a href={match.source_url} target="_blank" rel="noreferrer" style={rosterActionLink}>Source record</a> : null}
                     </div>
                   </div>
                 )
               })}
             </div>
-            {tennisRecordHistory.length > 8 ? <p style={{ ...mutedText, marginTop: 14 }}>Showing the latest 8 source lines while reviewed history catches up.</p> : null}
+            {tennisRecordHistory.length > 8 ? <p style={{ ...mutedText, marginTop: 14 }}>Showing the latest 8 match lines while team history connects.</p> : null}
           </section>
         ) : null}
 
@@ -2517,9 +2514,8 @@ function TeamPageContent() {
                 <div key={`${player.canonical_player_id || 'source'}-${player.player_name}`} style={dynamicListRow}>
                   <div style={listRowCopyStyle}>
                     {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
-                    <div style={mutedText}>External roster listing</div>
+                    <div style={mutedText}>Recorded team listing</div>
                   </div>
-                  {player.source_url ? <a href={player.source_url} target="_blank" rel="noreferrer" style={rosterActionLink}>Source roster</a> : null}
                 </div>
               ))}
             </div>

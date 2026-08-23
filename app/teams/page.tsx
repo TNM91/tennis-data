@@ -203,7 +203,8 @@ export default function TeamsPage() {
           .from('matches')
           .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
           .is('line_number', null)
-          .order('match_date', { ascending: false }),
+          .order('match_date', { ascending: false })
+          .limit(10000),
         supabase
           .from('tennisrecord_public_team_context')
           .select('team_name, league_name, flight, last_seen_at')
@@ -1192,7 +1193,7 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
             {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
           </div>
         </div>
-        <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Public source context' : 'Verified team record'}</span>
+        <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Team context ready' : 'Team record ready'}</span>
       </div>
 
       <div style={teamPulseMainStyle}>
@@ -1336,9 +1337,9 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
         <div style={metricsGrid}>
           {isTennisRecordContext ? (
             <>
-              <Metric label="Source" value="External record" />
-              <Metric label="Context" value="Team / flight" />
-              <Metric label="Last seen" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+              <Metric label="Team context" value="Ready" />
+              <Metric label="Players listed" value={String(getDirectoryPlayerCount(row) || '--')} />
+              <Metric label="Updated" value={formatShortDate(row.mostRecentMatchDate, '--')} />
             </>
           ) : (
             <>
@@ -1351,16 +1352,16 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
         <details style={teamCardTrustDetailsStyle}>
           <summary style={teamCardTrustSummaryStyle}>
             <span>Data check</span>
-            <strong>{isTennisRecordContext ? 'Source context' : row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
+            <strong>{isTennisRecordContext ? 'Team context' : row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
           </summary>
           <div style={teamCardTrustBodyStyle}>
             <TiqTrustStrip
               label={`${row.team} data trust signals`}
               signals={[
-                { label: 'Source', value: isTennisRecordContext ? 'External public context' : 'Scorecards / rosters', tone: 'info' },
+                { label: 'Source', value: isTennisRecordContext ? 'League and flight context' : 'Scorecards / rosters', tone: 'info' },
                 { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
                 { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
-                { label: 'Status', value: isTennisRecordContext ? 'Context only' : 'Reviewable', tone: 'good' },
+                { label: 'Status', value: isTennisRecordContext ? 'Ready to explore' : 'Reviewable', tone: 'good' },
               ]}
               reviewContext={`Team ${row.team}`}
             />
