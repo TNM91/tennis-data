@@ -16,6 +16,10 @@ describe('My Lab premium surface', () => {
   it('keeps the top read tennis-specific and Data Assist aware', () => {
     expect(source).toContain('buildMatchIntelligenceRead')
     expect(source).toContain('Match Intelligence')
+    expect(source).toContain('Rating Journey')
+    expect(source).toContain('buildPlayerRatingJourneyRead')
+    expect(source).toContain(".from('rating_snapshots')")
+    expect(source).toContain(".eq('track', 'tiq')")
     expect(source).toContain('Rating evidence')
     expect(source).toContain('Your next focus')
     expect(source).toContain('canUseAdvancedPlayerInsights ? (')
@@ -50,6 +54,7 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('personalReadGridStyle(isTablet)')
     expect(source).toContain('starterGridStyle(isTablet)')
     expect(source).toContain('matchIntelligenceGridStyle(isTablet)')
+    expect(source).toContain('ratingJourneyGridStyle(isTablet)')
     expect(source).toContain('matchupQueueGridStyle(isTablet)')
     expect(source).toContain('gridTemplateColumns: isTablet')
     expect(source).toContain('minmax(0, 1fr)')
@@ -114,6 +119,7 @@ describe('My Lab premium surface', () => {
       'quickProfileGridStyle',
       'starterGridStyle',
       'matchIntelligenceGridStyle',
+      'ratingJourneyGridStyle',
       'matchupSpotlightHeroStyle',
       'matchupPreviewGridStyle',
       'matchupQueueGridStyle',
@@ -164,6 +170,13 @@ describe('My Lab premium surface', () => {
       'matchIntelligenceHeaderStyle',
       'matchIntelligenceCardStyle',
       'matchIntelligenceFocusCardStyle',
+      'ratingJourneyPanelStyle',
+      'ratingJourneyHeaderStyle',
+      'ratingJourneyCardStyle',
+      'ratingJourneyTrendStyle',
+      'ratingJourneyPlotStyle',
+      'ratingJourneyPlotPointStyle',
+      'ratingJourneyEmptyStyle',
       'matchupSpotlightStyle',
       'matchupQueueCardStyle',
       'matchupQueueCopyStyle',
