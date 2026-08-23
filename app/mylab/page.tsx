@@ -67,6 +67,7 @@ import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
+import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -172,6 +173,8 @@ type PersonalMatchRow = {
   result: 'W' | 'L' | '-'
   opponent: string
 }
+
+const MATCHBOOK_FILTERS: MatchbookFilter[] = ['all', 'singles', 'doubles']
 
 type PersonalParticipantRow = MatchPlayerRow & {
   players?: { id: string; name: string } | { id: string; name: string }[] | null
@@ -906,6 +909,8 @@ function MyLabPageInner() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [personalMatches, setPersonalMatches] = useState<PersonalMatchRow[]>([])
+  const [matchbookFilter, setMatchbookFilter] = useState<MatchbookFilter>('all')
+  const [showFullMatchbook, setShowFullMatchbook] = useState(false)
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
@@ -2660,6 +2665,12 @@ function MyLabPageInner() {
   const recentWinRate = recentDecisionMatches.length ? Math.round((recentWins / recentDecisionMatches.length) * 100) : 0
   const lastMatch = personalMatches[0] || null
   const lastMatchSummary = lastMatch ? `Last: ${lastMatch.result} vs ${compactOpponentLabel(lastMatch.opponent)}` : 'Recent results appear as imports connect.'
+  const filteredMatchbookMatches = useMemo(
+    () => filterMatchbookEntries(personalMatches, matchbookFilter),
+    [matchbookFilter, personalMatches],
+  )
+  const matchbookMatches = filteredMatchbookMatches.slice(0, showFullMatchbook ? 12 : 5)
+  const hasMoreMatchbookMatches = filteredMatchbookMatches.length > matchbookMatches.length
   const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
@@ -3917,6 +3928,92 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
+              {canUseAdvancedPlayerInsights ? (
+                <section id="recent-matches" style={matchbookPanelStyle} aria-label="Player Matchbook">
+                  <div style={matchbookHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="reports" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Your Matchbook</p>
+                        <h3 style={compactSectionTitleStyle}>Results without the clutter.</h3>
+                        <p style={sectionTextStyle}>Scan the score, opponent, and court—then reflect only when a match gives you something useful.</p>
+                      </div>
+                    </div>
+                    <div style={matchbookFilterStyle} aria-label="Matchbook filter">
+                      {MATCHBOOK_FILTERS.map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setMatchbookFilter(filter)
+                            setShowFullMatchbook(false)
+                          }}
+                          style={matchbookFilter === filter ? tabActiveStyle : tabButtonStyle}
+                        >
+                          {getMatchbookFilterLabel(filter)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={matchbookListStyle}>
+                    {matchbookMatches.length ? matchbookMatches.map((match) => {
+                      const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      return (
+                        <article key={match.id} style={matchbookRowStyle(isTablet)}>
+                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                            {match.result}
+                          </span>
+                          <div style={matchbookCopyStyle}>
+                            <div style={matchbookDateStyle}>{[safeDate(match.date), match.matchType || 'Match'].filter(Boolean).join(' · ')}</div>
+                            <div style={matchbookOpponentStyle}>
+                              <strong>vs {compactOpponentLabel(match.opponent)}</strong>
+                              <span>{[match.leagueName, match.score].filter(Boolean).join(' · ') || 'Score pending'}</span>
+                            </div>
+                          </div>
+                          <div style={matchbookActionStyle(isTablet)}>
+                            {existingReport ? (
+                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
+                                context={{
+                                  surface: 'mylab_matchbook',
+                                  linkedPlayerId: profileLink?.linked_player_id || '',
+                                  leagueName: match.leagueName || '',
+                                  matchType: match.matchType || '',
+                                  matchDate: match.date || '',
+                                  opponent: match.opponent,
+                                  result: match.result,
+                                }}
+                                onSubmitted={() => void refreshMyMatchReports()}
+                              />
+                            )}
+                            <button type="button" onClick={() => reflectOnMatch(match)} style={matchReflectButtonStyle}>Reflect</button>
+                          </div>
+                        </article>
+                      )
+                    }) : (
+                      <div style={emptyStateStyle}>
+                        {personalMatches.length
+                          ? `No ${getMatchbookFilterLabel(matchbookFilter).toLowerCase()} are connected yet.`
+                          : `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.`}
+                      </div>
+                    )}
+                  </div>
+                  {hasMoreMatchbookMatches ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(true)} style={matchbookMoreButtonStyle}>
+                      Show {Math.min(7, filteredMatchbookMatches.length - matchbookMatches.length)} more matches
+                    </button>
+                  ) : showFullMatchbook && filteredMatchbookMatches.length > 5 ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(false)} style={matchbookMoreButtonStyle}>Show fewer matches</button>
+                  ) : null}
+                </section>
+              ) : null}
+
               <section style={matchupSpotlightStyle}>
                 <div style={matchupSpotlightHeroStyle(isTablet)}>
                   <div style={sectionTitleClusterStyle}>
@@ -4425,64 +4522,6 @@ function MyLabPageInner() {
             </section>
 
             <div style={workshopGridStyle(isTablet)}>
-              <div id="recent-matches" style={workshopPanelStyle}>
-                <div style={sectionKickerStyle}>Recent matches</div>
-                <div style={workshopListStyle}>
-                  {personalMatches.length ? (
-                    personalMatches.slice(0, 5).map((match) => {
-                      const existingReport = myMatchReportByMatchId.get(match.id) || null
-                      return (
-                        <div key={match.id} style={workshopMatchRowStyle}>
-                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
-                            {match.result}
-                          </span>
-                          <div style={workshopRowCopyStyle}>
-                            <div style={workshopRowTitleStyle}>{match.opponent}</div>
-                            <div style={workshopRowMetaStyle}>
-                              {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
-                            </div>
-                          </div>
-                          <div style={matchActionStackStyle}>
-                            {existingReport ? (
-                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
-                                {getReportStatusLabel(existingReport.status)}
-                              </span>
-                            ) : (
-                              <MatchAccuracyReportButton
-                                matchId={match.id}
-                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
-                                context={{
-                                  surface: 'mylab_recent_matches',
-                                  linkedPlayerId: profileLink?.linked_player_id || '',
-                                  leagueName: match.leagueName || '',
-                                  matchType: match.matchType || '',
-                                  matchDate: match.date || '',
-                                  opponent: match.opponent,
-                                  result: match.result,
-                                }}
-                                onSubmitted={() => void refreshMyMatchReports()}
-                              />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => reflectOnMatch(match)}
-                              style={matchReflectButtonStyle}
-                            >
-                              Reflect
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    <div style={emptyStateStyle}>
-                      {isProfileConfirmed ? `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.` : 'Set up your profile to unlock your personal match history.'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
               <div id="match-report-status" style={workshopPanelStyle}>
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
@@ -8743,6 +8782,104 @@ const matchIntelligenceFocusCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const matchbookPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+  padding: 18,
+  display: 'grid',
+  gap: 12,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchbookHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookFilterStyle: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchbookRowStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'minmax(0, auto) minmax(0, 1fr)'
+    : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+})
+
+const matchbookCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookDateStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchbookOpponentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookActionStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'flex',
+  gridColumn: isTablet ? '1 / -1' : undefined,
+  justifyContent: isTablet ? 'flex-start' : 'flex-end',
+  alignItems: 'center',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+})
+
+const matchbookMoreButtonStyle: CSSProperties = {
+  justifySelf: 'start',
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const todayReadValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.12rem',
@@ -9863,27 +10000,6 @@ const goalEditorStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
-  minWidth: 0,
-}
-
-const workshopMatchRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
-  gap: 10,
-  alignItems: 'center',
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '10px 12px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const matchActionStackStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'flex-end',
-  gap: 8,
   minWidth: 0,
 }
 
