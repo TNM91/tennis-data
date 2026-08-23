@@ -24,15 +24,15 @@ describe('match accuracy report button', () => {
     expect(componentSource).toContain('onSubmitted?.()')
   })
 
-  it('appears on My Lab linked-player recent matches with match context', () => {
+  it('appears on the private My Lab Matchbook with match context', () => {
     expect(mylabSource).toContain("import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'")
     expect(mylabSource).toContain('<MatchAccuracyReportButton')
-    expect(mylabSource).toContain("surface: 'mylab_recent_matches'")
+    expect(mylabSource).toContain("surface: 'mylab_matchbook'")
     expect(mylabSource).toContain("linkedPlayerId: profileLink?.linked_player_id || ''")
     expect(mylabSource).toContain('reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || \'\'}')
     expect(mylabSource).toContain('myMatchReportByMatchId.get(match.id)')
     expect(mylabSource).toContain('onSubmitted={() => void refreshMyMatchReports()}')
-    expect(mylabSource).toContain('const matchActionStackStyle')
+    expect(mylabSource).toContain('const matchbookActionStyle')
   })
 
   it('appears on the signed-in player profile match history without widening the table', () => {
