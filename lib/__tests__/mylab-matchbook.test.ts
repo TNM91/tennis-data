@@ -18,6 +18,8 @@ describe('My Lab Matchbook', () => {
     expect(source).toContain('filterMatchbookEntries(personalMatches, matchbookFilter)')
     expect(source).toContain('MATCHBOOK_FILTERS.map')
     expect(source).toContain("surface: 'mylab_matchbook'")
+    expect(source).toContain('followMatchOpponents(match)')
+    expect(source).toContain('Watch opponent')
     expect(source).toContain('Show fewer matches')
     expect(source).toContain('canUseAdvancedPlayerInsights ? (')
   })
@@ -37,6 +39,8 @@ describe('My Lab Matchbook', () => {
       'matchbookCopyStyle',
       'matchbookOpponentStyle',
       'matchbookActionStyle',
+      'matchbookWatchButtonStyle',
+      'matchbookWatchDoneButtonStyle',
       'matchbookMoreButtonStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
@@ -46,5 +50,6 @@ describe('My Lab Matchbook', () => {
     expect(styleBlock('matchbookRowStyle')).toContain("'minmax(0, auto) minmax(0, 1fr)'")
     expect(styleBlock('matchbookActionStyle')).toContain("gridColumn: isTablet ? '1 / -1' : undefined")
     expect(styleBlock('matchbookMoreButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('matchbookWatchButtonStyle')).toContain("whiteSpace: 'normal'")
   })
 })

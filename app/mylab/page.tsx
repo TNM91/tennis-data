@@ -173,6 +173,7 @@ type PersonalMatchRow = {
   score: string | null
   result: 'W' | 'L' | '-'
   opponent: string
+  opponents: Array<{ id: string; name: string }>
 }
 
 type RatingSnapshotRow = RatingJourneySnapshot
@@ -1380,7 +1381,10 @@ function MyLabPageInner() {
               .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
               .map((participant) => {
                 const player = Array.isArray(participant.players) ? participant.players[0] : participant.players
-                return player?.name || 'Player'
+                return {
+                  id: participant.player_id,
+                  name: player?.name || 'Player',
+                }
               })
             const result =
               playerSide && match.winner_side
@@ -1396,7 +1400,8 @@ function MyLabPageInner() {
               matchType: match.match_type,
               score: match.score,
               result,
-              opponent: opponents.join(' / ') || 'Opponent',
+              opponent: opponents.map((opponent) => opponent.name).join(' / ') || 'Opponent',
+              opponents,
             }
           }),
         )
@@ -2547,6 +2552,23 @@ function MyLabPageInner() {
         ),
     )
     await persistFollows(next)
+  }
+
+  async function followMatchOpponents(match: PersonalMatchRow) {
+    const newOpponentFollows = match.opponents
+      .filter((opponent) => opponent.id && !followContainsEntity(follows, 'player', opponent.id))
+      .map((opponent) => ({
+        id: `player-${opponent.id}`,
+        entity_type: 'player' as const,
+        entity_id: opponent.id,
+        entity_name: opponent.name,
+        subtitle: [match.leagueName, match.matchType].filter(Boolean).join(' · ') || 'Recent opponent',
+        created_at: new Date().toISOString(),
+      }))
+
+    if (!newOpponentFollows.length) return
+
+    await persistFollows([...newOpponentFollows, ...follows])
   }
 
   function persistGoalList(nextGoals: LabGoalState[], nextActiveGoalId = activeGoalId, label = 'Saved just now') {
@@ -4064,6 +4086,10 @@ function MyLabPageInner() {
                   <div style={matchbookListStyle}>
                     {matchbookMatches.length ? matchbookMatches.map((match) => {
                       const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      const watchableOpponents = match.opponents.filter((opponent) => Boolean(opponent.id))
+                      const opponentsAlreadyFollowed = watchableOpponents.length > 0 && watchableOpponents.every(
+                        (opponent) => followContainsEntity(follows, 'player', opponent.id),
+                      )
                       return (
                         <article key={match.id} style={matchbookRowStyle(isTablet)}>
                           <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
@@ -4098,6 +4124,20 @@ function MyLabPageInner() {
                                 onSubmitted={() => void refreshMyMatchReports()}
                               />
                             )}
+                            {watchableOpponents.length ? (
+                              <button
+                                type="button"
+                                onClick={() => void followMatchOpponents(match)}
+                                disabled={opponentsAlreadyFollowed}
+                                style={opponentsAlreadyFollowed ? matchbookWatchDoneButtonStyle : matchbookWatchButtonStyle}
+                              >
+                                {opponentsAlreadyFollowed
+                                  ? 'Watching'
+                                  : watchableOpponents.length === 1
+                                    ? 'Watch opponent'
+                                    : 'Watch opponents'}
+                              </button>
+                            ) : null}
                             <button type="button" onClick={() => reflectOnMatch(match)} style={matchReflectButtonStyle}>Reflect</button>
                           </div>
                         </article>
@@ -9104,6 +9144,32 @@ const matchbookActionStyle = (isTablet: boolean): CSSProperties => ({
   flexWrap: 'wrap',
   minWidth: 0,
 })
+
+const matchbookWatchButtonStyle: CSSProperties = {
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookWatchDoneButtonStyle: CSSProperties = {
+  ...matchbookWatchButtonStyle,
+  minWidth: 0,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  cursor: 'default',
+}
 
 const matchbookMoreButtonStyle: CSSProperties = {
   justifySelf: 'start',
