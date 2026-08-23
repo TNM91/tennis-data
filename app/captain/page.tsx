@@ -16437,19 +16437,21 @@ function CaptainHubContent() {
   const captainMobileMatchPocketLinks = captainMatchDayPocketLinks.filter((handoff) => handoff.href)
   const captainMobileTeamPulse = [
     {
-      label: 'Team lines',
-      value: quickStats.matches ? `${quickStats.wins}–${quickStats.losses}` : 'Building',
-      detail: quickStats.matches ? `${quickStats.matches} reviewed` : 'Match data',
+      label: 'Next up',
+      value: nextMatch ? weekAtGlance.opponentLabel : 'Set match',
+      detail: nextMatch ? weekAtGlance.eventDateLabel : 'Opponent + date',
     },
     {
-      label: 'Replies',
+      label: 'Availability',
       value: captainAvailabilityPendingCount > 0 ? `${captainAvailabilityPendingCount} open` : captainAvailabilityHasReplies ? 'Clear' : 'Not asked',
       detail: captainAvailabilityInvitedCount ? `${captainAvailabilityAnsweredCount}/${captainAvailabilityInvitedCount} answered` : 'Availability',
     },
     {
-      label: 'Lineup',
-      value: workspaceState.lineupReady ? `${workspaceState.lineupCount} courts` : 'Draft',
-      detail: workspaceState.lineupReady ? 'Saved for week' : 'Build next',
+      label: 'Lineup confidence',
+      value: workspaceState.lineupReady ? `${captainCourtConfidencePercent}%` : 'Draft',
+      detail: workspaceState.lineupReady
+        ? `${captainCourtSolidCount} solid${captainCourtWatchCount ? ` · ${captainCourtWatchCount} watch` : ''}`
+        : 'Build courts',
     },
   ]
 
