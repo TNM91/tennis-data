@@ -1077,6 +1077,7 @@ function PlayerProfileContent() {
   const primaryTeamHref = primaryUstaMembership
     ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
     : null
+  const hasTeamProfileContext = Boolean(primaryTeamHref) || tiqParticipations.length > 0
   const isRosterOnlyProfile = totalMatches === 0 && ustaTeamMemberships.length > 0
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const trackedRecordLabel = hasTrackedMatches ? `${wins}-${losses}` : '--'
@@ -1589,7 +1590,7 @@ function PlayerProfileContent() {
           <a href="#profile-rating-journey">Rating</a>
           <a href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}>{isPublicExplorerProfile ? 'Stats' : 'Matches'}</a>
           {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
-          <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link>
+          {hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}
         </nav>
 
         <article id="profile-overview" className={profileStory.storyHero} data-public-profile={isPublicExplorerProfile}>
