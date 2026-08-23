@@ -71,6 +71,11 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain(".storyHero[data-public-profile='true'] .storyContent")
   })
 
+  it('keeps the phone section rail focused when no team context exists', () => {
+    expect(page).toContain('const hasTeamProfileContext = Boolean(primaryTeamHref) || tiqParticipations.length > 0')
+    expect(page).toContain("{hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}")
+  })
+
   it('puts verified visual stats on the public profile before deeper reads', () => {
     expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
     expect(page).toContain("{isPublicExplorerProfile ? 'Stats' : 'Matches'}")
