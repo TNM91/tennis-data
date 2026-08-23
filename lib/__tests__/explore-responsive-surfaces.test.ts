@@ -183,6 +183,8 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(exploreSearchSource, 'searchNextActionsGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
     expect(styleBlock(exploreSearchSource, 'searchNextActionCardStyle')).toContain('minWidth: 0')
     expect(styleBlock(exploreSearchSource, 'searchNextActionLinkStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(exploreSearchSource, 'searchPlayerUnlockCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSearchSource, 'searchPlayerUnlockActionStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(exploreSearchSource, 'filterJumpStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(exploreSearchSource, 'watermarkStyle')).toContain('right: 0')
     expect(styleBlock(exploreSearchSource, 'watermarkStyle')).not.toContain("right: '-86px'")
