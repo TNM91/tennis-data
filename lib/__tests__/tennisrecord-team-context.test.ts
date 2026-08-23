@@ -28,6 +28,6 @@ describe('TennisRecord public team context', () => {
     expect(leagueSummary).not.toContain('recalculateRatings')
     expect(teamDetail).toContain("from('tennisrecord_public_team_context')")
     expect(exploreSearch).toContain("from('tennisrecord_public_team_context')")
-    expect(exploreSearch).toContain('External public context')
+    expect(exploreSearch).toContain('Team context ready')
   })
 })

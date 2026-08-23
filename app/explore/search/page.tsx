@@ -722,7 +722,7 @@ function ExploreSearchContent() {
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{team.team}</div>
                           <div style={resultMetaStyle}>
-                            {[team.league, team.flight, team.source === 'tennisrecord' ? 'External public context' : `${team.matchCount} matches`].filter(Boolean).join(' - ')}
+                            {[team.league, team.flight, team.source === 'tennisrecord' ? 'Team context ready' : `${team.matchCount} matches`].filter(Boolean).join(' - ')}
                           </div>
                         </div>
                         <span style={miniBadgeBlue}>{formatCompactDate(team.latestMatchDate)}</span>
