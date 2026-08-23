@@ -6,6 +6,7 @@ import {
   getRecencyWeight,
   getProvisionalkMultiplier,
   applyInactivityDecay,
+  applyVerifiedBaselineGuard,
   getNextRatingThreshold,
   getPreviousRatingThreshold,
   getRatingProgressToNextLevel,
@@ -28,6 +29,10 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
     overallBase: 3.5,
     overallDynamic: 3.5,
     overallUstaDynamic: 3.5,
+    hasVerifiedUstaBaseline: false,
+    singlesTrustedMatches: 0,
+    doublesTrustedMatches: 0,
+    overallTrustedMatches: 0,
     matchesProcessed: 50,
     lastMatchDate: null,
     ...overrides,
@@ -83,6 +88,44 @@ describe('recalculateDynamicRatings pagination', () => {
     expect(result.playerCount).toBe(1001)
     expect(calls.players).toEqual([[0, 999], [1000, 1999]])
     expect(calls.match_players).toEqual([[0, 999], [1000, 1999]])
+  })
+
+  it('keeps a verified player at the official floor when a result has provisional counterparties', async () => {
+    const rows = {
+      players: [
+        { id: 'michael', name: 'Michael', singles_rating: 4, doubles_rating: 4, overall_rating: 4, rating_source: 'verified', is_external_provisional: false },
+        { id: 'partner', name: 'Partner', singles_rating: 3.5, doubles_rating: 3.5, overall_rating: 3.5, rating_source: 'self', is_external_provisional: true },
+        { id: 'opponent-1', name: 'Opponent 1', singles_rating: 3.5, doubles_rating: 3.5, overall_rating: 3.5, rating_source: 'self', is_external_provisional: true },
+        { id: 'opponent-2', name: 'Opponent 2', singles_rating: 3.5, doubles_rating: 3.5, overall_rating: 3.5, rating_source: 'self', is_external_provisional: true },
+      ],
+      matches: [{ id: 'match-1', match_date: '2026-08-10', match_type: 'doubles', score: '3-6 5-7', winner_side: 'B', match_source: 'usta', rating_eligible: true }],
+      match_players: [
+        { match_id: 'match-1', player_id: 'michael', side: 'A', seat: 1 },
+        { match_id: 'match-1', player_id: 'partner', side: 'A', seat: 2 },
+        { match_id: 'match-1', player_id: 'opponent-1', side: 'B', seat: 1 },
+        { match_id: 'match-1', player_id: 'opponent-2', side: 'B', seat: 2 },
+      ],
+    }
+
+    const client = {
+      from(table: keyof typeof rows) {
+        const builder = {
+          select: () => builder,
+          not: () => builder,
+          eq: () => builder,
+          order: () => builder,
+          range: (from: number, to: number) => Promise.resolve({ data: rows[table].slice(from, to + 1), error: null }),
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const michael = result.players.find((player) => player.id === 'michael')
+
+    expect(michael?.doublesDynamic).toBe(4)
+    expect(michael?.overallDynamic).toBe(4)
+    expect(michael?.doublesTrustedMatches).toBe(0)
   })
 })
 
@@ -322,6 +365,65 @@ describe('applyInactivityDecay', () => {
     applyInactivityDecay([p1].values(), NOW)
     applyInactivityDecay([p2].values(), NOW)
     expect(p2.singlesDynamic).toBe(p1.singlesDynamic)
+  })
+})
+
+describe('applyVerifiedBaselineGuard', () => {
+  it('holds a verified baseline while the opponent graph is still provisional', () => {
+    const player = makePlayer({
+      singlesBase: 4.0,
+      singlesDynamic: 3.96,
+      singlesUstaDynamic: 3.96,
+      doublesBase: 4.0,
+      doublesDynamic: 3.711,
+      doublesUstaDynamic: 3.716,
+      overallBase: 4.0,
+      overallDynamic: 3.845,
+      overallUstaDynamic: 3.847,
+      hasVerifiedUstaBaseline: true,
+      singlesTrustedMatches: 1,
+      doublesTrustedMatches: 2,
+      overallTrustedMatches: 2,
+    })
+
+    applyVerifiedBaselineGuard([player])
+
+    expect(player.singlesDynamic).toBe(4.0)
+    expect(player.doublesDynamic).toBe(4.0)
+    expect(player.overallDynamic).toBe(4.0)
+    expect(player.overallUstaDynamic).toBe(4.0)
+  })
+
+  it('allows a supported below-baseline signal after eight fully verified matches', () => {
+    const player = makePlayer({
+      doublesBase: 4.0,
+      doublesDynamic: 3.92,
+      doublesUstaDynamic: 3.92,
+      overallBase: 4.0,
+      overallDynamic: 3.94,
+      overallUstaDynamic: 3.94,
+      hasVerifiedUstaBaseline: true,
+      doublesTrustedMatches: 8,
+      overallTrustedMatches: 8,
+    })
+
+    applyVerifiedBaselineGuard([player])
+
+    expect(player.doublesDynamic).toBe(3.92)
+    expect(player.overallDynamic).toBe(3.94)
+  })
+
+  it('does not manufacture an official floor for an external provisional player', () => {
+    const player = makePlayer({
+      overallBase: 3.5,
+      overallDynamic: 3.3,
+      overallUstaDynamic: 3.3,
+      hasVerifiedUstaBaseline: false,
+    })
+
+    applyVerifiedBaselineGuard([player])
+
+    expect(player.overallDynamic).toBe(3.3)
   })
 })
 

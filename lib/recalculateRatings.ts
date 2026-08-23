@@ -13,6 +13,9 @@ type PlayerRow = {
   doubles_dynamic_rating: number | null
   overall_rating: number | null
   overall_dynamic_rating: number | null
+  rating_source?: string | null
+  is_external_provisional?: boolean | null
+  usta_base_updated_at?: string | null
 }
 
 type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
@@ -47,6 +50,10 @@ export type WorkingPlayer = {
   overallBase: number
   overallDynamic: number
   overallUstaDynamic: number
+  hasVerifiedUstaBaseline: boolean
+  singlesTrustedMatches: number
+  doublesTrustedMatches: number
+  overallTrustedMatches: number
   matchesProcessed: number
   lastMatchDate: string | null
 }
@@ -110,6 +117,11 @@ const MAX_RATING = 7.0
 const K_SINGLES = 0.12
 const K_DOUBLES = 0.107
 const K_OVERALL = 0.052
+
+// A verified USTA level is the reliable starting point for bump / stay / down
+// guidance. Do not create a below-baseline signal until the player has enough
+// results in a fully verified participant graph to support it.
+const MIN_TRUSTED_MATCHES_FOR_DOWNSIDE = 8
 
 const RATING_DIVISOR = 0.45
 const MAX_MULTIPLIER = 2.02
@@ -182,6 +194,10 @@ export async function recalculateDynamicRatings(
           overallBase,
           overallDynamic: overallBase,
           overallUstaDynamic: overallBase,
+          hasVerifiedUstaBaseline: hasVerifiedUstaBaseline(player),
+          singlesTrustedMatches: 0,
+          doublesTrustedMatches: 0,
+          overallTrustedMatches: 0,
           matchesProcessed: 0,
           lastMatchDate: null,
         },
@@ -232,6 +248,7 @@ export async function recalculateDynamicRatings(
       }
 
       processSinglesMatch(match, playerA, playerB, snapshotRows, recencyWeight)
+      registerTrustedMatchContext([playerA, playerB], 'singles')
       continue
     }
 
@@ -255,6 +272,7 @@ export async function recalculateDynamicRatings(
       }
 
       processDoublesMatch(match, teamA, teamB, snapshotRows, recencyWeight)
+      registerTrustedMatchContext([...teamA, ...teamB], 'doubles')
     }
   }
 
@@ -262,6 +280,7 @@ export async function recalculateDynamicRatings(
   // (processing loop ran above)
 
   onPhase?.('finalizing')
+  applyVerifiedBaselineGuard(playersById.values())
   applyInactivityDecay(playersById.values())
 
   const recalculatedPlayers = [...playersById.values()]
@@ -350,7 +369,10 @@ async function fetchPlayers(client: SupabaseClient): Promise<PlayerRow[]> {
         doubles_rating,
         doubles_dynamic_rating,
         overall_rating,
-        overall_dynamic_rating
+        overall_dynamic_rating,
+        rating_source,
+        is_external_provisional,
+        usta_base_updated_at
       `)
       .order('id', { ascending: true })
       .range(start, start + DATABASE_PAGE_SIZE - 1)
@@ -1009,6 +1031,46 @@ export function getRecencyWeight(matchDate: string, mostRecentMatchDate: string)
 function registerDelta(player: WorkingPlayer, matchDate: string) {
   player.matchesProcessed += 1
   player.lastMatchDate = matchDate
+}
+
+function hasVerifiedUstaBaseline(player: PlayerRow) {
+  if (player.is_external_provisional) return false
+  return player.rating_source === 'verified' || Boolean(player.usta_base_updated_at)
+}
+
+function registerTrustedMatchContext(players: WorkingPlayer[], matchType: MatchType) {
+  if (!players.every((player) => player.hasVerifiedUstaBaseline)) return
+
+  for (const player of players) {
+    player.overallTrustedMatches += 1
+    if (matchType === 'singles') player.singlesTrustedMatches += 1
+    if (matchType === 'doubles') player.doublesTrustedMatches += 1
+  }
+}
+
+/**
+ * Provisional external profiles commonly begin at the neutral default while
+ * their official roster level is still unknown. Preserve an established,
+ * verified USTA baseline until enough fully verified match context supports a
+ * genuine down signal. Positive movement remains available immediately.
+ */
+export function applyVerifiedBaselineGuard(players: Iterable<WorkingPlayer>) {
+  for (const player of players) {
+    if (!player.hasVerifiedUstaBaseline) continue
+
+    if (player.singlesTrustedMatches < MIN_TRUSTED_MATCHES_FOR_DOWNSIDE) {
+      player.singlesDynamic = Math.max(player.singlesDynamic, player.singlesBase)
+      player.singlesUstaDynamic = Math.max(player.singlesUstaDynamic, player.singlesBase)
+    }
+    if (player.doublesTrustedMatches < MIN_TRUSTED_MATCHES_FOR_DOWNSIDE) {
+      player.doublesDynamic = Math.max(player.doublesDynamic, player.doublesBase)
+      player.doublesUstaDynamic = Math.max(player.doublesUstaDynamic, player.doublesBase)
+    }
+    if (player.overallTrustedMatches < MIN_TRUSTED_MATCHES_FOR_DOWNSIDE) {
+      player.overallDynamic = Math.max(player.overallDynamic, player.overallBase)
+      player.overallUstaDynamic = Math.max(player.overallUstaDynamic, player.overallBase)
+    }
+  }
 }
 
 export function applyInactivityDecay(players: IterableIterator<WorkingPlayer>, now = Date.now()) {
