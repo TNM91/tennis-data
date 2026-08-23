@@ -273,6 +273,18 @@ describe('TennisRecord ingestion safety', () => {
       started_at: '2026-08-23T11:56:00.000Z',
       completed_at: '2026-08-23T11:59:30.000Z',
     }, now)).toMatchObject({ active: true, reason: 'The latest checkpoint ran longer than expected.' })
+    expect(tennisRecordCadenceSafetyStatus({
+      completed_at: '2026-08-23T11:59:00.000Z',
+      transient_retries: 4,
+    }, now)).toEqual({
+      active: true,
+      reason: 'The latest checkpoint needed repeated temporary source retries.',
+      resumesAt: '2026-08-23T12:14:00.000Z',
+    })
+    expect(tennisRecordCadenceSafetyStatus({
+      completed_at: '2026-08-23T11:59:00.000Z',
+      transient_retries: 4,
+    }, Date.parse('2026-08-23T12:14:00.000Z'))).toEqual({ active: false, reason: null, resumesAt: null })
     expect(tennisRecordCadenceSafetyStatus({ completed_at: '2026-08-23T11:59:00.000Z' }, now)).toEqual({ active: false, reason: null, resumesAt: null })
   })
 
