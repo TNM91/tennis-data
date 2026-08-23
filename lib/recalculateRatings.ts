@@ -115,6 +115,7 @@ const RATING_DIVISOR = 0.45
 const MAX_MULTIPLIER = 2.02
 const MIN_MULTIPLIER = 0.82
 const GAME_SHARE_DIVISOR = 1.6
+const DATABASE_PAGE_SIZE = 1000
 
 const RATING_BANDS = [
   1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
@@ -130,10 +131,27 @@ export type RecalcPhase =
   | 'saving-snapshots'
   | 'done'
 
+export type RatingRecalculationOptions = {
+  /**
+   * Calculate the full cohort without changing player ratings or snapshots.
+   * This is intended for admin-safe audits before a production rerun.
+   */
+  dryRun?: boolean
+}
+
+export type RatingRecalculationResult = {
+  dryRun: boolean
+  playerCount: number
+  eligibleMatchCount: number
+  snapshotCount: number
+  players: WorkingPlayer[]
+}
+
 export async function recalculateDynamicRatings(
   onPhase?: (phase: RecalcPhase, detail?: string) => void,
   client: SupabaseClient = supabase,
-) {
+  options: RatingRecalculationOptions = {},
+): Promise<RatingRecalculationResult> {
   onPhase?.('fetching-players')
   const players = await fetchPlayers(client)
   onPhase?.('fetching-matches')
@@ -246,13 +264,25 @@ export async function recalculateDynamicRatings(
   onPhase?.('finalizing')
   applyInactivityDecay(playersById.values())
 
-  onPhase?.('saving-ratings', `${players.length} players`)
-  await persistPlayerRatings([...playersById.values()], client)
+  const recalculatedPlayers = [...playersById.values()]
 
-  onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-  await replaceRatingSnapshots(snapshotRows, client)
+  if (!options.dryRun) {
+    onPhase?.('saving-ratings', `${players.length} players`)
+    await persistPlayerRatings(recalculatedPlayers, client)
+
+    onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
+    await replaceRatingSnapshots(snapshotRows, client)
+  }
 
   onPhase?.('done')
+
+  return {
+    dryRun: Boolean(options.dryRun),
+    playerCount: players.length,
+    eligibleMatchCount: matches.length,
+    snapshotCount: snapshotRows.length,
+    players: recalculatedPlayers,
+  }
 }
 
 export function getNextRatingThreshold(currentRating: number): number {
@@ -308,67 +338,82 @@ export function projectDoublesTeamWinProbability(
 }
 
 async function fetchPlayers(client: SupabaseClient): Promise<PlayerRow[]> {
-  const { data, error } = await client
-    .from('players')
-    .select(`
-      id,
-      name,
-      singles_rating,
-      singles_dynamic_rating,
-      doubles_rating,
-      doubles_dynamic_rating,
-      overall_rating,
-      overall_dynamic_rating
-    `)
+  const rows: PlayerRow[] = []
+  for (let start = 0; ; start += DATABASE_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('players')
+      .select(`
+        id,
+        name,
+        singles_rating,
+        singles_dynamic_rating,
+        doubles_rating,
+        doubles_dynamic_rating,
+        overall_rating,
+        overall_dynamic_rating
+      `)
+      .order('id', { ascending: true })
+      .range(start, start + DATABASE_PAGE_SIZE - 1)
 
-  if (error) {
-    throw new Error(`Failed to fetch players: ${error.message}`)
+    if (error) throw new Error(`Failed to fetch players: ${error.message}`)
+    const page = (data ?? []) as PlayerRow[]
+    rows.push(...page)
+    if (page.length < DATABASE_PAGE_SIZE) return rows
   }
-
-  return (data ?? []) as PlayerRow[]
 }
 
 async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
-  const { data, error } = await client
-    .from('matches')
-    .select(`
-      id,
-      match_date,
-      match_type,
-      score,
-      winner_side,
-      match_source,
-      rating_eligible,
-      created_at
-    `)
-    .not('match_type', 'is', null)
-    .not('winner_side', 'is', null)
-    .eq('rating_eligible', true)
-    .order('match_date', { ascending: true })
-    .order('created_at', { ascending: true })
+  const rows: MatchRow[] = []
+  for (let start = 0; ; start += DATABASE_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('matches')
+      .select(`
+        id,
+        match_date,
+        match_type,
+        score,
+        winner_side,
+        match_source,
+        rating_eligible,
+        created_at
+      `)
+      .not('match_type', 'is', null)
+      .not('winner_side', 'is', null)
+      .eq('rating_eligible', true)
+      .order('match_date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(start, start + DATABASE_PAGE_SIZE - 1)
 
-  if (error) {
-    throw new Error(`Failed to fetch matches: ${error.message}`)
+    if (error) throw new Error(`Failed to fetch matches: ${error.message}`)
+    const page = (data ?? []) as MatchRow[]
+    rows.push(...page)
+    if (page.length < DATABASE_PAGE_SIZE) return rows
   }
-
-  return (data ?? []) as MatchRow[]
 }
 
 async function fetchMatchPlayers(client: SupabaseClient): Promise<MatchPlayerRow[]> {
-  const { data, error } = await client
-    .from('match_players')
-    .select(`
-      match_id,
-      player_id,
-      side,
-      seat
-    `)
+  const rows: MatchPlayerRow[] = []
+  for (let start = 0; ; start += DATABASE_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('match_players')
+      .select(`
+        match_id,
+        player_id,
+        side,
+        seat
+      `)
+      .order('match_id', { ascending: true })
+      .order('player_id', { ascending: true })
+      .order('side', { ascending: true })
+      .order('seat', { ascending: true })
+      .range(start, start + DATABASE_PAGE_SIZE - 1)
 
-  if (error) {
-    throw new Error(`Failed to fetch match participants: ${error.message}`)
+    if (error) throw new Error(`Failed to fetch match participants: ${error.message}`)
+    const page = (data ?? []) as MatchPlayerRow[]
+    rows.push(...page)
+    if (page.length < DATABASE_PAGE_SIZE) return rows
   }
-
-  return (data ?? []) as MatchPlayerRow[]
 }
 
 function processSinglesMatch(

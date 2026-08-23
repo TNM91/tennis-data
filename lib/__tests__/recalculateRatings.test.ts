@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  recalculateDynamicRatings,
   parseScoreMetrics,
   getScoreAwarePerformance,
   getRecencyWeight,
@@ -12,6 +13,7 @@ import {
   projectDoublesTeamWinProbability,
   type WorkingPlayer,
 } from '../recalculateRatings'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
   return {
@@ -31,6 +33,58 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
     ...overrides,
   }
 }
+
+describe('recalculateDynamicRatings pagination', () => {
+  it('reads every page of player and participant rows in a dry run', async () => {
+    const calls: Record<string, Array<[number, number]>> = {
+      players: [],
+      matches: [],
+      match_players: [],
+    }
+    const rows = {
+      players: Array.from({ length: 1001 }, (_, index) => ({
+        id: `player-${index}`,
+        name: `Player ${index}`,
+        singles_rating: 3.5,
+        singles_dynamic_rating: 3.5,
+        doubles_rating: 3.5,
+        doubles_dynamic_rating: 3.5,
+        overall_rating: 3.5,
+        overall_dynamic_rating: 3.5,
+      })),
+      matches: [],
+      match_players: Array.from({ length: 1001 }, (_, index) => ({
+        match_id: `match-${index}`,
+        player_id: `player-${index}`,
+        side: 'A',
+        seat: 1,
+      })),
+    }
+
+    const client = {
+      from(table: keyof typeof rows) {
+        const builder = {
+          select: () => builder,
+          not: () => builder,
+          eq: () => builder,
+          order: () => builder,
+          range: (from: number, to: number) => {
+            calls[table].push([from, to])
+            return Promise.resolve({ data: rows[table].slice(from, to + 1), error: null })
+          },
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+
+    expect(result.dryRun).toBe(true)
+    expect(result.playerCount).toBe(1001)
+    expect(calls.players).toEqual([[0, 999], [1000, 1999]])
+    expect(calls.match_players).toEqual([[0, 999], [1000, 1999]])
+  })
+})
 
 // ─── parseScoreMetrics ────────────────────────────────────────────────────────
 
