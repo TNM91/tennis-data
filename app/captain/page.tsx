@@ -1357,6 +1357,13 @@ type CaptainOpponentScoutItem = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainOpponentForm = {
+  record: string
+  lastFive: Array<{ id: string; result: 'W' | 'L'; date: string; score: string }>
+  headToHead: string
+  lastResult: string
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1848,6 +1855,7 @@ function CaptainHubContent() {
     lastUpdatedLabel: 'Not updated yet',
   })
   const [rosterSortMode, setRosterSortMode] = useState<'appearances' | 'signal'>('appearances')
+  const [opponentMatches, setOpponentMatches] = useState<TeamMatch[]>([])
   const [weeklyPrepNotes, setWeeklyPrepNotes] = useState('')
   const [opponentScoutNotes, setOpponentScoutNotes] = useState('')
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
@@ -2346,6 +2354,34 @@ function CaptainHubContent() {
     })()
     return () => { active = false }
   }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !nextMatch?.opponent || nextMatch.opponent === 'TBD') {
+      setOpponentMatches([])
+      return
+    }
+
+    let active = true
+    const safeOpponent = nextMatch.opponent.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+    void (async () => {
+      let query = supabase
+        .from('matches')
+        .select('id, league_name, flight, home_team, away_team, match_date, match_type, score, winner_side')
+        .or(`home_team.eq."${safeOpponent}",away_team.eq."${safeOpponent}"`)
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(120)
+
+      if (selectedLeague) query = query.eq('league_name', selectedLeague)
+      if (selectedFlight) query = query.eq('flight', selectedFlight)
+
+      const { data } = await query
+      if (active) setOpponentMatches((data || []) as TeamMatch[])
+    })()
+
+    return () => { active = false }
+  }, [authResolved, nextMatch?.opponent, role, selectedFlight, selectedLeague])
 
   const loadTeamRoomSummary = useCallback(async () => {
     const requestId = teamRoomSummaryRequestRef.current + 1
@@ -10984,6 +11020,49 @@ function CaptainHubContent() {
     ? `${captainRosterDepthIssueCount} watch`
     : `${captainRosterDepthReadyCount}/${captainRosterDepthItems.length} ready`
 
+  const opponentForm = useMemo<CaptainOpponentForm | null>(() => {
+    const opponent = safeText(nextMatch?.opponent, '')
+    if (!opponent || opponent === 'TBD') return null
+
+    const opponentKey = normalizeTeamName(opponent)
+    const winnerForOpponent = (match: TeamMatch) => {
+      const opponentIsHome = normalizeTeamName(safeText(match.home_team, '')) === opponentKey
+      return match.winner_side === (opponentIsHome ? 'A' : 'B')
+    }
+    const decided = opponentMatches
+      .filter((match) => match.match_date <= captainTodayDate && Boolean(match.score))
+      .sort((a, b) => b.match_date.localeCompare(a.match_date))
+    const season = nextMatch?.date.slice(0, 4) || captainTodayDate.slice(0, 4)
+    const seasonMatches = decided.filter((match) => match.match_date.startsWith(season))
+    const wins = seasonMatches.filter(winnerForOpponent).length
+    const losses = Math.max(0, seasonMatches.length - wins)
+    const lastFive = decided.slice(0, 5).map((match) => ({
+      id: match.id,
+      result: winnerForOpponent(match) ? 'W' as const : 'L' as const,
+      date: match.match_date,
+      score: safeText(match.score, 'Score pending'),
+    }))
+
+    const headToHead = matches
+      .filter((match) => {
+        const home = normalizeTeamName(safeText(match.home_team, ''))
+        const away = normalizeTeamName(safeText(match.away_team, ''))
+        return match.match_date <= captainTodayDate && Boolean(match.score) && (home === opponentKey || away === opponentKey)
+      })
+      .sort((a, b) => b.match_date.localeCompare(a.match_date))
+    const teamWins = headToHead.filter((match) => {
+      const selectedTeamIsHome = normalizeTeamName(safeText(match.home_team, '')) === normalizeTeamName(selectedTeam)
+      return match.winner_side === (selectedTeamIsHome ? 'A' : 'B')
+    }).length
+
+    return {
+      record: seasonMatches.length ? `${wins}-${losses}` : 'No season result yet',
+      lastFive,
+      headToHead: headToHead.length ? `${teamWins}-${headToHead.length - teamWins} vs ${opponent}` : 'No recorded meeting yet',
+      lastResult: lastFive[0] ? `${lastFive[0].result} - ${formatDateShort(lastFive[0].date)} - ${lastFive[0].score}` : 'No completed opponent result yet',
+    }
+  }, [captainTodayDate, matches, nextMatch?.date, nextMatch?.opponent, opponentMatches, selectedTeam])
+
   const opponentScoutNoteReady = opponentScoutNotes.trim().length > 0
   const opponentScoutHomeAwayLabel = nextMatch ? (nextMatch.home ? 'Home' : 'Away') : 'Venue TBD'
   const opponentScoutChecks = useMemo<CaptainOpponentScoutItem[]>(() => [
@@ -15901,6 +15980,31 @@ function CaptainHubContent() {
               <span style={commandCenterSnapshotLabel}>Site</span>
               <strong style={commandCenterSnapshotValue}>{nextMatch?.facility || matchDayLocationLabel}</strong>
             </div>
+          </div>
+          <div style={opponentFormCard} aria-label="Opponent form">
+            <div style={opponentFormTop}>
+              <span style={commandCenterLabel}>Opponent form</span>
+              <strong style={opponentFormRecord}>{opponentForm?.record || 'Awaiting history'}</strong>
+            </div>
+            {opponentForm?.lastFive.length ? (
+              <>
+                <div style={opponentFormPills} aria-label="Opponent last five results">
+                  {opponentForm.lastFive.map((result) => (
+                    <span
+                      key={result.id}
+                      title={`${formatDateShort(result.date)} - ${result.score}`}
+                      style={result.result === 'W' ? opponentFormWinPill : opponentFormLossPill}
+                    >
+                      {result.result}
+                    </span>
+                  ))}
+                </div>
+                <span style={opponentFormDetail}>Last result: {opponentForm.lastResult}</span>
+                <span style={opponentFormDetail}>Head-to-head: {opponentForm.headToHead}</span>
+              </>
+            ) : (
+              <span style={opponentFormDetail}>Completed match history will appear here as it becomes available for this league and flight.</span>
+            )}
           </div>
           <div style={opponentScoutNoteCard}>
             <span style={commandCenterLabel}>Scout note</span>
@@ -25758,6 +25862,72 @@ const opponentScoutMetaCard: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.10)',
   background: 'rgba(255,255,255,0.045)',
   overflowWrap: 'anywhere',
+}
+
+const opponentFormCard: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const opponentFormTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const opponentFormRecord: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1,
+}
+
+const opponentFormPills: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const opponentFormPillBase: CSSProperties = {
+  width: 28,
+  minHeight: 28,
+  display: 'inline-grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  fontSize: 12,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const opponentFormWinPill: CSSProperties = {
+  ...opponentFormPillBase,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
+}
+
+const opponentFormLossPill: CSSProperties = {
+  ...opponentFormPillBase,
+  border: '1px solid rgba(251,113,133,0.28)',
+  background: 'rgba(251,113,133,0.12)',
+  color: '#fda4af',
+}
+
+const opponentFormDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }
 
 const opponentScoutNoteCard: CSSProperties = {
