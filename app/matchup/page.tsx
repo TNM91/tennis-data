@@ -20,6 +20,7 @@ import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { buildMatchupPrepHref } from '@/lib/matchup-prep-note'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -1436,12 +1437,6 @@ export default function MatchupPage() {
       status: `${selectionCount}/${selectionTarget}`,
     }
   }, [comparison, matchType, projection?.expectedOutcome, selectionCount, selectionTarget])
-  const labTakeawayHref = comparison
-    ? `/mylab#player-notebook`
-    : '/mylab'
-  const labTakeawayText = projection
-    ? `Log ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
-    : 'Compare, then log the one thing you want to test next.'
   const playerMatchPrep = useMemo(() => {
     if (!projection || !comparison) return null
 
@@ -1465,6 +1460,21 @@ export default function MatchupPage() {
       courtPlan,
     }
   }, [comparison, formScores.left, formScores.right, headToHead, projection])
+  const matchupPrepId = matchType === 'singles'
+    ? `singles:${playerAId}:${playerBId}`
+    : `doubles:${teamA1Id}:${teamA2Id}:${teamB1Id}:${teamB2Id}`
+  const labTakeawayHref = comparison && playerMatchPrep
+    ? buildMatchupPrepHref({
+        id: matchupPrepId,
+        title: `Match prep: ${comparison.leftLabel} vs ${comparison.rightLabel}`,
+        context: playerMatchPrep.context,
+        evidence: `${playerMatchPrep.formRead} ${playerMatchPrep.historyRead}`,
+        courtPlan: playerMatchPrep.courtPlan,
+      })
+    : '/mylab#player-notebook'
+  const labTakeawayText = projection
+    ? `Save ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
+    : 'Compare, then save the one thing you want to test next.'
   const mobileQuickReadItems = projection
     ? [
         {

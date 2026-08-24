@@ -12,7 +12,7 @@ import {
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
     const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260814000200_add_product_tour_usage_events.sql'),
+      join(process.cwd(), 'supabase/migrations/20260824000100_add_matchup_prep_saved_usage_event.sql'),
       'utf8',
     )
 

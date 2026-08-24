@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React from 'react'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
@@ -63,6 +63,7 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
+import { readMatchupPrepDraft } from '@/lib/matchup-prep-note'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
@@ -957,10 +958,12 @@ function MyLabPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [goals, setGoals] = useState<LabGoalState[]>([EMPTY_LAB_GOAL])
   const [activeGoalId, setActiveGoalId] = useState(EMPTY_LAB_GOAL.id)
+  const [matchupPrepSaved, setMatchupPrepSaved] = useState('')
   const [notebookSavedLabel, setNotebookSavedLabel] = useState('All changes saved')
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
+  const matchupPrepHandledRef = useRef(false)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
   const [localLevelUpCompletions, setLocalLevelUpCompletions] = useState<LevelUpCompletion[]>([])
   const [remoteLevelUpSessions, setRemoteLevelUpSessions] = useState<LevelUpSession[]>([])
@@ -1020,6 +1023,70 @@ function MyLabPageInner() {
     setNotebookSavedLabel('All changes saved')
     setLastSavedAt(nextGoals.find((goal) => goal.updatedAt)?.updatedAt || null)
   }, [userId, profileLink?.linked_player_id])
+
+  useEffect(() => {
+    if (
+      matchupPrepHandledRef.current ||
+      loading ||
+      !authResolved ||
+      !canUseAdvancedPlayerInsights ||
+      !profileLink?.linked_player_id
+    ) return
+
+    const draft = readMatchupPrepDraft(searchParams.get('matchupPrep'))
+    if (!draft) return
+
+    matchupPrepHandledRef.current = true
+    const now = new Date().toISOString()
+    const prepGoal: LabGoalState = {
+      id: `matchup-prep-${draft.id}`,
+      goal: draft.title,
+      progressStatus: 'in-progress',
+      progressUpdate: draft.context,
+      doingWell: draft.evidence,
+      improveNext: draft.courtPlan,
+      notes: `Saved Match Prep\n\n${draft.evidence}\n\nCourt plan: ${draft.courtPlan}`,
+      updatedAt: now,
+    }
+    const existing = goals.find((goal) => goal.id === prepGoal.id)
+    const hasOnlyEmptyGoal =
+      goals.length === 1 &&
+      !goals[0].goal.trim() &&
+      !goals[0].progressUpdate.trim() &&
+      !goals[0].doingWell.trim() &&
+      !goals[0].improveNext.trim() &&
+      !goals[0].notes.trim()
+    const nextGoals = existing
+      ? goals.map((goal) => (goal.id === prepGoal.id ? prepGoal : goal))
+      : hasOnlyEmptyGoal
+        ? [prepGoal]
+        : [prepGoal, ...goals]
+
+    persistGoalList(nextGoals, prepGoal.id, 'Match prep saved')
+    setActiveGoalId(prepGoal.id)
+    setMatchupPrepSaved(draft.title)
+    void trackProductUsageEvent({
+      eventName: 'matchup_prep_saved',
+      surface: 'mylab',
+      planId: 'player_plus',
+      metadata: { matchupPrepId: draft.id },
+    })
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('matchupPrep')
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  // The URL payload is consumed once; the ref prevents duplicate notebook writes as goals update.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    authResolved,
+    canUseAdvancedPlayerInsights,
+    goals,
+    loading,
+    profileLink?.linked_player_id,
+    searchParams,
+  ])
 
   useEffect(() => {
     if (!authResolved) return
@@ -4558,6 +4625,12 @@ function MyLabPageInner() {
                 </div>
               </div>
               <div id="player-notebook" style={goalWorkspaceStyle}>
+                {matchupPrepSaved ? (
+                  <div role="status" style={matchupPrepSavedStyle}>
+                    <strong>Match Prep saved</strong>
+                    <span>{matchupPrepSaved} is ready in your private notebook.</span>
+                  </div>
+                ) : null}
                 <div style={goalListStyle}>
                   {goals.map((goal, index) => (
                     <button
@@ -10200,6 +10273,18 @@ const goalWorkspaceStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
+}
+
+const matchupPrepSavedStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const goalListStyle: CSSProperties = {
