@@ -769,6 +769,39 @@ function PlayerProfileContent() {
     return map
   }, [snapshots])
 
+  const seasonReview = useMemo(() => {
+    const season = matches
+      .map((match) => match.date.slice(0, 4))
+      .filter((year) => /^\d{4}$/.test(year))
+      .sort()
+      .at(-1)
+
+    if (!season) return null
+    const seasonMatches = matches.filter((match) => match.date.startsWith(season))
+    const decided = seasonMatches.filter((match) => match.result === 'W' || match.result === 'L')
+    if (!decided.length) return null
+
+    const withSnapshots = decided.map((match) => ({
+      match,
+      snap: snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null,
+    }))
+    const wins = decided.filter((match) => match.result === 'W').length
+    const singles = decided.filter((match) => match.matchType === 'singles')
+    const doubles = decided.filter((match) => match.matchType === 'doubles')
+    const largestLift = [...withSnapshots].filter((entry) => entry.match.result === 'W' && entry.snap?.delta != null).sort((a, b) => (b.snap?.delta ?? 0) - (a.snap?.delta ?? 0))[0] ?? null
+    const toughestLoss = [...withSnapshots].filter((entry) => entry.match.result === 'L' && entry.snap?.delta != null).sort((a, b) => (a.snap?.delta ?? 0) - (b.snap?.delta ?? 0))[0] ?? null
+    const biggestSwing = [...withSnapshots].filter((entry) => entry.snap?.delta != null).sort((a, b) => Math.abs(b.snap?.delta ?? 0) - Math.abs(a.snap?.delta ?? 0))[0] ?? null
+    const nextFocus = singles.length === 0
+      ? 'Add a singles result to separate your all-court signal.'
+      : doubles.length === 0
+        ? 'Add a doubles result to build a truer all-court read.'
+        : wins / decided.length >= 0.6
+          ? 'Protect the lift: test it against a similarly rated opponent.'
+          : 'Use the next close set to test the adjustment under pressure.'
+
+    return { season, decided, wins, singles, doubles, largestLift, toughestLoss, biggestSwing, nextFocus }
+  }, [matches, snapshotByMatchId])
+
   const myMatchReportByMatchId = useMemo(() => {
     const map = new Map<string, MatchAccuracyReport>()
     for (const report of myMatchReports) {
@@ -2605,6 +2638,15 @@ function PlayerProfileContent() {
           </details>
         ) : null}
 
+        {seasonReview ? (
+          <SeasonReviewPanel
+            review={seasonReview}
+            player={player}
+            canViewExact={canViewExactTiqRating}
+            canViewDetailed={access.canUseAdvancedPlayerInsights}
+          />
+        ) : null}
+
         {isRosterOnlyProfile && primaryUstaMembership && primaryTeamHref ? (
           <article style={{ display: 'none' }} aria-hidden="true">
             <div style={rosterReadyContent}>
@@ -3831,6 +3873,67 @@ function MatchImpactPanel({
         <Link href="/pricing" style={matchImpactUnlockStyle}>Unlock opponent context and expected-score detail with Player</Link>
       )}
     </section>
+  )
+}
+
+function SeasonReviewPanel({
+  review,
+  player,
+  canViewExact,
+  canViewDetailed,
+}: {
+  review: {
+    season: string
+    decided: MatchRecord[]
+    wins: number
+    singles: MatchRecord[]
+    doubles: MatchRecord[]
+    largestLift: { match: MatchRecord; snap: SnapshotRow | null } | null
+    toughestLoss: { match: MatchRecord; snap: SnapshotRow | null } | null
+    biggestSwing: { match: MatchRecord; snap: SnapshotRow | null } | null
+    nextFocus: string
+  }
+  player: Player | null
+  canViewExact: boolean
+  canViewDetailed: boolean
+}) {
+  const losses = review.decided.length - review.wins
+  const winRate = Math.round((review.wins / review.decided.length) * 100)
+  const highlight = review.largestLift ?? review.biggestSwing ?? review.toughestLoss
+
+  return (
+    <article style={seasonReviewPanelStyle} aria-label={`${review.season} season review`}>
+      <div style={seasonReviewHeaderStyle}>
+        <div>
+          <p style={sectionKicker}>Season review</p>
+          <h2 style={seasonReviewTitleStyle}>{review.season} in play.</h2>
+          <p style={seasonReviewBodyStyle}>Your record, rating moments, and the clearest next test in one read.</p>
+        </div>
+        <span style={seasonReviewPillStyle}>{review.decided.length} results</span>
+      </div>
+
+      <div style={seasonReviewMetricGridStyle}>
+        <div style={seasonReviewMetricStyle}><span>Record</span><strong>{review.wins}-{losses}</strong><small>{winRate}% win</small></div>
+        <div style={seasonReviewMetricStyle}><span>Singles</span><strong>{review.singles.length}</strong><small>tracked results</small></div>
+        <div style={seasonReviewMetricStyle}><span>Doubles</span><strong>{review.doubles.length}</strong><small>tracked results</small></div>
+        <div style={seasonReviewMetricStyle}><span>Biggest swing</span><strong>{highlight?.snap?.delta == null ? '--' : `${highlight.snap.delta >= 0 ? '+' : ''}${highlight.snap.delta.toFixed(3)}`}</strong><small>{highlight ? `vs ${highlight.match.opponent}` : 'building'}</small></div>
+      </div>
+
+      <div style={seasonReviewFocusStyle}>
+        <span>Next match focus</span>
+        <strong>{review.nextFocus}</strong>
+      </div>
+
+      {canViewDetailed ? (
+        <div style={seasonReviewDetailRowStyle}>
+          <span>Best lift <strong>{review.largestLift?.snap?.dynamic_rating == null ? '--' : formatTiqRating(review.largestLift.snap.dynamic_rating, player, canViewExact)}</strong></span>
+          <span>Toughest result <strong>{review.toughestLoss ? `vs ${review.toughestLoss.match.opponent}` : '--'}</strong></span>
+          <Link href="/mylab" style={seasonReviewLinkStyle}>Open My Lab</Link>
+        </div>
+      ) : (
+        <Link href="/pricing" style={seasonReviewLinkStyle}>Unlock your full season read with Player</Link>
+      )}
+    </article>
   )
 }
 
@@ -6239,6 +6342,17 @@ const matchImpactMetricStyle: CSSProperties = { display: 'grid', gap: 5, padding
 const matchImpactReadStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 700, lineHeight: 1.5 }
 const matchImpactDetailRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }
 const matchImpactUnlockStyle: CSSProperties = { color: 'var(--brand-lime)', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
+
+const seasonReviewPanelStyle: CSSProperties = { display: 'grid', gap: 16, marginTop: 16, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.25)', background: 'radial-gradient(circle at 86% 0%, rgba(116,190,255,0.16), transparent 34%), linear-gradient(135deg, rgba(8,25,46,0.98), rgba(4,13,29,0.98))', boxShadow: '0 22px 56px rgba(2,8,20,0.26)' }
+const seasonReviewHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+const seasonReviewTitleStyle: CSSProperties = { margin: '4px 0 0', color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, lineHeight: 1.08 }
+const seasonReviewBodyStyle: CSSProperties = { margin: '6px 0 0', color: 'var(--shell-copy-muted)', fontSize: 14, fontWeight: 650, lineHeight: 1.5 }
+const seasonReviewPillStyle: CSSProperties = { borderRadius: 999, padding: '7px 10px', background: 'rgba(116,190,255,0.11)', border: '1px solid rgba(116,190,255,0.22)', color: '#bfdbfe', fontSize: 12, fontWeight: 850 }
+const seasonReviewMetricGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: 10 }
+const seasonReviewMetricStyle: CSSProperties = { display: 'grid', gap: 4, padding: '13px 14px', borderRadius: 15, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(1,10,24,0.42)', color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 750 }
+const seasonReviewFocusStyle: CSSProperties = { display: 'grid', gap: 6, padding: '14px 15px', borderRadius: 15, border: '1px solid rgba(155,225,29,0.22)', background: 'rgba(155,225,29,0.07)', color: 'var(--foreground-strong)' }
+const seasonReviewDetailRowStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }
+const seasonReviewLinkStyle: CSSProperties = { color: 'var(--brand-lime)', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
 
 const scoreCellStackStyle: CSSProperties = {
   display: 'flex',
