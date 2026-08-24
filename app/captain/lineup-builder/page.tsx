@@ -260,6 +260,8 @@ type RecommendationCard = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CourtMapTone = 'good' | 'warn' | 'info' | 'muted'
+
 type AppliedLineupNotice = {
   title: string
   changedCourts: number
@@ -3277,6 +3279,27 @@ function LineupBuilderContent() {
       detail: confidenceScore.tier,
     },
   ]
+  const mobileCourtMap = analysis.lines.map((line) => {
+    const probability = typeof line.projection === 'number' ? line.projection : null
+    const edge = typeof line.diff === 'number' ? line.diff : null
+    const status: 'Needs data' | 'Edge' | 'Protect' | 'Swing' = probability === null
+      ? 'Needs data'
+      : probability >= 0.58
+        ? 'Edge'
+        : probability <= 0.42
+          ? 'Protect'
+          : 'Swing'
+
+    return {
+      label: line.label,
+      status,
+      value: probability === null ? '-' : formatPercent(probability),
+      detail: edge === null
+        ? 'Complete both sides'
+        : `${edge >= 0 ? '+' : ''}${edge.toFixed(2)} rating edge`,
+      tone: (status === 'Edge' ? 'good' : status === 'Protect' ? 'warn' : status === 'Swing' ? 'info' : 'muted') as CourtMapTone,
+    }
+  })
 
   if (!authResolved) {
     return (
@@ -3569,6 +3592,26 @@ function LineupBuilderContent() {
                   </div>
                 ))}
               </div>
+              {mobileCourtMap.length ? (
+                <div style={mobileCourtMapShellStyle} aria-label="Court map">
+                  <div style={mobileCourtMapHeaderStyle}>
+                    <span style={mobileCourtMapTitleStyle}>Court map</span>
+                    <span style={mobileCourtMapHintStyle}>Where to lean in</span>
+                  </div>
+                  <div style={mobileCourtMapGridStyle}>
+                    {mobileCourtMap.map((court) => (
+                      <div key={court.label} style={mobileCourtMapCardStyle(court.tone)}>
+                        <span style={mobileCourtMapLabelStyle}>{court.label}</span>
+                        <div style={mobileCourtMapValueRowStyle}>
+                          <strong style={mobileCourtMapValueStyle}>{court.value}</strong>
+                          <span style={mobileCourtMapStatusStyle(court.tone)}>{court.status}</span>
+                        </div>
+                        <span style={mobileCourtMapDetailStyle}>{court.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div style={mobileCourtFocusActionsStyle}>
               <Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>
@@ -5449,6 +5492,107 @@ const mobileLineupPulseDetailStyle: CSSProperties = {
   fontSize: 10,
   fontWeight: 750,
   lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 14,
+  minWidth: 0,
+}
+
+const mobileCourtMapHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileCourtMapTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.03em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+function mobileCourtMapCardStyle(tone: CourtMapTone): CSSProperties {
+  const palette = tone === 'good'
+    ? { border: 'rgba(134, 239, 172, 0.32)', background: 'rgba(22, 101, 52, 0.16)' }
+    : tone === 'warn'
+      ? { border: 'rgba(252, 165, 165, 0.32)', background: 'rgba(127, 29, 29, 0.16)' }
+      : tone === 'info'
+        ? { border: 'rgba(125, 211, 252, 0.3)', background: 'rgba(3, 105, 161, 0.14)' }
+        : { border: 'var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+
+  return {
+    display: 'grid',
+    gap: 4,
+    padding: '10px',
+    borderRadius: 13,
+    border: `1px solid ${palette.border}`,
+    background: palette.background,
+    minWidth: 0,
+  }
+}
+
+const mobileCourtMapLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapValueRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 6,
+  minWidth: 0,
+}
+
+const mobileCourtMapValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  fontWeight: 950,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+function mobileCourtMapStatusStyle(tone: CourtMapTone): CSSProperties {
+  return {
+    color: tone === 'good' ? '#86efac' : tone === 'warn' ? '#fca5a5' : tone === 'info' ? '#7dd3fc' : 'var(--shell-copy-muted)',
+    fontSize: 9,
+    fontWeight: 900,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    textAlign: 'right',
+    overflowWrap: 'anywhere',
+  }
+}
+
+const mobileCourtMapDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.3,
   overflowWrap: 'anywhere',
 }
 

@@ -155,6 +155,21 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("label: 'Confidence'")
     expect(styleBlock('mobileLineupPulseStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock('mobileLineupPulseCardStyle')).toContain('minWidth: 0')
+    expect(source).toContain('const mobileCourtMap = analysis.lines.map')
+    expect(source).toContain('aria-label="Court map"')
+    expect(source).toContain('Where to lean in')
+    expect(source).toContain("? 'Edge'")
+    expect(source).toContain("? 'Protect'")
+    expect(source).toContain(": 'Swing'")
+    for (const styleName of [
+      'mobileCourtMapShellStyle',
+      'mobileCourtMapHeaderStyle',
+      'mobileCourtMapGridStyle',
+      'mobileCourtMapValueRowStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('mobileCourtMapGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 132px), 1fr))")
     expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
   })
 })
