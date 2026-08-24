@@ -18,7 +18,8 @@ describe('Captain Season Dashboard', () => {
     expect(source).toContain(".is('line_number', null)")
     expect(source).toContain("inventoryQuery = inventoryQuery.eq('league_name', league)")
     expect(source).toContain("inventoryQuery = inventoryQuery.eq('flight', flight)")
-    expect(source).toContain('Promise.all([inventoryQuery, upcomingQuery])')
+    expect(source).toContain(".not('winner_side', 'is', null)")
+    expect(source).toContain('Promise.all([inventoryQuery, upcomingQuery, resultsQuery])')
   })
 
   it('connects saved Match Week work instead of fabricated season metrics', () => {
@@ -28,5 +29,12 @@ describe('Captain Season Dashboard', () => {
     expect(source).toContain('Based on your saved team plan')
     expect(source).toContain('buildCaptainScopedHref')
     expect(source).toContain("lastTool: 'season-dashboard'")
+  })
+
+  it('uses only reported canonical team results for form and record', () => {
+    expect(source).toContain('function didTeamWin')
+    expect(source).toContain('Recent team results')
+    expect(source).toContain('Scheduled and unreported matches stay out of the record.')
+    expect(source).toContain('Reported record')
   })
 })

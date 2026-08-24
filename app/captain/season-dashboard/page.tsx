@@ -13,7 +13,14 @@ import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState
 import { readLocalArray, safeKey } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 
-type MatchRow = { id: string; match_date: string | null; home_team: string | null; away_team: string | null }
+type MatchRow = {
+  id: string
+  match_date: string | null
+  home_team: string | null
+  away_team: string | null
+  winner_side: 'A' | 'B' | null
+  score: string | null
+}
 type LineupAssignment = { id: string; event_key: string; court_label: string; players: string[] }
 type WeeklyAvailability = { id: string; event_key: string; status: 'available' | 'unavailable' | 'tentative' | 'no-response' }
 type WeeklyResponse = { id: string; event_key: string; status: 'confirmed' | 'declined' | 'viewed' | 'no-response' | 'running-late' | 'need-sub' }
@@ -53,6 +60,16 @@ function getOpponent(match: MatchRow | null, team: string) {
   return match.home_team?.trim().toLowerCase() === team.trim().toLowerCase() ? (match.away_team || '') : (match.home_team || '')
 }
 
+function didTeamWin(match: MatchRow, team: string) {
+  if (!match.winner_side) return null
+  const teamSide = match.home_team?.trim().toLowerCase() === team.trim().toLowerCase()
+    ? 'A'
+    : match.away_team?.trim().toLowerCase() === team.trim().toLowerCase()
+      ? 'B'
+      : null
+  return teamSide ? teamSide === match.winner_side : null
+}
+
 export default function CaptainSeasonDashboardPage() {
   return <SiteShell active="/captain"><CaptainSeasonDashboardContent /></SiteShell>
 }
@@ -64,6 +81,7 @@ function CaptainSeasonDashboardContent() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const [matchCount, setMatchCount] = useState<number | null>(null)
   const [nextMatch, setNextMatch] = useState<MatchRow | null>(null)
+  const [recentResults, setRecentResults] = useState<MatchRow[]>([])
   const [loadError, setLoadError] = useState('')
 
   const team = initialScope?.team || ''
@@ -86,30 +104,41 @@ function CaptainSeasonDashboardContent() {
     const escapedTeam = escapePostgrestValue(team)
     let inventoryQuery = supabase.from('matches').select('id', { count: 'exact', head: true })
       .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
-    let upcomingQuery = supabase.from('matches').select('id, match_date, home_team, away_team')
+    let upcomingQuery = supabase.from('matches').select('id, match_date, home_team, away_team, winner_side, score')
       .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
       .gte('match_date', new Date().toISOString().slice(0, 10)).order('match_date', { ascending: true }).limit(1)
+    let resultsQuery = supabase.from('matches').select('id, match_date, home_team, away_team, winner_side, score')
+      .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
+      .not('winner_side', 'is', null).order('match_date', { ascending: false }).limit(400)
     if (league) { inventoryQuery = inventoryQuery.eq('league_name', league); upcomingQuery = upcomingQuery.eq('league_name', league) }
-    if (flight) { inventoryQuery = inventoryQuery.eq('flight', flight); upcomingQuery = upcomingQuery.eq('flight', flight) }
+    if (league) resultsQuery = resultsQuery.eq('league_name', league)
+    if (flight) { inventoryQuery = inventoryQuery.eq('flight', flight); upcomingQuery = upcomingQuery.eq('flight', flight); resultsQuery = resultsQuery.eq('flight', flight) }
 
-    void Promise.all([inventoryQuery, upcomingQuery]).then(([inventory, upcoming]) => {
+    void Promise.all([inventoryQuery, upcomingQuery, resultsQuery]).then(([inventory, upcoming, results]) => {
       if (!active) return
-      const error = inventory.error || upcoming.error
+      const error = inventory.error || upcoming.error || results.error
       if (error) {
         setLoadError('Season data is temporarily unavailable. Try again shortly.')
         setMatchCount(null)
         setNextMatch(null)
+        setRecentResults([])
         return
       }
       setLoadError('')
       setMatchCount(inventory.count ?? 0)
       setNextMatch((upcoming.data?.[0] as MatchRow | undefined) ?? null)
+      setRecentResults((results.data ?? []) as MatchRow[])
     })
     return () => { active = false }
   }, [access.canUseCaptainWorkflow, authResolved, flight, league, role, team])
 
   const resolvedDate = nextMatch?.match_date || initialDate
   const resolvedOpponent = getOpponent(nextMatch, team) || initialOpponent
+  const seasonResults = useMemo(() => recentResults.map((match) => ({ match, won: didTeamWin(match, team) })).filter((item) => item.won !== null), [recentResults, team])
+  const seasonWins = seasonResults.filter((item) => item.won).length
+  const seasonLosses = seasonResults.length - seasonWins
+  const currentForm = seasonResults.slice(0, 5).map((item) => item.won ? 'W' : 'L')
+  const recentResultRows = seasonResults.slice(0, 5)
   const eventKey = useMemo(() => safeKey(team, league, flight, resolvedDate || null), [flight, league, resolvedDate, team])
   const lineupRows = useMemo(() => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
   const availabilityRows = useMemo(() => readLocalArray<WeeklyAvailability>(WEEKLY_AVAILABILITY_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
@@ -155,9 +184,14 @@ function CaptainSeasonDashboardContent() {
           {loadError ? <p style={errorStyle}>{loadError}</p> : null}
           <div style={metricGridStyle}>
             <Metric label="Season matches" value={matchCount === null ? 'Loading' : String(matchCount)} detail="Canonical matches in this scope" />
+            <Metric label="Reported record" value={seasonResults.length ? `${seasonWins}-${seasonLosses}` : 'No results'} detail={seasonResults.length ? `${seasonResults.length} reported team results` : 'Reported results appear here as they arrive'} />
             <Metric label="Next match" value={resolvedDate ? formatDate(resolvedDate) : 'Not scheduled'} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'No opponent in the current record'} />
             <Metric label="Match Week" value={resolvedDate ? `${readinessPercent}% ready` : 'Open'} detail={resolvedDate ? 'Based on your saved team plan' : 'Choose a match to begin'} />
           </div>
+        </section>
+        <section style={surfaceStyle} aria-label="Recent season results">
+          <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2></div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
+          {seasonResults.length ? <div style={resultListStyle}>{recentResultRows.map(({ match, won }) => <div key={match.id} style={resultRowStyle}><span style={won ? winMarkStyle : lossMarkStyle}>{won ? 'W' : 'L'}</span><div style={resultCopyStyle}><strong style={resultOpponentStyle}>vs {getOpponent(match, team) || 'Opponent pending'}</strong><span style={metricDetailStyle}>{formatDate(match.match_date)}{match.score ? ` · ${match.score}` : ''}</span></div></div>)}</div> : <p style={mutedStyle}>No reported team results in this saved scope yet. Scheduled and unreported matches stay out of the record.</p>}
         </section>
         <section style={surfaceStyle} aria-label="Match Week readiness">
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Next up</p><h2 style={sectionTitleStyle}>{resolvedOpponent ? `Prepare for ${resolvedOpponent}` : 'Prepare your next match week'}</h2></div><Link href={weeklyBriefHref} style={secondaryLinkStyle}>Open Match Week</Link></div>
@@ -196,6 +230,13 @@ const readinessGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns
 const readinessItemStyle: CSSProperties = { ...metricStyle, gridTemplateColumns: 'auto 1fr', columnGap: 9, alignItems: 'center' }
 const readinessValueStyle: CSSProperties = { ...metricValueStyle, gridColumn: '1 / -1' }
 const statusDotStyle: CSSProperties = { width: 8, height: 8, borderRadius: 999 }
+const formStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6 }
+const winMarkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 32, height: 32, padding: '0 9px', borderRadius: 999, background: 'rgba(177, 255, 0, .18)', border: '1px solid rgba(177, 255, 0, .46)', color: 'var(--brand-lime)', fontWeight: 900 }
+const lossMarkStyle: CSSProperties = { ...winMarkStyle, background: 'rgba(255, 112, 136, .12)', border: '1px solid rgba(255, 112, 136, .28)', color: '#ff9aac' }
+const resultListStyle: CSSProperties = { display: 'grid', gap: 8 }
+const resultRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'rgba(3, 20, 40, .28)', minWidth: 0 }
+const resultCopyStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0 }
+const resultOpponentStyle: CSSProperties = { color: 'var(--foreground-strong)', overflowWrap: 'anywhere' }
 const actionRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
 const primaryLinkStyle: CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '12px 16px', borderRadius: 999, background: 'var(--brand-lime)', color: '#071526', textDecoration: 'none', fontWeight: 900 }
 const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '12px 16px', borderRadius: 999, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', textDecoration: 'none', fontWeight: 900 }
