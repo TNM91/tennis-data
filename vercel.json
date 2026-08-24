@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/tennisrecord-automation",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/3 * * * *"
     }
   ]
 }
