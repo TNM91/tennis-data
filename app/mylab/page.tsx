@@ -4654,6 +4654,29 @@ function MyLabPageInner() {
                 <details className="myLabDetailsSection" style={goalEditorDetailsStyle}>
                   <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
                   <div className="myLabDetailsBody" style={goalEditorStyle}>
+                    {activeGoal.id.startsWith('matchup-prep-') ? (
+                      <section style={matchPrepReviewStyle(isTablet)} aria-labelledby="match-prep-review-title">
+                        <div>
+                          <p style={sectionKickerStyle}>After play</p>
+                          <h3 id="match-prep-review-title" style={compactSectionTitleStyle}>Did the plan hold up?</h3>
+                          <p style={metricNoteStyle}>Keep the useful pattern, or name the adjustment for your next court.</p>
+                        </div>
+                        <div style={matchPrepReviewActionsStyle}>
+                          <button type="button" style={saveNotebookButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'improving',
+                            progressUpdate: 'Match Prep reviewed: the plan held up. Carry the same pattern into the next match.',
+                          })}>
+                            Plan held
+                          </button>
+                          <button type="button" style={smallGhostButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'in-progress',
+                            progressUpdate: 'Match Prep reviewed: adjust the plan before the next match.',
+                          })}>
+                            Adjust plan
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
                     <div style={inputWrapStyle}>
                       <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
                       <input
@@ -10272,6 +10295,26 @@ const goalWorkspaceStyle: CSSProperties = {
   padding: 14,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
+}
+
+const matchPrepReviewStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  minWidth: 0,
+})
+
+const matchPrepReviewActionsStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
   minWidth: 0,
 }
 

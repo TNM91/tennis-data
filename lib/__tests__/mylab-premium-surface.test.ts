@@ -13,6 +13,14 @@ function styleBlock(styleName: string) {
 }
 
 describe('My Lab premium surface', () => {
+  it('keeps saved Match Prep reviews private and mobile-safe', () => {
+    expect(source).toContain("activeGoal.id.startsWith('matchup-prep-')")
+    expect(source).toContain('Did the plan hold up?')
+    expect(source).toContain('Plan held')
+    expect(source).toContain('Adjust plan')
+    expect(source).toContain('matchPrepReviewStyle(isTablet)')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'")
+  })
   it('keeps the top read tennis-specific and Data Assist aware', () => {
     expect(source).toContain('buildMatchIntelligenceRead')
     expect(source).toContain('Match Intelligence')
