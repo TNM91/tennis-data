@@ -31,8 +31,14 @@ describe('member experience season and rating access', () => {
     expect(playerProfileSource).toContain("'TiQ after'")
     expect(playerProfileSource).toContain('recentResultTiq')
     expect(playerProfileSource).toContain('const canViewExactParticipantTiq = access.canUseAdvancedPlayerInsights')
-    expect(playerProfileSource).toContain('Partner TiQ')
-    expect(playerProfileSource).toContain('Opponent TiQ')
+    expect(playerProfileSource).toContain('formatRatedParticipantNames')
+    expect(playerProfileSource).toContain('ratedOpponentNames || match.opponent')
+    expect(playerProfileSource).toContain('ratedPartnerNames || match.partner')
+    expect(playerProfileSource).toContain('matchTapeFilter')
+    expect(playerProfileSource).toContain('Showing {ratingViewLabel.toLowerCase()} matches')
+    expect(playerProfileSource).toContain('No {ratingViewLabel.toLowerCase()} matches on this profile yet.')
+    expect(playerProfileSource).toContain('getCompactMatchImpact')
+    expect(playerProfileSource).toContain('recentResultImpact')
   })
 
   it('keeps My Quest tennis-specific', () => {

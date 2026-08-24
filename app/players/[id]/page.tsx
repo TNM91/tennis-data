@@ -228,6 +228,37 @@ function formatTiqRating(value: number | string | null | undefined, player: Pick
   return formatPublicRating(value, player)
 }
 
+function formatRatedParticipantNames(
+  participants: MatchParticipantRating[],
+  canViewExact: boolean,
+) {
+  return participants
+    .map((participant) => {
+      const rating = formatTiqRating(participant.dynamicRating, null, canViewExact)
+      return rating === 'Locked' ? participant.name : `${participant.name} (${rating})`
+    })
+    .join(' / ')
+}
+
+function getCompactMatchImpact(
+  match: Pick<MatchRecord, 'result'>,
+  snapshot: Pick<SnapshotRow, 'delta' | 'win_probability'> | null,
+  canViewExact: boolean,
+) {
+  if (!snapshot || snapshot.delta == null) return 'TiQ impact pending'
+  if (!canViewExact) return 'TiQ impact 🔒'
+
+  const movement = `${snapshot.delta >= 0 ? '+' : ''}${snapshot.delta.toFixed(3)}`
+  if (snapshot.win_probability == null) return `${movement} TiQ movement`
+
+  const expected = snapshot.win_probability
+  const outcomeRead = match.result === 'W'
+    ? expected < 40 ? 'upset win' : expected >= 60 ? 'held serve' : 'earned the edge'
+    : expected > 60 ? 'below expectation' : expected <= 40 ? 'competitive loss' : 'tight result'
+
+  return `${movement} · ${expected}% expected · ${outcomeRead}`
+}
+
 export default function PlayerProfilePage() {
   return (
     <SiteShell active="/players">
@@ -1836,7 +1867,29 @@ function PlayerProfileContent() {
                 <div><span>Reviewed</span><strong>{totalMatches}</strong></div>
               </div>
 
-              <div className={profileStory.ratingViews} aria-label="Choose rating focus">
+              <div className={profileStory.ratingFocusSummary} aria-label="Selected rating focus">
+                <span>Match view</span>
+                <strong>{ratingViewLabel}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        {matches.length > 0 ? (
+          <section id="profile-performance" className={profileStory.performanceSnapshot} aria-label="Player performance snapshot">
+            <div className={profileStory.performanceSnapshotHeading}>
+              <div>
+                <span>Performance snapshot</span>
+                <h2>{selectedMatchLabel} match evidence</h2>
+              </div>
+              <span>{ratingViewLabel}</span>
+            </div>
+            <div className={profileStory.matchTapeFilter} aria-label="Match view filter">
+              <div className={profileStory.matchTapeFilterCopy}>
+                <span>Match view</span>
+                <strong>Showing {ratingViewLabel.toLowerCase()} matches</strong>
+              </div>
+              <div className={profileStory.ratingViews} aria-label="Choose match view">
                 {(['overall', 'singles', 'doubles'] as const).map((view) => (
                   <button
                     key={view}
@@ -1849,18 +1902,6 @@ function PlayerProfileContent() {
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-        </article>
-
-        {hasTrackedMatches ? (
-          <section id="profile-performance" className={profileStory.performanceSnapshot} aria-label="Player performance snapshot">
-            <div className={profileStory.performanceSnapshotHeading}>
-              <div>
-                <span>Performance snapshot</span>
-                <h2>{selectedMatchLabel} match evidence</h2>
-              </div>
-              <span>{ratingViewLabel}</span>
             </div>
             <div className={profileStory.ratingPulse} aria-label={`${ratingViewLabel} rating trend`}>
               <div className={profileStory.ratingPulseRead}>
@@ -1925,15 +1966,18 @@ function PlayerProfileContent() {
                 ))}
               </div>
             </div>
-            {publicRecentResults.length > 0 ? (
-              <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
-                <div className={profileStory.recentResultSnapshotHeading}>
-                  <span>Match tape</span>
-                  <small>{showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`}</small>
-                </div>
+            <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
+              <div className={profileStory.recentResultSnapshotHeading}>
+                <span>Match tape</span>
+                <small>{publicRecentResults.length > 0 ? (showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`) : `0 ${ratingViewLabel.toLowerCase()} matches`}</small>
+              </div>
+              {publicRecentResults.length > 0 ? (
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => {
                     const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
+                    const ratedOpponentNames = formatRatedParticipantNames(match.opponentRatings, canViewExactParticipantTiq)
+                    const ratedPartnerNames = formatRatedParticipantNames(match.partnerRatings, canViewExactParticipantTiq)
+                    const compactImpact = getCompactMatchImpact(match, snap, canViewExactTiqRating)
 
                     return (
                       <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
@@ -1948,25 +1992,15 @@ function PlayerProfileContent() {
                             <span>Opponent</span>
                             {match.opponentIds.length === 1 ? (
                               <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
-                                {match.opponent}
+                                {ratedOpponentNames || match.opponent}
                               </Link>
                             ) : (
-                              <strong>{match.opponent}</strong>
+                              <strong>{ratedOpponentNames || match.opponent}</strong>
                             )}
                           </div>
                           <div className={profileStory.recentResultTileMeta}>
                             <span>{match.context}</span>
-                            {match.partner ? <span>With {match.partner}</span> : null}
-                            {match.partnerRatings.length > 0 ? (
-                              <span>
-                                Partner TiQ {match.partnerRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
-                              </span>
-                            ) : null}
-                            {match.opponentRatings.length > 0 ? (
-                              <span>
-                                Opponent TiQ {match.opponentRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
-                              </span>
-                            ) : null}
+                            {match.partner ? <span>With {ratedPartnerNames || match.partner}</span> : null}
                           </div>
                         </div>
                         <div className={profileStory.recentResultScoreboard}>
@@ -1977,24 +2011,33 @@ function PlayerProfileContent() {
                           <div className={profileStory.recentResultTiq}>
                             <strong>{snap?.dynamic_rating == null ? '—' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}</strong>
                             <span>{snap?.dynamic_rating == null ? 'TiQ pending' : 'TiQ after'}</span>
+                            <small className={profileStory.recentResultImpact}>{compactImpact}</small>
                           </div>
                         </div>
                       </article>
                     )
                   })}
                 </div>
-                {filteredMatches.length > 3 ? (
-                  <button
-                    type="button"
-                    className={profileStory.recentResultSnapshotAction}
-                    aria-expanded={showAllPublicResults}
-                    onClick={() => setShowAllPublicResults((current) => !current)}
-                  >
-                    {showAllPublicResults ? 'Show recent three' : `View full match tape (${filteredMatches.length})`}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+              ) : (
+                <div className={profileStory.matchTapeEmpty}>
+                  <strong>No {ratingViewLabel.toLowerCase()} matches on this profile yet.</strong>
+                  <span>Switch to Overall to see all {matches.length} reviewed match{matches.length === 1 ? '' : 'es'}.</span>
+                  {ratingView !== 'overall' ? (
+                    <button type="button" onClick={() => setRatingView('overall')}>View all matches</button>
+                  ) : null}
+                </div>
+              )}
+              {filteredMatches.length > 3 ? (
+                <button
+                  type="button"
+                  className={profileStory.recentResultSnapshotAction}
+                  aria-expanded={showAllPublicResults}
+                  onClick={() => setShowAllPublicResults((current) => !current)}
+                >
+                  {showAllPublicResults ? 'Show recent three' : `View full match tape (${filteredMatches.length})`}
+                </button>
+              ) : null}
+            </div>
           </section>
         ) : null}
 

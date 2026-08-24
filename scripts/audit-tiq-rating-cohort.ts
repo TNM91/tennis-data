@@ -133,20 +133,27 @@ export function buildRatingCohortAudit(result: RatingRecalculationResult) {
 }
 
 async function verifyPersistedRatings(client: SupabaseClient, result: RatingRecalculationResult) {
-  const { data, error } = await client
-    .from('players')
-    .select(`
-      id,
-      singles_dynamic_rating,
-      doubles_dynamic_rating,
-      overall_dynamic_rating,
-      singles_usta_dynamic_rating,
-      doubles_usta_dynamic_rating,
-      overall_usta_dynamic_rating
-    `)
-  if (error) throw new Error(`Failed to verify persisted ratings: ${error.message}`)
+  const persistedPlayers: PersistedRating[] = []
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await client
+      .from('players')
+      .select(`
+        id,
+        singles_dynamic_rating,
+        doubles_dynamic_rating,
+        overall_dynamic_rating,
+        singles_usta_dynamic_rating,
+        doubles_usta_dynamic_rating,
+        overall_usta_dynamic_rating
+      `)
+      .range(offset, offset + 999)
+    if (error) throw new Error(`Failed to verify persisted ratings: ${error.message}`)
+    const page = (data ?? []) as PersistedRating[]
+    persistedPlayers.push(...page)
+    if (page.length < 1000) break
+  }
 
-  const persistedById = new Map(((data ?? []) as PersistedRating[]).map((player) => [player.id, player]))
+  const persistedById = new Map(persistedPlayers.map((player) => [player.id, player]))
   const round = (value: number) => Math.round(value * 1000) / 1000
   let mismatchedPlayers = 0
   for (const player of result.players) {
@@ -170,16 +177,21 @@ async function verifyPersistedRatings(client: SupabaseClient, result: RatingReca
 }
 
 async function getParticipantIntegrity(client: SupabaseClient) {
-  const { data: matches, error: matchesError } = await client
-    .from('matches')
-    .select('id, match_type, source, match_source, external_match_id')
-    .eq('rating_eligible', true)
-    .not('match_type', 'is', null)
-    .not('winner_side', 'is', null)
+  const eligibleMatches: EligibleMatch[] = []
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await client
+      .from('matches')
+      .select('id, match_type, source, match_source, external_match_id')
+      .eq('rating_eligible', true)
+      .not('match_type', 'is', null)
+      .not('winner_side', 'is', null)
+      .range(offset, offset + 999)
+    if (error) throw new Error(`Failed to fetch eligible matches: ${error.message}`)
+    const page = (data ?? []) as EligibleMatch[]
+    eligibleMatches.push(...page)
+    if (page.length < 1000) break
+  }
 
-  if (matchesError) throw new Error(`Failed to fetch eligible matches: ${matchesError.message}`)
-
-  const eligibleMatches = (matches ?? []) as EligibleMatch[]
   const eligibleIds = new Set(eligibleMatches.map((match) => match.id))
   const participantResponses = await Promise.all(chunk(eligibleMatches.map((match) => match.id)).map((values) => client
     .from('match_players')
