@@ -86,9 +86,17 @@ type MatchRecord = {
   result: 'W' | 'L'
   opponent: string
   opponentIds: string[]
+  opponentRatings: MatchParticipantRating[]
   partner: string | null
+  partnerRatings: MatchParticipantRating[]
   sideA: string[]
   sideB: string[]
+}
+
+type MatchParticipantRating = {
+  id: string
+  name: string
+  dynamicRating: number | null
 }
 
 type SnapshotRow = {
@@ -453,11 +461,13 @@ function PlayerProfileContent() {
 
       let matchRows: MatchRow[] = []
       let participantRows: MatchPlayerRow[] = []
+      let participantSnapshotRows: SnapshotRow[] = []
 
       if (matchIds.length > 0) {
         const [
           { data: matchesData, error: matchesError },
           { data: participantsData, error: participantsError },
+          { data: participantSnapshotsData, error: participantSnapshotsError },
         ] = await Promise.all([
           supabase
             .from('matches')
@@ -493,13 +503,20 @@ function PlayerProfileContent() {
               )
             `)
             .in('match_id', matchIds),
+          supabase
+            .from('rating_snapshots')
+            .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating, delta, opponent_rating, win_probability, multiplier')
+            .in('match_id', matchIds)
+            .eq('track', 'tiq'),
         ])
 
         if (matchesError) throw new Error(matchesError.message)
         if (participantsError) throw new Error(participantsError.message)
+        if (participantSnapshotsError) throw new Error(participantSnapshotsError.message)
 
         matchRows = (matchesData || []) as MatchRow[]
         participantRows = (participantsData || []) as unknown as MatchPlayerRow[]
+        participantSnapshotRows = (participantSnapshotsData || []) as SnapshotRow[]
       }
 
       const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
@@ -508,6 +525,23 @@ function PlayerProfileContent() {
         const existing = participantsByMatchId.get(row.match_id) ?? []
         existing.push(row)
         participantsByMatchId.set(row.match_id, existing)
+      }
+
+      const participantSnapshotsByKey = new Map<string, SnapshotRow>()
+      for (const snapshot of participantSnapshotRows) {
+        const ratingType = snapshot.rating_type || 'overall'
+        participantSnapshotsByKey.set(`${snapshot.match_id}:${snapshot.player_id}:${ratingType}`, snapshot)
+      }
+
+      const participantRatingFor = (matchId: string, participant: MatchPlayerRow, matchType: MatchType): MatchParticipantRating => {
+        const snapshot = participantSnapshotsByKey.get(`${matchId}:${participant.player_id}:${matchType}`)
+          ?? participantSnapshotsByKey.get(`${matchId}:${participant.player_id}:overall`)
+          ?? null
+        return {
+          id: participant.player_id,
+          name: participant.players?.name || 'Player not linked',
+          dynamicRating: snapshot?.dynamic_rating ?? null,
+        }
       }
 
       const groupedMatches: MatchRecord[] = matchRows.map((match) => {
@@ -525,16 +559,17 @@ function PlayerProfileContent() {
         const playerSide: MatchSide = playerOnSideA ? 'A' : 'B'
         const opponentSide: MatchSide = playerSide === 'A' ? 'B' : 'A'
 
-        const playerTeam = (playerSide === 'A' ? sideA : sideB).map(
-          (p) => p.players?.name || 'Player not linked',
-        )
+        const playerSideParts = playerSide === 'A' ? sideA : sideB
+        const playerTeam = playerSideParts.map((participant) => participant.players?.name || 'Player not linked')
         const opponentSideParts = opponentSide === 'A' ? sideA : sideB
-        const opponentTeam = opponentSideParts.map(
-          (p) => p.players?.name || 'Player not linked',
-        )
+        const opponentTeam = opponentSideParts.map((participant) => participant.players?.name || 'Player not linked')
         const opponentIds = opponentSideParts
           .map((p) => p.player_id)
           .filter((id): id is string => Boolean(id))
+        const opponentRatings = opponentSideParts.map((participant) => participantRatingFor(match.id, participant, match.match_type))
+        const partnerRatings = playerSideParts
+          .filter((participant) => participant.player_id !== playerId)
+          .map((participant) => participantRatingFor(match.id, participant, match.match_type))
 
         const partnerNames = playerTeam.filter(
           (name) =>
@@ -556,7 +591,9 @@ function PlayerProfileContent() {
           result: isWin ? 'W' : 'L',
           opponent: opponentTeam.join(' / '),
           opponentIds,
+          opponentRatings,
           partner: partnerNames.length > 0 ? partnerNames.join(' / ') : null,
+          partnerRatings,
           sideA: sideA.map((p) => p.players?.name || 'Player not linked'),
           sideB: sideB.map((p) => p.players?.name || 'Player not linked'),
         }
@@ -1023,6 +1060,7 @@ function PlayerProfileContent() {
 
   const isOwnProfile = linkedPlayerId === playerId
   const canViewExactTiqRating = isOwnProfile || access.canUseAdvancedPlayerInsights
+  const canViewExactParticipantTiq = access.canUseAdvancedPlayerInsights
   const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights
   const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
@@ -1919,6 +1957,16 @@ function PlayerProfileContent() {
                           <div className={profileStory.recentResultTileMeta}>
                             <span>{match.context}</span>
                             {match.partner ? <span>With {match.partner}</span> : null}
+                            {match.partnerRatings.length > 0 ? (
+                              <span>
+                                Partner TiQ {match.partnerRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
+                              </span>
+                            ) : null}
+                            {match.opponentRatings.length > 0 ? (
+                              <span>
+                                Opponent TiQ {match.opponentRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <div className={profileStory.recentResultScoreboard}>

@@ -524,8 +524,15 @@ function processDoublesMatch(
 
   for (const player of teamA) {
     const k = getProvisionalkMultiplier(player.matchesProcessed)
-    const doublesD = K_DOUBLES * k * tiqRawDoublesA
-    const overallD = K_OVERALL * k * tiqRawDoublesA
+    const playerRawResult = applyDoublesPartnerBurdenGuard(
+      tiqRawDoublesA,
+      player.doublesDynamic,
+      teamA.filter((teammate) => teammate.id !== player.id).map((teammate) => teammate.doublesDynamic),
+      tiqTeamBRating,
+      scoreMetrics,
+    )
+    const doublesD = K_DOUBLES * k * playerRawResult
+    const overallD = K_OVERALL * k * playerRawResult
     player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + doublesD)
     player.overallDynamic = clampAndRoundRating(player.overallDynamic + overallD)
     registerDelta(player, match.match_date)
@@ -537,8 +544,15 @@ function processDoublesMatch(
 
   for (const player of teamB) {
     const k = getProvisionalkMultiplier(player.matchesProcessed)
-    const doublesD = K_DOUBLES * k * tiqRawDoublesB
-    const overallD = K_OVERALL * k * tiqRawDoublesB
+    const playerRawResult = applyDoublesPartnerBurdenGuard(
+      tiqRawDoublesB,
+      player.doublesDynamic,
+      teamB.filter((teammate) => teammate.id !== player.id).map((teammate) => teammate.doublesDynamic),
+      tiqTeamARating,
+      scoreMetrics,
+    )
+    const doublesD = K_DOUBLES * k * playerRawResult
+    const overallD = K_OVERALL * k * playerRawResult
     player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + doublesD)
     player.overallDynamic = clampAndRoundRating(player.overallDynamic + overallD)
     registerDelta(player, match.match_date)
@@ -566,8 +580,15 @@ function processDoublesMatch(
 
     for (const player of teamA) {
       const k = getProvisionalkMultiplier(player.matchesProcessed)
-      const doublesD = K_DOUBLES * k * ustaRawDoublesA
-      const overallD = K_OVERALL * k * ustaRawDoublesA
+      const playerRawResult = applyDoublesPartnerBurdenGuard(
+        ustaRawDoublesA,
+        player.doublesUstaDynamic,
+        teamA.filter((teammate) => teammate.id !== player.id).map((teammate) => teammate.doublesUstaDynamic),
+        ustaTeamBRating,
+        scoreMetrics,
+      )
+      const doublesD = K_DOUBLES * k * playerRawResult
+      const overallD = K_OVERALL * k * playerRawResult
       player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + doublesD)
       player.overallUstaDynamic = clampAndRoundRating(player.overallUstaDynamic + overallD)
       snapshotRows.push(
@@ -578,8 +599,15 @@ function processDoublesMatch(
 
     for (const player of teamB) {
       const k = getProvisionalkMultiplier(player.matchesProcessed)
-      const doublesD = K_DOUBLES * k * ustaRawDoublesB
-      const overallD = K_OVERALL * k * ustaRawDoublesB
+      const playerRawResult = applyDoublesPartnerBurdenGuard(
+        ustaRawDoublesB,
+        player.doublesUstaDynamic,
+        teamB.filter((teammate) => teammate.id !== player.id).map((teammate) => teammate.doublesUstaDynamic),
+        ustaTeamARating,
+        scoreMetrics,
+      )
+      const doublesD = K_DOUBLES * k * playerRawResult
+      const overallD = K_OVERALL * k * playerRawResult
       player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + doublesD)
       player.overallUstaDynamic = clampAndRoundRating(player.overallUstaDynamic + overallD)
       snapshotRows.push(
@@ -943,6 +971,37 @@ export function getScoreAwarePerformance(scoreMetrics: ScoreMetrics, winnerSide:
     a: actualGameShareA - expectedGameShareA,
     b: (1 - actualGameShareA) - (1 - expectedGameShareA),
   }
+}
+
+/**
+ * Doubles results are assessed at the team level, but a close loss should not
+ * pull down the stronger player when their partner materially lowers the
+ * team's expected level against a comparable opposing pair. Without point-by-
+ * point attribution, this is deliberately a protection—not a speculative
+ * bonus or a transfer of rating from the partner.
+ */
+export function applyDoublesPartnerBurdenGuard(
+  rawPerformance: number,
+  playerRating: number,
+  partnerRatings: number[],
+  opponentTeamRating: number,
+  scoreMetrics: ScoreMetrics,
+) {
+  if (
+    rawPerformance >= 0 ||
+    !scoreMetrics.parsed ||
+    scoreMetrics.competitivenessRatio < 0.8
+  ) {
+    return rawPerformance
+  }
+
+  const partnerRating = average(partnerRatings)
+  const isCarryingMeaningfullyWeakerPartner = playerRating - partnerRating >= 0.3
+  const opponentsAreComparableToThePlayer = opponentTeamRating >= playerRating - 0.25
+
+  return isCarryingMeaningfullyWeakerPartner && opponentsAreComparableToThePlayer
+    ? 0
+    : rawPerformance
 }
 
 export function expectedGameShare(ratingA: number, ratingB: number) {
