@@ -228,6 +228,18 @@ function formatTiqRating(value: number | string | null | undefined, player: Pick
   return formatPublicRating(value, player)
 }
 
+function formatRatedParticipantNames(
+  participants: MatchParticipantRating[],
+  canViewExact: boolean,
+) {
+  return participants
+    .map((participant) => {
+      const rating = formatTiqRating(participant.dynamicRating, null, canViewExact)
+      return rating === 'Locked' ? participant.name : `${participant.name} (${rating})`
+    })
+    .join(' / ')
+}
+
 export default function PlayerProfilePage() {
   return (
     <SiteShell active="/players">
@@ -1934,6 +1946,8 @@ function PlayerProfileContent() {
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => {
                     const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
+                    const ratedOpponentNames = formatRatedParticipantNames(match.opponentRatings, canViewExactParticipantTiq)
+                    const ratedPartnerNames = formatRatedParticipantNames(match.partnerRatings, canViewExactParticipantTiq)
 
                     return (
                       <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
@@ -1948,25 +1962,15 @@ function PlayerProfileContent() {
                             <span>Opponent</span>
                             {match.opponentIds.length === 1 ? (
                               <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
-                                {match.opponent}
+                                {ratedOpponentNames || match.opponent}
                               </Link>
                             ) : (
-                              <strong>{match.opponent}</strong>
+                              <strong>{ratedOpponentNames || match.opponent}</strong>
                             )}
                           </div>
                           <div className={profileStory.recentResultTileMeta}>
                             <span>{match.context}</span>
-                            {match.partner ? <span>With {match.partner}</span> : null}
-                            {match.partnerRatings.length > 0 ? (
-                              <span>
-                                Partner TiQ {match.partnerRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
-                              </span>
-                            ) : null}
-                            {match.opponentRatings.length > 0 ? (
-                              <span>
-                                Opponent TiQ {match.opponentRatings.map((participant) => formatTiqRating(participant.dynamicRating, null, canViewExactParticipantTiq)).join(' · ')}
-                              </span>
-                            ) : null}
+                            {match.partner ? <span>With {ratedPartnerNames || match.partner}</span> : null}
                           </div>
                         </div>
                         <div className={profileStory.recentResultScoreboard}>
