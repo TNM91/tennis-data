@@ -21,6 +21,9 @@ type MatchRow = {
   winner_side: 'A' | 'B' | null
   score: string | null
 }
+type PlayerRelation = { id: string; name: string } | { id: string; name: string }[] | null
+type MatchPlayerRow = { match_id: string; side: 'A' | 'B'; players: PlayerRelation }
+type PlayerImpact = { id: string; name: string; appearances: number; wins: number; losses: number }
 type LineupAssignment = { id: string; event_key: string; court_label: string; players: string[] }
 type WeeklyAvailability = { id: string; event_key: string; status: 'available' | 'unavailable' | 'tentative' | 'no-response' }
 type WeeklyResponse = { id: string; event_key: string; status: 'confirmed' | 'declined' | 'viewed' | 'no-response' | 'running-late' | 'need-sub' }
@@ -70,6 +73,29 @@ function didTeamWin(match: MatchRow, team: string) {
   return teamSide ? teamSide === match.winner_side : null
 }
 
+function buildPlayerImpact(matches: MatchRow[], participants: MatchPlayerRow[], team: string): PlayerImpact[] {
+  const matchById = new Map(matches.map((match) => [match.id, match]))
+  const impact = new Map<string, PlayerImpact>()
+  for (const row of participants) {
+    const match = matchById.get(row.match_id)
+    const won = match ? didTeamWin(match, team) : null
+    if (!match || won === null) continue
+    const normalizedTeam = team.trim().toLowerCase()
+    const teamSide = match.home_team?.trim().toLowerCase() === normalizedTeam ? 'A'
+      : match.away_team?.trim().toLowerCase() === normalizedTeam ? 'B'
+        : null
+    if (!teamSide || row.side !== teamSide) continue
+    const player = Array.isArray(row.players) ? row.players[0] : row.players
+    if (!player?.id || !player.name) continue
+    const current = impact.get(player.id) ?? { id: player.id, name: player.name, appearances: 0, wins: 0, losses: 0 }
+    current.appearances += 1
+    if (won) current.wins += 1
+    else current.losses += 1
+    impact.set(player.id, current)
+  }
+  return [...impact.values()].sort((a, b) => b.appearances - a.appearances || b.wins - a.wins || a.name.localeCompare(b.name)).slice(0, 3)
+}
+
 export default function CaptainSeasonDashboardPage() {
   return <SiteShell active="/captain"><CaptainSeasonDashboardContent /></SiteShell>
 }
@@ -82,6 +108,7 @@ function CaptainSeasonDashboardContent() {
   const [matchCount, setMatchCount] = useState<number | null>(null)
   const [nextMatch, setNextMatch] = useState<MatchRow | null>(null)
   const [recentResults, setRecentResults] = useState<MatchRow[]>([])
+  const [playerImpact, setPlayerImpact] = useState<PlayerImpact[]>([])
   const [loadError, setLoadError] = useState('')
 
   const team = initialScope?.team || ''
@@ -122,12 +149,20 @@ function CaptainSeasonDashboardContent() {
         setMatchCount(null)
         setNextMatch(null)
         setRecentResults([])
+        setPlayerImpact([])
         return
       }
       setLoadError('')
       setMatchCount(inventory.count ?? 0)
       setNextMatch((upcoming.data?.[0] as MatchRow | undefined) ?? null)
       setRecentResults((results.data ?? []) as MatchRow[])
+      const completedResults = (results.data ?? []) as MatchRow[]
+      const matchIds = completedResults.map((match) => match.id)
+      if (!matchIds.length) { setPlayerImpact([]); return }
+      void supabase.from('match_players').select('match_id, side, players ( id, name )').in('match_id', matchIds).then(({ data, error: participantError }) => {
+        if (!active || participantError) { if (active) setPlayerImpact([]); return }
+        setPlayerImpact(buildPlayerImpact(completedResults, (data ?? []) as MatchPlayerRow[], team))
+      })
     })
     return () => { active = false }
   }, [access.canUseCaptainWorkflow, authResolved, flight, league, role, team])
@@ -201,6 +236,10 @@ function CaptainSeasonDashboardContent() {
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2>{currentStreak ? <p style={metricDetailStyle}>{currentStreak}</p> : null}</div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
           {seasonResults.length ? <div style={resultListStyle}>{recentResultRows.map(({ match, won }) => <div key={match.id} style={resultRowStyle}><span style={won ? winMarkStyle : lossMarkStyle}>{won ? 'W' : 'L'}</span><div style={resultCopyStyle}><strong style={resultOpponentStyle}>vs {getOpponent(match, team) || 'Opponent pending'}</strong><span style={metricDetailStyle}>{formatDate(match.match_date)}{match.score ? ` · ${match.score}` : ''}</span></div></div>)}</div> : <p style={mutedStyle}>No reported team results in this saved scope yet. Scheduled and unreported matches stay out of the record.</p>}
         </section>
+        <section style={surfaceStyle} aria-label="Roster impact">
+          <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Roster impact</p><h2 style={sectionTitleStyle}>Who has carried the most match load</h2></div><Link href={lineupProjectionHref} style={secondaryLinkStyle}>Use in lineup</Link></div>
+          {playerImpact.length ? <div style={impactGridStyle}>{playerImpact.map((player) => <div key={player.id} style={impactCardStyle}><strong style={resultOpponentStyle}>{player.name}</strong><span style={metricValueStyle}>{player.wins}-{player.losses}</span><span style={metricDetailStyle}>{player.appearances} reported appearances</span></div>)}</div> : <p style={mutedStyle}>Player links are still being completed for this team’s reported results. Team results remain available above.</p>}
+        </section>
         <section style={surfaceStyle} aria-label="Match Week readiness">
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Next up</p><h2 style={sectionTitleStyle}>{resolvedOpponent ? `Prepare for ${resolvedOpponent}` : 'Prepare your next match week'}</h2></div><Link href={weeklyBriefHref} style={secondaryLinkStyle}>Open Match Week</Link></div>
           <div style={readinessGridStyle}>
@@ -245,6 +284,8 @@ const resultListStyle: CSSProperties = { display: 'grid', gap: 8 }
 const resultRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'rgba(3, 20, 40, .28)', minWidth: 0 }
 const resultCopyStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0 }
 const resultOpponentStyle: CSSProperties = { color: 'var(--foreground-strong)', overflowWrap: 'anywhere' }
+const impactGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 10 }
+const impactCardStyle: CSSProperties = { ...metricStyle, background: 'rgba(3, 20, 40, .28)' }
 const actionRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
 const primaryLinkStyle: CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '12px 16px', borderRadius: 999, background: 'var(--brand-lime)', color: '#071526', textDecoration: 'none', fontWeight: 900 }
 const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '12px 16px', borderRadius: 999, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', textDecoration: 'none', fontWeight: 900 }
