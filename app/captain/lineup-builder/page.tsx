@@ -650,6 +650,14 @@ function formatSlotPlayerNames(players: SlotPlayer[], fallback: string) {
   return names.length ? names.join(' / ') : fallback
 }
 
+function slotPlayerSignature(players: SlotPlayer[]) {
+  return players
+    .map((player) => player.playerId || player.playerName)
+    .filter(Boolean)
+    .sort()
+    .join('|')
+}
+
 function probabilityFromDiff(diff: number | null | undefined) {
   if (typeof diff !== 'number' || Number.isNaN(diff)) return null
   return 1 / (1 + Math.exp(-diff * 3.2))
@@ -1265,6 +1273,7 @@ function LineupBuilderContent() {
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
   const [currentScenarioId, setCurrentScenarioId] = useState('')
+  const [comparisonScenarioId, setComparisonScenarioId] = useState('')
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -2463,6 +2472,81 @@ function LineupBuilderContent() {
     () => compareLineupStrength(teamSlots, opponentSlots, builderPlayers),
     [builderPlayers, opponentSlots, teamSlots]
   )
+
+  const comparisonCandidates = useMemo(
+    () => scenarioOptions.filter((scenario) => {
+      if (scenario.id === currentScenarioId) return false
+      if (matchDate && scenario.match_date !== matchDate) return false
+      if (opponentTeam && scenario.opponent_team !== opponentTeam) return false
+      return true
+    }),
+    [currentScenarioId, matchDate, opponentTeam, scenarioOptions]
+  )
+
+  const comparisonScenario = useMemo(
+    () => comparisonCandidates.find((scenario) => scenario.id === comparisonScenarioId) ?? comparisonCandidates[0] ?? null,
+    [comparisonCandidates, comparisonScenarioId]
+  )
+
+  const lineupVersionComparison = useMemo(() => {
+    if (!comparisonScenario) return null
+
+    const baselineAnalysis = compareLineupStrength(
+      normalizeSavedSlots(comparisonScenario.slots_json),
+      normalizeSavedSlots(comparisonScenario.opponent_slots_json),
+      builderPlayers
+    )
+
+    const courts = analysis.lines.map((line, index) => {
+      const baseline = baselineAnalysis.lines[index]
+      const yourChanged = slotPlayerSignature(line.teamPlayers) !== slotPlayerSignature(baseline?.teamPlayers ?? [])
+      const opponentChanged = slotPlayerSignature(line.opponentPlayers) !== slotPlayerSignature(baseline?.opponentPlayers ?? [])
+      const before = baseline?.projection ?? null
+      const after = line.projection
+      const delta = typeof before === 'number' && typeof after === 'number' ? after - before : null
+
+      return {
+        label: line.label,
+        yourChanged,
+        opponentChanged,
+        before,
+        after,
+        delta,
+        beforePlayers: formatSlotPlayerNames(baseline?.teamPlayers ?? [], 'Team spots open'),
+        afterPlayers: formatSlotPlayerNames(line.teamPlayers, 'Team spots open'),
+      }
+    })
+
+    const changedCourts = courts.filter((court) => court.yourChanged || court.opponentChanged)
+    const biggestShift = [...courts]
+      .filter((court) => typeof court.delta === 'number')
+      .sort((left, right) => Math.abs(right.delta ?? 0) - Math.abs(left.delta ?? 0))[0] ?? null
+    const playerSwap = changedCourts.find((court) => court.yourChanged) ?? null
+    const overallDelta = analysis.projection - baselineAnalysis.projection
+    const fullyProjected = analysis.lines.every((line) => typeof line.projection === 'number') &&
+      baselineAnalysis.lines.length === analysis.lines.length &&
+      baselineAnalysis.lines.every((line) => typeof line.projection === 'number')
+    const recommendation = !fullyProjected
+      ? 'Fill both lineups before relying on the comparison.'
+      : overallDelta >= 0.03
+        ? 'Carry the current draft forward. It improves the match outlook.'
+        : overallDelta <= -0.03
+          ? 'Reconsider the current draft. The saved version projects better.'
+          : changedCourts.length
+            ? 'Refine the current draft. The versions are close, so protect the swing court.'
+            : 'No material lineup change. Save a new version only when the plan changes.'
+
+    return {
+      baselineName: comparisonScenario.scenario_name || 'Saved version',
+      baselineProjection: baselineAnalysis.projection,
+      overallDelta,
+      changedCourts,
+      biggestShift,
+      playerSwap,
+      recommendation,
+      fullyProjected,
+    }
+  }, [analysis, builderPlayers, comparisonScenario])
 
   const suggestedSwapImpact = useMemo<CaptainSuggestedSwapImpact | null>(() => {
     if (!suggestedSwapDraft) return null
@@ -3707,6 +3791,89 @@ function LineupBuilderContent() {
             </div>
           ) : null}
         </section>}
+
+        {lineupVersionComparison && comparisonScenario ? (
+          <section id="captain-lineup-version-compare" style={lineupVersionCompareShellStyle} aria-label="Saved lineup comparison">
+            <div style={lineupVersionCompareHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Version compare</p>
+                <h2 style={sectionTitleSmall}>What changed?</h2>
+                <p style={sectionBodyTextStyle}>Working draft vs {lineupVersionComparison.baselineName}. Review the difference before you ask the team.</p>
+              </div>
+              <label style={lineupVersionCompareSelectLabelStyle} htmlFor="lineup-version-compare-select">
+                <span>Compare against</span>
+                <select
+                  id="lineup-version-compare-select"
+                  value={comparisonScenario.id}
+                  onChange={(event) => setComparisonScenarioId(event.target.value)}
+                  style={lineupVersionCompareSelectStyle}
+                >
+                  {comparisonCandidates.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>{scenario.scenario_name || 'Untitled saved version'}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div style={lineupVersionCompareGridStyle}>
+              <div style={lineupVersionCompareCardStyle('info')}>
+                <span style={lineupVersionCompareLabelStyle}>Match outlook</span>
+                <strong style={lineupVersionCompareValueStyle}>
+                  {lineupVersionComparison.fullyProjected
+                    ? `${formatPercent(lineupVersionComparison.baselineProjection)} to ${formatPercent(analysis.projection)}`
+                    : 'Needs both lineups'}
+                </strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {lineupVersionComparison.fullyProjected
+                    ? formatProjectionPointDelta(lineupVersionComparison.overallDelta)
+                    : 'Complete team and opponent courts first'}
+                </span>
+              </div>
+              <div style={lineupVersionCompareCardStyle(lineupVersionComparison.changedCourts.length ? 'good' : 'muted')}>
+                <span style={lineupVersionCompareLabelStyle}>Courts changed</span>
+                <strong style={lineupVersionCompareValueStyle}>{lineupVersionComparison.changedCourts.length}</strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {lineupVersionComparison.changedCourts.length ? 'Player or opponent assignments moved' : 'Same court assignments'}
+                </span>
+              </div>
+              <div style={lineupVersionCompareCardStyle(lineupVersionComparison.biggestShift?.delta && lineupVersionComparison.biggestShift.delta < 0 ? 'warn' : 'info')}>
+                <span style={lineupVersionCompareLabelStyle}>Biggest shift</span>
+                <strong style={lineupVersionCompareValueStyle}>{lineupVersionComparison.biggestShift?.label ?? 'No court read'}</strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {typeof lineupVersionComparison.biggestShift?.delta === 'number'
+                    ? formatProjectionPointDelta(lineupVersionComparison.biggestShift.delta)
+                    : 'No projection change yet'}
+                </span>
+              </div>
+            </div>
+
+            <div style={lineupVersionCompareCallStyle}>
+              <span style={lineupVersionCompareLabelStyle}>Captain call</span>
+              <strong>{lineupVersionComparison.recommendation}</strong>
+              {lineupVersionComparison.playerSwap ? (
+                <span>
+                  {lineupVersionComparison.playerSwap.label}: {lineupVersionComparison.playerSwap.beforePlayers} → {lineupVersionComparison.playerSwap.afterPlayers}
+                </span>
+              ) : null}
+            </div>
+
+            {lineupVersionComparison.changedCourts.length ? (
+              <div style={lineupVersionCompareCourtGridStyle}>
+                {lineupVersionComparison.changedCourts.slice(0, 4).map((court) => (
+                  <div key={court.label} style={lineupVersionCompareCourtStyle}>
+                    <span style={lineupVersionCompareLabelStyle}>{court.label}</span>
+                    <strong>{court.beforePlayers} → {court.afterPlayers}</strong>
+                    <span style={lineupVersionCompareDetailStyle}>
+                      {typeof court.delta === 'number'
+                        ? `${formatPercent(court.before)} to ${formatPercent(court.after)} · ${formatProjectionPointDelta(court.delta)}`
+                        : 'Complete both court reads to see the impact'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <details style={isMobile ? hiddenMobileContextStyle : surfaceCard}>
           <summary style={detailsSummaryStyle}>
@@ -5419,6 +5586,131 @@ const decisionBoardShellStyle: CSSProperties = {
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
+}
+
+const lineupVersionCompareShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg-strong) 90%), var(--shell-chip-bg))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
+}
+
+const lineupVersionCompareHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const lineupVersionCompareSelectLabelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 'min(100%, 220px)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const lineupVersionCompareSelectStyle: CSSProperties = {
+  ...inputStyle,
+  height: 40,
+  fontSize: 13,
+  fontWeight: 800,
+}
+
+const lineupVersionCompareGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+function lineupVersionCompareCardStyle(tone: CourtMapTone): CSSProperties {
+  const palette = tone === 'good'
+    ? { border: 'rgba(134, 239, 172, 0.3)', background: 'rgba(22, 101, 52, 0.15)' }
+    : tone === 'warn'
+      ? { border: 'rgba(252, 165, 165, 0.3)', background: 'rgba(127, 29, 29, 0.15)' }
+      : tone === 'info'
+        ? { border: 'rgba(125, 211, 252, 0.28)', background: 'rgba(3, 105, 161, 0.14)' }
+        : { border: 'var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+
+  return {
+    display: 'grid',
+    gap: 5,
+    minWidth: 0,
+    padding: 14,
+    borderRadius: 17,
+    border: `1px solid ${palette.border}`,
+    background: palette.background,
+  }
+}
+
+const lineupVersionCompareLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareCallStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: '14px 16px',
+  borderRadius: 17,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 27%, var(--shell-panel-border) 73%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareCourtGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const lineupVersionCompareCourtStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const mobileCourtFocusStyle: CSSProperties = {
