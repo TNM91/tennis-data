@@ -30,6 +30,9 @@ describe('member experience season and rating access', () => {
     expect(playerProfileSource).toContain('Unlock exact TIQ ratings with Player')
     expect(playerProfileSource).toContain("'TiQ after'")
     expect(playerProfileSource).toContain('recentResultTiq')
+    expect(playerProfileSource).toContain('const canViewExactParticipantTiq = access.canUseAdvancedPlayerInsights')
+    expect(playerProfileSource).toContain('Partner TiQ')
+    expect(playerProfileSource).toContain('Opponent TiQ')
   })
 
   it('keeps My Quest tennis-specific', () => {

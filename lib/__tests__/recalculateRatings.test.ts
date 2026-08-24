@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   recalculateDynamicRatings,
+  applyDoublesPartnerBurdenGuard,
   parseScoreMetrics,
   getScoreAwarePerformance,
   getRecencyWeight,
@@ -338,6 +339,24 @@ describe('getScoreAwarePerformance', () => {
     const performance = getScoreAwarePerformance(closeLoss, 'B', 4.1, 4.9)
     expect(performance.a).toBeGreaterThan(0)
     expect(performance.b).toBeLessThan(0)
+  })
+
+  it('credits a close doubles loss when a weaker partner makes the pair an underdog', () => {
+    // A 4.0 player paired with a 3.0 player faces two 4.0 players. The pair
+    // is evaluated at 3.5 against 4.0, so a 4-6, 4-6 loss outperforms the
+    // team expectation instead of being treated as a penalty.
+    const closeDoublesLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const performance = getScoreAwarePerformance(closeDoublesLoss, 'B', 3.5, 4.0)
+    expect(performance.a).toBeGreaterThan(0)
+    expect(performance.b).toBeLessThan(0)
+  })
+
+  it('protects the stronger partner from a close doubles-loss penalty against a comparable pair', () => {
+    const closeLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const rawTeamPerformance = getScoreAwarePerformance(closeLoss, 'B', 4.25, 4.5).a
+
+    expect(rawTeamPerformance).toBeLessThan(0)
+    expect(applyDoublesPartnerBurdenGuard(rawTeamPerformance, 4.5, [4.0], 4.5, closeLoss)).toBe(0)
   })
 })
 
