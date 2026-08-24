@@ -24,15 +24,21 @@ type CoverageSummary = {
 // Historical backfill uses the Admin-configured safe ceiling. Requests remain
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
-const WEEKLY_TENNISRECORD_BATCH_LIMIT = 8
+// Ten sequential requests fit within the five-minute function allowance at
+// the source-safe three-second pacing, while leaving recovery headroom for
+// normal network retries and the reconciliation pass.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 10
+const WEEKLY_TENNISRECORD_BATCH_LIMIT = 10
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
 const DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT = 4
 const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
-export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 5
+// A completed checkpoint gets a short idle gap before the next one. The
+// source-request lane itself remains strictly sequential and paced by the
+// configured request interval.
+export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 3
 const TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS = 30 * 60_000
 const TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS = 15 * 60_000
 const TENNISRECORD_LONG_CHECKPOINT_MS = 3 * 60_000

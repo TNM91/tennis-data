@@ -235,12 +235,12 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('uses the bounded configured throughput for historical and weekly refreshes', () => {
-    expect(scheduledTennisRecordBatchLimit(12)).toBe(8)
+    expect(scheduledTennisRecordBatchLimit(12)).toBe(10)
     expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
     expect(scheduledTennisRecordBatchLimit(2)).toBe(2)
     expect(scheduledTennisRecordBatchLimit(1)).toBe(1)
-    expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(8)
+    expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(10)
     expect(scheduledTennisRecordBatchLimit(8, 'weekly')).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5, 'weekly')).toBe(5)
     expect(TENNISRECORD_BOOTSTRAP_PAGE_KINDS).toEqual(['history', 'league', 'match', 'player', 'team'])
@@ -253,9 +253,9 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('bases campaign timing on the currently known queue and bounded checkpoints', () => {
-    expect(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES).toBe(5)
-    expect(tennisRecordCheckpointForecast(17, 1, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 3, estimatedMinutesRemaining: 15 })
-    expect(tennisRecordCheckpointForecast(0, 0, 8)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
+    expect(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES).toBe(3)
+    expect(tennisRecordCheckpointForecast(17, 1, 10)).toEqual({ pagesPerCheckpoint: 10, checkpointsRemaining: 2, estimatedMinutesRemaining: 6 })
+    expect(tennisRecordCheckpointForecast(0, 0, 10)).toEqual({ pagesPerCheckpoint: 10, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
   })
 
   it('backs off the faster cadence when the most recent checkpoint shows source pressure', () => {
