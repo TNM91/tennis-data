@@ -139,6 +139,13 @@ function CaptainSeasonDashboardContent() {
   const seasonLosses = seasonResults.length - seasonWins
   const currentForm = seasonResults.slice(0, 5).map((item) => item.won ? 'W' : 'L')
   const recentResultRows = seasonResults.slice(0, 5)
+  const currentStreak = useMemo(() => {
+    const first = seasonResults[0]?.won
+    if (typeof first !== 'boolean') return ''
+    const count = seasonResults.findIndex((item) => item.won !== first)
+    const length = count === -1 ? seasonResults.length : count
+    return `${first ? 'Winning' : 'Loss'} streak: ${length}`
+  }, [seasonResults])
   const eventKey = useMemo(() => safeKey(team, league, flight, resolvedDate || null), [flight, league, resolvedDate, team])
   const lineupRows = useMemo(() => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
   const availabilityRows = useMemo(() => readLocalArray<WeeklyAvailability>(WEEKLY_AVAILABILITY_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
@@ -156,6 +163,7 @@ function CaptainSeasonDashboardContent() {
   const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', scopedParams)
   const availabilityHref = buildCaptainScopedHref('/captain/availability', scopedParams)
   const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', scopedParams)
+  const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', scopedParams)
 
   useEffect(() => {
     if (!team || !authResolved || !access.canUseCaptainWorkflow) return
@@ -190,7 +198,7 @@ function CaptainSeasonDashboardContent() {
           </div>
         </section>
         <section style={surfaceStyle} aria-label="Recent season results">
-          <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2></div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
+          <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2>{currentStreak ? <p style={metricDetailStyle}>{currentStreak}</p> : null}</div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
           {seasonResults.length ? <div style={resultListStyle}>{recentResultRows.map(({ match, won }) => <div key={match.id} style={resultRowStyle}><span style={won ? winMarkStyle : lossMarkStyle}>{won ? 'W' : 'L'}</span><div style={resultCopyStyle}><strong style={resultOpponentStyle}>vs {getOpponent(match, team) || 'Opponent pending'}</strong><span style={metricDetailStyle}>{formatDate(match.match_date)}{match.score ? ` · ${match.score}` : ''}</span></div></div>)}</div> : <p style={mutedStyle}>No reported team results in this saved scope yet. Scheduled and unreported matches stay out of the record.</p>}
         </section>
         <section style={surfaceStyle} aria-label="Match Week readiness">
@@ -201,7 +209,7 @@ function CaptainSeasonDashboardContent() {
             <ReadinessItem label="Team replies" value={responseRows.length ? `${responseRows.length} tracked` : 'Not sent'} detail={replyRisk ? `${replyRisk} need follow-up` : responseRows.length ? 'No saved reply risks' : 'Send the plan when ready'} ready={responseRows.length > 0 && replyRisk === 0} />
             <ReadinessItem label="Match details" value={eventDetail?.location || eventDetail?.arrivalTime ? 'Saved' : 'Missing'} detail={eventDetail?.arrivalTime ? `Arrive by ${eventDetail.arrivalTime}` : eventDetail?.location ? eventDetail.location : 'Add location or arrival time'} ready={Boolean(eventDetail?.location || eventDetail?.arrivalTime || eventDetail?.notes)} />
           </div>
-          <div style={actionRowStyle}><Link href={lineupHref} style={primaryLinkStyle}>{lineupRows.length ? 'Review lineup' : 'Build lineup'}</Link><Link href={availabilityHref} style={secondaryLinkStyle}>{availabilityRows.length ? 'Review availability' : 'Collect availability'}</Link></div>
+          <div style={actionRowStyle}><Link href={lineupHref} style={primaryLinkStyle}>{lineupRows.length ? 'Review lineup' : 'Build lineup'}</Link><Link href={lineupProjectionHref} style={secondaryLinkStyle}>Compare lineups</Link><Link href={availabilityHref} style={secondaryLinkStyle}>{availabilityRows.length ? 'Review availability' : 'Collect availability'}</Link></div>
         </section>
       </div>
     </main>
