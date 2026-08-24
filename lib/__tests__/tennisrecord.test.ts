@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind } from '../tennisrecord/parser'
+import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
@@ -11,6 +11,13 @@ const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisr
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
 
 describe('TennisRecord ingestion safety', () => {
+  it('uses only a stated NTRP designation as a TiQ baseline, never a proprietary estimate', () => {
+    expect(tennisRecordStatedNtrpBaseline('4.0 C')).toBe(4)
+    expect(tennisRecordStatedNtrpBaseline('4.5 S')).toBe(4.5)
+    expect(tennisRecordStatedNtrpBaseline('4.0122')).toBeNull()
+    expect(tennisRecordStatedNtrpBaseline('Estimated Dynamic Rating 4.0122')).toBeNull()
+  })
+
   it('parses representative singles, doubles, and set scores without treating published ratings as a rating input', () => {
     const parsed = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches).toHaveLength(2)

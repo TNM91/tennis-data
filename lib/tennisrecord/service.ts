@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
-import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind } from './parser'
+import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
@@ -61,10 +61,11 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
-// Revision 3 adds source roster observations from explicitly-labelled team
-// roster tables. Captured public pages replay gradually through the existing
-// bounded checkpoint, so historical team pages benefit without a re-crawl.
-const TENNISRECORD_PARSER_REVISION = 3
+// Revision 4 retains stated NTRP designations as factual provenance and uses
+// them as an initial TiQ baseline only for source-created provisional players.
+// TennisRecord's estimated dynamic rating remains metadata only. Captured
+// public pages replay gradually through the existing bounded checkpoint.
+const TENNISRECORD_PARSER_REVISION = 4
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
@@ -380,6 +381,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     const campaignSlug = campaign.data?.slug as string | undefined
     const replay = await reparseCapturedTennisRecordMatchPages(service, runId, input.campaignId, campaignSlug)
     const touchedSourceMatchKeys = new Set<string>()
+    let baselineChanged = replay.baselineChanged
     summary.pagesProcessed += replay.pagesProcessed
     summary.playersDiscovered += replay.playersDiscovered
     summary.teamsDiscovered += replay.teamsDiscovered
@@ -413,7 +415,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           }).eq('id', job.id)
           continue
         }
-        for (const sourceMatchKey of await stageParsedPage(service, parsed, page.url, pageUpsert.data?.id as string | undefined, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)) {
+        const staged = await stageParsedPage(service, parsed, page.url, pageUpsert.data?.id as string | undefined, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)
+        baselineChanged = baselineChanged || staged.baselineChanged
+        for (const sourceMatchKey of staged.sourceMatchKeys) {
           touchedSourceMatchKeys.add(sourceMatchKey)
         }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
@@ -437,6 +441,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       }
     }
     const reconciled = await reconcileTennisRecordMatches(service, [...replay.sourceMatchKeys, ...touchedSourceMatchKeys])
+    if (baselineChanged && !reconciled.ratingChanged) await recalculateDynamicRatings(undefined, service)
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
     return summary
@@ -682,10 +687,10 @@ function isActiveRunLockError(error: { code?: string; message?: string }) {
   return error.code === '23505' && /tennisrecord_sync_runs_one_active_idx/i.test(error.message || '')
 }
 
-type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[] }
+type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[]; baselineChanged: boolean }
 
 async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, runId: string, campaignId?: string | null, campaignSlug?: string): Promise<ParserReplaySummary> {
-  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [] }
+  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [], baselineChanged: false }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
     .select('id,source_url,raw_html')
@@ -715,7 +720,9 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     if (isMatchPage && !hasCompleteMatches) {
       summary.parserFailures += 1
     } else {
-      summary.sourceMatchKeys.push(...await stageParsedPage(service, parsed, sourceUrl, page.id as string, campaignId, campaignSlug, TENNISRECORD_PARSER_REVISION))
+      const staged = await stageParsedPage(service, parsed, sourceUrl, page.id as string, campaignId, campaignSlug, TENNISRECORD_PARSER_REVISION)
+      summary.sourceMatchKeys.push(...staged.sourceMatchKeys)
+      summary.baselineChanged = summary.baselineChanged || staged.baselineChanged
       summary.pagesProcessed += 1
       summary.playersDiscovered += parsed.players.length
       summary.teamsDiscovered += parsed.teams.length
@@ -730,8 +737,29 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
 
 async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION) {
   let savedSourceMatchKeys: string[] = []
+  let baselineChanged = false
   if (parsed.players.length) {
-    const { data: staged, error } = await service.from('tennisrecord_staged_players').upsert(parsed.players.map((player) => ({ source_player_key: player.sourcePlayerKey, name: player.name, normalized_name: normalizedTennisRecordPlayerName(player), city: player.city || null, state: player.state || null, ntrp_label: player.ntrpLabel || null, published_rating: player.publishedRating || null, source_url: player.sourceUrl, raw: player, last_seen_at: new Date().toISOString() })), { onConflict: 'source_player_key' }).select('id,source_player_key,name,normalized_name,city,state')
+    const sourcePlayerKeys = parsed.players.map((player) => player.sourcePlayerKey)
+    const prior = await service.from('tennisrecord_staged_players').select('source_player_key,ntrp_label,published_rating,source_url').in('source_player_key', sourcePlayerKeys)
+    if (prior.error) throw new Error(prior.error.message)
+    const priorByKey = new Map((prior.data || []).map((player) => [player.source_player_key as string, player]))
+    const rows = parsed.players.map((player) => {
+      const previous = priorByKey.get(player.sourcePlayerKey)
+      const statedNtrp = tennisRecordStatedNtrpBaseline(player.ntrpLabel)
+      return {
+        source_player_key: player.sourcePlayerKey,
+        name: player.name,
+        normalized_name: normalizedTennisRecordPlayerName(player),
+        city: player.city || null,
+        state: player.state || null,
+        ntrp_label: statedNtrp === null ? previous?.ntrp_label || null : player.ntrpLabel,
+        published_rating: player.publishedRating ?? previous?.published_rating ?? null,
+        source_url: statedNtrp === null ? previous?.source_url || player.sourceUrl : player.sourceUrl,
+        raw: player,
+        last_seen_at: new Date().toISOString(),
+      }
+    })
+    const { data: staged, error } = await service.from('tennisrecord_staged_players').upsert(rows, { onConflict: 'source_player_key' }).select('id,source_player_key,name,normalized_name,city,state,ntrp_label')
     if (error) throw new Error(error.message)
     if (staged?.length) {
       const identityInsert = await service.from('tennisrecord_player_identities').upsert(staged.map((player) => ({ staged_player_id: player.id })), { onConflict: 'staged_player_id', ignoreDuplicates: true })
@@ -758,7 +786,26 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         if (linked.error) throw new Error(linked.error.message)
       }
       if (provisional.length) {
-        const created = await service.from('players').upsert(provisional.map((player) => ({ name: player.name, normalized_name: player.normalized_name, location: [player.city, player.state].filter(Boolean).join(', ') || null, rating_source: 'self', external_source: 'tennisrecord', external_source_key: player.source_player_key, is_external_provisional: true })), { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
+        const created = await service.from('players').upsert(provisional.map((player) => {
+          const baseline = tennisRecordStatedNtrpBaseline(player.ntrp_label)
+          return {
+            name: player.name,
+            normalized_name: player.normalized_name,
+            location: [player.city, player.state].filter(Boolean).join(', ') || null,
+            rating_source: baseline === null ? 'self' : 'verified',
+            ...(baseline === null ? {} : {
+              singles_rating: baseline,
+              doubles_rating: baseline,
+              overall_rating: baseline,
+              singles_dynamic_rating: baseline,
+              doubles_dynamic_rating: baseline,
+              overall_dynamic_rating: baseline,
+            }),
+            external_source: 'tennisrecord',
+            external_source_key: player.source_player_key,
+            is_external_provisional: true,
+          }
+        }), { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
         if (created.error) throw new Error(created.error.message)
         const playerIdByKey = new Map((created.data || []).map((player) => [player.external_source_key as string, player.id as string]))
         const mappings = provisional.flatMap((player) => {
@@ -768,6 +815,34 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         if (mappings.length) {
           const mapped = await service.from('tennisrecord_player_identities').upsert(mappings, { onConflict: 'staged_player_id' })
           if (mapped.error) throw new Error(mapped.error.message)
+        }
+      }
+      const mapped = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id').in('staged_player_id', staged.map((player) => player.id)).not('canonical_player_id', 'is', null)
+      if (mapped.error) throw new Error(mapped.error.message)
+      const ntrpByStagedId = new Map(staged.map((player) => [player.id as string, tennisRecordStatedNtrpBaseline(player.ntrp_label)]))
+      const baselineByCanonicalId = new Map((mapped.data || []).flatMap((identity) => {
+        const baseline = ntrpByStagedId.get(identity.staged_player_id as string)
+        return baseline === null || baseline === undefined || !identity.canonical_player_id ? [] : [[identity.canonical_player_id as string, baseline] as const]
+      }))
+      if (baselineByCanonicalId.size) {
+        const canonicalIds = [...baselineByCanonicalId.keys()]
+        const current = await service.from('players').select('id,rating_source,external_source,is_external_provisional,overall_rating,singles_rating,doubles_rating').in('id', canonicalIds)
+        if (current.error) throw new Error(current.error.message)
+        for (const player of current.data || []) {
+          const baseline = baselineByCanonicalId.get(player.id as string)
+          const isUntouchedProvisional = player.external_source === 'tennisrecord'
+            && player.is_external_provisional === true
+            && player.rating_source === 'self'
+            && [player.overall_rating, player.singles_rating, player.doubles_rating].every((rating) => rating === null || Number(rating) === 3.5)
+          if (baseline === undefined || !isUntouchedProvisional) continue
+          const updated = await service.from('players').update({
+            rating_source: 'verified',
+            singles_rating: baseline,
+            doubles_rating: baseline,
+            overall_rating: baseline,
+          }).eq('id', player.id).eq('rating_source', 'self')
+          if (updated.error) throw new Error(updated.error.message)
+          baselineChanged = true
         }
       }
     }
@@ -807,7 +882,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   }
   const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl))
   if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
-  return savedSourceMatchKeys
+  return { sourceMatchKeys: savedSourceMatchKeys, baselineChanged }
 }
 
 /**
@@ -845,7 +920,7 @@ async function enqueueDiscoveredCampaignPlayerHistory(
 
 async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatchKeys: string[]) {
   const uniqueSourceMatchKeys = [...new Set(sourceMatchKeys.filter(Boolean))]
-  if (!uniqueSourceMatchKeys.length) return { created: 0, duplicates: 0, conflicts: 0 }
+  if (!uniqueSourceMatchKeys.length) return { created: 0, duplicates: 0, conflicts: 0, ratingChanged: false }
   const { data: staged, error } = await service.from('tennisrecord_staged_matches').select('id,source_match_key,source_url,fingerprint,played_on,league_name,flight,home_team,away_team,discipline,court_number,score_text,winner_side,participants').eq('parse_status', 'valid').in('source_match_key', uniqueSourceMatchKeys)
   if (error) throw new Error(error.message)
   let created = 0; let duplicates = 0; let conflicts = 0
@@ -893,7 +968,7 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
     }
   }
   if (ratingChanged) await recalculateDynamicRatings(undefined, service)
-  return { created, duplicates, conflicts }
+  return { created, duplicates, conflicts, ratingChanged }
 }
 
 type ProductionMatch = { id: string; source: string | null; score: string | null; winner_side: 'A' | 'B' | null }

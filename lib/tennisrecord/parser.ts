@@ -240,4 +240,15 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, discoveryLimit) }
 }
 
+/**
+ * Extract only a stated NTRP designation, never TennisRecord's estimated
+ * dynamic rating.  A designation such as "4.0 C" is factual source metadata;
+ * a value such as "4.0122" is a proprietary estimate and must not enter TiQ.
+ */
+export function tennisRecordStatedNtrpBaseline(value: unknown): number | null {
+  const label = typeof value === 'string' ? value.trim() : ''
+  const match = label.match(/(?:^|\s)([1-7]\.[05])(?=\s|$)/)
+  return match ? Number(match[1]) : null
+}
+
 export function normalizedTennisRecordPlayerName(player: TennisRecordPlayer) { return normalizeTennisIdentity(player.name) }
