@@ -76,6 +76,17 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain("{hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}")
   })
 
+  it('puts one always-visible overall, singles, and doubles control directly below the profile sections', () => {
+    expect(page).toContain('className={profileStory.profileHeaderControls}')
+    expect(page).toContain('className={profileStory.profileRatingNav}')
+    expect(page).toContain('aria-label="Choose rating view"')
+    expect(page).toContain('data-active={ratingView === view}')
+    expect(page).not.toContain('aria-label="Choose match view"')
+    expect(page).not.toContain('Switch between overall, singles, and doubles reads.')
+    expect(styles).toContain('.profileHeaderControls')
+    expect(styles).toContain('.profileRatingNav')
+  })
+
   it('puts verified visual stats on the public profile before deeper reads', () => {
     expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
     expect(page).toContain("{isPublicExplorerProfile ? 'Stats' : 'Matches'}")
