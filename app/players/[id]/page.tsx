@@ -3361,6 +3361,12 @@ function PlayerProfileContent() {
                           </strong>
                         </span>
                         <span style={mobileMatchMetaItemStyle}>
+                          <span>TiQ after</span>
+                          <strong style={{ color: snap?.dynamic_rating == null ? 'var(--shell-copy-muted)' : '#d9f84a' }}>
+                            {snap?.dynamic_rating == null ? '--' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}
+                          </strong>
+                        </span>
+                        <span style={mobileMatchMetaItemStyle}>
                           <span>Win%</span>
                           <strong style={{ color: isUpset ? '#fed7aa' : 'var(--foreground-strong)' }}>
                             {winProbability == null ? '--' : `${winProbability}%${isUpset ? ' upset' : ''}`}
@@ -3408,6 +3414,7 @@ function PlayerProfileContent() {
                       <th style={tableHead}>Score</th>
                       <th style={tableHead}>Quality</th>
                       <th style={tableHead}>Result</th>
+                      <th style={tableHead}>TiQ after</th>
                       <th style={tableHead}>Rating change</th>
                       <th style={tableHead}>Win%</th>
                     </tr>
@@ -3415,6 +3422,7 @@ function PlayerProfileContent() {
                   <tbody>
                     {mostRecentMatches.map((match) => {
                       const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
                       return (
                         <tr
                           key={match.id}
@@ -3500,11 +3508,14 @@ function PlayerProfileContent() {
                             {match.result}
                           </span>
                         </td>
+                        <td style={{ ...tableCell, color: snap?.dynamic_rating == null ? 'var(--shell-copy-muted)' : '#d9f84a', fontWeight: 800 }}>
+                          {snap?.dynamic_rating == null ? '--' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}
+                        </td>
                         <MatchDeltaCell
-                          snap={snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null}
+                          snap={snap}
                         />
                         <MatchWinPctCell
-                          snap={snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null}
+                          snap={snap}
                           result={match.result}
                         />
                         </tr>
