@@ -29,7 +29,11 @@ type CoverageSummary = {
 // normal network retries and the reconciliation pass.
 const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 10
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 10
-const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
+// Replaying already-captured pages does not contact the source. A small
+// bounded batch makes previously discovered public profile URLs available to
+// the normal, rate-limited queue quickly enough to recover stated NTRP
+// evidence without adding external request pressure.
+const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 3
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
