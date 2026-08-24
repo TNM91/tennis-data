@@ -47,4 +47,13 @@ describe('Captain Season Dashboard', () => {
     expect(source).toContain('Who has carried the most match load')
     expect(source).toContain('Player links are still being completed')
   })
+
+  it('shows the next opponent only from canonical results in the saved scope', () => {
+    expect(source).toContain('const [opponentResults, setOpponentResults]')
+    expect(source).toContain('const escapedOpponent = escapePostgrestValue(resolvedOpponent)')
+    expect(source).toContain(".not('winner_side', 'is', null)")
+    expect(source).toContain('What the next opponent brings in')
+    expect(source).toContain('Canonical reported results only')
+  })
+
 })
