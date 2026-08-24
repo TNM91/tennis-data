@@ -1091,6 +1091,38 @@
   overflow: hidden;
 }
 
+.recentResultScoreboard {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.recentResultTiq {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recentResultTiq > strong {
+  color: #d9f84a;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.recentResultTiq > span {
+  color: rgba(228, 238, 251, 0.5);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .recentResultScore > strong {
   overflow: hidden;
   color: #ffffff;

@@ -1894,36 +1894,46 @@ function PlayerProfileContent() {
                   <small>{showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`}</small>
                 </div>
                 <div className={profileStory.recentResultTileGrid}>
-                  {publicRecentResults.map((match) => (
-                    <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
-                      <strong className={profileStory.recentResultOutcome} aria-label={match.result === 'W' ? 'Win' : 'Loss'}>
-                        {match.result}
-                      </strong>
-                      <div className={profileStory.recentResultTileMain}>
-                        <span className={profileStory.recentResultTileTopline}>
-                          {capitalize(match.matchType)} · {formatChartDate(match.date)}
-                        </span>
-                        <div className={profileStory.recentResultOpponent}>
-                          <span>Opponent</span>
-                          {match.opponentIds.length === 1 ? (
-                            <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
-                              {match.opponent}
-                            </Link>
-                          ) : (
-                            <strong>{match.opponent}</strong>
-                          )}
+                  {publicRecentResults.map((match) => {
+                    const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
+
+                    return (
+                      <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
+                        <strong className={profileStory.recentResultOutcome} aria-label={match.result === 'W' ? 'Win' : 'Loss'}>
+                          {match.result}
+                        </strong>
+                        <div className={profileStory.recentResultTileMain}>
+                          <span className={profileStory.recentResultTileTopline}>
+                            {capitalize(match.matchType)} · {formatChartDate(match.date)}
+                          </span>
+                          <div className={profileStory.recentResultOpponent}>
+                            <span>Opponent</span>
+                            {match.opponentIds.length === 1 ? (
+                              <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
+                                {match.opponent}
+                              </Link>
+                            ) : (
+                              <strong>{match.opponent}</strong>
+                            )}
+                          </div>
+                          <div className={profileStory.recentResultTileMeta}>
+                            <span>{match.context}</span>
+                            {match.partner ? <span>With {match.partner}</span> : null}
+                          </div>
                         </div>
-                        <div className={profileStory.recentResultTileMeta}>
-                          <span>{match.context}</span>
-                          {match.partner ? <span>With {match.partner}</span> : null}
+                        <div className={profileStory.recentResultScoreboard}>
+                          <div className={profileStory.recentResultScore}>
+                            <strong>{match.score || '—'}</strong>
+                            <span>{match.score ? 'Final score' : 'Score pending'}</span>
+                          </div>
+                          <div className={profileStory.recentResultTiq}>
+                            <strong>{snap?.dynamic_rating == null ? '—' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}</strong>
+                            <span>{snap?.dynamic_rating == null ? 'TiQ pending' : 'TiQ after'}</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className={profileStory.recentResultScore}>
-                        <strong>{match.score || '—'}</strong>
-                        <span>{match.score ? 'Final score' : 'Score pending'}</span>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    )
+                  })}
                 </div>
                 {filteredMatches.length > 3 ? (
                   <button
