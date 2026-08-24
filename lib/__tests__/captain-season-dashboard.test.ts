@@ -36,5 +36,8 @@ describe('Captain Season Dashboard', () => {
     expect(source).toContain('Recent team results')
     expect(source).toContain('Scheduled and unreported matches stay out of the record.')
     expect(source).toContain('Reported record')
+    expect(source).toContain('Winning')
+    expect(source).toContain("buildCaptainScopedHref('/captain/lineup-projection', scopedParams)")
+    expect(source).toContain('Compare lineups')
   })
 })
