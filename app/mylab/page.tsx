@@ -2935,6 +2935,9 @@ function MyLabPageInner() {
     },
   ]
   const activeGoal = goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL
+  const matchPrepGoals = goals.filter((goal) => goal.id.startsWith('matchup-prep-'))
+  const matchPrepHeld = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('plan held')).length
+  const matchPrepAdjusted = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('adjust the plan')).length
   const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
   const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
   const goalReadinessChecks = goalReadinessChecksFor(activeGoal)
@@ -4625,6 +4628,11 @@ function MyLabPageInner() {
                 </div>
               </div>
               <div id="player-notebook" style={goalWorkspaceStyle}>
+                {matchPrepGoals.length ? <section style={matchPrepHistoryStyle} aria-label="Match Prep history">
+                  <span><small>Prep notes</small><strong>{matchPrepGoals.length}</strong></span>
+                  <span><small>Plans held</small><strong>{matchPrepHeld}</strong></span>
+                  <span><small>Adjusted</small><strong>{matchPrepAdjusted}</strong></span>
+                </section> : null}
                 {matchupPrepSaved ? (
                   <div role="status" style={matchupPrepSavedStyle}>
                     <strong>Match Prep saved</strong>
@@ -10296,6 +10304,11 @@ const goalWorkspaceStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
+}
+
+const matchPrepHistoryStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12,
+  borderRadius: 14, background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%)', minWidth: 0,
 }
 
 const matchPrepReviewStyle = (isTablet: boolean): CSSProperties => ({
