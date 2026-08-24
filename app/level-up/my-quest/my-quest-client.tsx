@@ -1132,7 +1132,7 @@ export default function MyQuestClient() {
 
     await supabase.from('personal_quest_profiles').upsert({
       user_id: ownerId,
-      season_slug: 'operation-visible-abs',
+      season_slug: 'tennis-season',
       display_name: 'Nathan',
       weekly_rule: (profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule(),
       updated_at: new Date().toISOString(),
@@ -1777,7 +1777,7 @@ export default function MyQuestClient() {
       .from('personal_quest_profiles')
       .upsert({
         user_id: ownerId,
-        season_slug: 'operation-visible-abs',
+        season_slug: 'tennis-season',
         display_name: 'Nathan',
         weekly_rule: cleanRule,
         updated_at: new Date().toISOString(),
@@ -2804,7 +2804,7 @@ export default function MyQuestClient() {
             <div className={styles.sectionHeader}>
               <div>
                 <p className={styles.eyebrow}>Season Map</p>
-                <h2>Road to Six Pack Mode</h2>
+                <h2>Build your tennis season</h2>
               </div>
               <span className={styles.scorePill}>{stats.level.title}</span>
             </div>

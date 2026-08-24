@@ -212,6 +212,14 @@ function formatPublicRating(value: number | string | null | undefined, player: P
   return isSelfRatedPlayer(player) && value != null ? `${formatted} S` : formatted
 }
 
+function formatTiqRating(value: number | string | null | undefined, player: Pick<Player, 'rating_source'> | null | undefined, canViewExact: boolean) {
+  if (!canViewExact) {
+    const numeric = Number(value)
+    return Number.isFinite(numeric) ? `${Math.floor(numeric)}.XX` : 'Locked'
+  }
+  return formatPublicRating(value, player)
+}
+
 export default function PlayerProfilePage() {
   return (
     <SiteShell active="/players">
@@ -980,6 +988,7 @@ function PlayerProfileContent() {
   }, [matches, rosterMemberships])
 
   const isOwnProfile = linkedPlayerId === playerId
+  const canViewExactTiqRating = isOwnProfile || access.canUseAdvancedPlayerInsights
   const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights
   const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
@@ -1089,7 +1098,7 @@ function PlayerProfileContent() {
       ? 'Roster verified. The competitive story starts with the first reviewed scorecard.'
       : 'Baseline ready. Add match evidence to unlock form and opponent insight.'
   const profileReadBody = hasTrackedMatches
-    ? `TIQ ${ratingViewLabel.toLowerCase()} is ${formatPublicRating(selectedDynamicRating, player)} with ${confidence.toLowerCase()} confidence. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
+    ? `TIQ ${ratingViewLabel.toLowerCase()} is ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} with ${confidence.toLowerCase()} confidence. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
     : 'Ratings and team context are visible now. Win rate, current form, rating movement, and opponent patterns appear after reviewed results connect to this player.'
 
   const scoreBreakdown = useMemo(() => {
@@ -1529,8 +1538,10 @@ function PlayerProfileContent() {
     },
     {
       label: 'Strategy signal',
-      value: `TIQ ${formatPublicRating(selectedDynamicRating, player)}`,
-      note: `Use the ${ratingViewLabel.toLowerCase()} TIQ read to understand current form and decision support.`,
+      value: `TIQ ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}`,
+      note: canViewExactTiqRating
+        ? `Use the ${ratingViewLabel.toLowerCase()} TIQ read to understand current form and decision support.`
+        : 'Player members can view the exact TIQ read across the network.',
     },
     {
       label: 'Competition context',
@@ -1684,7 +1695,7 @@ function PlayerProfileContent() {
               <div className={profileStory.heroMain}>
                 <div className={profileStory.ratingBlock}>
                   <span>TIQ {ratingViewLabel}</span>
-                  <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                  <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                   <small>{hasTrackedMatches ? ratingStatus : 'Holding'}</small>
                   {!isSelfRatedProfile ? (
                     <div className={profileStory.ratingTrajectory} aria-label={`USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}`}>
@@ -1782,7 +1793,7 @@ function PlayerProfileContent() {
             <div className={profileStory.ratingPulse} aria-label={`${ratingViewLabel} rating trend`}>
               <div className={profileStory.ratingPulseRead}>
                 <span>TIQ rating</span>
-                <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                 <small>
                   {recentTrendDelta === null
                     ? `USTA ${isSelfRatedProfile ? 'pending' : baseRating.toFixed(2)}`
@@ -1912,12 +1923,12 @@ function PlayerProfileContent() {
                 <div className={profileStory.ratingJourneyPulse}>
                   <div>
                     <span>First result</span>
-                    <strong>{formatPublicRating(journeyStartRating, player)}</strong>
+                    <strong>{formatTiqRating(journeyStartRating, player, canViewExactTiqRating)}</strong>
                   </div>
                   <RatingSparkline points={compactJourneyPoints} />
                   <div>
                     <span>TIQ now</span>
-                    <strong>{formatPublicRating(journeyCurrentRating, player)}</strong>
+                    <strong>{formatTiqRating(journeyCurrentRating, player, canViewExactTiqRating)}</strong>
                   </div>
                   <div data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
                     <span>Recent move</span>
@@ -1929,7 +1940,7 @@ function PlayerProfileContent() {
             ) : chartPoints.length === 1 ? (
               <div className={profileStory.singlePointRead}>
                 <span>First reviewed result</span>
-                <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                 <small>One result sets the starting point. The next reviewed match begins the trend.</small>
               </div>
             ) : (
@@ -1987,7 +1998,7 @@ function PlayerProfileContent() {
             <p>{hasTrackedMatches ? `${progressInfo.remaining.toFixed(2)} rating points remain. Keep the evidence current.` : 'Start with the first scorecard. The gap becomes useful once match movement is tracked.'}</p>
             <div className={profileStory.levelProgress}>
               <div className={profileStory.levelValues}>
-                <strong>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                 <span>{nextThreshold.toFixed(1)}</span>
               </div>
               <div className={profileStory.levelTrack} aria-label={`${Math.round(storyNextLevelProgress)} percent toward next level`}>
@@ -2060,7 +2071,7 @@ function PlayerProfileContent() {
                     <span>{storyTeamName}</span>
                   </div>
                   <div className={profileStory.playerCardRating}>
-                    {formatPublicRating(selectedDynamicRating, player)} <small>TIQ {ratingViewLabel}</small>
+                    {formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} <small>TIQ {ratingViewLabel}</small>
                   </div>
                 </div>
                 <div className={profileStory.playerCardFooter}>
@@ -2132,7 +2143,7 @@ function PlayerProfileContent() {
               <div style={dynamicPlayerScoreboardStyle} aria-label="Player score summary">
                 <div style={playerPrimaryRatingStyle}>
                   <span>TIQ {ratingViewLabel}</span>
-                  <strong style={playerPrimaryRatingValueStyle}>{formatPublicRating(selectedDynamicRating, player)}</strong>
+                  <strong style={playerPrimaryRatingValueStyle}>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                   <small style={playerPrimaryRatingStatusStyle}>{ratingStatus}</small>
                 </div>
                 <div style={dynamicPlayerScoreboardMetricsStyle}>
@@ -2208,8 +2219,8 @@ function PlayerProfileContent() {
 
                     <div style={meterSubtext}>
                       {hasTrackedMatches
-                        ? `USTA ${isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatPublicRating(selectedDynamicRating, player)}`
-                        : `Official baseline: ${isSelfRatedPlayer(player) ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatPublicRating(selectedDynamicRating, player)} and gains confidence from reviewed results.`}
+                        ? `USTA ${isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}`
+                        : `Official baseline: ${isSelfRatedPlayer(player) ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} and gains confidence from reviewed results.`}
                     </div>
 
                     {hasTrackedMatches ? (
@@ -2227,7 +2238,7 @@ function PlayerProfileContent() {
                   </div>
 
                   <div style={meterValueGroup}>
-                    <div style={meterCurrent}>{formatPublicRating(selectedDynamicRating, player)}</div>
+                    <div style={meterCurrent}>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</div>
                     <div style={meterTarget}>USTA {isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
                     <div style={meterDelta}>
                       {!hasTrackedMatches
@@ -2298,7 +2309,7 @@ function PlayerProfileContent() {
                 </div>
 
                 <div style={dynamicFocusMetrics}>
-                  <StatChip label="TIQ" value={formatPublicRating(selectedDynamicRating, player)} accent />
+                  <StatChip label={canViewExactTiqRating ? 'TIQ' : 'TIQ 🔒'} value={formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} accent />
                   <StatChip label="USTA Dynamic" value={isSelfRatedProfile ? 'Pending' : ustaDynamicRating.toFixed(2)} />
                   <StatChip label="USTA Base" value={isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'} />
@@ -2308,6 +2319,11 @@ function PlayerProfileContent() {
                     value={hasTrackedMatches && formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : 'Awaiting results'}
                   />
                 </div>
+                {!canViewExactTiqRating ? (
+                  <Link href="/pricing" style={{ display: 'inline-flex', marginTop: 12, color: 'var(--brand-green)', fontSize: 13, fontWeight: 800 }}>
+                    Unlock exact TIQ ratings with Player
+                  </Link>
+                ) : null}
               </div>
 
               <div style={profileCompetitiveReadStyle}>
@@ -2606,7 +2622,7 @@ function PlayerProfileContent() {
             <div style={rosterReadyStats}>
               <StatChip label="Roster status" value="Rostered" accent />
               <StatChip label="USTA Base" value={isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_rating)} />
-              <StatChip label="TIQ Overall" value={formatPublicRating(player.overall_dynamic_rating, player)} />
+              <StatChip label={canViewExactTiqRating ? 'TIQ Overall' : 'TIQ Overall 🔒'} value={formatTiqRating(player.overall_dynamic_rating, player, canViewExactTiqRating)} />
               <StatChip label="Matches" value="0" />
             </div>
           </article>
@@ -2620,7 +2636,7 @@ function PlayerProfileContent() {
           <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>TIQ {ratingViewLabel}</div>
-            <div style={statValue}>{formatPublicRating(selectedDynamicRating, player)}</div>
+            <div style={statValue}>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</div>
           </article>
 
           <article style={statCard}>
@@ -3661,7 +3677,7 @@ function PlayerProfileContent() {
                       <div style={nearbyPlayerMetaStyle}>{p.location || 'No location'}</div>
                     </div>
                     <div style={nearbyPlayerActionRowStyle}>
-                      <span style={{ fontWeight: 800, fontSize: 15, color: '#f8fbff' }}>{p.overall_dynamic_rating.toFixed(2)}</span>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#f8fbff' }}>{formatTiqRating(p.overall_dynamic_rating, null, canViewExactTiqRating)}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: isHigher ? '#93c5fd' : isLower ? '#9be11d' : 'rgba(224,234,247,0.5)' }}>
                         {isHigher ? `Up +${diff.toFixed(2)}` : isLower ? `Down ${diff.toFixed(2)}` : 'Even'}
                       </span>

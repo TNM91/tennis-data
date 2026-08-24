@@ -895,9 +895,16 @@ function TeamPageContent() {
     }
   }, [matches, summaryTeams, leagueFilter, flightFilter])
 
+  // All seasons is the team's dynasty read. A selected season scopes every
+  // performance and roster calculation to players with evidence that year.
+  const seasonMatches = useMemo(
+    () => seasonFilter === 'all' ? matches : matches.filter((match) => (match.match_date || '').startsWith(seasonFilter)),
+    [matches, seasonFilter],
+  )
+
   const latestCompletedMatch = useMemo(
-    () => matches.find((match) => didTeamWin(match, team) !== null) || null,
-    [matches, team],
+    () => seasonMatches.find((match) => didTeamWin(match, team) !== null) || null,
+    [seasonMatches, team],
   )
   const competitionLayer = inferCompetitionLayerFromValues({
     layerHint: layerFilter,
@@ -910,33 +917,33 @@ function TeamPageContent() {
     let wins = 0
     let losses = 0
 
-    matches.forEach((match) => {
+    seasonMatches.forEach((match) => {
       const result = didTeamWin(match, team)
       if (result === true) wins += 1
       if (result === false) losses += 1
     })
 
     return { wins, losses }
-  }, [matches, team])
+  }, [seasonMatches, team])
 
   const matchTypeSplit = useMemo(() => {
     let singlesW = 0, singlesL = 0, doublesW = 0, doublesL = 0
-    for (const match of matches) {
+    for (const match of seasonMatches) {
       const won = didTeamWin(match, team)
       if (won === null) continue
       if (match.match_type === 'singles') { if (won) singlesW++; else singlesL++ }
       if (match.match_type === 'doubles') { if (won) doublesW++; else doublesL++ }
     }
     return { singlesW, singlesL, doublesW, doublesL }
-  }, [matches, team])
+  }, [seasonMatches, team])
 
   const recentForm = useMemo(() => {
-    return matches
+    return seasonMatches
       .slice(0, 10)
       .map((m) => didTeamWin(m, team))
       .filter((r): r is boolean => r !== null)
       .map((won) => (won ? 'W' : 'L'))
-  }, [matches, team])
+  }, [seasonMatches, team])
 
   const completedMatchCount = record.wins + record.losses
   const winRate = completedMatchCount > 0 ? Math.round((record.wins / completedMatchCount) * 100) : null
@@ -946,7 +953,7 @@ function TeamPageContent() {
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
 
-    rosterMembers.forEach((entry) => {
+    if (seasonFilter === 'all') rosterMembers.forEach((entry) => {
       const player = rosterMemberPlayer(entry)
       if (!player || !player.id) return
       if (!map.has(player.id)) {
@@ -968,7 +975,7 @@ function TeamPageContent() {
       const lineMatchLookup = new Map(lineMatches.map((lm) => [lm.id, lm]))
       // Map the parent external_match_id prefix to its parent TeamMatch.
       const parentByExternalId = new Map(
-        matches.map((m) => [cleanText(m.external_match_id) ?? '', m]),
+        seasonMatches.map((m) => [cleanText(m.external_match_id) ?? '', m]),
       )
 
       linePlayers.forEach((entry) => {
@@ -1013,7 +1020,7 @@ function TeamPageContent() {
       })
     } else {
       // Legacy data path: match_players linked directly to parent matches.
-      const matchLookup = new Map(matches.map((match) => [match.id, match]))
+      const matchLookup = new Map(seasonMatches.map((match) => [match.id, match]))
 
       players.forEach((entry) => {
         const player = normalizePlayer(entry.players)
@@ -1061,7 +1068,7 @@ function TeamPageContent() {
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
-  }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
+  }, [lineMatches, linePlayers, rosterMembers, seasonFilter, seasonMatches, players, team])
 
   const teamChatPlayerIds = useMemo(() => Array.from(new Set(
     rosterMembers

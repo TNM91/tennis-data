@@ -276,10 +276,15 @@ function ExploreSearchContent() {
       }
     }
 
-    void runSearch()
+    // A full Explore search fans out to players, teams, and leagues. Waiting briefly
+    // for the user to pause avoids three database calls on every typed character.
+    const timeout = window.setTimeout(() => {
+      void runSearch()
+    }, 260)
 
     return () => {
       active = false
+      window.clearTimeout(timeout)
     }
   }, [query, scope, searchReady])
 
