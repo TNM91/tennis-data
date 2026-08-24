@@ -146,6 +146,24 @@ const scopeCommandCards: Array<{
 const SEARCH_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const SEARCH_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SEARCH_PLAYER_IDENTITY)
 const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}#level-up-flow`
+const SEARCH_TIMEOUT_MS = 8_000
+
+async function runWithSearchTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Search is taking longer than expected. Please try again.'))
+        }, SEARCH_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
+}
 
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
@@ -191,6 +209,7 @@ function ExploreSearchContent() {
   const [teams, setTeams] = useState<TeamSearchResult[]>([])
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [searchReady, setSearchReady] = useState(false)
+  const [searchAttempt, setSearchAttempt] = useState(0)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -255,11 +274,17 @@ function ExploreSearchContent() {
       setUsedSpellingHelp(false)
 
       try {
-        const [playersResult, teamsResult, leagueResult] = await Promise.all([
-          searchPlayers(trimmedQuery),
-          searchTeams(trimmedQuery),
-          searchLeagues(trimmedQuery, scope),
-        ])
+        let playersResult: PlayerSearchResponse = { players: [], usedSpellingHelp: false }
+        let teamsResult: TeamSearchResult[] = []
+        let leagueResult: LeagueCard[] = []
+
+        if (scope === 'players') {
+          playersResult = await runWithSearchTimeout(searchPlayers(trimmedQuery))
+        } else if (scope === 'teams') {
+          teamsResult = await runWithSearchTimeout(searchTeams(trimmedQuery))
+        } else {
+          leagueResult = await runWithSearchTimeout(searchLeagues(trimmedQuery, scope))
+        }
 
         if (!active) return
 
@@ -276,8 +301,8 @@ function ExploreSearchContent() {
       }
     }
 
-    // A full Explore search fans out to players, teams, and leagues. Waiting briefly
-    // for the user to pause avoids three database calls on every typed character.
+    // Search only the selected directory. Waiting briefly avoids a request for every
+    // keystroke while still keeping the result path responsive on mobile.
     const timeout = window.setTimeout(() => {
       void runSearch()
     }, 260)
@@ -286,7 +311,7 @@ function ExploreSearchContent() {
       active = false
       window.clearTimeout(timeout)
     }
-  }, [query, scope, searchReady])
+  }, [query, scope, searchAttempt, searchReady])
 
   function syncUrl(nextQuery: string, nextScope: SearchScope) {
     const params = new URLSearchParams(resumeHref.split('?')[1] || '')
@@ -300,6 +325,11 @@ function ExploreSearchContent() {
     event.preventDefault()
     syncUrl(query, scope)
     setQuery((current) => current.trimStart())
+    setSearchAttempt((current) => current + 1)
+  }
+
+  function retrySearch() {
+    setSearchAttempt((current) => current + 1)
   }
 
   const matchedFlights = useMemo(() => {
@@ -602,8 +632,22 @@ function ExploreSearchContent() {
           ) : null}
 
           {error ? (
-            <section style={{ ...portalInsetCardStyle, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
-              {error}
+            <section
+              style={{
+                ...portalInsetCardStyle,
+                padding: 18,
+                color: '#fecaca',
+                borderColor: 'rgba(248,113,113,0.3)',
+                display: 'grid',
+                gap: 12,
+                justifyItems: 'start',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              <span>{error}</span>
+              <button type="button" onClick={retrySearch} style={{ ...buttonGhost, minHeight: 40 }}>
+                Try search again
+              </button>
             </section>
           ) : null}
 
@@ -611,7 +655,11 @@ function ExploreSearchContent() {
             <section style={{ ...portalInsetCardStyle, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
-                Pulling players, teams, leagues, and My Lab prep paths together...
+                {scope === 'players'
+                  ? 'Finding player records...'
+                  : scope === 'teams'
+                    ? 'Finding team records...'
+                    : 'Finding league records...'}
               </div>
             </section>
           ) : null}
