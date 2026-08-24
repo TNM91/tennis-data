@@ -68,6 +68,7 @@ type TeamDirectoryEntry = {
   team: string
   league: string | null
   flight: string | null
+  season: string | null
   matchCount: number
   wins: number
   losses: number
@@ -83,8 +84,8 @@ type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
 const TEAM_DEFAULT_CARD_LIMIT = 8
 
-function buildTeamKey(team: string, league: string | null, flight: string | null) {
-  return `${team}__${league || ''}__${flight || ''}`
+function buildTeamKey(team: string, league: string | null, flight: string | null, season: string | null = null) {
+  return `${team}__${league || ''}__${flight || ''}__${season || ''}`
 }
 
 function buildScopeKey(league: string | null, flight: string | null) {
@@ -128,6 +129,7 @@ export default function TeamsPage() {
   const [search, setSearch] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
   const [flightFilter, setFlightFilter] = useState('')
+  const [seasonFilter, setSeasonFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [browseAll, setBrowseAll] = useState(false)
   const [showAllTeams, setShowAllTeams] = useState(false)
@@ -151,6 +153,7 @@ export default function TeamsPage() {
         setSearch('')
         setLeagueFilter('')
         setFlightFilter('')
+        setSeasonFilter('')
         setSortBy('matches')
         setBrowseAll(false)
         setShowAllTeams(false)
@@ -165,10 +168,12 @@ export default function TeamsPage() {
     const nextSearch = params.get('q')?.trim() || ''
     const nextLeague = params.get('league')?.trim() || ''
     const nextFlight = params.get('flight')?.trim() || ''
+    const nextSeason = params.get('season')?.trim() || ''
     setSearch(nextSearch)
     setLeagueFilter(nextLeague)
     setFlightFilter(nextFlight)
-    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight))
+    setSeasonFilter(nextSeason)
+    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight || nextSeason))
     const nextSort = params.get('sort') as SortKey | null
     if (nextSort === 'team' || nextSort === 'matches' || nextSort === 'players' || nextSort === 'recent' || nextSort === 'winpct') setSortBy(nextSort)
     setDirectoryReady(true)
@@ -179,10 +184,11 @@ export default function TeamsPage() {
     if (search.trim()) params.set('q', search.trim())
     if (leagueFilter) params.set('league', leagueFilter)
     if (flightFilter) params.set('flight', flightFilter)
+    if (seasonFilter) params.set('season', seasonFilter)
     if (sortBy !== 'matches') params.set('sort', sortBy)
     const query = params.toString()
     return `/explore/teams${query ? `?${query}` : ''}`
-  }, [flightFilter, leagueFilter, search, sortBy])
+  }, [flightFilter, leagueFilter, search, seasonFilter, sortBy])
 
   useEffect(() => {
     if (!directoryReady) return
@@ -297,8 +303,9 @@ export default function TeamsPage() {
           continue
         }
 
-        const homeKey = buildTeamKey(homeTeam, league, flight)
-        const awayKey = buildTeamKey(awayTeam, league, flight)
+        const season = cleanText(match.match_date)?.slice(0, 4) || null
+        const homeKey = buildTeamKey(homeTeam, league, flight, season)
+        const awayKey = buildTeamKey(awayTeam, league, flight, season)
 
         if (!directoryMap.has(homeKey)) {
           directoryMap.set(homeKey, {
@@ -306,6 +313,7 @@ export default function TeamsPage() {
             team: homeTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
@@ -323,6 +331,7 @@ export default function TeamsPage() {
             team: awayTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
@@ -398,6 +407,7 @@ export default function TeamsPage() {
         {
           league: string | null
           flight: string | null
+          season: string | null
           homeTeam: string
           awayTeam: string
         }
@@ -411,6 +421,7 @@ export default function TeamsPage() {
         matchMetaById.set(match.id, {
           league: cleanText(match.league_name),
           flight: cleanText(match.flight),
+          season: cleanText(match.match_date)?.slice(0, 4) || null,
           homeTeam,
           awayTeam,
         })
@@ -423,7 +434,7 @@ export default function TeamsPage() {
         if (!matchMeta) continue
 
         const teamName = row.side === 'A' ? matchMeta.homeTeam : matchMeta.awayTeam
-        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight)
+        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight, matchMeta.season)
         const expectedSide = teamSideByMatchAndTeam.get(`${row.match_id}__${teamKey}`)
 
         if (!expectedSide || expectedSide !== row.side) continue
@@ -453,6 +464,7 @@ export default function TeamsPage() {
           team,
           league,
           flight,
+          season: null,
           matchCount: 0,
           wins: 0,
           losses: 0,
@@ -494,6 +506,7 @@ export default function TeamsPage() {
   }
 
   const leagueOptions = useMemo(() => uniqueSorted(rows.map((row) => row.league)), [rows])
+  const seasonOptions = useMemo(() => uniqueSorted(rows.map((row) => row.season)), [rows])
   const flightOptions = useMemo(() => {
     const scopedRows = leagueFilter ? rows.filter((row) => row.league === leagueFilter) : rows
     return uniqueSorted(scopedRows.map((row) => row.flight))
@@ -505,6 +518,7 @@ export default function TeamsPage() {
     const next = rows.filter((row) => {
       if (leagueFilter && row.league !== leagueFilter) return false
       if (flightFilter && row.flight !== flightFilter) return false
+      if (seasonFilter && row.season !== seasonFilter) return false
 
       if (!searchText) return true
 
@@ -512,7 +526,31 @@ export default function TeamsPage() {
       return haystack.includes(searchText)
     })
 
-    next.sort((left, right) => {
+    // Keep the default directory as the dynasty view. A selected season exposes
+    // that season's distinct roster and performance without duplicating teams by year.
+    const displayRows = seasonFilter
+      ? next
+      : Array.from(next.reduce((map, row) => {
+          const dynastyKey = buildTeamKey(row.team, row.league, row.flight)
+          const existing = map.get(dynastyKey)
+          if (!existing) {
+            map.set(dynastyKey, { ...row, key: dynastyKey, season: null, playerIds: new Set(row.playerIds) })
+            return map
+          }
+
+          existing.matchCount += row.matchCount
+          existing.wins += row.wins
+          existing.losses += row.losses
+          existing.sourceRosterCount = Math.max(existing.sourceRosterCount, row.sourceRosterCount)
+          for (const playerId of row.playerIds) existing.playerIds.add(playerId)
+          if (compareNullableDatesDesc(row.mostRecentMatchDate, existing.mostRecentMatchDate) < 0) {
+            existing.mostRecentMatchDate = row.mostRecentMatchDate
+            existing.recentForm = row.recentForm
+          }
+          return map
+        }, new Map<string, TeamDirectoryEntry>()).values())
+
+    displayRows.sort((left, right) => {
       if (sortBy === 'team') return left.team.localeCompare(right.team)
       if (sortBy === 'players') {
         const diff = getDirectoryPlayerCount(right) - getDirectoryPlayerCount(left)
@@ -537,10 +575,10 @@ export default function TeamsPage() {
       return left.team.localeCompare(right.team)
     })
 
-    return next
-  }, [flightFilter, leagueFilter, rows, search, sortBy])
+    return displayRows
+  }, [flightFilter, leagueFilter, rows, search, seasonFilter, sortBy])
   const hasActiveFilters =
-    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || sortBy !== 'matches'
+    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || seasonFilter.length > 0 || sortBy !== 'matches'
   const shouldShowTeamResults = hasActiveFilters || browseAll
   const visibleRows = shouldShowTeamResults
     ? showAllTeams
@@ -573,7 +611,7 @@ export default function TeamsPage() {
         surface="teams"
         label="team directory"
         href={exploreResumeHref}
-        contextLabel={search.trim() || leagueFilter || flightFilter || 'Teams'}
+        contextLabel={search.trim() || leagueFilter || flightFilter || seasonFilter || 'Teams'}
         enabled={directoryReady}
       />
       <main style={pageWrap}>
@@ -597,6 +635,7 @@ export default function TeamsPage() {
                   setSearch('')
                   setLeagueFilter('')
                   setFlightFilter('')
+                  setSeasonFilter('')
                   setSortBy('matches')
                   setBrowseAll(false)
                   setShowAllTeams(false)
@@ -692,6 +731,32 @@ export default function TeamsPage() {
               </div>
 
               <div>
+                <label htmlFor="team-directory-season" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Season</label>
+                <select
+                  id="team-directory-season"
+                  value={seasonFilter}
+                  onFocus={() => setFocusedDirectoryControl('season')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
+                  onChange={(event) => {
+                    setSeasonFilter(event.target.value)
+                    setShowAllTeams(false)
+                  }}
+                  style={{
+                    ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
+                    borderColor: seasonFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: seasonFilter ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'season' ? directoryControlFocusStyle : null),
+                  }}
+                >
+                  <option value="">All seasons (Dynasty)</option>
+                  {seasonOptions.map((option) => (
+                    <option key={option} value={option}>{option} season</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="team-directory-sort" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Sort</label>
                 <select
                   id="team-directory-sort"
@@ -758,6 +823,7 @@ export default function TeamsPage() {
                     setSearch('')
                     setLeagueFilter('')
                     setFlightFilter('')
+                    setSeasonFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
                     setShowAllTeams(false)
@@ -833,6 +899,7 @@ export default function TeamsPage() {
                   query: {
                     ...(visibleRows[0].league ? { league: visibleRows[0].league } : {}),
                     ...(visibleRows[0].flight ? { flight: visibleRows[0].flight } : {}),
+                    ...(visibleRows[0].season ? { season: visibleRows[0].season } : {}),
                   },
                 }}
                 row={visibleRows[0]}
@@ -844,6 +911,7 @@ export default function TeamsPage() {
                   query: {
                     ...(row.league ? { league: row.league } : {}),
                     ...(row.flight ? { flight: row.flight } : {}),
+                    ...(row.season ? { season: row.season } : {}),
                   },
                 }
 
@@ -1191,6 +1259,7 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
           <div style={teamPulseMetaStyle}>
             {row.league ? <span>{row.league}</span> : null}
             {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
+            {row.season ? <span>{row.season} season</span> : null}
           </div>
         </div>
         <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Team context ready' : 'Team record ready'}</span>
@@ -1287,6 +1356,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
               <div style={metaRow}>
                 {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
                 {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
+                {row.season ? <span style={metaPillBlue}>{row.season} season</span> : null}
               </div>
             ) : null}
           </div>
