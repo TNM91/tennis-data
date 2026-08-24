@@ -1164,6 +1164,16 @@
   white-space: nowrap;
 }
 
+.recentResultImpact {
+  max-width: 148px;
+  color: rgba(142, 197, 255, 0.76);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: right;
+}
+
 .recentResultScore > strong {
   overflow: hidden;
   color: #ffffff;
@@ -2178,6 +2188,11 @@
 
   .recentResultTiq {
     justify-items: end;
+  }
+
+  .recentResultImpact {
+    max-width: 100%;
+    text-align: right;
   }
 
   .recentResultTile + .recentResultTile {

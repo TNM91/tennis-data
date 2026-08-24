@@ -37,6 +37,8 @@ describe('member experience season and rating access', () => {
     expect(playerProfileSource).toContain('matchTapeFilter')
     expect(playerProfileSource).toContain('Showing {ratingViewLabel.toLowerCase()} matches')
     expect(playerProfileSource).toContain('No {ratingViewLabel.toLowerCase()} matches on this profile yet.')
+    expect(playerProfileSource).toContain('getCompactMatchImpact')
+    expect(playerProfileSource).toContain('recentResultImpact')
   })
 
   it('keeps My Quest tennis-specific', () => {

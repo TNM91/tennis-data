@@ -240,6 +240,25 @@ function formatRatedParticipantNames(
     .join(' / ')
 }
 
+function getCompactMatchImpact(
+  match: Pick<MatchRecord, 'result'>,
+  snapshot: Pick<SnapshotRow, 'delta' | 'win_probability'> | null,
+  canViewExact: boolean,
+) {
+  if (!snapshot || snapshot.delta == null) return 'TiQ impact pending'
+  if (!canViewExact) return 'TiQ impact 🔒'
+
+  const movement = `${snapshot.delta >= 0 ? '+' : ''}${snapshot.delta.toFixed(3)}`
+  if (snapshot.win_probability == null) return `${movement} TiQ movement`
+
+  const expected = snapshot.win_probability
+  const outcomeRead = match.result === 'W'
+    ? expected < 40 ? 'upset win' : expected >= 60 ? 'held serve' : 'earned the edge'
+    : expected > 60 ? 'below expectation' : expected <= 40 ? 'competitive loss' : 'tight result'
+
+  return `${movement} · ${expected}% expected · ${outcomeRead}`
+}
+
 export default function PlayerProfilePage() {
   return (
     <SiteShell active="/players">
@@ -1958,6 +1977,7 @@ function PlayerProfileContent() {
                     const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
                     const ratedOpponentNames = formatRatedParticipantNames(match.opponentRatings, canViewExactParticipantTiq)
                     const ratedPartnerNames = formatRatedParticipantNames(match.partnerRatings, canViewExactParticipantTiq)
+                    const compactImpact = getCompactMatchImpact(match, snap, canViewExactTiqRating)
 
                     return (
                       <article key={match.id} className={profileStory.recentResultTile} data-result={match.result}>
@@ -1991,6 +2011,7 @@ function PlayerProfileContent() {
                           <div className={profileStory.recentResultTiq}>
                             <strong>{snap?.dynamic_rating == null ? '—' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}</strong>
                             <span>{snap?.dynamic_rating == null ? 'TiQ pending' : 'TiQ after'}</span>
+                            <small className={profileStory.recentResultImpact}>{compactImpact}</small>
                           </div>
                         </div>
                       </article>
