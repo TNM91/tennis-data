@@ -660,6 +660,7 @@ function PlayerProfileContent() {
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
+  const [selectedMatchImpactId, setSelectedMatchImpactId] = useState<string | null>(null)
   const [matchSearch, setMatchSearch] = useState('')
   const [matchSearchFocused, setMatchSearchFocused] = useState(false)
   const matchSearchedMatches = useMemo(() => {
@@ -3373,6 +3374,14 @@ function PlayerProfileContent() {
                           </strong>
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMatchImpactId((current) => current === match.id ? null : match.id)}
+                        aria-expanded={selectedMatchImpactId === match.id}
+                        style={matchImpactActionStyle}
+                      >
+                        {selectedMatchImpactId === match.id ? 'Hide match impact' : 'View match impact'}
+                      </button>
                       {existingReport ? (
                         <span style={reportStatusPillStyle(existingReport.status)}>
                           {getReportStatusLabel(existingReport.status)}
@@ -3509,7 +3518,10 @@ function PlayerProfileContent() {
                           </span>
                         </td>
                         <td style={{ ...tableCell, color: snap?.dynamic_rating == null ? 'var(--shell-copy-muted)' : '#d9f84a', fontWeight: 800 }}>
-                          {snap?.dynamic_rating == null ? '--' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}
+                          <div style={{ display: 'grid', gap: 6 }}>
+                            <span>{snap?.dynamic_rating == null ? '--' : formatTiqRating(snap.dynamic_rating, player, canViewExactTiqRating)}</span>
+                            <button type="button" onClick={() => setSelectedMatchImpactId(match.id)} style={matchImpactTableActionStyle}>Impact</button>
+                          </div>
                         </td>
                         <MatchDeltaCell
                           snap={snap}
@@ -3525,6 +3537,22 @@ function PlayerProfileContent() {
                 </table>
               </div>
             )}
+            {selectedMatchImpactId ? (() => {
+              const match = mostRecentMatches.find((candidate) => candidate.id === selectedMatchImpactId) || null
+              if (!match) return null
+              const activeMatch = match as MatchRecord
+              const snap = snapshotByMatchId.get(`${activeMatch.id}:${activeMatch.matchType}`) ?? snapshotByMatchId.get(`${activeMatch.id}:overall`) ?? null
+              return (
+                <MatchImpactPanel
+                  match={activeMatch}
+                  snap={snap}
+                  player={player}
+                  canViewExact={canViewExactTiqRating}
+                  canViewDetailed={access.canUseAdvancedPlayerInsights}
+                  onClose={() => setSelectedMatchImpactId(null)}
+                />
+              )
+            })() : null}
           </article>
           ) : null}
         </div>
@@ -3733,6 +3761,76 @@ function MatchWinPctCell({ snap, result }: { snap: SnapshotRow | null; result: '
         {pct}%{isUpset ? ' upset' : ''}
       </span>
     </td>
+  )
+}
+
+function MatchImpactPanel({
+  match,
+  snap,
+  player,
+  canViewExact,
+  canViewDetailed,
+  onClose,
+}: {
+  match: MatchRecord
+  snap: SnapshotRow | null
+  player: Player | null
+  canViewExact: boolean
+  canViewDetailed: boolean
+  onClose: () => void
+}) {
+  const postMatchRating = snap?.dynamic_rating ?? null
+  const preMatchRating = postMatchRating !== null && snap?.delta != null ? postMatchRating - snap.delta : null
+  const impact = snap?.delta ?? null
+  const isUpset = snap?.win_probability != null && ((match.result === 'W' && snap.win_probability < 40) || (match.result === 'L' && snap.win_probability > 60))
+  const impactRead = impact === null
+    ? 'This result is still waiting for its TiQ checkpoint.'
+    : impact > 0
+      ? isUpset ? 'A stronger-than-expected result created a meaningful lift.' : 'This result moved the TiQ signal upward.'
+      : impact < 0
+        ? isUpset ? 'The result was below expectation, so the signal adjusted downward.' : 'The score and opponent context produced a small downward adjustment.'
+        : 'This result confirmed the current TiQ range without moving it.'
+
+  return (
+    <section style={matchImpactPanelStyle} aria-label={`Match impact for ${match.opponent}`}>
+      <div style={matchImpactHeaderStyle}>
+        <div>
+          <p style={sectionKicker}>Match impact</p>
+          <h3 style={matchImpactTitleStyle}>{capitalize(match.matchType)} vs {match.opponent}</h3>
+          <p style={matchImpactBodyStyle}>{formatDate(match.date)} · {match.score} · {match.result}</p>
+        </div>
+        <button type="button" onClick={onClose} style={matchImpactCloseStyle}>Close</button>
+      </div>
+
+      <div style={matchImpactMetricGridStyle}>
+        <div style={matchImpactMetricStyle}>
+          <span>TiQ before</span>
+          <strong>{preMatchRating === null ? '--' : formatTiqRating(preMatchRating, player, canViewExact)}</strong>
+        </div>
+        <div style={matchImpactMetricStyle}>
+          <span>TiQ after</span>
+          <strong>{postMatchRating === null ? '--' : formatTiqRating(postMatchRating, player, canViewExact)}</strong>
+        </div>
+        <div style={matchImpactMetricStyle}>
+          <span>Match impact</span>
+          <strong style={{ color: impact === null ? 'var(--shell-copy-muted)' : impact >= 0 ? '#d9f84a' : '#fca5a5' }}>
+            {impact === null ? '--' : `${impact >= 0 ? '+' : ''}${impact.toFixed(3)}`}
+          </strong>
+        </div>
+      </div>
+
+      <p style={matchImpactReadStyle}>{impactRead}</p>
+
+      {canViewDetailed ? (
+        <div style={matchImpactDetailRowStyle}>
+          <span>Expected win chance <strong>{snap?.win_probability == null ? '--' : `${snap.win_probability}%`}</strong></span>
+          <span>Opponent TiQ <strong>{snap?.opponent_rating == null ? '--' : formatTiqRating(snap.opponent_rating, null, true)}</strong></span>
+          <span>{isUpset ? 'Upset context detected' : 'Result context reviewed'}</span>
+        </div>
+      ) : (
+        <Link href="/pricing" style={matchImpactUnlockStyle}>Unlock opponent context and expected-score detail with Player</Link>
+      )}
+    </section>
   )
 }
 
@@ -6097,6 +6195,50 @@ const mobileMatchMetaItemStyle: CSSProperties = {
   fontWeight: 800,
   overflowWrap: 'anywhere',
 }
+
+const matchImpactActionStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 38,
+  marginTop: 12,
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.28)',
+  background: 'rgba(116,190,255,0.08)',
+  color: '#bfdbfe',
+  fontSize: 13,
+  fontWeight: 850,
+}
+
+const matchImpactTableActionStyle: CSSProperties = {
+  width: 'fit-content',
+  border: 0,
+  background: 'transparent',
+  color: '#93c5fd',
+  fontSize: 11,
+  fontWeight: 850,
+  padding: 0,
+  cursor: 'pointer',
+}
+
+const matchImpactPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  marginTop: 16,
+  padding: '18px',
+  borderRadius: 20,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'radial-gradient(circle at 8% 0%, rgba(155,225,29,0.16), transparent 38%), linear-gradient(135deg, rgba(11,31,52,0.98), rgba(4,14,30,0.98))',
+  boxShadow: '0 20px 52px rgba(2,8,20,0.28)',
+}
+
+const matchImpactHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+const matchImpactTitleStyle: CSSProperties = { margin: '4px 0 0', color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.1 }
+const matchImpactBodyStyle: CSSProperties = { margin: '6px 0 0', color: 'var(--shell-copy-muted)', fontSize: 13, fontWeight: 700 }
+const matchImpactCloseStyle: CSSProperties = { minHeight: 34, border: '1px solid rgba(255,255,255,0.16)', borderRadius: 999, background: 'rgba(255,255,255,0.04)', color: 'var(--foreground-strong)', padding: '0 12px', fontSize: 12, fontWeight: 800 }
+const matchImpactMetricGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 136px), 1fr))', gap: 10 }
+const matchImpactMetricStyle: CSSProperties = { display: 'grid', gap: 5, padding: '13px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(1,10,24,0.46)' }
+const matchImpactReadStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 700, lineHeight: 1.5 }
+const matchImpactDetailRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }
+const matchImpactUnlockStyle: CSSProperties = { color: 'var(--brand-lime)', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
 
 const scoreCellStackStyle: CSSProperties = {
   display: 'flex',
