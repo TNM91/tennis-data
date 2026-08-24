@@ -40,4 +40,11 @@ describe('Captain Season Dashboard', () => {
     expect(source).toContain("buildCaptainScopedHref('/captain/lineup-projection', scopedParams)")
     expect(source).toContain('Compare lineups')
   })
+
+  it('shows roster impact only from linked canonical participant results', () => {
+    expect(source).toContain('function buildPlayerImpact')
+    expect(source).toContain(".from('match_players')")
+    expect(source).toContain('Who has carried the most match load')
+    expect(source).toContain('Player links are still being completed')
+  })
 })
