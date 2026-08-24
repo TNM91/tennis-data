@@ -109,6 +109,7 @@ function CaptainSeasonDashboardContent() {
   const [nextMatch, setNextMatch] = useState<MatchRow | null>(null)
   const [recentResults, setRecentResults] = useState<MatchRow[]>([])
   const [playerImpact, setPlayerImpact] = useState<PlayerImpact[]>([])
+  const [opponentResults, setOpponentResults] = useState<MatchRow[]>([])
   const [loadError, setLoadError] = useState('')
 
   const team = initialScope?.team || ''
@@ -169,11 +170,31 @@ function CaptainSeasonDashboardContent() {
 
   const resolvedDate = nextMatch?.match_date || initialDate
   const resolvedOpponent = getOpponent(nextMatch, team) || initialOpponent
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !access.canUseCaptainWorkflow || !resolvedOpponent) return
+    let active = true
+    const escapedOpponent = escapePostgrestValue(resolvedOpponent)
+    let query = supabase.from('matches').select('id, match_date, home_team, away_team, winner_side, score')
+      .or(`home_team.eq."${escapedOpponent}",away_team.eq."${escapedOpponent}"`).is('line_number', null)
+      .not('winner_side', 'is', null).order('match_date', { ascending: false }).limit(400)
+    if (league) query = query.eq('league_name', league)
+    if (flight) query = query.eq('flight', flight)
+    void query.then(({ data, error }) => {
+      if (!active) return
+      setOpponentResults(error ? [] : (data ?? []) as MatchRow[])
+    })
+    return () => { active = false }
+  }, [access.canUseCaptainWorkflow, authResolved, flight, league, resolvedOpponent, role])
   const seasonResults = useMemo(() => recentResults.map((match) => ({ match, won: didTeamWin(match, team) })).filter((item) => item.won !== null), [recentResults, team])
   const seasonWins = seasonResults.filter((item) => item.won).length
   const seasonLosses = seasonResults.length - seasonWins
   const currentForm = seasonResults.slice(0, 5).map((item) => item.won ? 'W' : 'L')
   const recentResultRows = seasonResults.slice(0, 5)
+  const opponentRecord = useMemo(() => {
+    const results = opponentResults.map((match) => didTeamWin(match, resolvedOpponent)).filter((won): won is boolean => won !== null)
+    return { wins: results.filter(Boolean).length, losses: results.filter((won) => !won).length, form: results.slice(0, 5).map((won) => won ? 'W' : 'L') }
+  }, [opponentResults, resolvedOpponent])
+  const hasOpponentRecord = Boolean(resolvedOpponent) && opponentRecord.wins + opponentRecord.losses > 0
   const currentStreak = useMemo(() => {
     const first = seasonResults[0]?.won
     if (typeof first !== 'boolean') return ''
@@ -199,6 +220,7 @@ function CaptainSeasonDashboardContent() {
   const availabilityHref = buildCaptainScopedHref('/captain/availability', scopedParams)
   const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', scopedParams)
   const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', scopedParams)
+  const opponentTeamHref = resolvedOpponent ? `/teams/${encodeURIComponent(resolvedOpponent)}` : '/teams'
 
   useEffect(() => {
     if (!team || !authResolved || !access.canUseCaptainWorkflow) return
@@ -235,6 +257,10 @@ function CaptainSeasonDashboardContent() {
         <section style={surfaceStyle} aria-label="Recent season results">
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2>{currentStreak ? <p style={metricDetailStyle}>{currentStreak}</p> : null}</div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
           {seasonResults.length ? <div style={resultListStyle}>{recentResultRows.map(({ match, won }) => <div key={match.id} style={resultRowStyle}><span style={won ? winMarkStyle : lossMarkStyle}>{won ? 'W' : 'L'}</span><div style={resultCopyStyle}><strong style={resultOpponentStyle}>vs {getOpponent(match, team) || 'Opponent pending'}</strong><span style={metricDetailStyle}>{formatDate(match.match_date)}{match.score ? ` · ${match.score}` : ''}</span></div></div>)}</div> : <p style={mutedStyle}>No reported team results in this saved scope yet. Scheduled and unreported matches stay out of the record.</p>}
+        </section>
+        <section style={surfaceStyle} aria-label="Opponent snapshot">
+          <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Opponent snapshot</p><h2 style={sectionTitleStyle}>{resolvedOpponent ? `What ${resolvedOpponent} brings in` : 'What the next opponent brings in'}</h2></div><Link href={opponentTeamHref} style={secondaryLinkStyle}>Open team record</Link></div>
+          {hasOpponentRecord ? <div style={impactGridStyle}><Metric label="Reported record" value={`${opponentRecord.wins}-${opponentRecord.losses}`} detail={`${opponentRecord.wins + opponentRecord.losses} completed result${opponentRecord.wins + opponentRecord.losses === 1 ? '' : 's'} in this scope`} /><div style={impactCardStyle}><span style={metricLabelStyle}>Recent form</span><div style={formStyle} aria-label={`${resolvedOpponent} recent form: ${opponentRecord.form.join(', ')}`}>{opponentRecord.form.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div><span style={metricDetailStyle}>Canonical reported results only</span></div></div> : <p style={mutedStyle}>{resolvedOpponent ? `Completed results for ${resolvedOpponent} will appear here as they are connected to this league and flight.` : 'Choose a scheduled match to see the next opponent’s reported form.'}</p>}
         </section>
         <section style={surfaceStyle} aria-label="Roster impact">
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Roster impact</p><h2 style={sectionTitleStyle}>Who has carried the most match load</h2></div><Link href={lineupProjectionHref} style={secondaryLinkStyle}>Use in lineup</Link></div>
