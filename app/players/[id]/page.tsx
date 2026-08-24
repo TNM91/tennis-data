@@ -1471,6 +1471,15 @@ function PlayerProfileContent() {
   }, [earnedTrophyBadges, featuredAchievementKeys, trophyBadges])
   const saveFeaturedAchievement = useCallback(async (achievementKey: string) => {
     if (!currentUserId || !hasPersonalPlayerExperience) return
+    const alreadyFeatured = featuredAchievementKeys.includes(achievementKey)
+    if (!alreadyFeatured && featuredAchievementKeys.length >= 3) {
+      setAchievementSaveStatus('error')
+      setAchievementSaveMessage('Feature up to three badges. Remove one before adding another.')
+      return
+    }
+    const nextFeaturedKeys = alreadyFeatured
+      ? featuredAchievementKeys.filter((key) => key !== achievementKey)
+      : [...featuredAchievementKeys, achievementKey]
     setAchievementSaveStatus('saving')
     setAchievementSaveMessage('')
     const { data: sessionData } = await supabase.auth.getSession()
@@ -1485,19 +1494,18 @@ function PlayerProfileContent() {
       const response = await fetch('/api/player/achievement-showcase', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, featuredKeys: [achievementKey] }),
+        body: JSON.stringify({ playerId, featuredKeys: nextFeaturedKeys }),
       })
       const body = (await response.json().catch(() => null)) as { ok?: boolean; featuredKeys?: unknown; message?: string } | null
       if (!response.ok || !body?.ok) throw new Error(body?.message || 'Your showcase could not be saved.')
       setFeaturedAchievementKeys(Array.isArray(body.featuredKeys) ? body.featuredKeys.filter((key): key is string => typeof key === 'string').slice(0, 3) : [])
       setAchievementSaveStatus('saved')
-      setAchievementSaveMessage('Featured on your public profile.')
-      setAchievementEditorOpen(false)
+      setAchievementSaveMessage(nextFeaturedKeys.length ? `${nextFeaturedKeys.length} badge${nextFeaturedKeys.length === 1 ? '' : 's'} featured on your public profile.` : 'Your profile showcase is using the default earned badges.')
     } catch (saveError) {
       setAchievementSaveStatus('error')
       setAchievementSaveMessage(saveError instanceof Error ? saveError.message : 'Your showcase could not be saved.')
     }
-  }, [currentUserId, hasPersonalPlayerExperience, playerId])
+  }, [currentUserId, featuredAchievementKeys, hasPersonalPlayerExperience, playerId])
   const showDetailedRatingHistory = !isMobile || showMobileRatingHistory
   const storyTeamName = primaryUstaMembership?.teamName || 'Independent player'
   const storyNextLevelProgress = Math.max(4, Math.min(100, progressInfo.percent))
@@ -1624,7 +1632,7 @@ function PlayerProfileContent() {
                         className={profileStory.achievementEditButton}
                         onClick={() => setAchievementEditorOpen((open) => !open)}
                       >
-                        {achievementEditorOpen ? 'Done' : 'Feature one'}
+                        {achievementEditorOpen ? 'Done' : 'Edit showcase'}
                       </button>
                     ) : (
                       <small>Player showcase</small>
@@ -1659,7 +1667,7 @@ function PlayerProfileContent() {
                             disabled={achievementSaveStatus === 'saving'}
                             onClick={() => void saveFeaturedAchievement(achievement.key)}
                           >
-                            {featuredAchievementKeys.includes(achievement.key) ? 'Featured' : 'Feature'}
+                            {featuredAchievementKeys.includes(achievement.key) ? 'Remove' : 'Feature'}
                           </button>
                         ) : null}
                       </article>
@@ -1667,7 +1675,7 @@ function PlayerProfileContent() {
                   </div>
                   {hasPersonalPlayerExperience ? (
                     <p className={profileStory.achievementShelfNote} data-tone={achievementSaveStatus}>
-                      {achievementSaveMessage || 'Choose one earned achievement to lead your public profile.'}
+                      {achievementSaveMessage || 'Choose up to three earned badges for your public profile.'}
                     </p>
                   ) : null}
                 </section>
