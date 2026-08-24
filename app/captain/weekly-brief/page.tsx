@@ -450,6 +450,13 @@ function CaptainWeeklyBriefContent() {
     responseSummary.late +
     responseSummary.noResponse +
     (lineupRows.length ? 0 : 1)
+  const captainDecision = openRiskCount === 0
+    ? 'Your week is ready. Confirm the lineup, then send the team brief.'
+    : availabilitySummary.noResponse + responseSummary.noResponse > 0
+      ? `Clear ${availabilitySummary.noResponse + responseSummary.noResponse} missing response${availabilitySummary.noResponse + responseSummary.noResponse === 1 ? '' : 's'} before locking courts.`
+      : !lineupRows.length
+        ? 'Build the first lineup scenario before you make match-day calls.'
+        : 'Review tentative availability before confirming the final courts.'
   const mobileWeekPulse = [
     {
       label: 'Courts',
@@ -634,6 +641,10 @@ function CaptainWeeklyBriefContent() {
             </div>
 
             <div style={briefBoardStyle}>
+              <div style={{ ...briefStatusStyle, gridColumn: '1 / -1' }}>
+                <span style={briefStatusPillStyle}>Captain call</span>
+                <div style={statusValue}>{captainDecision}</div>
+              </div>
               <div style={briefStatusStyle}>
                 <span style={briefStatusPillStyle}>{openRiskCount ? `${openRiskCount} open risk${openRiskCount === 1 ? '' : 's'}` : 'Ready'}</span>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
@@ -642,6 +653,10 @@ function CaptainWeeklyBriefContent() {
                   <span>{formatDate(eventDate || currentMatch?.match_date)}</span>
                   <span>{team || 'Team not set'}</span>
                   <span>{eventDetail?.arrivalTime || 'Arrival pending'}</span>
+                </div>
+                <div style={briefMetaRowStyle}>
+                  <span>{selectedScenario?.scenario_name || 'Scenario pending'}</span>
+                  <span>{resolvedOpponent ? `Opponent: ${resolvedOpponent}` : 'Opponent pending'}</span>
                 </div>
               </div>
               <div style={statusButtonRow}>
