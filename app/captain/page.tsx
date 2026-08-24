@@ -1303,6 +1303,8 @@ type PairingSummary = {
   wins: number
   losses: number
   avgDoublesRating: number | null
+  recentResults: Array<{ result: 'W' | 'L'; date: string }>
+  lastMatchDate: string | null
 }
 
 type CaptainSubBoardFlag = {
@@ -3028,16 +3030,24 @@ function CaptainHubContent() {
               .map((player) => player.doubles_dynamic_rating)
               .filter((value): value is number => typeof value === 'number'),
           ),
+          recentResults: [],
+          lastMatchDate: null,
         })
       }
 
       const item = map.get(key)!
       item.appearances += 1
-      if (match.winner_side === side) item.wins += 1
+      const won = match.winner_side === side
+      if (won) item.wins += 1
       else item.losses += 1
+      item.recentResults.push({ result: won ? 'W' : 'L', date: match.match_date })
+      if (!item.lastMatchDate || match.match_date > item.lastMatchDate) item.lastMatchDate = match.match_date
     }
 
-    return [...map.values()].sort((a, b) => {
+    return [...map.values()].map((pair) => ({
+      ...pair,
+      recentResults: pair.recentResults.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+    })).sort((a, b) => {
       const pctDiff = getWinPct(b.wins, b.losses) - getWinPct(a.wins, a.losses)
       if (Math.abs(pctDiff) > 0.0001) return pctDiff
       if (b.appearances !== a.appearances) return b.appearances - a.appearances
@@ -19482,6 +19492,30 @@ function CaptainHubContent() {
                           </div>
                           <div style={listMeta}>
                             {pair.wins}-{pair.losses} together - {pair.appearances} doubles lines
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' as const, marginTop: 7 }} aria-label={`${pair.names.join(' and ')} recent results`}>
+                            <span style={{ ...pillHelper, color: 'var(--shell-copy-muted)' }}>Recent</span>
+                            {pair.recentResults.map((entry, recentIndex) => (
+                              <span
+                                key={`${entry.date}-${recentIndex}`}
+                                title={`${formatDateShort(entry.date)} - ${entry.result === 'W' ? 'Won' : 'Lost'}`}
+                                style={{
+                                  width: 22,
+                                  minHeight: 22,
+                                  display: 'inline-grid',
+                                  placeItems: 'center',
+                                  borderRadius: 999,
+                                  border: entry.result === 'W' ? '1px solid rgba(155,225,29,0.34)' : '1px solid rgba(251,113,133,0.28)',
+                                  background: entry.result === 'W' ? 'rgba(155,225,29,0.14)' : 'rgba(251,113,133,0.12)',
+                                  color: entry.result === 'W' ? 'var(--brand-green)' : '#fda4af',
+                                  fontSize: 11,
+                                  fontWeight: 950,
+                                }}
+                              >
+                                {entry.result}
+                              </span>
+                            ))}
+                            {pair.lastMatchDate ? <span style={pillHelper}>Last played {formatDateShort(pair.lastMatchDate)}</span> : null}
                           </div>
                         </div>
 
