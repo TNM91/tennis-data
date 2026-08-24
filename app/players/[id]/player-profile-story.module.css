@@ -2014,9 +2014,39 @@
   }
 
   .recentResultTile {
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-areas:
+      'outcome main'
+      'scoreboard scoreboard';
+    align-items: start;
     gap: 11px;
     min-height: 0;
     padding: 12px 14px;
+  }
+
+  .recentResultOutcome {
+    grid-area: outcome;
+    margin-top: 2px;
+  }
+
+  .recentResultTileMain {
+    grid-area: main;
+  }
+
+  .recentResultScoreboard {
+    grid-area: scoreboard;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+    padding-top: 10px;
+    border-top: 1px solid rgba(116, 190, 255, 0.12);
+  }
+
+  .recentResultScore {
+    justify-items: start;
+  }
+
+  .recentResultTiq {
+    justify-items: end;
   }
 
   .recentResultTile + .recentResultTile {
@@ -2042,13 +2072,23 @@
   }
 
   .recentResultScore > strong {
-    max-width: 112px;
     font-size: 16px;
   }
 
   .recentResultOpponent > strong,
   .recentResultOpponent > a {
     font-size: 13px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .recentResultTileMeta > span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .recentResultSnapshotAction {
