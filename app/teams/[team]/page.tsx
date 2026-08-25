@@ -1543,6 +1543,34 @@ function TeamPageContent() {
                 : 'See the team context that helps everyone stay ready.'}
             </p>
 
+            {seasonOptions.length > 1 ? (
+              <div style={teamSeasonScopeStyle} aria-label="Team season view">
+                <span style={teamSeasonScopeLabelStyle}>Season view</span>
+                <div style={teamSeasonScopeControlsStyle}>
+                  {(['all', ...seasonOptions] as const).map((season) => {
+                    const active = seasonFilter === season
+                    return (
+                      <button
+                        key={season}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setSeasonFilter(season)}
+                        style={{
+                          ...seasonFilterButtonStyle,
+                          ...(active ? teamSeasonScopeButtonActiveStyle : teamSeasonScopeButtonStyle),
+                        }}
+                      >
+                        {season === 'all' ? 'All seasons' : season}
+                      </button>
+                    )
+                  })}
+                </div>
+                <span style={teamSeasonScopeDetailStyle}>
+                  {seasonFilter === 'all' ? 'Lifetime team view' : `${seasonFilter} roster and results`}
+                </span>
+              </div>
+            ) : null}
+
             <div style={dynamicHeroActions}>
               {!authResolved ? (
                 <span style={helperCallout}>Checking team access...</span>
@@ -2156,16 +2184,6 @@ function TeamPageContent() {
             const visibleCards = showFullMatchHistory ? activityCards : previewCards
             return (
             <>
-            {seasonOptions.length > 1 ? (
-              <div style={seasonFilterControlsStyle}>
-                <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>Season:</span>
-                {(['all', ...seasonOptions] as const).map((y) => (
-                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={{ ...seasonFilterButtonStyle, background: seasonFilter === y ? 'rgba(116,190,255,0.14)' : 'transparent', border: `1px solid ${seasonFilter === y ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: seasonFilter === y ? '#93c5fd' : 'var(--shell-copy-muted)' }}>
-                    {y === 'all' ? 'All seasons' : y}
-                  </button>
-                ))}
-              </div>
-            ) : null}
             {isMobile ? (
               <div style={activityFilterControlsStyle} aria-label="Team activity filter">
                 {([
@@ -4069,13 +4087,50 @@ const mobileMatchFactsStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const seasonFilterControlsStyle: CSSProperties = {
+const teamSeasonScopeStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 8,
+  alignItems: 'center',
+  marginTop: 16,
+  minWidth: 0,
+}
+
+const teamSeasonScopeLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
+}
+
+const teamSeasonScopeControlsStyle: CSSProperties = {
   display: 'flex',
   gap: 8,
   flexWrap: 'wrap',
-  marginBottom: 12,
-  alignItems: 'center',
   minWidth: 0,
+}
+
+const teamSeasonScopeButtonStyle: CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: 'var(--shell-copy-muted)',
+}
+
+const teamSeasonScopeButtonActiveStyle: CSSProperties = {
+  background: 'color-mix(in srgb, var(--brand-green) 16%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, transparent)',
+  color: 'var(--foreground-strong)',
+  boxShadow: '0 10px 24px color-mix(in srgb, var(--brand-green) 12%, transparent)',
+}
+
+const teamSeasonScopeDetailStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const activityFilterControlsStyle: CSSProperties = {
