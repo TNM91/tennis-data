@@ -10183,7 +10183,7 @@ function CaptainHubContent() {
     },
     {
       label: 'Availability',
-      complete: workspaceState.pendingResponseCount === 0,
+      complete: workspaceState.pendingResponseCount === 0 && workspaceState.responseAlertCount === 0,
       href: availabilityHref,
       stage: 'availability' as CaptainResumeStage,
       cta: 'Review availability',
@@ -10219,6 +10219,7 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
   const captainReadinessCompleteCount = captainReadinessChecks.filter((item) => item.complete).length
   const captainReadinessScore = Math.round((captainReadinessCompleteCount / captainReadinessChecks.length) * 100)
@@ -10265,7 +10266,21 @@ function CaptainHubContent() {
     }
   }, [captainReadinessNext.label, workspaceState.pendingResponseCount])
 
-  const captainPrimaryAction = captainReadinessScore < 100 ? {
+  const captainRiskAction = useMemo(() => {
+    if (workspaceState.responseAlertCount <= 0) return null
+
+    const alertLabel = `${workspaceState.responseAlertCount} match-week alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+    return {
+      title: `Resolve ${alertLabel}`,
+      detail: 'Review availability now to address late arrivals or substitution risk before you finalize the plan.',
+      href: availabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      cta: 'Review availability',
+      tone: 'warn' as const,
+    }
+  }, [availabilityHref, workspaceState.responseAlertCount])
+
+  const captainPrimaryAction = captainRiskAction ?? (captainReadinessScore < 100 ? {
     ...captainReadinessAction,
     href: captainReadinessNext.href,
     stage: captainReadinessNext.stage,
@@ -10273,7 +10288,7 @@ function CaptainHubContent() {
   } : {
     ...nextAction,
     stage: 'brief' as CaptainResumeStage,
-  }
+  })
 
   const captainSeasonLaunchItems = useMemo<CaptainSeasonLaunchItem[]>(() => [
     {
