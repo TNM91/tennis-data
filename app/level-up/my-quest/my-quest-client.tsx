@@ -1943,8 +1943,8 @@ export default function MyQuestClient() {
     <section className={styles.pageShell} data-phone-mode={phoneCompact ? 'pocket' : 'full'}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Level Up: My Quest</p>
-          <h1>Operation Visible Abs</h1>
+          <p className={styles.eyebrow}>Player plan</p>
+          <h1>My Quest</h1>
           <p className={styles.heroText}>Your private daily plan. Complete today&apos;s habits, protect the week, and review progress when you need it.</p>
           <div className={styles.heroActions}>
             <a href="#today-quests">Today</a>
@@ -1992,7 +1992,7 @@ export default function MyQuestClient() {
 
       <section className={styles.mobileTodayFocus} aria-label="My Quest iPhone today focus">
         <div>
-          <span>Today focus</span>
+          <span>My Quest | Today focus</span>
           <strong>{todayFocusQuest?.shortTitle ?? 'Board cleared'}</strong>
           <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
         </div>
