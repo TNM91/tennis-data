@@ -121,6 +121,9 @@ describe('My Lab command center', () => {
     expect(componentSource).toContain('Next on court')
     expect(componentSource).toContain('className={styles.nextCourtEvent}')
     expect(componentSource).toContain('{nextCourtEvent.cta}')
+    expect(componentSource).toContain('{nextCourtEvent.readiness}')
+    expect(pageSource).toContain("'Availability needs a reply'")
+    expect(pageSource).toContain("'Availability confirmed'")
   })
 
   it('keeps the deeper legacy workspace behind one mobile disclosure', () => {

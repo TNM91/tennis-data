@@ -2923,6 +2923,11 @@ function MyLabPageInner() {
         detail: [item.detail, item.location].filter(Boolean).join(' - ') || item.competitionName,
         href: item.href || '/mylab#player-workshop',
         cta: 'Open match details',
+        readiness: item.responseStatus === 'unavailable'
+          ? 'Marked unavailable'
+          : item.responseStatus === 'available' && !item.responseIsStale
+            ? 'Availability confirmed'
+            : 'Availability needs a reply',
       })),
     ...personalCalendarItems
       .filter((item) => item.kind === 'match' && item.date >= todayDateKey)
@@ -2934,6 +2939,7 @@ function MyLabPageInner() {
         detail: item.location || 'Personal calendar match',
         href: '/mylab#player-workshop',
         cta: 'Open calendar',
+        readiness: item.availabilityStatus === 'unavailable' ? 'Marked unavailable' : 'Personal calendar',
       })),
   ].sort((left, right) => getPlayerCoachCalendarSortKey(left).localeCompare(getPlayerCoachCalendarSortKey(right)))[0] || null
   const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
