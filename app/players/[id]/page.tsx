@@ -2531,7 +2531,7 @@ function PlayerProfileContent() {
                           : 'See exact TIQ, opponent context, and the match impact behind this player’s results.'}
                       </span>
                     </div>
-                    <Link href="/pricing" style={profileRatingUnlockLinkStyle}>Unlock Player</Link>
+                    <Link href="/pricing" style={profileRatingUnlockLinkStyle} aria-label="Unlock exact TIQ ratings with Player">Unlock Player</Link>
                   </div>
                 ) : null}
               </div>
