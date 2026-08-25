@@ -876,37 +876,9 @@ function ExploreSearchContent() {
 }
 
 async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
-  const pattern = `%${term.trim()}%`
-  const select = 'id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating'
-  const [nameResult, locationResult] = await Promise.all([
-    supabase
-      .from('players')
-      .select(select)
-      .ilike('name', pattern)
-      .order('name', { ascending: true })
-      .limit(8),
-    supabase
-      .from('players')
-      .select(select)
-      .ilike('location', pattern)
-      .order('name', { ascending: true })
-      .limit(8),
-  ])
-
-  if (nameResult.error) throw new Error(nameResult.error.message)
-  if (locationResult.error) throw new Error(locationResult.error.message)
-
-  const directMatches = Array.from(
-    new Map(
-      [...((nameResult.data || []) as PlayerSearchRow[]), ...((locationResult.data || []) as PlayerSearchRow[])]
-        .map((player) => [player.id, player]),
-    ).values(),
-  ).slice(0, 8)
-
-  if (directMatches.length > 0) {
-    return { players: directMatches, usedSpellingHelp: false }
-  }
-
+  // This RPC is backed by the players_name_trigram_search_idx migration. Keep it
+  // as the first and only public lookup so a large imported player table never
+  // makes every search wait on unindexed ILIKE scans.
   const { data, error } = await supabase.rpc('search_public_players', {
     search_text: term.trim(),
     result_limit: 8,
@@ -920,10 +892,13 @@ async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
     throw new Error(error.message)
   }
 
-  return {
-    players: (data || []) as PlayerSearchRow[],
-    usedSpellingHelp: (data || []).length > 0,
-  }
+  const players = (data || []) as PlayerSearchRow[]
+  const normalizedTerm = term.trim().toLocaleLowerCase()
+  const hasDirectNameMatch = players.some((player) =>
+    player.name.toLocaleLowerCase().includes(normalizedTerm),
+  )
+
+  return { players, usedSpellingHelp: players.length > 0 && !hasDirectNameMatch }
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
