@@ -73,7 +73,11 @@ describe('player profile mobile streamline', () => {
 
   it('keeps the phone section rail focused when no team context exists', () => {
     expect(page).toContain('const hasTeamProfileContext = Boolean(primaryTeamHref) || tiqParticipations.length > 0')
+    expect(page).toContain('const profileNavItemCount = 3 + Number(hasPersonalPlayerExperience) + Number(hasTeamProfileContext)')
+    expect(page).toContain('data-item-count={profileNavItemCount}')
     expect(page).toContain("{hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'} data-active={activeProfileSection === 'teams'} onClick={() => setActiveProfileSection('teams')}>Teams</Link> : null}")
+    expect(styles).toContain(".profileNav[data-item-count='4']")
+    expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
   })
 
   it('puts one always-visible overall, singles, and doubles control directly below the profile sections', () => {

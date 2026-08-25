@@ -2015,6 +2015,18 @@
     white-space: normal;
   }
 
+  .profileNav[data-item-count='4'] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .profileNav[data-item-count='4'] a {
+    min-width: 0;
+    padding-inline: 7px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
   .profileRatingNav {
     border-radius: 15px;
   }

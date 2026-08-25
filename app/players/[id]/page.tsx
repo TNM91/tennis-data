@@ -1429,6 +1429,7 @@ function PlayerProfileContent() {
   }
   const shouldShowPlayerAccessHint = authResolved && isLinkedFreeProfile
   const tiqParticipationCount = tiqParticipations.length
+  const profileNavItemCount = 3 + Number(hasPersonalPlayerExperience) + Number(hasTeamProfileContext)
   const featuredPlayerAwards = playerAwards.slice(0, 1)
   const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
   const storyActionHref = hasTrackedMatches ? primaryActionHref : DATA_ASSIST_STORY.href
@@ -1753,7 +1754,7 @@ function PlayerProfileContent() {
       />
       <section className={profileStory.profileExperience}>
         <div className={profileStory.profileHeaderControls}>
-          <nav className={profileStory.profileNav} aria-label="Player profile sections">
+          <nav className={profileStory.profileNav} aria-label="Player profile sections" data-item-count={profileNavItemCount}>
             <a href="#profile-overview" data-active={activeProfileSection === 'overview'} onClick={() => setActiveProfileSection('overview')}>Overview</a>
             <a href="#profile-rating-journey" data-active={activeProfileSection === 'rating'} onClick={() => setActiveProfileSection('rating')}>Rating</a>
             <a
