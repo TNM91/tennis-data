@@ -221,6 +221,33 @@ function CaptainSeasonDashboardContent() {
   const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', scopedParams)
   const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', scopedParams)
   const opponentTeamHref = resolvedOpponent ? `/teams/${encodeURIComponent(resolvedOpponent)}` : '/teams'
+  const seasonSignal = !seasonResults.length
+    ? {
+        title: 'Build the first season read',
+        detail: 'Reported results will shape this signal once the team has a completed match in the selected scope.',
+        cta: 'Build next lineup',
+        href: lineupHref,
+        tone: 'neutral',
+      }
+    : currentForm[0] === 'W'
+      ? {
+          title: currentStreak || 'Keep the positive momentum',
+          detail: resolvedOpponent
+            ? `Use ${resolvedOpponent}'s reported form to protect the courts that are working.`
+            : 'Carry the strongest court choices into the next match plan.',
+          cta: 'Compare next lineup',
+          href: lineupProjectionHref,
+          tone: 'positive',
+        }
+      : {
+          title: currentStreak || 'Reset the next match plan',
+          detail: resolvedOpponent
+            ? `Review ${resolvedOpponent}'s reported form and give the swing court a fresh look.`
+            : 'Use the next lineup plan to test a different court shape.',
+          cta: 'Prepare next lineup',
+          href: lineupProjectionHref,
+          tone: 'attention',
+        }
 
   useEffect(() => {
     if (!team || !authResolved || !access.canUseCaptainWorkflow) return
@@ -253,6 +280,24 @@ function CaptainSeasonDashboardContent() {
             <Metric label="Next match" value={resolvedDate ? formatDate(resolvedDate) : 'Not scheduled'} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'No opponent in the current record'} />
             <Metric label="Match Week" value={resolvedDate ? `${readinessPercent}% ready` : 'Open'} detail={resolvedDate ? 'Based on your saved team plan' : 'Choose a match to begin'} />
           </div>
+        </section>
+        <section
+          style={{
+            ...seasonSignalCardStyle,
+            ...(seasonSignal.tone === 'positive'
+              ? seasonSignalPositiveStyle
+              : seasonSignal.tone === 'attention'
+                ? seasonSignalAttentionStyle
+                : null),
+          }}
+          aria-label="Season signal"
+        >
+          <div style={seasonSignalCopyStyle}>
+            <p style={eyebrowStyle}>Season signal</p>
+            <h2 style={seasonSignalTitleStyle}>{seasonSignal.title}</h2>
+            <p style={seasonSignalDetailStyle}>{seasonSignal.detail}</p>
+          </div>
+          <Link href={seasonSignal.href} style={primaryLinkStyle}>{seasonSignal.cta}</Link>
         </section>
         <section style={surfaceStyle} aria-label="Recent season results">
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Season form</p><h2 style={sectionTitleStyle}>Recent team results</h2>{currentStreak ? <p style={metricDetailStyle}>{currentStreak}</p> : null}</div>{currentForm.length ? <div style={formStyle} aria-label={`Recent form: ${currentForm.join(', ')}`}>{currentForm.map((result, index) => <span key={`${result}-${index}`} style={result === 'W' ? winMarkStyle : lossMarkStyle}>{result}</span>)}</div> : null}</div>
@@ -298,6 +343,12 @@ const metricStyle: CSSProperties = { display: 'grid', gap: 7, minWidth: 0, paddi
 const metricLabelStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: '.76rem', fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }
 const metricValueStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(1.2rem, 4vw, 1.75rem)', lineHeight: 1.1, overflowWrap: 'anywhere' }
 const metricDetailStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: '.9rem', lineHeight: 1.35, overflowWrap: 'anywhere' }
+const seasonSignalCardStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', padding: '20px 22px', borderRadius: 24, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)', boxShadow: 'var(--shadow-soft)', minWidth: 0 }
+const seasonSignalPositiveStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)', background: 'linear-gradient(115deg, color-mix(in srgb, var(--brand-lime) 12%, var(--shell-panel-bg-strong) 88%), var(--shell-panel-bg-strong))' }
+const seasonSignalAttentionStyle: CSSProperties = { borderColor: 'rgba(255, 154, 172, .34)', background: 'linear-gradient(115deg, rgba(109, 28, 47, .28), var(--shell-panel-bg-strong))' }
+const seasonSignalCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0, flex: '1 1 280px' }
+const seasonSignalTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(1.2rem, 3vw, 1.55rem)', lineHeight: 1.08, overflowWrap: 'anywhere' }
+const seasonSignalDetailStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.5, overflowWrap: 'anywhere' }
 const sectionHeaderStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14 }
 const readinessGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 10 }
 const readinessItemStyle: CSSProperties = { ...metricStyle, gridTemplateColumns: 'auto 1fr', columnGap: 9, alignItems: 'center' }
