@@ -10223,16 +10223,53 @@ function CaptainHubContent() {
   const captainReadinessCompleteCount = captainReadinessChecks.filter((item) => item.complete).length
   const captainReadinessScore = Math.round((captainReadinessCompleteCount / captainReadinessChecks.length) * 100)
   const captainReadinessNext = captainReadinessChecks.find((item) => !item.complete) || captainReadinessChecks[captainReadinessChecks.length - 1]
+  const captainReadinessAction = useMemo(() => {
+    if (captainReadinessNext.label === 'Team scope') {
+      return {
+        title: 'Choose the team week',
+        detail: 'Pick the team, league, and flight first so Captain can scope lineup, availability, and messaging.',
+        tone: 'info' as const,
+      }
+    }
+
+    if (captainReadinessNext.label === 'Availability') {
+      return {
+        title: 'Close the reply gap',
+        detail: workspaceState.pendingResponseCount > 0
+          ? `${workspaceState.pendingResponseCount} player${workspaceState.pendingResponseCount === 1 ? '' : 's'} still need a clear In, Out, or Maybe before you lock courts.`
+          : 'Check availability before moving into the lineup decision.',
+        tone: 'warn' as const,
+      }
+    }
+
+    if (captainReadinessNext.label === 'Projection') {
+      return {
+        title: 'Open the lineup projection',
+        detail: 'Review the match context and court options before you commit to a weekly lineup.',
+        tone: 'info' as const,
+      }
+    }
+
+    if (captainReadinessNext.label === 'Lineup') {
+      return {
+        title: 'Build the weekly lineup',
+        detail: 'Turn availability, player fit, and pairing reads into a playable set of courts.',
+        tone: 'info' as const,
+      }
+    }
+
+    return {
+      title: 'Send the weekly plan',
+      detail: 'Your lineup is ready. Send the plan and follow up only where the team still needs details.',
+      tone: 'good' as const,
+    }
+  }, [captainReadinessNext.label, workspaceState.pendingResponseCount])
 
   const captainPrimaryAction = captainReadinessScore < 100 ? {
-    title: captainReadinessNext.label === 'Team scope' ? 'Choose the team week' : nextAction.title,
-    detail: captainReadinessNext.label === 'Team scope'
-      ? 'Pick the team, league, and flight first so Captain can scope lineup, availability, and messaging.'
-      : nextAction.detail,
+    ...captainReadinessAction,
     href: captainReadinessNext.href,
     stage: captainReadinessNext.stage,
     cta: captainReadinessNext.cta,
-    tone: captainReadinessNext.label === 'Team scope' ? 'info' as const : nextAction.tone,
   } : {
     ...nextAction,
     stage: 'brief' as CaptainResumeStage,
