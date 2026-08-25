@@ -1341,11 +1341,6 @@ function PlayerProfileContent() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicSegmentWrap: CSSProperties = {
-    ...segmentWrap,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  }
-
   const dynamicFocusMetrics: CSSProperties = {
     ...focusMetrics,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
@@ -1707,13 +1702,28 @@ function PlayerProfileContent() {
         enabled={detailReady}
       />
       <section className={profileStory.profileExperience}>
-        <nav className={profileStory.profileNav} aria-label="Player profile sections">
-          <a href="#profile-overview">Overview</a>
-          <a href="#profile-rating-journey">Rating</a>
-          <a href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}>{isPublicExplorerProfile ? 'Stats' : 'Matches'}</a>
-          {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
-          {hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}
-        </nav>
+        <div className={profileStory.profileHeaderControls}>
+          <nav className={profileStory.profileNav} aria-label="Player profile sections">
+            <a href="#profile-overview">Overview</a>
+            <a href="#profile-rating-journey">Rating</a>
+            <a href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}>{isPublicExplorerProfile ? 'Stats' : 'Matches'}</a>
+            {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
+            {hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}
+          </nav>
+          <div className={profileStory.profileRatingNav} aria-label="Choose rating view">
+            {(['overall', 'singles', 'doubles'] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                data-active={ratingView === view}
+                aria-pressed={ratingView === view}
+                onClick={() => setRatingView(view)}
+              >
+                {capitalize(view)}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <article id="profile-overview" className={profileStory.storyHero} data-public-profile={isPublicExplorerProfile}>
           <div className={profileStory.storyContent}>
@@ -1888,19 +1898,6 @@ function PlayerProfileContent() {
               <div className={profileStory.matchTapeFilterCopy}>
                 <span>Match view</span>
                 <strong>Showing {ratingViewLabel.toLowerCase()} matches</strong>
-              </div>
-              <div className={profileStory.ratingViews} aria-label="Choose match view">
-                {(['overall', 'singles', 'doubles'] as const).map((view) => (
-                  <button
-                    key={view}
-                    type="button"
-                    data-active={ratingView === view}
-                    aria-pressed={ratingView === view}
-                    onClick={() => setRatingView(view)}
-                  >
-                    {capitalize(view)}
-                  </button>
-                ))}
               </div>
             </div>
             <div className={profileStory.ratingPulse} aria-label={`${ratingViewLabel} rating trend`}>
@@ -2403,44 +2400,11 @@ function PlayerProfileContent() {
                   <div style={panelHeadCopyStyle}>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
-                      Switch between overall, singles, and doubles reads.
+                      Your selected view applies across the profile.
                     </div>
                   </div>
 
                   <span style={panelChip}>{totalMatches} tracked match{totalMatches === 1 ? '' : 'es'}</span>
-                </div>
-
-                <div style={dynamicSegmentWrap}>
-                  <button
-                    type="button"
-                    onClick={() => setRatingView('overall')}
-                    style={{
-                      ...segmentButton,
-                      ...(ratingView === 'overall' ? segmentButtonActive : {}),
-                    }}
-                  >
-                    Overall
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRatingView('singles')}
-                    style={{
-                      ...segmentButton,
-                      ...(ratingView === 'singles' ? segmentButtonActive : {}),
-                    }}
-                  >
-                    Singles
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRatingView('doubles')}
-                    style={{
-                      ...segmentButton,
-                      ...(ratingView === 'doubles' ? segmentButtonActive : {}),
-                    }}
-                  >
-                    Doubles
-                  </button>
                 </div>
 
                 <div style={dynamicFocusMetrics}>
@@ -5246,36 +5210,6 @@ const secondaryMiniButton: CSSProperties = {
   ...secondaryMiniLink,
   appearance: 'none',
   cursor: 'pointer',
-}
-
-const segmentWrap: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-  marginBottom: '14px',
-  minWidth: 0,
-}
-
-const segmentButton: CSSProperties = {
-  border: '1px solid rgba(116,190,255,0.13)',
-  borderRadius: '16px',
-  background: 'rgba(7,17,33,0.72)',
-  color: 'var(--foreground)',
-  minHeight: '52px',
-  padding: '0 14px',
-  fontSize: '14px',
-  fontWeight: 800,
-  cursor: 'pointer',
-  maxWidth: '100%',
-  minWidth: 0,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const segmentButtonActive: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
-  color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  boxShadow: '0 10px 24px rgba(2,10,24,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const focusMetrics: CSSProperties = {

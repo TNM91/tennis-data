@@ -20,17 +20,24 @@
   max-width: 100%;
 }
 
-.profileNav {
+.profileHeaderControls {
   position: sticky;
   top: 8px;
   z-index: 12;
+  display: grid;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 12px;
+}
+
+.profileNav {
   display: flex;
   align-items: center;
   gap: 6px;
   width: fit-content;
   max-width: 100%;
   box-sizing: border-box;
-  margin: 0 auto 12px;
   padding: 6px;
   overflow-x: auto;
   border: 1px solid rgba(116, 190, 255, 0.2);
@@ -63,6 +70,41 @@
   color: #ffffff;
   background: rgba(116, 190, 255, 0.13);
   outline: none;
+}
+
+.profileRatingNav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(6, 19, 36, 0.94);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+}
+
+.profileRatingNav button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(228, 238, 251, 0.7);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.profileRatingNav button[data-active='true'] {
+  color: #061324;
+  background: #d9f84a;
+  box-shadow: 0 0 0 1px rgba(155, 225, 29, 0.32), 0 8px 18px rgba(155, 225, 29, 0.18);
 }
 
 .storyHero {
@@ -1939,12 +1981,17 @@
     overflow-x: clip;
   }
 
-  .profileNav {
+  .profileHeaderControls {
     position: relative;
     top: auto;
-    justify-content: center;
     width: 100%;
     margin-bottom: 8px;
+  }
+
+  .profileNav {
+    justify-content: center;
+    width: 100%;
+    margin: 0;
     border-radius: 18px;
     overflow: hidden;
     flex-wrap: wrap;
@@ -1957,6 +2004,15 @@
     padding: 9px 13px;
     text-align: center;
     white-space: normal;
+  }
+
+  .profileRatingNav {
+    border-radius: 15px;
+  }
+
+  .profileRatingNav button {
+    min-height: 32px;
+    padding: 7px 8px;
   }
 
   .storyHero {
