@@ -101,6 +101,17 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
   })
 
+  it('puts a Player-only next milestone beside the profile controls without exposing exact TIQ to explorers', () => {
+    expect(page).toContain('{hasPersonalPlayerExperience ? (')
+    expect(page).toContain('aria-label="Your next TIQ milestone"')
+    expect(page).toContain('className={profileStory.personalProgressSummary}')
+    expect(page).toContain('formatTiqRating(selectedDynamicRating, player, true)')
+    expect(page).toContain('Track in My Lab')
+    expect(styles).toContain('.personalProgressSummary')
+    expect(styles).toContain('.personalProgressTrack')
+    expect(styles).toContain('.personalProgressAction')
+  })
+
   it('keeps the profile section header honest as the viewer moves through the page', () => {
     expect(page).toContain("const [activeProfileSection, setActiveProfileSection] = useState<ProfileNavSection>('overview')")
     expect(page).toContain('new IntersectionObserver(')
