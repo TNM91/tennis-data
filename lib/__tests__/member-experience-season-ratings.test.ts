@@ -9,7 +9,9 @@ const playerProfileSource = readFileSync(join(process.cwd(), 'app/players/[id]/p
 const questSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest-client.tsx'), 'utf8')
 
 describe('member experience season and rating access', () => {
-  it('batches Explore search requests instead of searching per keystroke', () => {
+  it('starts Explore search requests only after an intentional submit', () => {
+    expect(searchSource).toContain("const [submittedQuery, setSubmittedQuery] = useState('')")
+    expect(searchSource).toContain('const trimmedQuery = submittedQuery.trim()')
     expect(searchSource).toContain('window.setTimeout(() =>')
     expect(searchSource).toContain('}, 260)')
     expect(searchSource).toContain('window.clearTimeout(timeout)')
