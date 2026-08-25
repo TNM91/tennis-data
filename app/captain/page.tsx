@@ -10092,6 +10092,20 @@ function CaptainHubContent() {
       detail: workspaceState.lineupReady ? 'Court count is ready for the team note.' : 'Build courts before the final reminder.',
       tone: workspaceState.lineupReady ? 'good' : 'warn',
     },
+    {
+      label: 'Availability',
+      state: workspaceState.responseAlertCount > 0
+        ? `${workspaceState.responseAlertCount} alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+        : workspaceState.pendingResponseCount > 0
+          ? `${workspaceState.pendingResponseCount} waiting`
+          : 'Clear',
+      detail: workspaceState.responseAlertCount > 0
+        ? 'Resolve late-arrival or substitution risk before you send the reminder.'
+        : workspaceState.pendingResponseCount > 0
+          ? 'Chase the remaining reply before you finalize courts.'
+          : 'Player responses are ready for the weekly plan.',
+      tone: workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+    },
   ], [
     captainMatchLogisticsHasArrival,
     captainMatchLogisticsHasDate,
@@ -10103,11 +10117,16 @@ function CaptainHubContent() {
     weekAtGlance.opponentLabel,
     workspaceState.lineupCount,
     workspaceState.lineupReady,
+    workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
   const captainPhoneMatchCardReadyCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'good').length
   const captainPhoneMatchCardIssueCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'warn').length
-  const captainPhoneMatchCardStatus = captainPhoneMatchCardIssueCount > 0
-    ? `${captainPhoneMatchCardIssueCount} missing`
+  const captainPhoneMatchCardRiskCount = workspaceState.responseAlertCount
+  const captainPhoneMatchCardStatus = captainPhoneMatchCardRiskCount > 0
+    ? `${captainPhoneMatchCardRiskCount} alert${captainPhoneMatchCardRiskCount === 1 ? '' : 's'}`
+    : captainPhoneMatchCardIssueCount > 0
+      ? `${captainPhoneMatchCardIssueCount} to finish`
     : `${captainPhoneMatchCardReadyCount}/${captainPhoneMatchCardItems.length} ready`
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
@@ -14400,7 +14419,7 @@ function CaptainHubContent() {
             <div style={captainPhoneMatchCardTitle}>{weekAtGlance.eventDateLabel}</div>
             <div style={captainPhoneMatchCardOpponent}>vs {weekAtGlance.opponentLabel}</div>
           </div>
-          <span style={captainPhoneMatchCardIssueCount > 0 ? warnBadge : badgeGreen}>
+          <span style={captainPhoneMatchCardRiskCount > 0 || captainPhoneMatchCardIssueCount > 0 ? warnBadge : badgeGreen}>
             {captainPhoneMatchCardStatus}
           </span>
         </div>
@@ -14428,8 +14447,14 @@ function CaptainHubContent() {
           <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
             {copiedCaptainMatchLogistics ? 'Copied reminder' : 'Copy final reminder'}
           </PrimarySmallBtn>
-          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
-            Open messages
+          <SecondarySmallBtn
+            disabled={!hasTeamScope || !premiumEnabled}
+            onClick={() => handleCaptainNav(
+              workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref,
+              workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'availability' : 'messaging',
+            )}
+          >
+            {workspaceState.responseAlertCount > 0 ? 'Resolve alerts' : workspaceState.pendingResponseCount > 0 ? 'Review availability' : 'Open messages'}
           </SecondarySmallBtn>
           <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
             Review lineup
