@@ -2521,9 +2521,18 @@ function PlayerProfileContent() {
                   />
                 </div>
                 {!canViewExactTiqRating ? (
-                  <Link href="/pricing" style={{ display: 'inline-flex', marginTop: 12, color: 'var(--brand-green)', fontSize: 13, fontWeight: 800 }}>
-                    Unlock exact TIQ ratings with Player
-                  </Link>
+                  <div style={profileRatingUnlockStyle}>
+                    <div>
+                      <span style={profileRatingUnlockKickerStyle}>Player member view</span>
+                      <strong style={profileRatingUnlockTitleStyle}>Exact TIQ and match context</strong>
+                      <span style={profileRatingUnlockBodyStyle}>
+                        {isOwnProfile
+                          ? 'See your exact rating, match-by-match movement, and the full path into My Lab.'
+                          : 'See exact TIQ, opponent context, and the match impact behind this player’s results.'}
+                      </span>
+                    </div>
+                    <Link href="/pricing" style={profileRatingUnlockLinkStyle}>Unlock Player</Link>
+                  </div>
                 ) : null}
               </div>
 
@@ -6503,6 +6512,11 @@ const matchImpactMetricStyle: CSSProperties = { display: 'grid', gap: 5, padding
 const matchImpactReadStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 700, lineHeight: 1.5 }
 const matchImpactDetailRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }
 const matchImpactUnlockStyle: CSSProperties = { color: 'var(--brand-lime)', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
+const profileRatingUnlockStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'end', gap: 12, marginTop: 12, padding: '12px 13px', borderRadius: 16, border: '1px solid rgba(190,255,74,0.3)', background: 'linear-gradient(135deg, rgba(172,255,44,0.11), rgba(116,190,255,0.07))' }
+const profileRatingUnlockKickerStyle: CSSProperties = { display: 'block', color: '#c9f89c', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }
+const profileRatingUnlockTitleStyle: CSSProperties = { display: 'block', marginTop: 4, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 900 }
+const profileRatingUnlockBodyStyle: CSSProperties = { display: 'block', marginTop: 4, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.45 }
+const profileRatingUnlockLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 34, borderRadius: 999, padding: '0 11px', background: 'var(--brand-lime)', color: '#07121f', fontSize: 12, fontWeight: 900, textDecoration: 'none', whiteSpace: 'nowrap' }
 
 const seasonReviewPanelStyle: CSSProperties = { display: 'grid', gap: 16, marginTop: 16, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.25)', background: 'radial-gradient(circle at 86% 0%, rgba(116,190,255,0.16), transparent 34%), linear-gradient(135deg, rgba(8,25,46,0.98), rgba(4,13,29,0.98))', boxShadow: '0 22px 56px rgba(2,8,20,0.26)' }
 const seasonReviewHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
