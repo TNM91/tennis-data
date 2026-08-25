@@ -1806,6 +1806,26 @@ function PlayerProfileContent() {
           </div>
         </section>
 
+        {hasPersonalPlayerExperience ? (
+          <section className={profileStory.personalProgressSummary} aria-label="Your next TIQ milestone">
+            <div className={profileStory.personalProgressCopy}>
+              <span>Next TIQ milestone</span>
+              <strong>{nextThreshold.toFixed(1)}</strong>
+              <small>{progressInfo.remaining.toFixed(2)} rating points to go in {ratingViewLabel.toLowerCase()}.</small>
+            </div>
+            <div className={profileStory.personalProgressMeter}>
+              <div>
+                <span>TIQ now</span>
+                <strong>{formatTiqRating(selectedDynamicRating, player, true)}</strong>
+              </div>
+              <div className={profileStory.personalProgressTrack} aria-label={`${Math.round(storyNextLevelProgress)} percent toward the next TIQ milestone`}>
+                <i style={{ width: `${storyNextLevelProgress}%` }} />
+              </div>
+            </div>
+            <Link href="/mylab" className={profileStory.personalProgressAction}>Track in My Lab</Link>
+          </section>
+        ) : null}
+
         <article id="profile-overview" className={profileStory.storyHero} data-public-profile={isPublicExplorerProfile}>
           <div className={profileStory.storyContent}>
             <div>
