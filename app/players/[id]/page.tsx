@@ -34,7 +34,8 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
