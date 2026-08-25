@@ -242,14 +242,14 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('uses the bounded configured throughput for historical and weekly refreshes', () => {
-    expect(scheduledTennisRecordBatchLimit(12)).toBe(10)
-    expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
-    expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
+    expect(scheduledTennisRecordBatchLimit(12)).toBe(3)
+    expect(scheduledTennisRecordBatchLimit(8)).toBe(3)
+    expect(scheduledTennisRecordBatchLimit(5)).toBe(3)
     expect(scheduledTennisRecordBatchLimit(2)).toBe(2)
     expect(scheduledTennisRecordBatchLimit(1)).toBe(1)
-    expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(10)
-    expect(scheduledTennisRecordBatchLimit(8, 'weekly')).toBe(8)
-    expect(scheduledTennisRecordBatchLimit(5, 'weekly')).toBe(5)
+    expect(scheduledTennisRecordBatchLimit(12, 'weekly')).toBe(3)
+    expect(scheduledTennisRecordBatchLimit(8, 'weekly')).toBe(3)
+    expect(scheduledTennisRecordBatchLimit(5, 'weekly')).toBe(3)
     expect(TENNISRECORD_BOOTSTRAP_PAGE_KINDS).toEqual(['history', 'league', 'match', 'player', 'team'])
     expect(TENNISRECORD_WEEKLY_PAGE_KINDS).toEqual(['history', 'match', 'player', 'team'])
     expect(tennisRecordScheduledPageKindPlan('bootstrap', 3)).toEqual([['league'], ['player'], ['history', 'match', 'team']])
@@ -261,8 +261,8 @@ describe('TennisRecord ingestion safety', () => {
 
   it('bases campaign timing on the currently known queue and bounded checkpoints', () => {
     expect(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES).toBe(3)
-    expect(tennisRecordCheckpointForecast(17, 1, 10)).toEqual({ pagesPerCheckpoint: 10, checkpointsRemaining: 2, estimatedMinutesRemaining: 6 })
-    expect(tennisRecordCheckpointForecast(0, 0, 10)).toEqual({ pagesPerCheckpoint: 10, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
+    expect(tennisRecordCheckpointForecast(17, 1, 10)).toEqual({ pagesPerCheckpoint: 3, checkpointsRemaining: 6, estimatedMinutesRemaining: 18 })
+    expect(tennisRecordCheckpointForecast(0, 0, 10)).toEqual({ pagesPerCheckpoint: 3, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
   })
 
   it('backs off the faster cadence when the most recent checkpoint shows source pressure', () => {

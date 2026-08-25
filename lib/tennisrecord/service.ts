@@ -10,7 +10,7 @@ type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
-type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null }
+type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean }
 type CoverageSummary = {
   staged_player_count: number
   filterable_team_count: number
@@ -24,16 +24,16 @@ type CoverageSummary = {
 // Historical backfill uses the Admin-configured safe ceiling. Requests remain
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
-// Ten sequential requests fit within the five-minute function allowance at
-// the source-safe three-second pacing, while leaving recovery headroom for
-// normal network retries and the reconciliation pass.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 10
-const WEEKLY_TENNISRECORD_BATCH_LIMIT = 10
+// A collector checkpoint also reconciles match evidence and may promote line
+// records. Keep that database work comfortably below the function ceiling;
+// source throughput can scale only after the checkpoint finishes cleanly.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 3
+const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 // Replaying already-captured pages does not contact the source. A small
 // bounded batch makes previously discovered public profile URLs available to
 // the normal, rate-limited queue quickly enough to recover stated NTRP
 // evidence without adding external request pressure.
-const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 3
+const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
@@ -376,6 +376,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   if (runError || !run?.id) throw new Error(runError?.message || 'Could not create TennisRecord sync run.')
   const runId = run.id as string
   const summary = emptySummary('completed')
+  const shouldRecalculateRatings = input.recalculateRatings !== false
   try {
     summary.transientRetries += await requeueDueDeferredTennisRecordRetries(service, input.campaignId)
     const campaign = input.campaignId
@@ -444,8 +445,12 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         }).eq('id', job.id)
       }
     }
-    const reconciled = await reconcileTennisRecordMatches(service, [...replay.sourceMatchKeys, ...touchedSourceMatchKeys])
-    if (baselineChanged && !reconciled.ratingChanged) await recalculateDynamicRatings(undefined, service)
+    const reconciled = await reconcileTennisRecordMatches(
+      service,
+      [...replay.sourceMatchKeys, ...touchedSourceMatchKeys],
+      shouldRecalculateRatings,
+    )
+    if (shouldRecalculateRatings && baselineChanged && !reconciled.ratingChanged) await recalculateDynamicRatings(undefined, service)
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
     return summary
@@ -533,6 +538,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       pageKinds: [...TENNISRECORD_BOOTSTRAP_PAGE_KINDS],
       pageKindPlan: tennisRecordScheduledPageKindPlan('bootstrap', scheduledBatchLimit),
       campaignId: settings.active_campaign_id,
+      recalculateRatings: false,
     })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
     let remainingQuery = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
@@ -560,6 +566,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     pageKinds: [...TENNISRECORD_WEEKLY_PAGE_KINDS],
     pageKindPlan: tennisRecordScheduledPageKindPlan('weekly', scheduledBatchLimit),
     campaignId: settings.active_campaign_id,
+    recalculateRatings: false,
   })
 }
 
@@ -922,7 +929,7 @@ async function enqueueDiscoveredCampaignPlayerHistory(
   return enqueueTennisRecordUrls(service, urls, campaignId)
 }
 
-async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatchKeys: string[]) {
+async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatchKeys: string[], shouldRecalculateRatings = true) {
   const uniqueSourceMatchKeys = [...new Set(sourceMatchKeys.filter(Boolean))]
   if (!uniqueSourceMatchKeys.length) return { created: 0, duplicates: 0, conflicts: 0, ratingChanged: false }
   const { data: staged, error } = await service.from('tennisrecord_staged_matches').select('id,source_match_key,source_url,fingerprint,played_on,league_name,flight,home_team,away_team,discipline,court_number,score_text,winner_side,participants').eq('parse_status', 'valid').in('source_match_key', uniqueSourceMatchKeys)
@@ -971,7 +978,7 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
       }
     }
   }
-  if (ratingChanged) await recalculateDynamicRatings(undefined, service)
+  if (shouldRecalculateRatings && ratingChanged) await recalculateDynamicRatings(undefined, service)
   return { created, duplicates, conflicts, ratingChanged }
 }
 
