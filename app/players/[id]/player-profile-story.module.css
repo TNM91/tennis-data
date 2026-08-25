@@ -64,7 +64,7 @@
   white-space: nowrap;
 }
 
-.profileNav a:first-child,
+.profileNav a[data-active='true'],
 .profileNav a:hover,
 .profileNav a:focus-visible {
   color: #ffffff;

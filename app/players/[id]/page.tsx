@@ -49,6 +49,7 @@ import ExploreResumeTracker from '@/app/explore/_components/explore-resume-track
 import profileStory from './player-profile-story.module.css'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
+type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | 'teams'
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -309,6 +310,7 @@ function PlayerProfileContent() {
   const [detailReady, setDetailReady] = useState(false)
   const [profileShareStatus, setProfileShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
   const [featuredAchievementKeys, setFeaturedAchievementKeys] = useState<string[]>([])
+  const [activeProfileSection, setActiveProfileSection] = useState<ProfileNavSection>('overview')
   const [achievementEditorOpen, setAchievementEditorOpen] = useState(false)
   const [achievementSaveStatus, setAchievementSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [achievementSaveMessage, setAchievementSaveMessage] = useState('')
@@ -1444,6 +1446,38 @@ function PlayerProfileContent() {
     ? `${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'} now shape this ${ratingViewLabel.toLowerCase()} read. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
     : 'Add the first reviewed scorecard to turn this official baseline into form, movement, and matchup insight.'
   const isPublicExplorerProfile = !hasPersonalPlayerExperience
+  useEffect(() => {
+    if (!detailReady) return
+
+    const sections: Array<{ key: ProfileNavSection; id: string }> = [
+      { key: 'overview', id: 'profile-overview' },
+      { key: 'performance', id: isPublicExplorerProfile ? 'profile-performance' : 'profile-matches' },
+      { key: 'rating', id: 'profile-rating-journey' },
+      ...(hasPersonalPlayerExperience ? [{ key: 'player-id' as const, id: 'profile-player-id' }] : []),
+      ...(hasTeamProfileContext ? [{ key: 'teams' as const, id: 'profile-teams' }] : []),
+    ]
+    const observedSections = sections
+      .map((section) => ({ ...section, element: document.getElementById(section.id) }))
+      .filter((section): section is { key: ProfileNavSection; id: string; element: HTMLElement } => Boolean(section.element))
+
+    if (!observedSections.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0]
+        const matchedSection = visible
+          ? observedSections.find((section) => section.element === visible.target)
+          : undefined
+        if (matchedSection) setActiveProfileSection(matchedSection.key)
+      },
+      { rootMargin: '-14% 0px -66% 0px', threshold: [0, 0.1, 0.35] },
+    )
+
+    observedSections.forEach(({ element }) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [detailReady, hasPersonalPlayerExperience, hasTeamProfileContext, isPublicExplorerProfile])
   const publicProfileTitle = hasTrackedMatches
     ? `${ratingStatus} based on ${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}.`
     : isRosterOnlyProfile
@@ -1720,11 +1754,17 @@ function PlayerProfileContent() {
       <section className={profileStory.profileExperience}>
         <div className={profileStory.profileHeaderControls}>
           <nav className={profileStory.profileNav} aria-label="Player profile sections">
-            <a href="#profile-overview">Overview</a>
-            <a href="#profile-rating-journey">Rating</a>
-            <a href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}>{isPublicExplorerProfile ? 'Stats' : 'Matches'}</a>
-            {hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}
-            {hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}
+            <a href="#profile-overview" data-active={activeProfileSection === 'overview'} onClick={() => setActiveProfileSection('overview')}>Overview</a>
+            <a href="#profile-rating-journey" data-active={activeProfileSection === 'rating'} onClick={() => setActiveProfileSection('rating')}>Rating</a>
+            <a
+              href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}
+              data-active={activeProfileSection === 'performance'}
+              onClick={() => setActiveProfileSection('performance')}
+            >
+              {isPublicExplorerProfile ? 'Stats' : 'Matches'}
+            </a>
+            {hasPersonalPlayerExperience ? <a href="#profile-player-id" data-active={activeProfileSection === 'player-id'} onClick={() => setActiveProfileSection('player-id')}>Player ID</a> : null}
+            {hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'} data-active={activeProfileSection === 'teams'} onClick={() => setActiveProfileSection('teams')}>Teams</Link> : null}
           </nav>
           <div className={profileStory.profileRatingNav} aria-label="Choose rating view">
             {(['overall', 'singles', 'doubles'] as const).map((view) => (
