@@ -23,6 +23,7 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('completedSessions={commandCenterCompletedSessions}')
     expect(pageSource).toContain('firstServeSteps={firstServeSteps}')
     expect(pageSource).toContain('postRepReturn={postRepReturn}')
+    expect(pageSource).toContain('nextCourtEvent={nextCourtEvent}')
   })
 
   it('returns completed players to proof and one score-adjusted weekly plan', () => {
@@ -110,6 +111,16 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('.dailyPulse')
     expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
     expect(styleSource).toContain('.momentumCard {\n    display: none;')
+  })
+
+  it('puts an actual upcoming scheduled match ahead of generic match prep', () => {
+    expect(pageSource).toContain('const nextCourtEvent = [')
+    expect(pageSource).toContain("item.eventType === 'match' && item.date >= todayDateKey")
+    expect(pageSource).toContain("item.kind === 'match' && item.date >= todayDateKey")
+    expect(pageSource).toContain('getLocalDateKey(new Date())')
+    expect(componentSource).toContain('Next on court')
+    expect(componentSource).toContain('className={styles.nextCourtEvent}')
+    expect(componentSource).toContain('{nextCourtEvent.cta}')
   })
 
   it('keeps the deeper legacy workspace behind one mobile disclosure', () => {

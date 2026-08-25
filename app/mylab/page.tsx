@@ -2911,6 +2911,31 @@ function MyLabPageInner() {
   const topMatchupCandidate = matchupCandidates[0] || null
   const matchupQueue = matchupCandidates.slice(0, 3)
   const matchupHref = linkedPlayer ? buildSinglesMatchupHref(linkedPlayer.id, topMatchupCandidate?.player.id) : '/matchup'
+  const todayDateKey = getLocalDateKey(new Date())
+  const nextCourtEvent = [
+    ...competitionCalendarItems
+      .filter((item) => item.eventType === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || item.competitionName,
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPlayerCoachCalendarDate(item.time ? `${item.date}T${item.time}` : item.date),
+        detail: [item.detail, item.location].filter(Boolean).join(' - ') || item.competitionName,
+        href: item.href || '/mylab#player-workshop',
+        cta: 'Open match details',
+      })),
+    ...personalCalendarItems
+      .filter((item) => item.kind === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || 'Personal match',
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPersonalCalendarItemDate(item),
+        detail: item.location || 'Personal calendar match',
+        href: '/mylab#player-workshop',
+        cta: 'Open calendar',
+      })),
+  ].sort((left, right) => getPlayerCoachCalendarSortKey(left).localeCompare(getPlayerCoachCalendarSortKey(right)))[0] || null
   const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
   const matchupReadLabel = topMatchupCandidate?.read || (isNewSelfRatedProfile ? 'Start the signal' : 'Set profile')
   const matchupPreviewCards = [
@@ -3570,6 +3595,7 @@ function MyLabPageInner() {
           firstServeSteps={[]}
           postRepReturn={null}
           matchup={null}
+          nextCourtEvent={null}
         />
       </section>
     )
@@ -3621,6 +3647,7 @@ function MyLabPageInner() {
           read: `${topMatchupCandidate.read} · ${topMatchupCandidate.gap.toFixed(2)} gap`,
           href: matchupHref,
         } : null}
+        nextCourtEvent={nextCourtEvent}
       />
 
       <PlayerWorkshopShell
@@ -7033,6 +7060,13 @@ function buildPlayerCoachLessonEvents(
 
 function getPlayerCoachCalendarSortKey(event: { date: string; time?: string }) {
   return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
+}
+
+function getLocalDateKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatPlayerCoachCalendarDate(value: string) {

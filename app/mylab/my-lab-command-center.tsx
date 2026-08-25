@@ -13,6 +13,14 @@ type MatchupPreview = {
   href: string
 }
 
+type NextCourtEvent = {
+  title: string
+  dateLabel: string
+  detail: string
+  href: string
+  cta: string
+}
+
 type FirstServeStep = {
   title: string
   description: string
@@ -49,6 +57,7 @@ type MyLabCommandCenterProps = {
   sessionTarget: number
   progressHref: string
   matchup: MatchupPreview | null
+  nextCourtEvent: NextCourtEvent | null
   firstServeSteps: FirstServeStep[]
   postRepReturn: PostRepReturn | null
 }
@@ -66,6 +75,7 @@ export default function MyLabCommandCenter({
   sessionTarget,
   progressHref,
   matchup,
+  nextCourtEvent,
   firstServeSteps,
   postRepReturn,
 }: MyLabCommandCenterProps) {
@@ -210,6 +220,20 @@ export default function MyLabCommandCenter({
             </Link>
           ))}
         </section>
+      ) : null}
+
+      {nextCourtEvent ? (
+        <Link className={styles.nextCourtEvent} href={nextCourtEvent.href} aria-label={`${nextCourtEvent.cta}: ${nextCourtEvent.title}`}>
+          <div className={styles.nextCourtEventCopy}>
+            <p className={styles.cardEyebrow}>Next on court</p>
+            <h2>{nextCourtEvent.title}</h2>
+            <p>{nextCourtEvent.detail}</p>
+          </div>
+          <div className={styles.nextCourtEventMeta}>
+            <strong>{nextCourtEvent.dateLabel}</strong>
+            <span>{nextCourtEvent.cta} <i aria-hidden="true">→</i></span>
+          </div>
+        </Link>
       ) : null}
 
       <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>
