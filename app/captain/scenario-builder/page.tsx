@@ -578,6 +578,24 @@ function ScenarioComparisonContent() {
 
     return `/captain/messaging?${params.toString()}`
   }
+  const teamBriefHref = (scenario: ScenarioRow | null) => {
+    const params = new URLSearchParams()
+    const team = scenario?.team_name || teamFilter
+    const league = scenario?.league_name || leagueFilter
+    const flight = scenario?.flight || flightFilter
+    const eventDate = scenario?.match_date || dateFilter
+    const opponent = scenario?.opponent_team || opponentTeam
+
+    if (team) params.set('team', team)
+    if (league) params.set('league', league)
+    if (flight) params.set('flight', flight)
+    if (eventDate) params.set('date', eventDate)
+    if (opponent) params.set('opponent', opponent)
+    params.set('source', 'scenario_builder')
+
+    return `/captain/team-brief?${params.toString()}`
+  }
+  const winningScenario = overallProjection >= 0.5 ? leftScenario : rightScenario
   const winningBuilderHref =
     overallProjection >= 0.5
       ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
@@ -805,14 +823,12 @@ function ScenarioComparisonContent() {
                       </p>
                       <div style={actionRowStyle}>
                         <PrimarySmallLink href={winningBuilderHref}>Open winner in builder</PrimarySmallLink>
+                        <GhostLink href={teamBriefHref(winningScenario)}>Open team brief</GhostLink>
                         <GhostSmallBtn onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to send the winning scenario to messaging.')
                             return
                           }
-
-                          const winningScenario =
-                            overallProjection >= 0.5 ? leftScenario : rightScenario
 
                           if (!winningScenario) return
 
