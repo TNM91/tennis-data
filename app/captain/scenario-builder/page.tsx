@@ -547,6 +547,36 @@ function ScenarioComparisonContent() {
     ]
   }, [leftScenario, opponentComparison.biggestSwing, opponentComparison.changedCount, overallProjection, rightScenario, separationLabel, winningScenarioName, yourComparison.biggestSwing, yourComparison.changedCount])
 
+  const scenarioDecisionGuardrail = useMemo(() => {
+    if (!leftScenario || !rightScenario) return null
+
+    const changedCourts = yourComparison.changedCount + opponentComparison.changedCount
+    const swingCourt = yourComparison.biggestSwing || opponentComparison.biggestSwing
+
+    if (separationLabel === 'Tight call') {
+      return {
+        value: 'Keep both live',
+        detail: swingCourt
+          ? `The plans are close. Recheck ${swingCourt.label} with availability before you commit.`
+          : 'The plans are close. Let confirmed availability and captain judgment break the tie.',
+      }
+    }
+
+    if (changedCourts > 3) {
+      return {
+        value: 'Verify the swaps',
+        detail: `${changedCourts} court changes create a usable edge, but confirm every player is still in before sending it.`,
+      }
+    }
+
+    return {
+      value: 'Ready to carry forward',
+      detail: swingCourt
+        ? `${winningScenarioName} has the clearer edge. Start with ${swingCourt.label}, then open the winner in the builder.`
+        : `${winningScenarioName} has the clearer edge and is ready for a final captain review.`,
+    }
+  }, [leftScenario, opponentComparison.biggestSwing, opponentComparison.changedCount, rightScenario, separationLabel, winningScenarioName, yourComparison.biggestSwing, yourComparison.changedCount])
+
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const premiumEnabled = access.canUseCaptainWorkflow
   const builderHref = (scenarioId: string) => {
@@ -684,6 +714,16 @@ function ScenarioComparisonContent() {
                 <span style={scenarioQuickReadDetailStyle}>{item.detail}</span>
               </div>
             ))}
+          </section>
+        ) : null}
+
+        {scenarioDecisionGuardrail ? (
+          <section style={scenarioQuickReadShellStyle} aria-label="Scenario decision guardrail">
+            <div style={scenarioQuickReadCardStyle}>
+              <span style={scenarioQuickReadLabelStyle}>Decision guardrail</span>
+              <strong style={scenarioQuickReadValueStyle}>{scenarioDecisionGuardrail.value}</strong>
+              <span style={scenarioQuickReadDetailStyle}>{scenarioDecisionGuardrail.detail}</span>
+            </div>
           </section>
         ) : null}
 
