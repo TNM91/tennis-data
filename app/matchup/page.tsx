@@ -1463,6 +1463,16 @@ export default function MatchupPage() {
   const matchupPrepId = matchType === 'singles'
     ? `singles:${playerAId}:${playerBId}`
     : `doubles:${teamA1Id}:${teamA2Id}:${teamB1Id}:${teamB2Id}`
+  const isPersonalMatchup = Boolean(
+    profilePlayer?.id &&
+      (matchType === 'singles'
+        ? [playerAId, playerBId].includes(profilePlayer.id)
+        : [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer.id)),
+  )
+  const playerMatchPrepKicker = isPersonalMatchup
+    ? 'Player-only read - Your Player view'
+    : 'Player-only read - Player scouting'
+  const playerMatchPrepTitle = isPersonalMatchup ? 'Your Match Prep' : 'Match Prep'
   const labTakeawayHref = comparison && playerMatchPrep
     ? buildMatchupPrepHref({
         id: matchupPrepId,
@@ -2342,8 +2352,8 @@ export default function MatchupPage() {
                 <section style={playerMatchPrepCardStyle} aria-labelledby="player-match-prep-title">
                   <div style={playerMatchPrepHeaderStyle}>
                     <div>
-                      <div style={playerMatchPrepKickerStyle}>Player-only read</div>
-                      <h2 id="player-match-prep-title" style={playerMatchPrepTitleStyle}>Your Match Prep</h2>
+                      <div style={playerMatchPrepKickerStyle}>{playerMatchPrepKicker}</div>
+                      <h2 id="player-match-prep-title" style={playerMatchPrepTitleStyle}>{playerMatchPrepTitle}</h2>
                     </div>
                     <Link href={labTakeawayHref} style={playerMatchPrepSaveStyle}>
                       Save focus
