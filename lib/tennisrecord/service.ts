@@ -228,16 +228,17 @@ export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'a
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, pending, conflicts, identities, campaigns, coverage] = await Promise.all([
+  const [settings, lastRun, pending, conflicts, ratingPending, identities, campaigns, coverage] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
+    service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
     service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
   ])
-  if (settings.error || lastRun.error || pending.error || conflicts.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
+  if (settings.error || lastRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
     let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
@@ -314,6 +315,14 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       running: weeklyRunning.count || 0,
       blocked: weeklyBlocked.count || 0,
       errors: weeklyErrors.count || 0,
+    },
+    ratingProgress: {
+      pending: ratingPending.count || 0,
+      cadence: (settings.data as Settings | null)?.automation_state === 'bootstrap'
+        ? 'overnight'
+        : (settings.data as Settings | null)?.automation_state === 'weekly'
+          ? 'Wednesday'
+          : 'paused',
     },
     conflicts: conflicts.count || 0,
     coverage: (coverage.data as CoverageSummary | null) || {

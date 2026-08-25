@@ -16,6 +16,7 @@ type Status = {
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; estimateBasis: 'known_queue' }
   nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
+  ratingProgress: { pending: number; cadence: 'overnight' | 'Wednesday' | 'paused' }
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
@@ -100,6 +101,12 @@ export default function TennisRecordAdminPage() {
         : weeklyEstimatedMinutes < 60
           ? `About ${weeklyEstimatedMinutes} min remaining`
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
+  const ratingProgress = status?.ratingProgress
+  const ratingCadence = ratingProgress?.cadence === 'overnight'
+    ? 'Overnight catch-up'
+    : ratingProgress?.cadence === 'Wednesday'
+      ? 'Wednesday refresh'
+      : 'Paused'
   return (
     <SiteShell active="/admin"><AdminGate><AdminReviewFrame>
       <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill">
@@ -135,11 +142,20 @@ export default function TennisRecordAdminPage() {
           <Metric label="Teams discovered" value={String(run.teams_discovered ?? '—')} />
           <Metric label="Staged matches" value={String(run.matches_staged ?? '—')} />
           <Metric label="Promoted matches" value={String(run.canonical_matches_created ?? '—')} />
+          <Metric label="TiQ ratings waiting" value={ratingProgress ? ratingProgress.pending.toLocaleString() : '—'} />
+          <Metric label="Rating refresh" value={ratingCadence} />
           <Metric label="Blocked requests" value={String(run.blocked_requests ?? '—')} />
           <Metric label="Transient retries" value={String(run.transient_retries ?? '—')} />
           <Metric label="Source failures" value={String(run.source_failures ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
         </div>
+        <section aria-label="TiQ rating catch-up" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,0.28)', background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))' }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>TiQ rating catch-up</strong>
+            <span className="subtle-text">{ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} canonical match${ratingProgress.pending === 1 ? '' : 'es'} are queued for the existing TiQ rating engine.` : 'All currently promoted source matches are reflected in the latest TiQ rating pass.'}</span>
+            <span className="subtle-text">{ratingProgress?.cadence === 'overnight' ? 'The historical mission recalculates ratings in a protected overnight batch.' : ratingProgress?.cadence === 'Wednesday' ? 'Weekly source refreshes recalculate ratings in the protected Wednesday batch.' : 'Resume automatic collection to restart scheduled TiQ rating catch-up.'} TennisRecord’s proprietary rating is never used.</span>
+          </div>
+        </section>
         <section aria-label="TennisRecord data coverage" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>Collected data coverage</strong>
