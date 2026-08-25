@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/tennisrecord-automation",
       "schedule": "*/3 * * * *"
+    },
+    {
+      "path": "/api/cron/tennisrecord-ratings",
+      "schedule": "31 9 * * *"
     }
   ]
 }
