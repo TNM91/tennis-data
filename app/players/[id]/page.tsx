@@ -228,16 +228,32 @@ function formatTiqRating(value: number | string | null | undefined, player: Pick
   return formatPublicRating(value, player)
 }
 
-function formatRatedParticipantNames(
-  participants: MatchParticipantRating[],
-  canViewExact: boolean,
-) {
-  return participants
-    .map((participant) => {
-      const rating = formatTiqRating(participant.dynamicRating, null, canViewExact)
-      return rating === 'Locked' ? participant.name : `${participant.name} (${rating})`
-    })
-    .join(' / ')
+function RatedParticipantLinks({
+  participants,
+  canViewExact,
+}: {
+  participants: MatchParticipantRating[]
+  canViewExact: boolean
+}) {
+  return (
+    <>
+      {participants.map((participant, index) => {
+        const rating = formatTiqRating(participant.dynamicRating, null, canViewExact)
+        const label = rating === 'Locked' ? participant.name : `${participant.name} (${rating})`
+
+        return (
+          <React.Fragment key={participant.id || `${participant.name}-${index}`}>
+            {index > 0 ? ' / ' : null}
+            {participant.id ? (
+              <Link href={`/players/${encodeURIComponent(participant.id)}`}>{label}</Link>
+            ) : (
+              label
+            )}
+          </React.Fragment>
+        )
+      })}
+    </>
+  )
 }
 
 function getCompactMatchImpact(
@@ -1972,8 +1988,6 @@ function PlayerProfileContent() {
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => {
                     const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
-                    const ratedOpponentNames = formatRatedParticipantNames(match.opponentRatings, canViewExactParticipantTiq)
-                    const ratedPartnerNames = formatRatedParticipantNames(match.partnerRatings, canViewExactParticipantTiq)
                     const compactImpact = getCompactMatchImpact(match, snap, canViewExactTiqRating)
 
                     return (
@@ -1987,17 +2001,30 @@ function PlayerProfileContent() {
                           </span>
                           <div className={profileStory.recentResultOpponent}>
                             <span>Opponent</span>
-                            {match.opponentIds.length === 1 ? (
-                              <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`}>
-                                {ratedOpponentNames || match.opponent}
-                              </Link>
+                            {match.opponentRatings.length > 0 ? (
+                              <strong>
+                                <RatedParticipantLinks
+                                  participants={match.opponentRatings}
+                                  canViewExact={canViewExactParticipantTiq}
+                                />
+                              </strong>
                             ) : (
-                              <strong>{ratedOpponentNames || match.opponent}</strong>
+                              <strong>{match.opponent}</strong>
                             )}
                           </div>
                           <div className={profileStory.recentResultTileMeta}>
                             <span>{match.context}</span>
-                            {match.partner ? <span>With {ratedPartnerNames || match.partner}</span> : null}
+                            {match.partner ? (
+                              <span>
+                                With{' '}
+                                {match.partnerRatings.length > 0 ? (
+                                  <RatedParticipantLinks
+                                    participants={match.partnerRatings}
+                                    canViewExact={canViewExactParticipantTiq}
+                                  />
+                                ) : match.partner}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <div className={profileStory.recentResultScoreboard}>

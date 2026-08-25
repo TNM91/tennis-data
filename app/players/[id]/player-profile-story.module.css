@@ -1268,8 +1268,17 @@
   text-decoration: none;
 }
 
-.recentResultOpponent > a:hover {
+.recentResultOpponent > strong a,
+.recentResultTileMeta a {
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.recentResultOpponent > a:hover,
+.recentResultOpponent > strong a:hover,
+.recentResultTileMeta a:hover {
   color: #d9f84a;
+  text-decoration: underline;
 }
 
 .recentResultTileMeta {
