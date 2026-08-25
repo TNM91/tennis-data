@@ -30,7 +30,7 @@ describe('player profile mobile streamline', () => {
 
   it('reserves the Player ID coaching read for a linked Player member', () => {
     expect(page).toContain('const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights')
-    expect(page).toContain('{hasPersonalPlayerExperience ? <a href="#profile-player-id">Player ID</a> : null}')
+    expect(page).toContain("{hasPersonalPlayerExperience ? <a href=\"#profile-player-id\" data-active={activeProfileSection === 'player-id'} onClick={() => setActiveProfileSection('player-id')}>Player ID</a> : null}")
     expect(page).toContain('{hasPersonalPlayerExperience ? (')
     expect(page).toContain('<section id="profile-player-id"')
     expect(page).toContain('<details className={profileStory.playerFocusDisclosure}>')
@@ -73,7 +73,11 @@ describe('player profile mobile streamline', () => {
 
   it('keeps the phone section rail focused when no team context exists', () => {
     expect(page).toContain('const hasTeamProfileContext = Boolean(primaryTeamHref) || tiqParticipations.length > 0')
-    expect(page).toContain("{hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'}>Teams</Link> : null}")
+    expect(page).toContain('const profileNavItemCount = 3 + Number(hasPersonalPlayerExperience) + Number(hasTeamProfileContext)')
+    expect(page).toContain('data-item-count={profileNavItemCount}')
+    expect(page).toContain("{hasTeamProfileContext ? <Link href={primaryTeamHref || '#profile-teams'} data-active={activeProfileSection === 'teams'} onClick={() => setActiveProfileSection('teams')}>Teams</Link> : null}")
+    expect(styles).toContain(".profileNav[data-item-count='4']")
+    expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
   })
 
   it('puts one always-visible overall, singles, and doubles control directly below the profile sections', () => {
@@ -85,6 +89,15 @@ describe('player profile mobile streamline', () => {
     expect(page).not.toContain('Switch between overall, singles, and doubles reads.')
     expect(styles).toContain('.profileHeaderControls')
     expect(styles).toContain('.profileRatingNav')
+  })
+
+  it('keeps the profile section header honest as the viewer moves through the page', () => {
+    expect(page).toContain("const [activeProfileSection, setActiveProfileSection] = useState<ProfileNavSection>('overview')")
+    expect(page).toContain('new IntersectionObserver(')
+    expect(page).toContain("data-active={activeProfileSection === 'overview'}")
+    expect(page).toContain("data-active={activeProfileSection === 'rating'}")
+    expect(page).toContain("data-active={activeProfileSection === 'performance'}")
+    expect(styles).toContain(".profileNav a[data-active='true']")
   })
 
   it('puts verified visual stats on the public profile before deeper reads', () => {
