@@ -4539,22 +4539,25 @@ function CaptainHubContent() {
 
   const captainCommandSteps = useMemo<CaptainCommandStep[]>(() => {
     const pendingCount = workspaceState.pendingResponseCount
+    const responseAlertCount = workspaceState.responseAlertCount
     const lineupCount = workspaceState.lineupCount
 
     return [
       {
         label: 'Who can play',
-        title: pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
+        title: responseAlertCount > 0 ? 'Resolve match-week risk' : pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
         detail:
-          pendingCount > 0
+          responseAlertCount > 0
+            ? `${responseAlertCount} late-arrival or substitution alert${responseAlertCount === 1 ? ' needs' : 's need'} a decision before you lock courts.`
+            : pendingCount > 0
             ? `${pendingCount} player${pendingCount === 1 ? '' : 's'} still need a clear In, Out, or Maybe before you lock courts.`
             : 'No saved response blockers are holding up the lineup.',
         href: availabilityHref,
         stage: 'availability',
         icon: 'reliabilityIndex',
-        stateLabel: pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
-        tone: pendingCount > 0 ? 'warn' : 'good',
-        cta: pendingCount > 0 ? 'Follow up' : 'Review',
+        stateLabel: responseAlertCount > 0 ? `${responseAlertCount} alert${responseAlertCount === 1 ? '' : 's'}` : pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
+        tone: responseAlertCount > 0 || pendingCount > 0 ? 'warn' : 'good',
+        cta: responseAlertCount > 0 ? 'Resolve alerts' : pendingCount > 0 ? 'Follow up' : 'Review',
       },
       {
         label: 'Build lineup',
@@ -4606,6 +4609,7 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
 
   const weeklyOpsStatus = useMemo(() => {
@@ -10137,8 +10141,15 @@ function CaptainHubContent() {
     if (step.label === 'Availability') {
       return {
         ...step,
-        state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Clear',
-        tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+        state: workspaceState.responseAlertCount > 0
+          ? `${workspaceState.responseAlertCount} alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+          : workspaceState.pendingResponseCount > 0
+            ? `${workspaceState.pendingResponseCount} waiting`
+            : 'Clear',
+        detail: workspaceState.responseAlertCount > 0
+          ? 'Resolve late-arrival or substitution risk before you trust the weekly lineup.'
+          : step.detail,
+        tone: workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
       }
     }
 
@@ -10170,6 +10181,7 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
     workspaceState.scenarioReady,
   ])
 
