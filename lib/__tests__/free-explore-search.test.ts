@@ -17,10 +17,12 @@ describe('free Explore search', () => {
     expect(universalSearch).toContain('const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)')
   })
 
-  it('queries player names and locations in the database instead of filtering a fixed alphabetized slice', () => {
-    expect(exploreSearch).toContain(".ilike('name', pattern)")
-    expect(exploreSearch).toContain(".ilike('location', pattern)")
-    expect(exploreSearch).not.toContain(".limit(250)")
+  it('uses the indexed public player lookup instead of broad client-side player scans', () => {
+    expect(exploreSearch).toContain("supabase.rpc('search_public_players'")
+    expect(exploreSearch).toContain('players_name_trigram_search_idx')
+    expect(exploreSearch).not.toContain(".ilike('name', pattern)")
+    expect(exploreSearch).not.toContain(".ilike('location', pattern)")
+    expect(exploreSearch).not.toContain('.limit(250)')
   })
 
   it('offers close player-name matches and puts the player result ahead of follow-up actions', () => {
