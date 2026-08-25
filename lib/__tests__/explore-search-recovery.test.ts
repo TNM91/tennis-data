@@ -18,4 +18,11 @@ describe('Explore search recovery', () => {
     expect(exploreSearch).toContain('Try search again')
     expect(exploreSearch).toContain('setSearchAttempt((current) => current + 1)')
   })
+
+  it('only starts network work after submit or an incoming search link', () => {
+    expect(exploreSearch).toContain("const [submittedQuery, setSubmittedQuery] = useState('')")
+    expect(exploreSearch).toContain('const trimmedQuery = submittedQuery.trim()')
+    expect(exploreSearch).toContain('setSubmittedQuery(nextQuery)')
+    expect(exploreSearch).toContain('// Only a submitted query (or an incoming search link) can start network work.')
+  })
 })

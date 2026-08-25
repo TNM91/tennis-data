@@ -196,6 +196,7 @@ function ExploreSearchContent() {
   const { access, authResolved } = useProductAccess()
 
   const [query, setQuery] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
   const [ratingBand, setRatingBand] = useState<'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'>('all')
   const [yearFilter, setYearFilter] = useState('all')
@@ -217,6 +218,7 @@ function ExploreSearchContent() {
     const nextScope = params.get('scope')
 
     setQuery(nextQuery)
+    setSubmittedQuery(nextQuery)
     setScope(
       nextScope === 'players' ||
         nextScope === 'teams' ||
@@ -236,7 +238,7 @@ function ExploreSearchContent() {
 
   const resumeHref = useMemo(() => {
     const params = new URLSearchParams()
-    if (query.trim()) params.set('q', query.trim())
+    if (submittedQuery.trim()) params.set('q', submittedQuery.trim())
     params.set('scope', scope)
     if (ratingBand !== 'all') params.set('rating', ratingBand)
     if (yearFilter !== 'all') params.set('year', yearFilter)
@@ -244,7 +246,7 @@ function ExploreSearchContent() {
     if (genderFilter !== 'all') params.set('gender', genderFilter)
     if (leagueRatingFilter !== 'all') params.set('leagueRating', leagueRatingFilter)
     return `/explore/search?${params.toString()}`
-  }, [genderFilter, leagueRatingFilter, query, ratingBand, scope, seasonFilter, yearFilter])
+  }, [genderFilter, leagueRatingFilter, ratingBand, scope, seasonFilter, submittedQuery, yearFilter])
 
   useEffect(() => {
     if (!searchReady) return
@@ -254,7 +256,7 @@ function ExploreSearchContent() {
   useEffect(() => {
     if (!searchReady) return
 
-    const trimmedQuery = query.trim()
+    const trimmedQuery = submittedQuery.trim()
 
     if (!trimmedQuery) {
       setPlayers([])
@@ -301,8 +303,8 @@ function ExploreSearchContent() {
       }
     }
 
-    // Search only the selected directory. Waiting briefly avoids a request for every
-    // keystroke while still keeping the result path responsive on mobile.
+    // Only a submitted query (or an incoming search link) can start network work.
+    // This keeps typing responsive and prevents stale requests from piling up.
     const timeout = window.setTimeout(() => {
       void runSearch()
     }, 260)
@@ -311,7 +313,7 @@ function ExploreSearchContent() {
       active = false
       window.clearTimeout(timeout)
     }
-  }, [query, scope, searchAttempt, searchReady])
+  }, [scope, searchAttempt, searchReady, submittedQuery])
 
   function syncUrl(nextQuery: string, nextScope: SearchScope) {
     const params = new URLSearchParams(resumeHref.split('?')[1] || '')
@@ -323,8 +325,10 @@ function ExploreSearchContent() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    syncUrl(query, scope)
-    setQuery((current) => current.trimStart())
+    const nextQuery = query.trim()
+    setQuery(nextQuery)
+    setSubmittedQuery(nextQuery)
+    syncUrl(nextQuery, scope)
     setSearchAttempt((current) => current + 1)
   }
 
@@ -394,7 +398,7 @@ function ExploreSearchContent() {
 
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
   const selectedScopeGuide = scopeGuides[scope]
-  const hasQuery = Boolean(query.trim())
+  const hasQuery = Boolean(submittedQuery.trim())
   const showPlayerResults = scope === 'players'
   const showTeamResults = scope === 'teams'
   const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
@@ -469,7 +473,7 @@ function ExploreSearchContent() {
           surface="search"
           label="search"
           href={resumeHref}
-          contextLabel={query.trim() ? `${scope}: ${query.trim()}` : scope}
+          contextLabel={submittedQuery.trim() ? `${scope}: ${submittedQuery.trim()}` : scope}
           enabled={searchReady}
         />
         <section
@@ -493,7 +497,7 @@ function ExploreSearchContent() {
               totalResults={totalResults}
               onScopeChange={(nextScope) => {
                 setScope(nextScope)
-                syncUrl(query, nextScope)
+                syncUrl(submittedQuery, nextScope)
               }}
             />
           ) : null}
@@ -528,7 +532,7 @@ function ExploreSearchContent() {
                   onChange={(event) => {
                     const nextScope = event.target.value as SearchScope
                     setScope(nextScope)
-                    syncUrl(query, nextScope)
+                    syncUrl(submittedQuery, nextScope)
                   }}
                   style={getSearchSelectStyle(isMobile)}
                   aria-label="Search by scope"
@@ -615,7 +619,7 @@ function ExploreSearchContent() {
             {hasQuery && showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
             {hasQuery && showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
-              {hasQuery ? `${totalResults} results for "${query.trim()}"` : 'Ready to search'}
+              {hasQuery ? `${totalResults} results for "${submittedQuery.trim()}"` : 'Ready to search'}
             </span>
           </div>
           ) : null}
@@ -664,7 +668,7 @@ function ExploreSearchContent() {
             </section>
           ) : null}
 
-          {!loading && query.trim().length === 0 ? (
+          {!loading && submittedQuery.trim().length === 0 ? (
             <section style={emptyStateStyle}>
               <div style={sectionKicker}>{selectedScopeGuide.eyebrow}</div>
               <div style={emptyTitleStyle}>{selectedScopeGuide.emptyTitle}</div>
@@ -675,6 +679,7 @@ function ExploreSearchContent() {
                     type="button"
                     onClick={() => {
                       setQuery(example)
+                      setSubmittedQuery(example)
                       syncUrl(example, scope)
                     }}
                     style={exampleSearchButtonStyle}
@@ -686,7 +691,7 @@ function ExploreSearchContent() {
             </section>
           ) : null}
 
-          {!loading && query.trim().length > 0 ? (
+          {!loading && submittedQuery.trim().length > 0 ? (
             <>
               {showPlayerResults ? (
               <div
