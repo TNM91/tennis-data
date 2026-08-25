@@ -2060,6 +2060,18 @@ function LineupBuilderContent() {
     [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
   )
 
+  const teamBriefHref = useMemo(
+    () => buildCaptainScopedHref('/captain/team-brief', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    }),
+    [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
+  )
+
   const teamSummaryUploadHref = useMemo(
     () => buildTeamSummaryUploadHref({
       teamName,
@@ -3765,6 +3777,7 @@ function LineupBuilderContent() {
               {saveAndAskLabel}
             </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
+            <GhostLink href={teamBriefHref}>Open team brief</GhostLink>
           </div>
 
           {appliedLineupNotice ? (
