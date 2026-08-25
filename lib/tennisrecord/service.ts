@@ -17,6 +17,10 @@ export type TennisRecordRatingBatchSummary = {
   processedMatches: number
   reason?: string
 }
+export type TennisRecordPipelineHealth = {
+  state: 'healthy' | 'attention' | 'cooling_down' | 'paused'
+  message: string
+}
 type CoverageSummary = {
   staged_player_count: number
   filterable_team_count: number
@@ -222,15 +226,32 @@ export function isTennisRecordRatingBatchDue(automationState: AutomationState, n
   return automationState === 'bootstrap' || (automationState === 'weekly' && isTennisRecordWeeklyWindowOpen(now))
 }
 
+export function tennisRecordPipelineHealth(input: {
+  enabled: boolean
+  automationState: AutomationState
+  lastSuccessfulCollectorAt: string | null
+  safetyThrottle: TennisRecordCadenceSafety
+}, now = Date.now()): TennisRecordPipelineHealth {
+  if (!input.enabled || input.automationState === 'manual') return { state: 'paused', message: 'Automatic collection is paused.' }
+  if (input.safetyThrottle.active) return { state: 'cooling_down', message: 'The collector is taking its planned safety pause.' }
+  if (input.automationState === 'bootstrap') {
+    const lastSuccess = Date.parse(input.lastSuccessfulCollectorAt || '')
+    const hasMissedCheckpointWindow = !Number.isFinite(lastSuccess) || now - lastSuccess > 20 * 60_000
+    if (hasMissedCheckpointWindow) return { state: 'attention', message: 'No successful import checkpoint has completed in the expected window.' }
+  }
+  return { state: 'healthy', message: 'Automatic collection is on pace.' }
+}
+
 /** Start once for a newly provisioned collector; later Admin pauses stay paused. */
 export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'automation_state' | 'bootstrap_started_at' | 'bootstrap_completed_at'> | null) {
   return settings?.automation_state === 'manual' && !settings.bootstrap_started_at && !settings.bootstrap_completed_at
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, pending, conflicts, ratingPending, identities, campaigns, coverage] = await Promise.all([
+  const [settings, lastRun, lastSuccessfulRun, pending, conflicts, ratingPending, identities, campaigns, coverage] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
+    service.from('tennisrecord_sync_runs').select('completed_at').eq('status', 'completed').not('completed_at', 'is', null).order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
@@ -238,7 +259,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
     service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
   ])
-  if (settings.error || lastRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
+  if (settings.error || lastRun.error || lastSuccessfulRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
     let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
@@ -283,11 +304,22 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     campaignRunning.count || 0,
     (settings.data as Settings | null)?.max_requests_per_run || BOOTSTRAP_TENNISRECORD_BATCH_LIMIT,
   )
+  const safetyThrottle = tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null)
+  const collectorSettings = settings.data as Settings | null
   return {
     settings: settings.data,
     lastRun: lastRun.data,
     automationCadenceMinutes: TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
-    safetyThrottle: tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null),
+    safetyThrottle,
+    pipelineHealth: {
+      ...tennisRecordPipelineHealth({
+        enabled: Boolean(collectorSettings?.enabled),
+        automationState: collectorSettings?.automation_state || 'manual',
+        lastSuccessfulCollectorAt: (lastSuccessfulRun.data?.completed_at as string | null | undefined) || null,
+        safetyThrottle,
+      }),
+      lastSuccessfulCollectorAt: (lastSuccessfulRun.data?.completed_at as string | null | undefined) || null,
+    },
     pendingPages: activeCampaignId ? campaignPending.count || 0 : pending.count || 0,
     campaignProgress: {
       pending: campaignPending.count || 0,

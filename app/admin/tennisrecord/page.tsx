@@ -11,6 +11,7 @@ type Status = {
   lastRun: Record<string, unknown> | null
   automationCadenceMinutes: number
   safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
+  pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null }
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; blocked: number; errors: number }
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; estimateBasis: 'known_queue' }
@@ -102,6 +103,7 @@ export default function TennisRecordAdminPage() {
           ? `About ${weeklyEstimatedMinutes} min remaining`
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
   const ratingProgress = status?.ratingProgress
+  const pipelineHealth = status?.pipelineHealth
   const ratingCadence = ratingProgress?.cadence === 'overnight'
     ? 'Overnight catch-up'
     : ratingProgress?.cadence === 'Wednesday'
@@ -134,6 +136,8 @@ export default function TennisRecordAdminPage() {
           <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
           <Metric label="Checkpoint pace" value={`Every ${checkpointIntervalMinutes} min`} />
           <Metric label="Safety throttle" value={safetyThrottle?.active ? 'Cooling down' : 'Clear'} />
+          <Metric label="Import health" value={pipelineHealth?.state === 'healthy' ? 'On pace' : pipelineHealth?.state === 'cooling_down' ? 'Safety pause' : pipelineHealth?.state === 'attention' ? 'Needs review' : 'Paused'} />
+          <Metric label="Last successful import" value={formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />
@@ -149,6 +153,13 @@ export default function TennisRecordAdminPage() {
           <Metric label="Source failures" value={String(run.source_failures ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
         </div>
+        <section aria-label="Import health" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: `1px solid ${pipelineHealth?.state === 'attention' ? 'rgba(255,157,114,0.52)' : 'rgba(116,190,255,0.2)'}`, background: pipelineHealth?.state === 'attention' ? 'rgba(98, 38, 24, 0.22)' : 'rgba(11, 31, 55, 0.42)' }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>{pipelineHealth?.state === 'attention' ? 'Import health needs review' : pipelineHealth?.state === 'cooling_down' ? 'Import health: safety pause' : pipelineHealth?.state === 'paused' ? 'Import health: paused' : 'Import health: on pace'}</strong>
+            <span className="subtle-text">{pipelineHealth?.message || 'Loading the latest collector health.'}</span>
+            <span className="subtle-text">Last successful checkpoint: {formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)}. TiQ ratings are {ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} match${ratingProgress.pending === 1 ? '' : 'es'} away from the next protected batch` : 'current with the latest protected batch'}.</span>
+          </div>
+        </section>
         <section aria-label="TiQ rating catch-up" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,0.28)', background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))' }}>
           <div style={{ display: 'grid', gap: 4 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>TiQ rating catch-up</strong>
