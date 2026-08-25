@@ -2811,6 +2811,9 @@ function PlayerProfileContent() {
             player={player}
             canViewExact={canViewExactTiqRating}
             canViewDetailed={access.canUseAdvancedPlayerInsights}
+            isOwnProfile={isOwnProfile}
+            hasPersonalPlayerExperience={hasPersonalPlayerExperience}
+            matchupHref={matchupHref}
           />
         ) : null}
 
@@ -4048,6 +4051,9 @@ function SeasonReviewPanel({
   player,
   canViewExact,
   canViewDetailed,
+  isOwnProfile,
+  hasPersonalPlayerExperience,
+  matchupHref,
 }: {
   review: {
     season: string
@@ -4063,18 +4069,36 @@ function SeasonReviewPanel({
   player: Player | null
   canViewExact: boolean
   canViewDetailed: boolean
+  isOwnProfile: boolean
+  hasPersonalPlayerExperience: boolean
+  matchupHref: string
 }) {
   const losses = review.decided.length - review.wins
   const winRate = Math.round((review.wins / review.decided.length) * 100)
   const highlight = review.largestLift ?? review.biggestSwing ?? review.toughestLoss
+  const hasExactSeasonDetail = canViewDetailed && (!isOwnProfile || hasPersonalPlayerExperience)
+  const seasonEyebrow = hasPersonalPlayerExperience ? 'Your season' : 'Season snapshot'
+  const seasonTitle = hasPersonalPlayerExperience ? `${review.season} season check-in.` : `${review.season} at a glance.`
+  const seasonBody = hasPersonalPlayerExperience
+    ? 'Your record, rating moments, and the clearest next test in one read.'
+    : 'Public results and match mix from reviewed scorecards.'
+  const focusLabel = hasPersonalPlayerExperience ? 'Your next match focus' : 'Competitive signal'
+  const seasonDetailLabel = highlight?.snap?.delta == null
+    ? '--'
+    : hasExactSeasonDetail
+      ? `${highlight.snap.delta >= 0 ? '+' : ''}${highlight.snap.delta.toFixed(3)}`
+      : highlight.snap.delta >= 0 ? 'Up' : 'Down'
+  const seasonDetailNote = hasExactSeasonDetail
+    ? highlight ? `vs ${highlight.match.opponent}` : 'building'
+    : 'Player detail'
 
   return (
     <article style={seasonReviewPanelStyle} aria-label={`${review.season} season review`}>
       <div style={seasonReviewHeaderStyle}>
         <div>
-          <p style={sectionKicker}>Season review</p>
-          <h2 style={seasonReviewTitleStyle}>{review.season} in play.</h2>
-          <p style={seasonReviewBodyStyle}>Your record, rating moments, and the clearest next test in one read.</p>
+          <p style={sectionKicker}>{seasonEyebrow}</p>
+          <h2 style={seasonReviewTitleStyle}>{seasonTitle}</h2>
+          <p style={seasonReviewBodyStyle}>{seasonBody}</p>
         </div>
         <span style={seasonReviewPillStyle}>{review.decided.length} results</span>
       </div>
@@ -4083,22 +4107,22 @@ function SeasonReviewPanel({
         <div style={seasonReviewMetricStyle}><span>Record</span><strong>{review.wins}-{losses}</strong><small>{winRate}% win</small></div>
         <div style={seasonReviewMetricStyle}><span>Singles</span><strong>{review.singles.length}</strong><small>tracked results</small></div>
         <div style={seasonReviewMetricStyle}><span>Doubles</span><strong>{review.doubles.length}</strong><small>tracked results</small></div>
-        <div style={seasonReviewMetricStyle}><span>Biggest swing</span><strong>{highlight?.snap?.delta == null ? '--' : `${highlight.snap.delta >= 0 ? '+' : ''}${highlight.snap.delta.toFixed(3)}`}</strong><small>{highlight ? `vs ${highlight.match.opponent}` : 'building'}</small></div>
+        <div style={seasonReviewMetricStyle}><span>Biggest swing</span><strong>{seasonDetailLabel}</strong><small>{seasonDetailNote}</small></div>
       </div>
 
       <div style={seasonReviewFocusStyle}>
-        <span>Next match focus</span>
+        <span>{focusLabel}</span>
         <strong>{review.nextFocus}</strong>
       </div>
 
-      {canViewDetailed ? (
+      {hasExactSeasonDetail ? (
         <div style={seasonReviewDetailRowStyle}>
           <span>Best lift <strong>{review.largestLift?.snap?.dynamic_rating == null ? '--' : formatTiqRating(review.largestLift.snap.dynamic_rating, player, canViewExact)}</strong></span>
           <span>Toughest result <strong>{review.toughestLoss ? `vs ${review.toughestLoss.match.opponent}` : '--'}</strong></span>
-          <Link href="/mylab" style={seasonReviewLinkStyle}>Open My Lab</Link>
+          <Link href={hasPersonalPlayerExperience ? '/mylab' : matchupHref} style={seasonReviewLinkStyle}>{hasPersonalPlayerExperience ? 'Open My Lab' : 'Open matchup'}</Link>
         </div>
       ) : (
-        <Link href="/pricing" style={seasonReviewLinkStyle}>Unlock your full season read with Player</Link>
+        <Link href="/pricing" style={seasonReviewLinkStyle}>{isOwnProfile ? 'Unlock your full season read with Player' : 'Unlock exact TIQ season detail with Player'}</Link>
       )}
     </article>
   )
