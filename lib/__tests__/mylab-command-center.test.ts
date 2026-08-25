@@ -126,7 +126,7 @@ describe('My Lab command center', () => {
     expect(iconSource).not.toContain('tiq-feature-icon--signature')
     expect(iconSource).not.toContain('data-icon-treatment')
     expect(componentSource).toContain('<TiqFeatureIcon name="myLab" size="md" variant="surface" />')
-    expect(componentSource).toContain('Player workspace')
+    expect(componentSource).toContain('Player tools')
     expect(portalSource).toContain("icon: 'myLab'")
     expect(pricingSource).toContain("player_plus: 'myLab'")
     expect(upgradeSource).toContain("player_plus: 'myLab'")

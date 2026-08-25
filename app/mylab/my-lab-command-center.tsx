@@ -102,7 +102,7 @@ export default function MyLabCommandCenter({
             <TiqFeatureIcon name="myLab" size="md" variant="surface" />
             <span>
               <strong>My Lab</strong>
-              <small>Player workspace</small>
+              <small>Player tools</small>
             </span>
           </div>
           <h1 id="my-lab-command-title">{greeting}</h1>
