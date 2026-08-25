@@ -1773,6 +1773,16 @@ export default function MatchupPage() {
       <JsonLd id="matchup-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Matchup', '/matchup')} />
       <section style={contentWrap}>
         {!isMobile ? <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} /> : null}
+        {matchType === 'singles' && profilePlayer && playerB ? (
+          <section
+            aria-label="Personal matchup handoff"
+            style={{ display: 'grid', gap: 4, marginBottom: 12, padding: '12px 14px', borderRadius: 16, border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)', background: 'color-mix(in srgb, var(--brand-lime) 8%, var(--shell-chip-bg) 92%)' }}
+          >
+            <span style={{ color: 'var(--brand-lime)', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your matchup</span>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 16 }}>{profilePlayer.name} vs {playerB.name}</strong>
+            <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>Your Player ID is locked into this read. Switch the opponent below whenever the matchup changes.</span>
+          </section>
+        ) : null}
         <article style={dynamicControlsCard}>
           <div style={dynamicToolHeaderStyle}>
             <div style={toolHeaderTitleClusterStyle}>
