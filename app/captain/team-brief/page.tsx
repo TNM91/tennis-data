@@ -350,6 +350,40 @@ function CaptainTeamBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const nextMove = !team || !league || !flight
+    ? {
+        title: 'Choose the team week',
+        detail: 'Set the team, league, and flight before building a match-day plan.',
+        href: '/captain',
+        cta: 'Choose team scope',
+      }
+    : !lineupRows.length
+      ? {
+          title: 'Build the current courts',
+          detail: 'Set the lineup first so the team receives a clear, usable plan.',
+          href: lineupBuilderHref,
+          cta: 'Open lineup builder',
+        }
+      : alertLines.length
+        ? {
+            title: 'Resolve availability',
+            detail: `${alertLines.length} response risk${alertLines.length === 1 ? '' : 's'} still need attention before sending.`,
+            href: availabilityHref,
+            cta: 'Open availability',
+          }
+        : !hasMatchPlan
+          ? {
+              title: 'Add match logistics',
+              detail: 'Confirm the opponent, arrival time, and location before sharing the plan.',
+              href: weeklyBriefHref,
+              cta: 'Open captain brief',
+            }
+          : {
+              title: 'Share the match plan',
+              detail: 'Your lineup, logistics, and readiness are in place. Send the team update now.',
+              href: '',
+              cta: 'Copy team message',
+            }
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
@@ -487,6 +521,19 @@ function CaptainTeamBriefContent() {
               </div>
             </div>}
 
+          </section>
+
+          <section style={nextMoveCardStyle} aria-label="Next match-day action">
+            <div style={nextMoveCopyStyle}>
+              <p style={sectionKicker}>Next move</p>
+              <h2 style={nextMoveTitleStyle}>{nextMove.title}</h2>
+              <p style={nextMoveDetailStyle}>{nextMove.detail}</p>
+            </div>
+            {nextMove.href ? (
+              <Link href={nextMove.href} style={primaryButton}>{nextMove.cta}</Link>
+            ) : (
+              <PrimaryBtn onClick={() => void handleCopyMessage()}>{nextMove.cta}</PrimaryBtn>
+            )}
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -726,6 +773,10 @@ const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: 
 const signalLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
 const signalValueStyle: CSSProperties = { marginTop: 10, color: 'var(--foreground-strong)', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0, overflowWrap: 'anywhere' }
 const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6, overflowWrap: 'anywhere' }
+const nextMoveCardStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '18px 20px', borderRadius: 24, border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', background: 'linear-gradient(115deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-panel-bg-strong) 87%), var(--shell-panel-bg-strong))', boxShadow: 'var(--shadow-soft)', minWidth: 0 }
+const nextMoveCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0, flex: '1 1 260px' }
+const nextMoveTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(1.15rem, 2.5vw, 1.45rem)', lineHeight: 1.08, letterSpacing: 0, overflowWrap: 'anywhere' }
+const nextMoveDetailStyle: CSSProperties = { margin: 0, color: 'rgba(224,234,247,0.78)', fontSize: 14, lineHeight: 1.55, overflowWrap: 'anywhere' }
 const mobileReadinessRailStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, minWidth: 0 }
 const mobileReadinessCardStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0, padding: '10px 8px', borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
 const mobileReadinessCardReadyStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)' }
