@@ -91,6 +91,16 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.profileRatingNav')
   })
 
+  it('puts protected rating context, USTA, record, and recent form into a compact profile glance strip', () => {
+    expect(page).toContain('className={profileStory.profileGlanceStrip}')
+    expect(page).toContain('aria-label="Player at a glance"')
+    expect(page).toContain('formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)')
+    expect(page).toContain('`${recentFormWins}W · ${recentFormLosses}L`')
+    expect(page).toContain('{totalMatches} reviewed')
+    expect(styles).toContain('.profileGlanceStrip')
+    expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
+  })
+
   it('keeps the profile section header honest as the viewer moves through the page', () => {
     expect(page).toContain("const [activeProfileSection, setActiveProfileSection] = useState<ProfileNavSection>('overview')")
     expect(page).toContain('new IntersectionObserver(')

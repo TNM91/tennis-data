@@ -1782,6 +1782,29 @@ function PlayerProfileContent() {
           </div>
         </div>
 
+        <section className={profileStory.profileGlanceStrip} aria-label="Player at a glance">
+          <div>
+            <span>TIQ</span>
+            <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
+            <small>{ratingViewLabel}</small>
+          </div>
+          <div>
+            <span>USTA</span>
+            <strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong>
+            <small>Current level</small>
+          </div>
+          <div>
+            <span>Record</span>
+            <strong>{trackedRecordLabel}</strong>
+            <small>{totalMatches} reviewed</small>
+          </div>
+          <div>
+            <span>Form</span>
+            <strong>{hasTrackedMatches ? `${recentFormWins}W · ${recentFormLosses}L` : 'New'}</strong>
+            <small>{hasTrackedMatches ? 'Last 5' : 'Building'}</small>
+          </div>
+        </section>
+
         <article id="profile-overview" className={profileStory.storyHero} data-public-profile={isPublicExplorerProfile}>
           <div className={profileStory.storyContent}>
             <div>
