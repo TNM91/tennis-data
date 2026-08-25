@@ -1890,6 +1890,22 @@ function CaptainMessagingContent() {
       detail: messageBody.trim() ? `${messageBody.trim().length} characters ready` : 'Load a send first',
       tone: messageBody.trim() ? 'ready' : 'waiting',
     },
+    {
+      label: 'Replies',
+      wide: true,
+      value: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount
+        ? `${responseSummary.noResponseCount + responseSummary.needSubCount + responseSummary.runningLateCount} open`
+        : 'Clear',
+      detail:
+        responseSummary.needSubCount > 0
+          ? `${responseSummary.needSubCount} need a sub`
+          : responseSummary.runningLateCount > 0
+            ? `${responseSummary.runningLateCount} running late`
+            : responseSummary.noResponseCount > 0
+              ? `${responseSummary.noResponseCount} waiting on a reply`
+              : 'No reply blockers',
+      tone: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount ? 'waiting' : 'ready',
+    },
   ]
 
   const followUpTargets = useMemo(() => {
@@ -2694,6 +2710,7 @@ function importScenarioToLineup() {
                       key={item.label}
                       style={{
                         ...mobileSendPulseCardStyle,
+                        ...(item.wide ? mobileSendPulseCardWideStyle : {}),
                         ...(item.tone === 'ready' ? mobileSendPulseCardReadyStyle : mobileSendPulseCardWaitingStyle),
                       }}
                     >
@@ -4774,6 +4791,10 @@ const mobileSendPulseCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   minWidth: 0,
+}
+
+const mobileSendPulseCardWideStyle: CSSProperties = {
+  gridColumn: '1 / -1',
 }
 
 const mobileSendPulseCardReadyStyle: CSSProperties = {
