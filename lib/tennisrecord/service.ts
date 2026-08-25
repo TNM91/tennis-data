@@ -11,6 +11,12 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean }
+export type TennisRecordRatingBatchSummary = {
+  status: 'completed' | 'disabled' | 'skipped'
+  pendingMatches: number
+  processedMatches: number
+  reason?: string
+}
 type CoverageSummary = {
   staged_player_count: number
   filterable_team_count: number
@@ -205,6 +211,15 @@ export function isWeeklyTennisRecordRefreshDue(lastRefreshStartedAt: string | nu
 export function isTennisRecordWeeklyWindowOpen(now = new Date()) {
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', weekday: 'short' }).format(now)
   return weekday === 'Wed'
+}
+
+/**
+ * Historical imports can steadily add canonical matches throughout the day.
+ * Rebuild ratings overnight while bootstrap is active; after bootstrap, the
+ * same controlled path only runs on the Wednesday weekly-refresh cadence.
+ */
+export function isTennisRecordRatingBatchDue(automationState: AutomationState, now = new Date()) {
+  return automationState === 'bootstrap' || (automationState === 'weekly' && isTennisRecordWeeklyWindowOpen(now))
 }
 
 /** Start once for a newly provisioned collector; later Admin pauses stay paused. */
@@ -672,6 +687,56 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   return runScheduledTennisRecordSync(service, automationState)
 }
 
+/**
+ * Run the existing TiQ rating engine at a controlled cadence. Scheduled
+ * collector checkpoints deliberately leave their newly promoted matches
+ * unmarked; this batch is the only path that marks that queued evidence as
+ * processed after the engine finishes successfully.
+ */
+export async function runScheduledTennisRecordRatingBatch(service: SupabaseClient, now = new Date()): Promise<TennisRecordRatingBatchSummary> {
+  const { data: rawSettings, error: settingsError } = await service
+    .from('tennisrecord_collector_settings')
+    .select('enabled,automation_state')
+    .eq('id', true)
+    .maybeSingle()
+  if (settingsError) throw new Error(settingsError.message)
+
+  const settings = rawSettings as Pick<Settings, 'enabled' | 'automation_state'> | null
+  if (!settings?.enabled) return { status: 'disabled', pendingMatches: 0, processedMatches: 0, reason: 'collector_disabled' }
+  if (!isTennisRecordRatingBatchDue(settings.automation_state, now)) {
+    return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'outside_rating_cadence' }
+  }
+
+  const { data: activeRun, error: activeRunError } = await service
+    .from('tennisrecord_sync_runs')
+    .select('id')
+    .eq('status', 'running')
+    .limit(1)
+    .maybeSingle()
+  if (activeRunError) throw new Error(activeRunError.message)
+  if (activeRun) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'collector_checkpoint_active' }
+
+  const pendingQuery = service
+    .from('tennisrecord_canonical_matches')
+    .select('fingerprint', { count: 'exact', head: true })
+    .not('canonical_match_id', 'is', null)
+    .is('rating_processed_at', null)
+  const { count: pendingMatches, error: pendingError } = await pendingQuery
+  if (pendingError) throw new Error(pendingError.message)
+  if (!pendingMatches) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'no_unprocessed_matches' }
+
+  await recalculateDynamicRatings(undefined, service)
+  const { data: processed, error: processedError } = await service
+    .from('tennisrecord_canonical_matches')
+    .update({ rating_processed_at: now.toISOString() })
+    .not('canonical_match_id', 'is', null)
+    .is('rating_processed_at', null)
+    .select('fingerprint')
+  if (processedError) throw new Error(processedError.message)
+
+  return { status: 'completed', pendingMatches, processedMatches: processed?.length || pendingMatches }
+}
+
 async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number, campaignId?: string | null) {
   const cutoff = new Date(Date.now() - lookbackDays * 86_400_000).toISOString().slice(0, 10)
   const { data: recent, error } = await service.from('tennisrecord_staged_matches').select('source_url').gte('played_on', cutoff).limit(100)
@@ -974,7 +1039,13 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
       const promoted = await promoteTennisRecordMatch(service, item, identities)
       if (promoted) {
         ratingChanged = true
-        await service.from('tennisrecord_canonical_matches').update({ canonical_match_id: promoted, promoted_at: new Date().toISOString(), rating_processed_at: new Date().toISOString() }).eq('fingerprint', item.fingerprint)
+        await service.from('tennisrecord_canonical_matches').update({
+          canonical_match_id: promoted,
+          promoted_at: new Date().toISOString(),
+          // Scheduled checkpoints are intentionally light. Leave this null
+          // until the controlled batch has run the existing TiQ engine.
+          rating_processed_at: shouldRecalculateRatings ? new Date().toISOString() : null,
+        }).eq('fingerprint', item.fingerprint)
       }
     }
   }
