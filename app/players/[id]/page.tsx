@@ -34,7 +34,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -2048,6 +2048,16 @@ function PlayerProfileContent() {
                 <span>Match tape</span>
                 <small>{publicRecentResults.length > 0 ? (showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`) : `0 ${ratingViewLabel.toLowerCase()} matches`}</small>
               </div>
+              {!canViewExactParticipantTiq ? (
+                <aside className={profileStory.matchTapeAccessHint} aria-label="Player membership match tape detail">
+                  <div>
+                    <span>{MEMBERSHIP_TIERS.player_plus.name} detail</span>
+                    <strong>{isOwnProfile ? 'Your TIQ is yours. See every competitor clearly.' : 'See every competitor clearly.'}</strong>
+                    <small>Unlock exact partner and opponent TIQ ratings, plus each match’s full TIQ impact.</small>
+                  </div>
+                  <Link href="/pricing">Unlock Player</Link>
+                </aside>
+              ) : null}
               {publicRecentResults.length > 0 ? (
                 <div className={profileStory.recentResultTileGrid}>
                   {publicRecentResults.map((match) => {
