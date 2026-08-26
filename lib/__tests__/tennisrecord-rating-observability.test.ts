@@ -14,6 +14,7 @@ describe('TennisRecord rating observability', () => {
 
   it('makes the pending count and cadence visible to Admins', () => {
     expect(admin).toContain('TiQ ratings waiting')
+    expect(admin).toContain('Baseline refresh')
     expect(admin).toContain('TiQ rating catch-up')
     expect(admin).toContain('TennisRecord’s proprietary rating is never used.')
   })
