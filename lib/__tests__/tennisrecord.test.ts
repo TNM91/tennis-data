@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline } from '../tennisrecord/parser'
+import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
@@ -16,6 +16,9 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordStatedNtrpBaseline('4.5 S')).toBe(4.5)
     expect(tennisRecordStatedNtrpBaseline('4.0122')).toBeNull()
     expect(tennisRecordStatedNtrpBaseline('Estimated Dynamic Rating 4.0122')).toBeNull()
+    expect(tennisRecordStatedNtrpDesignation('4.0 C')).toBe('computer')
+    expect(tennisRecordStatedNtrpDesignation('4.5 S')).toBe('self')
+    expect(tennisRecordStatedNtrpDesignation('4.0')).toBe('unknown')
   })
 
   it('preserves the stated NTRP effective date for annual calibration without using the external estimate', () => {
@@ -31,6 +34,7 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.players).toEqual([expect.objectContaining({
       name: 'Michael Ho',
       ntrpLabel: '4.0 C',
+      ntrpDesignation: 'computer',
       ntrpEffectiveDate: '2025-12-31',
       publishedRating: 4.0122,
     })])

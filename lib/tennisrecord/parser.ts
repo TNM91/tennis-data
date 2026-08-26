@@ -228,7 +228,8 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const statedNtrp = plain.match(/\b([1-7](?:\.0|\.5)\s*[A-Z]?)\b(?:\s+(\d{1,2}\/\d{1,2}\/20\d{2}))?/)
     const ntrp = statedNtrp?.[1] || ''
     const ntrpEffectiveDate = statedNtrp?.[2] ? toIsoDate(statedNtrp[2]) : undefined
-    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(ntrpEffectiveDate ? { ntrpEffectiveDate } : {}), ...(rating ? { publishedRating: Number(rating) } : {}), sourceUrl })
+    const ntrpDesignation = tennisRecordStatedNtrpDesignation(ntrp)
+    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(ntrpDesignation === 'unknown' ? {} : { ntrpDesignation }), ...(ntrpEffectiveDate ? { ntrpEffectiveDate } : {}), ...(rating ? { publishedRating: Number(rating) } : {}), sourceUrl })
   }
   const seasonYear = Number(leagueName.match(/\b(20\d{2})\b/)?.[1]) || null
   const leagues: TennisRecordLeague[] = leagueName ? [{ sourceLeagueKey: sourceKey('trl', `${leagueName}::${flight}::${seasonYear || ''}`), name: leagueName, flight, seasonYear, sourceUrl }] : []
@@ -251,6 +252,19 @@ export function tennisRecordStatedNtrpBaseline(value: unknown): number | null {
   const label = typeof value === 'string' ? value.trim() : ''
   const match = label.match(/(?:^|\s)([1-7]\.[05])(?=\s|$)/)
   return match ? Number(match[1]) : null
+}
+
+/**
+ * TennisRecord profile labels distinguish an official computer rating (C)
+ * from a self rating (S). Both are useful factual USTA context, but only C
+ * establishes the high-confidence rating anchor used by TiQ calibration.
+ */
+export function tennisRecordStatedNtrpDesignation(value: unknown): import('./types').TennisRecordNtrpDesignation {
+  const label = typeof value === 'string' ? value.trim() : ''
+  const match = label.match(/(?:^|\s)[1-7]\.[05]\s*([CS])(?=\s|$)/i)
+  if (match?.[1]?.toUpperCase() === 'C') return 'computer'
+  if (match?.[1]?.toUpperCase() === 'S') return 'self'
+  return 'unknown'
 }
 
 function toIsoDate(value: string) {

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
-import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline } from './parser'
+import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
@@ -905,11 +905,12 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       if (provisional.length) {
         const created = await service.from('players').upsert(provisional.map((player) => {
           const baseline = tennisRecordStatedNtrpBaseline(player.ntrp_label)
+          const designation = tennisRecordStatedNtrpDesignation(player.ntrp_label)
           return {
             name: player.name,
             normalized_name: player.normalized_name,
             location: [player.city, player.state].filter(Boolean).join(', ') || null,
-            rating_source: baseline === null ? 'self' : 'verified',
+            rating_source: designation === 'computer' ? 'verified' : 'self',
             ...(baseline === null ? {} : {
               singles_rating: baseline,
               doubles_rating: baseline,
@@ -949,6 +950,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
           canonical_player_id: canonicalIdByStagedId.get(stagedPlayerId) || null,
           ntrp,
           ntrp_label: player.ntrpLabel,
+          designation: tennisRecordStatedNtrpDesignation(player.ntrpLabel),
           effective_date: effectiveDate,
           observed_at: new Date().toISOString(),
           source_url: player.sourceUrl,
@@ -962,27 +964,30 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
           .upsert(ntrpObservations, { onConflict: 'observation_key' })
         if (observationError) throw new Error(observationError.message)
       }
-      const ntrpByStagedId = new Map(staged.map((player) => [player.id as string, tennisRecordStatedNtrpBaseline(player.ntrp_label)]))
+      const ntrpByStagedId = new Map(staged.map((player) => [player.id as string, {
+        baseline: tennisRecordStatedNtrpBaseline(player.ntrp_label),
+        designation: tennisRecordStatedNtrpDesignation(player.ntrp_label),
+      }]))
       const baselineByCanonicalId = new Map((mapped.data || []).flatMap((identity) => {
-        const baseline = ntrpByStagedId.get(identity.staged_player_id as string)
-        return baseline === null || baseline === undefined || !identity.canonical_player_id ? [] : [[identity.canonical_player_id as string, baseline] as const]
+        const ntrp = ntrpByStagedId.get(identity.staged_player_id as string)
+        return ntrp?.baseline === null || ntrp?.baseline === undefined || !identity.canonical_player_id ? [] : [[identity.canonical_player_id as string, ntrp] as const]
       }))
       if (baselineByCanonicalId.size) {
         const canonicalIds = [...baselineByCanonicalId.keys()]
         const current = await service.from('players').select('id,rating_source,external_source,is_external_provisional,overall_rating,singles_rating,doubles_rating').in('id', canonicalIds)
         if (current.error) throw new Error(current.error.message)
         for (const player of current.data || []) {
-          const baseline = baselineByCanonicalId.get(player.id as string)
+          const ntrp = baselineByCanonicalId.get(player.id as string)
           const isUntouchedProvisional = player.external_source === 'tennisrecord'
             && player.is_external_provisional === true
             && player.rating_source === 'self'
             && [player.overall_rating, player.singles_rating, player.doubles_rating].every((rating) => rating === null || Number(rating) === 3.5)
-          if (baseline === undefined || !isUntouchedProvisional) continue
+          if (!ntrp || !isUntouchedProvisional) continue
           const updated = await service.from('players').update({
-            rating_source: 'verified',
-            singles_rating: baseline,
-            doubles_rating: baseline,
-            overall_rating: baseline,
+            rating_source: ntrp.designation === 'computer' ? 'verified' : 'self',
+            singles_rating: ntrp.baseline,
+            doubles_rating: ntrp.baseline,
+            overall_rating: ntrp.baseline,
           }).eq('id', player.id).eq('rating_source', 'self')
           if (updated.error) throw new Error(updated.error.message)
           baselineChanged = true
