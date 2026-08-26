@@ -24,6 +24,7 @@ import {
   chooseLatestCaptainResumeState,
   loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
+  resolveCaptainMatchContext,
   syncCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
@@ -1220,15 +1221,16 @@ function readInitialLineupBuilderContext(userId?: string | null) {
 
   const params = new URLSearchParams(window.location.search)
   const resumeState = readCaptainResumeState(userId)
+  const matchContext = resolveCaptainMatchContext(params, resumeState)
 
   return {
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
     team: params.get('team') || resumeState?.team || '',
     league: params.get('league') || resumeState?.league || '',
     flight: params.get('flight') || resumeState?.flight || '',
-    eventDate: params.get('date') || resumeState?.eventDate || '',
-    opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
-    matchId: params.get('match') || resumeState?.matchId || '',
+    eventDate: matchContext.eventDate,
+    opponentTeam: matchContext.opponentTeam,
+    matchId: matchContext.matchId,
     scenario: params.get('scenario') || params.get('left') || resumeState?.scenarioId || '',
     pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
     singleId: params.get('single') || '',

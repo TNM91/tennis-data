@@ -6,6 +6,7 @@ import {
   getCaptainResumeStorageKey,
   isSafeCaptainResumeHref,
   readCaptainResumeState,
+  resolveCaptainMatchContext,
   sanitizeCaptainResumeState,
   writeCaptainResumeState,
 } from '../captain-memory'
@@ -96,5 +97,18 @@ describe('captain resume memory', () => {
       '/captain/lineup-builder?team=SuperSmash+Bros&league=Tri-Level&flight=3.5%2F4.0%2F4.5&match=match-1&scenario=scenario-1',
     )
     expect(chooseLatestCaptainResumeState(local, cloud)).toBe(cloud)
+  })
+
+  it('starts a fresh Team handoff at the next match instead of reusing an expired saved match', () => {
+    const resume = {
+      eventDate: '2026-08-10',
+      opponentTeam: 'Past Opponent',
+      matchId: 'past-match',
+    }
+
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&league=Missouri'), resume))
+      .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2026-09-01&match=next-match'), resume))
+      .toEqual({ eventDate: '2026-09-01', opponentTeam: '', matchId: 'next-match' })
   })
 })
