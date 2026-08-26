@@ -35,6 +35,17 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("focus: 'waiting'")
   })
 
+  it('refreshes player replies when the captain returns to the Builder', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(source).toContain('const refreshAvailabilityReplies = useCallback(async (quiet = false) =>')
+    expect(source).toContain("window.addEventListener('focus', refreshWhenVisible)")
+    expect(source).toContain("window.addEventListener('pageshow', refreshWhenVisible)")
+    expect(source).toContain("document.addEventListener('visibilitychange', refreshWhenVisible)")
+    expect(source).toContain("'Refresh replies'")
+    expect(source).toContain('Player replies are up to date.')
+  })
+
   it('returns to the exact Team Room card before the captain sends the lineup', () => {
     const builder = readSource('app/captain/lineup-builder/page.tsx')
     const room = readSource('app/team-room/page.tsx')

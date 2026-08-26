@@ -1289,6 +1289,7 @@ function LineupBuilderContent() {
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [askingCourtId, setAskingCourtId] = useState('')
+  const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
@@ -1362,6 +1363,7 @@ function LineupBuilderContent() {
   const [scopedResumeResolved, setScopedResumeResolved] = useState(false)
   const scopedResumeAppliedRef = useRef(false)
   const backupFocusHandledRef = useRef(false)
+  const lastReplyRefreshRef = useRef(0)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1656,6 +1658,55 @@ function LineupBuilderContent() {
     if (!authResolved || role === 'public') return
     void refreshBuilderData()
   }, [authResolved, role, refreshTick, refreshBuilderData])
+
+  const refreshAvailabilityReplies = useCallback(async (quiet = false) => {
+    if (refreshingReplies) return
+    setRefreshingReplies(true)
+    if (!quiet) setMessage('Refreshing player replies...')
+
+    const { data, error: availabilityError } = await supabase
+      .from('lineup_availability')
+      .select(`
+        id,
+        match_date,
+        team_name,
+        league_name,
+        flight,
+        player_id,
+        status,
+        notes
+      `)
+      .order('match_date', { ascending: false })
+
+    if (availabilityError) {
+      setError(availabilityError.message)
+    } else {
+      setAvailability((data ?? []) as AvailabilityRow[])
+      if (!quiet) setMessage('Player replies are up to date.')
+    }
+    setRefreshingReplies(false)
+  }, [refreshingReplies])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || typeof window === 'undefined') return
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'hidden') return
+      const now = Date.now()
+      if (now - lastReplyRefreshRef.current < 5000) return
+      lastReplyRefreshRef.current = now
+      void refreshAvailabilityReplies(true)
+    }
+
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, refreshAvailabilityReplies, role])
 
   useEffect(() => {
     if (!teamName) {
@@ -4007,6 +4058,9 @@ function LineupBuilderContent() {
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
             <GhostBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
               {saveAndAskLabel}
+            </GhostBtn>
+            <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+              {refreshingReplies ? 'Refreshing replies...' : 'Refresh replies'}
             </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
             <GhostLink href={teamBriefHref}>Open team brief</GhostLink>
