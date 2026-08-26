@@ -936,6 +936,32 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       }
       const mapped = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id').in('staged_player_id', staged.map((player) => player.id)).not('canonical_player_id', 'is', null)
       if (mapped.error) throw new Error(mapped.error.message)
+      const stagedIdBySourceKey = new Map(staged.map((player) => [player.source_player_key as string, player.id as string]))
+      const canonicalIdByStagedId = new Map((mapped.data || []).map((identity) => [identity.staged_player_id as string, identity.canonical_player_id as string]))
+      const ntrpObservations = parsed.players.flatMap((player) => {
+        const ntrp = tennisRecordStatedNtrpBaseline(player.ntrpLabel)
+        const stagedPlayerId = stagedIdBySourceKey.get(player.sourcePlayerKey)
+        if (ntrp === null || !stagedPlayerId) return []
+        const effectiveDate = player.ntrpEffectiveDate || null
+        return [{
+          observation_key: `tennisrecord:${player.sourcePlayerKey}:${ntrp}:${effectiveDate || 'undated'}`,
+          staged_player_id: stagedPlayerId,
+          canonical_player_id: canonicalIdByStagedId.get(stagedPlayerId) || null,
+          ntrp,
+          ntrp_label: player.ntrpLabel,
+          effective_date: effectiveDate,
+          observed_at: new Date().toISOString(),
+          source_url: player.sourceUrl,
+          source_page_id: pageId || null,
+          last_seen_at: new Date().toISOString(),
+        }]
+      })
+      if (ntrpObservations.length) {
+        const { error: observationError } = await service
+          .from('tennisrecord_ntrp_observations')
+          .upsert(ntrpObservations, { onConflict: 'observation_key' })
+        if (observationError) throw new Error(observationError.message)
+      }
       const ntrpByStagedId = new Map(staged.map((player) => [player.id as string, tennisRecordStatedNtrpBaseline(player.ntrp_label)]))
       const baselineByCanonicalId = new Map((mapped.data || []).flatMap((identity) => {
         const baseline = ntrpByStagedId.get(identity.staged_player_id as string)

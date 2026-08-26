@@ -225,8 +225,10 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const name = getText(html.match(/<(?:h1|h2)[^>]*>([\s\S]*?)<\/(?:h1|h2)>/i)?.[1] || '') || url.searchParams.get('playername')?.replace(/\+/g, ' ') || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
     const rating = plain.match(/Estimated\s+Dynamic\s+Rating\s*([1-7]\.\d{1,4})/i)?.[1]
-    const ntrp = plain.match(/\b([1-7](?:\.0|\.5)\s*[A-Z]?)\b/)?.[1] || ''
-    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(rating ? { publishedRating: Number(rating) } : {}), sourceUrl })
+    const statedNtrp = plain.match(/\b([1-7](?:\.0|\.5)\s*[A-Z]?)\b(?:\s+(\d{1,2}\/\d{1,2}\/20\d{2}))?/)
+    const ntrp = statedNtrp?.[1] || ''
+    const ntrpEffectiveDate = statedNtrp?.[2] ? toIsoDate(statedNtrp[2]) : undefined
+    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(ntrpEffectiveDate ? { ntrpEffectiveDate } : {}), ...(rating ? { publishedRating: Number(rating) } : {}), sourceUrl })
   }
   const seasonYear = Number(leagueName.match(/\b(20\d{2})\b/)?.[1]) || null
   const leagues: TennisRecordLeague[] = leagueName ? [{ sourceLeagueKey: sourceKey('trl', `${leagueName}::${flight}::${seasonYear || ''}`), name: leagueName, flight, seasonYear, sourceUrl }] : []
@@ -249,6 +251,12 @@ export function tennisRecordStatedNtrpBaseline(value: unknown): number | null {
   const label = typeof value === 'string' ? value.trim() : ''
   const match = label.match(/(?:^|\s)([1-7]\.[05])(?=\s|$)/)
   return match ? Number(match[1]) : null
+}
+
+function toIsoDate(value: string) {
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(20\d{2})$/)
+  if (!match) return undefined
+  return `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`
 }
 
 export function normalizedTennisRecordPlayerName(player: TennisRecordPlayer) { return normalizeTennisIdentity(player.name) }
