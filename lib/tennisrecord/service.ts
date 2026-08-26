@@ -11,6 +11,15 @@ type Settings = { enabled: boolean; min_request_interval_ms: number; max_request
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean }
+
+/**
+ * A newly discovered computer-rated USTA baseline is factual player context.
+ * Keep an untouched provisional profile from visibly remaining below that
+ * baseline while the protected full rating pass rebuilds the full history.
+ */
+export function floorFreshComputerRatedDynamic(current: number | null | undefined, baseline: number) {
+  return Math.max(typeof current === 'number' && Number.isFinite(current) ? current : baseline, baseline)
+}
 export type TennisRecordRatingBatchSummary = {
   status: 'completed' | 'disabled' | 'skipped'
   pendingMatches: number
@@ -1194,7 +1203,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       }))
       if (baselineByCanonicalId.size) {
         const canonicalIds = [...baselineByCanonicalId.keys()]
-        const current = await service.from('players').select('id,rating_source,external_source,is_external_provisional,overall_rating,singles_rating,doubles_rating').in('id', canonicalIds)
+        const current = await service.from('players').select('id,rating_source,external_source,is_external_provisional,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating').in('id', canonicalIds)
         if (current.error) throw new Error(current.error.message)
         for (const player of current.data || []) {
           const ntrp = baselineByCanonicalId.get(player.id as string)
@@ -1202,13 +1211,22 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
             && player.is_external_provisional === true
             && player.rating_source === 'self'
             && [player.overall_rating, player.singles_rating, player.doubles_rating].every((rating) => rating === null || Number(rating) === 3.5)
-          if (!ntrp || !isUntouchedProvisional) continue
-          const updated = await service.from('players').update({
+          if (!ntrp || ntrp.baseline === null || ntrp.baseline === undefined || !isUntouchedProvisional) continue
+          const update = {
             rating_source: ntrp.designation === 'computer' ? 'verified' : 'self',
             singles_rating: ntrp.baseline,
             doubles_rating: ntrp.baseline,
             overall_rating: ntrp.baseline,
-          }).eq('id', player.id).eq('rating_source', 'self')
+            ...(ntrp.designation === 'computer' ? {
+              singles_dynamic_rating: floorFreshComputerRatedDynamic(player.singles_dynamic_rating, ntrp.baseline),
+              doubles_dynamic_rating: floorFreshComputerRatedDynamic(player.doubles_dynamic_rating, ntrp.baseline),
+              overall_dynamic_rating: floorFreshComputerRatedDynamic(player.overall_dynamic_rating, ntrp.baseline),
+              singles_usta_dynamic_rating: floorFreshComputerRatedDynamic(player.singles_usta_dynamic_rating, ntrp.baseline),
+              doubles_usta_dynamic_rating: floorFreshComputerRatedDynamic(player.doubles_usta_dynamic_rating, ntrp.baseline),
+              overall_usta_dynamic_rating: floorFreshComputerRatedDynamic(player.overall_usta_dynamic_rating, ntrp.baseline),
+            } : {}),
+          }
+          const updated = await service.from('players').update(update).eq('id', player.id).eq('rating_source', 'self')
           if (updated.error) throw new Error(updated.error.message)
           baselineChanged = true
         }
