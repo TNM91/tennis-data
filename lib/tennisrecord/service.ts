@@ -525,6 +525,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     ratingProgress: {
       pending: ratingPending.count || 0,
       baselineRefreshPending: Boolean(collectorSettings?.rating_recalculation_requested_at),
+      baselineRefreshRequestedAt: collectorSettings?.rating_recalculation_requested_at || null,
       lastRecalculatedAt: collectorSettings?.rating_recalculated_at || null,
       cadence: (settings.data as Settings | null)?.automation_state === 'bootstrap'
         ? 'overnight'

@@ -10,6 +10,7 @@ describe('TennisRecord rating observability', () => {
   it('reports promoted matches waiting for the controlled TiQ rating batch', () => {
     expect(service).toContain(".is('rating_processed_at', null)")
     expect(service).toContain('ratingProgress: {')
+    expect(service).toContain('baselineRefreshRequestedAt: collectorSettings?.rating_recalculation_requested_at || null')
     expect(service).toContain('lastRecalculatedAt: collectorSettings?.rating_recalculated_at || null')
   })
 
