@@ -2500,6 +2500,7 @@ function PlayerProfileContent() {
                 <Link href={primaryActionHref} style={playerPrimaryActionStyle}>{primaryActionLabel}</Link>
                 <MiniLink href={secondaryActionHref}>{secondaryActionLabel}</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
+                <MiniLink href="/methodology#rating-basics">How TiQ ratings work</MiniLink>
               </div>
 
               <div style={dynamicProfileContextGridStyle} aria-label="Player profile context">
