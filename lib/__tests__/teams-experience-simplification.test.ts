@@ -57,7 +57,7 @@ describe('Teams experience simplification', () => {
   it('compresses the match-week path and secondary lineup actions on phones', () => {
     expect(matchWeekRail).toContain('mobileStepList')
     expect(matchWeekRail).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
-    expect(matchWeekRail).toContain("return 'Availability'")
+    expect(matchWeekRail).toContain("return 'Confirm'")
     expect(lineupBuilder).toContain('<summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>')
     expect(lineupBuilder).toContain('builderMobileActionStackStyle')
   })
