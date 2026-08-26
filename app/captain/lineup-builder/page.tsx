@@ -1221,7 +1221,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
 
   const params = new URLSearchParams(window.location.search)
   const resumeState = readCaptainResumeState(userId)
-  const matchContext = resolveCaptainMatchContext(params, resumeState)
+  const matchContext = resolveCaptainMatchContext(params)
 
   return {
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
@@ -1337,7 +1337,7 @@ function LineupBuilderContent() {
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
 
-  const [prefillScenarioId, setPrefillScenarioId] = useState(initialContext.scenario)
+  const [prefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
   const [prefillSingleId] = useState(initialContext.singleId)
   const [prefillApplied, setPrefillApplied] = useState(false)
@@ -1464,10 +1464,6 @@ function LineupBuilderContent() {
       setTeamName(resumeState.team || '')
       setLeagueName(resumeState.league || '')
       setFlight(resumeState.flight || '')
-      setMatchDate(resumeState.eventDate || '')
-      setOpponentTeam(resumeState.opponentTeam || '')
-      setSelectedMatchId(resumeState.matchId || '')
-      setPrefillScenarioId(resumeState.scenarioId || '')
       setPrefillApplied(false)
     })().finally(() => {
       if (active) setScopedResumeResolved(true)

@@ -259,19 +259,14 @@ export function buildCaptainScopedHref(
 }
 
 /**
- * A scoped entry from a Team page means "start this team's next Match Week".
- * Do not quietly carry an unrelated, old match from the captain's last tool
- * session into that fresh team handoff.
+ * A new Lineup Builder entry always starts at the next Match Week. A saved
+ * match is restored only by an explicit date/opponent/match link (such as
+ * Continue), never by a generic Teams or Captain shortcut.
  */
-export function resolveCaptainMatchContext(
-  params: URLSearchParams,
-  resumeState: CaptainResumeState | null | undefined,
-) {
-  const hasFreshTeamScope = ['layer', 'team', 'league', 'flight']
-    .some((key) => Boolean(params.get(key)?.trim()))
+export function resolveCaptainMatchContext(params: URLSearchParams) {
   return {
-    eventDate: params.get('date') || (hasFreshTeamScope ? '' : resumeState?.eventDate || ''),
-    opponentTeam: params.get('opponent') || (hasFreshTeamScope ? '' : resumeState?.opponentTeam || ''),
-    matchId: params.get('match') || (hasFreshTeamScope ? '' : resumeState?.matchId || ''),
+    eventDate: params.get('date') || '',
+    opponentTeam: params.get('opponent') || '',
+    matchId: params.get('match') || '',
   }
 }
