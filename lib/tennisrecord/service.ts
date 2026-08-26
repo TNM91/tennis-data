@@ -7,7 +7,7 @@ import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUr
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
-type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null }
+type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean }
@@ -435,6 +435,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     },
     ratingProgress: {
       pending: ratingPending.count || 0,
+      baselineRefreshPending: Boolean(collectorSettings?.rating_recalculation_requested_at),
       cadence: (settings.data as Settings | null)?.automation_state === 'bootstrap'
         ? 'overnight'
         : (settings.data as Settings | null)?.automation_state === 'weekly'
@@ -601,6 +602,11 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       shouldRecalculateRatings,
     )
     if (shouldRecalculateRatings && baselineChanged && !reconciled.ratingChanged) await recalculateDynamicRatings(undefined, service)
+    if (shouldRecalculateRatings && (baselineChanged || reconciled.ratingChanged)) {
+      await clearTennisRecordRatingRefreshRequest(service)
+    } else if (baselineChanged) {
+      await requestTennisRecordRatingRefresh(service, 'verified_usta_baseline_changed')
+    }
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
     return summary
@@ -831,12 +837,12 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
 export async function runScheduledTennisRecordRatingBatch(service: SupabaseClient, now = new Date()): Promise<TennisRecordRatingBatchSummary> {
   const { data: rawSettings, error: settingsError } = await service
     .from('tennisrecord_collector_settings')
-    .select('enabled,automation_state')
+    .select('enabled,automation_state,rating_recalculation_requested_at')
     .eq('id', true)
     .maybeSingle()
   if (settingsError) throw new Error(settingsError.message)
 
-  const settings = rawSettings as Pick<Settings, 'enabled' | 'automation_state'> | null
+  const settings = rawSettings as Pick<Settings, 'enabled' | 'automation_state' | 'rating_recalculation_requested_at'> | null
   if (!settings?.enabled) return { status: 'disabled', pendingMatches: 0, processedMatches: 0, reason: 'collector_disabled' }
   if (!isTennisRecordRatingBatchDue(settings.automation_state, now)) {
     return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'outside_rating_cadence' }
@@ -858,18 +864,42 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
     .is('rating_processed_at', null)
   const { count: pendingMatches, error: pendingError } = await pendingQuery
   if (pendingError) throw new Error(pendingError.message)
-  if (!pendingMatches) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'no_unprocessed_matches' }
+  const pendingMatchCount = pendingMatches || 0
+  const baselineRefreshRequested = Boolean(settings.rating_recalculation_requested_at)
+  if (!pendingMatchCount && !baselineRefreshRequested) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'no_unprocessed_matches' }
 
   await recalculateDynamicRatings(undefined, service)
-  const { data: processed, error: processedError } = await service
-    .from('tennisrecord_canonical_matches')
-    .update({ rating_processed_at: now.toISOString() })
-    .not('canonical_match_id', 'is', null)
-    .is('rating_processed_at', null)
-    .select('fingerprint')
-  if (processedError) throw new Error(processedError.message)
+  let processedMatches = 0
+  if (pendingMatchCount) {
+    const { data: processed, error: processedError } = await service
+      .from('tennisrecord_canonical_matches')
+      .update({ rating_processed_at: now.toISOString() })
+      .not('canonical_match_id', 'is', null)
+      .is('rating_processed_at', null)
+      .select('fingerprint')
+    if (processedError) throw new Error(processedError.message)
+    processedMatches = processed?.length || pendingMatchCount
+  }
+  if (baselineRefreshRequested) await clearTennisRecordRatingRefreshRequest(service)
 
-  return { status: 'completed', pendingMatches, processedMatches: processed?.length || pendingMatches }
+  return { status: 'completed', pendingMatches: pendingMatchCount, processedMatches }
+}
+
+/** Queue one protected full pass when profile evidence changes an NTRP base. */
+async function requestTennisRecordRatingRefresh(service: SupabaseClient, reason: string) {
+  const { error } = await service
+    .from('tennisrecord_collector_settings')
+    .update({ rating_recalculation_requested_at: new Date().toISOString(), rating_recalculation_reason: reason })
+    .eq('id', true)
+  if (error) throw new Error(`Could not queue TiQ rating refresh: ${error.message}`)
+}
+
+async function clearTennisRecordRatingRefreshRequest(service: SupabaseClient) {
+  const { error } = await service
+    .from('tennisrecord_collector_settings')
+    .update({ rating_recalculation_requested_at: null, rating_recalculation_reason: null })
+    .eq('id', true)
+  if (error) throw new Error(`Could not clear TiQ rating refresh request: ${error.message}`)
 }
 
 async function queueRecentWeeklyMatchPages(service: SupabaseClient, lookbackDays: number, campaignId?: string | null) {

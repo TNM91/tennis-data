@@ -23,6 +23,9 @@ describe('TennisRecord checkpoint stability', () => {
     expect(source).toContain('rating_processed_at: shouldRecalculateRatings ? new Date().toISOString() : null')
     expect(source).toContain('export async function runScheduledTennisRecordRatingBatch')
     expect(source).toContain('await recalculateDynamicRatings(undefined, service)')
+    expect(source).toContain("requestTennisRecordRatingRefresh(service, 'verified_usta_baseline_changed')")
+    expect(source).toContain('const baselineRefreshRequested = Boolean(settings.rating_recalculation_requested_at)')
+    expect(source).toContain('if (!pendingMatchCount && !baselineRefreshRequested)')
   })
 
   it('runs rating catch-up daily during bootstrap and only on Wednesday once in weekly mode', () => {
