@@ -259,7 +259,7 @@ function RatedParticipantLinks({
 }
 
 function getCompactMatchImpact(
-  match: Pick<MatchRecord, 'result'>,
+  match: Pick<MatchRecord, 'result' | 'score'>,
   snapshot: Pick<SnapshotRow, 'delta' | 'win_probability'> | null,
   canViewExact: boolean,
 ) {
@@ -270,11 +270,34 @@ function getCompactMatchImpact(
   if (snapshot.win_probability == null) return `${movement} TiQ movement`
 
   const expected = snapshot.win_probability
+  const scoreRead = getScoreResultRead(match.score)
+  if (scoreRead === 'decisive') {
+    return `${movement} · ${expected}% expected · decisive ${match.result === 'W' ? 'win' : 'loss'}`
+  }
+  if (scoreRead === 'tight') {
+    return `${movement} · ${expected}% expected · tight ${match.result === 'W' ? 'win' : 'loss'}`
+  }
   const outcomeRead = match.result === 'W'
     ? expected < 40 ? 'upset win' : expected >= 60 ? 'held serve' : 'earned the edge'
-    : expected > 60 ? 'below expectation' : expected <= 40 ? 'competitive loss' : 'tight result'
+    : expected > 60 ? 'below expectation' : expected <= 40 ? 'competitive loss' : 'result reviewed'
 
   return `${movement} · ${expected}% expected · ${outcomeRead}`
+}
+
+function getScoreResultRead(score: string) {
+  const sets = Array.from(score.matchAll(/(\d+)\s*-\s*(\d+)/g))
+    .map(([, left, right]) => [Number(left), Number(right)] as const)
+    .filter(([left, right]) => !(Math.max(left, right) === 1 && Math.min(left, right) === 0))
+
+  if (sets.length === 0) return null
+
+  const gamesPlayed = sets.reduce((total, [left, right]) => total + left + right, 0)
+  const gameMargin = sets.reduce((total, [left, right]) => total + Math.abs(left - right), 0)
+  const hasTightSet = sets.some(([left, right]) => Math.abs(left - right) <= 2 && Math.max(left, right) >= 6)
+
+  if (hasTightSet && gameMargin / gamesPlayed <= 0.24) return 'tight'
+  if (gameMargin / gamesPlayed >= 0.34) return 'decisive'
+  return null
 }
 
 export default function PlayerProfilePage() {
@@ -748,6 +771,7 @@ function PlayerProfileContent() {
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
   const [selectedMatchImpactId, setSelectedMatchImpactId] = useState<string | null>(null)
+  const [selectedPublicMatchImpactId, setSelectedPublicMatchImpactId] = useState<string | null>(null)
   const [matchSearch, setMatchSearch] = useState('')
   const [matchSearchFocused, setMatchSearchFocused] = useState(false)
   const matchSearchedMatches = useMemo(() => {
@@ -2150,6 +2174,14 @@ function PlayerProfileContent() {
                             <span>{snap?.dynamic_rating == null ? 'TiQ pending' : 'TiQ after'}</span>
                             <small className={profileStory.recentResultImpact}>{compactImpact}</small>
                           </div>
+                          <button
+                            type="button"
+                            className={profileStory.recentResultDetailAction}
+                            aria-expanded={selectedPublicMatchImpactId === match.id}
+                            onClick={() => setSelectedPublicMatchImpactId((current) => current === match.id ? null : match.id)}
+                          >
+                            {selectedPublicMatchImpactId === match.id ? 'Hide details' : 'Match details'}
+                          </button>
                         </div>
                       </article>
                     )
@@ -2164,6 +2196,21 @@ function PlayerProfileContent() {
                   ) : null}
                 </div>
               )}
+              {selectedPublicMatchImpactId ? (() => {
+                const match = filteredMatches.find((candidate) => candidate.id === selectedPublicMatchImpactId) ?? null
+                if (!match) return null
+                const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null
+                return (
+                  <MatchImpactPanel
+                    match={match}
+                    snap={snap}
+                    player={player}
+                    canViewExact={canViewExactTiqRating}
+                    canViewDetailed={access.canUseAdvancedPlayerInsights}
+                    onClose={() => setSelectedPublicMatchImpactId(null)}
+                  />
+                )
+              })() : null}
               {filteredMatches.length > 3 ? (
                 <button
                   type="button"
@@ -4079,6 +4126,13 @@ function MatchImpactPanel({
       </div>
 
       <p style={matchImpactReadStyle}>{impactRead}</p>
+
+      <div style={matchImpactParticipantsStyle} aria-label="Match participants">
+        {match.partner ? (
+          <p><span>With</span> {match.partnerRatings.length > 0 ? <RatedParticipantLinks participants={match.partnerRatings} canViewExact={canViewExact} /> : match.partner}</p>
+        ) : null}
+        <p><span>Opponents</span> {match.opponentRatings.length > 0 ? <RatedParticipantLinks participants={match.opponentRatings} canViewExact={canViewExact} /> : match.opponent}</p>
+      </div>
 
       {canViewDetailed ? (
         <div style={matchImpactDetailRowStyle}>
@@ -6549,6 +6603,7 @@ const matchImpactMetricGridStyle: CSSProperties = { display: 'grid', gridTemplat
 const matchImpactMetricStyle: CSSProperties = { display: 'grid', gap: 5, padding: '13px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(1,10,24,0.46)' }
 const matchImpactReadStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 700, lineHeight: 1.5 }
 const matchImpactDetailRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }
+const matchImpactParticipantsStyle: CSSProperties = { display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid rgba(116, 190, 255, 0.16)', borderRadius: 14, background: 'rgba(1,10,24,0.32)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 750, lineHeight: 1.45 }
 const matchImpactUnlockStyle: CSSProperties = { color: 'var(--brand-lime)', fontSize: 13, fontWeight: 850, textDecoration: 'none' }
 const profileRatingUnlockStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'end', gap: 12, marginTop: 12, padding: '12px 13px', borderRadius: 16, border: '1px solid rgba(190,255,74,0.3)', background: 'linear-gradient(135deg, rgba(172,255,44,0.11), rgba(116,190,255,0.07))' }
 const profileRatingUnlockKickerStyle: CSSProperties = { display: 'block', color: '#c9f89c', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }
