@@ -3442,14 +3442,14 @@ function LineupBuilderContent() {
       detail: completedCourtCount === analysis.lines.length ? 'Ready to review' : 'Need players',
     },
     {
-      label: 'Team replies',
-      value: `${availablePlayerCount}/${myPlayerPool.length}`,
-      detail: myPlayerPool.length ? 'Confirmed or maybe' : 'Add roster',
+      label: 'Replies',
+      value: `${availablePlayerCount}`,
+      detail: myPlayerPool.length ? `of ${myPlayerPool.length} rostered` : 'Add roster',
     },
     {
-      label: 'Confidence',
-      value: confidenceScore.label,
-      detail: confidenceScore.tier,
+      label: 'Roster',
+      value: `${myPlayerPool.length}`,
+      detail: myPlayerPool.length ? 'Full team pool' : 'Needs players',
     },
   ]
   const mobileCourtMap = analysis.lines.map((line) => {
@@ -3529,9 +3529,13 @@ function LineupBuilderContent() {
 
           {isSmallMobile ? (
             <div style={builderMobileActionStackStyle}>
-              <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                {saveAndAskLabel}
-              </PrimaryBtn>
+              {lineupHasAssignments ? (
+                <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                  {saveAndAskLabel}
+                </PrimaryBtn>
+              ) : (
+                <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
+              )}
               <details style={builderMoreActionsStyle}>
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
@@ -3787,7 +3791,9 @@ function LineupBuilderContent() {
               ) : null}
             </div>
             <div style={mobileCourtFocusActionsStyle}>
-              <Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>
+              <Link href="#captain-lineup-courts" style={primaryButton}>
+                {lineupHasAssignments ? 'Review courts' : 'Build courts'}
+              </Link>
               <GhostBtn onClick={() => applyOptimizedPlan('best')}>Auto-build</GhostBtn>
             </div>
           </section>
@@ -5148,6 +5154,10 @@ const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
 const builderMobileActionStackStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  padding: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  borderRadius: 18,
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
 }
 
 const builderMoreActionsStyle: CSSProperties = {
@@ -5811,10 +5821,11 @@ const lineupVersionCompareCourtStyle: CSSProperties = {
 const mobileCourtFocusStyle: CSSProperties = {
   display: 'grid',
   gap: 13,
-  padding: '16px',
-  borderRadius: 20,
+  padding: '18px',
+  borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg-strong) 89%), var(--shell-panel-bg))',
+  boxShadow: '0 18px 42px rgba(2, 10, 24, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
 }
 
@@ -5841,7 +5852,7 @@ const mobileCourtFocusActionsStyle: CSSProperties = {
 
 const mobileLineupPulseStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 8,
   marginTop: 13,
   minWidth: 0,
@@ -5849,18 +5860,18 @@ const mobileLineupPulseStyle: CSSProperties = {
 
 const mobileLineupPulseCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
+  gap: 4,
   minWidth: 0,
-  minHeight: 88,
-  padding: '11px 10px',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
-  borderRadius: 12,
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 74%, transparent)',
+  minHeight: 78,
+  padding: '10px 8px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 14,
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
 }
 
 const mobileLineupPulseLabelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
-  fontSize: 11,
+  fontSize: 9,
   fontWeight: 900,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
@@ -5869,7 +5880,7 @@ const mobileLineupPulseLabelStyle: CSSProperties = {
 
 const mobileLineupPulseValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 19,
+  fontSize: 18,
   fontWeight: 950,
   lineHeight: 1.1,
   overflowWrap: 'anywhere',
@@ -5877,7 +5888,7 @@ const mobileLineupPulseValueStyle: CSSProperties = {
 
 const mobileLineupPulseDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 750,
   lineHeight: 1.25,
   overflowWrap: 'anywhere',
