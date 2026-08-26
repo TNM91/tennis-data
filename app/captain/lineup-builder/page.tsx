@@ -1288,6 +1288,7 @@ function LineupBuilderContent() {
   const [confirmationStage, setConfirmationStage] = useState<AvailabilityConfirmationStage>('idle')
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
+  const [askingCourtId, setAskingCourtId] = useState('')
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
@@ -2553,6 +2554,116 @@ function LineupBuilderContent() {
     })
     router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
   }
+
+  async function askProposedCourtPlayers(slot: LineupSlot) {
+    if (!teamName || !matchDate) {
+      setError('Choose the team and match before asking a player.')
+      setMessage('')
+      return
+    }
+
+    const invitedPlayers = slot.players
+      .filter((player) => player.playerName.trim())
+      .filter((player, index, all) =>
+        all.findIndex((candidate) =>
+          candidate.playerId === player.playerId ||
+          candidate.playerName.trim().toLowerCase() === player.playerName.trim().toLowerCase()
+        ) === index
+      )
+
+    if (!invitedPlayers.length) {
+      setError('Choose a player for this court before asking availability.')
+      setMessage('')
+      return
+    }
+
+    setAskingCourtId(slot.id)
+    setError('')
+    setMessage(`Saving ${slot.label} and preparing a private availability text...`)
+
+    try {
+      const savedScenario = await saveScenario(false, true)
+      if (!savedScenario) return
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) {
+        setError('Sign in again before sending availability texts.')
+        return
+      }
+
+      const response = await fetch('/api/captain/availability-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          scenarioId: savedScenario.id,
+          teamName,
+          leagueName,
+          flight,
+          matchDate,
+          opponentTeam,
+          matchTime: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          slots: [slot],
+          invitedPlayers,
+        }),
+      })
+      const result = await response.json() as {
+        message?: string
+        requestId?: string
+        requestUrl?: string
+        playerRequestUrls?: CaptainLineupHandoff['playerRequestUrls']
+      }
+      if (!response.ok) {
+        setError(result.message || 'The availability request could not be prepared.')
+        return
+      }
+
+      const handoff: CaptainLineupHandoff = {
+        version: 1,
+        intent: 'confirm-availability',
+        scenario: { ...savedScenario, slots_json: [slot] },
+        match: {
+          date: matchDate,
+          time: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          opponent: opponentTeam,
+        },
+        availabilityRequestUrl: result.requestUrl || '',
+        playerRequestUrls: result.playerRequestUrls ?? [],
+        createdAt: new Date().toISOString(),
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY, JSON.stringify(handoff))
+        window.localStorage.setItem('tenace_selected_scenario', JSON.stringify(handoff.scenario))
+        window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
+      }
+
+      const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+        competitionLayer,
+        team: teamName,
+        league: leagueName,
+        flight,
+        date: matchDate,
+        opponent: opponentTeam,
+      })
+      const params = new URLSearchParams({
+        source: 'lineup_builder',
+        focus: 'waiting',
+      })
+      if (result.requestId) params.set('availabilityRequest', result.requestId)
+      router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}${params.toString()}`)
+    } catch {
+      setError('The availability request could not be prepared. Try again in a moment.')
+    } finally {
+      setAskingCourtId('')
+    }
+  }
+
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
       .from('lineup_scenarios')
@@ -4355,6 +4466,8 @@ function LineupBuilderContent() {
                     lockedPlayerIds={lockedPlayerIdSet}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
+                    onAskPlayers={askProposedCourtPlayers}
+                    askingPlayers={askingCourtId === slot.id}
                     focused={backupFocusSlot?.id === slot.id}
                   />
                 ))}
@@ -4401,6 +4514,8 @@ function LineupBuilderContent() {
                     lockedPlayerIds={new Set()}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
+                    onAskPlayers={undefined}
+                    askingPlayers={false}
                   />
                 ))}
               </div>
@@ -4928,6 +5043,8 @@ function SlotEditor({
   lockedPlayerIds,
   fixedFormat,
   competitionRules,
+  onAskPlayers,
+  askingPlayers,
   focused = false,
 }: {
   side: 'team' | 'opponent'
@@ -4943,11 +5060,19 @@ function SlotEditor({
   lockedPlayerIds: Set<string>
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
+  onAskPlayers?: (slot: LineupSlot) => void
+  askingPlayers: boolean
   focused?: boolean
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
   )
+  const selectedPlayers = slot.players.filter((player) => player.playerId && player.playerName.trim())
+  const askLabel = selectedPlayers.length === 2
+    ? 'Ask pair'
+    : selectedPlayers.length === 1
+      ? `Ask ${selectedPlayers[0].playerName.split(' ')[0]}`
+      : ''
 
   return (
     <div
@@ -5015,6 +5140,17 @@ function SlotEditor({
           </div>
         ))}
       </div>
+
+      {side === 'team' && onAskPlayers && selectedPlayers.length ? (
+        <div style={replacementHandoffActionsStyle}>
+          <GhostSmallBtn onClick={() => onAskPlayers(slot)} disabled={askingPlayers}>
+            {askingPlayers ? 'Preparing text...' : askLabel}
+          </GhostSmallBtn>
+          <span style={mutedTextStyle}>
+            Private availability text — the rest of the lineup stays flexible.
+          </span>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -219,7 +219,7 @@ export function resolveTeamCompetitionRules(input: {
   } else if (straightLevel) {
     ratingRule = 'straight_level'
     eligibilityTitle = `${formatLevel(competitionLevel)} level play`
-    eligibilityDetail = `Players must be eligible for the ${formatLevel(competitionLevel)} team level. Local and championship rules can differ, so published league rules remain the final check.`
+    eligibilityDetail = `Players may play at their own NTRP level or up. Higher-rated players cannot play down into the ${formatLevel(competitionLevel)} team level. Local and championship rules remain the final check.`
   }
 
   if (rulesOverride.eligibilityRule !== 'auto') {
@@ -232,7 +232,7 @@ export function resolveTeamCompetitionRules(input: {
       eligibilityDetail = 'Any saved roster player may be selected. Age, membership, or local restrictions remain in the published rules.'
     } else if (ratingRule === 'straight_level') {
       eligibilityTitle = `${formatLevel(competitionLevel)} level play`
-      eligibilityDetail = `Players must be eligible for the saved ${formatLevel(competitionLevel)} level.`
+      eligibilityDetail = `Players may play at their own NTRP level or up. Higher-rated players cannot play down into the saved ${formatLevel(competitionLevel)} level.`
     } else if (ratingRule === 'combined_level') {
       eligibilityTitle = `${formatLevel(competitionLevel)} combined doubles`
       eligibilityDetail = `Each pair's ratings may not exceed the saved ${formatLevel(competitionLevel)} combined level.`
@@ -310,7 +310,8 @@ export function isCompetitionPlayerRatingEligible(
   if (typeof playerRating !== 'number') return true
 
   if (rules.ratingRule === 'rated_lines') {
-    return typeof courtRating !== 'number' || Math.abs(playerRating - courtRating) < 0.01
+    // A player may move up to a higher-rated line, but may never play down.
+    return typeof courtRating !== 'number' || playerRating <= courtRating + 0.001
   }
 
   if (rules.ratingRule === 'combined_rated_lines' || rules.ratingRule === 'combined_level') {
@@ -323,7 +324,7 @@ export function isCompetitionPlayerRatingEligible(
   }
 
   if (rules.ratingRule === 'straight_level' && typeof rules.competitionLevel === 'number') {
-    return playerRating <= rules.competitionLevel && playerRating >= rules.competitionLevel - 0.5
+    return playerRating <= rules.competitionLevel + 0.001
   }
 
   return true
