@@ -5,12 +5,19 @@ import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecor
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordCheckpointForecastWithPace, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordObservedCheckpointPace, tennisRecordScheduledPageKindPlan, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
-import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
 
 describe('TennisRecord ingestion safety', () => {
+  it('keeps open campaign windows current without shortening a future end date', () => {
+    const now = new Date('2026-08-26T18:00:00.000Z')
+    expect(tennisRecordCampaignCurrentEndOn('2026-08-22', now)).toBe('2026-08-26')
+    expect(tennisRecordCampaignCurrentEndOn('2026-08-26', now)).toBe('2026-08-26')
+    expect(tennisRecordCampaignCurrentEndOn('2026-08-30', now)).toBe('2026-08-30')
+  })
+
   it('uses only a stated NTRP designation as a TiQ baseline, never a proprietary estimate', () => {
     expect(tennisRecordStatedNtrpBaseline('4.0 C')).toBe(4)
     expect(tennisRecordStatedNtrpBaseline('4.5 S')).toBe(4.5)
