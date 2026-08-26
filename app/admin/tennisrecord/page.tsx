@@ -18,6 +18,7 @@ type Status = {
   nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
   ratingProgress: { pending: number; cadence: 'overnight' | 'Wednesday' | 'paused' }
+  ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number }
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
@@ -103,6 +104,7 @@ export default function TennisRecordAdminPage() {
           ? `About ${weeklyEstimatedMinutes} min remaining`
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
   const ratingProgress = status?.ratingProgress
+  const ratingEvidence = status?.ratingEvidence
   const pipelineHealth = status?.pipelineHealth
   const ratingCadence = ratingProgress?.cadence === 'overnight'
     ? 'Overnight catch-up'
@@ -166,6 +168,20 @@ export default function TennisRecordAdminPage() {
             <span className="subtle-text">{ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} canonical match${ratingProgress.pending === 1 ? '' : 'es'} are queued for the existing TiQ rating engine.` : 'All currently promoted source matches are reflected in the latest TiQ rating pass.'}</span>
             <span className="subtle-text">{ratingProgress?.cadence === 'overnight' ? 'The historical mission recalculates ratings in a protected overnight batch.' : ratingProgress?.cadence === 'Wednesday' ? 'Weekly source refreshes recalculate ratings in the protected Wednesday batch.' : 'Resume automatic collection to restart scheduled TiQ rating catch-up.'} TennisRecord’s proprietary rating is never used.</span>
           </div>
+        </section>
+        <section aria-label="TiQ rating evidence" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
+          <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>TiQ rating evidence</strong>
+            <span className="subtle-text">Tracks factual USTA profile designations used to validate TiQ’s annual stay, move-up, and move-down signals. TennisRecord’s estimated rating is never used.</span>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Dated observations" value={ratingEvidence?.datedObservations ?? '—'} />
+            <Metric label="Computer-rated anchors" value={ratingEvidence?.computerRated ?? '—'} />
+            <Metric label="Self-rated entries" value={ratingEvidence?.selfRated ?? '—'} />
+            <Metric label="Players with two years" value={ratingEvidence?.playersWithMultipleYears ?? '—'} />
+            <Metric label="2025→2026 pairs" value={ratingEvidence?.paired2025To2026 ?? '—'} />
+          </div>
+          <p className="subtle-text" style={{ margin: '14px 0 0' }}>{ratingEvidence?.paired2025To2026 ? 'Annual comparison evidence is available for calibration review.' : 'Profile evidence is building automatically. TiQ keeps using its native match-based model until paired annual USTA outcomes can validate a calibration change.'}</p>
         </section>
         <section aria-label="TennisRecord data coverage" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>

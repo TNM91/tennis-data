@@ -31,6 +31,11 @@ type CoverageSummary = {
   unpromoted_team_history_count: number
   promoted_match_count: number
 }
+type NtrpObservation = {
+  canonical_player_id: string | null
+  designation: 'computer' | 'self' | 'unknown' | null
+  effective_date: string | null
+}
 // Historical backfill uses the Admin-configured safe ceiling. Requests remain
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
@@ -247,7 +252,7 @@ export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'a
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, lastSuccessfulRun, pending, conflicts, ratingPending, identities, campaigns, coverage] = await Promise.all([
+  const [settings, lastRun, lastSuccessfulRun, pending, conflicts, ratingPending, identities, campaigns, coverage, ntrpEvidence] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('completed_at').eq('status', 'completed').not('completed_at', 'is', null).order('started_at', { ascending: false }).limit(1).maybeSingle(),
@@ -257,8 +262,9 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
     service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
+    service.from('tennisrecord_ntrp_observations').select('canonical_player_id,designation,effective_date'),
   ])
-  if (settings.error || lastRun.error || lastSuccessfulRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
+  if (settings.error || lastRun.error || lastSuccessfulRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error || ntrpEvidence.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
     let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
@@ -305,6 +311,15 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   )
   const safetyThrottle = tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null)
   const collectorSettings = settings.data as Settings | null
+  const observations = (ntrpEvidence.data || []) as NtrpObservation[]
+  const yearsByCanonicalPlayer = new Map<string, Set<string>>()
+  for (const observation of observations) {
+    if (!observation.canonical_player_id || !observation.effective_date) continue
+    const years = yearsByCanonicalPlayer.get(observation.canonical_player_id) || new Set<string>()
+    years.add(observation.effective_date.slice(0, 4))
+    yearsByCanonicalPlayer.set(observation.canonical_player_id, years)
+  }
+  const paired2025To2026 = [...yearsByCanonicalPlayer.values()].filter((years) => years.has('2025') && years.has('2026')).length
   return {
     settings: settings.data,
     lastRun: lastRun.data,
@@ -365,6 +380,14 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       source_team_history_count: 0,
       unpromoted_team_history_count: 0,
       promoted_match_count: 0,
+    },
+    ratingEvidence: {
+      observations: observations.length,
+      computerRated: observations.filter((observation) => observation.designation === 'computer').length,
+      selfRated: observations.filter((observation) => observation.designation === 'self').length,
+      datedObservations: observations.filter((observation) => Boolean(observation.effective_date)).length,
+      playersWithMultipleYears: [...yearsByCanonicalPlayer.values()].filter((years) => years.size > 1).length,
+      paired2025To2026,
     },
     identityReview: identities.data || [],
     campaigns: campaignRows.map((campaign) => ({
