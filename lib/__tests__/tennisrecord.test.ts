@@ -108,9 +108,20 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('derives the winner from factual set scores when the source omits a winner marker', () => {
-    const scoreOnly = fixture.replace(/\sclass="winner"/gi, '')
+    const scoreOnly = fixture.replace('<span>Winner</span>', '')
     const parsed = parseTennisRecordMatchPage(scoreOnly, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches[0]?.winnerSide).toBe('A')
+  })
+
+  it('uses the directional winner arrow over a 1-0 deciding-tiebreak marker', () => {
+    const visitingWinner = fixture
+      .replace('<span>Winner</span>', '')
+      .replace(
+        '<td>6 - 3<br>6 - 7<br>1 - 0</td><td><a href="/adult/profile.aspx?playername=John+Uy">',
+        '<td></td><td>7 - 6<br>5 - 7<br>1 - 0</td><td style="text-align:right"><img src="/images/arrowhead_left.png" alt="Winner" /></td><td></td><td><a href="/adult/profile.aspx?playername=John+Uy">',
+      )
+    const parsed = parseTennisRecordMatchPage(visitingWinner, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
+    expect(parsed.matches[0]).toMatchObject({ scoreText: '7-6 5-7 1-0', winnerSide: 'B' })
   })
 
   it('discovers only explicitly supported public record URLs', () => {

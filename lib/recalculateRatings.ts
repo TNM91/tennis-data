@@ -27,6 +27,8 @@ type MatchRow = {
   match_source?: MatchSource | null
   rating_eligible?: boolean | null
   created_at?: string | null
+  league_name?: string | null
+  flight?: string | null
 }
 
 type MatchPlayerRow = {
@@ -78,6 +80,8 @@ type LegacyRatingSnapshotInsert = Omit<
 type ParsedSetScore = {
   sideA: number
   sideB: number
+  /** A deciding match tiebreak shown as `1-0`, not a one-game tennis set. */
+  isMatchTiebreak?: boolean
 }
 
 export type ScoreMetrics = {
@@ -386,7 +390,9 @@ async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
         winner_side,
         match_source,
         rating_eligible,
-        created_at
+        created_at,
+        league_name,
+        flight
       `)
       .not('match_type', 'is', null)
       .not('winner_side', 'is', null)
@@ -521,10 +527,10 @@ function processDoublesMatch(
   const scoreMetrics = parseScoreMetrics(match.score, match.winner_side)
 
   // TIQ track — all matches
-  const tiqTeamARating = average(teamA.map((p) => p.doublesDynamic))
-  const tiqTeamBRating = average(teamB.map((p) => p.doublesDynamic))
-  const tiqTeamAOverall = average(teamA.map((p) => p.overallDynamic))
-  const tiqTeamBOverall = average(teamB.map((p) => p.overallDynamic))
+  const tiqTeamARating = average(teamA.map((p) => competitionAdjustedRating(p, p.doublesDynamic, match)))
+  const tiqTeamBRating = average(teamB.map((p) => competitionAdjustedRating(p, p.doublesDynamic, match)))
+  const tiqTeamAOverall = average(teamA.map((p) => competitionAdjustedRating(p, p.overallDynamic, match)))
+  const tiqTeamBOverall = average(teamB.map((p) => competitionAdjustedRating(p, p.overallDynamic, match)))
   const tiqExpectedA = expectedScore(tiqTeamARating, tiqTeamBRating)
   const tiqPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, tiqTeamARating, tiqTeamBRating)
   const tiqMultiplier = buildMatchMultiplier(tiqTeamARating, tiqTeamBRating, actualA, actualB, recencyWeight)
@@ -581,10 +587,10 @@ function processDoublesMatch(
 
   // USTA track — USTA matches only
   if ((match.match_source ?? 'usta') === 'usta') {
-    const ustaTeamARating = average(teamA.map((p) => p.doublesUstaDynamic))
-    const ustaTeamBRating = average(teamB.map((p) => p.doublesUstaDynamic))
-    const ustaTeamAOverall = average(teamA.map((p) => p.overallUstaDynamic))
-    const ustaTeamBOverall = average(teamB.map((p) => p.overallUstaDynamic))
+    const ustaTeamARating = average(teamA.map((p) => competitionAdjustedRating(p, p.doublesUstaDynamic, match)))
+    const ustaTeamBRating = average(teamB.map((p) => competitionAdjustedRating(p, p.doublesUstaDynamic, match)))
+    const ustaTeamAOverall = average(teamA.map((p) => competitionAdjustedRating(p, p.overallUstaDynamic, match)))
+    const ustaTeamBOverall = average(teamB.map((p) => competitionAdjustedRating(p, p.overallUstaDynamic, match)))
     const ustaExpectedA = expectedScore(ustaTeamARating, ustaTeamBRating)
     const ustaPerformance = getScoreAwarePerformance(scoreMetrics, match.winner_side, ustaTeamARating, ustaTeamBRating)
     const ustaMultiplier = buildMatchMultiplier(ustaTeamARating, ustaTeamBRating, actualA, actualB, recencyWeight)
@@ -833,8 +839,9 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     return fallback
   }
 
-  const totalGamesA = sets.reduce((sum, set) => sum + set.sideA, 0)
-  const totalGamesB = sets.reduce((sum, set) => sum + set.sideB, 0)
+  const scoredSets = sets.filter((set) => !set.isMatchTiebreak)
+  const totalGamesA = scoredSets.reduce((sum, set) => sum + set.sideA, 0)
+  const totalGamesB = scoredSets.reduce((sum, set) => sum + set.sideB, 0)
   const totalGames = totalGamesA + totalGamesB
 
   if (totalGames <= 0) {
@@ -855,7 +862,7 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
   let winnerSetCount = 0
   let loserSetCount = 0
 
-  for (const set of sets) {
+  for (const set of scoredSets) {
     const winnerGamesInSet = winnerSide === 'A' ? set.sideA : set.sideB
     const loserGamesInSet = winnerSide === 'A' ? set.sideB : set.sideA
 
@@ -887,7 +894,7 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
   }
 
   const straightSetsWin = winnerSetCount >= 2 && loserSetCount === 0
-  const decidingSetPlayed = sets.length >= 3 || (winnerSetCount > 0 && loserSetCount > 0)
+  const decidingSetPlayed = sets.length >= 3 || sets.some((set) => set.isMatchTiebreak) || (winnerSetCount > 0 && loserSetCount > 0)
 
   const multiplier = roundRating(
     clampNumber(
@@ -1069,7 +1076,31 @@ function parseSetToken(token: string): ParsedSetScore | null {
     return null
   }
 
+  // TennisRecord displays a deciding match tiebreak as 1-0. It decides the
+  // match but is not a one-game set and must not distort game-share scoring.
+  if ((sideA === 1 && sideB === 0) || (sideA === 0 && sideB === 1)) {
+    return { sideA, sideB, isMatchTiebreak: true }
+  }
+
   return { sideA, sideB }
+}
+
+/**
+ * A court's stated flight is factual match context, not a player rating. When
+ * a participant has no verified NTRP baseline yet, do not let the provisional
+ * 3.5 default make a 4.5 court look like a lopsided matchup. Verified player
+ * ratings remain untouched and TennisRecord's proprietary rating is never used.
+ */
+export function matchCompetitionRatingFloor(match: Pick<MatchRow, 'league_name' | 'flight'>) {
+  const context = [match.flight, match.league_name].filter((value): value is string => Boolean(value)).join(' ')
+  const levels = [...context.matchAll(/\b([1-7](?:\.0|\.5))\b/g)].map((value) => Number(value[1]))
+  return levels.length ? Math.max(...levels) : null
+}
+
+export function competitionAdjustedRating(player: Pick<WorkingPlayer, 'hasVerifiedBaseline'>, dynamicRating: number, match: Pick<MatchRow, 'league_name' | 'flight'>) {
+  const floor = matchCompetitionRatingFloor(match)
+  if (player.hasVerifiedBaseline || floor === null) return dynamicRating
+  return Math.max(dynamicRating, floor)
 }
 
 function expectedScore(playerRating: number, opponentRating: number) {

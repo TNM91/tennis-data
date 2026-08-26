@@ -4,6 +4,8 @@ import {
   applyVerifiedBaselineGuard,
   applyDoublesPartnerBurdenGuard,
   parseScoreMetrics,
+  competitionAdjustedRating,
+  matchCompetitionRatingFloor,
   getScoreAwarePerformance,
   getRecencyWeight,
   getProvisionalkMultiplier,
@@ -172,6 +174,16 @@ describe('parseScoreMetrics', () => {
     expect(m.straightSetsWin).toBe(false)
   })
 
+  it('keeps a 1-0 deciding match tiebreak out of game-share scoring', () => {
+    const m = parseScoreMetrics('7-6 5-7 1-0', 'B')
+    expect(m.sets).toHaveLength(3)
+    expect(m.decidingSetPlayed).toBe(true)
+    expect(m.totalGamesA).toBe(12)
+    expect(m.totalGamesB).toBe(13)
+    expect(m.gamesWonByWinner).toBe(13)
+    expect(m.gamesWonByLoser).toBe(12)
+  })
+
   it('super tiebreak (10-8) is ignored, only regular sets counted', () => {
     const m = parseScoreMetrics('6-4, 4-6, 10-8', 'A')
     expect(m.sets).toHaveLength(2)
@@ -199,6 +211,15 @@ describe('parseScoreMetrics', () => {
     const straight = parseScoreMetrics('6-3, 6-3', 'A')
     const threeSet = parseScoreMetrics('6-3, 3-6, 6-3', 'A')
     expect(straight.multiplier).toBeGreaterThan(threeSet.multiplier)
+  })
+})
+
+describe('competition rating context', () => {
+  it('uses the stated flight only to protect an unverified default from depressing a court expectation', () => {
+    const match = { league_name: '2026 Tri-Level 18+ Missouri Valley M 4.5', flight: '4.5' }
+    expect(matchCompetitionRatingFloor(match)).toBe(4.5)
+    expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: false }), 3.5, match)).toBe(4.5)
+    expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: true }), 4.1, match)).toBe(4.1)
   })
 })
 

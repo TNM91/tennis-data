@@ -123,6 +123,23 @@ function parseWinnerSide(html: string, a: TennisRecordParticipant[]) {
 }
 
 /**
+ * Current public match-result pages put an arrow beside the score rather than
+ * inside a participant cell. The arrow points at the winning side: a left
+ * arrow after the score identifies the visiting/right (B) side, while a right
+ * arrow before it identifies the home/left (A) side. This is stronger evidence
+ * than counting set tokens, especially where a match tiebreak is displayed as
+ * the conventional `1-0` marker.
+ */
+function winnerFromResultCells(cells: string[], scoreCellIndex: number) {
+  if (scoreCellIndex < 0) return null
+  const beforeScore = cells.slice(0, scoreCellIndex).join(' ')
+  const afterScore = cells.slice(scoreCellIndex + 1).join(' ')
+  if (/arrowhead[_-]?right\.png/i.test(beforeScore)) return 'A' as const
+  if (/arrowhead[_-]?left\.png/i.test(afterScore)) return 'B' as const
+  return null
+}
+
+/**
  * Team membership is intentionally stricter than participant parsing. A
  * player becomes a source roster observation only when a team-profile page
  * contains a table explicitly labelled as a roster. Match-result participants
@@ -191,10 +208,11 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const right = parseProfileLinks(profileCells[profileCells.length - 1] || '', 'B', 1)
     const expected = discipline === 'singles' ? 1 : 2
     if (left.length !== expected || right.length !== expected) continue
-    const scoreCell = resultRow.find((cell) => /\b\d+\s*-\s*\d+\b/.test(cell)) || ''
+    const scoreCellIndex = resultRow.findIndex((cell) => /\b\d+\s*-\s*\d+\b/.test(cell))
+    const scoreCell = scoreCellIndex >= 0 ? resultRow[scoreCellIndex] : ''
     const scoreText = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
     const participants = [...left, ...right]
-    const winnerSide = parseWinnerSide(profileCells[0] || '', left) || winnerFromScoreText(scoreText)
+    const winnerSide = winnerFromResultCells(resultRow, scoreCellIndex) || parseWinnerSide(profileCells[0] || '', left) || winnerFromScoreText(scoreText)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
     // Do not turn a page heading or league label into a team. A court result
     // only becomes staging evidence when the event context is complete.
