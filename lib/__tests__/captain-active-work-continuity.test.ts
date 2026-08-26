@@ -44,7 +44,8 @@ describe('Captain active-work continuity', () => {
     const lineup = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
     const room = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
 
-    expect(lineup).toContain("matchId: params.get('match') || resumeState?.matchId || ''")
+    expect(lineup).toContain('const matchContext = resolveCaptainMatchContext(params, resumeState)')
+    expect(lineup).toContain('matchId: matchContext.matchId')
     expect(lineup).toContain("resumeState?.scenarioId || ''")
     expect(lineup).toContain('const scenarioId = currentScenarioId || prefillScenarioId || undefined')
     expect(lineup).toContain('}, userId, session?.access_token)')

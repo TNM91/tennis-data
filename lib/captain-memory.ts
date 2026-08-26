@@ -257,3 +257,21 @@ export function buildCaptainScopedHref(
   const query = params.toString()
   return query ? `${path}?${query}` : path
 }
+
+/**
+ * A scoped entry from a Team page means "start this team's next Match Week".
+ * Do not quietly carry an unrelated, old match from the captain's last tool
+ * session into that fresh team handoff.
+ */
+export function resolveCaptainMatchContext(
+  params: URLSearchParams,
+  resumeState: CaptainResumeState | null | undefined,
+) {
+  const hasFreshTeamScope = ['layer', 'team', 'league', 'flight']
+    .some((key) => Boolean(params.get(key)?.trim()))
+  return {
+    eventDate: params.get('date') || (hasFreshTeamScope ? '' : resumeState?.eventDate || ''),
+    opponentTeam: params.get('opponent') || (hasFreshTeamScope ? '' : resumeState?.opponentTeam || ''),
+    matchId: params.get('match') || (hasFreshTeamScope ? '' : resumeState?.matchId || ''),
+  }
+}
