@@ -512,6 +512,14 @@ function availabilityRank(status: string | null | undefined) {
   return 2
 }
 
+function availabilityLabel(status: string | null | undefined) {
+  const normalized = (status ?? '').trim().toLowerCase()
+  if (normalized === 'available' || normalized === 'yes' || normalized === 'in' || normalized === 'confirmed') return 'Confirmed'
+  if (normalized === 'maybe' || normalized === 'limited') return 'Maybe'
+  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out' || normalized === 'declined') return 'Out'
+  return 'No response'
+}
+
 function reliabilityWeight(status: string | null | undefined) {
   const rank = availabilityRank(status)
   if (rank === 0) return 1
@@ -1241,7 +1249,7 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     replacementCourt: params.get('court') || '',
     mode: params.get('mode') || '',
     source: params.get('source') || '',
-    availabilityOnly: params.get('source') === 'team_room' && params.get('availability') === 'replies',
+      availabilityOnly: false,
   }
 }
 
@@ -1302,7 +1310,7 @@ function LineupBuilderContent() {
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
-  const [hideUnavailable, setHideUnavailable] = useState(true)
+  const [hideUnavailable, setHideUnavailable] = useState(false)
   const replacementHandoff = useMemo(
     () => initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
       ? {
@@ -1811,7 +1819,6 @@ function LineupBuilderContent() {
         }
       })
       .filter((player) => {
-        if (flight && player.flight && player.flight !== flight) return false
         if (availabilityOnly && availabilityForSelection.length > 0) return availabilityMap.has(player.id)
         return true
       })
@@ -1830,7 +1837,7 @@ function LineupBuilderContent() {
         if (ratingB !== ratingA) return ratingB - ratingA
         return a.name.localeCompare(b.name)
       })
-  }, [players, availabilityMap, flight, availabilityOnly, availabilityForSelection.length, hideUnavailable])
+  }, [players, availabilityMap, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
   const myRosterPlayerIds = useMemo(
     () =>
@@ -1881,6 +1888,21 @@ function LineupBuilderContent() {
       }))
     return [...importedRoster, ...manualRoster]
   }, [availablePlayerPool, myRosterEligibilityByPlayerId, myRosterPlayerIds, scopedManualRosterPlayers])
+
+  const myAvailabilitySummary = useMemo(() => {
+    let confirmed = 0
+    let maybe = 0
+    let out = 0
+    let noResponse = 0
+    for (const player of myPlayerPool) {
+      const label = availabilityLabel(player.availabilityStatus)
+      if (label === 'Confirmed') confirmed += 1
+      else if (label === 'Maybe') maybe += 1
+      else if (label === 'Out') out += 1
+      else noResponse += 1
+    }
+    return { confirmed, maybe, out, noResponse }
+  }, [myPlayerPool])
 
   const opponentPlayerPool = useMemo<PoolPlayer[]>(() => {
     return filterPlayerPoolByRoster(
@@ -4113,11 +4135,11 @@ function LineupBuilderContent() {
               <div style={toggleRowStyle}>
                 <label style={checkLabelStyle}>
                   <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
-                  Availability-only player pool
+                  Show only players who replied
                 </label>
                 <label style={checkLabelStyle}>
                   <input type="checkbox" checked={hideUnavailable} onChange={(e) => setHideUnavailable(e.target.checked)} />
-                  Hide unavailable players
+                  Hide players marked out
                 </label>
               </div>
             </section>
@@ -4719,12 +4741,17 @@ function LineupBuilderContent() {
               <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Player pool</p>
-                  <h3 style={sectionTitleSmall}>Available players</h3>
+                  <h3 style={sectionTitleSmall}>Team roster</h3>
                 </div>
                 <span style={miniPillSlateStyle}>{myPlayerPool.length} team players</span>
               </summary>
 
               <div style={stackStyleCompact}>
+                {myPlayerPool.length ? (
+                  <p style={subtleHelperTextStyle}>
+                    {myAvailabilitySummary.confirmed} confirmed · {myAvailabilitySummary.maybe} maybe · {myAvailabilitySummary.noResponse} no response · {myAvailabilitySummary.out} out. No-response players remain selectable; Save &amp; ask players sends their confirmation request.
+                  </p>
+                ) : null}
                 {myPlayerPool.length ? myPlayerPool.map((player) => {
                   const rStatus = getLineupRatingStatus(player)
                   const eligibilityLabels = getPlayerEligibilitySourceLabel({
@@ -4745,7 +4772,7 @@ function LineupBuilderContent() {
 
                       <div style={rightPillStackStyle}>
                         <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
-                          {player.availabilityStatus || 'unknown'}
+                          {availabilityLabel(player.availabilityStatus)}
                         </span>
                         {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
                         {teamAssignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
@@ -4868,7 +4895,7 @@ function SlotEditor({
 
                 return (
                   <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                    {poolPlayer.name} - {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
+                    {poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
                   </option>
                 )
               })}
