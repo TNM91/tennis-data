@@ -18,7 +18,7 @@ type Status = {
   nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
   weeklyForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
-  ratingProgress: { pending: number; baselineRefreshPending: boolean; lastRecalculatedAt: string | null; cadence: 'overnight' | 'Wednesday' | 'paused' }
+  ratingProgress: { pending: number; baselineRefreshPending: boolean; baselineRefreshRequestedAt: string | null; lastRecalculatedAt: string | null; cadence: 'overnight' | 'Wednesday' | 'paused' }
   ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number }
   ratingAlignment: { verifiedPlayers: number; atOrNearBaseline: number; buildingAboveBaseline: number; belowBaseline: number; materiallyBelowBaseline: number }
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
@@ -158,6 +158,7 @@ export default function TennisRecordAdminPage() {
           <Metric label="Promoted matches" value={String(run.canonical_matches_created ?? '—')} />
           <Metric label="TiQ ratings waiting" value={ratingProgress ? ratingProgress.pending.toLocaleString() : '—'} />
           <Metric label="Baseline refresh" value={ratingProgress?.baselineRefreshPending ? 'Queued' : 'Current'} />
+          <Metric label="Baseline queued at" value={ratingProgress?.baselineRefreshPending ? formatDateTime(ratingProgress.baselineRefreshRequestedAt) : '—'} />
           <Metric label="Last TiQ rating pass" value={formatDateTime(ratingProgress?.lastRecalculatedAt)} />
           <Metric label="Rating refresh" value={ratingCadence} />
           <Metric label="Blocked requests" value={String(run.blocked_requests ?? '—')} />
@@ -175,7 +176,7 @@ export default function TennisRecordAdminPage() {
         <section aria-label="TiQ rating catch-up" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,0.28)', background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))' }}>
           <div style={{ display: 'grid', gap: 4 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>TiQ rating catch-up</strong>
-            <span className="subtle-text">{ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} canonical match${ratingProgress.pending === 1 ? '' : 'es'} are queued for the existing TiQ rating engine.` : ratingProgress?.baselineRefreshPending ? 'A confirmed USTA baseline update is queued for the next protected TiQ rating pass.' : 'All currently promoted source matches are reflected in the latest TiQ rating pass.'}</span>
+            <span className="subtle-text">{ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} canonical match${ratingProgress.pending === 1 ? '' : 'es'} are queued for the existing TiQ rating engine.` : ratingProgress?.baselineRefreshPending ? `A confirmed USTA baseline update was captured ${formatDateTime(ratingProgress.baselineRefreshRequestedAt)} and is queued for the next protected TiQ rating pass.` : 'All currently promoted source matches are reflected in the latest TiQ rating pass.'}</span>
             <span className="subtle-text">{ratingProgress?.cadence === 'overnight' ? 'The historical mission recalculates ratings in a protected overnight batch.' : ratingProgress?.cadence === 'Wednesday' ? 'Weekly source refreshes recalculate ratings in the protected Wednesday batch.' : 'Resume automatic collection to restart scheduled TiQ rating catch-up.'} TennisRecord’s proprietary rating is never used.</span>
           </div>
         </section>
