@@ -513,6 +513,13 @@
   line-height: 1.2;
 }
 
+.nextCourtEventMeta small {
+  color: #a8bbd0;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .nextCourtEventMeta span {
   display: inline-flex;
   align-items: center;

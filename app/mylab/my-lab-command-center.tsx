@@ -19,6 +19,7 @@ type NextCourtEvent = {
   detail: string
   href: string
   cta: string
+  readiness: string
 }
 
 type FirstServeStep = {
@@ -231,6 +232,7 @@ export default function MyLabCommandCenter({
           </div>
           <div className={styles.nextCourtEventMeta}>
             <strong>{nextCourtEvent.dateLabel}</strong>
+            <small>{nextCourtEvent.readiness}</small>
             <span>{nextCourtEvent.cta} <i aria-hidden="true">→</i></span>
           </div>
         </Link>
