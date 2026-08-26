@@ -180,6 +180,17 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('.recentResultScore > strong')
   })
 
+  it('keeps match tape compact while making its score interpretation and full participant context available', () => {
+    expect(page).toContain('function getScoreResultRead(score: string)')
+    expect(page).toContain("decisive ${match.result === 'W' ? 'win' : 'loss'}")
+    expect(page).toContain("tight ${match.result === 'W' ? 'win' : 'loss'}")
+    expect(page).toContain('selectedPublicMatchImpactId')
+    expect(page).toContain("'Match details'")
+    expect(page).toContain('aria-label="Match participants"')
+    expect(page).toContain('<span>Opponents</span>')
+    expect(styles).toContain('.recentResultDetailAction')
+  })
+
   it('keeps the compact trend primary on phones and makes the full chart optional', () => {
     expect(page).toContain('const [showMobileRatingHistory, setShowMobileRatingHistory] = useState(false)')
     expect(page).toContain('const showDetailedRatingHistory = !isMobile || showMobileRatingHistory')

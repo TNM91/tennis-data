@@ -1399,7 +1399,7 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  min-height: 132px;
+  min-height: 142px;
   padding: 14px;
 }
 
@@ -1494,6 +1494,27 @@
   font-weight: 800;
   line-height: 1.35;
   text-align: right;
+}
+
+.recentResultDetailAction {
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid rgba(116, 190, 255, 0.26);
+  border-radius: 9px;
+  color: #bfdbfe;
+  background: rgba(6, 19, 36, 0.76);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.recentResultDetailAction:hover,
+.recentResultDetailAction:focus-visible {
+  border-color: rgba(155, 225, 29, 0.62);
+  color: #d9f84a;
+  outline: none;
 }
 
 .recentResultScore > strong {
@@ -2583,6 +2604,10 @@
     width: 100%;
     padding-top: 10px;
     border-top: 1px solid rgba(116, 190, 255, 0.12);
+  }
+
+  .recentResultDetailAction {
+    justify-self: end;
   }
 
   .recentResultScore {
