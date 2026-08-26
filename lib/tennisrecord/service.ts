@@ -40,11 +40,10 @@ type CoverageSummary = {
 // bootstrap step-up after sustained clean checkpoints, not parallel crawling.
 const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
-// Replaying already-captured pages does not contact the source. A small
-// bounded batch makes previously discovered public profile URLs available to
-// the normal, rate-limited queue quickly enough to recover stated NTRP
-// evidence without adding external request pressure.
-const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 1
+// Replaying already-captured pages does not contact the source. Two local-only
+// pages per checkpoint recover stated NTRP evidence from existing profiles
+// without increasing external request pressure.
+const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
@@ -76,11 +75,10 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
-// Revision 4 retains stated NTRP designations as factual provenance and uses
-// them as an initial TiQ baseline only for source-created provisional players.
-// TennisRecord's estimated dynamic rating remains metadata only. Captured
-// public pages replay gradually through the existing bounded checkpoint.
-const TENNISRECORD_PARSER_REVISION = 4
+// Revision 5 retains stated NTRP designations from player profiles even when
+// the profile also contains match rows. TennisRecord's estimated dynamic
+// rating remains metadata only. Captured pages replay gradually from cache.
+const TENNISRECORD_PARSER_REVISION = 5
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT

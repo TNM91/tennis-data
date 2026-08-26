@@ -40,6 +40,25 @@ describe('TennisRecord ingestion safety', () => {
     })])
   })
 
+  it('retains profile designation evidence when the profile also contains match rows', () => {
+    const profileUrl = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Michael+Ho'
+    const profileWithResults = `
+      <h1>Michael Ho</h1>
+      <div>Michael Ho (Saint Charles, MO)</div>
+      <div>4.0 C 12/31/2025</div>
+      ${fixture}`
+
+    const parsed = parseTennisRecordMatchPage(profileWithResults, profileUrl)
+
+    expect(parsed.matches.length).toBeGreaterThan(0)
+    expect(parsed.players).toContainEqual(expect.objectContaining({
+      name: 'Michael Ho',
+      ntrpLabel: '4.0 C',
+      ntrpDesignation: 'computer',
+      ntrpEffectiveDate: '2025-12-31',
+    }))
+  })
+
   it('parses representative singles, doubles, and set scores without treating published ratings as a rating input', () => {
     const parsed = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches).toHaveLength(2)

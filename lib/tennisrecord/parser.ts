@@ -217,10 +217,11 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
       city: '', state: '', ntrpLabel: '', sourceUrl: member.sourceUrl,
     })
   }
-  // Only player profiles are eligible to provide player-level provenance when
-  // there are no court rows. A history page is discovery-only, so its display
-  // of an external rating can never enter staging, reconciliation, or ratings.
-  if (!players.size && tennisRecordRecordPageKind(sourceUrl) === 'player') {
+  // A player profile is the only source page eligible to provide its owner's
+  // factual USTA designation. Some profiles also render match rows, so do not
+  // discard that profile evidence merely because those rows created players.
+  // History pages remain discovery-only and never provide rating provenance.
+  if (tennisRecordRecordPageKind(sourceUrl) === 'player') {
     const url = new URL(sourceUrl)
     const name = getText(html.match(/<(?:h1|h2)[^>]*>([\s\S]*?)<\/(?:h1|h2)>/i)?.[1] || '') || url.searchParams.get('playername')?.replace(/\+/g, ' ') || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
