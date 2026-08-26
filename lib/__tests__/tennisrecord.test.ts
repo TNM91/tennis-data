@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -341,6 +341,14 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordFailureDisposition('network timeout', 2)).toBe('retry')
     expect(tennisRecordFailureDisposition('fetch failed', 3)).toBe('quarantine')
     expect(tennisRecordFailureDisposition('Unexpected result-page markup', 0)).toBe('quarantine')
+  })
+
+  it('spaces ordinary transient retries so one flaky page cannot monopolize a checkpoint', () => {
+    const now = Date.parse('2026-08-26T13:00:00.000Z')
+    expect(tennisRecordTransientRetryAt('fetch failed', 0, now)).toBe('2026-08-26T13:06:00.000Z')
+    expect(tennisRecordTransientRetryAt('network timeout', 2, now)).toBe('2026-08-26T13:06:00.000Z')
+    expect(tennisRecordTransientRetryAt('fetch failed', 3, now)).toBeNull()
+    expect(tennisRecordTransientRetryAt('Unexpected result-page markup', 0, now)).toBeNull()
   })
 
   it('schedules only bounded deferred retries for exhausted transport failures', () => {
