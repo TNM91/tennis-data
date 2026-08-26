@@ -258,15 +258,25 @@ export function buildCaptainScopedHref(
   return query ? `${path}?${query}` : path
 }
 
+function isPastCaptainMatchDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const matchDay = new Date(`${value}T12:00:00`).getTime()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Number.isFinite(matchDay) && matchDay < today.getTime()
+}
+
 /**
  * A new Lineup Builder entry always starts at the next Match Week. A saved
  * match is restored only by an explicit date/opponent/match link (such as
  * Continue), never by a generic Teams or Captain shortcut.
  */
 export function resolveCaptainMatchContext(params: URLSearchParams) {
+  const eventDate = params.get('date') || ''
+  const isHistorical = isPastCaptainMatchDate(eventDate)
   return {
-    eventDate: params.get('date') || '',
-    opponentTeam: params.get('opponent') || '',
-    matchId: params.get('match') || '',
+    eventDate: isHistorical ? '' : eventDate,
+    opponentTeam: isHistorical ? '' : (params.get('opponent') || ''),
+    matchId: isHistorical ? '' : (params.get('match') || ''),
   }
 }

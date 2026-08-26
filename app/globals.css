@@ -1462,6 +1462,22 @@ hr {
 }
 
 @media (max-width: 767px) {
+  /* Mobile text safety contract: UI must reflow before it clips or forces words vertically. */
+  #main-content,
+  #main-content * {
+    min-inline-size: 0;
+  }
+
+  #main-content :is(button, a, label, [role='button'], input, select, textarea) {
+    max-inline-size: 100%;
+  }
+
+  #main-content :is(button, a, label, [role='button']) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
   h1,
   h2,
   h3,
