@@ -1214,6 +1214,12 @@ function PlayerProfileContent() {
   const trackedRecordLabel = hasTrackedMatches ? `${wins}-${losses}` : '--'
   const trackedWinRateLabel = hasTrackedMatches ? `${winPct}%` : '--'
   const trackedFormLabel = hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'
+  const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : 'Verified USTA level'
+  const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : 'Verified USTA'
+  const tiqReadLabel = `TIQ ${ratingViewLabel} read`
+  const tiqReadNote = canViewExactTiqRating
+    ? 'Current performance signal from reviewed results.'
+    : 'Exact TiQ read is available with Player.'
   const profileReadTitle = hasTrackedMatches
     ? `${ratingStatus}. ${trackedRecordLabel} across ${totalMatches} tracked match${totalMatches === 1 ? '' : 'es'}.`
     : isRosterOnlyProfile
@@ -1785,14 +1791,14 @@ function PlayerProfileContent() {
 
         <section className={profileStory.profileGlanceStrip} aria-label="Player at a glance">
           <div>
-            <span>TIQ</span>
+            <span>TIQ read</span>
             <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
-            <small>{ratingViewLabel}</small>
+            <small>{canViewExactTiqRating ? `${ratingViewLabel} signal` : 'Player member view'}</small>
           </div>
           <div>
-            <span>USTA</span>
+            <span>{officialUstaShortRead}</span>
             <strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong>
-            <small>Current level</small>
+            <small>Official level</small>
           </div>
           <div>
             <span>Record</span>
@@ -1908,9 +1914,9 @@ function PlayerProfileContent() {
 
               <div className={profileStory.heroMain}>
                 <div className={profileStory.ratingBlock}>
-                  <span>TIQ {ratingViewLabel}</span>
+                  <span>{tiqReadLabel}</span>
                   <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
-                  <small>{hasTrackedMatches ? ratingStatus : 'Holding'}</small>
+                  <small>{hasTrackedMatches ? ratingStatus : tiqReadNote}</small>
                   {!isSelfRatedProfile ? (
                     <div className={profileStory.ratingTrajectory} aria-label={`USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}`}>
                       <span>{baseRating.toFixed(1)}</span>
@@ -1924,6 +1930,18 @@ function PlayerProfileContent() {
                   <span>{heroEyebrow}</span>
                   <h2>{heroStoryTitle}</h2>
                   <p>{heroStoryBody}</p>
+                  <div className={profileStory.ratingReadGuide} aria-label="Rating read guide">
+                    <div>
+                      <span>{officialUstaRead}</span>
+                      <strong>{isSelfRatedProfile ? 'Pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
+                      <small>Official designation and level.</small>
+                    </div>
+                    <div>
+                      <span>{tiqReadLabel}</span>
+                      <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
+                      <small>{tiqReadNote}</small>
+                    </div>
+                  </div>
                   {isPublicExplorerProfile ? (
                     <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
                       <div>
@@ -1972,7 +1990,7 @@ function PlayerProfileContent() {
 
             <div className={profileStory.storyFooter}>
               <div className={profileStory.ratingMeta} aria-label="Player rating context">
-                <div><span>USTA</span><strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong></div>
+                <div><span>{officialUstaShortRead}</span><strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong></div>
                 <div><span>Confidence</span><strong>{hasTrackedMatches ? confidence : 'Baseline'}</strong></div>
                 <div><span>Form</span><strong>{hasTrackedMatches ? trackedFormLabel : 'New'}</strong></div>
                 <div><span>Reviewed</span><strong>{totalMatches}</strong></div>
