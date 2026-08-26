@@ -1,6 +1,7 @@
 export type TennisRecordDiscipline = 'singles' | 'doubles'
 export type TennisRecordSide = 'A' | 'B'
 export type TennisRecordSource = 'admin_verified' | 'captain_upload' | 'player_upload' | 'tenaceiq' | 'tennisrecord'
+export type TennisRecordNtrpDesignation = 'computer' | 'self' | 'unknown'
 
 export type TennisRecordParticipant = {
   name: string
@@ -31,6 +32,7 @@ export type TennisRecordPlayer = {
   city: string
   state: string
   ntrpLabel: string
+  ntrpDesignation?: TennisRecordNtrpDesignation
   ntrpEffectiveDate?: string
   publishedRating?: number
   sourceUrl: string
