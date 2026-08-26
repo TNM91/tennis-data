@@ -23,6 +23,18 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('router.push(teamRoomCardHref)')
   })
 
+  it('lets a captain privately ask one proposed player or a pair before the rest of the lineup is set', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(source).toContain('async function askProposedCourtPlayers(slot: LineupSlot)')
+    expect(source).toContain('slots: [slot]')
+    expect(source).toContain('const [askingCourtId, setAskingCourtId] = useState(\'\')')
+    expect(source).toContain('onAskPlayers={askProposedCourtPlayers}')
+    expect(source).toContain("? 'Ask pair'")
+    expect(source).toContain('Private availability text — the rest of the lineup stays flexible.')
+    expect(source).toContain("focus: 'waiting'")
+  })
+
   it('returns to the exact Team Room card before the captain sends the lineup', () => {
     const builder = readSource('app/captain/lineup-builder/page.tsx')
     const room = readSource('app/team-room/page.tsx')

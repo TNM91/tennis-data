@@ -37,9 +37,17 @@ describe('competition rules', () => {
     const rules = resolveTeamCompetitionRules({ leagueName: 'Adult 18 & Over', flight: 'Women 4.0' })
     expect(isCompetitionPlayerRatingEligible(rules, 4)).toBe(true)
     expect(isCompetitionPlayerRatingEligible(rules, 3.5)).toBe(true)
-    expect(isCompetitionPlayerRatingEligible(rules, 3)).toBe(false)
+    expect(isCompetitionPlayerRatingEligible(rules, 3)).toBe(true)
     expect(isCompetitionPlayerRatingEligible(rules, 4.5)).toBe(false)
     expect(isCompetitionPlayerRatingEligible(rules, null)).toBe(true)
+    expect(rules.eligibilityDetail).toContain('or up')
+  })
+
+  it('allows players to move up a rated line without letting them play down', () => {
+    const rules = resolveTeamCompetitionRules({ leagueName: 'Tri-Level', flight: 'Women 3.5 / 4.0 / 4.5' })
+    expect(isCompetitionPlayerRatingEligible(rules, 3.5, 4.5)).toBe(true)
+    expect(isCompetitionPlayerRatingEligible(rules, 4, 4.5)).toBe(true)
+    expect(isCompetitionPlayerRatingEligible(rules, 4.5, 4)).toBe(false)
   })
 
   it('checks combined-level totals and partner spread', () => {
