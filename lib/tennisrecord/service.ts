@@ -36,6 +36,19 @@ type NtrpObservation = {
   designation: 'computer' | 'self' | 'unknown' | null
   effective_date: string | null
 }
+type RatingBaselineAlignmentPlayer = {
+  id: string
+  rating_source: string | null
+  overall_rating: number | null
+  overall_dynamic_rating: number | null
+}
+export type RatingBaselineAlignment = {
+  verifiedPlayers: number
+  atOrNearBaseline: number
+  buildingAboveBaseline: number
+  belowBaseline: number
+  materiallyBelowBaseline: number
+}
 // Historical backfill uses the Admin-configured safe ceiling. Requests remain
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
@@ -251,6 +264,63 @@ export function shouldSelfStartTennisRecordBootstrap(settings: Pick<Settings, 'a
   return settings?.automation_state === 'manual' && !settings.bootstrap_started_at && !settings.bootstrap_completed_at
 }
 
+/**
+ * An operational read of the TiQ ratings currently shown for players with a
+ * confirmed USTA baseline. It is never a rating-calculation input: TiQ match
+ * results remain the sole driver of dynamic movement.
+ */
+export function buildRatingBaselineAlignment(players: RatingBaselineAlignmentPlayer[]): RatingBaselineAlignment {
+  const alignment: RatingBaselineAlignment = {
+    verifiedPlayers: 0,
+    atOrNearBaseline: 0,
+    buildingAboveBaseline: 0,
+    belowBaseline: 0,
+    materiallyBelowBaseline: 0,
+  }
+
+  for (const player of players) {
+    if (
+      player.rating_source !== 'verified' ||
+      !Number.isFinite(player.overall_rating) ||
+      !Number.isFinite(player.overall_dynamic_rating)
+    ) continue
+
+    alignment.verifiedPlayers += 1
+    const difference = Number(player.overall_dynamic_rating) - Number(player.overall_rating)
+    if (difference > 0.06) {
+      alignment.buildingAboveBaseline += 1
+      continue
+    }
+    if (difference < -0.06) {
+      alignment.belowBaseline += 1
+      // Decimal rating values can produce -0.149999... for a displayed
+      // 0.15 gap, so compare against the rounded presentation value.
+      if (Math.round(difference * 1000) <= -150) alignment.materiallyBelowBaseline += 1
+      continue
+    }
+    alignment.atOrNearBaseline += 1
+  }
+
+  return alignment
+}
+
+async function fetchRatingBaselineAlignmentPlayers(service: SupabaseClient) {
+  const players: RatingBaselineAlignmentPlayer[] = []
+  const pageSize = 1000
+  for (let start = 0; ; start += pageSize) {
+    const { data, error } = await service
+      .from('players')
+      .select('id,rating_source,overall_rating,overall_dynamic_rating')
+      .eq('rating_source', 'verified')
+      .order('id', { ascending: true })
+      .range(start, start + pageSize - 1)
+    if (error) throw new Error(`TiQ rating alignment is unavailable: ${error.message}`)
+    const page = (data || []) as RatingBaselineAlignmentPlayer[]
+    players.push(...page)
+    if (page.length < pageSize) return players
+  }
+}
+
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
   const [settings, lastRun, lastSuccessfulRun, pending, conflicts, ratingPending, identities, campaigns, coverage, ntrpEvidence] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
@@ -312,6 +382,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   const safetyThrottle = tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null)
   const collectorSettings = settings.data as Settings | null
   const observations = (ntrpEvidence.data || []) as NtrpObservation[]
+  const ratingAlignment = buildRatingBaselineAlignment(await fetchRatingBaselineAlignmentPlayers(service))
   const yearsByCanonicalPlayer = new Map<string, Set<string>>()
   for (const observation of observations) {
     if (!observation.canonical_player_id || !observation.effective_date) continue
@@ -389,6 +460,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       playersWithMultipleYears: [...yearsByCanonicalPlayer.values()].filter((years) => years.size > 1).length,
       paired2025To2026,
     },
+    ratingAlignment,
     identityReview: identities.data || [],
     campaigns: campaignRows.map((campaign) => ({
       ...campaign,

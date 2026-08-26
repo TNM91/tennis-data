@@ -19,6 +19,7 @@ type Status = {
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
   ratingProgress: { pending: number; cadence: 'overnight' | 'Wednesday' | 'paused' }
   ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number }
+  ratingAlignment: { verifiedPlayers: number; atOrNearBaseline: number; buildingAboveBaseline: number; belowBaseline: number; materiallyBelowBaseline: number }
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
@@ -105,6 +106,7 @@ export default function TennisRecordAdminPage() {
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
   const ratingProgress = status?.ratingProgress
   const ratingEvidence = status?.ratingEvidence
+  const ratingAlignment = status?.ratingAlignment
   const pipelineHealth = status?.pipelineHealth
   const ratingCadence = ratingProgress?.cadence === 'overnight'
     ? 'Overnight catch-up'
@@ -182,6 +184,20 @@ export default function TennisRecordAdminPage() {
             <Metric label="2025→2026 pairs" value={ratingEvidence?.paired2025To2026 ?? '—'} />
           </div>
           <p className="subtle-text" style={{ margin: '14px 0 0' }}>{ratingEvidence?.paired2025To2026 ? 'Annual comparison evidence is available for calibration review.' : 'Profile evidence is building automatically. TiQ keeps using its native match-based model until paired annual USTA outcomes can validate a calibration change.'}</p>
+        </section>
+        <section aria-label="TiQ verified-baseline alignment" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,0.28)', background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))' }}>
+          <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>TiQ verified-baseline alignment</strong>
+            <span className="subtle-text">A live read of the TiQ ratings shown for players with confirmed USTA baselines. TiQ’s match model drives movement; this makes unusual downward movement easy to audit.</span>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Verified players" value={ratingAlignment?.verifiedPlayers ?? '—'} />
+            <Metric label="At or near baseline" value={ratingAlignment?.atOrNearBaseline ?? '—'} />
+            <Metric label="Building above baseline" value={ratingAlignment?.buildingAboveBaseline ?? '—'} />
+            <Metric label="Below baseline" value={ratingAlignment?.belowBaseline ?? '—'} />
+            <Metric label="Materially below" value={ratingAlignment?.materiallyBelowBaseline ?? '—'} />
+          </div>
+          <p className="subtle-text" style={{ margin: '14px 0 0' }}>“Below” means more than 0.06 below the confirmed USTA level. “Materially below” means at least 0.15 below and is a review signal—not an automatic demotion.</p>
         </section>
         <section aria-label="TennisRecord data coverage" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
