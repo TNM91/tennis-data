@@ -93,6 +93,45 @@ export function buildPotentialLineupAvailabilityMessage(input: {
     .join('\n\n')
 }
 
+/**
+ * The captain sends this one player at a time. Keep the proposed court private
+ * to the recipient: a player needs to know their likely role and doubles
+ * partner, not the whole tentative lineup.
+ */
+export function buildPlayerPotentialLineupAvailabilityMessage(input: {
+  playerName: string
+  teamName: string
+  opponent: string
+  dateText: string
+  time: string
+  facility: string
+  slotsJson: unknown
+  availabilityRequestUrl?: string
+}) {
+  const playerName = input.playerName.trim()
+  const assignedSlot = normalizeMessageSlots(input.slotsJson).find((slot) =>
+    slot.players.some((player) => samePlayerName(player, playerName))
+  )
+  const partner = assignedSlot?.players.find((player) => !samePlayerName(player, playerName))
+  const proposedRole = assignedSlot
+    ? `Your proposed court: ${assignedSlot.label}${partner ? ` with ${partner}` : ''}.`
+    : 'Your court is being finalized after availability is in.'
+
+  return [
+    `Can you play ${input.dateText} vs ${input.opponent || 'the opponent'}?`,
+    proposedRole,
+    'This is a proposed lineup; your captain will send the final courts after confirmations.',
+    input.time ? `Time: ${input.time}` : '',
+    input.facility ? `Location: ${input.facility}` : '',
+    input.availabilityRequestUrl
+      ? `Reply in TIQ: ${input.availabilityRequestUrl}`
+      : 'Reply YES, NO, or MAYBE to your captain.',
+    input.availabilityRequestUrl ? 'The reply link works without a TIQ account.' : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 function normalizeMessageSlots(raw: unknown): MessageSlot[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item, index) => {
@@ -115,4 +154,12 @@ function normalizeMessageSlots(raw: unknown): MessageSlot[] {
       players,
     }
   })
+}
+
+function samePlayerName(left: string, right: string) {
+  return normalizePlayerName(left) === normalizePlayerName(right)
+}
+
+function normalizePlayerName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }

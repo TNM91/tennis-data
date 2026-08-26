@@ -2,6 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  buildMatchWeekGoogleCalendarHref,
+  buildMatchWeekPhoneCalendarHref,
+  buildMatchWeekMapsHref,
+} from '@/lib/captain-match-week-links'
 
 type InvitedPlayer = { playerId: string; playerName: string }
 type MatchOption = {
@@ -120,6 +125,18 @@ export default function AvailabilityResponseClient({ token }: { token: string })
   if (error && !data) return <main style={pageStyle}><section style={cardStyle}><h1 style={titleStyle}>Link unavailable</h1><p style={bodyStyle}>{error}</p></section></main>
   if (!data) return null
 
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate: data.request.matchDate,
+    eventTime: data.request.matchTime,
+    opponent: data.request.opponentTeam,
+    location: data.request.facility,
+    details: `Availability request for ${data.request.teamName}.`,
+  })
+  const mapsHref = buildMatchWeekMapsHref(data.request.facility)
+  const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
+    typeof window === 'undefined' ? '' : `${window.location.origin}/availability/${token}`
+  )
+
   return (
     <main style={pageStyle}>
       <section style={heroStyle}>
@@ -130,6 +147,13 @@ export default function AvailabilityResponseClient({ token }: { token: string })
           {data.request.matchTime ? ` at ${data.request.matchTime}` : ''}.
         </p>
         {data.request.facility ? <p style={detailStyle}>{data.request.facility}</p> : null}
+        {calendarHref || mapsHref ? (
+          <div style={quickLinkRowStyle}>
+            {calendarHref ? <a href={calendarHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Add to Google Calendar</a> : null}
+            {phoneCalendarHref ? <a href={phoneCalendarHref} style={quickLinkStyle}>Add to phone calendar</a> : null}
+            {mapsHref ? <a href={mapsHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Open directions</a> : null}
+          </div>
+        ) : null}
       </section>
 
       <section style={cardStyle}>
@@ -233,6 +257,8 @@ const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(30px, 7vw, 46px)
 const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: 22, color: 'var(--shell-copy)' }
 const bodyStyle: CSSProperties = { margin: '8px 0 0', color: 'var(--shell-copy-muted)', lineHeight: 1.55 }
 const detailStyle: CSSProperties = { margin: '5px 0 0', color: 'var(--shell-copy)', lineHeight: 1.4 }
+const quickLinkRowStyle: CSSProperties = { marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 10 }
+const quickLinkStyle: CSSProperties = { minHeight: 40, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--shell-copy)', textDecoration: 'none', fontWeight: 800, fontSize: 14 }
 const smallStyle: CSSProperties = { marginTop: 4, color: 'var(--shell-copy-muted)', fontSize: 13 }
 const labelStyle: CSSProperties = { color: 'var(--shell-copy)', fontWeight: 750, fontSize: 14 }
 const inputStyle: CSSProperties = { width: '100%', minHeight: 48, borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-input-bg, var(--shell-chip-bg))', color: 'var(--shell-copy)', padding: '0 12px', font: 'inherit' }
