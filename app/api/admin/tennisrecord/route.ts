@@ -66,6 +66,11 @@ export async function POST(request: Request) {
       if (player.error || !player.data) return Response.json({ ok: false, message: 'That TenAceIQ player was not found.' }, { status: 404 })
       const { error } = await auth.service.from('tennisrecord_player_identities').update({ canonical_player_id: canonicalPlayerId, status: 'matched', confidence: 1, signals: ['admin_verified_mapping'], reviewed_at: new Date().toISOString(), reviewed_by_user_id: auth.userId }).eq('staged_player_id', stagedPlayerId)
       if (error) throw error
+      const { error: observationError } = await auth.service
+        .from('tennisrecord_ntrp_observations')
+        .update({ canonical_player_id: canonicalPlayerId, last_seen_at: new Date().toISOString() })
+        .eq('staged_player_id', stagedPlayerId)
+      if (observationError) throw observationError
       return Response.json({ ok: true })
     }
     if (action === 'run') return Response.json({ ok: true, summary: await runTennisRecordSync(auth.service, { triggerKind: 'manual', requestedByUserId: auth.userId, limit: 5 }) })

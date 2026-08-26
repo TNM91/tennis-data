@@ -31,6 +31,7 @@ export type TennisRecordPlayer = {
   city: string
   state: string
   ntrpLabel: string
+  ntrpEffectiveDate?: string
   publishedRating?: number
   sourceUrl: string
 }

@@ -18,6 +18,24 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordStatedNtrpBaseline('Estimated Dynamic Rating 4.0122')).toBeNull()
   })
 
+  it('preserves the stated NTRP effective date for annual calibration without using the external estimate', () => {
+    const profileUrl = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Michael+Ho'
+    const profile = `
+      <h1>Michael Ho</h1>
+      <div>Michael Ho (Saint Charles, MO)</div>
+      <div>4.0 C 12/31/2025</div>
+      <div>Estimated Dynamic Rating 4.0122</div>`
+
+    const parsed = parseTennisRecordMatchPage(profile, profileUrl)
+
+    expect(parsed.players).toEqual([expect.objectContaining({
+      name: 'Michael Ho',
+      ntrpLabel: '4.0 C',
+      ntrpEffectiveDate: '2025-12-31',
+      publishedRating: 4.0122,
+    })])
+  })
+
   it('parses representative singles, doubles, and set scores without treating published ratings as a rating input', () => {
     const parsed = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches).toHaveLength(2)
