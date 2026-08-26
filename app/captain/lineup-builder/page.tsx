@@ -310,28 +310,19 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
-function isTriLevelRosterScope(...scopeValues: string[]) {
-  return scopeValues.some((scopeValue) => /tri[-\s]?level/i.test(scopeValue))
-}
-
 function buildRosterPlayerIdSet(
   targetTeam: string,
   matches: MatchTeamRow[],
   matchPlayers: MatchPlayerLinkRow[],
   availabilityRows: AvailabilityRow[],
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string }
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
-  const scopedFlight = isTriLevelRosterScope(filters.flight, filters.leagueName) ? '' : filters.flight
-
   const filteredMatches = matches.filter((match) => {
     const home = normalizeTeamName(match.home_team)
     const away = normalizeTeamName(match.away_team)
     if (home !== normalizedTarget && away !== normalizedTarget) return false
-    if (filters.leagueName && (match.league_name ?? '').trim() !== filters.leagueName) return false
-    if (scopedFlight && (match.flight ?? '').trim() !== scopedFlight) return false
     return true
   })
 
@@ -354,12 +345,10 @@ function buildRosterPlayerIdSet(
   for (const row of availabilityRows) {
     if (!row.player_id) continue
     if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
-    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (scopedFlight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== scopedFlight) continue
     ids.add(row.player_id)
   }
 
-  for (const row of getScopedRosterMembers(targetTeam, rosterMembers, filters)) {
+  for (const row of getScopedRosterMembers(targetTeam, rosterMembers)) {
     if (!row.player_id) continue
     ids.add(row.player_id)
   }
@@ -370,27 +359,19 @@ function buildRosterPlayerIdSet(
 function getScopedRosterMembers(
   targetTeam: string,
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string },
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
-  const scopedFlight = isTriLevelRosterScope(filters.flight, filters.leagueName) ? '' : filters.flight
   const teamRosterMembers = rosterMembers.filter((row) => (
     Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
   ))
-  const scopedRosterMembers = teamRosterMembers.filter((row) => {
-    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) return false
-    if (scopedFlight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== scopedFlight) return false
-    return true
-  })
-  return scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers
+  return teamRosterMembers
 }
 
 function buildRosterEligibilityByPlayerId(
   targetTeam: string,
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string },
 ) {
-  return new Map(getScopedRosterMembers(targetTeam, rosterMembers, filters)
+  return new Map(getScopedRosterMembers(targetTeam, rosterMembers)
     .filter((row) => Boolean(row.player_id))
     .map((row) => [row.player_id as string, row]))
 }
@@ -1681,8 +1662,7 @@ function LineupBuilderContent() {
     let active = true
     void (async () => {
       const normalizedTeam = normalizeTeamName(teamName)
-      const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
-      let rosterQuery = supabase
+      const rosterQuery = supabase
         .from('team_roster_members')
         .select(`
           team_name,
@@ -1697,9 +1677,6 @@ function LineupBuilderContent() {
         .eq('normalized_team_name', normalizedTeam)
         .limit(500)
 
-      if (leagueName) rosterQuery = rosterQuery.eq('league_name', leagueName)
-      if (scopedFlight) rosterQuery = rosterQuery.eq('flight', scopedFlight)
-
       const { data, error } = await rosterQuery
       if (!active) return
       if (error) {
@@ -1712,7 +1689,7 @@ function LineupBuilderContent() {
     })()
 
     return () => { active = false }
-  }, [flight, leagueName, teamName])
+  }, [teamName])
 
   useEffect(() => {
     if (!teamName) {
@@ -1723,16 +1700,12 @@ function LineupBuilderContent() {
     let active = true
     void (async () => {
       const escapedTeam = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
-      let matchQuery = supabase
+      const matchQuery = supabase
         .from('matches')
         .select('id, home_team, away_team')
         .is('line_number', null)
         .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
         .limit(100)
-
-      if (leagueName) matchQuery = matchQuery.eq('league_name', leagueName)
-      if (scopedFlight) matchQuery = matchQuery.eq('flight', scopedFlight)
 
       const { data: scopedMatches, error: scopedMatchesError } = await matchQuery
       if (!active) return
@@ -1769,7 +1742,7 @@ function LineupBuilderContent() {
     })()
 
     return () => { active = false }
-  }, [flight, leagueName, teamName])
+  }, [teamName])
 
   const leagueOptions = useMemo(
     () =>
@@ -1868,15 +1841,13 @@ function LineupBuilderContent() {
   }, [savedScenarios, leagueName, flight, teamName])
 
   const availabilityForSelection = useMemo(() => {
-    const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
     return availability.filter((row) => {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
-      const flightMatch = !scopedFlight || row.flight === scopedFlight
-      return dateMatch && teamMatch && leagueMatch && flightMatch
+      return dateMatch && teamMatch && leagueMatch
     })
-  }, [availability, matchDate, teamName, leagueName, flight])
+  }, [availability, matchDate, teamName, leagueName])
 
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { status: string | null; notes: string | null }>()
@@ -1932,31 +1903,25 @@ function LineupBuilderContent() {
   }, [players, availabilityMap, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
   const myRosterPlayerIds = useMemo(() => {
-    const ids = buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers, {
-        leagueName,
-        flight,
-      })
+    const ids = buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers)
     for (const playerId of scopedRosterPlayerIds) ids.add(playerId)
     return ids
-  }, [teamName, matches, matchPlayers, availability, rosterMembers, leagueName, flight, scopedRosterPlayerIds])
+  }, [teamName, matches, matchPlayers, availability, rosterMembers, scopedRosterPlayerIds])
 
   const opponentRosterPlayerIds = useMemo(
     () =>
-      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers, {
-        leagueName,
-        flight,
-      }),
-    [opponentTeam, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
+      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers),
+    [opponentTeam, matches, matchPlayers, availability, rosterMembers]
   )
 
   const myRosterEligibilityByPlayerId = useMemo(
-    () => buildRosterEligibilityByPlayerId(teamName, rosterMembers, { leagueName, flight }),
-    [flight, leagueName, rosterMembers, teamName],
+    () => buildRosterEligibilityByPlayerId(teamName, rosterMembers),
+    [rosterMembers, teamName],
   )
 
   const opponentRosterEligibilityByPlayerId = useMemo(
-    () => buildRosterEligibilityByPlayerId(opponentTeam, rosterMembers, { leagueName, flight }),
-    [flight, leagueName, opponentTeam, rosterMembers],
+    () => buildRosterEligibilityByPlayerId(opponentTeam, rosterMembers),
+    [opponentTeam, rosterMembers],
   )
 
   const scopedManualRosterPlayers = useMemo(

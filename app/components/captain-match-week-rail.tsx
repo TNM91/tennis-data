@@ -17,9 +17,9 @@ type MatchWeekScope = {
 }
 
 const steps: Array<{ id: MatchWeekStep; label: string; path: string }> = [
-  { id: 'availability', label: 'Confirm availability', path: '/captain/availability' },
-  { id: 'lineup', label: 'Build projected lineup', path: '/captain/lineup-builder' },
-  { id: 'messaging', label: 'Message team', path: '/captain/messaging' },
+  { id: 'lineup', label: 'Build lineup', path: '/captain/lineup-builder' },
+  { id: 'availability', label: 'Confirm players', path: '/captain/availability' },
+  { id: 'messaging', label: 'Send team update', path: '/captain/messaging' },
 ]
 
 export default function CaptainMatchWeekRail({
@@ -91,9 +91,9 @@ function formatMatchDate(value: string) {
 }
 
 function mobileStepLabel(step: MatchWeekStep) {
-  if (step === 'availability') return 'Availability'
+  if (step === 'availability') return 'Confirm'
   if (step === 'lineup') return 'Lineup'
-  return 'Message'
+  return 'Send'
 }
 
 const railShell: CSSProperties = {
