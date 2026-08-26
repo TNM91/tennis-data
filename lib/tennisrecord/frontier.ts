@@ -39,6 +39,12 @@ function campaignYears(campaign: TennisRecordFrontierCampaign) {
   return Array.from({ length: endYear - startYear + 1 }, (_, index) => startYear + index)
 }
 
+/** Keep an open historical campaign scoped through the day it is seeded. */
+export function tennisRecordCampaignCurrentEndOn(endsOn: string, now = new Date()) {
+  const today = now.toISOString().slice(0, 10)
+  return /^20\d{2}-\d{2}-\d{2}$/.test(endsOn) && endsOn >= today ? endsOn : today
+}
+
 export function getTennisRecordCampaignSeedUrls(campaign: TennisRecordFrontierCampaign) {
   const years = campaignYears(campaign)
   if (!years.length) return []

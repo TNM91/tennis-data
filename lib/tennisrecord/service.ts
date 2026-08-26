@@ -3,7 +3,7 @@ import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
-import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from './frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
@@ -454,7 +454,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   const activeCampaign = campaignRows.find((campaign) => campaign.id === activeCampaignId)
   const nextCampaign = campaignRows.find((campaign) => campaign.status === 'planned') || null
   const activeSeedUrls = activeCampaign
-    ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: activeCampaign.ends_on })
+    ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: tennisRecordCampaignCurrentEndOn(activeCampaign.ends_on) })
     : []
   const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
   const completedRuns = (recentCompletedRuns.data || []) as Array<TennisRecordCompletedCheckpointSample & { trigger_kind: SyncTriggerKind }>
@@ -520,7 +520,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       name: nextCampaign.name,
       region_label: nextCampaign.region_label,
       starts_on: nextCampaign.starts_on,
-      ends_on: nextCampaign.ends_on,
+      ends_on: tennisRecordCampaignCurrentEndOn(nextCampaign.ends_on),
       status: nextCampaign.status,
     } : null,
     weeklyProgress: {
@@ -565,7 +565,8 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     identityReview: identities.data || [],
     campaigns: campaignRows.map((campaign) => ({
       ...campaign,
-      availableSeedPages: getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: campaign.ends_on }).length,
+      ends_on: tennisRecordCampaignCurrentEndOn(campaign.ends_on),
+      availableSeedPages: getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: tennisRecordCampaignCurrentEndOn(campaign.ends_on) }).length,
     })),
     frontier: { status: tennisRecordFrontierStatus(knownCampaignPages, activeSeedUrls.length) },
   }
@@ -612,7 +613,16 @@ export async function seedTennisRecordCampaignFrontier(service: SupabaseClient, 
   const { data: campaign, error } = await service.from('tennisrecord_campaigns').select('id,slug,starts_on,ends_on,status').eq('id', campaignId).maybeSingle()
   if (error) throw new Error(error.message)
   if (!campaign || campaign.status === 'completed') throw new Error('Choose an active historical campaign before seeding its public frontier.')
-  const urls = getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn: campaign.ends_on })
+  const endsOn = tennisRecordCampaignCurrentEndOn(campaign.ends_on)
+  if (endsOn !== campaign.ends_on) {
+    const { error: refreshError } = await service
+      .from('tennisrecord_campaigns')
+      .update({ ends_on: endsOn })
+      .eq('id', campaign.id)
+      .lt('ends_on', endsOn)
+    if (refreshError) throw new Error(refreshError.message)
+  }
+  const urls = getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn })
   return enqueueTennisRecordUrls(service, urls, campaign.id)
 }
 
