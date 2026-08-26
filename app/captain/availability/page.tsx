@@ -135,6 +135,14 @@ function getOpponent(match: TeamRosterMatchRow, team: string) {
   return [home, away].filter(Boolean).join(' vs ')
 }
 
+function isPastAvailabilityDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const matchDay = new Date(`${value}T12:00:00`).getTime()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Number.isFinite(matchDay) && matchDay < today.getTime()
+}
+
 function readInitialAvailabilityContext() {
   if (typeof window === 'undefined') {
     return {
@@ -149,14 +157,19 @@ function readInitialAvailabilityContext() {
 
   const params = new URLSearchParams(window.location.search)
   const resumeState = readCaptainResumeState()
+  const requestedDate = params.get('date') || ''
+  const explicitDate = isPastAvailabilityDate(requestedDate) ? '' : requestedDate
+  const explicitOpponent = params.get('opponent') || ''
 
   return {
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
     team: params.get('team') || resumeState?.team || '',
     league: params.get('league') || resumeState?.league || '',
     flight: params.get('flight') || resumeState?.flight || '',
-    eventDate: params.get('date') || resumeState?.eventDate || '',
-    opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+    // A generic Match Week entry always starts at the next scheduled match.
+    // Historical availability remains available from the match selector.
+    eventDate: explicitDate,
+    opponentTeam: explicitDate || explicitOpponent ? explicitOpponent : '',
   }
 }
 
@@ -1166,7 +1179,7 @@ function CaptainAvailabilityContent() {
                 </div>
 
                 {visibleAvailabilityPlayers.length ? visibleAvailabilityPlayers.map((player) => (
-                  <div key={player.id} style={playerRowResponsive(isSmallMobile)}>
+                  <div key={player.id} style={playerRowResponsive(isMobile)}>
                     <div>
                       <div style={playerName}>{player.name}</div>
                       {!isMobile ? (
@@ -1176,7 +1189,7 @@ function CaptainAvailabilityContent() {
                       ) : null}
                     </div>
 
-                    <div style={statusButtonRowResponsive(isSmallMobile)}>
+                    <div style={statusButtonRowResponsive(isMobile)}>
                       <button
                         type="button"
                         style={{ ...statusButton, ...(player.status === 'in' ? statusButtonIn : {}) }}
@@ -1203,7 +1216,7 @@ function CaptainAvailabilityContent() {
                         style={{ ...statusButton, ...(player.status === 'unanswered' ? statusButtonUnanswered : {}) }}
                         onClick={() => updateStatus(player.id, 'unanswered')}
                       >
-                        Unanswered
+                        No reply
                       </button>
                     </div>
                   </div>
@@ -1301,25 +1314,25 @@ function sectionHeadResponsive(isTablet: boolean): CSSProperties {
   }
 }
 
-function playerRowResponsive(isSmallMobile: boolean): CSSProperties {
+function playerRowResponsive(isMobile: boolean): CSSProperties {
   return {
     ...playerRow,
-    flexDirection: isSmallMobile ? 'column' : 'row',
-    alignItems: isSmallMobile ? 'flex-start' : 'center',
-    gap: isSmallMobile ? 9 : playerRow.gap,
-    padding: isSmallMobile ? 12 : playerRow.padding,
-    borderRadius: isSmallMobile ? 16 : playerRow.borderRadius,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+    gap: isMobile ? 9 : playerRow.gap,
+    padding: isMobile ? 12 : playerRow.padding,
+    borderRadius: isMobile ? 16 : playerRow.borderRadius,
     minWidth: 0,
   }
 }
 
-function statusButtonRowResponsive(isSmallMobile: boolean): CSSProperties {
+function statusButtonRowResponsive(isMobile: boolean): CSSProperties {
   return {
     ...statusButtonRow,
-    width: isSmallMobile ? '100%' : 'auto',
-    display: isSmallMobile ? 'grid' : statusButtonRow.display,
-    gridTemplateColumns: isSmallMobile ? 'repeat(4, minmax(0, 1fr))' : undefined,
-    gap: isSmallMobile ? 5 : statusButtonRow.gap,
+    width: isMobile ? '100%' : 'auto',
+    display: isMobile ? 'grid' : statusButtonRow.display,
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : undefined,
+    gap: isMobile ? 7 : statusButtonRow.gap,
     minWidth: 0,
   }
 }
