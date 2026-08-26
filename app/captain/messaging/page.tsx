@@ -42,10 +42,16 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   buildPotentialLineupAvailabilityMessage,
+  buildPlayerPotentialLineupAvailabilityMessage,
   extractPotentialLineupPlayers,
   readCaptainLineupHandoff,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import {
+  buildMatchWeekGoogleCalendarHref,
+  buildMatchWeekPhoneCalendarHref,
+  buildMatchWeekMapsHref,
+} from '@/lib/captain-match-week-links'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
   selectCaptainContactRowsForScope,
@@ -2127,7 +2133,8 @@ function CaptainMessagingContent() {
   function buildPotentialPlayerMessage(playerName: string) {
     const playerKey = playerName.trim().toLowerCase()
     const invite = privateInviteByPlayer.get(playerKey)
-    return buildPotentialLineupAvailabilityMessage({
+    return buildPlayerPotentialLineupAvailabilityMessage({
+      playerName,
       teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
       opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
       dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
@@ -2363,8 +2370,29 @@ function buildWinningLineupMessage() {
   const scenarioDateText = formatDate(selectedScenario.match_date)
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
+  const eventDate = selectedMatch?.match_date || selectedScenario.match_date || ''
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate,
+    eventTime: eventArrivalTime,
+    opponent: opponentText,
+    location: eventLocation,
+    details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TIQ team'}.`,
+  })
+  const mapsHref = buildMatchWeekMapsHref(eventLocation)
+  const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
+    liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || ''
+  )
 
-  return withWeekChallenge(`Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`)
+  return withWeekChallenge([
+    `Lineup is set for ${eventDateText} vs ${opponentText}:`,
+    lineupText,
+    `Arrive by ${eventArrivalTime || 'match time'}.`,
+    eventLocation ? `Location: ${eventLocation}` : '',
+    calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
+    phoneCalendarHref ? `Add to phone calendar: ${phoneCalendarHref}` : '',
+    mapsHref ? `Open directions: ${mapsHref}` : '',
+    'TIQ members: open this team message and choose Add to My Calendar.',
+  ].filter(Boolean).join('\n\n'))
 }
 
 function applyWinningLineupToComposer() {

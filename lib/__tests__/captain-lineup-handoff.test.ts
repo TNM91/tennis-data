@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPotentialLineupAvailabilityMessage,
+  buildPlayerPotentialLineupAvailabilityMessage,
   extractPotentialLineupPlayers,
   readCaptainLineupHandoff,
 } from '../captain-lineup-handoff'
@@ -39,6 +40,23 @@ describe('captain potential-lineup handoff', () => {
 
   it('extracts each projected player once', () => {
     expect(extractPotentialLineupPlayers([...slots, ...slots])).toEqual(['Alex Ace', 'Pat Volley'])
+  })
+
+  it('gives each player only their proposed court and doubles partner', () => {
+    const message = buildPlayerPotentialLineupAvailabilityMessage({
+      playerName: 'Alex Ace',
+      teamName: 'TIQ Team',
+      opponent: 'Racquet Club',
+      dateText: 'August 8',
+      time: '7:00 PM',
+      facility: 'Forest Lake',
+      slotsJson: slots,
+      availabilityRequestUrl: 'https://www.tenaceiq.com/availability/alex-token',
+    })
+
+    expect(message).toContain('Your proposed court: 3.5 Doubles with Pat Volley.')
+    expect(message).toContain('Reply in TIQ: https://www.tenaceiq.com/availability/alex-token')
+    expect(message).not.toContain('3.5 Doubles: Alex Ace / Pat Volley')
   })
 
   it('rejects invalid stored handoffs', () => {
