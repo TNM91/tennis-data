@@ -310,8 +310,8 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
-function isTriLevelRosterScope(flight: string) {
-  return /tri[-\s]?level/i.test(flight)
+function isTriLevelRosterScope(...scopeValues: string[]) {
+  return scopeValues.some((scopeValue) => /tri[-\s]?level/i.test(scopeValue))
 }
 
 function buildRosterPlayerIdSet(
@@ -324,7 +324,7 @@ function buildRosterPlayerIdSet(
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
-  const scopedFlight = isTriLevelRosterScope(filters.flight) ? '' : filters.flight
+  const scopedFlight = isTriLevelRosterScope(filters.flight, filters.leagueName) ? '' : filters.flight
 
   const filteredMatches = matches.filter((match) => {
     const home = normalizeTeamName(match.home_team)
@@ -373,7 +373,7 @@ function getScopedRosterMembers(
   filters: { leagueName: string; flight: string },
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
-  const scopedFlight = isTriLevelRosterScope(filters.flight) ? '' : filters.flight
+  const scopedFlight = isTriLevelRosterScope(filters.flight, filters.leagueName) ? '' : filters.flight
   const teamRosterMembers = rosterMembers.filter((row) => (
     Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
   ))
@@ -1681,7 +1681,7 @@ function LineupBuilderContent() {
     let active = true
     void (async () => {
       const normalizedTeam = normalizeTeamName(teamName)
-      const scopedFlight = isTriLevelRosterScope(flight) ? '' : flight
+      const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
       let rosterQuery = supabase
         .from('team_roster_members')
         .select(`
@@ -1723,7 +1723,7 @@ function LineupBuilderContent() {
     let active = true
     void (async () => {
       const escapedTeam = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      const scopedFlight = isTriLevelRosterScope(flight) ? '' : flight
+      const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
       let matchQuery = supabase
         .from('matches')
         .select('id, home_team, away_team')
@@ -1868,7 +1868,7 @@ function LineupBuilderContent() {
   }, [savedScenarios, leagueName, flight, teamName])
 
   const availabilityForSelection = useMemo(() => {
-    const scopedFlight = isTriLevelRosterScope(flight) ? '' : flight
+    const scopedFlight = isTriLevelRosterScope(flight, leagueName) ? '' : flight
     return availability.filter((row) => {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
