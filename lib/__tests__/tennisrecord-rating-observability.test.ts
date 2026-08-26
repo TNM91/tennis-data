@@ -10,11 +10,13 @@ describe('TennisRecord rating observability', () => {
   it('reports promoted matches waiting for the controlled TiQ rating batch', () => {
     expect(service).toContain(".is('rating_processed_at', null)")
     expect(service).toContain('ratingProgress: {')
+    expect(service).toContain('lastRecalculatedAt: collectorSettings?.rating_recalculated_at || null')
   })
 
   it('makes the pending count and cadence visible to Admins', () => {
     expect(admin).toContain('TiQ ratings waiting')
     expect(admin).toContain('Baseline refresh')
+    expect(admin).toContain('Last TiQ rating pass')
     expect(admin).toContain('TiQ rating catch-up')
     expect(admin).toContain('TennisRecord’s proprietary rating is never used.')
   })
