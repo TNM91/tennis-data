@@ -12,6 +12,8 @@ describe('TennisRecord checkpoint stability', () => {
     expect(source).toContain('const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2')
     expect(source).toContain('recalculateRatings: false')
     expect(source).toContain('shouldRecalculateRatings && ratingChanged')
+    expect(source).toContain('const TENNISRECORD_TRANSIENT_RETRY_DELAY_MS = 6 * 60_000')
+    expect(source).toContain('deferred_retry_at.is.null,deferred_retry_at.lte.')
   })
 
   it('keeps manual reconciliation on the existing TiQ rating path by default', () => {

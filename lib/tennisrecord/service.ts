@@ -64,6 +64,11 @@ const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
+// A transport failure must not consume the rest of the current checkpoint by
+// immediately selecting the same oldest queue row again. Keep the normal
+// in-request retry in collector.ts, then give a failed page a short, polite
+// checkpoint break while newer public pages continue to progress.
+const TENNISRECORD_TRANSIENT_RETRY_DELAY_MS = 6 * 60_000
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
 const DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT = 4
 const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
@@ -167,6 +172,15 @@ export function tennisRecordCadenceSafetyStatus(lastRun: TennisRecordRunSafetySa
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
   const transient = isTennisRecordTransientFailure(message)
   return transient && retryCount < MAX_TRANSIENT_TENNISRECORD_RETRIES ? 'retry' as const : 'quarantine' as const
+}
+
+/**
+ * Separate ordinary queue retries across checkpoints so a flaky public page
+ * cannot stall the historical frontier or create avoidable source pressure.
+ */
+export function tennisRecordTransientRetryAt(message: string, retryCount: number, now = Date.now()) {
+  if (tennisRecordFailureDisposition(message, retryCount) !== 'retry') return null
+  return new Date(now + TENNISRECORD_TRANSIENT_RETRY_DELAY_MS).toISOString()
 }
 
 export function isTennisRecordTransientFailure(message: string) {
@@ -578,22 +592,22 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           touchedSourceMatchKeys.add(sourceMatchKey)
         }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
-        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
+        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, deferred_retry_at: null, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
-        const deferredRetryAt = disposition === 'quarantine'
-          ? tennisRecordDeferredRetryAt(failureReason, job.deferred_retry_count || 0)
-          : null
+        const retryAt = disposition === 'retry'
+          ? tennisRecordTransientRetryAt(failureReason, job.retry_count || 0)
+          : tennisRecordDeferredRetryAt(failureReason, job.deferred_retry_count || 0)
         if (disposition === 'retry') summary.transientRetries += 1
-        else if (deferredRetryAt) summary.transientRetries += 1
+        else if (retryAt) summary.transientRetries += 1
         else summary.sourceFailures += 1
         await service.from('tennisrecord_crawl_queue').update({
           status: disposition === 'retry' ? 'pending' : 'error',
           retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
           failure_reason: failureReason,
           last_error_at: new Date().toISOString(),
-          deferred_retry_at: deferredRetryAt,
+          deferred_retry_at: retryAt,
         }).eq('id', job.id)
       }
     }
@@ -764,6 +778,7 @@ async function completeActiveTennisRecordCampaign(service: SupabaseClient, activ
 
 async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
   let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
+  query = query.or(`deferred_retry_at.is.null,deferred_retry_at.lte.${new Date().toISOString()}`)
   if (pageKinds.length) query = query.in('page_kind', pageKinds)
   if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
   const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
