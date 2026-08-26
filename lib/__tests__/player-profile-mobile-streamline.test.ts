@@ -101,6 +101,15 @@ describe('player profile mobile streamline', () => {
     expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
   })
 
+  it('separates the official USTA designation from the TiQ performance read without exposing a locked exact score', () => {
+    expect(page).toContain("const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : 'Verified USTA level'")
+    expect(page).toContain("const tiqReadLabel = `TIQ ${ratingViewLabel} read`")
+    expect(page).toContain("'Exact TiQ read is available with Player.'")
+    expect(page).toContain('aria-label="Rating read guide"')
+    expect(page).toContain('className={profileStory.ratingReadGuide}')
+    expect(styles).toContain('.ratingReadGuide')
+  })
+
   it('puts a Player-only next milestone beside the profile controls without exposing exact TIQ to explorers', () => {
     expect(page).toContain('{hasPersonalPlayerExperience ? (')
     expect(page).toContain('aria-label="Your next TIQ milestone"')
