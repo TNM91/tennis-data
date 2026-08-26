@@ -310,6 +310,10 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
+function isTriLevelRosterScope(flight: string) {
+  return /tri[-\s]?level/i.test(flight)
+}
+
 function buildRosterPlayerIdSet(
   targetTeam: string,
   matches: MatchTeamRow[],
@@ -320,13 +324,14 @@ function buildRosterPlayerIdSet(
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
+  const scopedFlight = isTriLevelRosterScope(filters.flight) ? '' : filters.flight
 
   const filteredMatches = matches.filter((match) => {
     const home = normalizeTeamName(match.home_team)
     const away = normalizeTeamName(match.away_team)
     if (home !== normalizedTarget && away !== normalizedTarget) return false
     if (filters.leagueName && (match.league_name ?? '').trim() !== filters.leagueName) return false
-    if (filters.flight && (match.flight ?? '').trim() !== filters.flight) return false
+    if (scopedFlight && (match.flight ?? '').trim() !== scopedFlight) return false
     return true
   })
 
@@ -350,7 +355,7 @@ function buildRosterPlayerIdSet(
     if (!row.player_id) continue
     if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
     if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) continue
+    if (scopedFlight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== scopedFlight) continue
     ids.add(row.player_id)
   }
 
@@ -368,12 +373,13 @@ function getScopedRosterMembers(
   filters: { leagueName: string; flight: string },
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
+  const scopedFlight = isTriLevelRosterScope(filters.flight) ? '' : filters.flight
   const teamRosterMembers = rosterMembers.filter((row) => (
     Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
   ))
   const scopedRosterMembers = teamRosterMembers.filter((row) => {
     if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) return false
-    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) return false
+    if (scopedFlight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== scopedFlight) return false
     return true
   })
   return scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers
@@ -1553,7 +1559,6 @@ function LineupBuilderContent() {
       playersResult,
       matchesResult,
       matchPlayersResult,
-      rosterMembersResult,
       availabilityResult,
       scenariosResult,
       tiqLeagueFormatsResult,
@@ -1605,19 +1610,6 @@ function LineupBuilderContent() {
         `)
         .limit(4000),
       supabase
-        .from('team_roster_members')
-        .select(`
-          team_name,
-          player_id,
-          player_name,
-          league_name,
-          flight,
-          rating_source,
-          mixed_pair_role,
-          age_division
-        `)
-        .limit(4000),
-      supabase
         .from('lineup_availability')
         .select(`
           id,
@@ -1666,7 +1658,6 @@ function LineupBuilderContent() {
       setPlayers((playersResult.data ?? []) as PlayerRow[])
       setMatches((matchesResult.data ?? []) as MatchTeamRow[])
       setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
-      setRosterMembers(rosterMembersResult.error ? [] : ((rosterMembersResult.data ?? []) as TeamRosterMemberRow[]))
       setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
       setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
       setTiqTeamLeagueFormats(tiqLeagueFormatsResult.error ? [] : (tiqLeagueFormatsResult.data ?? []) as TiqTeamLeagueFormatRow[])
@@ -1679,6 +1670,48 @@ function LineupBuilderContent() {
     if (!authResolved || role === 'public') return
     void refreshBuilderData()
   }, [authResolved, role, refreshTick, refreshBuilderData])
+
+  useEffect(() => {
+    if (!teamName) {
+      setRosterMembers([])
+      return
+    }
+
+    let active = true
+    void (async () => {
+      const normalizedTeam = normalizeTeamName(teamName)
+      const scopedFlight = isTriLevelRosterScope(flight) ? '' : flight
+      let rosterQuery = supabase
+        .from('team_roster_members')
+        .select(`
+          team_name,
+          player_id,
+          player_name,
+          league_name,
+          flight,
+          rating_source,
+          mixed_pair_role,
+          age_division
+        `)
+        .eq('normalized_team_name', normalizedTeam)
+        .limit(500)
+
+      if (leagueName) rosterQuery = rosterQuery.eq('league_name', leagueName)
+      if (scopedFlight) rosterQuery = rosterQuery.eq('flight', scopedFlight)
+
+      const { data, error } = await rosterQuery
+      if (!active) return
+      if (error) {
+        console.warn('Scoped team roster lookup skipped', error.message)
+        setRosterMembers([])
+        return
+      }
+
+      setRosterMembers((data ?? []) as TeamRosterMemberRow[])
+    })()
+
+    return () => { active = false }
+  }, [flight, leagueName, teamName])
 
   const leagueOptions = useMemo(
     () =>
@@ -1777,11 +1810,12 @@ function LineupBuilderContent() {
   }, [savedScenarios, leagueName, flight, teamName])
 
   const availabilityForSelection = useMemo(() => {
+    const scopedFlight = isTriLevelRosterScope(flight) ? '' : flight
     return availability.filter((row) => {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
-      const flightMatch = !flight || row.flight === flight
+      const flightMatch = !scopedFlight || row.flight === scopedFlight
       return dateMatch && teamMatch && leagueMatch && flightMatch
     })
   }, [availability, matchDate, teamName, leagueName, flight])
@@ -3380,14 +3414,14 @@ function LineupBuilderContent() {
   }).length
   const mobileLineupPulse = [
     {
-      label: 'Courts set',
+      label: 'Courts',
       value: `${completedCourtCount}/${analysis.lines.length}`,
       detail: completedCourtCount === analysis.lines.length ? 'Ready to review' : 'Need players',
     },
     {
-      label: 'Available',
+      label: 'Team replies',
       value: `${availablePlayerCount}/${myPlayerPool.length}`,
-      detail: myPlayerPool.length ? 'Player pool' : 'Add roster',
+      detail: myPlayerPool.length ? 'Confirmed or maybe' : 'Add roster',
     },
     {
       label: 'Confidence',
@@ -5784,17 +5818,18 @@ const mobileCourtFocusActionsStyle: CSSProperties = {
 
 const mobileLineupPulseStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 7,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
   marginTop: 13,
   minWidth: 0,
 }
 
 const mobileLineupPulseCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 3,
+  gap: 5,
   minWidth: 0,
-  padding: '9px 8px',
+  minHeight: 88,
+  padding: '11px 10px',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   borderRadius: 12,
   background: 'color-mix(in srgb, var(--shell-panel-bg) 74%, transparent)',
@@ -5802,16 +5837,16 @@ const mobileLineupPulseCardStyle: CSSProperties = {
 
 const mobileLineupPulseLabelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: 900,
-  letterSpacing: '0.07em',
+  letterSpacing: '0.04em',
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
 
 const mobileLineupPulseValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
+  fontSize: 19,
   fontWeight: 950,
   lineHeight: 1.1,
   overflowWrap: 'anywhere',
@@ -5819,7 +5854,7 @@ const mobileLineupPulseValueStyle: CSSProperties = {
 
 const mobileLineupPulseDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: 750,
   lineHeight: 1.25,
   overflowWrap: 'anywhere',

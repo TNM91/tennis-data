@@ -19,4 +19,11 @@ describe('captain lineup roster-first availability', () => {
     expect(source).toContain('No-response players remain selectable')
     expect(source).toContain('availabilityLabel(poolPlayer.availabilityStatus)')
   })
+
+  it('keeps the full team roster together for Tri-Level match planning', () => {
+    expect(source).toContain('function isTriLevelRosterScope(flight: string)')
+    expect(source).toContain("const scopedFlight = isTriLevelRosterScope(filters.flight) ? '' : filters.flight")
+    expect(source).toContain(".eq('normalized_team_name', normalizedTeam)")
+    expect(source).toContain('Scoped team roster lookup skipped')
+  })
 })
