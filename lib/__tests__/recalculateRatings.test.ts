@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   recalculateDynamicRatings,
+  applyVerifiedBaselineGuard,
   applyDoublesPartnerBurdenGuard,
   parseScoreMetrics,
   getScoreAwarePerformance,
@@ -20,6 +21,7 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
   return {
     id: 'test',
     name: 'Test Player',
+    hasVerifiedBaseline: false,
     singlesBase: 3.5,
     singlesDynamic: 3.5,
     singlesUstaDynamic: 3.5,
@@ -29,6 +31,9 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
     overallBase: 3.5,
     overallDynamic: 3.5,
     overallUstaDynamic: 3.5,
+    singlesMatchesProcessed: 0,
+    doublesMatchesProcessed: 0,
+    overallMatchesProcessed: 0,
     matchesProcessed: 50,
     lastMatchDate: null,
     ...overrides,
@@ -254,6 +259,60 @@ describe('getProvisionalkMultiplier', () => {
 
   it('stays at 1.0 for veterans', () => {
     expect(getProvisionalkMultiplier(200)).toBe(1.0)
+  })
+
+  it('uses a conservative evidence multiplier for a verified NTRP baseline', () => {
+    expect(getProvisionalkMultiplier(0, true)).toBe(0.55)
+    expect(getProvisionalkMultiplier(15, true)).toBeCloseTo(0.775, 3)
+    expect(getProvisionalkMultiplier(30, true)).toBe(1.0)
+  })
+})
+
+describe('verified NTRP baseline calibration', () => {
+  it('does not move a verified player below their official baseline on a small sample', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 0, true)).toBe(4.0)
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 11, true)).toBe(4.0)
+  })
+
+  it('allows a measured downward signal only after sustained evidence', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 21, true)).toBeGreaterThanOrEqual(3.96)
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 60, true)).toBe(3.8)
+  })
+
+  it('does not constrain an unverified baseline', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 0, false)).toBe(3.7)
+  })
+
+  it('keeps a verified player at their baseline after an isolated lopsided loss', async () => {
+    const rows = {
+      players: [
+        { id: 'a', name: 'Verified player', rating_source: 'verified', singles_rating: 4, singles_dynamic_rating: 4, doubles_rating: 4, doubles_dynamic_rating: 4, overall_rating: 4, overall_dynamic_rating: 4 },
+        { id: 'b', name: 'Opponent', rating_source: 'verified', singles_rating: 4, singles_dynamic_rating: 4, doubles_rating: 4, doubles_dynamic_rating: 4, overall_rating: 4, overall_dynamic_rating: 4 },
+      ],
+      matches: [{ id: 'match-1', match_date: '2026-08-01', match_type: 'singles', score: '0-6, 0-6', winner_side: 'B', match_source: 'usta', rating_eligible: true, created_at: '2026-08-01T00:00:00Z' }],
+      match_players: [
+        { match_id: 'match-1', player_id: 'a', side: 'A', seat: 1 },
+        { match_id: 'match-1', player_id: 'b', side: 'B', seat: 1 },
+      ],
+    }
+    const client = {
+      from(table: keyof typeof rows) {
+        const builder = {
+          select: () => builder,
+          not: () => builder,
+          eq: () => builder,
+          order: () => builder,
+          range: (from: number, to: number) => Promise.resolve({ data: rows[table].slice(from, to + 1), error: null }),
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const player = result.players.find((candidate) => candidate.id === 'a')
+
+    expect(player?.overallDynamic).toBe(4)
+    expect(player?.singlesDynamic).toBe(4)
   })
 })
 
