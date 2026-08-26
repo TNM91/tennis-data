@@ -138,6 +138,26 @@ type TeamRosterMemberRow = {
   age_division: string | null
 }
 
+const playerRosterSelect = `
+  id,
+  name,
+  location,
+  flight,
+  preferred_role,
+  lineup_notes,
+  singles_rating,
+  singles_dynamic_rating,
+  singles_usta_dynamic_rating,
+  doubles_rating,
+  doubles_dynamic_rating,
+  doubles_usta_dynamic_rating,
+  overall_rating,
+  overall_dynamic_rating,
+  overall_usta_dynamic_rating,
+  rating_source,
+  mixed_pair_role
+`
+
 type TiqTeamLeagueFormatRow = {
   league_name: string | null
   flight: string | null
@@ -1257,6 +1277,7 @@ function LineupBuilderContent() {
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
+  const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])
   const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
@@ -1547,25 +1568,7 @@ function LineupBuilderContent() {
     ] = await Promise.all([
       supabase
         .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          flight,
-          preferred_role,
-          lineup_notes,
-          singles_rating,
-          singles_dynamic_rating,
-          singles_usta_dynamic_rating,
-          doubles_rating,
-          doubles_dynamic_rating,
-          doubles_usta_dynamic_rating,
-          overall_rating,
-          overall_dynamic_rating,
-          overall_usta_dynamic_rating,
-          rating_source,
-          mixed_pair_role
-        `)
+        .select(playerRosterSelect)
         .order('name', { ascending: true }),
       supabase
         .from('matches')
@@ -1656,6 +1659,7 @@ function LineupBuilderContent() {
   useEffect(() => {
     if (!teamName) {
       setRosterMembers([])
+      setTeamRosterPlayers([])
       return
     }
 
@@ -1682,10 +1686,38 @@ function LineupBuilderContent() {
       if (error) {
         console.warn('Scoped team roster lookup skipped', error.message)
         setRosterMembers([])
+        setTeamRosterPlayers([])
         return
       }
 
-      setRosterMembers((data ?? []) as TeamRosterMemberRow[])
+      const nextRosterMembers = (data ?? []) as TeamRosterMemberRow[]
+      setRosterMembers(nextRosterMembers)
+
+      const rosterPlayerIds = Array.from(new Set(nextRosterMembers
+        .map((row) => row.player_id)
+        .filter((playerId): playerId is string => Boolean(playerId))))
+
+      if (!rosterPlayerIds.length) {
+        setTeamRosterPlayers([])
+        return
+      }
+
+      const { data: rosterPlayers, error: rosterPlayersError } = await supabase
+        .from('players')
+        .select(playerRosterSelect)
+        .in('id', rosterPlayerIds)
+
+      if (!active) return
+      if (rosterPlayersError) {
+        console.warn('Roster player hydration skipped', rosterPlayersError.message)
+        setTeamRosterPlayers([])
+        return
+      }
+
+      // The roster is the authoritative player pool for a captain's lineup.
+      // Hydrating these IDs independently keeps a full team visible even when
+      // a broad catalogue query is paginated or temporarily incomplete.
+      setTeamRosterPlayers((rosterPlayers ?? []) as PlayerRow[])
     })()
 
     return () => { active = false }
@@ -1871,8 +1903,14 @@ function LineupBuilderContent() {
     return { yes, maybe, no, total: yes + maybe + no }
   }, [availabilityForSelection, initialContext.source])
 
+  const rosterBackedPlayers = useMemo(() => {
+    const playersById = new Map(players.map((player) => [player.id, player]))
+    for (const player of teamRosterPlayers) playersById.set(player.id, player)
+    return Array.from(playersById.values())
+  }, [players, teamRosterPlayers])
+
   const availablePlayerPool = useMemo<PoolPlayer[]>(() => {
-    return players
+    return rosterBackedPlayers
       .map((player) => {
         const availabilityEntry = availabilityMap.get(player.id)
         return {
@@ -1900,7 +1938,7 @@ function LineupBuilderContent() {
         if (ratingB !== ratingA) return ratingB - ratingA
         return a.name.localeCompare(b.name)
       })
-  }, [players, availabilityMap, availabilityOnly, availabilityForSelection.length, hideUnavailable])
+  }, [rosterBackedPlayers, availabilityMap, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
   const myRosterPlayerIds = useMemo(() => {
     const ids = buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers)

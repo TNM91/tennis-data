@@ -23,6 +23,12 @@ describe('captain lineup roster-first availability', () => {
   it('keeps the complete team roster together for match planning', () => {
     expect(source).toContain(".eq('normalized_team_name', normalizedTeam)")
     expect(source).toContain('Scoped team roster lookup skipped')
+    expect(source).toContain('Roster player hydration skipped')
+    expect(source).toContain(".in('id', rosterPlayerIds)")
+    expect(source).toContain('const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])')
+    expect(source).toContain('const rosterBackedPlayers = useMemo(() =>')
+    expect(source).toContain('for (const player of teamRosterPlayers) playersById.set(player.id, player)')
+    expect(source).toContain('The roster is the authoritative player pool')
     expect(source).not.toContain("rosterQuery = rosterQuery.eq('flight'")
     expect(source).not.toContain("matchQuery = matchQuery.eq('flight'")
   })
