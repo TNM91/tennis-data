@@ -123,6 +123,64 @@ export function tennisRecordCheckpointForecast(pendingPages: number, runningPage
   }
 }
 
+type TennisRecordCompletedCheckpointSample = {
+  completed_at?: string | null
+  pages_attempted?: number | null
+}
+
+export type TennisRecordCheckpointPace = {
+  minutesPerCheckpoint: number
+  sampleCount: number
+  source: 'recent_completed_checkpoints' | 'scheduled_cadence'
+}
+
+/**
+ * Forecasts should reflect the actual time between completed checkpoints, not
+ * just the ideal cron interval. That naturally includes deliberate safety
+ * pauses and ordinary source latency without changing collector behavior.
+ */
+export function tennisRecordObservedCheckpointPace(samples: TennisRecordCompletedCheckpointSample[]): TennisRecordCheckpointPace {
+  const completedAt = samples
+    .filter((sample) => (sample.pages_attempted || 0) > 0)
+    .map((sample) => Date.parse(sample.completed_at || ''))
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right)
+  const checkpointGaps = completedAt
+    .slice(1)
+    .map((completed, index) => (completed - completedAt[index]) / 60_000)
+    .filter((minutes) => Number.isFinite(minutes) && minutes > 0 && minutes <= 24 * 60)
+    .sort((left, right) => left - right)
+
+  if (!checkpointGaps.length) {
+    return {
+      minutesPerCheckpoint: TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
+      sampleCount: 0,
+      source: 'scheduled_cadence',
+    }
+  }
+
+  const midpoint = Math.floor(checkpointGaps.length / 2)
+  const median = checkpointGaps.length % 2
+    ? checkpointGaps[midpoint]
+    : (checkpointGaps[midpoint - 1] + checkpointGaps[midpoint]) / 2
+  return {
+    minutesPerCheckpoint: Math.max(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, Math.ceil(median)),
+    sampleCount: checkpointGaps.length,
+    source: 'recent_completed_checkpoints',
+  }
+}
+
+export function tennisRecordCheckpointForecastWithPace(pendingPages: number, runningPages: number, maxRequestsPerRun: number, pace: TennisRecordCheckpointPace, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
+  const forecast = tennisRecordCheckpointForecast(pendingPages, runningPages, maxRequestsPerRun, cadence)
+  return {
+    ...forecast,
+    estimatedMinutesRemaining: forecast.checkpointsRemaining * pace.minutesPerCheckpoint,
+    checkpointMinutes: pace.minutesPerCheckpoint,
+    paceSampleCount: pace.sampleCount,
+    paceSource: pace.source,
+  }
+}
+
 type TennisRecordRunSafetySample = {
   started_at?: string | null
   completed_at?: string | null
@@ -336,10 +394,11 @@ async function fetchRatingBaselineAlignmentPlayers(service: SupabaseClient) {
 }
 
 export async function getTennisRecordOperationalStatus(service: SupabaseClient) {
-  const [settings, lastRun, lastSuccessfulRun, pending, conflicts, ratingPending, identities, campaigns, coverage, ntrpEvidence] = await Promise.all([
+  const [settings, lastRun, lastSuccessfulRun, recentCompletedRuns, pending, conflicts, ratingPending, identities, campaigns, coverage, ntrpEvidence] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('completed_at').eq('status', 'completed').not('completed_at', 'is', null).order('started_at', { ascending: false }).limit(1).maybeSingle(),
+    service.from('tennisrecord_sync_runs').select('completed_at,pages_attempted,trigger_kind').eq('status', 'completed').not('completed_at', 'is', null).gt('pages_attempted', 0).order('completed_at', { ascending: false }).limit(30),
     service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
     service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
@@ -348,7 +407,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
     service.from('tennisrecord_ntrp_observations').select('canonical_player_id,designation,effective_date'),
   ])
-  if (settings.error || lastRun.error || lastSuccessfulRun.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error || ntrpEvidence.error) throw new Error('TennisRecord operations status is unavailable.')
+  if (settings.error || lastRun.error || lastSuccessfulRun.error || recentCompletedRuns.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error || ntrpEvidence.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
     let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
@@ -388,10 +447,21 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: activeCampaign.ends_on })
     : []
   const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
-  const campaignForecast = tennisRecordCheckpointForecast(
+  const completedRuns = (recentCompletedRuns.data || []) as Array<TennisRecordCompletedCheckpointSample & { trigger_kind: SyncTriggerKind }>
+  const bootstrapPace = tennisRecordObservedCheckpointPace(completedRuns.filter((run) => run.trigger_kind === 'bootstrap'))
+  const weeklyPace = tennisRecordObservedCheckpointPace(completedRuns.filter((run) => run.trigger_kind === 'weekly'))
+  const campaignForecast = tennisRecordCheckpointForecastWithPace(
     campaignPending.count || 0,
     campaignRunning.count || 0,
     (settings.data as Settings | null)?.max_requests_per_run || BOOTSTRAP_TENNISRECORD_BATCH_LIMIT,
+    bootstrapPace,
+  )
+  const weeklyForecast = tennisRecordCheckpointForecastWithPace(
+    weeklyPending.count || 0,
+    weeklyRunning.count || 0,
+    (settings.data as Settings | null)?.max_requests_per_run || WEEKLY_TENNISRECORD_BATCH_LIMIT,
+    weeklyPace,
+    'weekly',
   )
   const safetyThrottle = tennisRecordCadenceSafetyStatus(lastRun.data as TennisRecordRunSafetySample | null)
   const collectorSettings = settings.data as Settings | null
@@ -429,6 +499,10 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     },
     campaignForecast: {
       ...campaignForecast,
+      estimateBasis: 'known_queue' as const,
+    },
+    weeklyForecast: {
+      ...weeklyForecast,
       estimateBasis: 'known_queue' as const,
     },
     nextCampaign: nextCampaign ? {

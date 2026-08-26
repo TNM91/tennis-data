@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
 import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
-import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordScheduledPageKindPlan, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
+import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordCheckpointForecastWithPace, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordObservedCheckpointPace, tennisRecordScheduledPageKindPlan, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
 const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-match-84487.html'), 'utf8')
@@ -304,6 +304,30 @@ describe('TennisRecord ingestion safety', () => {
     expect(TENNISRECORD_AUTOMATION_INTERVAL_MINUTES).toBe(3)
     expect(tennisRecordCheckpointForecast(17, 1, 10)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 3, estimatedMinutesRemaining: 9 })
     expect(tennisRecordCheckpointForecast(0, 0, 10)).toEqual({ pagesPerCheckpoint: 8, checkpointsRemaining: 0, estimatedMinutesRemaining: 0 })
+  })
+
+  it('uses observed completed checkpoint pace for a conservative queue forecast', () => {
+    const pace = tennisRecordObservedCheckpointPace([
+      { completed_at: '2026-08-26T12:00:00.000Z', pages_attempted: 8 },
+      { completed_at: '2026-08-26T12:07:00.000Z', pages_attempted: 8 },
+      { completed_at: '2026-08-26T12:17:00.000Z', pages_attempted: 8 },
+      { completed_at: 'invalid', pages_attempted: 8 },
+      { completed_at: '2026-08-26T12:27:00.000Z', pages_attempted: 0 },
+    ])
+    expect(pace).toEqual({ minutesPerCheckpoint: 9, sampleCount: 2, source: 'recent_completed_checkpoints' })
+    expect(tennisRecordCheckpointForecastWithPace(17, 1, 10, pace)).toEqual({
+      pagesPerCheckpoint: 8,
+      checkpointsRemaining: 3,
+      estimatedMinutesRemaining: 27,
+      checkpointMinutes: 9,
+      paceSampleCount: 2,
+      paceSource: 'recent_completed_checkpoints',
+    })
+    expect(tennisRecordObservedCheckpointPace([{ completed_at: '2026-08-26T12:00:00.000Z', pages_attempted: 8 }])).toEqual({
+      minutesPerCheckpoint: 3,
+      sampleCount: 0,
+      source: 'scheduled_cadence',
+    })
   })
 
   it('backs off the faster cadence when the most recent checkpoint shows source pressure', () => {
