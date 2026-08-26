@@ -98,10 +98,11 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
-// Revision 5 retains stated NTRP designations from player profiles even when
-// the profile also contains match rows. TennisRecord's estimated dynamic
-// rating remains metadata only. Captured pages replay gradually from cache.
-const TENNISRECORD_PARSER_REVISION = 5
+// Revision 6 reads directional winner arrows from complete court rows, so a
+// `1-0` deciding-match-tiebreak marker cannot overturn the source result.
+// TennisRecord's estimated dynamic rating remains metadata only. Captured
+// pages replay gradually from cache.
+const TENNISRECORD_PARSER_REVISION = 6
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
