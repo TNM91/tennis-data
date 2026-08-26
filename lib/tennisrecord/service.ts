@@ -35,9 +35,10 @@ type CoverageSummary = {
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
 // A collector checkpoint also reconciles match evidence and may promote line
-// records. Keep that database work comfortably below the function ceiling;
-// source throughput can scale only after the checkpoint finishes cleanly.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 3
+// records. Keep that database work comfortably below the function ceiling.
+// The collector remains sequentially rate-limited; eight pages is a measured
+// bootstrap step-up after sustained clean checkpoints, not parallel crawling.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 // Replaying already-captured pages does not contact the source. A small
 // bounded batch makes previously discovered public profile URLs available to
