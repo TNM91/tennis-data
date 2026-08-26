@@ -99,16 +99,12 @@ describe('captain resume memory', () => {
     expect(chooseLatestCaptainResumeState(local, cloud)).toBe(cloud)
   })
 
-  it('starts a fresh Team handoff at the next match instead of reusing an expired saved match', () => {
-    const resume = {
-      eventDate: '2026-08-10',
-      opponentTeam: 'Past Opponent',
-      matchId: 'past-match',
-    }
-
-    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&league=Missouri'), resume))
+  it('starts every new builder entry at the next match instead of reusing an expired saved match', () => {
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&league=Missouri')))
       .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
-    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2026-09-01&match=next-match'), resume))
+    expect(resolveCaptainMatchContext(new URLSearchParams()))
+      .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2026-09-01&match=next-match')))
       .toEqual({ eventDate: '2026-09-01', opponentTeam: '', matchId: 'next-match' })
   })
 })
