@@ -138,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<Session | null>(null)
   const roleRef = useRef<UserRole>('public')
   const entitlementsRef = useRef<ProductEntitlementSnapshot | null>(null)
+  const accessRequestRef = useRef<{ accessToken: string; promise: Promise<AccountAccess | null> } | null>(null)
 
   const resolveSignedInSession = useCallback(async (nextSession: Session): Promise<AuthRefreshState | null> => {
     const nextUserId = nextSession.user.id
@@ -169,8 +170,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthResolved(false)
     }
 
+    const currentAccessRequest = accessRequestRef.current
+    const accessRequest = currentAccessRequest?.accessToken === nextSession.access_token
+      ? currentAccessRequest.promise
+      : fetchAccountAccess(nextSession.access_token)
+    if (accessRequest !== currentAccessRequest?.promise) {
+      accessRequestRef.current = { accessToken: nextSession.access_token, promise: accessRequest }
+      void accessRequest.finally(() => {
+        if (accessRequestRef.current?.promise === accessRequest) accessRequestRef.current = null
+      })
+    }
+
     const accessResult = await withTimeout(
-      fetchAccountAccess(nextSession.access_token),
+      accessRequest,
       AUTH_PROVIDER_TIMEOUT_MS,
       AUTH_ACCESS_TIMEOUT,
     )

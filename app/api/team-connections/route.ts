@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { getCache } from '@vercel/functions'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   buildTeamConnectionScopeKey,
@@ -19,6 +20,7 @@ export const runtime = 'nodejs'
 
 const TEAM_LINK_SELECT =
   'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,accepted_at,updated_at'
+const TEAM_CONNECTIONS_CACHE_TTL_SECONDS = 45
 
 type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default' | 'accept_import'
 
@@ -36,11 +38,34 @@ type ProfileConnectionRow = {
   linked_flight?: string | null
 }
 
+type TeamConnectionsCachedResponse = {
+  ok?: boolean
+  pending?: TeamConnection[]
+  connections?: TeamConnection[]
+  offers?: unknown
+}
+
 export async function GET(request: Request) {
   const startedAt = Date.now()
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
   const includeOffers = new URL(request.url).searchParams.get('includeOffers') === '1'
+  const cache = getCache({ namespace: 'team-connections' })
+  const cacheKey = `${auth.userId}:${includeOffers ? 'offers' : 'default'}`
+
+  try {
+    const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
+    if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+      console.info('[api/team-connections] cache hit', {
+        includeOffers,
+        durationMs: Date.now() - startedAt,
+        connectionCount: cached.connections.length,
+      })
+      return Response.json(cached)
+    }
+  } catch {
+    // Runtime Cache is an optimization; a cache outage must not block teams.
+  }
 
   try {
     const [result, offers] = await Promise.all([
@@ -63,12 +88,22 @@ export async function GET(request: Request) {
       pendingCount: result.pending.length,
       connectionCount: result.connections.length,
     })
-    return Response.json({
+    const payload = {
       ok: true,
       pending: result.pending,
       connections: result.connections,
       offers,
-    })
+    }
+    try {
+      await cache.set(cacheKey, payload, {
+        ttl: TEAM_CONNECTIONS_CACHE_TTL_SECONDS,
+        tags: [`team-connections:${auth.userId}`],
+        name: 'team-connections',
+      })
+    } catch {
+      // The direct response remains authoritative if Runtime Cache is unavailable.
+    }
+    return Response.json(payload)
   } catch (error) {
     console.error('[api/team-connections] unexpected failure', {
       includeOffers,
