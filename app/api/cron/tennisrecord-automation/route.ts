@@ -7,6 +7,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 300
 
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const secret = process.env.CRON_SECRET?.trim()
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return Response.json({ ok: false, message: 'Automated collector is not authorized.' }, { status: 401 })
 
@@ -21,8 +22,19 @@ export async function GET(request: Request) {
 
   try {
     const service = createServerSupabaseClient()
-    return Response.json({ ok: true, summary: await runAutomaticTennisRecordSync(service) })
+    const summary = await runAutomaticTennisRecordSync(service)
+    console.info('[api/cron/tennisrecord-automation] completed', {
+      durationMs: Date.now() - startedAt,
+      status: summary.status,
+      pagesAttempted: summary.pagesAttempted,
+      pagesProcessed: summary.pagesProcessed,
+    })
+    return Response.json({ ok: true, summary })
   } catch (error) {
+    console.error('[api/cron/tennisrecord-automation] failed', {
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return Response.json({ ok: false, message: error instanceof Error ? error.message : 'Automated collector failed.' }, { status: 500 })
   }
 }

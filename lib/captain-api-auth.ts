@@ -10,6 +10,7 @@ type CaptainApiAuth =
   | { ok: false; response: Response }
 
 type ProfileEntitlementRow = {
+  role?: string | null
   player_plus_subscription_active?: boolean | null
   player_plus_subscription_status?: string | null
   coach_subscription_active?: boolean | null
@@ -49,12 +50,15 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
+      'role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
     )
     .eq('id', userId)
     .maybeSingle()
   const row = (profile ?? {}) as ProfileEntitlementRow
-  const access = buildProductAccessState('member', {
+  // Admin is a platform role, not a paid subscription. Preserve its built-in
+  // Captain authority instead of downgrading it to a plain member during a
+  // server-side Captain request.
+  const access = buildProductAccessState(row.role === 'admin' ? 'admin' : 'member', {
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
     coachSubscriptionActive: Boolean(row.coach_subscription_active),

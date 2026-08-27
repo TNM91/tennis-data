@@ -172,8 +172,14 @@ function CompeteTeamsContent() {
     }
 
     async function loadSupportingTeamContext(connectedTeams: TeamConnection[]) {
+      // A connected USTA team does not need a second, broad TIQ-entry read to
+      // remain usable. That optional read was the source of the misleading
+      // "cloud sync" banner even though the team connection itself succeeded.
+      const needsTiqParticipationContext = connectedTeams.some((connection) => connection.sourceType === 'tiq_entry')
       const [participationResult, teamOptions] = await Promise.all([
-        listTiqTeamParticipations(),
+        needsTiqParticipationContext
+          ? listTiqTeamParticipations()
+          : Promise.resolve({ entries: [], source: 'supabase' as const, warning: null }),
         connectedTeams.length > 0
           ? loadConnectedTeamDirectoryOptions(connectedTeams.map((connection) => connection.teamName)).catch(() => [])
           : Promise.resolve([]),
@@ -183,7 +189,7 @@ function CompeteTeamsContent() {
 
       setParticipations(participationResult.entries)
       setTeamDirectory(teamOptions)
-      setStorageWarning(participationResult.warning || '')
+      setStorageWarning(needsTiqParticipationContext ? participationResult.warning || '' : '')
     }
 
     void loadConnections()
