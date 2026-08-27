@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mountedRef.current) return
 
       if (!nextSession?.user?.id) {
@@ -199,11 +199,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      try {
-        await resolveSignedInSession(nextSession)
-      } catch {
-        // Keep the last confirmed access while Safari, the network, or storage recovers.
-      }
+      // Supabase holds an auth lock while this callback runs. Defer profile and
+      // entitlement work until after the callback returns so Safari restores
+      // the session instead of leaving authenticated pages in a loading state.
+      window.setTimeout(() => {
+        void resolveSignedInSession(nextSession).catch(() => {
+          // Keep the last confirmed access while Safari, the network, or storage recovers.
+        })
+      }, 0)
     })
 
     return () => {

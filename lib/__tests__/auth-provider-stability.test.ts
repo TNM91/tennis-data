@@ -55,4 +55,12 @@ describe('auth provider stability', () => {
     expect(source).toContain("window.addEventListener('online', refreshRestoredPage)")
     expect(source).toContain("window.removeEventListener('pageshow', refreshRestoredPage)")
   })
+
+  it('releases the Supabase auth callback before loading profile data', () => {
+    expect(source).toContain('supabase.auth.onAuthStateChange((_event, nextSession) =>')
+    expect(source).toContain('Supabase holds an auth lock while this callback runs.')
+    expect(source).toContain('window.setTimeout(() => {')
+    expect(source).toContain('void resolveSignedInSession(nextSession).catch(() => {')
+    expect(source).not.toContain('supabase.auth.onAuthStateChange(async (_event, nextSession) =>')
+  })
 })

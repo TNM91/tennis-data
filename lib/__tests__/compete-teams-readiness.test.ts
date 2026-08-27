@@ -161,4 +161,9 @@ describe('compete teams readiness', () => {
     expect(source).toContain('function TeamListLoadError')
     expect(source).toContain('We could not refresh your teams.')
   })
+
+  it('does not leave the Teams shell on a permanent loader while auth restores', () => {
+    expect(source).toContain('if (!authResolved && !accessToken) {\n      // Do not leave the public shell on an indefinite team loader')
+    expect(source).toContain('      setLoading(false)')
+  })
 })
