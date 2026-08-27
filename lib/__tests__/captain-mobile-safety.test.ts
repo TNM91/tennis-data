@@ -31,8 +31,8 @@ describe('captain mobile safety and next-match defaults', () => {
 
   it('builds captain rosters from the selected team match participants, not only a membership snapshot', () => {
     expect(builderSource).toContain("const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])")
-    expect(builderSource).toContain(".or(`home_team.eq.\"${escapedTeam}\",away_team.eq.\"${escapedTeam}\"")
-    expect(builderSource).toContain(".select('match_id, player_id, side')")
+    expect(builderSource).toContain("fetch(`/api/captain/lineup-builder?${params.toString()}`")
+    expect(builderSource).toContain('for (const row of nextMatchPlayers)')
     expect(builderSource).toContain('for (const playerId of scopedRosterPlayerIds) ids.add(playerId)')
   })
 

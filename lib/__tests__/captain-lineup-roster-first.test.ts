@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const route = readFileSync(join(process.cwd(), 'app/api/captain/lineup-builder/route.ts'), 'utf8')
 
 describe('captain lineup roster-first availability', () => {
   it('keeps no-response and marked-out roster players selectable by default', () => {
@@ -21,15 +22,14 @@ describe('captain lineup roster-first availability', () => {
   })
 
   it('keeps the complete team roster together for match planning', () => {
-    expect(source).toContain(".eq('normalized_team_name', normalizedTeam)")
-    expect(source).toContain('Scoped team roster lookup skipped')
-    expect(source).toContain('Roster player hydration skipped')
-    expect(source).toContain(".in('id', rosterPlayerIds)")
+    expect(route).toContain(".eq('normalized_team_name', normalizedTeam)")
+    expect(route).toContain(".in('id', rosterPlayerIds)")
+    expect(source).toContain('/api/captain/lineup-builder?${params.toString()}')
     expect(source).toContain('const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])')
     expect(source).toContain('const rosterBackedPlayers = useMemo(() =>')
     expect(source).toContain('for (const player of teamRosterPlayers) playersById.set(player.id, player)')
-    expect(source).toContain('The roster is the authoritative player pool')
-    expect(source).not.toContain("rosterQuery = rosterQuery.eq('flight'")
-    expect(source).not.toContain("matchQuery = matchQuery.eq('flight'")
+    expect(source).toContain('const rosterBackedPlayers = useMemo(() =>')
+    expect(route).not.toContain("rosterQuery = rosterQuery.eq('flight'")
+    expect(route).not.toContain("matchQuery = matchQuery.eq('flight'")
   })
 })

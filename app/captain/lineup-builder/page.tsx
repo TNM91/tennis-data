@@ -76,7 +76,6 @@ import {
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
-  CAPTAIN_ROSTER_CONTACTS_TABLE,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
@@ -147,26 +146,6 @@ type TeamRosterMemberRow = {
   mixed_pair_role: MixedPairRole | string | null
   age_division: string | null
 }
-
-const playerRosterSelect = `
-  id,
-  name,
-  location,
-  flight,
-  preferred_role,
-  lineup_notes,
-  singles_rating,
-  singles_dynamic_rating,
-  singles_usta_dynamic_rating,
-  doubles_rating,
-  doubles_dynamic_rating,
-  doubles_usta_dynamic_rating,
-  overall_rating,
-  overall_dynamic_rating,
-  overall_usta_dynamic_rating,
-  rating_source,
-  mixed_pair_role
-`
 
 type TiqTeamLeagueFormatRow = {
   league_name: string | null
@@ -1613,97 +1592,46 @@ function LineupBuilderContent() {
     setLoading(true)
     setError('')
     setMessage('')
+    const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+    if (!accessToken) {
+      setLoading(false)
+      setError('Sign in to load your Captain lineup.')
+      return false
+    }
 
-    const [
-      playersResult,
-      matchesResult,
-      matchPlayersResult,
-      availabilityResult,
-      captainRosterContactsResult,
-      captainMessageContactsResult,
-      scenariosResult,
-      tiqLeagueFormatsResult,
-    ] = await Promise.all([
-      supabase
-        .from('players')
-        .select(playerRosterSelect)
-        .order('name', { ascending: true }),
-      supabase
-        .from('matches')
-        .select(`
-          id,
-          league_name,
-          flight,
-          match_date,
-          match_time,
-          facility,
-          home_team,
-          away_team,
-          line_number
-        `)
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
-        .limit(400),
-      supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          player_id,
-          side
-        `)
-        .limit(4000),
-      supabase
-        .from('lineup_availability')
-        .select(`
-          id,
-          match_date,
-          team_name,
-          league_name,
-          flight,
-          player_id,
-          status,
-          notes
-        `)
-        .order('match_date', { ascending: false }),
-      supabase
-        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
-        .select('*')
-        .order('team_name', { ascending: true })
-        .order('full_name', { ascending: true }),
-      supabase
-        .from('captain_message_contacts')
-        .select('team_name, league_name, flight, full_name, phone, opt_in_text')
-        .order('team_name', { ascending: true })
-        .order('full_name', { ascending: true }),
-      supabase
-        .from('lineup_scenarios')
-        .select(`
-          id,
-          scenario_name,
-          league_name,
-          flight,
-          match_date,
-          team_name,
-          opponent_team,
-          slots_json,
-          opponent_slots_json,
-          notes
-        `)
-        .order('match_date', { ascending: false })
-        .order('scenario_name', { ascending: true }),
-      supabase
-        .from('tiq_leagues')
-        .select('league_name, flight, team_match_format_id, competition_rules')
-        .eq('league_format', 'team'),
-    ])
+    const params = new URLSearchParams()
+    if (teamName) params.set('team', teamName)
+    if (leagueName) params.set('league', leagueName)
+    if (flight) params.set('flight', flight)
 
-    const primaryError = playersResult.error
-      ?? matchesResult.error
-      ?? matchPlayersResult.error
-      ?? availabilityResult.error
-      ?? scenariosResult.error
+    let response: Response
+    let result: {
+      ok?: boolean
+      message?: string
+      players?: PlayerRow[]
+      matches?: MatchTeamRow[]
+      matchPlayers?: MatchPlayerLinkRow[]
+      rosterMembers?: TeamRosterMemberRow[]
+      availability?: AvailabilityRow[]
+      captainRosterContacts?: CaptainRosterContactRow[]
+      captainMessageContacts?: CaptainMessageTextContactRow[]
+      savedScenarios?: ScenarioRow[]
+      tiqTeamLeagueFormats?: TiqTeamLeagueFormatRow[]
+    }
+    try {
+      response = await fetch(`/api/captain/lineup-builder?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      result = await response.json() as typeof result
+    } catch {
+      setLoading(false)
+      setError('Your lineup data could not be reached. Please try again.')
+      return false
+    }
 
-    if (primaryError && isFutureJwtError(primaryError.message)) {
+    const primaryError = !response.ok ? result.message || 'Your lineup data could not be loaded.' : ''
+    if (primaryError && isFutureJwtError(primaryError)) {
       // Keep the existing lineup context intact while the newly-issued token
       // settles. The observed mobile window is longer than a single paint, so
       // do not expose an empty-roster/setup state between attempts.
@@ -1714,33 +1642,50 @@ function LineupBuilderContent() {
       if (futureJwtRefreshAttemptedRef.current <= MAX_FUTURE_JWT_RECOVERY_ATTEMPTS) {
         await supabase.auth.refreshSession()
         window.setTimeout(() => setRefreshTick((current) => current + 1), FUTURE_JWT_SETTLE_DELAY_MS)
-        return
+        return false
       }
 
       setError('Your secure session is still reconnecting. Your saved team and lineup have been kept in place.')
       setLoading(false)
-      return
+      return false
     }
 
     if (primaryError) {
       futureJwtRefreshAttemptedRef.current = 0
       setRecoveringSecureSession(false)
-      setError(primaryError.message)
+      setError(primaryError)
     } else {
       futureJwtRefreshAttemptedRef.current = 0
       setRecoveringSecureSession(false)
-      setPlayers((playersResult.data ?? []) as PlayerRow[])
-      setMatches((matchesResult.data ?? []) as MatchTeamRow[])
-      setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
-      setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
-      setCaptainRosterContacts(captainRosterContactsResult.error ? [] : (captainRosterContactsResult.data ?? []) as CaptainRosterContactRow[])
-      setCaptainMessageContacts(captainMessageContactsResult.error ? [] : (captainMessageContactsResult.data ?? []) as CaptainMessageTextContactRow[])
-      setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
-      setTiqTeamLeagueFormats(tiqLeagueFormatsResult.error ? [] : (tiqLeagueFormatsResult.data ?? []) as TiqTeamLeagueFormatRow[])
+      const nextMatches = result.matches ?? []
+      const nextMatchPlayers = result.matchPlayers ?? []
+      setPlayers(result.players ?? [])
+      setMatches(nextMatches)
+      setMatchPlayers(nextMatchPlayers)
+      setRosterMembers(result.rosterMembers ?? [])
+      setTeamRosterPlayers(result.players ?? [])
+      setAvailability(result.availability ?? [])
+      setCaptainRosterContacts(result.captainRosterContacts ?? [])
+      setCaptainMessageContacts(result.captainMessageContacts ?? [])
+      setSavedScenarios(result.savedScenarios ?? [])
+      setTiqTeamLeagueFormats(result.tiqTeamLeagueFormats ?? [])
+
+      const sideByMatchId = new Map<string, 'A' | 'B'>()
+      const normalizedTeam = normalizeTeamName(teamName)
+      for (const match of nextMatches) {
+        if (normalizeTeamName(match.home_team) === normalizedTeam) sideByMatchId.set(match.id, 'A')
+        else if (normalizeTeamName(match.away_team) === normalizedTeam) sideByMatchId.set(match.id, 'B')
+      }
+      const scopedIds = new Set<string>()
+      for (const row of nextMatchPlayers) {
+        if (row.player_id && sideByMatchId.get(row.match_id) === row.side) scopedIds.add(row.player_id)
+      }
+      setScopedRosterPlayerIds([...scopedIds])
     }
 
     setLoading(false)
-  }, [])
+    return !primaryError
+  }, [flight, leagueName, session?.access_token, teamName])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -1751,29 +1696,10 @@ function LineupBuilderContent() {
     if (refreshingReplies) return
     setRefreshingReplies(true)
     if (!quiet) setMessage('Refreshing player replies...')
-
-    const { data, error: availabilityError } = await supabase
-      .from('lineup_availability')
-      .select(`
-        id,
-        match_date,
-        team_name,
-        league_name,
-        flight,
-        player_id,
-        status,
-        notes
-      `)
-      .order('match_date', { ascending: false })
-
-    if (availabilityError) {
-      setError(availabilityError.message)
-    } else {
-      setAvailability((data ?? []) as AvailabilityRow[])
-      if (!quiet) setMessage('Player replies are up to date.')
-    }
+    const loaded = await refreshBuilderData()
+    if (loaded && !quiet) setMessage('Player replies are up to date.')
     setRefreshingReplies(false)
-  }, [refreshingReplies])
+  }, [refreshBuilderData, refreshingReplies])
 
   useEffect(() => {
     if (!authResolved || role === 'public' || typeof window === 'undefined') return
@@ -1795,134 +1721,6 @@ function LineupBuilderContent() {
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [authResolved, refreshAvailabilityReplies, role])
-
-  useEffect(() => {
-    if (!teamName) {
-      setRosterMembers([])
-      setTeamRosterPlayers([])
-      return
-    }
-
-    let active = true
-    void (async () => {
-      const normalizedTeam = normalizeTeamName(teamName)
-      const rosterQuery = supabase
-        .from('team_roster_members')
-        .select(`
-          team_name,
-          player_id,
-          player_name,
-          league_name,
-          flight,
-          rating_source,
-          mixed_pair_role,
-          age_division
-        `)
-        .eq('normalized_team_name', normalizedTeam)
-        .limit(500)
-
-      const { data, error } = await rosterQuery
-      if (!active) return
-      if (error) {
-        console.warn('Scoped team roster lookup skipped', error.message)
-        if (isFutureJwtError(error.message)) {
-          setRecoveringSecureSession(true)
-          return
-        }
-        setRosterMembers([])
-        setTeamRosterPlayers([])
-        return
-      }
-
-      const nextRosterMembers = (data ?? []) as TeamRosterMemberRow[]
-      setRosterMembers(nextRosterMembers)
-
-      const rosterPlayerIds = Array.from(new Set(nextRosterMembers
-        .map((row) => row.player_id)
-        .filter((playerId): playerId is string => Boolean(playerId))))
-
-      if (!rosterPlayerIds.length) {
-        setTeamRosterPlayers([])
-        return
-      }
-
-      const { data: rosterPlayers, error: rosterPlayersError } = await supabase
-        .from('players')
-        .select(playerRosterSelect)
-        .in('id', rosterPlayerIds)
-
-      if (!active) return
-      if (rosterPlayersError) {
-        console.warn('Roster player hydration skipped', rosterPlayersError.message)
-        if (isFutureJwtError(rosterPlayersError.message)) {
-          setRecoveringSecureSession(true)
-          return
-        }
-        setTeamRosterPlayers([])
-        return
-      }
-
-      // The roster is the authoritative player pool for a captain's lineup.
-      // Hydrating these IDs independently keeps a full team visible even when
-      // a broad catalogue query is paginated or temporarily incomplete.
-      setTeamRosterPlayers((rosterPlayers ?? []) as PlayerRow[])
-    })()
-
-    return () => { active = false }
-  }, [teamName])
-
-  useEffect(() => {
-    if (!teamName) {
-      setScopedRosterPlayerIds([])
-      return
-    }
-
-    let active = true
-    void (async () => {
-      const escapedTeam = teamName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      const matchQuery = supabase
-        .from('matches')
-        .select('id, home_team, away_team')
-        .is('line_number', null)
-        .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
-        .limit(100)
-
-      const { data: scopedMatches, error: scopedMatchesError } = await matchQuery
-      if (!active) return
-      if (scopedMatchesError || !scopedMatches?.length) {
-        setScopedRosterPlayerIds([])
-        return
-      }
-
-      const typedMatches = scopedMatches as Array<Pick<MatchTeamRow, 'id' | 'home_team' | 'away_team'>>
-      const sideByMatchId = new Map<string, 'A' | 'B'>()
-      const normalizedTeam = normalizeTeamName(teamName)
-      for (const match of typedMatches) {
-        if (normalizeTeamName(match.home_team) === normalizedTeam) sideByMatchId.set(match.id, 'A')
-        else if (normalizeTeamName(match.away_team) === normalizedTeam) sideByMatchId.set(match.id, 'B')
-      }
-
-      const { data: participantRows, error: participantError } = await supabase
-        .from('match_players')
-        .select('match_id, player_id, side')
-        .in('match_id', typedMatches.map((match) => match.id))
-
-      if (!active) return
-      if (participantError) {
-        console.warn('Scoped team match roster lookup skipped', participantError.message)
-        setScopedRosterPlayerIds([])
-        return
-      }
-
-      const ids = new Set<string>()
-      for (const row of (participantRows ?? []) as MatchPlayerLinkRow[]) {
-        if (row.player_id && sideByMatchId.get(row.match_id) === row.side) ids.add(row.player_id)
-      }
-      setScopedRosterPlayerIds([...ids])
-    })()
-
-    return () => { active = false }
-  }, [teamName])
 
   const leagueOptions = useMemo(
     () =>
