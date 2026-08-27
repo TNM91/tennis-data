@@ -1287,6 +1287,10 @@ export default function LineupBuilderPage() {
   )
 }
 
+function isFutureJwtError(message: string | null | undefined) {
+  return (message || '').toLowerCase().includes('jwt issued at future')
+}
+
 function LineupBuilderContent() {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
@@ -1404,6 +1408,7 @@ function LineupBuilderContent() {
   const scopedResumeAppliedRef = useRef(false)
   const backupFocusHandledRef = useRef(false)
   const lastReplyRefreshRef = useRef(0)
+  const futureJwtRefreshAttemptedRef = useRef(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1684,17 +1689,34 @@ function LineupBuilderContent() {
         .eq('league_format', 'team'),
     ])
 
-    if (playersResult.error) {
-      setError(playersResult.error.message)
-    } else if (matchesResult.error) {
-      setError(matchesResult.error.message)
-    } else if (matchPlayersResult.error) {
-      setError(matchPlayersResult.error.message)
-    } else if (availabilityResult.error) {
-      setError(availabilityResult.error.message)
-    } else if (scenariosResult.error) {
-      setError(scenariosResult.error.message)
+    const primaryError = playersResult.error
+      ?? matchesResult.error
+      ?? matchPlayersResult.error
+      ?? availabilityResult.error
+      ?? scenariosResult.error
+
+    if (primaryError && isFutureJwtError(primaryError.message)) {
+      // Mobile Safari can briefly present a freshly-issued token to PostgREST
+      // before its clock window accepts it. Refresh once and retry instead of
+      // replacing the captain's saved roster with a technical error state.
+      if (!futureJwtRefreshAttemptedRef.current) {
+        futureJwtRefreshAttemptedRef.current = true
+        setMessage('Refreshing your secure session…')
+        const { error: refreshError } = await supabase.auth.refreshSession()
+        setLoading(false)
+        window.setTimeout(() => setRefreshTick((current) => current + 1), refreshError ? 1500 : 250)
+        return
+      }
+      setError('Your secure session is taking a moment. Tap retry to load your lineup.')
+      setLoading(false)
+      return
+    }
+
+    if (primaryError) {
+      futureJwtRefreshAttemptedRef.current = false
+      setError(primaryError.message)
     } else {
+      futureJwtRefreshAttemptedRef.current = false
       setPlayers((playersResult.data ?? []) as PlayerRow[])
       setMatches((matchesResult.data ?? []) as MatchTeamRow[])
       setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
