@@ -35,6 +35,13 @@ describe('platform-wide pick up continuity', () => {
     expect(hook).toContain("document.addEventListener('visibilitychange'")
   })
 
+  it('can keep resume sync out of the mobile header critical path', () => {
+    expect(hook).toContain('enabled = true')
+    expect(hook).toContain('if (!enabled) return')
+    expect(hook).toContain('if (!enabled || !accessToken || !userId)')
+    expect(header).toContain('enabled: !isMobile && authenticated && authResolved')
+  })
+
   it('keeps one-tap Continue compact and puts alternatives in the account menu', () => {
     expect(header).toContain('getHeaderResumeShortcutLabel({')
     expect(header).toContain('data-site-resume-shortcut="true"')

@@ -325,8 +325,9 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     accessToken: session?.access_token,
     userId,
     refreshKey: pathname,
+    enabled: !isMobile && authenticated && authResolved,
   })
-  const resumeItems = accessPending ? [] : savedResumeItems.filter((item) => {
+  const resumeItems = accessPending || isMobile ? [] : savedResumeItems.filter((item) => {
     if (item.id === 'captain') return access.canUseCaptainWorkflow
     if (item.id === 'coach') return access.canUseCoachWorkflow
     if (item.id === 'league') return access.canUseLeagueTools
@@ -671,9 +672,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               ) : null}
             </div>
 
-            {authPending ? (
-              <span aria-live="polite" style={desktopMenuStatusStyle}>Checking account access</span>
-            ) : authenticated ? (
+            {authenticated ? (
               <>
                 {resumeItems.length ? (
                   <div aria-label="Recent work" style={desktopResumeSectionStyle}>
@@ -682,7 +681,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                     </div>
                     {resumeItems.slice(0, 3).map((item) => (
                       <div key={item.id} style={desktopResumeCardStyle}>
-                        <Link href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeCardLinkStyle}>
+                        <Link prefetch={false} href={item.href} onClick={() => setMenuOpen(false)} style={desktopResumeCardLinkStyle}>
                           <ResumeItemLabel
                             lane={item.lane}
                             label={item.status === 'unfinished' || item.handoff ? item.actionLabel : item.label}
@@ -697,25 +696,25 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                   </div>
                 ) : null}
                 {workspaceShortcut ? (
-                  <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
+                  <Link prefetch={false} href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
                     {workspaceShortcut.label}
                   </Link>
                 ) : null}
                 {canOpenPersonalQuest ? (
-                  <Link href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                  <Link prefetch={false} href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                     My Quest
                   </Link>
                 ) : null}
                 {role === 'admin' ? (
-                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                  <Link prefetch={false} href="/admin" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                     Admin dashboard
                   </Link>
                 ) : null}
                 <div style={desktopMenuDividerStyle} />
-                <Link href="/profile" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                <Link prefetch={false} href="/profile" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Profile
                 </Link>
-                <Link href="/messages" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                <Link prefetch={false} href="/messages" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Messages
                 </Link>
                 <button
@@ -731,10 +730,10 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               </>
             ) : (
               <>
-                <Link href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                <Link prefetch={false} href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
                   Sign in
                 </Link>
-                <Link href={joinHref} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
+                <Link prefetch={false} href={joinHref} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
                   Start Free
                 </Link>
               </>
@@ -772,7 +771,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               <div style={mobileSearchWrapStyle}>
                 <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
-              {authPending ? null : authenticated ? (
+              {authenticated ? (
                 <>
                   {resumeItems.length ? (
                     <div aria-label="Recent work" style={mobileResumeSectionStyle}>
@@ -781,7 +780,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                       </div>
                       {resumeItems.slice(0, 2).map((item) => (
                         <div key={item.id} style={mobileResumeCardStyle}>
-                          <Link href={item.href} onClick={() => setMenuOpen(false)} style={mobileResumeCardLinkStyle}>
+                          <Link prefetch={false} href={item.href} onClick={() => setMenuOpen(false)} style={mobileResumeCardLinkStyle}>
                             <MobileItemLabel
                               label={`${item.lane}: ${item.status === 'unfinished' || item.handoff ? item.actionLabel : item.label}`}
                               description={getPlatformResumeDetail(item) || undefined}
@@ -794,25 +793,25 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                     </div>
                   ) : null}
                   {PRIMARY_NAV_ITEMS.map((item) => (
-                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <Link prefetch={false} key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <MobileItemLabel label={item.label} description={item.description} />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ))}
                   {canOpenPersonalQuest ? (
-                    <Link href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
+                    <Link prefetch={false} href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
                       <MobileItemLabel label="My Quest" description="Open your private Level Up plan." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
                   {role === 'admin' ? (
-                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <Link prefetch={false} href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <MobileItemLabel label="Admin dashboard" />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
                   {workspaceShortcut ? (
-                    <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
+                    <Link prefetch={false} href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
                       <MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis tool." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
@@ -832,16 +831,17 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               ) : (
                 <>
                   {PRIMARY_NAV_ITEMS.map((item) => (
-                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <Link prefetch={false} key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <MobileItemLabel label={item.label} description={item.description} />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ))}
-                  <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                  <Link prefetch={false} href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <MobileItemLabel label="Sign in" description="Open saved work." />
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
+                    prefetch={false}
                     href={joinHref}
                     onClick={() => setMenuOpen(false)}
                     style={{
@@ -1260,13 +1260,6 @@ const desktopAccountPhotoStyle: CSSProperties = {
   width: 34,
   height: 34,
   flex: '0 0 auto',
-}
-
-const desktopMenuStatusStyle: CSSProperties = {
-  ...accountPillStyle,
-  justifyContent: 'flex-start',
-  width: '100%',
-  boxSizing: 'border-box',
 }
 
 const desktopMenuLinkStyle: CSSProperties = {
