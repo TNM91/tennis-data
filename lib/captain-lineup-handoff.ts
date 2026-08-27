@@ -10,6 +10,7 @@ export type CaptainLineupHandoffScenario = {
   team_name: string | null
   opponent_team: string | null
   slots_json: unknown
+  opponent_slots_json?: unknown
   notes: string | null
 }
 

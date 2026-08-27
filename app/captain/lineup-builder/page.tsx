@@ -2748,10 +2748,18 @@ function LineupBuilderContent() {
     setAskingCourtId(slot.id)
     setError('')
     setMessage(`Saving ${slot.label} and preparing a private availability text...`)
+    const preservedTeamSlots = cloneSlots(teamSlots)
+    const preservedOpponentSlots = cloneSlots(opponentSlots)
 
     try {
       const savedScenario = await saveScenario(false, true)
       if (!savedScenario) return
+
+      // Opening Messages on a phone can restore this page from browser cache.
+      // Keep the working draft exactly as the captain set it, even while the
+      // scenario save refreshes in the background.
+      setTeamSlots(preservedTeamSlots)
+      setOpponentSlots(preservedOpponentSlots)
 
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
@@ -2794,7 +2802,7 @@ function LineupBuilderContent() {
       const handoff: CaptainLineupHandoff = {
         version: 1,
         intent: 'confirm-availability',
-        scenario: { ...savedScenario, slots_json: [slot] },
+        scenario: { ...savedScenario, slots_json: preservedTeamSlots, opponent_slots_json: preservedOpponentSlots },
         match: {
           date: matchDate,
           time: selectedMatch?.match_time || '',
