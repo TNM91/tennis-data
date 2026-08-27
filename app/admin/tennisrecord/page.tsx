@@ -21,7 +21,7 @@ type Status = {
   ratingProgress: { pending: number; baselineRefreshPending: boolean; baselineRefreshRequestedAt: string | null; lastRecalculatedAt: string | null; cadence: 'overnight' | 'Wednesday' | 'paused' }
   ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number } | null
   ratingAlignment: { verifiedPlayers: number; atOrNearBaseline: number; buildingAboveBaseline: number; belowBaseline: number; materiallyBelowBaseline: number } | null
-  coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number }
+  coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number } | null
   conflicts: number
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
   campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string; availableSeedPages: number }>
@@ -215,6 +215,7 @@ export default function TennisRecordAdminPage() {
           <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>Collected data coverage</strong>
             <span className="subtle-text">Counts update automatically as source pages are staged, reconciled, and made available to Team, League, and Flight filters.</span>
+            {status?.coverage === null ? <span className="subtle-text">Detailed coverage counts are briefly deferred while the database recovers; the live importer heartbeat remains available.</span> : null}
           </div>
           <div className="metric-grid">
             <Metric label="Filterable teams" value={status?.coverage?.filterable_team_count ?? '—'} />

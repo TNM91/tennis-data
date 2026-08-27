@@ -13,8 +13,8 @@ describe('TennisRecord Admin import progress', () => {
   it('returns scoped campaign queue states for an active historical import', () => {
     expect(service).toContain('campaignProgress: {')
     expect(service).toContain('weeklyProgress: {')
-    expect(service).toContain('tennisrecord_admin_coverage_summary')
-    expect(service).toContain('coverage: (coverage.data as CoverageSummary | null)')
+    expect(service).toContain('Coverage aggregates are intentionally deferred from this heartbeat.')
+    expect(service).not.toContain("service.from('tennisrecord_admin_coverage_summary')")
     expect(service).toContain("countCampaignPages('pending')")
     expect(service).toContain("countCampaignPages('done')")
     expect(service).toContain('seedTennisRecordCampaignFrontier')
@@ -57,6 +57,7 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain('tennisRecordCadenceSafetyStatus')
     expect(service).toContain('TENNISRECORD_AUTOMATION_INTERVAL_MINUTES')
     expect(service).toContain('Interrupted checkpoint reclaimed for retry.')
+    expect(service).not.toContain("select('id', { count: 'exact', head: true })")
   })
 
   it('does not label a delayed status request as a paused collector', () => {

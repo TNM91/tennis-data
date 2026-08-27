@@ -276,6 +276,23 @@ export async function POST(request: Request) {
 }
 
 async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {
+  // An accepted team link is the account's durable, user-approved connection.
+  // Read it first and return it immediately. Discovery is useful when someone
+  // has not linked a team yet, but it must never hold an existing captain's
+  // Teams screen hostage while the importer is using database capacity.
+  const { data: savedData, error: savedError } = await service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(100)
+
+  if (savedError) return { ok: false as const, message: savedError.message }
+  const savedLinks = (savedData || []) as TeamProfileLinkRow[]
+  if (savedLinks.some((link) => link.status === 'accepted')) {
+    return { ok: true as const, ...buildTeamConnections({ savedLinks }) }
+  }
+
   const { data: profileData, error: profileError } = await service
     .from('profiles')
     .select('linked_player_id')
@@ -300,12 +317,7 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
           .eq('player_id', linkedPlayerId)
           .limit(100)
       : Promise.resolve({ data: [], error: null }),
-    service
-      .from('team_profile_links')
-      .select(TEAM_LINK_SELECT)
-      .eq('profile_user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(100),
+    Promise.resolve({ data: savedLinks, error: null }),
   ])
 
   const error = contactsResult.error || rosterResult.error || savedResult.error
@@ -797,8 +809,9 @@ async function getTeamConnectionAuth(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
-  const { data, error } = await authClient.auth.getUser(token)
-  if (error || !data.user) {
+  const { data, error } = await authClient.auth.getClaims(token)
+  const userId = typeof data?.claims.sub === 'string' ? data.claims.sub : ''
+  if (error || !userId) {
     return { ok: false as const, response: Response.json({ ok: false, message: 'Sign in to review team connections.' }, { status: 401 }) }
   }
 
@@ -813,8 +826,8 @@ async function getTeamConnectionAuth(request: Request) {
   return {
     ok: true as const,
     service,
-    userId: data.user.id,
-    email: cleanText(data.user.email).toLowerCase(),
+    userId,
+    email: cleanText(data?.claims.email).toLowerCase(),
   }
 }
 
