@@ -1,19 +1,58 @@
 import { getAdminApiAuth } from '@/lib/admin-api-auth'
 import { enqueueTennisRecordUrls, getTennisRecordOperationalStatus, runTennisRecordSync, seedTennisRecordCampaignFrontier } from '@/lib/tennisrecord/service'
+import { getCache } from '@vercel/functions'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+const ADMIN_STATUS_CACHE_KEY = 'operational-status:v1'
+const ADMIN_STATUS_CACHE_TAG = 'tennisrecord-admin-status'
+const ADMIN_STATUS_CACHE_TTL_SECONDS = 120
+
+function getAdminStatusCache() {
+  return getCache({ namespace: 'tennisrecord-admin' })
+}
 
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
-  try { return Response.json({ ok: true, ...(await getTennisRecordOperationalStatus(auth.service)) }) }
-  catch { return Response.json({ ok: false, message: 'TennisRecord operations are temporarily unavailable.' }, { status: 500 }) }
+  const cache = getAdminStatusCache()
+  try {
+    const cached = await cache.get(ADMIN_STATUS_CACHE_KEY)
+    if (cached && typeof cached === 'object') {
+      console.info('[api/admin/tennisrecord] cache hit', { durationMs: Date.now() - startedAt })
+      return Response.json({ ok: true, ...(cached as Record<string, unknown>) })
+    }
+  } catch {
+    // The admin status cache is a performance optimization, never a dependency.
+  }
+
+  try {
+    const status = await getTennisRecordOperationalStatus(auth.service)
+    try {
+      await cache.set(ADMIN_STATUS_CACHE_KEY, status, {
+        ttl: ADMIN_STATUS_CACHE_TTL_SECONDS,
+        tags: [ADMIN_STATUS_CACHE_TAG],
+        name: 'tennisrecord-admin-status',
+      })
+    } catch {
+      // Return the current source-of-truth status even if Runtime Cache is unavailable.
+    }
+    console.info('[api/admin/tennisrecord] loaded', { durationMs: Date.now() - startedAt })
+    return Response.json({ ok: true, ...status })
+  } catch (error) {
+    console.error('[api/admin/tennisrecord] status failed', {
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json({ ok: false, message: 'TennisRecord operations are temporarily unavailable.' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
+  try { await getAdminStatusCache().expireTag(ADMIN_STATUS_CACHE_TAG) } catch { /* Cache expiry must not block admin actions. */ }
   const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown; campaignId?: unknown } | null
   const action = typeof body?.action === 'string' ? body.action : ''
   try {
