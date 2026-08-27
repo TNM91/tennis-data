@@ -1291,6 +1291,20 @@ function LineupBuilderContent() {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
   const initialContext = readInitialLineupBuilderContext(userId)
+  const persistedDirectCourtTextHandoff = typeof window === 'undefined'
+    ? null
+    : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
+  const persistedBuilderDraft = persistedDirectCourtTextHandoff?.builderDraft
+  const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
+  const initialLeagueName = initialContext.league || persistedBuilderDraft?.leagueName || ''
+  const initialFlight = initialContext.flight || persistedBuilderDraft?.flight || ''
+  const initialTeamName = initialContext.team || persistedBuilderDraft?.teamName || ''
+  const initialOpponentTeam = initialContext.opponentTeam || persistedBuilderDraft?.opponentTeam || ''
+  const initialMatchDate = initialContext.eventDate || persistedBuilderDraft?.matchDate || ''
+  const initialMatchId = initialContext.matchId || persistedBuilderDraft?.selectedMatchId || ''
+  const initialMatchFormat = initialContext.matchFormat !== 'auto'
+    ? initialContext.matchFormat
+    : persistedBuilderDraft?.matchFormat || 'auto'
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
@@ -1310,16 +1324,12 @@ function LineupBuilderContent() {
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [askingCourtId, setAskingCourtId] = useState('')
-  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(() =>
-    typeof window === 'undefined'
-      ? null
-      : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
-  )
+  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(persistedDirectCourtTextHandoff)
   const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
-  const [currentScenarioId, setCurrentScenarioId] = useState('')
+  const [currentScenarioId, setCurrentScenarioId] = useState(persistedBuilderDraft?.scenarioId || '')
   const [comparisonScenarioId, setComparisonScenarioId] = useState('')
 
   const [message, setMessage] = useState('')
@@ -1329,18 +1339,18 @@ function LineupBuilderContent() {
   const [savedLineupChangeDelivery, setSavedLineupChangeDelivery] = useState<SavedLineupChangeDelivery | null>(null)
   const [notifyingLineupChange, setNotifyingLineupChange] = useState(false)
 
-  const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
-  const [leagueName, setLeagueName] = useState(initialContext.league)
+  const [competitionLayer, setCompetitionLayer] = useState(initialCompetitionLayer)
+  const [leagueName, setLeagueName] = useState(initialLeagueName)
   const [selectedMatchFormatId, setSelectedMatchFormatId] = useState<TeamMatchFormatId | 'auto'>(
-    initialContext.matchFormat === 'auto' ? 'auto' : normalizeTeamMatchFormatId(initialContext.matchFormat)
+    initialMatchFormat === 'auto' ? 'auto' : normalizeTeamMatchFormatId(initialMatchFormat)
   )
-  const [flight, setFlight] = useState(initialContext.flight)
-  const [teamName, setTeamName] = useState(initialContext.team)
-  const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
-  const [matchDate, setMatchDate] = useState(initialContext.eventDate)
-  const [selectedMatchId, setSelectedMatchId] = useState(initialContext.matchId)
-  const [scenarioName, setScenarioName] = useState('')
-  const [notes, setNotes] = useState('')
+  const [flight, setFlight] = useState(initialFlight)
+  const [teamName, setTeamName] = useState(initialTeamName)
+  const [opponentTeam, setOpponentTeam] = useState(initialOpponentTeam)
+  const [matchDate, setMatchDate] = useState(initialMatchDate)
+  const [selectedMatchId, setSelectedMatchId] = useState(initialMatchId)
+  const [scenarioName, setScenarioName] = useState(persistedBuilderDraft?.scenarioName || '')
+  const [notes, setNotes] = useState(persistedBuilderDraft?.notes || '')
   const [refreshTick, setRefreshTick] = useState(0)
   const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>([])
   const [manualRosterText, setManualRosterText] = useState('')
@@ -1371,13 +1381,17 @@ function LineupBuilderContent() {
     [initialContext.mode, initialContext.replacePlayer, initialContext.replacementCourt],
   )
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
+    normalizeSavedSlots(persistedBuilderDraft?.teamSlots).length
+      ? normalizeSavedSlots(persistedBuilderDraft?.teamSlots)
+      : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'team', initialMatchFormat)
   )
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'opponent', initialContext.matchFormat)
+    normalizeSavedSlots(persistedBuilderDraft?.opponentSlots).length
+      ? normalizeSavedSlots(persistedBuilderDraft?.opponentSlots)
+      : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
-    getCaptainLineupFormatKey(initialContext.league, initialContext.flight, initialContext.matchFormat)
+    getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
@@ -2844,6 +2858,21 @@ function LineupBuilderContent() {
           }
         }),
         openedPlayerKeys: [],
+        builderDraft: {
+          competitionLayer,
+          leagueName,
+          flight,
+          teamName,
+          opponentTeam,
+          matchDate,
+          selectedMatchId,
+          matchFormat: selectedMatchFormatId,
+          scenarioId: savedScenario.id,
+          scenarioName: savedScenario.scenario_name,
+          notes,
+          teamSlots: preservedTeamSlots,
+          opponentSlots: preservedOpponentSlots,
+        },
       }
       saveDirectCourtTextHandoff(directTextHandoff)
       const firstPlayer = directTextHandoff.players[0]

@@ -72,7 +72,7 @@ describe('captain potential-lineup handoff', () => {
     })
 
     expect(message).toContain('Your proposed court: 3.5 Doubles. Your teammate is still being determined.')
-    expect(message).toContain('Add it to your iPhone calendar, then set future availability below.')
+    expect(message).toContain('Add it to your calendar, then set future availability below.')
   })
 
   it('rejects invalid stored handoffs', () => {

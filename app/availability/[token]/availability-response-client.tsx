@@ -210,7 +210,7 @@ export default function AvailabilityResponseClient({ token }: { token: string })
             </div>
             {saved ? (
               <div role="status" style={successStyle}>
-                <strong>Reply sent.</strong> Your captain can use it while finalizing the lineup.
+                <strong>Thanks—your response was saved.</strong> It was sent to your captain.
               </div>
             ) : null}
           </section>
@@ -223,7 +223,7 @@ export default function AvailabilityResponseClient({ token }: { token: string })
             {calendarHref || mapsHref ? (
               <div style={quickLinkRowStyle}>
                 {calendarHref ? <a href={calendarHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Add to Google Calendar</a> : null}
-                {phoneCalendarHref ? <a href={phoneCalendarHref} style={quickLinkStyle}>Add to iPhone calendar</a> : null}
+                {phoneCalendarHref ? <a href={phoneCalendarHref} style={quickLinkStyle}>Add calendar reminder</a> : null}
                 {mapsHref ? <a href={mapsHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Open directions</a> : null}
               </div>
             ) : null}
