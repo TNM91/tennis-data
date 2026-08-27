@@ -36,7 +36,7 @@ describe('auth provider stability', () => {
     expect(source).toContain("if (!mountedRef.current || sessionRef.current?.user?.id !== nextUserId) return null")
     expect(source).toContain('!isAuthEntitlementTimeout(entitlementResult) && entitlementResult !== null')
     expect(source).toContain('? entitlementsRef.current')
-    expect(source).toContain('if (previousUserId !== nextUserId) setAuthResolved(false)')
+    expect(source).toContain('} else if (previousUserId !== nextUserId) {\n      setAuthResolved(false)')
     expect(source).toContain('if (nextEntitlements !== null) {')
     expect(source).toContain('    setAuthResolved(true)\n\n    return {')
   })
@@ -54,6 +54,15 @@ describe('auth provider stability', () => {
     expect(source).toContain("window.addEventListener('pageshow', refreshRestoredPage)")
     expect(source).toContain("window.addEventListener('online', refreshRestoredPage)")
     expect(source).toContain("window.removeEventListener('pageshow', refreshRestoredPage)")
+  })
+
+  it('uses a short-lived entitlement cache to keep returning sessions responsive', () => {
+    expect(source).toContain('const AUTH_ENTITLEMENT_CACHE_TTL_MS = 30 * 60 * 1000')
+    expect(source).toContain("const AUTH_ENTITLEMENT_CACHE_PREFIX = 'tenaceiq-auth-entitlements:v1:'")
+    expect(source).toContain('function readCachedEntitlements')
+    expect(source).toContain('const cachedEntitlements = hasCurrentAccess ? entitlementsRef.current : readCachedEntitlements(nextUserId)')
+    expect(source).toContain('writeCachedEntitlements(nextUserId, nextEntitlements)')
+    expect(source).toContain('Protected\n      // routes and mutations still authorize against the server')
   })
 
   it('releases the Supabase auth callback before loading profile data', () => {

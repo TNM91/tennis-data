@@ -34,8 +34,15 @@ type AuthRefreshState = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const AUTH_PROVIDER_TIMEOUT_MS = 8000
 const AUTH_RETRY_INTERVAL_MS = 15000
+const AUTH_ENTITLEMENT_CACHE_TTL_MS = 30 * 60 * 1000
+const AUTH_ENTITLEMENT_CACHE_PREFIX = 'tenaceiq-auth-entitlements:v1:'
 const AUTH_SESSION_TIMEOUT = { timedOut: true } as const
 const AUTH_ENTITLEMENT_TIMEOUT = { timedOut: true } as const
+
+type CachedEntitlements = {
+  cachedAt: number
+  entitlements: ProductEntitlementSnapshot
+}
 
 async function fetchProfileRole(userId: string | null | undefined): Promise<UserRole> {
   if (!userId) return 'public'
@@ -71,6 +78,46 @@ function isAuthEntitlementTimeout(value: unknown): value is typeof AUTH_ENTITLEM
   return value === AUTH_ENTITLEMENT_TIMEOUT
 }
 
+function isCachedEntitlements(value: unknown): value is CachedEntitlements {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<CachedEntitlements>
+  const entitlements = candidate.entitlements as Partial<ProductEntitlementSnapshot> | undefined
+  if (!entitlements) return false
+
+  return Number.isFinite(candidate.cachedAt) &&
+    typeof entitlements.playerPlusSubscriptionActive === 'boolean' &&
+    typeof entitlements.captainSubscriptionActive === 'boolean' &&
+    typeof entitlements.tiqTeamLeagueEntryEnabled === 'boolean' &&
+    typeof entitlements.tiqIndividualLeagueCreatorEnabled === 'boolean'
+}
+
+function getEntitlementCacheKey(userId: string) {
+  return `${AUTH_ENTITLEMENT_CACHE_PREFIX}${userId}`
+}
+
+function readCachedEntitlements(userId: string): ProductEntitlementSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(getEntitlementCacheKey(userId))
+    if (!raw) return null
+    const cached = JSON.parse(raw) as unknown
+    if (!isCachedEntitlements(cached) || Date.now() - cached.cachedAt > AUTH_ENTITLEMENT_CACHE_TTL_MS) {
+      window.localStorage.removeItem(getEntitlementCacheKey(userId))
+      return null
+    }
+    return cached.entitlements
+  } catch {
+    return null
+  }
+}
+
+function writeCachedEntitlements(userId: string, entitlements: ProductEntitlementSnapshot) {
+  try {
+    window.localStorage.setItem(getEntitlementCacheKey(userId), JSON.stringify({ cachedAt: Date.now(), entitlements }))
+  } catch {
+    // Private browsing or a full storage quota must not block sign-in.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole>('public')
@@ -87,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previousUserId = sessionRef.current?.user?.id ?? null
     const hasCurrentAccess =
       previousUserId === nextUserId && entitlementsRef.current !== null
+    const cachedEntitlements = hasCurrentAccess ? entitlementsRef.current : readCachedEntitlements(nextUserId)
 
     if (previousUserId && previousUserId !== nextUserId) {
       roleRef.current = 'member'
@@ -97,7 +145,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     sessionRef.current = nextSession
     setSession(nextSession)
-    if (previousUserId !== nextUserId) setAuthResolved(false)
+    if (cachedEntitlements !== null) {
+      // Client access is cached only to keep the shell responsive. Protected
+      // routes and mutations still authorize against the server, while the
+      // fresh snapshot below silently replaces this cache.
+      entitlementsRef.current = cachedEntitlements
+      setEntitlements(cachedEntitlements)
+      setAuthResolved(true)
+    } else if (previousUserId !== nextUserId) {
+      setAuthResolved(false)
+    }
 
     const [nextRole, entitlementResult] = await Promise.all([
       withTimeout(
@@ -127,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (nextEntitlements !== null) {
       entitlementsRef.current = nextEntitlements
       setEntitlements(nextEntitlements)
+      writeCachedEntitlements(nextUserId, nextEntitlements)
     }
     setAuthResolved(true)
 
