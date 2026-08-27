@@ -2239,6 +2239,11 @@ function LineupBuilderContent() {
     [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
   )
 
+  const teamRoomHref = useMemo(
+    () => buildTeamRoomHref({ teamName, leagueName, flight }),
+    [flight, leagueName, teamName],
+  )
+
   const teamSummaryUploadHref = useMemo(
     () => buildTeamSummaryUploadHref({
       teamName,
@@ -3631,6 +3636,51 @@ function LineupBuilderContent() {
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
   const completedCourtCount = analysis.lines.filter((line) => isProjectedLineComplete(line)).length
+  const assignedTeamReplySummary = useMemo(() => {
+    const playerById = new Map(builderPlayers.map((player) => [player.id, player]))
+    const availabilityByPlayerId = new Map(myPlayerPool.map((player) => [player.id, player.availabilityStatus]))
+    const assigned = new Map<string, { name: string; label: ReturnType<typeof availabilityLabel> }>()
+
+    for (const slot of teamSlots) {
+      for (const selection of slot.players) {
+        const playerId = selection.playerId.trim()
+        const playerName = selection.playerName.trim()
+        const key = playerId || playerName.toLowerCase()
+        if (!key || assigned.has(key)) continue
+        const player = playerId ? playerById.get(playerId) : undefined
+        assigned.set(key, {
+          name: player?.name || playerName || 'Player',
+          label: availabilityLabel(playerId ? availabilityByPlayerId.get(playerId) : null),
+        })
+      }
+    }
+
+    const players = Array.from(assigned.values())
+    const confirmed = players.filter((player) => player.label === 'Confirmed')
+    const maybe = players.filter((player) => player.label === 'Maybe')
+    const out = players.filter((player) => player.label === 'Out')
+    const waiting = players.filter((player) => player.label === 'No response')
+    return { players, confirmed, maybe, out, waiting }
+  }, [builderPlayers, myPlayerPool, teamSlots])
+  const finalLineupReady = completedCourtCount === analysis.lines.length
+    && assignedTeamReplySummary.players.length > 0
+    && assignedTeamReplySummary.confirmed.length === assignedTeamReplySummary.players.length
+  const finalLineupReadinessTitle = finalLineupReady
+    ? 'Every court is set and every selected player is in.'
+    : completedCourtCount !== analysis.lines.length
+      ? `${completedCourtCount} of ${analysis.lines.length} courts are complete.`
+      : assignedTeamReplySummary.waiting.length
+        ? `${assignedTeamReplySummary.waiting.length} selected player${assignedTeamReplySummary.waiting.length === 1 ? '' : 's'} still need${assignedTeamReplySummary.waiting.length === 1 ? 's' : ''} to reply.`
+        : assignedTeamReplySummary.maybe.length
+          ? `${assignedTeamReplySummary.maybe.length} selected player${assignedTeamReplySummary.maybe.length === 1 ? ' is' : 's are'} still maybe.`
+          : assignedTeamReplySummary.out.length
+            ? `${assignedTeamReplySummary.out.length} selected player${assignedTeamReplySummary.out.length === 1 ? ' is' : 's are'} out — adjust that court.`
+            : 'Name a player on a court to start the final check.'
+  const finalLineupReadinessDetail = finalLineupReady
+    ? 'Review it in Team Room, then send the complete lineup with match details when you are ready.'
+    : assignedTeamReplySummary.waiting.length
+      ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
+      : 'A player is selectable before they reply, but only an In reply clears the final lineup check.'
   const availablePlayerCount = myPlayerPool.filter((player) => {
     const status = (player.availabilityStatus ?? '').trim().toLowerCase()
     return status === 'available' || status === 'yes' || status === 'in' || status === 'maybe'
@@ -4052,6 +4102,29 @@ function LineupBuilderContent() {
               : 'Fills or replaces unlocked courts with the strongest projected lineup.'}{' '}
             This is a potential lineup. Review it, then confirm each player&apos;s availability before finalizing.
           </p>
+
+          <div role="status" aria-live="polite" style={finalLineupReady ? bannerGreenStyle : bannerBlueStyle}>
+            <div style={finalLineupGateHeaderStyle}>
+              <div style={finalLineupGateCopyStyle}>
+                <p style={sectionKicker}>Final lineup check</p>
+                <strong>{finalLineupReadinessTitle}</strong>
+                <span>{finalLineupReadinessDetail}</span>
+              </div>
+              <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>
+                {assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in
+              </span>
+            </div>
+            <div style={finalLineupGateActionsStyle}>
+              {finalLineupReady ? (
+                <GhostLink href={teamRoomHref}>Review final lineup</GhostLink>
+              ) : (
+                <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                  {refreshingReplies ? 'Refreshing replies...' : 'Check replies'}
+                </GhostBtn>
+              )}
+              <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+            </div>
+          </div>
 
           <div style={decisionBoardActionRowStyle}>
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
@@ -6350,6 +6423,30 @@ const appliedLineupActionStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const finalLineupGateHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const finalLineupGateCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 260px',
+}
+
+const finalLineupGateActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  marginTop: 12,
 }
 
 const decisionCardBaseStyle: CSSProperties = {
