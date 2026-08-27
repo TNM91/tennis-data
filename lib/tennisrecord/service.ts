@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
@@ -47,10 +48,10 @@ export type RatingBaselineAlignment = {
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
 // A collector checkpoint also reconciles match evidence and may promote line
-// records. Keep that database work comfortably below the function ceiling.
-// The collector remains sequentially rate-limited; eight pages is a measured
-// bootstrap step-up after sustained clean checkpoints, not parallel crawling.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8
+// records. The collector remains sequentially rate-limited. Twelve pages fits
+// comfortably inside the observed three-minute cadence while cutting avoidable
+// startup and reconciliation overhead between checkpoints.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 12
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 // Replaying already-captured pages does not contact the source. Two local-only
 // pages per checkpoint recover stated NTRP evidence from existing profiles
@@ -74,9 +75,7 @@ const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
 // configured request interval.
 export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 3
 const TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS = 30 * 60_000
-const TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS = 15 * 60_000
-const TENNISRECORD_LONG_CHECKPOINT_MS = 3 * 60_000
-const TENNISRECORD_TRANSIENT_RETRY_BACKOFF_THRESHOLD = 4
+export const TENNISRECORD_SOURCE_PAGE_BUCKET = 'tennisrecord-source-pages'
 // Profiles and team pages carry factual location and roster context. They
 // must travel with match/history pages, otherwise the campaign cannot safely
 // grow from its own verified source graph.
@@ -195,34 +194,72 @@ export type TennisRecordCadenceSafety = {
 }
 
 /**
- * Keep the faster schedule polite. This never changes source pacing or opens
- * parallel fetches: it simply holds the next checkpoints when the last run
- * reports a block, retry pressure, repeated failures, or unexpected runtime
- * pressure.
+ * A verified source access block must stop the next checkpoint. Individual
+ * transport and parser failures are already delayed or quarantined at their
+ * queue row, so they must not pause thousands of unrelated public pages.
  */
 export function tennisRecordCadenceSafetyStatus(lastRun: TennisRecordRunSafetySample | null | undefined, now = Date.now()): TennisRecordCadenceSafety {
   const completedAt = Date.parse(lastRun?.completed_at || '')
   if (!lastRun || !Number.isFinite(completedAt)) return { active: false, reason: null, resumesAt: null }
 
-  const startedAt = Date.parse(lastRun.started_at || '')
-  const durationMs = Number.isFinite(startedAt) ? Math.max(0, completedAt - startedAt) : 0
   const hasBlock = Number(lastRun.blocked_requests || 0) > 0
-  const hasRepeatedFailures = Number(lastRun.parser_failures || 0) >= 2 || Number(lastRun.source_failures || 0) >= 2
-  const hasRetryPressure = Number(lastRun.transient_retries || 0) >= TENNISRECORD_TRANSIENT_RETRY_BACKOFF_THRESHOLD
-  const ranLong = durationMs >= TENNISRECORD_LONG_CHECKPOINT_MS
-  const backoffMs = hasBlock ? TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS : hasRepeatedFailures || hasRetryPressure || ranLong ? TENNISRECORD_CHECKPOINT_PRESSURE_BACKOFF_MS : 0
+  const backoffMs = hasBlock ? TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS : 0
   if (!backoffMs) return { active: false, reason: null, resumesAt: null }
 
   const resumesAtMs = completedAt + backoffMs
   if (now >= resumesAtMs) return { active: false, reason: null, resumesAt: null }
-  const reason = hasBlock
-    ? 'A source access block was observed.'
-    : hasRepeatedFailures
-      ? 'The latest checkpoint reported repeated source or parser failures.'
-      : hasRetryPressure
-        ? 'The latest checkpoint needed repeated temporary source retries.'
-        : 'The latest checkpoint ran longer than expected.'
+  const reason = 'A source access block was observed.'
   return { active: true, reason, resumesAt: new Date(resumesAtMs).toISOString() }
+}
+
+/** Keep raw source evidence out of the transactional database hot path. */
+export function tennisRecordSourcePageStoragePath(sourceUrl: string, contentHash: string) {
+  const sourceKey = createHash('sha256').update(sourceUrl).digest('hex')
+  const safeHash = contentHash.replace(/[^a-zA-Z0-9_-]/g, '') || 'content'
+  return `pages/${sourceKey}/${safeHash}.html`
+}
+
+async function persistTennisRecordSourcePage(service: SupabaseClient, page: Awaited<ReturnType<typeof fetchTennisRecordPage>>, runId: string) {
+  const rawHtml = page.html || null
+  let storagePath: string | null = null
+  let databaseFallbackHtml: string | null = rawHtml
+
+  if (rawHtml) {
+    const candidatePath = tennisRecordSourcePageStoragePath(page.url, page.contentHash)
+    const upload = await service.storage
+      .from(TENNISRECORD_SOURCE_PAGE_BUCKET)
+      .upload(candidatePath, new Blob([rawHtml], { type: 'text/html; charset=utf-8' }), { contentType: 'text/html; charset=utf-8', upsert: true })
+
+    if (upload.error) {
+      // Preserve the source observation even if object storage is temporarily
+      // unavailable. This is intentionally a rare database fallback rather
+      // than a reason to discard audit evidence or stop the campaign.
+      console.warn('[tennisrecord] source page storage fallback', { sourceUrl: page.url, message: upload.error.message })
+    } else {
+      storagePath = candidatePath
+      databaseFallbackHtml = null
+    }
+  }
+
+  const pageUpsert = await service
+    .from('tennisrecord_source_pages')
+    .upsert({
+      source_url: page.url,
+      content_hash: page.contentHash,
+      http_status: page.status,
+      captured_at: new Date().toISOString(),
+      last_seen_at: new Date().toISOString(),
+      blocked: Boolean(page.blockReason),
+      block_reason: page.blockReason,
+      raw_html: databaseFallbackHtml,
+      raw_html_storage_path: storagePath,
+      sync_run_id: runId,
+      parser_revision: TENNISRECORD_PARSER_REVISION,
+    }, { onConflict: 'source_url,content_hash' })
+    .select('id')
+    .single()
+  if (pageUpsert.error) throw new Error(pageUpsert.error.message)
+  return pageUpsert.data?.id as string | undefined
 }
 
 export function tennisRecordFailureDisposition(message: string, retryCount: number) {
@@ -617,8 +654,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       try {
         const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms)
         summary.transientRetries += page.transientRetries
-        const pageUpsert = await service.from('tennisrecord_source_pages').upsert({ source_url: page.url, content_hash: page.contentHash, http_status: page.status, captured_at: new Date().toISOString(), last_seen_at: new Date().toISOString(), blocked: Boolean(page.blockReason), block_reason: page.blockReason, raw_html: page.html || null, sync_run_id: runId, parser_revision: TENNISRECORD_PARSER_REVISION }, { onConflict: 'source_url,content_hash' }).select('id').single()
-        if (pageUpsert.error) throw new Error(pageUpsert.error.message)
+        const sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
         if (page.blockReason) {
           summary.blockedRequests += 1; summary.status = 'blocked'
           await service.from('tennisrecord_crawl_queue').update({ status: 'blocked', failure_reason: page.blockReason, completed_at: new Date().toISOString() }).eq('id', job.id)
@@ -634,7 +670,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           }).eq('id', job.id)
           continue
         }
-        const staged = await stageParsedPage(service, parsed, page.url, pageUpsert.data?.id as string | undefined, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)
+        const staged = await stageParsedPage(service, parsed, page.url, sourcePageId, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)
         baselineChanged = baselineChanged || staged.baselineChanged
         for (const sourceMatchKey of staged.sourceMatchKeys) {
           touchedSourceMatchKeys.add(sourceMatchKey)
@@ -1004,17 +1040,23 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
   const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [], baselineChanged: false }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
-    .select('id,source_url,raw_html')
+    .select('id,source_url,raw_html,raw_html_storage_path')
     .eq('blocked', false)
     .lt('parser_revision', TENNISRECORD_PARSER_REVISION)
-    .not('raw_html', 'is', null)
+    .or('raw_html.not.is.null,raw_html_storage_path.not.is.null')
     .order('last_seen_at', { ascending: false })
     .limit(SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT)
   if (error) throw new Error(error.message)
 
   for (const page of pages || []) {
     const sourceUrl = page.source_url as string
-    const html = page.raw_html as string
+    let html = page.raw_html as string | null
+    if (!html && page.raw_html_storage_path) {
+      const storedPage = await service.storage.from(TENNISRECORD_SOURCE_PAGE_BUCKET).download(page.raw_html_storage_path as string)
+      if (storedPage.error) throw new Error(storedPage.error.message)
+      html = await storedPage.data.text()
+    }
+    if (!html) continue
     const parsed = parseTennisRecordMatchPage(html, sourceUrl)
     const isMatchPage = tennisRecordRecordPageKind(sourceUrl) === 'match'
     const hasCompleteMatches = parsed.matches.length > 0

@@ -7,7 +7,7 @@ const source = readFileSync(join(process.cwd(), 'lib/tennisrecord/service.ts'), 
 
 describe('TennisRecord checkpoint stability', () => {
   it('keeps scheduled checkpoints small and defers full rating recalculation', () => {
-    expect(source).toContain('const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 8')
+    expect(source).toContain('const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 12')
     expect(source).toContain('const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3')
     expect(source).toContain('const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2')
     expect(source).toContain('recalculateRatings: false')
