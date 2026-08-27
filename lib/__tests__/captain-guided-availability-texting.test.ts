@@ -32,6 +32,15 @@ describe('Captain guided availability texting', () => {
     expect(source).not.toContain('open={Boolean(availabilityHandoff && missingPotentialLineupNames.length) || undefined}')
   })
 
+  it('opens a private court text in the same tap while its one-tap reply link saves in the background', () => {
+    const builderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+
+    expect(builderSource).toContain('const responseToken = window.crypto.randomUUID()')
+    expect(builderSource).toContain('keepalive: true')
+    expect(builderSource).toContain('window.location.assign(buildSmsHref([contact.phone], body))')
+    expect(builderSource).toContain("responseToken: player.playerId === invitedPlayer.playerId")
+  })
+
   it('keeps the queue and inline form within mobile width', () => {
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))'")
     expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")

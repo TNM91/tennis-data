@@ -2599,37 +2599,91 @@ function LineupBuilderContent() {
       return
     }
 
+    const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
+    const contact = directTextContactByName.get(playerKey)
+    if (!contact?.phone?.trim()) {
+      setError(`Add a mobile number for ${invitedPlayer.playerName} before opening their private text.`)
+      setMessage('')
+      return
+    }
+
+    if (typeof window === 'undefined' || !window.crypto?.randomUUID) {
+      setError('This browser could not prepare a secure reply link. Please update your browser and try again.')
+      setMessage('')
+      return
+    }
+
+    const accessToken = session?.access_token
+    if (!accessToken) {
+      setError('Sign in again before sending availability texts.')
+      setMessage('')
+      return
+    }
+
     setAskingCourtId(slot.id)
     setError('')
-    setMessage(`Saving ${slot.label} and preparing a private availability text...`)
+    setMessage(`Opening a private availability text for ${invitedPlayer.playerName}...`)
     const preservedTeamSlots = cloneSlots(teamSlots)
     const preservedOpponentSlots = cloneSlots(opponentSlots)
+    const responseToken = window.crypto.randomUUID()
+    const requestUrl = `${window.location.origin}/availability/${encodeURIComponent(responseToken)}`
+    const directTextHandoff: CaptainDirectCourtTextHandoff = {
+      version: 1,
+      courtId: slot.id,
+      courtLabel: slot.label,
+      requestId: '',
+      match: {
+        date: matchDate,
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+        opponent: opponentTeam,
+      },
+      slotsJson: [slot],
+      players: [{
+        playerId: invitedPlayer.playerId,
+        playerName: invitedPlayer.playerName,
+        requestUrl,
+      }],
+      openedPlayerKeys: [playerKey],
+      builderDraft: {
+        competitionLayer,
+        leagueName,
+        flight,
+        teamName,
+        opponentTeam,
+        matchDate,
+        selectedMatchId,
+        matchFormat: selectedMatchFormatId,
+        scenarioId: currentScenarioId,
+        scenarioName,
+        notes,
+        teamSlots: preservedTeamSlots,
+        opponentSlots: preservedOpponentSlots,
+      },
+    }
+    saveDirectCourtTextHandoff(directTextHandoff)
 
-    try {
-      const savedScenario = await saveScenario(false, true)
-      if (!savedScenario) return
+    const body = buildPlayerPotentialLineupAvailabilityMessage({
+      playerName: invitedPlayer.playerName,
+      teamName,
+      opponent: opponentTeam,
+      dateText: formatDate(matchDate),
+      time: selectedMatch?.match_time || '',
+      facility: selectedMatch?.facility || '',
+      slotsJson: [slot],
+      availabilityRequestUrl: requestUrl,
+    })
 
-      // Opening Messages on a phone can restore this page from browser cache.
-      // Keep the working draft exactly as the captain set it, even while the
-      // scenario save refreshes in the background.
-      setTeamSlots(preservedTeamSlots)
-      setOpponentSlots(preservedOpponentSlots)
-
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
-      if (!accessToken) {
-        setError('Sign in again before sending availability texts.')
-        return
-      }
-
-      const response = await fetch('/api/captain/availability-requests', {
+    // iOS only honors the Messages handoff while it is still part of the tap.
+    // Start the durable invite write first, then leave for Messages immediately.
+    void fetch('/api/captain/availability-requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          scenarioId: savedScenario.id,
+          scenarioId: currentScenarioId,
           teamName,
           leagueName,
           flight,
@@ -2638,90 +2692,28 @@ function LineupBuilderContent() {
           matchTime: selectedMatch?.match_time || '',
           facility: selectedMatch?.facility || '',
           slots: [slot],
-          invitedPlayers,
+          invitedPlayers: invitedPlayers.map((player) => ({
+            ...player,
+            responseToken: player.playerId === invitedPlayer.playerId && player.playerName === invitedPlayer.playerName
+              ? responseToken
+              : undefined,
+          })),
           inviteMode: 'append',
         }),
+        keepalive: true,
       })
-      const result = await response.json() as {
-        message?: string
-        requestId?: string
-        requestUrl?: string
-        playerRequestUrls?: CaptainLineupHandoff['playerRequestUrls']
-      }
-      if (!response.ok) {
-        setError(result.message || 'The availability request could not be prepared.')
-        return
-      }
+      .then(async (response) => {
+        if (response.ok) return
+        const result = await response.json().catch(() => null) as { message?: string } | null
+        setError(result?.message || 'The private reply link could not be saved. Ask again when you return to TiQ.')
+      })
+      .catch(() => {
+        setError('The private reply link could not be saved. Ask again when you return to TiQ.')
+      })
+      .finally(() => setAskingCourtId(''))
 
-      const handoff: CaptainLineupHandoff = {
-        version: 1,
-        intent: 'confirm-availability',
-        scenario: { ...savedScenario, slots_json: preservedTeamSlots, opponent_slots_json: preservedOpponentSlots },
-        match: {
-          date: matchDate,
-          time: selectedMatch?.match_time || '',
-          facility: selectedMatch?.facility || '',
-          opponent: opponentTeam,
-        },
-        availabilityRequestUrl: result.requestUrl || '',
-        availabilityRequestId: result.requestId || '',
-        playerRequestUrls: result.playerRequestUrls ?? [],
-        createdAt: new Date().toISOString(),
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY, JSON.stringify(handoff))
-        window.localStorage.setItem('tenace_selected_scenario', JSON.stringify(handoff.scenario))
-        window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
-      }
-
-      const directTextHandoff: CaptainDirectCourtTextHandoff = {
-        version: 1,
-        courtId: slot.id,
-        courtLabel: slot.label,
-        requestId: result.requestId || '',
-        match: {
-          date: matchDate,
-          time: selectedMatch?.match_time || '',
-          facility: selectedMatch?.facility || '',
-          opponent: opponentTeam,
-        },
-        slotsJson: [slot],
-        players: invitedPlayers.map((player) => {
-          const invite = (result.playerRequestUrls ?? []).find((candidate) =>
-            candidate.playerId === player.playerId || normalizeTeamName(candidate.playerName) === normalizeTeamName(player.playerName)
-          )
-          return {
-            playerId: player.playerId,
-            playerName: player.playerName,
-            requestUrl: invite?.requestUrl || result.requestUrl || '',
-          }
-        }),
-        openedPlayerKeys: [],
-        builderDraft: {
-          competitionLayer,
-          leagueName,
-          flight,
-          teamName,
-          opponentTeam,
-          matchDate,
-          selectedMatchId,
-          matchFormat: selectedMatchFormatId,
-          scenarioId: savedScenario.id,
-          scenarioName: savedScenario.scenario_name,
-          notes,
-          teamSlots: preservedTeamSlots,
-          opponentSlots: preservedOpponentSlots,
-        },
-      }
-      saveDirectCourtTextHandoff(directTextHandoff)
-      const firstPlayer = directTextHandoff.players[0]
-      if (firstPlayer) openDirectCourtText(firstPlayer, directTextHandoff)
-    } catch {
-      setError('The availability request could not be prepared. Try again in a moment.')
-    } finally {
-      setAskingCourtId('')
-    }
+    void saveScenario(false, true)
+    window.location.assign(buildSmsHref([contact.phone], body))
   }
 
   async function refreshSavedScenarios() {
