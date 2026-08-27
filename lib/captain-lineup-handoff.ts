@@ -52,6 +52,21 @@ export type CaptainDirectCourtTextHandoff = {
     requestUrl: string
   }>
   openedPlayerKeys: string[]
+  builderDraft?: {
+    competitionLayer: string
+    leagueName: string
+    flight: string
+    teamName: string
+    opponentTeam: string
+    matchDate: string
+    selectedMatchId: string
+    matchFormat: string
+    scenarioId: string
+    scenarioName: string
+    notes: string
+    teamSlots: unknown
+    opponentSlots: unknown
+  }
 }
 
 type MessageSlot = {
@@ -167,7 +182,7 @@ export function buildPlayerPotentialLineupAvailabilityMessage(input: {
     input.availabilityRequestUrl
       ? `Reply in TiQ: ${input.availabilityRequestUrl}`
       : 'Reply YES, NO, or MAYBE to your captain.',
-    input.availabilityRequestUrl ? 'One tap answers this match. Add it to your iPhone calendar, then set future availability below.' : '',
+    input.availabilityRequestUrl ? 'One tap answers this match. Add it to your calendar, then set future availability below.' : '',
   ]
     .filter(Boolean)
     .join('\n\n')

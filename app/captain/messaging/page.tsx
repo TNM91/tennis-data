@@ -2389,7 +2389,7 @@ function buildWinningLineupMessage() {
     `Arrive by ${eventArrivalTime || 'match time'}.`,
     eventLocation ? `Location: ${eventLocation}` : '',
     calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
-    phoneCalendarHref ? `Add to iPhone calendar: ${phoneCalendarHref}` : '',
+    phoneCalendarHref ? `Add calendar reminder: ${phoneCalendarHref}` : '',
     mapsHref ? `Open directions: ${mapsHref}` : '',
     'TiQ members: open this team message and choose Add to My Calendar.',
   ].filter(Boolean).join('\n\n'))
