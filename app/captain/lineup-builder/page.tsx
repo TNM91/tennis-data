@@ -1410,6 +1410,7 @@ function LineupBuilderContent() {
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
+  const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
 
   const [prefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
@@ -1511,6 +1512,7 @@ function LineupBuilderContent() {
     setActiveLineupFormatKey(lineupFormatKey)
     setLockedSlotIds([])
     setLockedPlayerIds([])
+    setReleasedConfirmedPlayerIds([])
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
     setSavedLineupChangeDelivery(null)
@@ -2161,7 +2163,39 @@ function LineupBuilderContent() {
   }, [opponentSlots])
 
   const lockedSlotIdSet = useMemo(() => new Set(lockedSlotIds), [lockedSlotIds])
-  const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
+  const confirmedAssignedPlayerIdSet = useMemo(() => {
+    const ids = new Set<string>()
+    for (const slot of teamSlots) {
+      for (const player of slot.players) {
+        if (!player.playerId) continue
+        if (availabilityLabel(availabilityMap.get(player.playerId)?.status) === 'Confirmed') {
+          ids.add(player.playerId)
+        }
+      }
+    }
+    return ids
+  }, [availabilityMap, teamSlots])
+  const releasedConfirmedPlayerIdSet = useMemo(
+    () => new Set(releasedConfirmedPlayerIds),
+    [releasedConfirmedPlayerIds],
+  )
+  const autoLockedConfirmedPlayerIdSet = useMemo(
+    () => new Set([...confirmedAssignedPlayerIdSet].filter((playerId) => !releasedConfirmedPlayerIdSet.has(playerId))),
+    [confirmedAssignedPlayerIdSet, releasedConfirmedPlayerIdSet],
+  )
+  const lockedPlayerIdSet = useMemo(
+    () => new Set([...lockedPlayerIds, ...autoLockedConfirmedPlayerIdSet]),
+    [autoLockedConfirmedPlayerIdSet, lockedPlayerIds],
+  )
+  const activePlayerLockCount = lockedPlayerIdSet.size
+  const activeLockCount = lockedSlotIds.length + activePlayerLockCount
+
+  useEffect(() => {
+    setReleasedConfirmedPlayerIds((current) => {
+      const next = current.filter((playerId) => confirmedAssignedPlayerIdSet.has(playerId))
+      return next.length === current.length ? current : next
+    })
+  }, [confirmedAssignedPlayerIdSet])
 
   const suggestedSwapPlayer = useMemo(() => {
     if (!replacementHandoff) return null
@@ -2323,6 +2357,12 @@ function LineupBuilderContent() {
 
   function toggleLockedPlayer(playerId: string) {
     if (!playerId) return
+    if (confirmedAssignedPlayerIdSet.has(playerId)) {
+      setReleasedConfirmedPlayerIds((current) =>
+        current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
+      )
+      return
+    }
     setLockedPlayerIds((current) =>
       current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
     )
@@ -2331,6 +2371,7 @@ function LineupBuilderContent() {
   function clearLocks() {
     setLockedSlotIds([])
     setLockedPlayerIds([])
+    setReleasedConfirmedPlayerIds([])
   }
 
   function getPlayerById(playerId: string) {
@@ -3680,7 +3721,7 @@ function LineupBuilderContent() {
 
     setTeamSlots(formatSafeSlots)
     showAppliedLineupNotice(plan.title, formatSafeSlots)
-    setMessage(`${plan.title} applied${lockedSlotIds.length || lockedPlayerIds.length ? ' with locks preserved' : ''}.`)
+    setMessage(`${plan.title} applied${activeLockCount ? ' with locks preserved' : ''}.`)
     setError(incompleteCourts.length
       ? `Best lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
       : '')
@@ -3705,7 +3746,7 @@ function LineupBuilderContent() {
     )
     setTeamSlots(formatSafeSlots)
     showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
-    setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
+    setMessage(`Balanced recommendation applied${activeLockCount ? ' around your locks' : ''}.`)
     setError('')
   }
 
@@ -4736,6 +4777,8 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={toggleLockedPlayer}
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
+                    autoLockedPlayerIds={autoLockedConfirmedPlayerIdSet}
+                    releasedConfirmedPlayerIds={releasedConfirmedPlayerIdSet}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
                     onAskPlayers={askProposedCourtPlayers}
@@ -4784,6 +4827,8 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={() => undefined}
                     lockedSlotIds={new Set()}
                     lockedPlayerIds={new Set()}
+                    autoLockedPlayerIds={new Set()}
+                    releasedConfirmedPlayerIds={new Set()}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
                     onAskPlayers={undefined}
@@ -4804,7 +4849,7 @@ function LineupBuilderContent() {
                 <PrimaryBtn onClick={applyRecommendedTeamLineup}>Apply Balanced Build</PrimaryBtn>
                 <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-Fill Opponent</GhostBtn>
                 <GhostBtn onClick={rebuildAroundLocks}>Rebuild Around Locks</GhostBtn>
-                <GhostBtn onClick={clearLocks}>Clear Locks</GhostBtn>
+                <GhostBtn onClick={clearLocks}>Reset Locks</GhostBtn>
               </div>
 
               <div style={heroBadgeRowStyleCompact}>
@@ -4820,7 +4865,7 @@ function LineupBuilderContent() {
                     <h3 style={sectionTitleSmall}>What is fixed and what can still move</h3>
                   </div>
                   <span style={miniPillSlateStyle}>
-                    {lockedSlotIds.length + lockedPlayerIds.length} lock{lockedSlotIds.length + lockedPlayerIds.length === 1 ? '' : 's'}
+                    {activeLockCount} lock{activeLockCount === 1 ? '' : 's'}
                   </span>
                 </div>
 
@@ -4835,14 +4880,14 @@ function LineupBuilderContent() {
 
                   <div style={lockSummaryCardStyle}>
                     <div style={lockSummaryLabelStyle}>Locked players</div>
-                    <div style={lockSummaryValueStyle}>{lockedPlayerIds.length}</div>
+                    <div style={lockSummaryValueStyle}>{activePlayerLockCount}</div>
                     <div style={lockSummaryTextStyle}>
-                      Keep specific players in the lineup while the rest of the build adjusts around them.
+                      Confirmed players lock automatically. You can unlock one when you need to move them.
                     </div>
                   </div>
                 </div>
 
-                {(lockedSlotIds.length || lockedPlayerIds.length) ? (
+                {activeLockCount ? (
                   <div style={stackStyleCompact}>
                     {lockedSlotIds.length ? (
                       <div style={listCardStyleCompact}>
@@ -4859,7 +4904,7 @@ function LineupBuilderContent() {
                       </div>
                     ) : null}
 
-                    {lockedPlayerIds.length ? (
+                    {activePlayerLockCount ? (
                       <div style={listCardStyleCompact}>
                         <div>
                           <div style={listTitleStyle}>Locked players</div>
@@ -4870,7 +4915,7 @@ function LineupBuilderContent() {
                               .join(' - ')}
                           </div>
                         </div>
-                        <span style={miniPillGreenStyle}>player locks</span>
+                        <span style={miniPillGreenStyle}>{autoLockedConfirmedPlayerIdSet.size ? 'confirmed locks' : 'player locks'}</span>
                       </div>
                     ) : null}
                   </div>
@@ -4881,7 +4926,7 @@ function LineupBuilderContent() {
                 )}
 
                 <div style={lockInsightStyle}>
-                  {lockedSlotIds.length || lockedPlayerIds.length
+                  {activeLockCount
                     ? 'Rebuilds will preserve your locked structure first, then fill the rest of the lineup from the current player pool.'
                     : 'Nothing is pinned yet, so optimizer actions can freely rebalance your entire lineup.'}
                 </div>
@@ -5313,6 +5358,8 @@ function SlotEditor({
   toggleLockedPlayer,
   lockedSlotIds,
   lockedPlayerIds,
+  autoLockedPlayerIds,
+  releasedConfirmedPlayerIds,
   fixedFormat,
   competitionRules,
   onAskPlayers,
@@ -5330,6 +5377,8 @@ function SlotEditor({
   toggleLockedPlayer: (playerId: string) => void
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
+  autoLockedPlayerIds: Set<string>
+  releasedConfirmedPlayerIds: Set<string>
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
   onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
@@ -5382,6 +5431,8 @@ function SlotEditor({
             : selectedReplyLabel === 'Out'
               ? selectedPlayerOutFieldStyle
               : undefined
+          const isAutoLocked = autoLockedPlayerIds.has(player.playerId)
+          const isConfirmedReleased = selectedReplyLabel === 'Confirmed' && releasedConfirmedPlayerIds.has(player.playerId)
 
           return (
             <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
@@ -5416,10 +5467,14 @@ function SlotEditor({
                   <button
                     type="button"
                     aria-pressed={lockedPlayerIds.has(player.playerId)}
-                    style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
+                    style={lockedPlayerIds.has(player.playerId)
+                      ? isAutoLocked ? confirmedPlayerLockButtonStyle : pillButtonActive
+                      : pillButton}
                     onClick={() => toggleLockedPlayer(player.playerId)}
                   >
-                    {lockedPlayerIds.has(player.playerId) ? 'player locked' : 'lock player'}
+                    {lockedPlayerIds.has(player.playerId)
+                      ? isAutoLocked ? 'confirmed · unlock' : 'player locked'
+                      : isConfirmedReleased ? 're-lock confirmed player' : 'lock player'}
                   </button>
                 </div>
               ) : null}
@@ -7132,6 +7187,14 @@ const pillButtonActive: CSSProperties = {
   ...miniPillGreenStyle,
   minHeight: 44,
   cursor: 'pointer',
+}
+
+const confirmedPlayerLockButtonStyle: CSSProperties = {
+  ...pillButtonActive,
+  border: '1px solid var(--brand-green)',
+  background: 'rgba(155,225,29,0.16)',
+  boxShadow: '0 0 0 2px color-mix(in srgb, var(--brand-green) 15%, transparent)',
+  color: '#efffbc',
 }
 
 function PrimaryBtn({

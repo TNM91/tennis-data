@@ -2189,11 +2189,13 @@ function CaptainMessagingContent() {
       notes: existingContact?.notes ?? null,
     }
 
+    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
+    const nextContacts = [...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name))
+    const smsHref = buildSmsHref([phone], buildPotentialPlayerMessage(playerName))
+
     setError(null)
     setSavingInlinePhoneKey(playerKey)
-    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
-    await saveContacts([...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name)))
-    setSavingInlinePhoneKey('')
+    const contactSave = saveContacts(nextContacts)
     setInlinePhoneByPlayer((current) => {
       const next = { ...current }
       delete next[playerKey]
@@ -2202,8 +2204,11 @@ function CaptainMessagingContent() {
     markPotentialPlayerTextOpened(playerKey)
 
     if (typeof window !== 'undefined') {
-      window.location.href = buildSmsHref([phone], buildPotentialPlayerMessage(playerName))
+      window.location.assign(smsHref)
     }
+
+    await contactSave
+    setSavingInlinePhoneKey('')
   }
 
   function handleEditContact(contact: ContactRow) {
