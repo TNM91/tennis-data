@@ -48,10 +48,11 @@ export type RatingBaselineAlignment = {
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
 // A collector checkpoint also reconciles match evidence and may promote line
-// records. The collector remains sequentially rate-limited. Twelve pages fits
-// comfortably inside the observed three-minute cadence while cutting avoidable
-// startup and reconciliation overhead between checkpoints.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 12
+// records. The collector remains sequentially rate-limited. Eighteen pages
+// uses the additional database headroom without increasing the public-source
+// request rate. Normal checkpoints stay within the observed runtime headroom;
+// the route's existing five-minute limit remains the final safety boundary.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 18
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 // Replaying already-captured pages does not contact the source. Two local-only
 // pages per checkpoint recover stated NTRP evidence from existing profiles
@@ -69,7 +70,11 @@ const TENNISRECORD_STATUS_COUNT = { count: 'planned' as const, head: true }
 const TENNISRECORD_TRANSIENT_RETRY_DELAY_MS = 6 * 60_000
 const DEFERRED_TENNISRECORD_RETRY_DELAYS_MS = [6 * 60 * 60_000, 24 * 60 * 60_000] as const
 const DEFERRED_TENNISRECORD_RETRY_BATCH_LIMIT = 4
-const STALE_TENNISRECORD_RUN_MS = 10 * 60_000
+// The cron route is allowed to run for five minutes. A one-minute grace keeps
+// an active checkpoint protected while allowing a compute restart or other
+// interruption to recover on the next scheduled pass instead of idling for
+// up to twelve minutes.
+const STALE_TENNISRECORD_RUN_MS = 6 * 60_000
 // A completed checkpoint gets a short idle gap before the next one. The
 // source-request lane itself remains strictly sequential and paced by the
 // configured request interval.
