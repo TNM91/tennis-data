@@ -109,8 +109,11 @@ describe('Captain shared auth access', () => {
   it('recovers a briefly future-issued mobile token before showing the lineup load error', () => {
     expect(lineupBuilderSource).toContain('function isFutureJwtError')
     expect(lineupBuilderSource).toContain('supabase.auth.refreshSession()')
-    expect(lineupBuilderSource).toContain("setMessage('Refreshing your secure session…')")
+    expect(lineupBuilderSource).toContain("setMessage('Securing your team data…')")
     expect(lineupBuilderSource).toContain('futureJwtRefreshAttemptedRef')
+    expect(lineupBuilderSource).toContain('FUTURE_JWT_SETTLE_DELAY_MS = 3_000')
+    expect(lineupBuilderSource).toContain('MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2')
+    expect(lineupBuilderSource).toContain('!recoveringSecureSession && !myPlayerPool.length')
   })
 
   it('keeps the Captain Season Dashboard on shared auth before loading team data', () => {

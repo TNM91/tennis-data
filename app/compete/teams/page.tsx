@@ -23,6 +23,23 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
+const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
+
+function isFutureJwtError(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
+}
+
+async function loadConnectedTeamDirectoryOptions(teamNames: string[], retryingFutureJwt = false) {
+  try {
+    return await listTeamDirectoryOptions({ teamNames })
+  } catch (error) {
+    if (!retryingFutureJwt && isFutureJwtError(error)) {
+      await new Promise<void>((resolve) => globalThis.setTimeout(resolve, FUTURE_JWT_SETTLE_DELAY_MS))
+      return loadConnectedTeamDirectoryOptions(teamNames, true)
+    }
+    throw error
+  }
+}
 
 const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')
 const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)
@@ -158,7 +175,7 @@ function CompeteTeamsContent() {
       const [participationResult, teamOptions] = await Promise.all([
         listTiqTeamParticipations(),
         connectedTeams.length > 0
-          ? listTeamDirectoryOptions({ teamNames: connectedTeams.map((connection) => connection.teamName) }).catch(() => [])
+          ? loadConnectedTeamDirectoryOptions(connectedTeams.map((connection) => connection.teamName)).catch(() => [])
           : Promise.resolve([]),
       ])
 
@@ -287,14 +304,12 @@ function CompeteTeamsContent() {
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
               const teamFacts = [
                 {
-                  label: 'League connection',
-                  value: group.tiqLeagues.length > 0
-                    ? `${group.tiqLeagues.length} TIQ league${group.tiqLeagues.length === 1 ? '' : 's'}`
-                    : 'Not linked',
+                  label: 'Team connection',
+                  value: 'Connected',
                 },
                 {
                   label: 'Match history',
-                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'No matches',
+                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'Match data syncing',
                 },
               ]
               const teamMetaItems = [
