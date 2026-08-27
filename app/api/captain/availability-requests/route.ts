@@ -19,6 +19,7 @@ type AvailabilityRequestBody = {
   facility?: string
   slots?: unknown
   invitedPlayers?: Array<{ playerId?: string; playerName?: string }>
+  inviteMode?: 'append' | 'replace'
 }
 
 export async function GET(request: Request) {
@@ -157,6 +158,38 @@ export async function POST(request: Request) {
 
   const service = getCaptainAvailabilityServiceClient()
   const scenarioId = cleanAvailabilityText(body.scenarioId, 80)
+  const existingQuery = service
+    .from('captain_availability_requests')
+    .select('id,request_token,invited_players_json')
+    .eq('created_by', auth.userId)
+    .eq('team_name', teamName)
+    .eq('match_date', matchDate)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (isUuid(scenarioId)) existingQuery.eq('scenario_id', scenarioId)
+  const { data: existingRows } = await existingQuery
+  const existing = existingRows?.[0] as {
+    id: string
+    request_token: string
+    invited_players_json: Array<{ playerId?: string; playerName?: string }> | null
+  } | undefined
+  const appendInvites = body.inviteMode === 'append'
+  const existingInvites = appendInvites && Array.isArray(existing?.invited_players_json)
+    ? existing.invited_players_json
+      .map((player) => ({
+        playerId: cleanAvailabilityText(player.playerId, 80),
+        playerName: cleanAvailabilityText(player.playerName),
+      }))
+      .filter((player) => player.playerName)
+    : []
+  const requestInvitedPlayers = Array.from(
+    new Map([...existingInvites, ...invitedPlayers].map((player) => [
+      `${player.playerId || ''}:${player.playerName.toLowerCase()}`,
+      player,
+    ])).values()
+  )
   const payload = {
     created_by: auth.userId,
     scenario_id: isUuid(scenarioId) ? scenarioId : null,
@@ -168,23 +201,9 @@ export async function POST(request: Request) {
     match_time: cleanAvailabilityText(body.matchTime, 80),
     facility: cleanAvailabilityText(body.facility, 240),
     slots_json: Array.isArray(body.slots) ? body.slots : [],
-    invited_players_json: invitedPlayers,
+    invited_players_json: requestInvitedPlayers,
     updated_at: new Date().toISOString(),
   }
-
-  const existingQuery = service
-    .from('captain_availability_requests')
-    .select('id,request_token')
-    .eq('created_by', auth.userId)
-    .eq('team_name', teamName)
-    .eq('match_date', matchDate)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (payload.scenario_id) existingQuery.eq('scenario_id', payload.scenario_id)
-  const { data: existingRows } = await existingQuery
-  const existing = existingRows?.[0] as { id: string; request_token: string } | undefined
 
   let requestId = existing?.id ?? ''
   let token = existing?.request_token ?? ''
@@ -205,7 +224,7 @@ export async function POST(request: Request) {
     token = String(data.request_token)
   }
 
-  const inviteRows = invitedPlayers.map((player) => ({
+  const inviteRows = requestInvitedPlayers.map((player) => ({
     request_id: requestId,
     player_id: isUuid(player.playerId) ? player.playerId : null,
     player_name: player.playerName,
@@ -216,7 +235,7 @@ export async function POST(request: Request) {
     .upsert(inviteRows, { onConflict: 'request_id,player_name' })
   if (inviteError) return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
 
-  const invitedNames = new Set(invitedPlayers.map((player) => player.playerName.toLowerCase()))
+  const invitedNames = new Set(requestInvitedPlayers.map((player) => player.playerName.toLowerCase()))
   const { data: currentInvites } = await service
     .from('captain_availability_request_invites')
     .select('id,player_name')
@@ -224,7 +243,7 @@ export async function POST(request: Request) {
   const staleInviteIds = (currentInvites ?? [])
     .filter((invite) => !invitedNames.has(String(invite.player_name).toLowerCase()))
     .map((invite) => invite.id)
-  if (staleInviteIds.length) {
+  if (!appendInvites && staleInviteIds.length) {
     await service
       .from('captain_availability_request_invites')
       .delete()

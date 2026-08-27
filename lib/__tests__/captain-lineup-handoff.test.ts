@@ -18,7 +18,7 @@ const slots = [
 ]
 
 describe('captain potential-lineup handoff', () => {
-  it('builds a match-specific availability text that works without a TIQ account', () => {
+  it('builds a match-specific availability text that works without a TiQ account', () => {
     const message = buildPotentialLineupAvailabilityMessage({
       teamName: 'TIQ Team',
       opponent: 'Racquet Club',
@@ -35,7 +35,7 @@ describe('captain potential-lineup handoff', () => {
     expect(message).toContain('Time: 7:00 PM')
     expect(message).toContain('Location: Forest Lake')
     expect(message).toContain('Set this match or other season dates')
-    expect(message).toContain('works without a TIQ account')
+    expect(message).toContain('one-tap Yes or No response')
   })
 
   it('extracts each projected player once', () => {
@@ -55,8 +55,24 @@ describe('captain potential-lineup handoff', () => {
     })
 
     expect(message).toContain('Your proposed court: 3.5 Doubles with Pat Volley.')
-    expect(message).toContain('Reply in TIQ: https://www.tenaceiq.com/availability/alex-token')
+    expect(message).toContain('Reply in TiQ: https://www.tenaceiq.com/availability/alex-token')
     expect(message).not.toContain('3.5 Doubles: Alex Ace / Pat Volley')
+  })
+
+  it('says when a doubles teammate is still being determined', () => {
+    const message = buildPlayerPotentialLineupAvailabilityMessage({
+      playerName: 'Alex Ace',
+      teamName: 'TiQ Team',
+      opponent: 'Racquet Club',
+      dateText: 'August 8',
+      time: '7:00 PM',
+      facility: 'Forest Lake',
+      slotsJson: [{ ...slots[0], players: [slots[0].players[0]] }],
+      availabilityRequestUrl: 'https://www.tenaceiq.com/availability/alex-token',
+    })
+
+    expect(message).toContain('Your proposed court: 3.5 Doubles. Your teammate is still being determined.')
+    expect(message).toContain('Add it to your iPhone calendar, then set future availability below.')
   })
 
   it('rejects invalid stored handoffs', () => {
