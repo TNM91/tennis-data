@@ -163,7 +163,7 @@ describe('compete teams readiness', () => {
   })
 
   it('does not leave the Teams shell on a permanent loader while auth restores', () => {
-    expect(source).toContain('if (!authResolved && !accessToken) {\n      // Do not leave the public shell on an indefinite team loader')
+    expect(source).toContain('if (!authResolved && !accessToken) {')
     expect(source).toContain('      setLoading(false)')
   })
 })

@@ -113,9 +113,14 @@ export function formatPhone(phone: string) {
   return phone
 }
 
-export function buildSmsHref(recipients: string[], body: string) {
+export function getSmsBodySeparator(userAgent?: string) {
+  const resolvedUserAgent = userAgent ?? (typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  return /iPad|iPhone|iPod/i.test(resolvedUserAgent) ? '&' : '?'
+}
+
+export function buildSmsHref(recipients: string[], body: string, userAgent?: string) {
   const address = recipients.map(cleanPhone).filter(Boolean).join(',')
-  const query = body.trim() ? `?body=${encodeURIComponent(body.trim())}` : ''
+  const query = body.trim() ? `${getSmsBodySeparator(userAgent)}body=${encodeURIComponent(body.trim())}` : ''
   return `sms:${address}${query}`
 }
 
