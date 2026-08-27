@@ -5,6 +5,11 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/api/auth/access/route.ts'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('authenticated access snapshot route', () => {
+  it('uses the server-safe access model rather than importing a client module', () => {
+    expect(source).toContain("from '@/lib/access-model-core'")
+    expect(source).not.toContain("from '@/lib/access-model'")
+  })
+
   it('authenticates the caller before using service access to load that caller profile', () => {
     expect(source).toContain("const token = getBearerToken(request)")
     expect(source).toContain('await requester.auth.getUser(token)')

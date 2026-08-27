@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { DEFAULT_ENTITLEMENTS, normalizeSubscriptionStatus, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { DEFAULT_ENTITLEMENTS, normalizeSubscriptionStatus, type ProductEntitlementSnapshot } from '@/lib/access-model-core'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
