@@ -71,8 +71,11 @@ import {
   CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY,
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   buildPlayerPotentialLineupAvailabilityMessage,
+  getCaptainLineupDraftStorageKey,
+  readCaptainLineupBuilderDraft,
   readCaptainDirectCourtTextHandoff,
   type CaptainDirectCourtTextHandoff,
+  type CaptainLineupBuilderDraft,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
@@ -1284,7 +1287,10 @@ function LineupBuilderContent() {
   const persistedDirectCourtTextHandoff = typeof window === 'undefined'
     ? null
     : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
-  const persistedBuilderDraft = persistedDirectCourtTextHandoff?.builderDraft
+  const persistedDeviceBuilderDraft = typeof window === 'undefined'
+    ? null
+    : readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId)))
+  const persistedBuilderDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft
   const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
   const initialLeagueName = initialContext.league || persistedBuilderDraft?.leagueName || ''
   const initialFlight = initialContext.flight || persistedBuilderDraft?.flight || ''
@@ -1396,6 +1402,8 @@ function LineupBuilderContent() {
   const backupFocusHandledRef = useRef(false)
   const lastReplyRefreshRef = useRef(0)
   const futureJwtRefreshAttemptedRef = useRef(0)
+  const localBuilderDraftRestoredRef = useRef(Boolean(persistedBuilderDraft))
+  const localBuilderDraftWriteReadyRef = useRef(Boolean(persistedBuilderDraft))
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1435,6 +1443,35 @@ function LineupBuilderContent() {
     () => getCaptainLineupFormatKey(leagueName, flight, effectiveMatchFormatId),
     [effectiveMatchFormatId, flight, leagueName]
   )
+  const currentBuilderDraft = useMemo<CaptainLineupBuilderDraft>(() => ({
+    competitionLayer,
+    leagueName,
+    flight,
+    teamName,
+    opponentTeam,
+    matchDate,
+    selectedMatchId,
+    matchFormat: selectedMatchFormatId,
+    scenarioId: currentScenarioId,
+    scenarioName,
+    notes,
+    teamSlots: cloneSlots(teamSlots),
+    opponentSlots: cloneSlots(opponentSlots),
+  }), [
+    competitionLayer,
+    currentScenarioId,
+    flight,
+    leagueName,
+    matchDate,
+    notes,
+    opponentSlots,
+    opponentTeam,
+    scenarioName,
+    selectedMatchFormatId,
+    selectedMatchId,
+    teamName,
+    teamSlots,
+  ])
   const backupFocusSlot = useMemo(() => {
     if (!backupHandoff) return null
     const courtKey = normalizeTeamName(backupHandoff.courtLabel)
@@ -1462,6 +1499,56 @@ function LineupBuilderContent() {
 
     setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
   }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
+
+  useEffect(() => {
+    if (!authResolved || !userId || typeof window === 'undefined' || localBuilderDraftRestoredRef.current) return
+
+    const storedDraft = readCaptainLineupBuilderDraft(
+      window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId))
+    )
+    localBuilderDraftRestoredRef.current = true
+    if (!storedDraft) return
+
+    localBuilderDraftWriteReadyRef.current = false
+    const restoredTeamSlots = normalizeSavedSlots(storedDraft.teamSlots)
+    const restoredOpponentSlots = normalizeSavedSlots(storedDraft.opponentSlots)
+    const restoredMatchFormat = storedDraft.matchFormat === 'auto'
+      ? 'auto'
+      : normalizeTeamMatchFormatId(storedDraft.matchFormat)
+
+    setCompetitionLayer(storedDraft.competitionLayer)
+    setLeagueName(storedDraft.leagueName)
+    setFlight(storedDraft.flight)
+    setTeamName(storedDraft.teamName)
+    setOpponentTeam(storedDraft.opponentTeam)
+    setMatchDate(storedDraft.matchDate)
+    setSelectedMatchId(storedDraft.selectedMatchId)
+    setSelectedMatchFormatId(restoredMatchFormat)
+    setCurrentScenarioId(storedDraft.scenarioId)
+    setScenarioName(storedDraft.scenarioName)
+    setNotes(storedDraft.notes)
+    if (restoredTeamSlots.length) setTeamSlots(restoredTeamSlots)
+    if (restoredOpponentSlots.length) setOpponentSlots(restoredOpponentSlots)
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(
+      storedDraft.leagueName,
+      storedDraft.flight,
+      restoredMatchFormat,
+    ))
+    setMessage('Draft restored on this device.')
+  }, [authResolved, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || typeof window === 'undefined' || !localBuilderDraftRestoredRef.current) return
+    if (!localBuilderDraftWriteReadyRef.current) {
+      localBuilderDraftWriteReadyRef.current = true
+      return
+    }
+
+    window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId), JSON.stringify({
+      ...currentBuilderDraft,
+      updatedAt: new Date().toISOString(),
+    }))
+  }, [authResolved, currentBuilderDraft, userId])
 
   useEffect(() => {
     if (loading || !backupFocusSlot || backupFocusHandledRef.current) return
@@ -1492,6 +1579,11 @@ function LineupBuilderContent() {
 
   useEffect(() => {
     if (!authResolved || scopedResumeAppliedRef.current) return
+    if (localBuilderDraftRestoredRef.current) {
+      scopedResumeAppliedRef.current = true
+      setScopedResumeResolved(true)
+      return
+    }
     if (!userId || !session?.access_token) {
       scopedResumeAppliedRef.current = true
       setScopedResumeResolved(true)
@@ -2373,7 +2465,10 @@ function LineupBuilderContent() {
     setSuggestedSwapDraft(null)
     setSavedLineupChangeDelivery(null)
     setDirectCourtTextHandoff(null)
-    if (typeof window !== 'undefined') window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
+      window.localStorage.removeItem(getCaptainLineupDraftStorageKey(userId))
+    }
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2646,19 +2741,10 @@ function LineupBuilderContent() {
       }],
       openedPlayerKeys: [playerKey],
       builderDraft: {
-        competitionLayer,
-        leagueName,
-        flight,
-        teamName,
-        opponentTeam,
-        matchDate,
-        selectedMatchId,
-        matchFormat: selectedMatchFormatId,
-        scenarioId: currentScenarioId,
-        scenarioName,
-        notes,
+        ...currentBuilderDraft,
         teamSlots: preservedTeamSlots,
         opponentSlots: preservedOpponentSlots,
+        updatedAt: new Date().toISOString(),
       },
     }
     saveDirectCourtTextHandoff(directTextHandoff)
@@ -5266,6 +5352,9 @@ function SlotEditor({
                 style={selectedReplyStyle ? { ...inputStyle, ...selectedReplyStyle } : inputStyle}
               >
                 <option value="">Select player</option>
+                {player.playerId && !selectedPoolPlayer ? (
+                  <option value={player.playerId}>{player.playerName || 'Saved player'} · saved draft</option>
+                ) : null}
                 {selectablePlayerPool.map((poolPlayer) => {
                   const disabled =
                     poolPlayer.id !== player.playerId &&
