@@ -37,21 +37,46 @@ type ProfileConnectionRow = {
 }
 
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
+  const includeOffers = new URL(request.url).searchParams.get('includeOffers') === '1'
 
-  const [result, offers] = await Promise.all([
-    loadTeamConnections(auth.service, auth.userId, auth.email),
-    getPublicTeamInviteOffers(auth.service, auth.userId),
-  ])
-  if (!result.ok) return Response.json({ ok: false, message: result.message }, { status: 500 })
+  try {
+    const [result, offers] = await Promise.all([
+      loadTeamConnections(auth.service, auth.userId, auth.email),
+      includeOffers
+        ? getPublicTeamInviteOffers(auth.service, auth.userId)
+        : Promise.resolve({
+            captain: { available: false, label: '' },
+            player: { available: false, label: '' },
+          }),
+    ])
+    if (!result.ok) {
+      console.error('[api/team-connections] load failed', { includeOffers, durationMs: Date.now() - startedAt, message: result.message })
+      return Response.json({ ok: false, message: result.message }, { status: 500 })
+    }
 
-  return Response.json({
-    ok: true,
-    pending: result.pending,
-    connections: result.connections,
-    offers,
-  })
+    console.info('[api/team-connections] loaded', {
+      includeOffers,
+      durationMs: Date.now() - startedAt,
+      pendingCount: result.pending.length,
+      connectionCount: result.connections.length,
+    })
+    return Response.json({
+      ok: true,
+      pending: result.pending,
+      connections: result.connections,
+      offers,
+    })
+  } catch (error) {
+    console.error('[api/team-connections] unexpected failure', {
+      includeOffers,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json({ ok: false, message: 'Team connections could not be loaded.' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {

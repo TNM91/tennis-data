@@ -24,16 +24,17 @@ const TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS = 8_000
 let teamConnectionsCache: {
   accessToken: string
   expiresAt: number
+  includesOffers: boolean
   value?: TeamConnectionsResult
   promise?: Promise<TeamConnectionsResult>
 } | null = null
 
-async function requestTeamConnections(accessToken: string): Promise<TeamConnectionsResult> {
+async function requestTeamConnections(accessToken: string, includeOffers: boolean): Promise<TeamConnectionsResult> {
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch('/api/team-connections', {
+    const response = await fetch(includeOffers ? '/api/team-connections?includeOffers=1' : '/api/team-connections', {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
       signal: controller.signal,
@@ -58,22 +59,33 @@ async function requestTeamConnections(accessToken: string): Promise<TeamConnecti
   }
 }
 
-export function getCachedTeamConnections(accessToken: string) {
-  if (!accessToken || teamConnectionsCache?.accessToken !== accessToken) return null
+export function getCachedTeamConnections(accessToken: string, options: { includeOffers?: boolean } = {}) {
+  if (
+    !accessToken
+    || teamConnectionsCache?.accessToken !== accessToken
+    || (options.includeOffers === true && teamConnectionsCache.includesOffers !== true)
+  ) return null
   return teamConnectionsCache.value || null
 }
 
-export async function fetchTeamConnections(accessToken: string, options: { force?: boolean } = {}) {
+export async function fetchTeamConnections(accessToken: string, options: { force?: boolean; includeOffers?: boolean } = {}) {
   const now = Date.now()
-  if (!options.force && teamConnectionsCache?.accessToken === accessToken && teamConnectionsCache.expiresAt > now) {
+  const includeOffers = options.includeOffers === true
+  if (
+    !options.force
+    && teamConnectionsCache?.accessToken === accessToken
+    && teamConnectionsCache.expiresAt > now
+    && (!includeOffers || teamConnectionsCache.includesOffers)
+  ) {
     if (teamConnectionsCache.value) return teamConnectionsCache.value
     if (teamConnectionsCache.promise) return teamConnectionsCache.promise
   }
 
-  const promise = requestTeamConnections(accessToken)
+  const promise = requestTeamConnections(accessToken, includeOffers)
   teamConnectionsCache = {
     accessToken,
     expiresAt: now + TEAM_CONNECTIONS_CACHE_TTL_MS,
+    includesOffers: includeOffers,
     promise,
   }
 
@@ -82,6 +94,7 @@ export async function fetchTeamConnections(accessToken: string, options: { force
     teamConnectionsCache = {
       accessToken,
       expiresAt: Date.now() + TEAM_CONNECTIONS_CACHE_TTL_MS,
+      includesOffers: includeOffers,
       value,
     }
     return value

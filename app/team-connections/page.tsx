@@ -46,7 +46,7 @@ function TeamConnectionsContent() {
     setLoading(true)
     setMessage('')
     try {
-      const result = await fetchTeamConnections(accessToken)
+      const result = await fetchTeamConnections(accessToken, { includeOffers: true })
       setPending(result.pending)
       setConnections(result.connections)
       setOffers(result.offers)
