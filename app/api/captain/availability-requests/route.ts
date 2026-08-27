@@ -18,7 +18,7 @@ type AvailabilityRequestBody = {
   matchTime?: string
   facility?: string
   slots?: unknown
-  invitedPlayers?: Array<{ playerId?: string; playerName?: string }>
+  invitedPlayers?: Array<{ playerId?: string; playerName?: string; responseToken?: string }>
   inviteMode?: 'append' | 'replace'
 }
 
@@ -146,6 +146,11 @@ export async function POST(request: Request) {
     .map((player) => ({
       playerId: cleanAvailabilityText(player.playerId, 80),
       playerName: cleanAvailabilityText(player.playerName),
+      responseToken: cleanAvailabilityText(player.responseToken, 80),
+    }))
+    .map((player) => ({
+      ...player,
+      responseToken: isUuid(player.responseToken) ? player.responseToken : '',
     }))
     .filter((player) => player.playerName)
 
@@ -181,6 +186,7 @@ export async function POST(request: Request) {
       .map((player) => ({
         playerId: cleanAvailabilityText(player.playerId, 80),
         playerName: cleanAvailabilityText(player.playerName),
+        responseToken: '',
       }))
       .filter((player) => player.playerName)
     : []
@@ -228,6 +234,7 @@ export async function POST(request: Request) {
     request_id: requestId,
     player_id: isUuid(player.playerId) ? player.playerId : null,
     player_name: player.playerName,
+    ...(player.responseToken ? { response_token: player.responseToken } : {}),
     updated_at: new Date().toISOString(),
   }))
   const { error: inviteError } = await service
