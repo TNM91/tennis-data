@@ -1,4 +1,5 @@
 export const CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_lineup_handoff'
+export const CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY = 'tenaceiq_captain_direct_court_text'
 
 export type CaptainLineupHandoffScenario = {
   id: string
@@ -23,12 +24,33 @@ export type CaptainLineupHandoff = {
     opponent: string
   }
   availabilityRequestUrl: string
+  availabilityRequestId?: string
   playerRequestUrls?: Array<{
     playerId: string
     playerName: string
     requestUrl: string
   }>
   createdAt: string
+}
+
+export type CaptainDirectCourtTextHandoff = {
+  version: 1
+  courtId: string
+  courtLabel: string
+  requestId: string
+  match: {
+    date: string
+    time: string
+    facility: string
+    opponent: string
+  }
+  slotsJson: unknown
+  players: Array<{
+    playerId: string
+    playerName: string
+    requestUrl: string
+  }>
+  openedPlayerKeys: string[]
 }
 
 type MessageSlot = {
@@ -91,6 +113,19 @@ export function buildPotentialLineupAvailabilityMessage(input: {
   ]
     .filter(Boolean)
     .join('\n\n')
+}
+
+export function readCaptainDirectCourtTextHandoff(raw: string | null): CaptainDirectCourtTextHandoff | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<CaptainDirectCourtTextHandoff>
+    if (parsed.version !== 1 || !parsed.courtId || !Array.isArray(parsed.players) || !Array.isArray(parsed.openedPlayerKeys)) {
+      return null
+    }
+    return parsed as CaptainDirectCourtTextHandoff
+  } catch {
+    return null
+  }
 }
 
 /**

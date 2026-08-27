@@ -32,7 +32,7 @@ import { readCaptainWeekStatus } from '@/lib/captain-week-status'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -68,9 +68,19 @@ import {
   type PlayerRatingSource,
 } from '@/lib/player-eligibility'
 import {
+  CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY,
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
+  buildPlayerPotentialLineupAvailabilityMessage,
+  readCaptainDirectCourtTextHandoff,
+  type CaptainDirectCourtTextHandoff,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import {
+  CAPTAIN_ROSTER_CONTACTS_TABLE,
+  normalizeCaptainRosterContactKey,
+  selectCaptainContactRowsForScope,
+  type CaptainRosterContactRow,
+} from '@/lib/captain-roster-contacts'
 import {
   applyCaptainSuggestedSwap,
   buildCaptainSuggestedSwapImpact,
@@ -328,6 +338,15 @@ function cloneSlots(slots: LineupSlot[]) {
     ...slot,
     players: slot.players.map((player) => ({ ...player })),
   }))
+}
+
+type CaptainMessageTextContactRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  full_name: string | null
+  phone: string | null
+  opt_in_text: boolean | null
 }
 
 function buildRosterPlayerIdSet(
@@ -1280,6 +1299,8 @@ function LineupBuilderContent() {
   const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])
   const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
+  const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
+  const [captainMessageContacts, setCaptainMessageContacts] = useState<CaptainMessageTextContactRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
   const [tiqTeamLeagueFormats, setTiqTeamLeagueFormats] = useState<TiqTeamLeagueFormatRow[]>([])
 
@@ -1289,6 +1310,11 @@ function LineupBuilderContent() {
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [askingCourtId, setAskingCourtId] = useState('')
+  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
+  )
   const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
@@ -1566,6 +1592,8 @@ function LineupBuilderContent() {
       matchesResult,
       matchPlayersResult,
       availabilityResult,
+      captainRosterContactsResult,
+      captainMessageContactsResult,
       scenariosResult,
       tiqLeagueFormatsResult,
     ] = await Promise.all([
@@ -1611,6 +1639,16 @@ function LineupBuilderContent() {
         `)
         .order('match_date', { ascending: false }),
       supabase
+        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+        .select('*')
+        .order('team_name', { ascending: true })
+        .order('full_name', { ascending: true }),
+      supabase
+        .from('captain_message_contacts')
+        .select('team_name, league_name, flight, full_name, phone, opt_in_text')
+        .order('team_name', { ascending: true })
+        .order('full_name', { ascending: true }),
+      supabase
         .from('lineup_scenarios')
         .select(`
           id,
@@ -1647,6 +1685,8 @@ function LineupBuilderContent() {
       setMatches((matchesResult.data ?? []) as MatchTeamRow[])
       setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
       setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
+      setCaptainRosterContacts(captainRosterContactsResult.error ? [] : (captainRosterContactsResult.data ?? []) as CaptainRosterContactRow[])
+      setCaptainMessageContacts(captainMessageContactsResult.error ? [] : (captainMessageContactsResult.data ?? []) as CaptainMessageTextContactRow[])
       setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
       setTiqTeamLeagueFormats(tiqLeagueFormatsResult.error ? [] : (tiqLeagueFormatsResult.data ?? []) as TiqTeamLeagueFormatRow[])
     }
@@ -2035,6 +2075,41 @@ function LineupBuilderContent() {
       }))
     return [...importedRoster, ...manualRoster]
   }, [availablePlayerPool, myRosterEligibilityByPlayerId, myRosterPlayerIds, scopedManualRosterPlayers])
+
+  const captainRosterContactsForTeam = useMemo(
+    () => selectCaptainContactRowsForScope({
+      rows: captainRosterContacts,
+      team: teamName,
+      league: leagueName,
+      flight,
+    }),
+    [captainRosterContacts, flight, leagueName, teamName],
+  )
+  const directTextContactByName = useMemo(() => {
+    const directContacts = new Map<string, { phone: string }>()
+    for (const contact of captainRosterContactsForTeam) {
+      const key = normalizeCaptainRosterContactKey(contact.full_name)
+      if (key && contact.phone?.trim()) directContacts.set(key, { phone: contact.phone.trim() })
+    }
+    for (const contact of selectCaptainContactRowsForScope({
+      rows: captainMessageContacts,
+      team: teamName,
+      league: leagueName,
+      flight,
+    })) {
+      const key = normalizeCaptainRosterContactKey(contact.full_name)
+      if (key && contact.phone?.trim() && contact.opt_in_text !== false && !directContacts.has(key)) {
+        directContacts.set(key, { phone: contact.phone.trim() })
+      }
+    }
+    return directContacts
+  }, [captainMessageContacts, captainRosterContactsForTeam, flight, leagueName, teamName])
+  const nextDirectCourtTextPlayer = useMemo(() => {
+    if (!directCourtTextHandoff) return null
+    return directCourtTextHandoff.players.find((player) =>
+      !directCourtTextHandoff.openedPlayerKeys.includes(normalizeCaptainRosterContactKey(player.playerName))
+    ) ?? null
+  }, [directCourtTextHandoff])
 
   const myAvailabilitySummary = useMemo(() => {
     let confirmed = 0
@@ -2443,6 +2518,8 @@ function LineupBuilderContent() {
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
     setSavedLineupChangeDelivery(null)
+    setDirectCourtTextHandoff(null)
+    if (typeof window !== 'undefined') window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2584,6 +2661,7 @@ function LineupBuilderContent() {
         opponent: opponentTeam,
       },
       availabilityRequestUrl,
+      availabilityRequestId,
       playerRequestUrls,
       createdAt: new Date().toISOString(),
     }
@@ -2609,6 +2687,47 @@ function LineupBuilderContent() {
       opponent: opponentTeam,
     })
     router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
+  }
+
+  function saveDirectCourtTextHandoff(next: CaptainDirectCourtTextHandoff | null) {
+    setDirectCourtTextHandoff(next)
+    if (typeof window === 'undefined') return
+    if (next) window.localStorage.setItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY, JSON.stringify(next))
+    else window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
+  }
+
+  function openDirectCourtText(
+    player: CaptainDirectCourtTextHandoff['players'][number],
+    handoffOverride?: CaptainDirectCourtTextHandoff,
+  ) {
+    const activeHandoff = handoffOverride ?? directCourtTextHandoff
+    if (!activeHandoff) return
+    const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+    const contact = directTextContactByName.get(playerKey)
+    if (!contact?.phone?.trim()) {
+      setError(`Add a mobile number for ${player.playerName} before opening their private text.`)
+      setMessage('')
+      return
+    }
+
+    const next = {
+      ...activeHandoff,
+      openedPlayerKeys: Array.from(new Set([...activeHandoff.openedPlayerKeys, playerKey])),
+    }
+    saveDirectCourtTextHandoff(next)
+    setError('')
+    setMessage(`Opening a private availability text for ${player.playerName}.`)
+    const body = buildPlayerPotentialLineupAvailabilityMessage({
+      playerName: player.playerName,
+      teamName,
+      opponent: activeHandoff.match.opponent,
+      dateText: formatDate(activeHandoff.match.date),
+      time: activeHandoff.match.time,
+      facility: activeHandoff.match.facility,
+      slotsJson: activeHandoff.slotsJson,
+      availabilityRequestUrl: player.requestUrl,
+    })
+    window.location.assign(buildSmsHref([contact.phone], body))
   }
 
   async function askProposedCourtPlayers(slot: LineupSlot) {
@@ -2689,6 +2808,7 @@ function LineupBuilderContent() {
           opponent: opponentTeam,
         },
         availabilityRequestUrl: result.requestUrl || '',
+        availabilityRequestId: result.requestId || '',
         playerRequestUrls: result.playerRequestUrls ?? [],
         createdAt: new Date().toISOString(),
       }
@@ -2699,20 +2819,33 @@ function LineupBuilderContent() {
         window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
       }
 
-      const messagingHref = buildCaptainScopedHref('/captain/messaging', {
-        competitionLayer,
-        team: teamName,
-        league: leagueName,
-        flight,
-        date: matchDate,
-        opponent: opponentTeam,
-      })
-      const params = new URLSearchParams({
-        source: 'lineup_builder',
-        focus: 'waiting',
-      })
-      if (result.requestId) params.set('availabilityRequest', result.requestId)
-      router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}${params.toString()}`)
+      const directTextHandoff: CaptainDirectCourtTextHandoff = {
+        version: 1,
+        courtId: slot.id,
+        courtLabel: slot.label,
+        requestId: result.requestId || '',
+        match: {
+          date: matchDate,
+          time: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          opponent: opponentTeam,
+        },
+        slotsJson: [slot],
+        players: invitedPlayers.map((player) => {
+          const invite = (result.playerRequestUrls ?? []).find((candidate) =>
+            candidate.playerId === player.playerId || normalizeTeamName(candidate.playerName) === normalizeTeamName(player.playerName)
+          )
+          return {
+            playerId: player.playerId,
+            playerName: player.playerName,
+            requestUrl: invite?.requestUrl || result.requestUrl || '',
+          }
+        }),
+        openedPlayerKeys: [],
+      }
+      saveDirectCourtTextHandoff(directTextHandoff)
+      const firstPlayer = directTextHandoff.players[0]
+      if (firstPlayer) openDirectCourtText(firstPlayer, directTextHandoff)
     } catch {
       setError('The availability request could not be prepared. Try again in a moment.')
     } finally {
@@ -4559,6 +4692,29 @@ function LineupBuilderContent() {
                   {teamRoomReplyCounts.total
                     ? `Team replies applied: ${teamRoomReplyCounts.yes} In${teamRoomReplyCounts.maybe ? ` · ${teamRoomReplyCounts.maybe} Maybe` : ''}. Out players are hidden.`
                     : 'No linked replies yet. Showing the full roster.'}
+                </div>
+              ) : null}
+
+              {directCourtTextHandoff ? (
+                <div role="status" aria-live="polite" style={directCourtTextBannerStyle}>
+                  <div style={directCourtTextCopyStyle}>
+                    <p style={sectionKicker}>Private court check</p>
+                    <strong>{nextDirectCourtTextPlayer
+                      ? `${directCourtTextHandoff.courtLabel}: text ${nextDirectCourtTextPlayer.playerName} next.`
+                      : `${directCourtTextHandoff.courtLabel}: every selected player has been texted.`}</strong>
+                    <span>{nextDirectCourtTextPlayer
+                      ? 'The Builder keeps this court and the player order intact while you ask the pair privately.'
+                      : 'Keep building the rest of the lineup. Replies will refresh when you return.'}</span>
+                  </div>
+                  <div style={directCourtTextActionStyle}>
+                    {nextDirectCourtTextPlayer ? (
+                      <PrimaryBtn onClick={() => openDirectCourtText(nextDirectCourtTextPlayer)}>
+                        Text {nextDirectCourtTextPlayer.playerName.split(' ')[0]}
+                      </PrimaryBtn>
+                    ) : (
+                      <GhostBtn onClick={() => saveDirectCourtTextHandoff(null)}>Clear check</GhostBtn>
+                    )}
+                  </div>
                 </div>
               ) : null}
 
@@ -6447,6 +6603,37 @@ const finalLineupGateActionsStyle: CSSProperties = {
   gap: 10,
   minWidth: 0,
   marginTop: 12,
+}
+
+const directCourtTextBannerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  padding: '15px 17px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const directCourtTextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 240px',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.55,
+}
+
+const directCourtTextActionStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const decisionCardBaseStyle: CSSProperties = {

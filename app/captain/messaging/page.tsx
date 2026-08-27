@@ -1398,14 +1398,14 @@ function CaptainMessagingContent() {
     return new Map(invites.map((invite) => [invite.playerName.trim().toLowerCase(), invite]))
   }, [availabilityHandoff, liveAvailabilityRequest])
   const potentialTextQueueStorageKey = useMemo(() => {
-    const queueId = availabilityHandoff?.scenario.id || liveAvailabilityRequest?.request?.id || safeKey(
+    const queueId = requestedAvailabilityRequestId || availabilityHandoff?.availabilityRequestId || liveAvailabilityRequest?.request?.id || availabilityHandoff?.availabilityRequestUrl || safeKey(
       teamFilter,
       leagueFilter,
       flightFilter,
       availabilityMatchDate
     )
     return `${POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX}:${queueId}`
-  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, teamFilter])
+  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, requestedAvailabilityRequestId, teamFilter])
   const potentialLineupQueue = useMemo<PotentialLineupQueueItem[]>(() => {
     const statusPriority: Record<PotentialAvailabilityStatus, number> = {
       unavailable: 0,
