@@ -24,7 +24,7 @@ const TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS = 8_000
 const PERSISTED_TEAM_CONNECTIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const TEAM_CONNECTIONS_CACHE_PREFIX = 'tenaceiq-team-connections:v1:'
 let teamConnectionsCache: {
-  accessToken: string
+  identityKey: string
   expiresAt: number
   includesOffers: boolean
   value?: TeamConnectionsResult
@@ -37,7 +37,8 @@ type PersistedTeamConnections = {
   value: TeamConnectionsResult
 }
 
-function getTeamConnectionsStorageKey(accessToken: string) {
+function getTeamConnectionsStorageKey(accessToken: string, userId?: string | null) {
+  if (userId?.trim()) return `${TEAM_CONNECTIONS_CACHE_PREFIX}${userId.trim()}`
   try {
     const payload = accessToken.split('.')[1]
     if (!payload) return ''
@@ -49,9 +50,13 @@ function getTeamConnectionsStorageKey(accessToken: string) {
   }
 }
 
-function readPersistedTeamConnections(accessToken: string, includeOffers: boolean) {
+function getTeamConnectionsIdentityKey(accessToken: string, userId?: string | null) {
+  return userId?.trim() || getTeamConnectionsStorageKey(accessToken) || accessToken
+}
+
+function readPersistedTeamConnections(accessToken: string, includeOffers: boolean, userId?: string | null) {
   if (typeof window === 'undefined') return null
-  const key = getTeamConnectionsStorageKey(accessToken)
+  const key = getTeamConnectionsStorageKey(accessToken, userId)
   if (!key) return null
 
   try {
@@ -71,9 +76,9 @@ function readPersistedTeamConnections(accessToken: string, includeOffers: boolea
   }
 }
 
-function writePersistedTeamConnections(accessToken: string, includesOffers: boolean, value: TeamConnectionsResult) {
+function writePersistedTeamConnections(accessToken: string, includesOffers: boolean, value: TeamConnectionsResult, userId?: string | null) {
   if (typeof window === 'undefined') return
-  const key = getTeamConnectionsStorageKey(accessToken)
+  const key = getTeamConnectionsStorageKey(accessToken, userId)
   if (!key) return
   try {
     window.localStorage.setItem(key, JSON.stringify({ cachedAt: Date.now(), includesOffers, value }))
@@ -112,19 +117,21 @@ async function requestTeamConnections(accessToken: string, includeOffers: boolea
   }
 }
 
-export function getCachedTeamConnections(accessToken: string, options: { includeOffers?: boolean } = {}) {
-  if (accessToken && teamConnectionsCache?.accessToken === accessToken && (!options.includeOffers || teamConnectionsCache.includesOffers)) {
+export function getCachedTeamConnections(accessToken: string, options: { includeOffers?: boolean; userId?: string | null } = {}) {
+  const identityKey = getTeamConnectionsIdentityKey(accessToken, options.userId)
+  if (identityKey && teamConnectionsCache?.identityKey === identityKey && (!options.includeOffers || teamConnectionsCache.includesOffers)) {
     return teamConnectionsCache.value || null
   }
-  return readPersistedTeamConnections(accessToken, options.includeOffers === true)
+  return readPersistedTeamConnections(accessToken, options.includeOffers === true, options.userId)
 }
 
-export async function fetchTeamConnections(accessToken: string, options: { force?: boolean; includeOffers?: boolean } = {}) {
+export async function fetchTeamConnections(accessToken: string, options: { force?: boolean; includeOffers?: boolean; userId?: string | null } = {}) {
   const now = Date.now()
   const includeOffers = options.includeOffers === true
+  const identityKey = getTeamConnectionsIdentityKey(accessToken, options.userId)
   if (
     !options.force
-    && teamConnectionsCache?.accessToken === accessToken
+    && teamConnectionsCache?.identityKey === identityKey
     && teamConnectionsCache.expiresAt > now
     && (!includeOffers || teamConnectionsCache.includesOffers)
   ) {
@@ -134,7 +141,7 @@ export async function fetchTeamConnections(accessToken: string, options: { force
 
   const promise = requestTeamConnections(accessToken, includeOffers)
   teamConnectionsCache = {
-    accessToken,
+    identityKey,
     expiresAt: now + TEAM_CONNECTIONS_CACHE_TTL_MS,
     includesOffers: includeOffers,
     promise,
@@ -143,12 +150,12 @@ export async function fetchTeamConnections(accessToken: string, options: { force
   try {
     const value = await promise
     teamConnectionsCache = {
-      accessToken,
+      identityKey,
       expiresAt: Date.now() + TEAM_CONNECTIONS_CACHE_TTL_MS,
       includesOffers: includeOffers,
       value,
     }
-    writePersistedTeamConnections(accessToken, includeOffers, value)
+    writePersistedTeamConnections(accessToken, includeOffers, value, options.userId)
     return value
   } catch (error) {
     if (teamConnectionsCache?.promise === promise) teamConnectionsCache = null
@@ -156,9 +163,9 @@ export async function fetchTeamConnections(accessToken: string, options: { force
   }
 }
 
-export function preloadTeamConnections(accessToken: string) {
+export function preloadTeamConnections(accessToken: string, options: { userId?: string | null } = {}) {
   if (!accessToken) return
-  void fetchTeamConnections(accessToken).catch(() => undefined)
+  void fetchTeamConnections(accessToken, options).catch(() => undefined)
 }
 
 function invalidateTeamConnectionsCache() {

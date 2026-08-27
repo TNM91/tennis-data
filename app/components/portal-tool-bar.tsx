@@ -344,7 +344,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     const accessToken = session?.access_token || ''
     if (!authResolved || !userId || !accessToken) return
 
-    const preloadTimer = window.setTimeout(() => preloadTeamConnections(accessToken), 0)
+    const preloadTimer = window.setTimeout(() => preloadTeamConnections(accessToken, { userId }), 0)
     return () => window.clearTimeout(preloadTimer)
   }, [authResolved, session?.access_token, userId])
 

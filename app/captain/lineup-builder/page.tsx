@@ -88,6 +88,7 @@ import {
   buildCaptainSuggestedSwapImpact,
   type CaptainSuggestedSwapImpact,
 } from '@/lib/captain-replacement-recommendation'
+import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
 
 type PlayerRow = {
   id: string
@@ -330,6 +331,23 @@ type CaptainMessageTextContactRow = {
   phone: string | null
   opt_in_text: boolean | null
 }
+
+type LineupBuilderPayload = {
+  ok?: boolean
+  message?: string
+  players?: PlayerRow[]
+  matches?: MatchTeamRow[]
+  matchPlayers?: MatchPlayerLinkRow[]
+  rosterMembers?: TeamRosterMemberRow[]
+  availability?: AvailabilityRow[]
+  captainRosterContacts?: CaptainRosterContactRow[]
+  captainMessageContacts?: CaptainMessageTextContactRow[]
+  savedScenarios?: ScenarioRow[]
+  tiqTeamLeagueFormats?: TiqTeamLeagueFormatRow[]
+}
+
+const CAPTAIN_LINEUP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000
+const CAPTAIN_LINEUP_REQUEST_TIMEOUT_MS = 12_000
 
 function buildRosterPlayerIdSet(
   targetTeam: string,
@@ -1680,8 +1698,34 @@ function LineupBuilderContent() {
     })
   }
 
+  const applyBuilderPayload = useCallback((result: LineupBuilderPayload) => {
+    const nextMatches = result.matches ?? []
+    const nextMatchPlayers = result.matchPlayers ?? []
+    setPlayers(result.players ?? [])
+    setMatches(nextMatches)
+    setMatchPlayers(nextMatchPlayers)
+    setRosterMembers(result.rosterMembers ?? [])
+    setTeamRosterPlayers(result.players ?? [])
+    setAvailability(result.availability ?? [])
+    setCaptainRosterContacts(result.captainRosterContacts ?? [])
+    setCaptainMessageContacts(result.captainMessageContacts ?? [])
+    setSavedScenarios(result.savedScenarios ?? [])
+    setTiqTeamLeagueFormats(result.tiqTeamLeagueFormats ?? [])
+
+    const sideByMatchId = new Map<string, 'A' | 'B'>()
+    const normalizedTeam = normalizeTeamName(teamName)
+    for (const match of nextMatches) {
+      if (normalizeTeamName(match.home_team) === normalizedTeam) sideByMatchId.set(match.id, 'A')
+      else if (normalizeTeamName(match.away_team) === normalizedTeam) sideByMatchId.set(match.id, 'B')
+    }
+    const scopedIds = new Set<string>()
+    for (const row of nextMatchPlayers) {
+      if (row.player_id && sideByMatchId.get(row.match_id) === row.side) scopedIds.add(row.player_id)
+    }
+    setScopedRosterPlayerIds([...scopedIds])
+  }, [teamName])
+
   const refreshBuilderData = useCallback(async () => {
-    setLoading(true)
     setError('')
     setMessage('')
     const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
@@ -1696,30 +1740,43 @@ function LineupBuilderContent() {
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
 
-    let response: Response
-    let result: {
-      ok?: boolean
-      message?: string
-      players?: PlayerRow[]
-      matches?: MatchTeamRow[]
-      matchPlayers?: MatchPlayerLinkRow[]
-      rosterMembers?: TeamRosterMemberRow[]
-      availability?: AvailabilityRow[]
-      captainRosterContacts?: CaptainRosterContactRow[]
-      captainMessageContacts?: CaptainMessageTextContactRow[]
-      savedScenarios?: ScenarioRow[]
-      tiqTeamLeagueFormats?: TiqTeamLeagueFormatRow[]
+    const snapshotScope = [normalizeTeamName(teamName), normalizeTeamName(leagueName), normalizeTeamName(flight)].join('__')
+    const snapshot = readPrivateClientSnapshot<LineupBuilderPayload>({
+      namespace: 'captain-lineup',
+      userId,
+      scope: snapshotScope,
+      maxAgeMs: CAPTAIN_LINEUP_SNAPSHOT_MAX_AGE_MS,
+      allowStale: true,
+    })
+    if (snapshot) {
+      applyBuilderPayload(snapshot.value)
+      setLoading(false)
+      if (snapshot.stale) setMessage('Showing your saved lineup while live team data refreshes.')
+    } else {
+      setLoading(true)
     }
+
+    let response: Response
+    let result: LineupBuilderPayload
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), CAPTAIN_LINEUP_REQUEST_TIMEOUT_MS)
     try {
       response = await fetch(`/api/captain/lineup-builder?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: 'no-store',
+        signal: controller.signal,
       })
       result = await response.json() as typeof result
     } catch {
       setLoading(false)
-      setError('Your lineup data could not be reached. Please try again.')
+      if (snapshot) {
+        setMessage('Showing your saved lineup while live team data reconnects.')
+      } else {
+        setError('Your lineup data could not be reached. Please try again.')
+      }
       return false
+    } finally {
+      window.clearTimeout(timeout)
     }
 
     const primaryError = !response.ok ? result.message || 'Your lineup data could not be loaded.' : ''
@@ -1749,35 +1806,18 @@ function LineupBuilderContent() {
     } else {
       futureJwtRefreshAttemptedRef.current = 0
       setRecoveringSecureSession(false)
-      const nextMatches = result.matches ?? []
-      const nextMatchPlayers = result.matchPlayers ?? []
-      setPlayers(result.players ?? [])
-      setMatches(nextMatches)
-      setMatchPlayers(nextMatchPlayers)
-      setRosterMembers(result.rosterMembers ?? [])
-      setTeamRosterPlayers(result.players ?? [])
-      setAvailability(result.availability ?? [])
-      setCaptainRosterContacts(result.captainRosterContacts ?? [])
-      setCaptainMessageContacts(result.captainMessageContacts ?? [])
-      setSavedScenarios(result.savedScenarios ?? [])
-      setTiqTeamLeagueFormats(result.tiqTeamLeagueFormats ?? [])
-
-      const sideByMatchId = new Map<string, 'A' | 'B'>()
-      const normalizedTeam = normalizeTeamName(teamName)
-      for (const match of nextMatches) {
-        if (normalizeTeamName(match.home_team) === normalizedTeam) sideByMatchId.set(match.id, 'A')
-        else if (normalizeTeamName(match.away_team) === normalizedTeam) sideByMatchId.set(match.id, 'B')
-      }
-      const scopedIds = new Set<string>()
-      for (const row of nextMatchPlayers) {
-        if (row.player_id && sideByMatchId.get(row.match_id) === row.side) scopedIds.add(row.player_id)
-      }
-      setScopedRosterPlayerIds([...scopedIds])
+      applyBuilderPayload(result)
+      writePrivateClientSnapshot({
+        namespace: 'captain-lineup',
+        userId,
+        scope: snapshotScope,
+        value: result,
+      })
     }
 
     setLoading(false)
     return !primaryError
-  }, [flight, leagueName, session?.access_token, teamName])
+  }, [applyBuilderPayload, flight, leagueName, session?.access_token, teamName, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return

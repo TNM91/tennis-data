@@ -1,10 +1,13 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
+import { getCache } from '@vercel/functions'
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
 import { normalizeTeamName } from '@/lib/captain-formatters'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
+
+const CAPTAIN_LINEUP_CACHE_TTL_SECONDS = 30
 
 const PLAYER_ROSTER_SELECT = `
   id,
@@ -109,6 +112,22 @@ export async function GET(request: Request) {
     console.warn('[api/captain/lineup-builder] team management denied', { durationMs: Date.now() - startedAt })
     return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
   }
+
+  // The account and team role are always checked before this private response
+  // is read. The cache only avoids re-running the same roster/schedule bundle
+  // during a short mobile navigation session.
+  const runtimeCache = getCache({ namespace: 'captain-lineup-builder' })
+  const cacheKey = `${auth.userId}:${normalizeTeamRoomKey(teamName)}:${normalizeTeamRoomKey(leagueName)}:${normalizeTeamRoomKey(flight)}`
+  try {
+    const cached = await runtimeCache.get(cacheKey) as Record<string, unknown> | undefined
+    if (cached?.ok === true) {
+      console.info('[api/captain/lineup-builder] cache hit', { durationMs: Date.now() - startedAt })
+      return Response.json(cached, { headers: { 'Cache-Control': 'private, no-store' } })
+    }
+  } catch {
+    // Runtime Cache is an optimization; a cache miss must not block lineup work.
+  }
+
   const escapedTeam = escapePostgrestValue(teamName)
   const rosterPromise = service
     .from('team_roster_members')
@@ -248,7 +267,7 @@ export async function GET(request: Request) {
     rosterCount: rosterMembers.length,
     matchCount: matchesResult.data?.length ?? 0,
   })
-  return Response.json({
+  const payload = {
     ok: true,
     players: playersResult.data ?? [],
     matches: matchesResult.data ?? [],
@@ -259,5 +278,15 @@ export async function GET(request: Request) {
     captainMessageContacts: textContactsResult.error ? [] : textContactsResult.data ?? [],
     savedScenarios: scenariosResult.data ?? [],
     tiqTeamLeagueFormats: formatsResult.error ? [] : formatsResult.data ?? [],
-  })
+  }
+  try {
+    await runtimeCache.set(cacheKey, payload, {
+      ttl: CAPTAIN_LINEUP_CACHE_TTL_SECONDS,
+      tags: [`captain-lineup:${auth.userId}:${normalizeTeamRoomKey(teamName)}`],
+      name: 'captain-lineup-builder',
+    })
+  } catch {
+    // The direct response remains authoritative if Runtime Cache is unavailable.
+  }
+  return Response.json(payload, { headers: { 'Cache-Control': 'private, no-store' } })
 }

@@ -140,7 +140,7 @@ function CompeteTeamsContent() {
     }
 
     async function loadConnections() {
-      const cachedConnections = accessToken ? getCachedTeamConnections(accessToken) : null
+      const cachedConnections = accessToken ? getCachedTeamConnections(accessToken, { userId }) : null
       setConnectionError('')
       setLoading(!cachedConnections)
 
@@ -153,7 +153,7 @@ function CompeteTeamsContent() {
 
       try {
         const connectionResult = accessToken
-          ? await fetchTeamConnections(accessToken, { force: connectionRefresh > 0 })
+          ? await fetchTeamConnections(accessToken, { force: connectionRefresh > 0, userId })
           : { pending: [], connections: [], offers: null }
 
         if (!active) return
@@ -197,7 +197,7 @@ function CompeteTeamsContent() {
     return () => {
       active = false
     }
-  }, [accessToken, authResolved, connectionRefresh])
+  }, [accessToken, authResolved, connectionRefresh, userId])
 
   const groupedTeams = useMemo(() => {
     const directoryByTeam = new Map(teamDirectory.map((option) => [option.team, option]))
