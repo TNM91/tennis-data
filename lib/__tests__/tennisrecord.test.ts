@@ -301,7 +301,9 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('uses the bounded configured throughput for historical and weekly refreshes', () => {
-    expect(scheduledTennisRecordBatchLimit(15)).toBe(12)
+    expect(scheduledTennisRecordBatchLimit(20)).toBe(18)
+    expect(scheduledTennisRecordBatchLimit(18)).toBe(18)
+    expect(scheduledTennisRecordBatchLimit(15)).toBe(15)
     expect(scheduledTennisRecordBatchLimit(12)).toBe(12)
     expect(scheduledTennisRecordBatchLimit(8)).toBe(8)
     expect(scheduledTennisRecordBatchLimit(5)).toBe(5)
@@ -401,7 +403,7 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('reclaims only runs that have exceeded the serverless recovery window', () => {
-    const now = Date.parse('2026-08-22T12:10:00.000Z')
+    const now = Date.parse('2026-08-22T12:06:00.000Z')
     expect(isTennisRecordRunStale('2026-08-22T12:00:01.000Z', now)).toBe(false)
     expect(isTennisRecordRunStale('2026-08-22T12:00:00.000Z', now)).toBe(true)
     expect(isTennisRecordRunStale('not-a-date', now)).toBe(true)
