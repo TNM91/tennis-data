@@ -70,6 +70,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("isAutoLocked ? 'confirmed · unlock'")
     expect(source).toContain("isConfirmedReleased ? 're-lock confirmed player' : 'lock player'")
     expect(source).toContain('Confirmed players lock automatically.')
+    expect(source).toContain("selectedReplyLabel === 'Confirmed'\n                ? { ...slotPlayerRowStyle, ...confirmedPlayerRowStyle }")
+    expect(source).toContain('const confirmedPlayerRowStyle: CSSProperties = {')
   })
 
   it('returns to the exact Team Room card before the captain sends the lineup', () => {
