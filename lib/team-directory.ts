@@ -120,17 +120,27 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   return rightTime - leftTime
 }
 
-export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]> {
-  const { data, error } = await supabase
+export async function listTeamDirectoryOptions(options?: { teamNames?: string[] }): Promise<TeamDirectoryOption[]> {
+  const requestedTeamNames = [...new Set((options?.teamNames || []).map((name) => cleanText(name)).filter((name): name is string => Boolean(name)))]
+  const matchQuery = () => supabase
     .from('matches')
     .select('id, home_team, away_team, league_name, flight, match_date, line_number')
     .is('line_number', null)
     .order('match_date', { ascending: false })
-    .limit(10000)
 
-  if (error) throw new Error(error.message)
+  const matchResult = requestedTeamNames.length > 0
+    ? await Promise.all([
+        matchQuery().in('home_team', requestedTeamNames).limit(2000),
+        matchQuery().in('away_team', requestedTeamNames).limit(2000),
+      ]).then(([home, away]) => ({
+        data: [...((home.data || []) as TeamMatchRow[]), ...((away.data || []) as TeamMatchRow[])],
+        error: home.error || away.error,
+      }))
+    : await matchQuery().limit(10000)
 
-  const matches = ((data || []) as TeamMatchRow[]).filter((row) => {
+  if (matchResult.error) throw new Error(matchResult.error.message)
+
+  const matches = ((matchResult.data || []) as TeamMatchRow[]).filter((row) => {
     const home = cleanText(row.home_team)
     const away = cleanText(row.away_team)
     return isPublicTeamDirectoryName(home, row.league_name) && isPublicTeamDirectoryName(away, row.league_name)
@@ -173,10 +183,12 @@ export async function listTeamDirectoryOptions(): Promise<TeamDirectoryOption[]>
     }
   }
 
-  const { data: tennisRecordContext, error: tennisRecordContextError } = await supabase
+  const tennisRecordContextQuery = supabase
     .from('tennisrecord_public_team_context')
     .select('team_name, league_name, flight, last_seen_at')
-    .limit(10000)
+  const { data: tennisRecordContext, error: tennisRecordContextError } = requestedTeamNames.length > 0
+    ? await tennisRecordContextQuery.in('team_name', requestedTeamNames).limit(2000)
+    : await tennisRecordContextQuery.limit(10000)
 
   // The view is delivered by a separate migration. Preserve existing team
   // discovery if a local environment has not applied it yet.

@@ -13,7 +13,7 @@ const teamConnectionsClient = readFileSync(join(process.cwd(), 'lib/team-profile
 
 describe('Teams experience simplification', () => {
   it('puts connected teams ahead of redundant access messaging', () => {
-    expect(teamsHub).toContain("!loading && (!userId || groupedTeams.length === 0)")
+    expect(teamsHub).toContain("!loading && !connectionError && (!userId || groupedTeams.length === 0)")
     expect(teamsHub).toContain('groupedTeams.length > 0 && pendingConnections.length > 0')
     expect(teamsHub.indexOf('id="tiq-entered-teams"')).toBeLessThan(
       teamsHub.lastIndexOf('<TeamAccountAccessPanel'),
@@ -72,7 +72,7 @@ describe('Teams experience simplification', () => {
 
   it('shows accepted teams before slower directory enrichment finishes', () => {
     expect(teamsHub).toContain('async function loadConnections()')
-    expect(teamsHub).toContain('async function loadSupportingTeamContext()')
+    expect(teamsHub).toContain('async function loadSupportingTeamContext(connectedTeams: TeamConnection[])')
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')
