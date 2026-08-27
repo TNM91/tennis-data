@@ -1,5 +1,6 @@
 export const CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY = 'tenaceiq_captain_lineup_handoff'
 export const CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY = 'tenaceiq_captain_direct_court_text'
+export const CAPTAIN_LINEUP_DRAFT_STORAGE_KEY = 'tenaceiq_captain_lineup_draft'
 
 export type CaptainLineupHandoffScenario = {
   id: string
@@ -34,6 +35,23 @@ export type CaptainLineupHandoff = {
   createdAt: string
 }
 
+export type CaptainLineupBuilderDraft = {
+  competitionLayer: string
+  leagueName: string
+  flight: string
+  teamName: string
+  opponentTeam: string
+  matchDate: string
+  selectedMatchId: string
+  matchFormat: string
+  scenarioId: string
+  scenarioName: string
+  notes: string
+  teamSlots: unknown
+  opponentSlots: unknown
+  updatedAt?: string
+}
+
 export type CaptainDirectCourtTextHandoff = {
   version: 1
   courtId: string
@@ -52,21 +70,7 @@ export type CaptainDirectCourtTextHandoff = {
     requestUrl: string
   }>
   openedPlayerKeys: string[]
-  builderDraft?: {
-    competitionLayer: string
-    leagueName: string
-    flight: string
-    teamName: string
-    opponentTeam: string
-    matchDate: string
-    selectedMatchId: string
-    matchFormat: string
-    scenarioId: string
-    scenarioName: string
-    notes: string
-    teamSlots: unknown
-    opponentSlots: unknown
-  }
+  builderDraft?: CaptainLineupBuilderDraft
 }
 
 type MessageSlot = {
@@ -140,6 +144,37 @@ export function readCaptainDirectCourtTextHandoff(raw: string | null): CaptainDi
       return null
     }
     return parsed as CaptainDirectCourtTextHandoff
+  } catch {
+    return null
+  }
+}
+
+export function getCaptainLineupDraftStorageKey(userId?: string | null) {
+  return `${CAPTAIN_LINEUP_DRAFT_STORAGE_KEY}:${userId?.trim() || 'anonymous'}`
+}
+
+export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineupBuilderDraft | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<CaptainLineupBuilderDraft>
+    if (!Array.isArray(parsed.teamSlots) || !Array.isArray(parsed.opponentSlots)) return null
+
+    return {
+      competitionLayer: typeof parsed.competitionLayer === 'string' ? parsed.competitionLayer : '',
+      leagueName: typeof parsed.leagueName === 'string' ? parsed.leagueName : '',
+      flight: typeof parsed.flight === 'string' ? parsed.flight : '',
+      teamName: typeof parsed.teamName === 'string' ? parsed.teamName : '',
+      opponentTeam: typeof parsed.opponentTeam === 'string' ? parsed.opponentTeam : '',
+      matchDate: typeof parsed.matchDate === 'string' ? parsed.matchDate : '',
+      selectedMatchId: typeof parsed.selectedMatchId === 'string' ? parsed.selectedMatchId : '',
+      matchFormat: typeof parsed.matchFormat === 'string' ? parsed.matchFormat : 'auto',
+      scenarioId: typeof parsed.scenarioId === 'string' ? parsed.scenarioId : '',
+      scenarioName: typeof parsed.scenarioName === 'string' ? parsed.scenarioName : '',
+      notes: typeof parsed.notes === 'string' ? parsed.notes : '',
+      teamSlots: parsed.teamSlots,
+      opponentSlots: parsed.opponentSlots,
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
+    }
   } catch {
     return null
   }

@@ -30,6 +30,21 @@ function escapePostgrestValue(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
+function resolveOptionalQuery<T>(query: PromiseLike<T>, fallback: T, timeoutMs = 2_500): Promise<T> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(fallback), timeoutMs)
+    Promise.resolve(query)
+      .then((result) => {
+        clearTimeout(timeout)
+        resolve(result)
+      })
+      .catch(() => {
+        clearTimeout(timeout)
+        resolve(fallback)
+      })
+  })
+}
+
 export async function GET(request: Request) {
   const startedAt = Date.now()
   const auth = await getCaptainApiAuth(request)
@@ -92,7 +107,8 @@ export async function GET(request: Request) {
   const contactsPromise = service
     .from('captain_roster_contacts')
     .select('*')
-    .eq('team_name', teamName)
+    .eq('captain_user_id', auth.userId)
+    .eq('normalized_team_name', normalizedTeam)
     .order('full_name', { ascending: true })
     .limit(250)
   const textContactsPromise = service
@@ -116,10 +132,31 @@ export async function GET(request: Request) {
   if (leagueName) formatsQuery = formatsQuery.eq('league_name', leagueName)
   if (flight) formatsQuery = formatsQuery.eq('flight', flight)
 
-  const [rosterResult, matchesResult, availabilityResult, contactsResult, textContactsResult, scenariosResult, formatsResult] = await Promise.all([
-    rosterPromise, matchesPromise, availabilityPromise, contactsPromise, textContactsPromise, scenariosPromise, formatsQuery,
+  const emptyTextContactsResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof textContactsPromise>
+  const emptyScenariosResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof scenariosPromise>
+
+  const [rosterResult, matchesResult, availabilityResult, contactsResult, formatsResult] = await Promise.all([
+    rosterPromise, matchesPromise, availabilityPromise, contactsPromise, formatsQuery,
   ])
-  const primaryError = rosterResult.error ?? matchesResult.error ?? availabilityResult.error ?? scenariosResult.error
+  const [textContactsResult, scenariosResult] = await Promise.all([
+    resolveOptionalQuery(textContactsPromise, emptyTextContactsResult),
+    resolveOptionalQuery(scenariosPromise, emptyScenariosResult),
+  ])
+  const primaryError = rosterResult.error ?? matchesResult.error ?? availabilityResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
   const rosterMembers = rosterResult.data ?? []

@@ -3,6 +3,8 @@ import {
   buildPotentialLineupAvailabilityMessage,
   buildPlayerPotentialLineupAvailabilityMessage,
   extractPotentialLineupPlayers,
+  getCaptainLineupDraftStorageKey,
+  readCaptainLineupBuilderDraft,
   readCaptainLineupHandoff,
 } from '../captain-lineup-handoff'
 
@@ -109,5 +111,19 @@ describe('captain potential-lineup handoff', () => {
 
     expect(handoff?.players.map((player) => player.playerName)).toEqual(['Alex Ace', 'Blair Ball'])
     expect(handoff?.openedPlayerKeys).toEqual(['alex ace'])
+  })
+
+  it('keeps a valid in-progress builder draft scoped to the captain who created it', () => {
+    const draft = readCaptainLineupBuilderDraft(JSON.stringify({
+      teamName: 'TiQ Team',
+      matchDate: '2026-08-31',
+      teamSlots: slots,
+      opponentSlots: [],
+    }))
+
+    expect(draft?.teamName).toBe('TiQ Team')
+    expect(draft?.teamSlots).toEqual(slots)
+    expect(getCaptainLineupDraftStorageKey('captain-1')).toBe('tenaceiq_captain_lineup_draft:captain-1')
+    expect(readCaptainLineupBuilderDraft('{"teamSlots":[]}')).toBeNull()
   })
 })
