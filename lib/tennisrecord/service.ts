@@ -68,6 +68,9 @@ const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
+// The Admin tracker is an estimate by design. Planner counts avoid a series
+// of exact table scans competing with the live collector for disk IO.
+const TENNISRECORD_STATUS_COUNT = { count: 'planned' as const, head: true }
 // A transport failure must not consume the rest of the current checkpoint by
 // immediately selecting the same oldest queue row again. Keep the normal
 // in-request retry in collector.ts, then give a failed page a short, polite
@@ -391,9 +394,9 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_sync_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('completed_at').eq('status', 'completed').not('completed_at', 'is', null).order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('completed_at,pages_attempted,trigger_kind').eq('status', 'completed').not('completed_at', 'is', null).gt('pages_attempted', 0).order('completed_at', { ascending: false }).limit(30),
-    service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).eq('has_conflict', true),
-    service.from('tennisrecord_canonical_matches').select('fingerprint', { count: 'exact', head: true }).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
+    service.from('tennisrecord_crawl_queue').select('id', TENNISRECORD_STATUS_COUNT).eq('status', 'pending'),
+    service.from('tennisrecord_canonical_matches').select('fingerprint', TENNISRECORD_STATUS_COUNT).eq('has_conflict', true),
+    service.from('tennisrecord_canonical_matches').select('fingerprint', TENNISRECORD_STATUS_COUNT).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
     service.from('tennisrecord_admin_coverage_summary').select('*').maybeSingle(),
@@ -401,7 +404,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   if (settings.error || lastRun.error || lastSuccessfulRun.error || recentCompletedRuns.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error || coverage.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
   const countCampaignPages = (status: string) => {
-    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status)
+    let query = service.from('tennisrecord_crawl_queue').select('id', TENNISRECORD_STATUS_COUNT).eq('status', status)
     if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
     return query
   }
@@ -415,7 +418,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
   const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
   const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
-    let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status).in('page_kind', TENNISRECORD_WEEKLY_PAGE_KINDS)
+    let query = service.from('tennisrecord_crawl_queue').select('id', TENNISRECORD_STATUS_COUNT).eq('status', status).in('page_kind', TENNISRECORD_WEEKLY_PAGE_KINDS)
     if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
     if (weeklyStartedAt) query = query.gte(timestampColumn, weeklyStartedAt)
     return query

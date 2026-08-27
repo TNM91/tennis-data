@@ -28,6 +28,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    console.info('[api/admin/tennisrecord] cache miss, collecting operational snapshot')
     const status = await getTennisRecordOperationalStatus(auth.service)
     try {
       await cache.set(ADMIN_STATUS_CACHE_KEY, status, {

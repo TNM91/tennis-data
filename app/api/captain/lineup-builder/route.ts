@@ -31,8 +31,12 @@ function escapePostgrestValue(value: string) {
 }
 
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const auth = await getCaptainApiAuth(request)
-  if (!auth.ok) return auth.response
+  if (!auth.ok) {
+    console.warn('[api/captain/lineup-builder] access denied', { durationMs: Date.now() - startedAt })
+    return auth.response
+  }
 
   const url = new URL(request.url)
   const teamName = cleanAvailabilityText(url.searchParams.get('team'), 160)
@@ -63,6 +67,7 @@ export async function GET(request: Request) {
     return canManageTeamRoom(roles)
   })
   if (!canManageSelectedTeam) {
+    console.warn('[api/captain/lineup-builder] team management denied', { durationMs: Date.now() - startedAt })
     return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
   }
   const escapedTeam = escapePostgrestValue(teamName)
@@ -132,6 +137,11 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, message: playersResult.error?.message || matchPlayersResult.error?.message || 'Lineup data is unavailable.' }, { status: 500 })
   }
 
+  console.info('[api/captain/lineup-builder] loaded', {
+    durationMs: Date.now() - startedAt,
+    rosterCount: rosterMembers.length,
+    matchCount: matchesResult.data?.length ?? 0,
+  })
   return Response.json({
     ok: true,
     players: playersResult.data ?? [],
