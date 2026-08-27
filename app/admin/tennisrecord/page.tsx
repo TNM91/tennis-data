@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { AdminReviewFrame, AdminReviewHero } from '@/app/admin/_components/admin-review-ui'
 import { supabase } from '@/lib/supabase'
+import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
 
 type Status = {
   settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; active_campaign_id?: string | null; max_requests_per_run?: number; bootstrap_started_at?: string | null; bootstrap_completed_at?: string | null; weekly_refresh_started_at?: string | null } | null
@@ -28,32 +29,76 @@ type Status = {
   frontier: { status: 'seeded' | 'ready_to_seed' | 'needs_admin_seed' }
 }
 
+const TENNISRECORD_STATUS_SNAPSHOT_MAX_AGE_MS = 15 * 60 * 1000
+const TENNISRECORD_STATUS_REQUEST_TIMEOUT_MS = 12_000
+
 export default function TennisRecordAdminPage() {
   const [status, setStatus] = useState<Status | null>(null)
   const [seedUrl, setSeedUrl] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [mappingIds, setMappingIds] = useState<Record<string, string>>({})
+  const [statusRefreshDelayed, setStatusRefreshDelayed] = useState(false)
+  const hasStatusRef = useRef(false)
+
+  useEffect(() => {
+    hasStatusRef.current = status !== null
+  }, [status])
 
   const request = useCallback(async (body?: Record<string, unknown>) => {
     const session = await supabase.auth.getSession()
-    const response = await fetch('/api/admin/tennisrecord', {
-      method: body ? 'POST' : 'GET',
-      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(session.data.session?.access_token ? { Authorization: `Bearer ${session.data.session.access_token}` } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    })
-    const payload = await response.json() as { ok?: boolean; message?: string } & Status
-    if (!response.ok || !payload.ok) throw new Error(payload.message || 'TennisRecord operation failed.')
-    return payload
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), TENNISRECORD_STATUS_REQUEST_TIMEOUT_MS)
+    try {
+      const response = await fetch('/api/admin/tennisrecord', {
+        method: body ? 'POST' : 'GET',
+        headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(session.data.session?.access_token ? { Authorization: `Bearer ${session.data.session.access_token}` } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      const payload = await response.json() as { ok?: boolean; message?: string } & Status
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'TennisRecord operation failed.')
+      return payload
+    } finally {
+      window.clearTimeout(timeout)
+    }
   }, [])
 
   const refresh = useCallback(async () => {
-    try { setStatus(await request()) } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load collector status.') }
+    try {
+      const nextStatus = await request()
+      setStatus(nextStatus)
+      setStatusRefreshDelayed(false)
+      const session = await supabase.auth.getSession()
+      writePrivateClientSnapshot({
+        namespace: 'tennisrecord-status',
+        userId: session.data.session?.user.id,
+        value: nextStatus,
+      })
+    } catch (error) {
+      setStatusRefreshDelayed(true)
+      if (!hasStatusRef.current) setMessage(error instanceof Error ? error.message : 'Could not load collector status.')
+    }
   }, [request])
   useEffect(() => {
+    let active = true
+    void supabase.auth.getSession().then((session) => {
+      if (!active) return
+      const snapshot = readPrivateClientSnapshot<Status>({
+        namespace: 'tennisrecord-status',
+        userId: session.data.session?.user.id,
+        maxAgeMs: TENNISRECORD_STATUS_SNAPSHOT_MAX_AGE_MS,
+        allowStale: true,
+      })
+      if (snapshot) setStatus(snapshot.value)
+    })
     void refresh()
     const timer = window.setInterval(() => { void refresh() }, 60_000)
-    return () => window.clearInterval(timer)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
   }, [refresh])
 
   async function act(body: Record<string, unknown>) {
@@ -126,7 +171,7 @@ export default function TennisRecordAdminPage() {
       <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill">
         Historical collection runs automatically in small, resumable checkpoints. After the 2025 mission, each Wednesday refreshes the prior seven days without replacing verified local scorecards.
       </AdminReviewHero>
-      {statusDelayed ? <p className="subtle-text" style={{ margin: '14px 0 0' }}>Collector status is taking longer than usual to load. The previous status is not being treated as paused.</p> : null}
+      {statusDelayed || statusRefreshDelayed ? <p className="subtle-text" style={{ margin: '14px 0 0' }}>{statusRefreshDelayed && status ? 'Showing the last confirmed collector status while the live refresh reconnects.' : 'Collector status is taking longer than usual to load. The previous status is not being treated as paused.'}</p> : null}
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
           <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={statusLoading ? 'Checking live importer status' : statusDelayed ? 'Status refresh delayed' : status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}` : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={statusLoading ? 'Checking' : statusDelayed ? 'Refresh delayed' : automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={statusLoading ? 'Connecting to the live collector. This is not a pause.' : statusDelayed ? 'The live status check was delayed. The collector keeps its last confirmed automation setting.' : status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Forecast uses ${campaignPaceDetail}: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages about every ${campaignCheckpointMinutes} minutes; newly discovered public match pages can extend the queue.${safetyThrottle?.active ? ` Safety cooldown: ${safetyThrottle.reason} Resume after ${formatDateTime(safetyThrottle.resumesAt)}.` : ''}` : 'Historical source records remain auditable without replacing verified local scorecards.'} />

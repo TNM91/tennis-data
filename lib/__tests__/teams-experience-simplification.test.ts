@@ -79,7 +79,7 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')
-    expect(portal).toContain('preloadTeamConnections(accessToken)')
+    expect(portal).toContain('preloadTeamConnections(accessToken, { userId })')
     expect(teamsHub).toContain('buildTeamProfileHref(group.teamName')
     expect(teamsHub).not.toContain('`/team/${encodeURIComponent(group.teamName)}')
   })
