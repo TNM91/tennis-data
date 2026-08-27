@@ -30,16 +30,40 @@ function escapePostgrestValue(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
-function resolveOptionalQuery<T>(query: PromiseLike<T>, fallback: T, timeoutMs = 2_500): Promise<T> {
+function resolveOptionalQuery<T>(
+  label: string,
+  query: PromiseLike<T>,
+  fallback: T,
+  timeoutMs = 2_500,
+): Promise<T> {
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(fallback), timeoutMs)
+    const startedAt = Date.now()
+    let settled = false
+    const timeout = setTimeout(() => {
+      if (settled) return
+      settled = true
+      console.warn('[api/captain/lineup-builder] query timed out; using fallback', {
+        query: label,
+        timeoutMs,
+        durationMs: Date.now() - startedAt,
+      })
+      resolve(fallback)
+    }, timeoutMs)
     Promise.resolve(query)
       .then((result) => {
+        if (settled) return
+        settled = true
         clearTimeout(timeout)
         resolve(result)
       })
       .catch(() => {
+        if (settled) return
+        settled = true
         clearTimeout(timeout)
+        console.warn('[api/captain/lineup-builder] query failed; using fallback', {
+          query: label,
+          durationMs: Date.now() - startedAt,
+        })
         resolve(fallback)
       })
   })
@@ -148,30 +172,75 @@ export async function GET(request: Request) {
     statusText: 'OK',
     success: true,
   } as Awaited<typeof scenariosPromise>
+  const emptyMatchesResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof matchesPromise>
+  const emptyAvailabilityResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof availabilityPromise>
+  const emptyContactsResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof contactsPromise>
+  const emptyFormatsResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof formatsQuery>
 
-  const [rosterResult, matchesResult, availabilityResult, contactsResult, formatsResult] = await Promise.all([
-    rosterPromise, matchesPromise, availabilityPromise, contactsPromise, formatsQuery,
+  const [rosterResult, matchesResult, availabilityResult, contactsResult, formatsResult, textContactsResult, scenariosResult] = await Promise.all([
+    rosterPromise,
+    // Match history and availability enrich the builder, but must never prevent a
+    // captain from opening their saved team when the historical import is busy.
+    resolveOptionalQuery('team schedule', matchesPromise, emptyMatchesResult, 3_500),
+    resolveOptionalQuery('team availability', availabilityPromise, emptyAvailabilityResult, 3_500),
+    resolveOptionalQuery('roster contacts', contactsPromise, emptyContactsResult),
+    resolveOptionalQuery('team formats', formatsQuery, emptyFormatsResult),
+    resolveOptionalQuery('message contacts', textContactsPromise, emptyTextContactsResult),
+    resolveOptionalQuery('saved scenarios', scenariosPromise, emptyScenariosResult),
   ])
-  const [textContactsResult, scenariosResult] = await Promise.all([
-    resolveOptionalQuery(textContactsPromise, emptyTextContactsResult),
-    resolveOptionalQuery(scenariosPromise, emptyScenariosResult),
-  ])
-  const primaryError = rosterResult.error ?? matchesResult.error ?? availabilityResult.error
+  const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
   const rosterMembers = rosterResult.data ?? []
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)
+  const matchPlayersResultPromise = matchIds.length
+    ? service.from('match_players').select('match_id,player_id,side').in('match_id', matchIds).limit(1200)
+    : Promise.resolve({ data: [], error: null })
+  const emptyMatchPlayersResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof matchPlayersResultPromise>
   const [playersResult, matchPlayersResult] = await Promise.all([
     rosterPlayerIds.length
       ? service.from('players').select(PLAYER_ROSTER_SELECT).in('id', rosterPlayerIds).order('name', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
-    matchIds.length
-      ? service.from('match_players').select('match_id,player_id,side').in('match_id', matchIds).limit(1200)
-      : Promise.resolve({ data: [], error: null }),
+    resolveOptionalQuery('scheduled match players', matchPlayersResultPromise, emptyMatchPlayersResult, 3_500),
   ])
-  if (playersResult.error || matchPlayersResult.error) {
-    return Response.json({ ok: false, message: playersResult.error?.message || matchPlayersResult.error?.message || 'Lineup data is unavailable.' }, { status: 500 })
+  if (playersResult.error) {
+    return Response.json({ ok: false, message: playersResult.error.message || 'Lineup data is unavailable.' }, { status: 500 })
   }
 
   console.info('[api/captain/lineup-builder] loaded', {
