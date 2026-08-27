@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
 const adminPage = read('app/admin/tennisrecord/page.tsx')
+const adminRoute = read('app/api/admin/tennisrecord/route.ts')
+const adminHome = read('app/admin/page.tsx')
 const service = read('lib/tennisrecord/service.ts')
 const globalStyles = read('app/globals.css')
 
@@ -55,6 +57,21 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain('tennisRecordCadenceSafetyStatus')
     expect(service).toContain('TENNISRECORD_AUTOMATION_INTERVAL_MINUTES')
     expect(service).toContain('Interrupted checkpoint reclaimed for retry.')
+  })
+
+  it('does not label a delayed status request as a paused collector', () => {
+    expect(adminPage).toContain("const statusLoading = status === null && !message")
+    expect(adminPage).toContain('Checking live importer status')
+    expect(adminPage).toContain('This is not a pause.')
+    expect(adminPage).toContain('Safety cooldown:')
+  })
+
+  it('caches costly Admin status reads and puts the importer first', () => {
+    expect(adminRoute).toContain("namespace: 'tennisrecord-admin'")
+    expect(adminRoute).toContain('ADMIN_STATUS_CACHE_TTL_SECONDS = 120')
+    expect(adminRoute).toContain('cache hit')
+    expect(adminRoute).toContain('expireTag(ADMIN_STATUS_CACHE_TAG)')
+    expect(adminHome).toContain("const priorityToolHrefs = [\n  '/admin/tennisrecord'")
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {
