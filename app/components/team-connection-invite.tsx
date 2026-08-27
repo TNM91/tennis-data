@@ -71,7 +71,7 @@ export default function TeamConnectionInvite() {
       setPending((current) => current.filter((item) => item.id !== invitation.id))
       if (action === 'accept' && connection) {
         setAccepted(connection)
-        const refreshed = await fetchTeamConnections(accessToken).catch(() => null)
+        const refreshed = await fetchTeamConnections(accessToken, { includeOffers: true }).catch(() => null)
         if (refreshed) setOffers(refreshed.offers)
       }
     } catch (error) {

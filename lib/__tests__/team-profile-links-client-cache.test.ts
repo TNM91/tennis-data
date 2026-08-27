@@ -7,7 +7,7 @@ describe('team connections client cache', () => {
   })
 
   it('shares an in-flight request and reuses the warm result', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
       ok: true,
       pending: [],
       connections: [{ id: 'team-1', teamName: 'Baseline Crew' }],
@@ -15,7 +15,7 @@ describe('team connections client cache', () => {
         captain: { available: false, label: '' },
         player: { available: false, label: '' },
       },
-    }), { status: 200 }))
+    }), { status: 200 })))
     vi.stubGlobal('fetch', fetchMock)
 
     const { fetchTeamConnections, getCachedTeamConnections, preloadTeamConnections } = await import('@/lib/team-profile-links-client')
@@ -33,5 +33,9 @@ describe('team connections client cache', () => {
     preloadTeamConnections(token)
     await Promise.resolve()
     expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await fetchTeamConnections(token, { includeOffers: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/team-connections?includeOffers=1')
   })
 })
