@@ -106,6 +106,13 @@ describe('Captain shared auth access', () => {
     expect(lineupBuilderSource).not.toContain('supabase.auth.onAuthStateChange')
   })
 
+  it('recovers a briefly future-issued mobile token before showing the lineup load error', () => {
+    expect(lineupBuilderSource).toContain('function isFutureJwtError')
+    expect(lineupBuilderSource).toContain('supabase.auth.refreshSession()')
+    expect(lineupBuilderSource).toContain("setMessage('Refreshing your secure session…')")
+    expect(lineupBuilderSource).toContain('futureJwtRefreshAttemptedRef')
+  })
+
   it('keeps the Captain Season Dashboard on shared auth before loading team data', () => {
     expect(seasonDashboardSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(seasonDashboardSource).toContain('<SiteShell active="/captain">')
