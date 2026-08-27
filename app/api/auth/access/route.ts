@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { ProductEntitlementSnapshot } from '@/lib/access-model-core'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { cacheServerAccountRole } from '@/lib/server-account-role-cache'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { normalizeSubscriptionStatus } from '@/lib/subscription-status'
 
@@ -66,9 +67,12 @@ export async function GET(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
-  const { data: userData, error: userError } = await requester.auth.getUser(token)
-  const userId = userData.user?.id
-  if (userError || !userId) {
+  // JWT claims are cryptographically verified and avoid a second remote Auth
+  // request on every page shell. Under database pressure that extra request
+  // was the first long pole for Team and Admin navigation on mobile.
+  const { data: claimData, error: claimError } = await requester.auth.getClaims(token)
+  const userId = typeof claimData?.claims.sub === 'string' ? claimData.claims.sub : ''
+  if (claimError || !userId) {
     return Response.json({ ok: false, message: 'Sign in to load account access.' }, { status: 401 })
   }
 
@@ -100,6 +104,7 @@ export async function GET(request: Request) {
     role: normalizeUserRole(row?.role ?? 'member') as UserRole,
     entitlements: toEntitlements(row),
   }
+  void cacheServerAccountRole(userId, access.role)
 
   console.info('[api/auth/access] loaded', {
     durationMs: Date.now() - startedAt,

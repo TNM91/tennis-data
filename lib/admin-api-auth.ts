@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { cacheServerAccountRole, readCachedServerAccountRole } from '@/lib/server-account-role-cache'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export async function getAdminApiAuth(request: Request) {
@@ -16,14 +17,18 @@ export async function getAdminApiAuth(request: Request) {
   const userId = typeof claimData?.claims.sub === 'string' ? claimData.claims.sub : ''
   if (claimError || !userId) return adminAuthFailure(401, 'Admin sign-in required.')
 
-  const { data: profile, error: profileError } = await requester
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle()
-  if (profileError) return adminAuthFailure(500, 'Admin access could not be checked.')
-  if ((profile as { role?: string } | null)?.role !== 'admin') {
-    return adminAuthFailure(403, 'Admin access required.')
+  const cachedRole = await readCachedServerAccountRole(userId)
+  if (cachedRole !== 'admin') {
+    const { data: profile, error: profileError } = await requester
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+    if (profileError) return adminAuthFailure(500, 'Admin access could not be checked.')
+    if ((profile as { role?: string } | null)?.role !== 'admin') {
+      return adminAuthFailure(403, 'Admin access required.')
+    }
+    void cacheServerAccountRole(userId, 'admin')
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()

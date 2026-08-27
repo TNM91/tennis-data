@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState } from './access-model-core'
+import { cacheServerAccountRole, readCachedServerAccountRole } from './server-account-role-cache'
 import { normalizeSubscriptionStatus } from './subscription-status'
 import { supabaseKey, supabaseUrl } from './supabase'
 
@@ -47,13 +48,16 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
     }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select(
-      'role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
-    )
-    .eq('id', userId)
-    .maybeSingle()
+  const cachedRole = await readCachedServerAccountRole(userId)
+  const { data: profile } = cachedRole === 'admin'
+    ? { data: { role: 'admin' } }
+    : await supabase
+      .from('profiles')
+      .select(
+        'role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
+      )
+      .eq('id', userId)
+      .maybeSingle()
   const row = (profile ?? {}) as ProfileEntitlementRow
   // Admin is a platform role, not a paid subscription. Preserve its built-in
   // Captain authority instead of downgrading it to a plain member during a
@@ -68,6 +72,7 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
     tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
   })
+  if (row.role === 'admin') void cacheServerAccountRole(userId, 'admin')
 
   if (!access.canUseCaptainWorkflow) {
     return {

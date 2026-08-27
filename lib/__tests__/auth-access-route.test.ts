@@ -13,7 +13,7 @@ describe('authenticated access snapshot route', () => {
 
   it('authenticates the caller before using service access to load that caller profile', () => {
     expect(source).toContain("const token = getBearerToken(request)")
-    expect(source).toContain('await requester.auth.getUser(token)')
+    expect(source).toContain('await requester.auth.getClaims(token)')
     expect(source).toContain(".eq('id', userId)")
     expect(source).toContain('SUPABASE_SERVICE_ROLE_KEY')
   })
