@@ -60,6 +60,18 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Player replies are up to date.')
   })
 
+  it('automatically anchors confirmed players while retaining a deliberate captain unlock', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(source).toContain("const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])")
+    expect(source).toContain('const confirmedAssignedPlayerIdSet = useMemo(() =>')
+    expect(source).toContain('const autoLockedConfirmedPlayerIdSet = useMemo(')
+    expect(source).toContain("availabilityLabel(availabilityMap.get(player.playerId)?.status) === 'Confirmed'")
+    expect(source).toContain("isAutoLocked ? 'confirmed · unlock'")
+    expect(source).toContain("isConfirmedReleased ? 're-lock confirmed player' : 'lock player'")
+    expect(source).toContain('Confirmed players lock automatically.')
+  })
+
   it('returns to the exact Team Room card before the captain sends the lineup', () => {
     const builder = readSource('app/captain/lineup-builder/page.tsx')
     const room = readSource('app/team-room/page.tsx')
