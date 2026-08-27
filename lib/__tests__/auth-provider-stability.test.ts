@@ -14,10 +14,10 @@ describe('auth provider stability', () => {
     expect(source).not.toContain("{ data: { session: null }, error: null },")
   })
 
-  it('marks signed-in auth transitions unresolved until role and entitlements are loaded', () => {
+  it('marks signed-in auth transitions unresolved until the verified access snapshot is loaded', () => {
     expect(source).toContain('setAuthResolved(false)')
-    expect(source).toContain('setRole(nextRole)')
-    expect(source).toContain('setEntitlements(nextEntitlements)')
+    expect(source).toContain('setRole(nextAccess.role)')
+    expect(source).toContain('setEntitlements(nextAccess.entitlements)')
     expect(source).toContain('setAuthResolved(true)')
   })
 
@@ -28,16 +28,17 @@ describe('auth provider stability', () => {
     expect(source).toContain("role: 'public'")
   })
 
-  it('preserves confirmed access through transient entitlement failures', () => {
+  it('preserves confirmed access through transient account-access failures', () => {
     expect(source).toContain('const sessionRef = useRef<Session | null>(null)')
     expect(source).toContain('const entitlementsRef = useRef<ProductEntitlementSnapshot | null>(null)')
     expect(source).toContain('const hasCurrentAccess =')
     expect(source).toContain('previousUserId && previousUserId !== nextUserId')
     expect(source).toContain("if (!mountedRef.current || sessionRef.current?.user?.id !== nextUserId) return null")
-    expect(source).toContain('!isAuthEntitlementTimeout(entitlementResult) && entitlementResult !== null')
-    expect(source).toContain('? entitlementsRef.current')
+    expect(source).toContain("const hasCurrentAccess = previousUserId === nextUserId && entitlementsRef.current !== null && roleRef.current !== 'public'")
+    expect(source).toContain('const nextAccess = !isAuthAccessTimeout(accessResult) && accessResult !== null')
+    expect(source).toContain(': cachedAccess')
     expect(source).toContain('} else if (previousUserId !== nextUserId) {\n      setAuthResolved(false)')
-    expect(source).toContain('if (nextEntitlements !== null) {')
+    expect(source).toContain('if (nextAccess !== null) {')
     expect(source).toContain('    setAuthResolved(true)\n\n    return {')
   })
 
@@ -56,13 +57,13 @@ describe('auth provider stability', () => {
     expect(source).toContain("window.removeEventListener('pageshow', refreshRestoredPage)")
   })
 
-  it('uses a short-lived entitlement cache to keep returning sessions responsive', () => {
+  it('uses a short-lived complete access cache to keep returning sessions responsive', () => {
     expect(source).toContain('const AUTH_ENTITLEMENT_CACHE_TTL_MS = 30 * 60 * 1000')
-    expect(source).toContain("const AUTH_ENTITLEMENT_CACHE_PREFIX = 'tenaceiq-auth-entitlements:v1:'")
-    expect(source).toContain('function readCachedEntitlements')
-    expect(source).toContain('const cachedEntitlements = hasCurrentAccess ? entitlementsRef.current : readCachedEntitlements(nextUserId)')
-    expect(source).toContain('writeCachedEntitlements(nextUserId, nextEntitlements)')
-    expect(source).toContain('Protected\n      // routes and mutations still authorize against the server')
+    expect(source).toContain("const AUTH_ACCESS_CACHE_PREFIX = 'tenaceiq-auth-access:v2:'")
+    expect(source).toContain('function readCachedAccountAccess')
+    expect(source).toContain('const cachedAccess = hasCurrentAccess')
+    expect(source).toContain('writeCachedAccountAccess(nextUserId, nextAccess)')
+    expect(source).toContain('server-verified account snapshot')
   })
 
   it('releases the Supabase auth callback before loading profile data', () => {
