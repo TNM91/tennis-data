@@ -113,6 +113,10 @@ function CompeteTeamsContent() {
     let active = true
 
     if (!authResolved && !accessToken) {
+      // Do not leave the public shell on an indefinite team loader while
+      // Supabase restores a mobile session. Once auth resolves this effect
+      // runs again and fetches the connected teams automatically.
+      setLoading(false)
       return () => {
         active = false
       }
