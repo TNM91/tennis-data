@@ -1175,7 +1175,7 @@ function getLineupWarnings(
           rules.ratingRule !== 'local_rules' &&
           typeof getPlayerBaseRating(player) !== 'number'
         ) {
-          warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TIQ can confirm eligibility.`)
+          warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TiQ can confirm eligibility.`)
         }
         if (
           player &&
@@ -2730,21 +2730,14 @@ function LineupBuilderContent() {
     window.location.assign(buildSmsHref([contact.phone], body))
   }
 
-  async function askProposedCourtPlayers(slot: LineupSlot) {
+  async function askProposedCourtPlayers(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
     if (!teamName || !matchDate) {
       setError('Choose the team and match before asking a player.')
       setMessage('')
       return
     }
 
-    const invitedPlayers = slot.players
-      .filter((player) => player.playerName.trim())
-      .filter((player, index, all) =>
-        all.findIndex((candidate) =>
-          candidate.playerId === player.playerId ||
-          candidate.playerName.trim().toLowerCase() === player.playerName.trim().toLowerCase()
-        ) === index
-      )
+    const invitedPlayers = invitedPlayer.playerName.trim() ? [invitedPlayer] : []
 
     if (!invitedPlayers.length) {
       setError('Choose a player for this court before asking availability.')
@@ -2784,6 +2777,7 @@ function LineupBuilderContent() {
           facility: selectedMatch?.facility || '',
           slots: [slot],
           invitedPlayers,
+          inviteMode: 'append',
         }),
       })
       const result = await response.json() as {
@@ -4141,7 +4135,7 @@ function LineupBuilderContent() {
               <p style={mobileCourtFocusTextStyle}>
                 {lineupHasAssignments
                   ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
-                  : 'Start with the three team courts. TIQ can fill a balanced first draft for you.'}
+                  : 'Start with the three team courts. TiQ can fill a balanced first draft for you.'}
               </p>
               <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
                 {mobileLineupPulse.map((item) => (
@@ -4520,7 +4514,7 @@ function LineupBuilderContent() {
                     {flightOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
-                <Field label="Match format" htmlFor="lineup-builder-match-format" hint="Detected from USTA names or loaded from a TIQ league. Change it only when local rules use a different scorecard.">
+                <Field label="Match format" htmlFor="lineup-builder-match-format" hint="Detected from USTA names or loaded from a TiQ league. Change it only when local rules use a different scorecard.">
                   <select
                     id="lineup-builder-match-format"
                     value={selectedMatchFormatId}
@@ -4703,7 +4697,7 @@ function LineupBuilderContent() {
                       ? `${directCourtTextHandoff.courtLabel}: text ${nextDirectCourtTextPlayer.playerName} next.`
                       : `${directCourtTextHandoff.courtLabel}: every selected player has been texted.`}</strong>
                     <span>{nextDirectCourtTextPlayer
-                      ? 'The Builder keeps this court and the player order intact while you ask the pair privately.'
+                      ? 'The Builder keeps this court in place while you privately confirm this player.'
                       : 'Keep building the rest of the lineup. Replies will refresh when you return.'}</span>
                   </div>
                   <div style={directCourtTextActionStyle}>
@@ -4916,7 +4910,7 @@ function LineupBuilderContent() {
                         <div>
                           <div style={listTitleStyle}>{player.name}</div>
                           <div style={listMetaStyle}>
-                            TIQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                            TiQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
                           </div>
                         </div>
                         <div style={rightPillStackStyle}>
@@ -5343,7 +5337,7 @@ function SlotEditor({
   lockedPlayerIds: Set<string>
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
-  onAskPlayers?: (slot: LineupSlot) => void
+  onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
   askingPlayers: boolean
   focused?: boolean
 }) {
@@ -5351,12 +5345,6 @@ function SlotEditor({
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
   )
   const selectedPlayers = slot.players.filter((player) => player.playerId && player.playerName.trim())
-  const askLabel = selectedPlayers.length === 2
-    ? 'Ask pair'
-    : selectedPlayers.length === 1
-      ? `Ask ${selectedPlayers[0].playerName.split(' ')[0]}`
-      : ''
-
   return (
     <div
       id={`captain-lineup-slot-${slot.id}`}
@@ -5426,11 +5414,13 @@ function SlotEditor({
 
       {side === 'team' && onAskPlayers && selectedPlayers.length ? (
         <div style={replacementHandoffActionsStyle}>
-          <GhostSmallBtn onClick={() => onAskPlayers(slot)} disabled={askingPlayers}>
-            {askingPlayers ? 'Preparing text...' : askLabel}
-          </GhostSmallBtn>
+          {selectedPlayers.map((player) => (
+            <GhostSmallBtn key={player.playerId || player.playerName} onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
+              {askingPlayers ? 'Preparing text...' : `Ask ${player.playerName.split(' ')[0]}`}
+            </GhostSmallBtn>
+          ))}
           <span style={mutedTextStyle}>
-            Private availability text — the rest of the lineup stays flexible.
+            Send one private court check at a time. Add a doubles partner first when you know it.
           </span>
         </div>
       ) : null}

@@ -10,7 +10,7 @@ describe('Captain guided availability texting', () => {
     expect(source).toContain('setOpenedPotentialPlayerKeys(readLocal<string>(potentialTextQueueStorageKey))')
     expect(source).toContain('writeLocal(potentialTextQueueStorageKey, next)')
     expect(source).toContain('Text next: {nextPotentialTextTarget.playerName.split(\' \')[0]}')
-    expect(source).toContain('TIQ keeps your place and replies appear here automatically.')
+    expect(source).toContain('TiQ keeps your place and replies appear here automatically.')
     expect(source).toContain('{!availabilityHandoff && !liveAvailabilityRequest?.request ? (')
     expect(source).toContain('<GhostLink href="/captain/lineup-builder">Edit lineup</GhostLink>')
   })

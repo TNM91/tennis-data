@@ -2376,7 +2376,7 @@ function buildWinningLineupMessage() {
     eventTime: eventArrivalTime,
     opponent: opponentText,
     location: eventLocation,
-    details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TIQ team'}.`,
+    details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TiQ team'}.`,
   })
   const mapsHref = buildMatchWeekMapsHref(eventLocation)
   const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
@@ -2389,9 +2389,9 @@ function buildWinningLineupMessage() {
     `Arrive by ${eventArrivalTime || 'match time'}.`,
     eventLocation ? `Location: ${eventLocation}` : '',
     calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
-    phoneCalendarHref ? `Add to phone calendar: ${phoneCalendarHref}` : '',
+    phoneCalendarHref ? `Add to iPhone calendar: ${phoneCalendarHref}` : '',
     mapsHref ? `Open directions: ${mapsHref}` : '',
-    'TIQ members: open this team message and choose Add to My Calendar.',
+    'TiQ members: open this team message and choose Add to My Calendar.',
   ].filter(Boolean).join('\n\n'))
 }
 
@@ -2792,7 +2792,7 @@ function importScenarioToLineup() {
                 <p style={sectionKicker}>Availability</p>
                 <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
                 <p style={mutedTextStyle}>
-                  Open each private text in order. TIQ keeps your place and replies appear here automatically.
+                  Open each private text in order. TiQ keeps your place and replies appear here automatically.
                 </p>
               </div>
               <button
@@ -2952,7 +2952,7 @@ function importScenarioToLineup() {
             {missingPotentialLineupNames.length ? (
               <div style={potentialMissingStyle}>
                 <strong>Add a mobile number on the player card:</strong>{' '}
-                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TIQ account to answer.
+                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TiQ account to answer.
               </div>
             ) : null}
 

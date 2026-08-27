@@ -55,6 +55,7 @@ export type CaptainDirectCourtTextHandoff = {
 
 type MessageSlot = {
   label: string
+  slotType: 'singles' | 'doubles'
   players: string[]
 }
 
@@ -106,9 +107,9 @@ export function buildPotentialLineupAvailabilityMessage(input: {
     ...details,
     input.availabilityRequestUrl
       ? `Set this match or other season dates: ${input.availabilityRequestUrl}`
-      : 'Your text reply still counts even if you do not use TIQ.',
+      : 'Your text reply still counts even if you do not use TiQ.',
     input.availabilityRequestUrl
-      ? 'The link works without a TIQ account. You can join after responding if you want future availability in one place.'
+      ? 'The link opens to a one-tap Yes or No response. Add this match to your calendar, then set future availability below.'
       : '',
   ]
     .filter(Boolean)
@@ -149,7 +150,11 @@ export function buildPlayerPotentialLineupAvailabilityMessage(input: {
   )
   const partner = assignedSlot?.players.find((player) => !samePlayerName(player, playerName))
   const proposedRole = assignedSlot
-    ? `Your proposed court: ${assignedSlot.label}${partner ? ` with ${partner}` : ''}.`
+    ? partner
+      ? `Your proposed court: ${assignedSlot.label} with ${partner}.`
+      : assignedSlot.slotType === 'doubles'
+        ? `Your proposed court: ${assignedSlot.label}. Your teammate is still being determined.`
+        : `Your proposed court: ${assignedSlot.label}.`
     : 'Your court is being finalized after availability is in.'
 
   return [
@@ -159,9 +164,9 @@ export function buildPlayerPotentialLineupAvailabilityMessage(input: {
     input.time ? `Time: ${input.time}` : '',
     input.facility ? `Location: ${input.facility}` : '',
     input.availabilityRequestUrl
-      ? `Reply in TIQ: ${input.availabilityRequestUrl}`
+      ? `Reply in TiQ: ${input.availabilityRequestUrl}`
       : 'Reply YES, NO, or MAYBE to your captain.',
-    input.availabilityRequestUrl ? 'The reply link works without a TIQ account.' : '',
+    input.availabilityRequestUrl ? 'One tap answers this match. Add it to your iPhone calendar, then set future availability below.' : '',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -186,6 +191,7 @@ function normalizeMessageSlots(raw: unknown): MessageSlot[] {
       label: typeof record.label === 'string' && record.label.trim()
         ? record.label.trim()
         : `Court ${index + 1}`,
+      slotType: record.slotType === 'singles' ? 'singles' : record.slotType === 'doubles' || /doubles/i.test(String(record.label || '')) ? 'doubles' : 'singles',
       players,
     }
   })

@@ -23,14 +23,15 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('router.push(teamRoomCardHref)')
   })
 
-  it('keeps a private court ask inside the Builder and texts the selected pair in order', () => {
+  it('keeps a private court ask inside the Builder and texts each selected player separately', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
-    expect(source).toContain('async function askProposedCourtPlayers(slot: LineupSlot)')
+    expect(source).toContain("async function askProposedCourtPlayers(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number])")
     expect(source).toContain('slots: [slot]')
     expect(source).toContain('const [askingCourtId, setAskingCourtId] = useState(\'\')')
     expect(source).toContain('onAskPlayers={askProposedCourtPlayers}')
-    expect(source).toContain("? 'Ask pair'")
+    expect(source).toContain('Send one private court check at a time.')
+    expect(source).toContain('inviteMode: \'append\'')
     expect(source).toContain('CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY')
     expect(source).toContain('const directTextHandoff: CaptainDirectCourtTextHandoff = {')
     expect(source).toContain('openDirectCourtText(firstPlayer, directTextHandoff)')
@@ -105,6 +106,11 @@ describe('Captain projected lineup confirmation flow', () => {
     const route = readSource('app/api/captain/availability-requests/[token]/route.ts')
 
     expect(page).toContain('Set your availability')
+    expect(page).toContain('One-tap reply')
+    expect(page).toContain('Yes, I’m in')
+    expect(page).toContain('No, I’m out')
+    expect(page).toContain('Add to iPhone calendar')
+    expect(page).toContain('Future availability')
     expect(page).toContain("fetch(`/api/captain/availability-requests/${encodeURIComponent(token)}`")
     expect(page).toContain('Want fewer availability texts?')
     expect(page).not.toContain('useAuth')
@@ -121,6 +127,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(collectionRoute).toContain('export async function GET(request: Request)')
     expect(collectionRoute).toContain(".from('captain_availability_request_invites')")
     expect(collectionRoute).toContain('playerRequestUrls:')
+    expect(collectionRoute).toContain("body.inviteMode === 'append'")
     expect(migration).toContain('response_token uuid not null default gen_random_uuid() unique')
   })
 })
