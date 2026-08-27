@@ -20,6 +20,7 @@ export type TeamConnectionsResult = {
 }
 
 const TEAM_CONNECTIONS_CACHE_TTL_MS = 60_000
+const TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS = 8_000
 let teamConnectionsCache: {
   accessToken: string
   expiresAt: number
@@ -28,25 +29,43 @@ let teamConnectionsCache: {
 } | null = null
 
 async function requestTeamConnections(accessToken: string): Promise<TeamConnectionsResult> {
-  const response = await fetch('/api/team-connections', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: 'no-store',
-  })
-  const json = (await response.json()) as TeamConnectionsResponse
-  if (!response.ok || !json.ok) throw new Error(json.message || 'Team connections could not be loaded.')
-  return {
-    pending: json.pending || [],
-    connections: json.connections || [],
-    offers: json.offers || {
-      captain: { available: false, label: '' },
-      player: { available: false, label: '' },
-    },
+  const controller = new AbortController()
+  const timeout = globalThis.setTimeout(() => controller.abort(), TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS)
+
+  try {
+    const response = await fetch('/api/team-connections', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+    const json = (await response.json()) as TeamConnectionsResponse
+    if (!response.ok || !json.ok) throw new Error(json.message || 'Team connections could not be loaded.')
+    return {
+      pending: json.pending || [],
+      connections: json.connections || [],
+      offers: json.offers || {
+        captain: { available: false, label: '' },
+        player: { available: false, label: '' },
+      },
+    }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('Team connections are taking longer than expected. Please try again.')
+    }
+    throw error
+  } finally {
+    globalThis.clearTimeout(timeout)
   }
 }
 
-export async function fetchTeamConnections(accessToken: string) {
+export function getCachedTeamConnections(accessToken: string) {
+  if (!accessToken || teamConnectionsCache?.accessToken !== accessToken) return null
+  return teamConnectionsCache.value || null
+}
+
+export async function fetchTeamConnections(accessToken: string, options: { force?: boolean } = {}) {
   const now = Date.now()
-  if (teamConnectionsCache?.accessToken === accessToken && teamConnectionsCache.expiresAt > now) {
+  if (!options.force && teamConnectionsCache?.accessToken === accessToken && teamConnectionsCache.expiresAt > now) {
     if (teamConnectionsCache.value) return teamConnectionsCache.value
     if (teamConnectionsCache.promise) return teamConnectionsCache.promise
   }

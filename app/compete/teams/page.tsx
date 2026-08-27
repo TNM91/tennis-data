@@ -11,7 +11,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'
 import { getTeamConnectionRolesLabel, isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
@@ -101,6 +101,8 @@ function CompeteTeamsContent() {
   const [pendingConnections, setPendingConnections] = useState<TeamConnection[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [loading, setLoading] = useState(true)
+  const [connectionError, setConnectionError] = useState('')
+  const [connectionRefresh, setConnectionRefresh] = useState(0)
   const [storageWarning, setStorageWarning] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -117,22 +119,43 @@ function CompeteTeamsContent() {
     }
 
     async function loadConnections() {
-      setLoading(true)
-      const connectionResult = accessToken
-        ? await fetchTeamConnections(accessToken).catch(() => ({ pending: [], connections: [], offers: null }))
-        : { pending: [], connections: [], offers: null }
+      const cachedConnections = accessToken ? getCachedTeamConnections(accessToken) : null
+      setConnectionError('')
+      setLoading(!cachedConnections)
 
-      if (!active) return
+      if (cachedConnections) {
+        setConnections(cachedConnections.connections)
+        setPendingConnections(cachedConnections.pending)
+        void loadSupportingTeamContext(cachedConnections.connections)
+        if (connectionRefresh === 0) return
+      }
 
-      setConnections(connectionResult.connections)
-      setPendingConnections(connectionResult.pending)
-      setLoading(false)
+      try {
+        const connectionResult = accessToken
+          ? await fetchTeamConnections(accessToken, { force: connectionRefresh > 0 })
+          : { pending: [], connections: [], offers: null }
+
+        if (!active) return
+
+        setConnections(connectionResult.connections)
+        setPendingConnections(connectionResult.pending)
+        void loadSupportingTeamContext(connectionResult.connections)
+      } catch (error) {
+        if (!active) return
+        if (!cachedConnections) {
+          setConnectionError(error instanceof Error ? error.message : 'Your teams could not be refreshed. Please try again.')
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
     }
 
-    async function loadSupportingTeamContext() {
+    async function loadSupportingTeamContext(connectedTeams: TeamConnection[]) {
       const [participationResult, teamOptions] = await Promise.all([
         listTiqTeamParticipations(),
-        listTeamDirectoryOptions().catch(() => []),
+        connectedTeams.length > 0
+          ? listTeamDirectoryOptions({ teamNames: connectedTeams.map((connection) => connection.teamName) }).catch(() => [])
+          : Promise.resolve([]),
       ])
 
       if (!active) return
@@ -143,12 +166,11 @@ function CompeteTeamsContent() {
     }
 
     void loadConnections()
-    void loadSupportingTeamContext()
 
     return () => {
       active = false
     }
-  }, [accessToken, authResolved])
+  }, [accessToken, authResolved, connectionRefresh])
 
   const groupedTeams = useMemo(() => {
     const directoryByTeam = new Map(teamDirectory.map((option) => [option.team, option]))
@@ -198,7 +220,7 @@ function CompeteTeamsContent() {
 
   return (
     <>
-      {!loading && (!userId || groupedTeams.length === 0) ? (
+      {!loading && !connectionError && (!userId || groupedTeams.length === 0) ? (
         <TeamAccountAccessPanel
           authResolved={authResolved}
           signedIn={Boolean(userId)}
@@ -225,7 +247,9 @@ function CompeteTeamsContent() {
           <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
         )}
         <div style={sectionTextStyle}>
-          {loading
+          {connectionError
+            ? 'Your teams did not finish loading. Nothing has been changed.'
+            : loading
             ? 'Getting your teams...'
             : groupedTeams.length > 0
               ? 'Open a team for its roster, schedule, stats, and Team Chat.'
@@ -235,7 +259,9 @@ function CompeteTeamsContent() {
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
-        {loading ? (
+        {connectionError ? (
+          <TeamListLoadError message={connectionError} onRetry={() => setConnectionRefresh((value) => value + 1)} />
+        ) : loading ? (
           <TeamListLoadingState />
         ) : groupedTeams.length === 0 ? (
           <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} />
@@ -629,6 +655,19 @@ function TeamListLoadingState() {
   )
 }
 
+function TeamListLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div style={teamLoadErrorStyle} role="alert">
+      <TiqFeatureIcon name="teamRankings" size="sm" variant="ghost" />
+      <span style={teamLoadErrorCopyStyle}>
+        <strong style={teamLoadingTitleStyle}>We could not refresh your teams.</strong>
+        <span style={teamLoadingTextStyle}>{message}</span>
+      </span>
+      <button type="button" onClick={onRetry} style={teamLoadRetryStyle}>Try again</button>
+    </div>
+  )
+}
+
 const sectionStyle = {
   position: 'relative',
   zIndex: 1,
@@ -679,6 +718,31 @@ const teamLoadingTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.45,
   fontWeight: 600,
+}
+
+const teamLoadErrorStyle: CSSProperties = {
+  ...teamLoadingStyle,
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  borderColor: 'rgba(255, 163, 112, 0.32)',
+}
+
+const teamLoadErrorCopyStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const teamLoadRetryStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  width: '100%',
+  minHeight: 40,
+  padding: '8px 12px',
+  border: '1px solid rgba(116,190,255,0.32)',
+  borderRadius: 12,
+  background: 'rgba(16, 35, 63, 0.76)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 850,
 }
 
 const accountAccessStyle: CSSProperties = {

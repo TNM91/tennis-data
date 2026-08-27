@@ -18,7 +18,7 @@ describe('team connections client cache', () => {
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const { fetchTeamConnections, preloadTeamConnections } = await import('@/lib/team-profile-links-client')
+    const { fetchTeamConnections, getCachedTeamConnections, preloadTeamConnections } = await import('@/lib/team-profile-links-client')
     const token = 'test-access-token'
     const [first, second] = await Promise.all([
       fetchTeamConnections(token),
@@ -27,6 +27,8 @@ describe('team connections client cache', () => {
 
     expect(first).toEqual(second)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ signal: expect.any(AbortSignal) })
+    expect(getCachedTeamConnections(token)).toEqual(first)
 
     preloadTeamConnections(token)
     await Promise.resolve()
