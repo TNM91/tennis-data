@@ -1,7 +1,8 @@
 import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { buildProductAccessState, normalizeSubscriptionStatus } from './access-model-core'
+import { buildProductAccessState } from './access-model-core'
+import { normalizeSubscriptionStatus } from './subscription-status'
 import { supabaseKey, supabaseUrl } from './supabase'
 
 type CaptainApiAuth =

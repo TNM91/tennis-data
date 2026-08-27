@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { buildProductAccessState, normalizeSubscriptionStatus } from '@/lib/access-model-core'
+import { buildProductAccessState } from '@/lib/access-model-core'
+import { normalizeSubscriptionStatus } from '@/lib/subscription-status'
 import { normalizeUserRole } from '@/lib/roles'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 

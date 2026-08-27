@@ -73,6 +73,9 @@ describe('Teams experience simplification', () => {
   it('shows accepted teams before slower directory enrichment finishes', () => {
     expect(teamsHub).toContain('async function loadConnections()')
     expect(teamsHub).toContain('async function loadSupportingTeamContext(connectedTeams: TeamConnection[])')
+    expect(teamsHub).toContain('loadConnectedTeamDirectoryOptions')
+    expect(teamsHub).toContain("label: 'Team connection'")
+    expect(teamsHub).toContain("'Match data syncing'")
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')

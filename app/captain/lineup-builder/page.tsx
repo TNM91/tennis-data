@@ -1291,6 +1291,13 @@ function isFutureJwtError(message: string | null | undefined) {
   return (message || '').toLowerCase().includes('jwt issued at future')
 }
 
+// A freshly issued mobile session can take a couple of seconds to be accepted
+// by every Supabase/PostgREST node. Retrying immediately treats that short
+// propagation window as a lost roster, which is the opposite of what a
+// captain needs while building a lineup.
+const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
+const MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2
+
 function LineupBuilderContent() {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
@@ -1338,6 +1345,7 @@ function LineupBuilderContent() {
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [recoveringSecureSession, setRecoveringSecureSession] = useState(false)
   const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
   const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
   const [savedLineupChangeDelivery, setSavedLineupChangeDelivery] = useState<SavedLineupChangeDelivery | null>(null)
@@ -1408,7 +1416,7 @@ function LineupBuilderContent() {
   const scopedResumeAppliedRef = useRef(false)
   const backupFocusHandledRef = useRef(false)
   const lastReplyRefreshRef = useRef(0)
-  const futureJwtRefreshAttemptedRef = useRef(false)
+  const futureJwtRefreshAttemptedRef = useRef(0)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1696,27 +1704,31 @@ function LineupBuilderContent() {
       ?? scenariosResult.error
 
     if (primaryError && isFutureJwtError(primaryError.message)) {
-      // Mobile Safari can briefly present a freshly-issued token to PostgREST
-      // before its clock window accepts it. Refresh once and retry instead of
-      // replacing the captain's saved roster with a technical error state.
-      if (!futureJwtRefreshAttemptedRef.current) {
-        futureJwtRefreshAttemptedRef.current = true
-        setMessage('Refreshing your secure session…')
-        const { error: refreshError } = await supabase.auth.refreshSession()
-        setLoading(false)
-        window.setTimeout(() => setRefreshTick((current) => current + 1), refreshError ? 1500 : 250)
+      // Keep the existing lineup context intact while the newly-issued token
+      // settles. The observed mobile window is longer than a single paint, so
+      // do not expose an empty-roster/setup state between attempts.
+      futureJwtRefreshAttemptedRef.current += 1
+      setRecoveringSecureSession(true)
+      setMessage('Securing your team data…')
+
+      if (futureJwtRefreshAttemptedRef.current <= MAX_FUTURE_JWT_RECOVERY_ATTEMPTS) {
+        await supabase.auth.refreshSession()
+        window.setTimeout(() => setRefreshTick((current) => current + 1), FUTURE_JWT_SETTLE_DELAY_MS)
         return
       }
-      setError('Your secure session is taking a moment. Tap retry to load your lineup.')
+
+      setError('Your secure session is still reconnecting. Your saved team and lineup have been kept in place.')
       setLoading(false)
       return
     }
 
     if (primaryError) {
-      futureJwtRefreshAttemptedRef.current = false
+      futureJwtRefreshAttemptedRef.current = 0
+      setRecoveringSecureSession(false)
       setError(primaryError.message)
     } else {
-      futureJwtRefreshAttemptedRef.current = false
+      futureJwtRefreshAttemptedRef.current = 0
+      setRecoveringSecureSession(false)
       setPlayers((playersResult.data ?? []) as PlayerRow[])
       setMatches((matchesResult.data ?? []) as MatchTeamRow[])
       setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
@@ -1813,6 +1825,10 @@ function LineupBuilderContent() {
       if (!active) return
       if (error) {
         console.warn('Scoped team roster lookup skipped', error.message)
+        if (isFutureJwtError(error.message)) {
+          setRecoveringSecureSession(true)
+          return
+        }
         setRosterMembers([])
         setTeamRosterPlayers([])
         return
@@ -1838,6 +1854,10 @@ function LineupBuilderContent() {
       if (!active) return
       if (rosterPlayersError) {
         console.warn('Roster player hydration skipped', rosterPlayersError.message)
+        if (isFutureJwtError(rosterPlayersError.message)) {
+          setRecoveringSecureSession(true)
+          return
+        }
         setTeamRosterPlayers([])
         return
       }
@@ -4046,7 +4066,7 @@ function LineupBuilderContent() {
             compact
           />
         ) : null}
-        {teamName && !loading && !myPlayerPool.length ? (
+        {teamName && !loading && !recoveringSecureSession && !myPlayerPool.length ? (
           <section style={rosterRecoveryCardStyle} aria-labelledby="lineup-roster-setup-title">
             <div style={rosterRecoveryHeaderStyle}>
               <div>

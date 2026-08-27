@@ -112,7 +112,7 @@ describe('compete teams readiness', () => {
 
   it('keeps team facts distinct from the clickable team actions', () => {
     expect(source).toContain('teamFacts')
-    expect(source).toContain("label: 'League connection'")
+    expect(source).toContain("label: 'Team connection'")
     expect(source).toContain("label: 'Match history'")
     expect(source).not.toContain("label: 'Team Chat'")
     expect(source).toContain('Build lineup')
@@ -157,7 +157,7 @@ describe('compete teams readiness', () => {
     expect(source).toContain("import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'")
     expect(source).toContain('const [connectionError, setConnectionError] = useState(\'\')')
     expect(source).toContain('getCachedTeamConnections(accessToken)')
-    expect(source).toContain('listTeamDirectoryOptions({ teamNames: connectedTeams.map((connection) => connection.teamName) })')
+    expect(source).toContain('loadConnectedTeamDirectoryOptions(connectedTeams.map((connection) => connection.teamName))')
     expect(source).toContain('function TeamListLoadError')
     expect(source).toContain('We could not refresh your teams.')
   })

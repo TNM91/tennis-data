@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/api/auth/access/route.ts'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('authenticated access snapshot route', () => {
-  it('uses the server-safe access model rather than importing a client module', () => {
-    expect(source).toContain("from '@/lib/access-model-core'")
+  it('uses server-safe entitlement normalization rather than importing a client module', () => {
+    expect(source).toContain("from '@/lib/subscription-status'")
+    expect(source).toContain('const DEFAULT_ENTITLEMENTS: ProductEntitlementSnapshot')
     expect(source).not.toContain("from '@/lib/access-model'")
   })
 

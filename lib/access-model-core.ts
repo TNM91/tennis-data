@@ -1,6 +1,9 @@
 import { isCaptain, isMember, type UserRole } from './roles'
 import { getPricingPlan, type PricingPlanId } from './pricing-plans'
 import { MEMBERSHIP_TIERS } from './product-story'
+import { normalizeSubscriptionStatus, type SubscriptionStatus } from './subscription-status'
+
+export { normalizeSubscriptionStatus } from './subscription-status'
 
 export const CAPTAIN_SUBSCRIPTION_PRICE_LABEL = getPricingPlan('captain').priceLabel
 export const COACH_SUBSCRIPTION_PRICE_LABEL = getPricingPlan('coach').priceLabel
@@ -16,7 +19,7 @@ const CAPTAIN_TIER = MEMBERSHIP_TIERS.captain
 const LEAGUE_TIER = MEMBERSHIP_TIERS.league
 const FULL_COURT_TIER = MEMBERSHIP_TIERS.full_court
 
-export type CaptainSubscriptionStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
+export type CaptainSubscriptionStatus = SubscriptionStatus
 
 export type ProductEntitlementSnapshot = {
   playerPlusSubscriptionActive: boolean
@@ -93,14 +96,6 @@ export const DEFAULT_ENTITLEMENTS: ProductEntitlementSnapshot = {
   tiqTeamLeagueEntryEnabled: false,
   tiqIndividualLeagueCreatorEnabled: false,
   leagueAccessExpiresAt: null,
-}
-
-export function normalizeSubscriptionStatus(value: string | null | undefined): CaptainSubscriptionStatus {
-  if (value === 'trial') return 'trial'
-  if (value === 'active') return 'active'
-  if (value === 'past_due') return 'past_due'
-  if (value === 'canceled') return 'canceled'
-  return 'inactive'
 }
 
 export function isAccessGrantCurrent(expiresAt: string | null | undefined, now = Date.now()) {

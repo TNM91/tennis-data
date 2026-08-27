@@ -1,9 +1,27 @@
 import { createClient } from '@supabase/supabase-js'
-import { DEFAULT_ENTITLEMENTS, normalizeSubscriptionStatus, type ProductEntitlementSnapshot } from '@/lib/access-model-core'
+import type { ProductEntitlementSnapshot } from '@/lib/access-model-core'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { normalizeSubscriptionStatus } from '@/lib/subscription-status'
 
 export const runtime = 'nodejs'
+
+// Keep the first authenticated request independent from browser-facing product
+// modules. This route is the boot path for every protected surface.
+const DEFAULT_ENTITLEMENTS: ProductEntitlementSnapshot = {
+  playerPlusSubscriptionActive: false,
+  playerPlusSubscriptionStatus: 'inactive',
+  playerPlusAccessExpiresAt: null,
+  coachSubscriptionActive: false,
+  coachSubscriptionStatus: 'inactive',
+  coachAccessExpiresAt: null,
+  captainSubscriptionActive: false,
+  captainSubscriptionStatus: 'inactive',
+  captainAccessExpiresAt: null,
+  tiqTeamLeagueEntryEnabled: false,
+  tiqIndividualLeagueCreatorEnabled: false,
+  leagueAccessExpiresAt: null,
+}
 
 type ProfileAccessRow = {
   role?: unknown
