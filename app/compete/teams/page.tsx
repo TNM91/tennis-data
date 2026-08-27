@@ -12,7 +12,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { fetchTeamConnections } from '@/lib/team-profile-links-client'
-import { getTeamConnectionRolesLabel, type TeamConnection } from '@/lib/team-profile-links'
+import { getTeamConnectionRolesLabel, isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
@@ -254,6 +254,7 @@ function CompeteTeamsContent() {
                 leagueName: group.sourceLeagueName,
                 flight: group.sourceFlight,
               })
+              const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
               const teamFacts = [
                 {
                   label: 'League connection',
@@ -302,7 +303,7 @@ function CompeteTeamsContent() {
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
-                    {access.canUseCaptainWorkflow ? (
+                    {canStartTeamLineup ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
                     ) : null}
                   </div>
