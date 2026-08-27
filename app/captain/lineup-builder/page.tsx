@@ -5244,41 +5244,59 @@ function SlotEditor({
       </div>
 
       <div style={slotPlayersGridStyle}>
-        {slot.players.map((player, index) => (
-          <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
+        {slot.players.map((player, index) => {
+          const selectedPoolPlayer = player.playerId
+            ? playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+            : null
+          const selectedReplyLabel = side === 'team'
+            ? availabilityLabel(selectedPoolPlayer?.availabilityStatus)
+            : 'No response'
+          const selectedReplyStyle = selectedReplyLabel === 'Confirmed'
+            ? selectedPlayerInFieldStyle
+            : selectedReplyLabel === 'Out'
+              ? selectedPlayerOutFieldStyle
+              : undefined
+
+          return (
+            <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
               <select
                 aria-label={`${slot.label} player ${index + 1}`}
                 value={player.playerId}
                 onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
-                style={inputStyle}
-            >
-              <option value="">Select player</option>
-              {selectablePlayerPool.map((poolPlayer) => {
-                const disabled =
-                  poolPlayer.id !== player.playerId &&
-                  assignedPlayerIds.has(poolPlayer.id) &&
-                  side === 'team'
-
-                return (
-                  <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                    {poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
-                  </option>
-                )
-              })}
-            </select>
-
-            {side === 'team' && player.playerId ? (
-              <button
-                type="button"
-                aria-pressed={lockedPlayerIds.has(player.playerId)}
-                style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
-                onClick={() => toggleLockedPlayer(player.playerId)}
+                style={selectedReplyStyle ? { ...inputStyle, ...selectedReplyStyle } : inputStyle}
               >
-                {lockedPlayerIds.has(player.playerId) ? 'player locked' : 'lock player'}
-              </button>
-            ) : null}
-          </div>
-        ))}
+                <option value="">Select player</option>
+                {selectablePlayerPool.map((poolPlayer) => {
+                  const disabled =
+                    poolPlayer.id !== player.playerId &&
+                    assignedPlayerIds.has(poolPlayer.id) &&
+                    side === 'team'
+
+                  return (
+                    <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
+                      {poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
+                    </option>
+                  )
+                })}
+              </select>
+
+              {side === 'team' && player.playerId ? (
+                <div style={slotPlayerActionRowStyle}>
+                  {selectedReplyLabel === 'Confirmed' ? <span style={selectedPlayerInPillStyle}>In</span> : null}
+                  {selectedReplyLabel === 'Out' ? <span style={selectedPlayerOutPillStyle}>Out</span> : null}
+                  <button
+                    type="button"
+                    aria-pressed={lockedPlayerIds.has(player.playerId)}
+                    style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
+                    onClick={() => toggleLockedPlayer(player.playerId)}
+                  >
+                    {lockedPlayerIds.has(player.playerId) ? 'player locked' : 'lock player'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
       </div>
 
       {side === 'team' && onAskPlayers && selectedPlayers.length ? (
@@ -5966,6 +5984,24 @@ const slotPlayerRowStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
+}
+
+const slotPlayerActionRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const selectedPlayerInFieldStyle: CSSProperties = {
+  border: '2px solid var(--brand-green)',
+  boxShadow: '0 0 0 3px color-mix(in srgb, var(--brand-green) 15%, transparent)',
+}
+
+const selectedPlayerOutFieldStyle: CSSProperties = {
+  border: '2px solid #fb7185',
+  boxShadow: '0 0 0 3px rgba(251, 113, 133, 0.14)',
 }
 
 const tableHeaderStyle: CSSProperties = {
@@ -6731,6 +6767,18 @@ const miniPillWarnStyle: CSSProperties = {
   background: 'rgba(251, 191, 36, 0.14)',
   color: '#fde68a',
   border: '1px solid rgba(251, 191, 36, 0.24)',
+}
+
+const selectedPlayerInPillStyle: CSSProperties = {
+  ...miniPillGreenStyle,
+  border: '1px solid var(--brand-green)',
+}
+
+const selectedPlayerOutPillStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(251, 113, 133, 0.14)',
+  color: '#fecdd3',
+  border: '1px solid rgba(251, 113, 133, 0.66)',
 }
 
 const badgeGreen: CSSProperties = { ...miniPillGreenStyle }

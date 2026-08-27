@@ -21,6 +21,15 @@ describe('captain lineup roster-first availability', () => {
     expect(source).toContain('availabilityLabel(poolPlayer.availabilityStatus)')
   })
 
+  it('visually marks selected lineup players when they reply in or out', () => {
+    expect(source).toContain("selectedReplyLabel === 'Confirmed'")
+    expect(source).toContain("selectedReplyLabel === 'Out'")
+    expect(source).toContain('selectedPlayerInFieldStyle')
+    expect(source).toContain('selectedPlayerOutFieldStyle')
+    expect(source).toContain('selectedPlayerInPillStyle')
+    expect(source).toContain('selectedPlayerOutPillStyle')
+  })
+
   it('keeps the complete team roster together for match planning', () => {
     expect(route).toContain(".eq('normalized_team_name', normalizedTeam)")
     expect(route).toContain(".in('id', rosterPlayerIds)")
