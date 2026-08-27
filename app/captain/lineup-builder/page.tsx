@@ -5435,7 +5435,12 @@ function SlotEditor({
           const isConfirmedReleased = selectedReplyLabel === 'Confirmed' && releasedConfirmedPlayerIds.has(player.playerId)
 
           return (
-            <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
+            <div
+              key={`${slot.id}-${index}`}
+              style={selectedReplyLabel === 'Confirmed'
+                ? { ...slotPlayerRowStyle, ...confirmedPlayerRowStyle }
+                : slotPlayerRowStyle}
+            >
               <select
                 aria-label={`${slot.label} player ${index + 1}`}
                 value={player.playerId}
@@ -5467,6 +5472,11 @@ function SlotEditor({
                   <button
                     type="button"
                     aria-pressed={lockedPlayerIds.has(player.playerId)}
+                    aria-label={isAutoLocked
+                      ? `${player.playerName} is confirmed and locked. Unlock player.`
+                      : isConfirmedReleased
+                        ? `Re-lock confirmed player ${player.playerName}.`
+                        : undefined}
                     style={lockedPlayerIds.has(player.playerId)
                       ? isAutoLocked ? confirmedPlayerLockButtonStyle : pillButtonActive
                       : pillButton}
@@ -6168,6 +6178,14 @@ const slotPlayerRowStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
+}
+
+const confirmedPlayerRowStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 72%, transparent)',
+  borderRadius: 16,
+  padding: 10,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(16,185,129,0.04))',
+  boxShadow: '0 0 0 2px color-mix(in srgb, var(--brand-green) 10%, transparent)',
 }
 
 const slotPlayerActionRowStyle: CSSProperties = {
