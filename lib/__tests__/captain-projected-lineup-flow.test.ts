@@ -35,6 +35,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY')
     expect(source).toContain('const directTextHandoff: CaptainDirectCourtTextHandoff = {')
     expect(source).toContain('openDirectCourtText(firstPlayer, directTextHandoff)')
+    expect(source).toContain('const preservedTeamSlots = cloneSlots(teamSlots)')
+    expect(source).toContain('setTeamSlots(preservedTeamSlots)')
     expect(source).toContain('text ${nextDirectCourtTextPlayer.playerName} next.')
     expect(source).toContain('window.location.assign(buildSmsHref([contact.phone], body))')
   })
