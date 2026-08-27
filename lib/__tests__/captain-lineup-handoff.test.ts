@@ -74,4 +74,24 @@ describe('captain potential-lineup handoff', () => {
 
     expect(handoff?.playerRequestUrls?.[0].playerName).toBe('Alex Ace')
   })
+
+  it('reads a pending direct court text handoff so a pair stays in order on return', async () => {
+    const { readCaptainDirectCourtTextHandoff } = await import('../captain-lineup-handoff')
+    const handoff = readCaptainDirectCourtTextHandoff(JSON.stringify({
+      version: 1,
+      courtId: 'court-1',
+      courtLabel: '4.0 Doubles',
+      requestId: 'request-1',
+      match: { date: '2026-08-31', time: '6:30 PM', facility: 'Club', opponent: 'Hamilton' },
+      slotsJson: slots,
+      players: [
+        { playerId: 'player-1', playerName: 'Alex Ace', requestUrl: '/availability/alex' },
+        { playerId: 'player-2', playerName: 'Blair Ball', requestUrl: '/availability/blair' },
+      ],
+      openedPlayerKeys: ['alex ace'],
+    }))
+
+    expect(handoff?.players.map((player) => player.playerName)).toEqual(['Alex Ace', 'Blair Ball'])
+    expect(handoff?.openedPlayerKeys).toEqual(['alex ace'])
+  })
 })

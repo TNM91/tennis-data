@@ -23,7 +23,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('router.push(teamRoomCardHref)')
   })
 
-  it('lets a captain privately ask one proposed player or a pair before the rest of the lineup is set', () => {
+  it('keeps a private court ask inside the Builder and texts the selected pair in order', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
     expect(source).toContain('async function askProposedCourtPlayers(slot: LineupSlot)')
@@ -31,8 +31,11 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('const [askingCourtId, setAskingCourtId] = useState(\'\')')
     expect(source).toContain('onAskPlayers={askProposedCourtPlayers}')
     expect(source).toContain("? 'Ask pair'")
-    expect(source).toContain('Private availability text — the rest of the lineup stays flexible.')
-    expect(source).toContain("focus: 'waiting'")
+    expect(source).toContain('CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY')
+    expect(source).toContain('const directTextHandoff: CaptainDirectCourtTextHandoff = {')
+    expect(source).toContain('openDirectCourtText(firstPlayer, directTextHandoff)')
+    expect(source).toContain('text ${nextDirectCourtTextPlayer.playerName} next.')
+    expect(source).toContain('window.location.assign(buildSmsHref([contact.phone], body))')
   })
 
   it('refreshes player replies when the captain returns to the Builder', () => {
@@ -93,6 +96,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Record ${playerName}\'s reply')
     expect(source).toContain('Refresh responses')
     expect(source).toContain("window.addEventListener('pageshow', refreshWhenVisible)")
+    expect(source).toContain('requestedAvailabilityRequestId || availabilityHandoff?.availabilityRequestId')
+    expect(source).toContain('statusPriority[left.status] - statusPriority[right.status] || left.originalIndex - right.originalIndex')
   })
 
   it('lets invited players answer future match dates without signing in', () => {
