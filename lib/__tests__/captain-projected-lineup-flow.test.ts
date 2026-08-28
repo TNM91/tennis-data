@@ -46,7 +46,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('saved draft</option>')
     expect(source).toContain('teamSlots: preservedTeamSlots')
     expect(source).toContain('text ${nextDirectCourtTextPlayer.playerName} next.')
-    expect(source).toContain('window.location.href = buildSmsHref([contact.phone], body)')
+    expect(source).toContain('openNativeSmsHandoff(contact.phone, invitedPlayer.playerName, body)')
+    expect(source).toContain('openNativeSmsHandoff(contact.phone, player.playerName, body)')
   })
 
   it('refreshes player replies when the captain returns to the Builder', () => {
