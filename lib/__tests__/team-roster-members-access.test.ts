@@ -31,4 +31,13 @@ describe('team roster browser access', () => {
     expect(lineupBuilderSource).toContain('/api/captain/lineup-builder?${params.toString()}')
     expect(lineupBuilderSource).toContain('buildRosterPlayerIdSet')
   })
+
+  it('keeps platform Admin access and imported contact lookups aligned with Captain Builder data', () => {
+    const captainAuthSource = readFileSync(join(process.cwd(), 'lib/captain-api-auth.ts'), 'utf8')
+    expect(captainAuthSource).toContain('isAdmin: boolean')
+    expect(captainAuthSource).toContain('isAdmin: row.role === \'admin\'')
+    expect(lineupBuilderRoute).toContain('auth.isAdmin || hasCaptainTeamLink')
+    expect(lineupBuilderRoute).toContain('normalizeCaptainRosterContactKey(teamName)')
+    expect(lineupBuilderRoute).toContain("authorization: auth.isAdmin ? 'platform-admin' : 'captain-team-link'")
+  })
 })

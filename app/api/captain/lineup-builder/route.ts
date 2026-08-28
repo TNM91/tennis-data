@@ -2,6 +2,7 @@ import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { getCache } from '@vercel/functions'
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
 import { normalizeTeamName } from '@/lib/captain-formatters'
+import { normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 
 export const runtime = 'nodejs'
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
 
   const service = getCaptainAvailabilityServiceClient()
   const normalizedTeam = normalizeTeamName(teamName)
+  const normalizedContactTeam = normalizeCaptainRosterContactKey(teamName)
   const { data: teamLinks, error: teamLinksError } = await service
     .from('team_profile_links')
     .select('team_role,team_roles')
@@ -102,16 +104,26 @@ export async function GET(request: Request) {
     .eq('status', 'accepted')
     .limit(10)
   if (teamLinksError) return Response.json({ ok: false, message: 'Captain team access could not be checked.' }, { status: 500 })
-  const canManageSelectedTeam = (teamLinks ?? []).some((link) => {
+  const hasCaptainTeamLink = (teamLinks ?? []).some((link) => {
     const roles = Array.isArray(link.team_roles) && link.team_roles.length
       ? link.team_roles.map(String)
       : [String(link.team_role || 'player')]
     return canManageTeamRoom(roles)
   })
+  // Platform Admin is verified by getCaptainApiAuth before this query runs.
+  // A linked captain/co-captain remains required for every other account.
+  const canManageSelectedTeam = auth.isAdmin || hasCaptainTeamLink
   if (!canManageSelectedTeam) {
-    console.warn('[api/captain/lineup-builder] team management denied', { durationMs: Date.now() - startedAt })
+    console.warn('[api/captain/lineup-builder] team management denied', {
+      durationMs: Date.now() - startedAt,
+      authorization: 'no-captain-team-link',
+    })
     return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
   }
+  console.info('[api/captain/lineup-builder] team management authorized', {
+    durationMs: Date.now() - startedAt,
+    authorization: auth.isAdmin ? 'platform-admin' : 'captain-team-link',
+  })
 
   // The account and team role are always checked before this private response
   // is read. The cache only avoids re-running the same roster/schedule bundle
@@ -151,7 +163,10 @@ export async function GET(request: Request) {
     .from('captain_roster_contacts')
     .select('*')
     .eq('captain_user_id', auth.userId)
-    .eq('normalized_team_name', normalizedTeam)
+    // Player Roster imports intentionally use the punctuation-insensitive
+    // contact key. Query that same key so a slash, dash, or spacing variation
+    // in the Builder URL cannot hide a saved mobile number.
+    .eq('normalized_team_name', normalizedContactTeam)
     .order('full_name', { ascending: true })
     .limit(250)
   const textContactsPromise = service

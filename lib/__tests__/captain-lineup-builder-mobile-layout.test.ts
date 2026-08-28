@@ -120,6 +120,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Enter players manually')
     expect(source).toContain('How to export the Player Roster from TennisLink')
     expect(source).toContain('Choose <strong>Send To Excel</strong>')
+    expect(source).toContain('Watch the 1-minute Player Roster video guide')
+    expect(source).toContain('href="/resources/usta-upload#quick-guide"')
     expect(source).toContain("type: 'team_summary'")
     expect(source).toContain("help: '1'")
     expect(source).toContain('returnTo: context.returnTo')
@@ -128,6 +130,15 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('rosterRecoveryCardStyle')).toContain('minWidth: 0')
     expect(styleBlock('rosterRecoveryActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 210px), 1fr))")
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
+  })
+
+  it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
+    expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
+    expect(source).toContain('Save mobile & prepare Ask')
+    expect(source).toContain("await askProposedCourtPlayers(slot, invitedPlayer, { contactPhone: phone })")
+    expect(styleBlock('courtAskControlStyle')).toContain('minWidth: 0')
+    expect(styleBlock('courtPhoneFormStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('courtPhoneLabelStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps hands-on building focused while putting opponent and recommendation work behind a disclosure', () => {

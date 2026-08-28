@@ -343,6 +343,17 @@ type CaptainMessageTextContactRow = {
   opt_in_text: boolean | null
 }
 
+type InlineCaptainMessageContact = CaptainMessageTextContactRow & {
+  id: string
+  season_label: string | null
+  session_label: string | null
+  email: string | null
+  role: string | null
+  is_captain: boolean | null
+  is_active: boolean | null
+  notes: string | null
+}
+
 type LineupBuilderPayload = {
   ok?: boolean
   message?: string
@@ -1351,6 +1362,9 @@ function LineupBuilderContent() {
   const [askingCourtId, setAskingCourtId] = useState('')
   const [preparedCourtTexts, setPreparedCourtTexts] = useState<Record<string, PreparedCourtText>>({})
   const [openedCourtTextKeys, setOpenedCourtTextKeys] = useState<string[]>([])
+  const [missingPhonePlayerKeys, setMissingPhonePlayerKeys] = useState<string[]>([])
+  const [inlinePhoneByPlayerKey, setInlinePhoneByPlayerKey] = useState<Record<string, string>>({})
+  const [savingPhonePlayerKey, setSavingPhonePlayerKey] = useState('')
   const preparingCourtTextKeysRef = useRef(new Set<string>())
   const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(persistedDirectCourtTextHandoff)
   const [refreshingReplies, setRefreshingReplies] = useState(false)
@@ -2865,7 +2879,7 @@ function LineupBuilderContent() {
   async function askProposedCourtPlayers(
     slot: LineupSlot,
     invitedPlayer: LineupSlot['players'][number],
-    options: { silent?: boolean } = {},
+    options: { silent?: boolean; contactPhone?: string } = {},
   ) {
     if (!teamName || !matchDate) {
       setError('Choose the team and match before asking a player.')
@@ -2882,9 +2896,10 @@ function LineupBuilderContent() {
     }
 
     const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
-    const contact = directTextContactByName.get(playerKey)
-    if (!contact?.phone?.trim()) {
+    const contactPhone = options.contactPhone?.trim() || directTextContactByName.get(playerKey)?.phone?.trim() || ''
+    if (!contactPhone) {
       if (options.silent) return
+      setMissingPhonePlayerKeys((current) => current.includes(playerKey) ? current : [...current, playerKey])
       setError(`Add a mobile number for ${invitedPlayer.playerName} before opening their private text.`)
       setMessage('')
       return
@@ -3005,11 +3020,12 @@ function LineupBuilderContent() {
           key: preparedKey,
           playerId: invitedPlayer.playerId,
           playerName: invitedPlayer.playerName,
-          phone: contact.phone,
-          href: buildSmsHref([contact.phone], body),
+          phone: contactPhone,
+          href: buildSmsHref([contactPhone], body),
           body,
         },
       }))
+      setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
       setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
     } catch (caught) {
       preparingCourtTextKeysRef.current.delete(preparedKey)
@@ -3017,6 +3033,66 @@ function LineupBuilderContent() {
       setMessage('')
     } finally {
       setAskingCourtId((current) => current === slot.id ? '' : current)
+    }
+  }
+
+  async function saveCourtPlayerPhone(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
+    const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
+    const phone = (inlinePhoneByPlayerKey[playerKey] || '').trim()
+    if (!phone) {
+      setError(`Add a mobile number for ${invitedPlayer.playerName}.`)
+      return
+    }
+    if (!teamName) {
+      setError('Choose the team before saving a player mobile number.')
+      return
+    }
+
+    const id = typeof window !== 'undefined' && window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${playerKey.replace(/\s+/g, '-')}`
+    const contact: InlineCaptainMessageContact = {
+      id,
+      team_name: teamName,
+      league_name: leagueName || null,
+      flight: flight || null,
+      season_label: matchDate.slice(0, 4) || null,
+      session_label: null,
+      full_name: invitedPlayer.playerName.trim(),
+      phone,
+      email: null,
+      role: 'Player',
+      is_captain: false,
+      is_active: true,
+      opt_in_text: true,
+      notes: 'Added from Lineup Builder',
+    }
+
+    setSavingPhonePlayerKey(playerKey)
+    setError('')
+    try {
+      const { error: saveError } = await supabase.from('captain_message_contacts').upsert(contact)
+      if (saveError) throw saveError
+
+      setCaptainMessageContacts((current) => [
+        ...current.filter((row) => !(
+          normalizeCaptainRosterContactKey(row.team_name) === normalizeCaptainRosterContactKey(teamName) &&
+          normalizeCaptainRosterContactKey(row.full_name) === playerKey
+        )),
+        contact,
+      ])
+      setInlinePhoneByPlayerKey((current) => {
+        const next = { ...current }
+        delete next[playerKey]
+        return next
+      })
+      setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
+      await askProposedCourtPlayers(slot, invitedPlayer, { contactPhone: phone })
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : `Could not save ${invitedPlayer.playerName}'s mobile number.`)
+      setMessage('')
+    } finally {
+      setSavingPhonePlayerKey((current) => current === playerKey ? '' : current)
     }
   }
 
@@ -4283,6 +4359,9 @@ function LineupBuilderContent() {
                 <li>Choose <strong>Send To Excel</strong> and save the PlayerRoster .xls file.</li>
                 <li>Return here and choose <strong>Upload Player Roster</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
               </ol>
+              <Link href="/resources/usta-upload#quick-guide" style={rosterExportVideoLinkStyle}>
+                Watch the 1-minute Player Roster video guide
+              </Link>
             </details>
           </section>
         ) : null}
@@ -4996,6 +5075,11 @@ function LineupBuilderContent() {
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
                     onAskPlayers={askProposedCourtPlayers}
+                    onSavePlayerPhone={saveCourtPlayerPhone}
+                    missingPhonePlayerKeys={new Set(missingPhonePlayerKeys)}
+                    inlinePhoneByPlayerKey={inlinePhoneByPlayerKey}
+                    onInlinePhoneChange={(playerKey, value) => setInlinePhoneByPlayerKey((current) => ({ ...current, [playerKey]: value }))}
+                    savingPhonePlayerKey={savingPhonePlayerKey}
                     getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
                     onOpenPreparedCourtText={openPreparedCourtText}
                     openedCourtTextKeys={openedCourtTextKeySet}
@@ -5607,6 +5691,11 @@ function SlotEditor({
   fixedFormat,
   competitionRules,
   onAskPlayers,
+  onSavePlayerPhone,
+  missingPhonePlayerKeys,
+  inlinePhoneByPlayerKey,
+  onInlinePhoneChange,
+  savingPhonePlayerKey,
   getPreparedCourtText,
   onOpenPreparedCourtText,
   openedCourtTextKeys,
@@ -5629,6 +5718,11 @@ function SlotEditor({
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
   onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
+  onSavePlayerPhone?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
+  missingPhonePlayerKeys?: Set<string>
+  inlinePhoneByPlayerKey?: Record<string, string>
+  onInlinePhoneChange?: (playerKey: string, value: string) => void
+  savingPhonePlayerKey?: string
   getPreparedCourtText?: (slot: LineupSlot, player: LineupSlot['players'][number]) => PreparedCourtText | undefined
   onOpenPreparedCourtText?: (preparedText: PreparedCourtText) => void
   openedCourtTextKeys?: Set<string>
@@ -5765,6 +5859,8 @@ function SlotEditor({
         <div style={replacementHandoffActionsStyle}>
           {selectedPlayers.map((player) => {
             const preparedText = getPreparedCourtText?.(slot, player)
+            const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+            const needsPhone = Boolean(missingPhonePlayerKeys?.has(playerKey))
             if (preparedText && onOpenPreparedCourtText) {
               return (
                 <a
@@ -5782,9 +5878,38 @@ function SlotEditor({
             }
 
             return (
-              <GhostSmallBtn key={player.playerId || player.playerName} onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
-                {askingPlayers ? 'Preparing Ask...' : `Prepare Ask for ${player.playerName.split(' ')[0]}`}
-              </GhostSmallBtn>
+              <div key={player.playerId || player.playerName} style={courtAskControlStyle}>
+                <GhostSmallBtn onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
+                  {askingPlayers ? 'Preparing Ask...' : `Prepare Ask for ${player.playerName.split(' ')[0]}`}
+                </GhostSmallBtn>
+                {needsPhone && onSavePlayerPhone && onInlinePhoneChange ? (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      onSavePlayerPhone(slot, player)
+                    }}
+                    style={courtPhoneFormStyle}
+                  >
+                    <label htmlFor={`captain-lineup-phone-${slot.id}-${playerKey}`} style={courtPhoneLabelStyle}>
+                      Add {player.playerName.split(' ')[0]}’s mobile number
+                    </label>
+                    <input
+                      id={`captain-lineup-phone-${slot.id}-${playerKey}`}
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={inlinePhoneByPlayerKey?.[playerKey] || ''}
+                      onChange={(event) => onInlinePhoneChange(playerKey, event.target.value)}
+                      placeholder="Mobile number"
+                      required
+                      style={inputStyle}
+                    />
+                    <GhostSmallBtn type="submit" disabled={savingPhonePlayerKey === playerKey}>
+                      {savingPhonePlayerKey === playerKey ? 'Saving mobile...' : 'Save mobile & prepare Ask'}
+                    </GhostSmallBtn>
+                  </form>
+                ) : null}
+              </div>
             )
           })}
           <span style={mutedTextStyle}>
@@ -6524,6 +6649,33 @@ const slotPlayerActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
+}
+
+const courtAskControlStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  maxWidth: '100%',
+}
+
+const courtPhoneFormStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const courtPhoneLabelStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const selectedPlayerInFieldStyle: CSSProperties = {
@@ -7526,6 +7678,27 @@ const rosterExportStepsStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const rosterExportVideoLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  marginTop: 12,
+  padding: '8px 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 800,
+  lineHeight: 1.3,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const warningCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: '14px 16px',
@@ -7664,11 +7837,21 @@ function GhostBtn({ onClick, disabled, children }: { onClick: () => void; disabl
   )
 }
 
-function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+function GhostSmallBtn({
+  onClick,
+  disabled,
+  children,
+  type = 'button',
+}: {
+  onClick?: () => void
+  disabled?: boolean
+  children: ReactNode
+  type?: 'button' | 'submit'
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
