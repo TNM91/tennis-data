@@ -1861,6 +1861,22 @@ function TeamPageContent() {
                   <span style={teamPulseDetailStyle}>players with a tracked start</span>
                 </a>
               ) : null}
+              {canManageThisTeam && captainContactCoverage.total > 0 ? (
+                <Link
+                  href={captainContactCoverage.missingPhoneNames.length ? captainContactReviewHref : teamContactsHref}
+                  style={teamPulseMetricStyle}
+                  aria-label={`${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} rostered players are text-ready`}
+                  data-team-contact-readiness
+                >
+                  <span style={teamPulseLabelStyle}>Text-ready</span>
+                  <strong>{captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total}</strong>
+                  <span style={teamPulseDetailStyle}>
+                    {captainContactCoverage.missingPhoneNames.length
+                      ? `${captainContactCoverage.missingPhoneNames.length} mobile${captainContactCoverage.missingPhoneNames.length === 1 ? '' : 's'} to add`
+                      : 'full roster coverage'}
+                  </span>
+                </Link>
+              ) : null}
               {teamCourtLead ? (
                 <a href="#team-roster" style={teamPulseMetricStyle}>
                   <span style={teamPulseLabelStyle}>{teamCourtLead.label}</span>

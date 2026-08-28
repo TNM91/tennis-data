@@ -28,6 +28,8 @@ describe('team detail week path', () => {
     expect(source).toContain('data-team-week-focus={captainWeekFocus.key}')
     expect(source).toContain('Readiness check')
     expect(source).toContain('Build for ${nextScheduledMatch.opponent')
+    expect(source).toContain('data-team-contact-readiness')
+    expect(source).toContain('Text-ready')
   })
 
   it('leads the profile with an actionable next-match, roster, and court read', () => {
