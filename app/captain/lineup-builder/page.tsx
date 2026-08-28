@@ -80,6 +80,7 @@ import {
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
+  CAPTAIN_ROSTER_CONTACTS_TABLE,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
@@ -342,17 +343,6 @@ type CaptainMessageTextContactRow = {
   full_name: string | null
   phone: string | null
   opt_in_text: boolean | null
-}
-
-type InlineCaptainMessageContact = CaptainMessageTextContactRow & {
-  id: string
-  season_label: string | null
-  session_label: string | null
-  email: string | null
-  role: string | null
-  is_captain: boolean | null
-  is_active: boolean | null
-  notes: string | null
 }
 
 type LineupBuilderPayload = {
@@ -2399,6 +2389,18 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
   )
 
+  const teamContactsHref = useMemo(() => {
+    const baseHref = buildCaptainScopedHref('/captain/messaging', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    })
+    return `${baseHref}${baseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
+  }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
+
   const teamRoomHref = useMemo(
     () => buildTeamRoomHref({ teamName, leagueName, flight }),
     [flight, leagueName, teamName],
@@ -3051,37 +3053,47 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       setError('Choose the team before saving a player mobile number.')
       return
     }
+    if (!userId) {
+      setError('Your secure session is still loading. Please try saving the number again in a moment.')
+      return
+    }
 
-    const id = typeof window !== 'undefined' && window.crypto?.randomUUID
-      ? window.crypto.randomUUID()
-      : `${Date.now()}-${playerKey.replace(/\s+/g, '-')}`
-    const contact: InlineCaptainMessageContact = {
-      id,
+    // Keep player-entered numbers in the same scoped roster-contact store used
+    // by Player Roster imports. The Builder can then reuse them immediately and
+    // Captain > Messaging shows the same team contact list.
+    const contact: CaptainRosterContactRow = {
+      captain_user_id: userId,
       team_name: teamName,
-      league_name: leagueName || null,
-      flight: flight || null,
-      season_label: matchDate.slice(0, 4) || null,
-      session_label: null,
+      normalized_team_name: normalizeCaptainRosterContactKey(teamName),
+      league_name: leagueName || '',
+      flight: flight || '',
       full_name: invitedPlayer.playerName.trim(),
+      normalized_name: playerKey,
       phone,
-      email: null,
+      email: '',
       role: 'Player',
       is_captain: false,
-      is_active: true,
-      opt_in_text: true,
-      notes: 'Added from Lineup Builder',
+      source: 'captain_manual_entry',
+      source_batch_id: null,
     }
 
     setSavingPhonePlayerKey(playerKey)
     setError('')
     try {
-      const { error: saveError } = await supabase.from('captain_message_contacts').upsert(contact)
+      const { error: saveError } = await supabase
+        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+        .upsert(contact, {
+          onConflict: 'captain_user_id,normalized_team_name,normalized_name,league_name,flight',
+        })
       if (saveError) throw saveError
 
-      setCaptainMessageContacts((current) => [
+      setCaptainRosterContacts((current) => [
         ...current.filter((row) => !(
+          row.captain_user_id === userId &&
           normalizeCaptainRosterContactKey(row.team_name) === normalizeCaptainRosterContactKey(teamName) &&
-          normalizeCaptainRosterContactKey(row.full_name) === playerKey
+          normalizeCaptainRosterContactKey(row.full_name) === playerKey &&
+          normalizeCaptainRosterContactKey(row.league_name) === normalizeCaptainRosterContactKey(leagueName) &&
+          normalizeCaptainRosterContactKey(row.flight) === normalizeCaptainRosterContactKey(flight)
         )),
         contact,
       ])
@@ -5017,12 +5029,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   <p style={sectionKicker}>Your lineup</p>
                   <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
-                {!isFixedLineupFormat ? (
-                  <div style={actionRowStyle}>
+                <div style={actionRowStyle}>
+                  {!isFixedLineupFormat ? (
+                    <>
                     <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
                     <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
-                  </div>
-                ) : null}
+                    </>
+                  ) : null}
+                  <GhostLink href={teamContactsHref}>Team contacts</GhostLink>
+                </div>
               </div>
 
               {teamRoomReplyCounts && !loading ? (
@@ -5106,6 +5121,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     openedCourtTextKeys={openedCourtTextKeySet}
                     askingPlayers={askingCourtId === slot.id}
                     focused={backupFocusSlot?.id === slot.id}
+                    isMobileLayout={isMobile}
                   />
                 ))}
               </div>
@@ -5163,6 +5179,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     competitionRules={competitionRules}
                     onAskPlayers={undefined}
                     askingPlayers={false}
+                    isMobileLayout={isMobile}
                   />
                 ))}
               </div>
@@ -5722,6 +5739,7 @@ function SlotEditor({
   openedCourtTextKeys,
   askingPlayers,
   focused = false,
+  isMobileLayout = false,
 }: {
   side: 'team' | 'opponent'
   slot: LineupSlot
@@ -5749,6 +5767,7 @@ function SlotEditor({
   openedCourtTextKeys?: Set<string>
   askingPlayers: boolean
   focused?: boolean
+  isMobileLayout?: boolean
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
@@ -5820,7 +5839,9 @@ function SlotEditor({
                 aria-label={`${slot.label} player ${index + 1}`}
                 value={player.playerId}
                 onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
-                style={selectedReplyStyle ? { ...inputStyle, ...selectedReplyStyle } : inputStyle}
+                style={selectedReplyStyle
+                  ? { ...(isMobileLayout ? mobileSelectInputStyle : inputStyle), ...selectedReplyStyle }
+                  : isMobileLayout ? mobileSelectInputStyle : inputStyle}
               >
                 <option value="">Select player</option>
                 {player.playerId && !selectedPoolPlayer ? (
@@ -5841,7 +5862,7 @@ function SlotEditor({
               </select>
 
               {side === 'team' && player.playerId ? (
-                <div style={slotPlayerActionRowStyle}>
+                <div style={isMobileLayout ? mobileSlotPlayerActionRowStyle : slotPlayerActionRowStyle}>
                   {selectedReplyLabel === 'Confirmed' ? <span style={selectedPlayerInPillStyle}>In</span> : null}
                   {selectedReplyLabel === 'Out' ? <span style={selectedPlayerOutPillStyle}>Out</span> : null}
                   {courtTextStatus && selectedReplyLabel !== 'Confirmed' && selectedReplyLabel !== 'Out' ? (
@@ -5877,7 +5898,7 @@ function SlotEditor({
       </div>
 
       {side === 'team' && onAskPlayers && selectedPlayers.length ? (
-        <div style={replacementHandoffActionsStyle}>
+        <div style={isMobileLayout ? mobileReplacementHandoffActionsStyle : replacementHandoffActionsStyle}>
           {selectedPlayers.map((player) => {
             const preparedText = getPreparedCourtText?.(slot, player)
             const playerKey = normalizeCaptainRosterContactKey(player.playerName)
@@ -5891,7 +5912,7 @@ function SlotEditor({
                     event.preventDefault()
                     onOpenPreparedCourtText(preparedText)
                   }}
-                  style={smsFallbackLinkStyle}
+                  style={isMobileLayout ? mobileSmsFallbackLinkStyle : smsFallbackLinkStyle}
                 >
                   Ask {player.playerName.split(' ')[0]}
                 </a>
@@ -5899,8 +5920,8 @@ function SlotEditor({
             }
 
             return (
-              <div key={player.playerId || player.playerName} style={courtAskControlStyle}>
-                <GhostSmallBtn onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
+              <div key={player.playerId || player.playerName} style={isMobileLayout ? mobileCourtAskControlStyle : courtAskControlStyle}>
+                <GhostSmallBtn onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers} fullWidth={isMobileLayout}>
                   {askingPlayers ? 'Preparing Ask...' : `Prepare Ask for ${player.playerName.split(' ')[0]}`}
                 </GhostSmallBtn>
                 {needsPhone && onSavePlayerPhone && onInlinePhoneChange ? (
@@ -5909,7 +5930,7 @@ function SlotEditor({
                       event.preventDefault()
                       onSavePlayerPhone(slot, player)
                     }}
-                    style={courtPhoneFormStyle}
+                    style={isMobileLayout ? mobileCourtPhoneFormStyle : courtPhoneFormStyle}
                   >
                     <label htmlFor={`captain-lineup-phone-${slot.id}-${playerKey}`} style={courtPhoneLabelStyle}>
                       Add {player.playerName.split(' ')[0]}’s mobile number
@@ -5925,7 +5946,7 @@ function SlotEditor({
                       required
                       style={inputStyle}
                     />
-                    <GhostSmallBtn type="submit" disabled={savingPhonePlayerKey === playerKey}>
+                    <GhostSmallBtn type="submit" disabled={savingPhonePlayerKey === playerKey} fullWidth={isMobileLayout}>
                       {savingPhonePlayerKey === playerKey ? 'Saving mobile...' : 'Save mobile & prepare Ask'}
                     </GhostSmallBtn>
                   </form>
@@ -5981,6 +6002,15 @@ const replacementHandoffActionsStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   minWidth: 0,
+}
+
+const mobileReplacementHandoffActionsStyle: CSSProperties = {
+  ...replacementHandoffActionsStyle,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  alignItems: 'stretch',
+  width: '100%',
+  gap: 10,
 }
 
 const savedLineupChangeStyle: CSSProperties = {
@@ -6278,6 +6308,16 @@ const inputStyle: CSSProperties = {
   outline: 'none',
   colorScheme: 'dark',
   minWidth: 0,
+  boxSizing: 'border-box',
+}
+
+const mobileSelectInputStyle: CSSProperties = {
+  ...inputStyle,
+  padding: '0 38px 0 12px',
+  fontSize: 15,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 }
 
 const readOnlyInputStyle: CSSProperties = {
@@ -6672,11 +6712,22 @@ const slotPlayerActionRowStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileSlotPlayerActionRowStyle: CSSProperties = {
+  ...slotPlayerActionRowStyle,
+  alignItems: 'stretch',
+}
+
 const courtAskControlStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
   maxWidth: '100%',
+}
+
+const mobileCourtAskControlStyle: CSSProperties = {
+  ...courtAskControlStyle,
+  width: '100%',
+  gridTemplateColumns: 'minmax(0, 1fr)',
 }
 
 const courtPhoneFormStyle: CSSProperties = {
@@ -6689,6 +6740,14 @@ const courtPhoneFormStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileCourtPhoneFormStyle: CSSProperties = {
+  ...courtPhoneFormStyle,
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: 12,
+  gap: 10,
 }
 
 const courtPhoneLabelStyle: CSSProperties = {
@@ -6903,8 +6962,9 @@ const mobileCourtFocusTextStyle: CSSProperties = {
 
 const mobileCourtFocusActionsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, .7fr)',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
+  minWidth: 0,
 }
 
 const mobileLineupPulseStyle: CSSProperties = {
@@ -7631,6 +7691,14 @@ const smsFallbackLinkStyle: CSSProperties = {
   flex: '0 1 auto',
 }
 
+const mobileSmsFallbackLinkStyle: CSSProperties = {
+  ...smsFallbackLinkStyle,
+  width: '100%',
+  minHeight: 44,
+  boxSizing: 'border-box',
+  padding: '10px 14px',
+}
+
 const rosterRecoveryCardStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
@@ -7863,11 +7931,13 @@ function GhostSmallBtn({
   disabled,
   children,
   type = 'button',
+  fullWidth = false,
 }: {
   onClick?: () => void
   disabled?: boolean
   children: ReactNode
   type?: 'button' | 'submit'
+  fullWidth?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -7875,7 +7945,7 @@ function GhostSmallBtn({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      style={{ ...ghostButtonSmallButton, ...(fullWidth ? { width: '100%', boxSizing: 'border-box', padding: '10px 12px' } : {}), ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
