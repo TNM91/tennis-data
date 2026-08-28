@@ -44,6 +44,8 @@ import { fetchTeamConnections } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
+  buildCaptainContactReviewHref,
+  getCaptainRosterPhoneCoverage,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
@@ -76,7 +78,7 @@ type LineMatch = {
 }
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
-type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles'
+type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
 type TeamActivityFilter = 'all' | 'upcoming' | 'results'
 
 type Player = {
@@ -384,7 +386,7 @@ function TeamPageContent() {
       setActivityFilter(nextActivity)
     }
     const nextRoster = query.get('roster')
-    if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'all') {
+    if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'needs-mobile' || nextRoster === 'all') {
       setRosterFilter(nextRoster)
     }
     setDetailReady(true)
@@ -1147,65 +1149,6 @@ function TeamPageContent() {
       .slice(0, 6)
   }, [roster])
 
-  useEffect(() => {
-    if (isDoublesOnlyTeam && rosterFilter === 'singles') {
-      setRosterFilter('all')
-    }
-  }, [isDoublesOnlyTeam, rosterFilter])
-
-  const activeRosterFilter: RosterFilter = isDoublesOnlyTeam && rosterFilter === 'singles'
-    ? 'all'
-    : rosterFilter
-
-  const filteredRoster = useMemo(() => {
-    const searchTerm = cleanText(rosterSearch).toLowerCase()
-    const nextRoster = roster.filter((player) => {
-      if (searchTerm && !player.name.toLowerCase().includes(searchTerm)) return false
-      if (activeRosterFilter === 'played') return player.appearances > 0
-      if (activeRosterFilter === 'roster-only') return player.appearances === 0
-      return true
-    })
-
-    if (activeRosterFilter === 'singles') {
-      return [...nextRoster].sort((a, b) => {
-        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        if (right !== left) return right - left
-        return a.name.localeCompare(b.name)
-      })
-    }
-
-    if (activeRosterFilter === 'doubles') {
-      return [...nextRoster].sort((a, b) => {
-        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        if (right !== left) return right - left
-        return a.name.localeCompare(b.name)
-      })
-    }
-
-    return nextRoster
-  }, [activeRosterFilter, roster, rosterSearch])
-  const mobileRosterPreviewLimit = isMobile ? 4 : 12
-  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
-
-  const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => {
-    const options: Array<{ key: RosterFilter; label: string; count: number }> = [
-      { key: 'all', label: 'All', count: roster.length },
-      { key: 'played', label: 'Played', count: roster.filter((player) => player.appearances > 0).length },
-      { key: 'roster-only', label: 'Roster only', count: roster.filter((player) => player.appearances === 0).length },
-    ]
-    if (!isDoublesOnlyTeam) options.push({ key: 'singles', label: 'Singles options', count: roster.length })
-    options.push({ key: 'doubles', label: 'Doubles options', count: roster.length })
-    return options
-  }, [isDoublesOnlyTeam, roster])
-  const hasRosterParticipationSplit = useMemo(() => {
-    const playedCount = roster.filter((player) => player.appearances > 0).length
-    return playedCount > 0 && playedCount < roster.length
-  }, [roster])
-  const showRosterFilters = !isMobile || hasRosterParticipationSplit
-  const showRosterTools = !isMobile || showFullRoster
-
   const selectedRosterPlayers = useMemo(() => {
     return selectedRosterPlayerIds
       .map((id) => roster.find((player) => player.id === id) || null)
@@ -1512,6 +1455,133 @@ function TeamPageContent() {
     () => new Map(scopedCaptainContacts.map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact])),
     [scopedCaptainContacts],
   )
+  const captainContactCoverage = useMemo(() => {
+    const rosterNames = roster.map((player) => player.name)
+    const phoneCoverage = getCaptainRosterPhoneCoverage({
+      rosterNames,
+      contacts: scopedCaptainContacts,
+    })
+    const emailNameKeys = new Set(
+      scopedCaptainContacts
+        .filter((contact) => Boolean(contact.email?.trim()))
+        .map((contact) => normalizeCaptainRosterContactKey(contact.full_name))
+        .filter(Boolean),
+    )
+    const emailReadyCount = rosterNames.filter((name) => emailNameKeys.has(normalizeCaptainRosterContactKey(name))).length
+    const unreachableCount = rosterNames.filter((name) => {
+      const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(name))
+      return !contact?.phone?.trim() && !contact?.email?.trim()
+    }).length
+
+    return {
+      total: rosterNames.length,
+      phoneReadyCount: phoneCoverage.readyCount,
+      emailReadyCount,
+      missingPhoneNames: phoneCoverage.missingNames,
+      unreachableCount,
+    }
+  }, [captainContactByPlayerName, roster, scopedCaptainContacts])
+  const captainContactReviewHref = buildCaptainContactReviewHref({
+    baseHref: teamContactsHref,
+    missingNames: captainContactCoverage.missingPhoneNames,
+  })
+  const captainContactHrefFor = (playerName: string) => buildCaptainContactReviewHref({
+    baseHref: teamContactsHref,
+    missingNames: [playerName],
+  })
+  const captainWeekFocus = captainContactCoverage.total > 0 && captainContactCoverage.missingPhoneNames.length > 0
+    ? {
+        key: 'contacts',
+        kicker: 'Readiness check',
+        title: `Add mobiles for ${captainContactCoverage.missingPhoneNames.length} rostered ${captainContactCoverage.missingPhoneNames.length === 1 ? 'player' : 'players'}.`,
+        detail: `${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} teammates are ready for a lineup text.`,
+        cta: 'Update contacts',
+        href: captainContactReviewHref,
+      }
+    : nextScheduledMatch
+      ? {
+          key: 'lineup',
+          kicker: 'Next match',
+          title: `Build for ${nextScheduledMatch.opponent || 'your next opponent'}.`,
+          detail: `${formatCompactDate(nextScheduledMatch.match_date)} · ${nextScheduledMatch.venueLabel}`,
+          cta: 'Build lineup',
+          href: captainLinks[1].href,
+        }
+      : {
+          key: 'availability',
+          kicker: 'Team readiness',
+          title: 'Get the roster ready for the next match.',
+          detail: 'Check availability now so the first lineup is easy to set when the schedule lands.',
+          cta: 'Check availability',
+          href: captainLinks[0].href,
+        }
+
+  useEffect(() => {
+    if ((isDoublesOnlyTeam && rosterFilter === 'singles') || (!canManageThisTeam && rosterFilter === 'needs-mobile')) {
+      setRosterFilter('all')
+    }
+  }, [canManageThisTeam, isDoublesOnlyTeam, rosterFilter])
+
+  const activeRosterFilter: RosterFilter = isDoublesOnlyTeam && rosterFilter === 'singles'
+    ? 'all'
+    : !canManageThisTeam && rosterFilter === 'needs-mobile'
+      ? 'all'
+      : rosterFilter
+
+  const filteredRoster = useMemo(() => {
+    const searchTerm = cleanText(rosterSearch).toLowerCase()
+    const nextRoster = roster.filter((player) => {
+      if (searchTerm && !player.name.toLowerCase().includes(searchTerm)) return false
+      if (activeRosterFilter === 'played') return player.appearances > 0
+      if (activeRosterFilter === 'roster-only') return player.appearances === 0
+      if (activeRosterFilter === 'needs-mobile') {
+        return !captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))?.phone?.trim()
+      }
+      return true
+    })
+
+    if (activeRosterFilter === 'singles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    if (activeRosterFilter === 'doubles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    return nextRoster
+  }, [activeRosterFilter, captainContactByPlayerName, roster, rosterSearch])
+  const mobileRosterPreviewLimit = isMobile ? 4 : 12
+  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
+
+  const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => {
+    const options: Array<{ key: RosterFilter; label: string; count: number }> = [
+      { key: 'all', label: 'All', count: roster.length },
+      { key: 'played', label: 'Played', count: roster.filter((player) => player.appearances > 0).length },
+      { key: 'roster-only', label: 'Roster only', count: roster.filter((player) => player.appearances === 0).length },
+    ]
+    if (!isDoublesOnlyTeam) options.push({ key: 'singles', label: 'Singles options', count: roster.length })
+    options.push({ key: 'doubles', label: 'Doubles options', count: roster.length })
+    if (canManageThisTeam && captainContactCoverage.missingPhoneNames.length > 0) {
+      options.push({ key: 'needs-mobile', label: 'Needs mobile', count: captainContactCoverage.missingPhoneNames.length })
+    }
+    return options
+  }, [canManageThisTeam, captainContactCoverage.missingPhoneNames.length, isDoublesOnlyTeam, roster])
+  const hasRosterParticipationSplit = useMemo(() => {
+    const playedCount = roster.filter((player) => player.appearances > 0).length
+    return playedCount > 0 && playedCount < roster.length
+  }, [roster])
+  const showRosterFilters = !isMobile || hasRosterParticipationSplit || (canManageThisTeam && captainContactCoverage.missingPhoneNames.length > 0)
+  const showRosterTools = !isMobile || showFullRoster
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -1799,6 +1869,22 @@ function TeamPageContent() {
                   <span style={teamPulseDetailStyle}>players with a tracked start</span>
                 </a>
               ) : null}
+              {canManageThisTeam && captainContactCoverage.total > 0 ? (
+                <Link
+                  href={captainContactCoverage.missingPhoneNames.length ? captainContactReviewHref : teamContactsHref}
+                  style={teamPulseMetricStyle}
+                  aria-label={`${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} rostered players are text-ready`}
+                  data-team-contact-readiness
+                >
+                  <span style={teamPulseLabelStyle}>Text-ready</span>
+                  <strong>{captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total}</strong>
+                  <span style={teamPulseDetailStyle}>
+                    {captainContactCoverage.missingPhoneNames.length
+                      ? `${captainContactCoverage.missingPhoneNames.length} mobile${captainContactCoverage.missingPhoneNames.length === 1 ? '' : 's'} to add`
+                      : 'full roster coverage'}
+                  </span>
+                </Link>
+              ) : null}
               {teamCourtLead ? (
                 <a href="#team-roster" style={teamPulseMetricStyle}>
                   <span style={teamPulseLabelStyle}>{teamCourtLead.label}</span>
@@ -1882,6 +1968,12 @@ function TeamPageContent() {
             <p style={teamWeekPathTextStyle}>
               Start with the team page, then move straight into availability, lineup, pairings, and the team note.
             </p>
+            <Link href={captainWeekFocus.href} style={teamWeekFocusStyle} data-team-week-focus={captainWeekFocus.key}>
+              <span style={teamWeekFocusKickerStyle}>{captainWeekFocus.kicker}</span>
+              <strong style={teamWeekFocusTitleStyle}>{captainWeekFocus.title}</strong>
+              <span style={teamWeekFocusTextStyle}>{captainWeekFocus.detail}</span>
+              <span style={teamWeekFocusActionStyle}>{captainWeekFocus.cta} →</span>
+            </Link>
           </div>
           <div style={teamWeekPathGridStyle(isSmallMobile)}>
             {captainLinks.map((item) => (
@@ -2498,7 +2590,79 @@ function TeamPageContent() {
 
           {roster.length ? (
             <>
-              {showRosterFilters && showRosterTools ? (
+              {canManageThisTeam ? (
+                <details style={captainContactHubStyle}>
+                  <summary style={captainContactHubSummaryStyle}>
+                    <span style={detailDrawerCopyStyle}>
+                      <span style={sectionKicker}>Captain contacts</span>
+                      <strong style={detailDrawerTitleStyle}>Contact readiness for match week</strong>
+                      <span style={captainContactHubSummaryTextStyle}>
+                        {captainContactCoverage.phoneReadyCount} of {captainContactCoverage.total} players are ready for a text.
+                      </span>
+                    </span>
+                    <span style={captainContactHubSummaryBadgeStyle}>
+                      {captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total} text-ready
+                    </span>
+                  </summary>
+                  <div style={captainContactHubContentStyle}>
+                    <p style={captainContactPrivacyNoteStyle}>Private to captains. Keep player details current before you send a lineup ask.</p>
+                    <div style={captainContactMetricGridStyle}>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Text-ready</span>
+                        <strong>{captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total}</strong>
+                        <span style={captainContactMetricTextStyle}>mobile saved</span>
+                      </div>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Email-ready</span>
+                        <strong>{captainContactCoverage.emailReadyCount}/{captainContactCoverage.total}</strong>
+                        <span style={captainContactMetricTextStyle}>email saved</span>
+                      </div>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Needs a path</span>
+                        <strong>{captainContactCoverage.unreachableCount}</strong>
+                        <span style={captainContactMetricTextStyle}>no mobile or email</span>
+                      </div>
+                    </div>
+                    <div style={captainContactHubActionsStyle}>
+                      <Link href={captainContactReviewHref} style={rosterPeopleContactLinkStyle}>
+                        {captainContactCoverage.missingPhoneNames.length ? 'Add missing mobiles' : 'Review contacts'}
+                      </Link>
+                      <Link href={teamContactsHref} style={rosterPeopleChatLinkStyle}>Manage contacts</Link>
+                    </div>
+                    <div style={captainContactPreviewGridStyle}>
+                      {roster.map((player) => {
+                        const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))
+                        const phone = contact?.phone?.trim() || ''
+                        const email = contact?.email?.trim() || ''
+                        return (
+                          <article key={`contact-${player.id}`} style={captainContactPreviewCardStyle}>
+                            <div style={captainContactPreviewHeaderStyle}>
+                              <div style={captainContactPreviewIdentityStyle}>
+                                <strong>{player.name}</strong>
+                                <span>{contact?.is_captain ? 'Captain' : contact?.role || 'Player'}</span>
+                              </div>
+                              <span style={phone ? captainContactReadyBadgeStyle : captainContactMissingBadgeStyle}>
+                                {phone ? 'Text ready' : 'Add mobile'}
+                              </span>
+                            </div>
+                            <div style={captainContactPreviewDetailsStyle}>
+                              <span>{phone || 'No mobile saved'}</span>
+                              <span>{email || 'No email saved'}</span>
+                            </div>
+                            <div style={captainContactPreviewActionsStyle}>
+                              {phone ? <a href={`sms:${phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>Text</a> : null}
+                              {email ? <a href={`mailto:${email}`} style={rosterContactManageLinkStyle}>Email</a> : null}
+                              {!phone || !email ? <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Update</Link> : null}
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </details>
+              ) : null}
+
+              {showRosterFilters ? (
                 <>
                   <div style={rosterFilterRow}>
                     {rosterFilterOptions.filter((option) => !isMobile || option.count > 0).map((option) => {
@@ -2526,7 +2690,9 @@ function TeamPageContent() {
                           ? 'Roster sorted by singles strength.'
                           : activeRosterFilter === 'doubles'
                             ? 'Roster sorted by doubles strength.'
-                            : 'Full roster from Player Roster and match history.'}
+                            : activeRosterFilter === 'needs-mobile'
+                              ? 'Teammates who need a mobile number before you can send a lineup text.'
+                              : 'Full roster from Player Roster and match history.'}
                   </div>
                 </>
               ) : null}
@@ -2629,6 +2795,16 @@ function TeamPageContent() {
                           {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
                             <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
                           ) : null}
+                          {!isPendingLink && isLinkedTeamMember && player.id !== linkedPlayerId ? (
+                            <QuickMessageComposer
+                              mode="direct"
+                              triggerLabel="Message in TiQ"
+                              recipientName={player.name}
+                              recipientPlayerId={player.id}
+                              subject={`Team message for ${player.name}`}
+                              body={`Hi ${player.name},`}
+                            />
+                          ) : null}
                           {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterActionLink}>Team chat</Link> : null}
                         </div>
                         {canManageThisTeam ? (
@@ -2637,8 +2813,8 @@ function TeamPageContent() {
                               <a href={`sms:${contact.phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>
                                 Text {contact.phone}
                               </a>
-                            ) : <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Add mobile</Link>}
-                            <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Contact details</Link>
+                            ) : <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Add mobile</Link>}
+                            <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Contact details</Link>
                           </div>
                         ) : null}
                       </div>
@@ -3480,6 +3656,50 @@ const teamWeekPathTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  marginTop: 16,
+  padding: '14px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.14), rgba(56,189,248,0.08))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusKickerStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const teamWeekFocusTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.3,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusActionStyle: CSSProperties = {
+  marginTop: 3,
+  color: '#d9f84a',
+  fontSize: 12,
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 }
 
@@ -4456,6 +4676,172 @@ const rosterPeopleChatLinkStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   textAlign: 'center',
+}
+
+const captainContactHubStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  margin: '0 0 18px',
+  borderRadius: 20,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(56,189,248,0.06))',
+  overflow: 'hidden',
+}
+
+const captainContactHubSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: '16px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const captainContactHubSummaryTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const captainContactHubSummaryBadgeStyle: CSSProperties = {
+  flex: '0 0 auto',
+  maxWidth: '48%',
+  padding: '7px 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#d9f84a',
+  fontSize: 11,
+  fontWeight: 900,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const captainContactHubContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: '0 16px 16px',
+}
+
+const captainContactPrivacyNoteStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const captainContactMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainContactMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: 14,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(5, 12, 28, 0.48)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainContactMetricLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const captainContactMetricTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+}
+
+const captainContactHubActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainContactPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 11,
+  minWidth: 0,
+  padding: '13px',
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(5, 12, 28, 0.50)',
+}
+
+const captainContactPreviewHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactPreviewIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainContactPreviewDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const captainContactPreviewActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactReadyBadgeStyle: CSSProperties = {
+  flex: '0 0 auto',
+  padding: '5px 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#d9f84a',
+  fontSize: 10,
+  fontWeight: 900,
+  textAlign: 'center',
+}
+
+const captainContactMissingBadgeStyle: CSSProperties = {
+  ...captainContactReadyBadgeStyle,
+  border: '1px solid rgba(251, 191, 36, 0.28)',
+  background: 'rgba(251, 191, 36, 0.10)',
+  color: '#fde68a',
 }
 
 const rosterContactActionRowStyle: CSSProperties = {

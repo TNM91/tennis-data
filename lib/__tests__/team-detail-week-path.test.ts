@@ -24,6 +24,15 @@ describe('team detail week path', () => {
     expect(source).toContain('What should I communicate?')
     expect(source).toContain('data-team-week-job={item.job}')
     expect(source).toContain('aria-label={`${item.cta}: ${item.question}`}')
+    expect(source).toContain('const captainWeekFocus =')
+    expect(source).toContain('data-team-week-focus={captainWeekFocus.key}')
+    expect(source).toContain('Readiness check')
+    expect(source).toContain('Build for ${nextScheduledMatch.opponent')
+    expect(source).toContain('data-team-contact-readiness')
+    expect(source).toContain('Text-ready')
+    expect(source).toContain("type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'")
+    expect(source).toContain("label: 'Needs mobile'")
+    expect(source).toContain("activeRosterFilter === 'needs-mobile'")
   })
 
   it('leads the profile with an actionable next-match, roster, and court read', () => {
@@ -47,6 +56,8 @@ describe('team detail week path', () => {
     expect(styleBlock('teamWeekActionCardStyle')).toContain('minHeight: 146')
     expect(styleBlock('teamWeekActionCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamWeekActionTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamWeekFocusStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamWeekFocusStyle')).toContain("minWidth: 0")
   })
 
   it('keeps the core team jobs first and removes generic player-ID detours', () => {
@@ -80,7 +91,7 @@ describe('team detail week path', () => {
     expect(source).toContain('style={mobileRosterCompactRowStyle}')
     expect(source).toContain('style={dynamicRosterMetricGrid}')
     expect(source).toContain('const showRosterFilters = !isMobile || hasRosterParticipationSplit')
-    expect(source).toContain('{showRosterFilters && showRosterTools ? (')
+    expect(source).toContain('{showRosterFilters ? (')
     expect(source).toContain('{showRosterTools && selectedRosterPlayerIds.length > 0 ? <div style={rosterCompareTray}>')
     expect(source).toContain('selected — choose one more player')
     expect(styleBlock('mobileRosterMetricGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
