@@ -40,8 +40,11 @@ describe('Captain guided availability texting', () => {
 
     expect(builderSource).toContain('const responseToken = window.crypto.randomUUID()')
     expect(builderSource).toContain('keepalive: true')
+    expect(builderSource).toContain('function openNativeSmsHandoff(contactPhone: string, playerName: string, body: string)')
     expect(builderSource).toContain('prepareSmsBodyForNativeComposer(body)')
-    expect(builderSource).toContain('window.location.href = buildSmsHref([contact.phone], body)')
+    expect(builderSource).toContain('window.location.href = href')
+    expect(builderSource).toContain('href={smsFallback.href}')
+    expect(builderSource).toContain('Open Messages for')
     expect(builderSource).toContain("responseToken: player.playerId === invitedPlayer.playerId")
   })
 

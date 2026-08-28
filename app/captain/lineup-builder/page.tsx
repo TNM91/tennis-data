@@ -1348,6 +1348,7 @@ function LineupBuilderContent() {
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [smsFallback, setSmsFallback] = useState<{ href: string; playerName: string } | null>(null)
   const [recoveringSecureSession, setRecoveringSecureSession] = useState(false)
   const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
   const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
@@ -2726,6 +2727,21 @@ function LineupBuilderContent() {
     else window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
   }
 
+  function openNativeSmsHandoff(contactPhone: string, playerName: string, body: string) {
+    const href = buildSmsHref([contactPhone], body)
+    setSmsFallback({ href, playerName })
+    const copied = prepareSmsBodyForNativeComposer(body)
+    setMessage(
+      copied
+        ? `Opening Messages for ${playerName}. Your TiQ invitation is copied—paste it to send.`
+        : `Opening Messages for ${playerName}. If it does not open, use the Open Messages link below.`,
+    )
+
+    // Keep this synchronous with the captain's physical tap. iOS blocks custom
+    // app handoffs that happen after an awaited request or delayed callback.
+    window.location.href = href
+  }
+
   function openDirectCourtText(
     player: CaptainDirectCourtTextHandoff['players'][number],
     handoffOverride?: CaptainDirectCourtTextHandoff,
@@ -2757,10 +2773,7 @@ function LineupBuilderContent() {
       slotsJson: activeHandoff.slotsJson,
       availabilityRequestUrl: player.requestUrl,
     })
-    if (prepareSmsBodyForNativeComposer(body)) {
-      setMessage('Messages opened. TiQ availability text copied—paste it to send.')
-    }
-    window.location.href = buildSmsHref([contact.phone], body)
+    openNativeSmsHandoff(contact.phone, player.playerName, body)
   }
 
   async function askProposedCourtPlayers(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
@@ -2883,10 +2896,7 @@ function LineupBuilderContent() {
       .finally(() => setAskingCourtId(''))
 
     void saveScenario(false, true)
-    if (prepareSmsBodyForNativeComposer(body)) {
-      setMessage('Messages opened. TiQ availability text copied—paste it to send.')
-    }
-    window.location.href = buildSmsHref([contact.phone], body)
+    openNativeSmsHandoff(contact.phone, invitedPlayer.playerName, body)
   }
 
   async function refreshSavedScenarios() {
@@ -3981,6 +3991,14 @@ function LineupBuilderContent() {
         </section>
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
+        {smsFallback ? (
+          <div style={smsFallbackStyle}>
+            <span style={smsFallbackCopyStyle}>If Messages did not open, tap once more.</span>
+            <a href={smsFallback.href} style={smsFallbackLinkStyle}>
+              Open Messages for {smsFallback.playerName.split(' ')[0] || 'player'}
+            </a>
+          </div>
+        ) : null}
         {!!error && (
           <div role="alert" style={warningCardStyle}>
             <div>{error}</div>
@@ -4210,10 +4228,10 @@ function LineupBuilderContent() {
               ) : null}
             </div>
             <div style={mobileCourtFocusActionsStyle}>
-              <Link href="#captain-lineup-courts" style={primaryButton}>
-                {lineupHasAssignments ? 'Review courts' : 'Build courts'}
-              </Link>
-              <GhostBtn onClick={() => applyOptimizedPlan('best')}>Auto-build</GhostBtn>
+              <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
+                {lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}
+              </PrimaryBtn>
+              <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
             </div>
           </section>
         ) : <section style={decisionBoardShellStyle}>
@@ -7076,6 +7094,49 @@ const bannerGreenStyle: CSSProperties = {
   border: '1px solid rgba(34, 197, 94, 0.24)',
   color: '#dcfce7',
   overflowWrap: 'anywhere',
+}
+
+const smsFallbackStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+}
+
+const smsFallbackCopyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const smsFallbackLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 40,
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 800,
+  textDecoration: 'none',
+  cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+  flex: '0 1 auto',
 }
 
 const rosterRecoveryCardStyle: CSSProperties = {
