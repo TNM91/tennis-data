@@ -167,9 +167,12 @@ type PreparedCourtText = {
   key: string
   playerId: string
   playerName: string
+  phone: string
   href: string
   body: string
 }
+
+type BuilderMode = 'manual' | 'insights'
 
 type LineupSlot = CaptainLineupSlot
 
@@ -1382,6 +1385,7 @@ function LineupBuilderContent() {
   const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>([])
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
+  const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(false)
@@ -2851,12 +2855,11 @@ function LineupBuilderContent() {
       })
     }
 
-    setSmsFallback({ href: preparedText.href, playerName: preparedText.playerName })
-    const copied = prepareSmsBodyForNativeComposer(preparedText.body)
     setError('')
-    setMessage(copied
-      ? `Messages is opening for ${preparedText.playerName}. Your TiQ reply link is copied—paste it into the text, then send.`
-      : `Messages is opening for ${preparedText.playerName}. If it does not open, use the Messages link above.`)
+    // This is intentionally a direct location change inside the physical Ask
+    // tap. Mobile Safari will suppress a Messages handoff after a promise,
+    // timer, or an anchor's competing default navigation.
+    openNativeSmsHandoff(preparedText.phone, preparedText.playerName, preparedText.body)
   }
 
   async function askProposedCourtPlayers(
@@ -2894,7 +2897,14 @@ function LineupBuilderContent() {
       return
     }
 
-    const accessToken = session?.access_token
+    // The Builder can be open while Supabase refreshes its access token. Read
+    // the current session here instead of treating a momentarily stale React
+    // auth value as a missing captain session.
+    let accessToken = session?.access_token
+    if (!accessToken) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      accessToken = sessionData.session?.access_token
+    }
     if (!accessToken) {
       if (options.silent) return
       setError('Sign in again before sending availability texts.')
@@ -2995,6 +3005,7 @@ function LineupBuilderContent() {
           key: preparedKey,
           playerId: invitedPlayer.playerId,
           playerName: invitedPlayer.playerName,
+          phone: contact.phone,
           href: buildSmsHref([contact.phone], body),
           body,
         },
@@ -3008,6 +3019,39 @@ function LineupBuilderContent() {
       setAskingCourtId((current) => current === slot.id ? '' : current)
     }
   }
+
+  useEffect(() => {
+    if (!authResolved || !teamName || !matchDate || !teamSlots.length) return
+
+    // Draft restoration should be just as ready to text as a fresh player
+    // selection. This only prepares the secure reply link; it never opens
+    // Messages or sends anything until the captain taps Ask.
+    teamSlots.forEach((slot) => {
+      slot.players
+        .filter((player) => player.playerId && player.playerName.trim())
+        .forEach((player) => {
+          void askProposedCourtPlayers(slot, player, { silent: true })
+        })
+    })
+  // The preparation callback intentionally stays out of this dependency list:
+  // it is recreated as normal Builder state changes, while this effect should
+  // retry only when restored lineup data or authenticated scope changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    authResolved,
+    captainMessageContacts,
+    captainRosterContacts,
+    currentScenarioId,
+    flight,
+    leagueName,
+    matchDate,
+    opponentTeam,
+    selectedMatch?.facility,
+    selectedMatch?.match_time,
+    session?.access_token,
+    teamName,
+    teamSlots,
+  ])
 
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
@@ -4100,6 +4144,36 @@ function LineupBuilderContent() {
           )}
         </section>
 
+        <section style={builderModeShellStyle} aria-label="Choose a lineup building path">
+          <div style={builderModeHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Build path</p>
+              <h2 style={sectionTitleSmall}>How do you want to build?</h2>
+            </div>
+            <span style={miniPillBlueStyle}>{builderMode === 'manual' ? 'Hands-on' : 'Insights on'}</span>
+          </div>
+          <div style={builderModeOptionsStyle}>
+            <button
+              type="button"
+              aria-pressed={builderMode === 'manual'}
+              onClick={() => setBuilderMode('manual')}
+              style={builderModeOptionStyle(builderMode === 'manual')}
+            >
+              <strong>Build myself</strong>
+              <span>Set courts, ask players, and see live replies as you go.</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={builderMode === 'insights'}
+              onClick={() => setBuilderMode('insights')}
+              style={builderModeOptionStyle(builderMode === 'insights')}
+            >
+              <strong>Use TiQ insights</strong>
+              <span>Review recommended builds, matchup edges, and the stats behind them.</span>
+            </button>
+          </div>
+        </section>
+
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
         {smsFallback ? (
           <div style={smsFallbackStyle}>
@@ -4934,6 +5008,14 @@ function LineupBuilderContent() {
           </div>
 
           <div style={columnStyle}>
+            <details open={builderMode === 'insights'} style={surfaceCardStrong}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Opponent + insights</p>
+                  <h2 style={sectionTitleSmall}>Project the matchup</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{builderMode === 'insights' ? 'Open' : 'Optional'}</span>
+              </summary>
             <section style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
@@ -5175,9 +5257,10 @@ function LineupBuilderContent() {
                 ))}
               </div>
             </details>
+            </details>
           </div>
 
-          <div style={columnStyle}>
+          {builderMode === 'insights' ? <div style={columnStyle}>
             <section style={surfaceCardStrong}>
               <p style={sectionKicker}>Scorecard</p>
               <h2 style={sectionTitle}>What this lineup says</h2>
@@ -5469,7 +5552,25 @@ function LineupBuilderContent() {
                 )}
               </div>
             </details>
-          </div>
+          </div> : (
+            <div style={columnStyle}>
+              <details style={surfaceCard}>
+                <summary style={detailsSummaryStyle}>
+                  <div>
+                    <p style={sectionKicker}>Insights</p>
+                    <h3 style={sectionTitleSmall}>Recommendations and matchup stats</h3>
+                  </div>
+                  <span style={miniPillBlueStyle}>{formatPercent(analysis.projection)} outlook</span>
+                </summary>
+                <p style={sectionBodyTextStyle}>
+                  Keep building yourself, or switch on TiQ insights to compare recommended lineups, opponent matchups, and the rating evidence behind each option.
+                </p>
+                <div style={{ marginTop: 14 }}>
+                  <PrimaryBtn onClick={() => setBuilderMode('insights')}>Open TiQ insights</PrimaryBtn>
+                </div>
+              </details>
+            </div>
+          )}
         </div>
       </div>
   )
@@ -5669,7 +5770,10 @@ function SlotEditor({
                 <a
                   key={player.playerId || player.playerName}
                   href={preparedText.href}
-                  onClick={() => onOpenPreparedCourtText(preparedText)}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    onOpenPreparedCourtText(preparedText)
+                  }}
                   style={smsFallbackLinkStyle}
                 >
                   Ask {player.playerName.split(' ')[0]}
@@ -5679,7 +5783,7 @@ function SlotEditor({
 
             return (
               <GhostSmallBtn key={player.playerId || player.playerName} onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
-                {askingPlayers ? 'Preparing text...' : `Prepare ask for ${player.playerName.split(' ')[0]}`}
+                {askingPlayers ? 'Preparing Ask...' : `Prepare Ask for ${player.playerName.split(' ')[0]}`}
               </GhostSmallBtn>
             )
           })}
@@ -5901,6 +6005,49 @@ const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 22,
   minWidth: 0,
+})
+
+const builderModeShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(96,165,250,0.24)',
+  background: 'linear-gradient(135deg, rgba(30,64,175,0.16), rgba(8,13,28,0.72))',
+  minWidth: 0,
+}
+
+const builderModeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const builderModeOptionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const builderModeOptionStyle = (selected: boolean): CSSProperties => ({
+  display: 'grid',
+  gap: 5,
+  width: '100%',
+  minWidth: 0,
+  padding: 15,
+  borderRadius: 17,
+  border: selected ? '1px solid rgba(190,242,100,0.84)' : '1px solid rgba(125,211,252,0.18)',
+  background: selected
+    ? 'linear-gradient(135deg, rgba(163,230,53,0.22), rgba(30,41,59,0.84))'
+    : 'rgba(15,23,42,0.68)',
+  color: 'var(--shell-copy)',
+  textAlign: 'left',
+  cursor: 'pointer',
+  boxShadow: selected ? '0 0 0 2px rgba(163,230,53,0.12)' : 'none',
 })
 
 const columnStyle: CSSProperties = {

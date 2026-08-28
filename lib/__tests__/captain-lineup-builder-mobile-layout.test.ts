@@ -130,6 +130,20 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
   })
 
+  it('keeps hands-on building focused while putting opponent and recommendation work behind a disclosure', () => {
+    expect(source).toContain("const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')")
+    expect(source).toContain('Build myself')
+    expect(source).toContain('Use TiQ insights')
+    expect(source).toContain("<details open={builderMode === 'insights'} style={surfaceCardStrong}>")
+    expect(source).toContain('Opponent + insights')
+    expect(source).toContain("{builderMode === 'insights' ? <div style={columnStyle}>")
+    for (const styleName of ['builderModeShellStyle', 'builderModeHeaderStyle', 'builderModeOptionsStyle']) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('builderModeOptionsStyle')).toContain("repeat(auto-fit, minmax(min(100%, 230px), 1fr))")
+    expect(styleBlock('builderModeOptionStyle')).toContain("width: '100%'")
+  })
+
   it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
     expect(source).toContain('This is a potential lineup. Review it, then confirm each player')
     expect(source).toContain('role="status" aria-live="polite"')

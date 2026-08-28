@@ -119,14 +119,12 @@ export function isAppleSmsComposer(userAgent?: string) {
 }
 
 export function getSmsBodySeparator(userAgent?: string) {
-  return isAppleSmsComposer(userAgent) ? '' : '?'
+  // iOS Messages uses an ampersand before the body parameter while Android
+  // uses a question mark. Keeping this in one formatter prevents a silent
+  // handoff regression when Captain tools are opened from Safari.
+  return isAppleSmsComposer(userAgent) ? '&' : '?'
 }
 
-/**
- * Apple documents sms:NUMBER as the supported web handoff and explicitly
- * excludes message text from the URL. Copy the TiQ message during the same
- * trusted tap so iPhone users can paste it after Messages opens.
- */
 export function prepareSmsBodyForNativeComposer(body: string, userAgent?: string) {
   if (!body.trim() || !isAppleSmsComposer(userAgent)) {
     return false
@@ -155,7 +153,7 @@ export function prepareSmsBodyForNativeComposer(body: string, userAgent?: string
 
 export function buildSmsHref(recipients: string[], body: string, userAgent?: string) {
   const address = recipients.map(cleanPhone).filter(Boolean).join(',')
-  const query = body.trim() && !isAppleSmsComposer(userAgent)
+  const query = body.trim()
     ? `${getSmsBodySeparator(userAgent)}body=${encodeURIComponent(body.trim())}`
     : ''
   return `sms:${address}${query}`
