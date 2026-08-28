@@ -24,6 +24,10 @@ describe('team detail week path', () => {
     expect(source).toContain('What should I communicate?')
     expect(source).toContain('data-team-week-job={item.job}')
     expect(source).toContain('aria-label={`${item.cta}: ${item.question}`}')
+    expect(source).toContain('const captainWeekFocus =')
+    expect(source).toContain('data-team-week-focus={captainWeekFocus.key}')
+    expect(source).toContain('Readiness check')
+    expect(source).toContain('Build for ${nextScheduledMatch.opponent')
   })
 
   it('leads the profile with an actionable next-match, roster, and court read', () => {
@@ -47,6 +51,8 @@ describe('team detail week path', () => {
     expect(styleBlock('teamWeekActionCardStyle')).toContain('minHeight: 146')
     expect(styleBlock('teamWeekActionCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamWeekActionTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamWeekFocusStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamWeekFocusStyle')).toContain("minWidth: 0")
   })
 
   it('keeps the core team jobs first and removes generic player-ID detours', () => {

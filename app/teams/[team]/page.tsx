@@ -1548,6 +1548,32 @@ function TeamPageContent() {
     baseHref: teamContactsHref,
     missingNames: [playerName],
   })
+  const captainWeekFocus = captainContactCoverage.total > 0 && captainContactCoverage.missingPhoneNames.length > 0
+    ? {
+        key: 'contacts',
+        kicker: 'Readiness check',
+        title: `Add mobiles for ${captainContactCoverage.missingPhoneNames.length} rostered ${captainContactCoverage.missingPhoneNames.length === 1 ? 'player' : 'players'}.`,
+        detail: `${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} teammates are ready for a lineup text.`,
+        cta: 'Update contacts',
+        href: captainContactReviewHref,
+      }
+    : nextScheduledMatch
+      ? {
+          key: 'lineup',
+          kicker: 'Next match',
+          title: `Build for ${nextScheduledMatch.opponent || 'your next opponent'}.`,
+          detail: `${formatCompactDate(nextScheduledMatch.match_date)} · ${nextScheduledMatch.venueLabel}`,
+          cta: 'Build lineup',
+          href: captainLinks[1].href,
+        }
+      : {
+          key: 'availability',
+          kicker: 'Team readiness',
+          title: 'Get the roster ready for the next match.',
+          detail: 'Check availability now so the first lineup is easy to set when the schedule lands.',
+          cta: 'Check availability',
+          href: captainLinks[0].href,
+        }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -1918,6 +1944,12 @@ function TeamPageContent() {
             <p style={teamWeekPathTextStyle}>
               Start with the team page, then move straight into availability, lineup, pairings, and the team note.
             </p>
+            <Link href={captainWeekFocus.href} style={teamWeekFocusStyle} data-team-week-focus={captainWeekFocus.key}>
+              <span style={teamWeekFocusKickerStyle}>{captainWeekFocus.kicker}</span>
+              <strong style={teamWeekFocusTitleStyle}>{captainWeekFocus.title}</strong>
+              <span style={teamWeekFocusTextStyle}>{captainWeekFocus.detail}</span>
+              <span style={teamWeekFocusActionStyle}>{captainWeekFocus.cta} →</span>
+            </Link>
           </div>
           <div style={teamWeekPathGridStyle(isSmallMobile)}>
             {captainLinks.map((item) => (
@@ -3598,6 +3630,50 @@ const teamWeekPathTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  marginTop: 16,
+  padding: '14px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.14), rgba(56,189,248,0.08))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusKickerStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const teamWeekFocusTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.3,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekFocusActionStyle: CSSProperties = {
+  marginTop: 3,
+  color: '#d9f84a',
+  fontSize: 12,
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 }
 
