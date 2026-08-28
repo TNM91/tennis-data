@@ -13,6 +13,8 @@ describe('captain lineup draft recovery', () => {
     expect(page).toContain("setMessage('Draft restored on this device.')")
     expect(page).toContain('localStorage.setItem(getCaptainLineupDraftStorageKey(userId)')
     expect(page).toContain('if (localBuilderDraftRestoredRef.current)')
+    expect(page).toContain('if (initialContext.hasExplicitRouteScope)')
+    expect(page).toContain('Never let a recoverable draft')
   })
 
   it('keeps saved selections visible if the live roster refresh is delayed', () => {

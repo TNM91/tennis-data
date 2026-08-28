@@ -22,6 +22,7 @@ import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
   chooseLatestCaptainResumeState,
+  hasExplicitCaptainRouteScope,
   loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
   resolveCaptainMatchContext,
@@ -1254,6 +1255,7 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
 function readInitialLineupBuilderContext(userId?: string | null) {
   if (typeof window === 'undefined') {
     return {
+      hasExplicitRouteScope: false,
       competitionLayer: '',
       team: '',
       league: '',
@@ -1278,8 +1280,10 @@ function readInitialLineupBuilderContext(userId?: string | null) {
   const params = new URLSearchParams(window.location.search)
   const resumeState = readCaptainResumeState(userId)
   const matchContext = resolveCaptainMatchContext(params)
+  const hasExplicitRouteScope = hasExplicitCaptainRouteScope(params)
 
   return {
+    hasExplicitRouteScope,
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
     team: params.get('team') || resumeState?.team || '',
     league: params.get('league') || resumeState?.league || '',
@@ -1330,7 +1334,11 @@ function LineupBuilderContent() {
   const persistedDeviceBuilderDraft = typeof window === 'undefined'
     ? null
     : readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId)))
-  const persistedBuilderDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft
+  // A Team card is a deliberate route choice. Never let a recoverable draft
+  // from another team replace that selection after mobile auth settles.
+  const persistedBuilderDraft = initialContext.hasExplicitRouteScope
+    ? null
+    : (persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft)
   const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
   const initialLeagueName = initialContext.league || persistedBuilderDraft?.leagueName || ''
   const initialFlight = initialContext.flight || persistedBuilderDraft?.flight || ''
@@ -1366,7 +1374,9 @@ function LineupBuilderContent() {
   const [inlinePhoneByPlayerKey, setInlinePhoneByPlayerKey] = useState<Record<string, string>>({})
   const [savingPhonePlayerKey, setSavingPhonePlayerKey] = useState('')
   const preparingCourtTextKeysRef = useRef(new Set<string>())
-  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(persistedDirectCourtTextHandoff)
+  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(
+    initialContext.hasExplicitRouteScope ? null : persistedDirectCourtTextHandoff,
+  )
   const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
@@ -1553,6 +1563,11 @@ function LineupBuilderContent() {
   useEffect(() => {
     if (!authResolved || !userId || typeof window === 'undefined' || localBuilderDraftRestoredRef.current) return
 
+    if (initialContext.hasExplicitRouteScope) {
+      localBuilderDraftRestoredRef.current = true
+      return
+    }
+
     const storedDraft = readCaptainLineupBuilderDraft(
       window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId))
     )
@@ -1585,7 +1600,7 @@ function LineupBuilderContent() {
       restoredMatchFormat,
     ))
     setMessage('Draft restored on this device.')
-  }, [authResolved, userId])
+  }, [authResolved, initialContext.hasExplicitRouteScope, userId])
 
   useEffect(() => {
     if (!authResolved || !userId || typeof window === 'undefined' || !localBuilderDraftRestoredRef.current) return
@@ -1629,6 +1644,11 @@ function LineupBuilderContent() {
 
   useEffect(() => {
     if (!authResolved || scopedResumeAppliedRef.current) return
+    if (initialContext.hasExplicitRouteScope) {
+      scopedResumeAppliedRef.current = true
+      setScopedResumeResolved(true)
+      return
+    }
     if (localBuilderDraftRestoredRef.current) {
       scopedResumeAppliedRef.current = true
       setScopedResumeResolved(true)
@@ -1640,12 +1660,6 @@ function LineupBuilderContent() {
       return
     }
     scopedResumeAppliedRef.current = true
-
-    const params = new URLSearchParams(window.location.search)
-    if (['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left'].some((key) => Boolean(params.get(key)?.trim()))) {
-      setScopedResumeResolved(true)
-      return
-    }
 
     let active = true
     void (async () => {
@@ -1664,7 +1678,7 @@ function LineupBuilderContent() {
     })
 
     return () => { active = false }
-  }, [authResolved, session?.access_token, userId])
+  }, [authResolved, initialContext.hasExplicitRouteScope, session?.access_token, userId])
 
   useEffect(() => {
     if (!scopedResumeResolved || (!teamName && !leagueName && !flight)) return

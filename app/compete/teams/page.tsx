@@ -15,6 +15,7 @@ import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profi
 import { getTeamConnectionRolesLabel, isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqTeamParticipations,
@@ -301,7 +302,12 @@ function CompeteTeamsContent() {
                 league: group.sourceLeagueName,
                 flight: group.sourceFlight,
               })
-              const lineupHref = `/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+                competitionLayer,
+                team: group.teamName,
+                league: group.sourceLeagueName || undefined,
+                flight: group.sourceFlight || undefined,
+              })
               const teamRoomHref = buildTeamRoomHref({
                 teamName: group.teamName,
                 leagueName: group.sourceLeagueName,

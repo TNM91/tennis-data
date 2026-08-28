@@ -258,6 +258,15 @@ export function buildCaptainScopedHref(
   return query ? `${path}?${query}` : path
 }
 
+/**
+ * A scoped Captain link is an intentional team or match selection.  It must
+ * take precedence over a recoverable device draft from a different team.
+ */
+export function hasExplicitCaptainRouteScope(params: URLSearchParams) {
+  return ['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left']
+    .some((key) => Boolean(params.get(key)?.trim()))
+}
+
 function isPastCaptainMatchDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const matchDay = new Date(`${value}T12:00:00`).getTime()
