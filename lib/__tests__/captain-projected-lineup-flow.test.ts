@@ -164,6 +164,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(collectionRoute).toContain('playerRequestUrls:')
     expect(collectionRoute).toContain("body.inviteMode === 'append'")
     expect(collectionRoute).toContain('responseToken: cleanAvailabilityText(player.responseToken, 80)')
+    expect(collectionRoute).toContain('responseToken: isUuid(player.responseToken) ? player.responseToken : randomUUID()')
     expect(collectionRoute).toContain('response_token: player.responseToken')
     expect(migration).toContain('response_token uuid not null default gen_random_uuid() unique')
   })

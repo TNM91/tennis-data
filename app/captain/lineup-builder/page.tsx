@@ -3970,6 +3970,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     )
 
     setTeamSlots(formatSafeSlots)
+    focusTeamCourtsAfterBuild()
     showAppliedLineupNotice(plan.title, formatSafeSlots)
     setMessage(`${plan.title} applied${activeLockCount ? ' with locks preserved' : ''}.`)
     setError(incompleteCourts.length
@@ -3995,9 +3996,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       effectiveMatchFormatId
     )
     setTeamSlots(formatSafeSlots)
+    focusTeamCourtsAfterBuild()
     showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
     setMessage(`Balanced recommendation applied${activeLockCount ? ' around your locks' : ''}.`)
     setError('')
+  }
+
+  function focusTeamCourtsAfterBuild() {
+    if (!isMobile || typeof window === 'undefined') return
+
+    // Wait for React to paint the selected players, then place the first
+    // populated court at the top of the phone viewport instead of leaving the
+    // captain above a long chain of status and insight panels.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>('#captain-lineup-courts [id^="captain-lineup-slot-"]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    })
   }
 
   function rebuildAroundLocks() {
