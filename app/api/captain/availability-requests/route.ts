@@ -1,4 +1,6 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
+import { randomUUID } from 'node:crypto'
+
 import {
   cleanAvailabilityText,
   getCaptainAvailabilityServiceClient,
@@ -171,7 +173,10 @@ export async function POST(request: Request) {
     }))
     .map((player) => ({
       ...player,
-      responseToken: isUuid(player.responseToken) ? player.responseToken : '',
+      // Always provide a secure per-player token. Older deployed schemas can
+      // lack the database default, and a bulk lineup request has no reason to
+      // depend on that default being present.
+      responseToken: isUuid(player.responseToken) ? player.responseToken : randomUUID(),
     }))
     .filter((player) => player.playerName)
 
@@ -275,7 +280,10 @@ export async function POST(request: Request) {
     .upsert(inviteRows, { onConflict: 'request_id,player_name' })
   if (inviteError) {
     console.error('[api/captain/availability-requests] invite upsert failed', { durationMs: Date.now() - startedAt, userId: auth.userId, requestId, message: inviteError.message })
-    return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
+    return Response.json({
+      ok: false,
+      message: 'TiQ could not prepare secure reply links. Please try again in a moment.',
+    }, { status: 500 })
   }
 
   const invitedNames = new Set(requestInvitedPlayers.map((player) => player.playerName.toLowerCase()))
