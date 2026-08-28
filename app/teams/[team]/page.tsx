@@ -2733,6 +2733,16 @@ function TeamPageContent() {
                           {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
                             <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
                           ) : null}
+                          {!isPendingLink && isLinkedTeamMember && player.id !== linkedPlayerId ? (
+                            <QuickMessageComposer
+                              mode="direct"
+                              triggerLabel="Message in TiQ"
+                              recipientName={player.name}
+                              recipientPlayerId={player.id}
+                              subject={`Team message for ${player.name}`}
+                              body={`Hi ${player.name},`}
+                            />
+                          ) : null}
                           {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterActionLink}>Team chat</Link> : null}
                         </div>
                         {canManageThisTeam ? (

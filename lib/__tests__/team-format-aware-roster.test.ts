@@ -30,4 +30,10 @@ describe('team format-aware roster', () => {
     expect(source).toContain('mailto:${email}')
     expect(source).toContain('captainContactPreviewGridStyle')
   })
+
+  it('lets linked teammates open a direct TiQ message from a roster card', () => {
+    expect(source).toContain('triggerLabel="Message in TiQ"')
+    expect(source).toContain('recipientPlayerId={player.id}')
+    expect(source).toContain('player.id !== linkedPlayerId')
+  })
 })
