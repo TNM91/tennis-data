@@ -29,6 +29,8 @@ describe('team format-aware roster', () => {
     expect(source).toContain('Add missing mobiles')
     expect(source).toContain('mailto:${email}')
     expect(source).toContain('captainContactPreviewGridStyle')
+    expect(source).toContain('const captainContactHrefFor = (playerName: string)')
+    expect(source).toContain('href={captainContactHrefFor(player.name)}')
   })
 
   it('lets linked teammates open a direct TiQ message from a roster card', () => {

@@ -1544,6 +1544,10 @@ function TeamPageContent() {
     baseHref: teamContactsHref,
     missingNames: captainContactCoverage.missingPhoneNames,
   })
+  const captainContactHrefFor = (playerName: string) => buildCaptainContactReviewHref({
+    baseHref: teamContactsHref,
+    missingNames: [playerName],
+  })
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -2592,7 +2596,7 @@ function TeamPageContent() {
                             <div style={captainContactPreviewActionsStyle}>
                               {phone ? <a href={`sms:${phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>Text</a> : null}
                               {email ? <a href={`mailto:${email}`} style={rosterContactManageLinkStyle}>Email</a> : null}
-                              {!phone || !email ? <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Update</Link> : null}
+                              {!phone || !email ? <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Update</Link> : null}
                             </div>
                           </article>
                         )
@@ -2751,8 +2755,8 @@ function TeamPageContent() {
                               <a href={`sms:${contact.phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>
                                 Text {contact.phone}
                               </a>
-                            ) : <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Add mobile</Link>}
-                            <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Contact details</Link>
+                            ) : <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Add mobile</Link>}
+                            <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Contact details</Link>
                           </div>
                         ) : null}
                       </div>
