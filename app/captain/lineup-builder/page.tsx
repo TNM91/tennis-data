@@ -163,6 +163,13 @@ type SlotPlayer = {
   playerName: string
 }
 
+type PreparedCourtText = {
+  key: string
+  playerName: string
+  href: string
+  body: string
+}
+
 type LineupSlot = CaptainLineupSlot
 
 type SuggestedSwapDraft = {
@@ -1338,6 +1345,8 @@ function LineupBuilderContent() {
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [askingCourtId, setAskingCourtId] = useState('')
+  const [preparedCourtTexts, setPreparedCourtTexts] = useState<Record<string, PreparedCourtText>>({})
+  const preparingCourtTextKeysRef = useRef(new Set<string>())
   const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(persistedDirectCourtTextHandoff)
   const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
@@ -2099,6 +2108,13 @@ function LineupBuilderContent() {
       !directCourtTextHandoff.openedPlayerKeys.includes(normalizeCaptainRosterContactKey(player.playerName))
     ) ?? null
   }, [directCourtTextHandoff])
+  const hasPreparedDirectCourtText = useMemo(() => {
+    if (!directCourtTextHandoff) return false
+    return Object.values(preparedCourtTexts).some((preparedText) =>
+      normalizeCaptainRosterContactKey(preparedText.playerName) ===
+      normalizeCaptainRosterContactKey(directCourtTextHandoff.players[0]?.playerName || ''),
+    )
+  }, [directCourtTextHandoff, preparedCourtTexts])
 
   const myAvailabilitySummary = useMemo(() => {
     let confirmed = 0
@@ -2500,8 +2516,20 @@ function LineupBuilderContent() {
         return { ...slot, players: nextPlayers }
       })
 
-    if (side === 'team') setTeamSlots((current) => update(current))
-    else setOpponentSlots((current) => update(current))
+    if (side === 'team') {
+      const nextSlots = update(teamSlots)
+      setTeamSlots(nextSlots)
+      const selectedSlot = nextSlots.find((slot) => slot.id === slotId)
+      const selectedPlayer = selectedSlot?.players[playerIndex]
+      if (selectedSlot && selectedPlayer?.playerId && selectedPlayer.playerName.trim()) {
+        // Persist the private reply link while the captain continues building.
+        // The later Ask control is a physical sms: link, so iOS receives it
+        // directly from that tap instead of cancelling an in-flight request.
+        void askProposedCourtPlayers(selectedSlot, selectedPlayer, { silent: true })
+      }
+    } else {
+      setOpponentSlots((current) => update(current))
+    }
   }
 
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
@@ -2776,7 +2804,39 @@ function LineupBuilderContent() {
     openNativeSmsHandoff(contact.phone, player.playerName, body)
   }
 
-  async function askProposedCourtPlayers(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
+  function getPreparedCourtTextKey(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
+    return [
+      normalizeTeamName(teamName),
+      normalizeTeamName(leagueName),
+      normalizeTeamName(flight),
+      matchDate,
+      slot.id,
+      invitedPlayer.playerId || normalizeCaptainRosterContactKey(invitedPlayer.playerName),
+    ].join(':')
+  }
+
+  function openPreparedCourtText(preparedText: PreparedCourtText) {
+    const playerKey = normalizeCaptainRosterContactKey(preparedText.playerName)
+    if (directCourtTextHandoff) {
+      saveDirectCourtTextHandoff({
+        ...directCourtTextHandoff,
+        openedPlayerKeys: Array.from(new Set([...directCourtTextHandoff.openedPlayerKeys, playerKey])),
+      })
+    }
+
+    setSmsFallback({ href: preparedText.href, playerName: preparedText.playerName })
+    const copied = prepareSmsBodyForNativeComposer(preparedText.body)
+    setError('')
+    setMessage(copied
+      ? `Messages is opening for ${preparedText.playerName}. Your TiQ reply link is copied—paste it into the text, then send.`
+      : `Messages is opening for ${preparedText.playerName}. If it does not open, use the Messages link above.`)
+  }
+
+  async function askProposedCourtPlayers(
+    slot: LineupSlot,
+    invitedPlayer: LineupSlot['players'][number],
+    options: { silent?: boolean } = {},
+  ) {
     if (!teamName || !matchDate) {
       setError('Choose the team and match before asking a player.')
       setMessage('')
@@ -2794,12 +2854,14 @@ function LineupBuilderContent() {
     const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
     const contact = directTextContactByName.get(playerKey)
     if (!contact?.phone?.trim()) {
+      if (options.silent) return
       setError(`Add a mobile number for ${invitedPlayer.playerName} before opening their private text.`)
       setMessage('')
       return
     }
 
     if (typeof window === 'undefined' || !window.crypto?.randomUUID) {
+      if (options.silent) return
       setError('This browser could not prepare a secure reply link. Please update your browser and try again.')
       setMessage('')
       return
@@ -2807,59 +2869,26 @@ function LineupBuilderContent() {
 
     const accessToken = session?.access_token
     if (!accessToken) {
+      if (options.silent) return
       setError('Sign in again before sending availability texts.')
       setMessage('')
       return
     }
 
+    const preparedKey = getPreparedCourtTextKey(slot, invitedPlayer)
+    if (preparedCourtTexts[preparedKey] || preparingCourtTextKeysRef.current.has(preparedKey)) return
+
+    preparingCourtTextKeysRef.current.add(preparedKey)
     setAskingCourtId(slot.id)
     setError('')
-    setMessage(`Opening a private availability text for ${invitedPlayer.playerName}...`)
-    const preservedTeamSlots = cloneSlots(teamSlots)
+    setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
+    const preservedTeamSlots = cloneSlots(teamSlots.map((currentSlot) =>
+      currentSlot.id === slot.id ? slot : currentSlot,
+    ))
     const preservedOpponentSlots = cloneSlots(opponentSlots)
     const responseToken = window.crypto.randomUUID()
-    const requestUrl = `${window.location.origin}/availability/${encodeURIComponent(responseToken)}`
-    const directTextHandoff: CaptainDirectCourtTextHandoff = {
-      version: 1,
-      courtId: slot.id,
-      courtLabel: slot.label,
-      requestId: '',
-      match: {
-        date: matchDate,
-        time: selectedMatch?.match_time || '',
-        facility: selectedMatch?.facility || '',
-        opponent: opponentTeam,
-      },
-      slotsJson: [slot],
-      players: [{
-        playerId: invitedPlayer.playerId,
-        playerName: invitedPlayer.playerName,
-        requestUrl,
-      }],
-      openedPlayerKeys: [playerKey],
-      builderDraft: {
-        ...currentBuilderDraft,
-        teamSlots: preservedTeamSlots,
-        opponentSlots: preservedOpponentSlots,
-        updatedAt: new Date().toISOString(),
-      },
-    }
-    saveDirectCourtTextHandoff(directTextHandoff)
-
-    const body = buildPlayerPotentialLineupAvailabilityMessage({
-      playerName: invitedPlayer.playerName,
-      teamName,
-      opponent: opponentTeam,
-      dateText: formatDate(matchDate),
-      time: selectedMatch?.match_time || '',
-      facility: selectedMatch?.facility || '',
-      slotsJson: [slot],
-      availabilityRequestUrl: requestUrl,
-    })
-
-    // iOS only honors the Messages handoff while it is still part of the tap.
-    // Start the durable invite write first, then leave for Messages immediately.
-    void fetch('/api/captain/availability-requests', {
+    try {
+      const response = await fetch('/api/captain/availability-requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2883,20 +2912,73 @@ function LineupBuilderContent() {
           })),
           inviteMode: 'append',
         }),
-        keepalive: true,
       })
-      .then(async (response) => {
-        if (response.ok) return
-        const result = await response.json().catch(() => null) as { message?: string } | null
-        setError(result?.message || 'The private reply link could not be saved. Ask again when you return to TiQ.')
-      })
-      .catch(() => {
-        setError('The private reply link could not be saved. Ask again when you return to TiQ.')
-      })
-      .finally(() => setAskingCourtId(''))
+      const result = await response.json().catch(() => null) as {
+        message?: string
+        requestId?: string
+        playerRequestUrls?: Array<{ playerId?: string; playerName?: string; requestUrl?: string }>
+      } | null
+      if (!response.ok) throw new Error(result?.message || 'The private reply link could not be saved.')
 
-    void saveScenario(false, true)
-    openNativeSmsHandoff(contact.phone, invitedPlayer.playerName, body)
+      const requestUrl = result?.playerRequestUrls?.find((entry) =>
+        (entry.playerId && entry.playerId === invitedPlayer.playerId) ||
+        normalizeCaptainRosterContactKey(entry.playerName || '') === playerKey,
+      )?.requestUrl
+      if (!requestUrl) throw new Error('The private reply link was not returned. Please try again.')
+
+      const body = buildPlayerPotentialLineupAvailabilityMessage({
+        playerName: invitedPlayer.playerName,
+        teamName,
+        opponent: opponentTeam,
+        dateText: formatDate(matchDate),
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+        slotsJson: [slot],
+        availabilityRequestUrl: requestUrl,
+      })
+      const directTextHandoff: CaptainDirectCourtTextHandoff = {
+        version: 1,
+        courtId: slot.id,
+        courtLabel: slot.label,
+        requestId: result?.requestId || '',
+        match: {
+          date: matchDate,
+          time: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          opponent: opponentTeam,
+        },
+        slotsJson: [slot],
+        players: [{
+          playerId: invitedPlayer.playerId,
+          playerName: invitedPlayer.playerName,
+          requestUrl,
+        }],
+        openedPlayerKeys: [],
+        builderDraft: {
+          ...currentBuilderDraft,
+          teamSlots: preservedTeamSlots,
+          opponentSlots: preservedOpponentSlots,
+          updatedAt: new Date().toISOString(),
+        },
+      }
+      saveDirectCourtTextHandoff(directTextHandoff)
+      setPreparedCourtTexts((current) => ({
+        ...current,
+        [preparedKey]: {
+          key: preparedKey,
+          playerName: invitedPlayer.playerName,
+          href: buildSmsHref([contact.phone], body),
+          body,
+        },
+      }))
+      setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
+    } catch (caught) {
+      preparingCourtTextKeysRef.current.delete(preparedKey)
+      setError(caught instanceof Error ? caught.message : 'The private reply link could not be saved. Please try again.')
+      setMessage('')
+    } finally {
+      setAskingCourtId((current) => current === slot.id ? '' : current)
+    }
   }
 
   async function refreshSavedScenarios() {
@@ -4749,7 +4831,7 @@ function LineupBuilderContent() {
                 </div>
               ) : null}
 
-              {directCourtTextHandoff ? (
+              {directCourtTextHandoff && !hasPreparedDirectCourtText ? (
                 <div role="status" aria-live="polite" style={directCourtTextBannerStyle}>
                   <div style={directCourtTextCopyStyle}>
                     <p style={sectionKicker}>Private court check</p>
@@ -4806,6 +4888,8 @@ function LineupBuilderContent() {
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
                     onAskPlayers={askProposedCourtPlayers}
+                    getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
+                    onOpenPreparedCourtText={openPreparedCourtText}
                     askingPlayers={askingCourtId === slot.id}
                     focused={backupFocusSlot?.id === slot.id}
                   />
@@ -5387,6 +5471,8 @@ function SlotEditor({
   fixedFormat,
   competitionRules,
   onAskPlayers,
+  getPreparedCourtText,
+  onOpenPreparedCourtText,
   askingPlayers,
   focused = false,
 }: {
@@ -5406,6 +5492,8 @@ function SlotEditor({
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
   onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
+  getPreparedCourtText?: (slot: LineupSlot, player: LineupSlot['players'][number]) => PreparedCourtText | undefined
+  onOpenPreparedCourtText?: (preparedText: PreparedCourtText) => void
   askingPlayers: boolean
   focused?: boolean
 }) {
@@ -5519,13 +5607,29 @@ function SlotEditor({
 
       {side === 'team' && onAskPlayers && selectedPlayers.length ? (
         <div style={replacementHandoffActionsStyle}>
-          {selectedPlayers.map((player) => (
-            <GhostSmallBtn key={player.playerId || player.playerName} onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
-              {askingPlayers ? 'Preparing text...' : `Ask ${player.playerName.split(' ')[0]}`}
-            </GhostSmallBtn>
-          ))}
+          {selectedPlayers.map((player) => {
+            const preparedText = getPreparedCourtText?.(slot, player)
+            if (preparedText && onOpenPreparedCourtText) {
+              return (
+                <a
+                  key={player.playerId || player.playerName}
+                  href={preparedText.href}
+                  onClick={() => onOpenPreparedCourtText(preparedText)}
+                  style={smsFallbackLinkStyle}
+                >
+                  Ask {player.playerName.split(' ')[0]}
+                </a>
+              )
+            }
+
+            return (
+              <GhostSmallBtn key={player.playerId || player.playerName} onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers}>
+                {askingPlayers ? 'Preparing text...' : `Prepare ask for ${player.playerName.split(' ')[0]}`}
+              </GhostSmallBtn>
+            )
+          })}
           <span style={mutedTextStyle}>
-            Send one private court check at a time. Add a doubles partner first when you know it.
+            TiQ keeps the court selected while it prepares each private reply link. Add a doubles partner first when you know it.
           </span>
         </div>
       ) : null}
