@@ -2478,8 +2478,9 @@ function TeamPageContent() {
                 <div style={mobileRosterListStyle}>
                   {visibleRoster.map((player) => {
                     const selected = selectedRosterPlayerIds.includes(player.id)
-                    const singlesRating = player.singles_usta_dynamic_rating ?? player.singles_dynamic_rating
-                    const doublesRating = player.doubles_usta_dynamic_rating ?? player.doubles_dynamic_rating
+                    const singlesRating = player.singles_dynamic_rating ?? player.overall_dynamic_rating
+                    const doublesRating = player.doubles_dynamic_rating ?? player.overall_dynamic_rating
+                    const ustaRating = player.overall_usta_dynamic_rating ?? player.overall_rating
                     return (
                       <article key={player.id} style={mobileRosterCardStyle}>
                         <div style={mobileRosterHeaderStyle}>
@@ -2509,16 +2510,16 @@ function TeamPageContent() {
                         <div style={mobileRosterCompactRowStyle}>
                           <dl style={mobileRosterMetricGridStyle} aria-label={`${player.name} roster stats`}>
                             <div style={mobileRosterMetricStyle}>
-                              <dt style={mobileRosterMetricLabelStyle}>Singles</dt>
+                              <dt style={mobileRosterMetricLabelStyle}>TiQ singles</dt>
                               <dd style={mobileRosterMetricValueStyle}>{formatRating(singlesRating)}</dd>
                             </div>
                             <div style={mobileRosterMetricStyle}>
-                              <dt style={mobileRosterMetricLabelStyle}>Doubles</dt>
+                              <dt style={mobileRosterMetricLabelStyle}>TiQ doubles</dt>
                               <dd style={mobileRosterMetricValueStyle}>{formatRating(doublesRating)}</dd>
                             </div>
                             <div style={mobileRosterMetricStyle}>
-                              <dt style={mobileRosterMetricLabelStyle}>{player.appearances} played</dt>
-                              <dd style={mobileRosterMetricValueStyle}>{player.wins}-{player.losses}</dd>
+                              <dt style={mobileRosterMetricLabelStyle}>USTA</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(ustaRating)}</dd>
                             </div>
                           </dl>
                           {!player.id.startsWith('summary:') && showRosterTools && access.canUseAdvancedPlayerInsights ? (
@@ -2536,15 +2537,14 @@ function TeamPageContent() {
                 </div>
               ) : (
               <div style={tableWrap}>
-                <table style={{ ...dataTable, minWidth: 980 }}>
+                <table style={{ ...dataTable, minWidth: 900 }}>
                   <thead>
                     <tr>
                       <th style={tableHeaderCell}>Compare</th>
                       <th style={tableHeaderCell}>Player</th>
-                      <th style={tableHeaderCell}>S TIQ</th>
-                      <th style={tableHeaderCell}>S USTA</th>
-                      <th style={tableHeaderCell}>D TIQ</th>
-                      <th style={tableHeaderCell}>D USTA</th>
+                      <th style={tableHeaderCell}>S TiQ</th>
+                      <th style={tableHeaderCell}>D TiQ</th>
+                      <th style={tableHeaderCell}>USTA</th>
                       <th style={tableHeaderCell}>Appearances</th>
                       <th style={tableHeaderCell}>Record</th>
                       <th style={tableHeaderCell}>Actions</th>
@@ -2580,9 +2580,8 @@ function TeamPageContent() {
                           </div>
                         </td>
                         <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
-                        <td style={tableCell}>{formatRating(player.singles_usta_dynamic_rating)}</td>
                         <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
-                        <td style={tableCell}>{formatRating(player.doubles_usta_dynamic_rating)}</td>
+                        <td style={tableCell}>{formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)}</td>
                         <td style={tableCell}>{player.appearances}</td>
                         <td style={tableCell}>
                           {player.wins}-{player.losses}

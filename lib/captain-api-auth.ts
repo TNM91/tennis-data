@@ -7,7 +7,7 @@ import { normalizeSubscriptionStatus } from './subscription-status'
 import { supabaseKey, supabaseUrl } from './supabase'
 
 type CaptainApiAuth =
-  | { ok: true; supabase: SupabaseClient; userId: string }
+  | { ok: true; supabase: SupabaseClient; userId: string; isAdmin: boolean }
   | { ok: false; response: Response }
 
 type ProfileEntitlementRow = {
@@ -81,7 +81,7 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
     }
   }
 
-  return { ok: true, supabase, userId }
+  return { ok: true, supabase, userId, isAdmin: row.role === 'admin' }
 }
 
 function getBearerToken(request: Request) {
