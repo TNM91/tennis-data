@@ -50,6 +50,10 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('href={preparedText.href}')
     expect(source).toContain('onClick={() => onOpenPreparedCourtText(preparedText)}')
     expect(source).toContain('openNativeSmsHandoff(contact.phone, player.playerName, body)')
+    expect(source).toContain("const [openedCourtTextKeys, setOpenedCourtTextKeys] = useState<string[]>([])")
+    expect(source).toContain("? 'Asked · waiting' : 'Ask ready'")
+    expect(source).toContain('Waiting for player replies. TiQ is checking automatically while this Builder stays open.')
+    expect(source).toContain('window.setInterval(refreshPendingReplies, 20_000)')
   })
 
   it('refreshes player replies when the captain returns to the Builder', () => {

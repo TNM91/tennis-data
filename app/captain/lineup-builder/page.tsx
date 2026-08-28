@@ -165,6 +165,7 @@ type SlotPlayer = {
 
 type PreparedCourtText = {
   key: string
+  playerId: string
   playerName: string
   href: string
   body: string
@@ -1346,6 +1347,7 @@ function LineupBuilderContent() {
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
   const [askingCourtId, setAskingCourtId] = useState('')
   const [preparedCourtTexts, setPreparedCourtTexts] = useState<Record<string, PreparedCourtText>>({})
+  const [openedCourtTextKeys, setOpenedCourtTextKeys] = useState<string[]>([])
   const preparingCourtTextKeysRef = useRef(new Set<string>())
   const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(persistedDirectCourtTextHandoff)
   const [refreshingReplies, setRefreshingReplies] = useState(false)
@@ -1737,9 +1739,11 @@ function LineupBuilderContent() {
     setScopedRosterPlayerIds([...scopedIds])
   }, [teamName])
 
-  const refreshBuilderData = useCallback(async () => {
-    setError('')
-    setMessage('')
+  const refreshBuilderData = useCallback(async (quiet = false) => {
+    if (!quiet) {
+      setError('')
+      setMessage('')
+    }
     const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
     if (!accessToken) {
       setLoading(false)
@@ -1763,7 +1767,7 @@ function LineupBuilderContent() {
     if (snapshot) {
       applyBuilderPayload(snapshot.value)
       setLoading(false)
-      if (snapshot.stale) setMessage('Showing your saved lineup while live team data refreshes.')
+      if (snapshot.stale && !quiet) setMessage('Showing your saved lineup while live team data refreshes.')
     } else {
       setLoading(true)
     }
@@ -1782,7 +1786,7 @@ function LineupBuilderContent() {
     } catch {
       setLoading(false)
       if (snapshot) {
-        setMessage('Showing your saved lineup while live team data reconnects.')
+        if (!quiet) setMessage('Showing your saved lineup while live team data reconnects.')
       } else {
         setError('Your lineup data could not be reached. Please try again.')
       }
@@ -1814,7 +1818,7 @@ function LineupBuilderContent() {
     if (primaryError) {
       futureJwtRefreshAttemptedRef.current = 0
       setRecoveringSecureSession(false)
-      setError(primaryError)
+      if (!quiet || !snapshot) setError(primaryError)
     } else {
       futureJwtRefreshAttemptedRef.current = 0
       setRecoveringSecureSession(false)
@@ -1840,7 +1844,7 @@ function LineupBuilderContent() {
     if (refreshingReplies) return
     setRefreshingReplies(true)
     if (!quiet) setMessage('Refreshing player replies...')
-    const loaded = await refreshBuilderData()
+    const loaded = await refreshBuilderData(quiet)
     if (loaded && !quiet) setMessage('Player replies are up to date.')
     setRefreshingReplies(false)
   }, [refreshBuilderData, refreshingReplies])
@@ -1978,6 +1982,28 @@ function LineupBuilderContent() {
     }
     return map
   }, [availabilityForSelection])
+  const openedCourtTextKeySet = useMemo(() => new Set(openedCourtTextKeys), [openedCourtTextKeys])
+  const hasPendingCourtReplies = useMemo(() => Object.values(preparedCourtTexts).some((preparedText) => (
+    openedCourtTextKeySet.has(preparedText.key) &&
+    availabilityLabel(availabilityMap.get(preparedText.playerId)?.status) === 'No response'
+  )), [availabilityMap, openedCourtTextKeySet, preparedCourtTexts])
+
+  useEffect(() => {
+    setPreparedCourtTexts({})
+    setOpenedCourtTextKeys([])
+    preparingCourtTextKeysRef.current.clear()
+  }, [flight, leagueName, matchDate, teamName])
+
+  useEffect(() => {
+    if (!hasPendingCourtReplies || !authResolved || role === 'public' || typeof window === 'undefined') return
+
+    const refreshPendingReplies = () => {
+      if (document.visibilityState === 'hidden') return
+      void refreshAvailabilityReplies(true)
+    }
+    const interval = window.setInterval(refreshPendingReplies, 20_000)
+    return () => window.clearInterval(interval)
+  }, [authResolved, hasPendingCourtReplies, refreshAvailabilityReplies, role])
 
   const teamRoomReplyCounts = useMemo(() => {
     if (initialContext.source !== 'team_room') return null
@@ -2817,6 +2843,7 @@ function LineupBuilderContent() {
 
   function openPreparedCourtText(preparedText: PreparedCourtText) {
     const playerKey = normalizeCaptainRosterContactKey(preparedText.playerName)
+    setOpenedCourtTextKeys((current) => Array.from(new Set([...current, preparedText.key])))
     if (directCourtTextHandoff) {
       saveDirectCourtTextHandoff({
         ...directCourtTextHandoff,
@@ -2966,6 +2993,7 @@ function LineupBuilderContent() {
         ...current,
         [preparedKey]: {
           key: preparedKey,
+          playerId: invitedPlayer.playerId,
           playerName: invitedPlayer.playerName,
           href: buildSmsHref([contact.phone], body),
           body,
@@ -4831,6 +4859,12 @@ function LineupBuilderContent() {
                 </div>
               ) : null}
 
+              {hasPendingCourtReplies ? (
+                <div role="status" aria-live="polite" style={bannerBlueStyle}>
+                  Waiting for player replies. TiQ is checking automatically while this Builder stays open.
+                </div>
+              ) : null}
+
               {directCourtTextHandoff && !hasPreparedDirectCourtText ? (
                 <div role="status" aria-live="polite" style={directCourtTextBannerStyle}>
                   <div style={directCourtTextCopyStyle}>
@@ -4890,6 +4924,7 @@ function LineupBuilderContent() {
                     onAskPlayers={askProposedCourtPlayers}
                     getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
                     onOpenPreparedCourtText={openPreparedCourtText}
+                    openedCourtTextKeys={openedCourtTextKeySet}
                     askingPlayers={askingCourtId === slot.id}
                     focused={backupFocusSlot?.id === slot.id}
                   />
@@ -5473,6 +5508,7 @@ function SlotEditor({
   onAskPlayers,
   getPreparedCourtText,
   onOpenPreparedCourtText,
+  openedCourtTextKeys,
   askingPlayers,
   focused = false,
 }: {
@@ -5494,6 +5530,7 @@ function SlotEditor({
   onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
   getPreparedCourtText?: (slot: LineupSlot, player: LineupSlot['players'][number]) => PreparedCourtText | undefined
   onOpenPreparedCourtText?: (preparedText: PreparedCourtText) => void
+  openedCourtTextKeys?: Set<string>
   askingPlayers: boolean
   focused?: boolean
 }) {
@@ -5545,6 +5582,16 @@ function SlotEditor({
               : undefined
           const isAutoLocked = autoLockedPlayerIds.has(player.playerId)
           const isConfirmedReleased = selectedReplyLabel === 'Confirmed' && releasedConfirmedPlayerIds.has(player.playerId)
+          const preparedCourtText = side === 'team' && player.playerId
+            ? getPreparedCourtText?.(slot, player)
+            : undefined
+          const courtTextStatus = selectedReplyLabel === 'Confirmed'
+            ? 'Confirmed'
+            : selectedReplyLabel === 'Out'
+              ? 'Out'
+              : preparedCourtText
+                ? openedCourtTextKeys?.has(preparedCourtText.key) ? 'Asked · waiting' : 'Ask ready'
+                : askingPlayers ? 'Preparing ask' : ''
 
           return (
             <div
@@ -5581,6 +5628,14 @@ function SlotEditor({
                 <div style={slotPlayerActionRowStyle}>
                   {selectedReplyLabel === 'Confirmed' ? <span style={selectedPlayerInPillStyle}>In</span> : null}
                   {selectedReplyLabel === 'Out' ? <span style={selectedPlayerOutPillStyle}>Out</span> : null}
+                  {courtTextStatus && selectedReplyLabel !== 'Confirmed' && selectedReplyLabel !== 'Out' ? (
+                    <span style={preparedCourtText && openedCourtTextKeys?.has(preparedCourtText.key)
+                      ? courtAskWaitingPillStyle
+                      : courtAskReadyPillStyle}
+                    >
+                      {courtTextStatus}
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     aria-pressed={lockedPlayerIds.has(player.playerId)}
@@ -7109,6 +7164,19 @@ const selectedPlayerOutPillStyle: CSSProperties = {
   background: 'rgba(251, 113, 133, 0.14)',
   color: '#fecdd3',
   border: '1px solid rgba(251, 113, 133, 0.66)',
+}
+
+const courtAskReadyPillStyle: CSSProperties = {
+  ...miniPillBlueStyle,
+  minHeight: 32,
+  fontSize: 11,
+}
+
+const courtAskWaitingPillStyle: CSSProperties = {
+  ...miniPillGreenStyle,
+  minHeight: 32,
+  fontSize: 11,
+  border: '1px solid rgba(155, 225, 29, 0.54)',
 }
 
 const badgeGreen: CSSProperties = { ...miniPillGreenStyle }
