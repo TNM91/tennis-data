@@ -35,14 +35,19 @@ describe('Captain guided availability texting', () => {
     expect(source).not.toContain('open={Boolean(availabilityHandoff && missingPotentialLineupNames.length) || undefined}')
   })
 
-  it('opens a private court text in the same tap while its one-tap reply link saves in the background', () => {
+  it('prepares a durable private court text before exposing a native Messages tap in the Builder', () => {
     const builderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
 
+    expect(builderSource).toContain("const [preparedCourtTexts, setPreparedCourtTexts] = useState<Record<string, PreparedCourtText>>({})")
+    expect(builderSource).toContain('const preparedKey = getPreparedCourtTextKey(slot, invitedPlayer)')
     expect(builderSource).toContain('const responseToken = window.crypto.randomUUID()')
-    expect(builderSource).toContain('keepalive: true')
-    expect(builderSource).toContain('function openNativeSmsHandoff(contactPhone: string, playerName: string, body: string)')
+    expect(builderSource).toContain("const response = await fetch('/api/captain/availability-requests'")
+    expect(builderSource).toContain('const requestUrl = result?.playerRequestUrls?.find')
     expect(builderSource).toContain('prepareSmsBodyForNativeComposer(body)')
-    expect(builderSource).toContain('window.location.href = href')
+    expect(builderSource).toContain('function openPreparedCourtText(preparedText: PreparedCourtText)')
+    expect(builderSource).toContain('href={preparedText.href}')
+    expect(builderSource).toContain('onClick={() => onOpenPreparedCourtText(preparedText)}')
+    expect(builderSource).not.toContain('keepalive: true')
     expect(builderSource).toContain('href={smsFallback.href}')
     expect(builderSource).toContain('Open Messages for')
     expect(builderSource).toContain("responseToken: player.playerId === invitedPlayer.playerId")
