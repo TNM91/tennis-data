@@ -12,7 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -1252,33 +1252,9 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
   return bannerBlueStyle
 }
 
-function readInitialLineupBuilderContext(userId?: string | null) {
-  if (typeof window === 'undefined') {
-    return {
-      hasExplicitRouteScope: false,
-      competitionLayer: '',
-      team: '',
-      league: '',
-      flight: '',
-      eventDate: '',
-      opponentTeam: '',
-      matchId: '',
-      scenario: '',
-      pairIds: [] as string[],
-      singleId: '',
-      matchFormat: 'auto' as const,
-      replacePlayer: '',
-      replacementPlayer: '',
-      replacementPlayerId: '',
-      replacementCourt: '',
-      mode: '',
-      source: '',
-      availabilityOnly: false,
-    }
-  }
-
-  const params = new URLSearchParams(window.location.search)
-  const resumeState = readCaptainResumeState(userId)
+function readInitialLineupBuilderContext(routeSearch: string, userId?: string | null) {
+  const params = new URLSearchParams(routeSearch)
+  const resumeState = typeof window === 'undefined' ? null : readCaptainResumeState(userId)
   const matchContext = resolveCaptainMatchContext(params)
   const hasExplicitRouteScope = hasExplicitCaptainRouteScope(params)
 
@@ -1306,9 +1282,15 @@ function readInitialLineupBuilderContext(userId?: string | null) {
 }
 
 export default function LineupBuilderPage() {
+  const searchParams = useSearchParams()
+  const routeSearch = searchParams.toString()
+  const builderContextKey = hasExplicitCaptainRouteScope(new URLSearchParams(routeSearch))
+    ? `captain-scope:${routeSearch}`
+    : 'captain-resume'
+
   return (
     <SiteShell active="/captain">
-      <LineupBuilderContent />
+      <LineupBuilderContent key={builderContextKey} routeSearch={routeSearch} />
     </SiteShell>
   )
 }
@@ -1324,10 +1306,10 @@ function isFutureJwtError(message: string | null | undefined) {
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 const MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2
 
-function LineupBuilderContent() {
+function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
-  const initialContext = readInitialLineupBuilderContext(userId)
+  const initialContext = readInitialLineupBuilderContext(routeSearch, userId)
   const persistedDirectCourtTextHandoff = typeof window === 'undefined'
     ? null
     : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
