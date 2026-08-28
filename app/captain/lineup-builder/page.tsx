@@ -1458,7 +1458,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       (!normalizedFlight || !record.flight || normalizeTeamName(record.flight) === normalizedFlight)
     ) || null
   }, [flight, leagueName, tiqTeamLeagueFormats])
-  const storedTiqMatchFormatId = storedTiqLeagueFormat?.team_match_format_id || ''
+  // A TiQ League Coordinator can explicitly configure a TiQ league's court
+  // format. That configuration must never replace the format supplied by a
+  // connected USTA league such as Tri-Level, Mixed, or Combo.
+  const isTiqLeagueContext = competitionLayer === 'tiq'
+  const storedTiqMatchFormatId = isTiqLeagueContext
+    ? storedTiqLeagueFormat?.team_match_format_id || ''
+    : ''
   const effectiveMatchFormatId = selectedMatchFormatId === 'auto'
     ? storedTiqMatchFormatId || 'auto'
     : selectedMatchFormatId
@@ -1472,9 +1478,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       flight,
       explicitFormatId: effectiveMatchFormatId,
       competitionLayer,
-      rulesOverride: normalizeTeamCompetitionRulesOverride(storedTiqLeagueFormat?.competition_rules),
+      rulesOverride: isTiqLeagueContext
+        ? normalizeTeamCompetitionRulesOverride(storedTiqLeagueFormat?.competition_rules)
+        : undefined,
     }),
-    [competitionLayer, effectiveMatchFormatId, flight, leagueName, storedTiqLeagueFormat?.competition_rules],
+    [competitionLayer, effectiveMatchFormatId, flight, isTiqLeagueContext, leagueName, storedTiqLeagueFormat?.competition_rules],
   )
   const matchFormatSummary = useMemo(() => getTeamMatchFormatSummary(resolvedMatchFormat), [resolvedMatchFormat])
   const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
