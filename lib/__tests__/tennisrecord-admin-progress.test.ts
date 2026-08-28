@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
+const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8').replace(/\r\n/g, '\n')
 const adminPage = read('app/admin/tennisrecord/page.tsx')
 const adminRoute = read('app/api/admin/tennisrecord/route.ts')
 const adminHome = read('app/admin/page.tsx')

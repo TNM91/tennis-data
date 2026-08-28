@@ -70,16 +70,15 @@ describe('team detail week path', () => {
     expect(source).toContain('{!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (')
   })
 
-  it('renders a purpose-built phone roster instead of compressing nine table columns', () => {
-    const mobileRosterStart = source.indexOf('style={mobileRosterListStyle}')
-    const mobileRosterEnd = source.indexOf('<div style={tableWrap}>', mobileRosterStart)
-    const mobileRosterBlock = source.slice(mobileRosterStart, mobileRosterEnd)
+  it('renders responsive roster cards instead of compressing nine table columns', () => {
+    const rosterStart = source.indexOf('style={dynamicRosterGrid}')
+    const rosterEnd = source.indexOf('{filteredRoster.length > mobileRosterPreviewLimit ? (', rosterStart)
+    const rosterBlock = source.slice(rosterStart, rosterEnd)
 
-    expect(source).toContain('style={mobileRosterListStyle}')
+    expect(source).toContain('style={dynamicRosterGrid}')
     expect(source).toContain('style={mobileRosterCardStyle}')
     expect(source).toContain('style={mobileRosterCompactRowStyle}')
-    expect(source).toContain('style={mobileRosterMetricGridStyle}')
-    expect(source).toContain('style={mobileRosterMatchupLink}')
+    expect(source).toContain('style={dynamicRosterMetricGrid}')
     expect(source).toContain('const showRosterFilters = !isMobile || hasRosterParticipationSplit')
     expect(source).toContain('{showRosterFilters && showRosterTools ? (')
     expect(source).toContain('{showRosterTools && selectedRosterPlayerIds.length > 0 ? <div style={rosterCompareTray}>')
@@ -91,9 +90,9 @@ describe('team detail week path', () => {
     expect(styleBlock('rosterFilterButton')).toContain("minHeight: '44px'")
     expect(styleBlock('rosterSelectButton')).toContain("minHeight: '44px'")
     expect(styleBlock('rosterActionLink')).toContain("minHeight: '44px'")
-    expect(mobileRosterBlock).not.toContain('>Profile</Link>')
-    expect(mobileRosterBlock).not.toContain('>Availability</Link>')
-    expect(mobileRosterBlock).not.toContain('>Lineup</Link>')
+    expect(rosterBlock).toContain('>Profile</Link>')
+    expect(rosterBlock).toContain('>Team chat</Link>')
+    expect(rosterBlock).toContain('Text {contact.phone}')
   })
 
   it('keeps long team detail tables short by default with user-opened detail', () => {
@@ -128,7 +127,7 @@ describe('team detail week path', () => {
 
   it('does not render empty analysis sections before the team has usable data', () => {
     expect(source).toContain('{tiqParticipations.length || tiqParticipationWarning ? (')
-    expect(source).toContain('{roster.length || bestSingles.length || pairings.length ? (')
+    expect(source).toContain('{roster.length || (isDoublesOnlyTeam ? bestDoubles.length : bestSingles.length) || pairings.length ? (')
     expect(source).toContain('{matches.length ? (')
     expect(source).toContain('{roster.length ? (')
     expect(source).not.toContain('<span style={metricLabel}>Imported Scorecards</span>')

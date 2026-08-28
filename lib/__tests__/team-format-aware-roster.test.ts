@@ -1,0 +1,24 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
+
+describe('team format-aware roster', () => {
+  it('uses the registered match format before presenting discipline-specific team insights', () => {
+    expect(source).toContain("from '@/lib/competition-format-registry'")
+    expect(source).toContain('const isDoublesOnlyTeam = teamFormatSummary.singles === 0 && teamFormatSummary.doubles > 0')
+    expect(source).toContain("isDoublesOnlyTeam ? 'Doubles Core' : 'Singles Core'")
+    expect(source).toContain("isDoublesOnlyTeam ? 'Top Doubles Options' : 'Top Singles Options'")
+    expect(source).toContain('!isDoublesOnlyTeam && bestDoubles.length')
+    expect(source).toContain("if (!isDoublesOnlyTeam) options.push({ key: 'singles'")
+  })
+
+  it('makes the roster a captain-safe team people hub with private contact actions', () => {
+    expect(source).toContain("from '@/lib/captain-roster-contacts'")
+    expect(source).toContain('const teamContactsHref =')
+    expect(source).toContain('private captain contacts saved for this team')
+    expect(source).toContain('Text {contact.phone}')
+    expect(source).toContain('TiQ Team Chat')
+  })
+})
