@@ -2480,7 +2480,7 @@ function TeamPageContent() {
                     const selected = selectedRosterPlayerIds.includes(player.id)
                     const singlesRating = player.singles_dynamic_rating ?? player.overall_dynamic_rating
                     const doublesRating = player.doubles_dynamic_rating ?? player.overall_dynamic_rating
-                    const ustaRating = player.overall_usta_dynamic_rating ?? player.overall_rating
+                    const ustaRating = player.overall_rating
                     return (
                       <article key={player.id} style={mobileRosterCardStyle}>
                         <div style={mobileRosterHeaderStyle}>
@@ -2581,7 +2581,7 @@ function TeamPageContent() {
                         </td>
                         <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
                         <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
-                        <td style={tableCell}>{formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)}</td>
+                        <td style={tableCell}>{formatRating(player.overall_rating)}</td>
                         <td style={tableCell}>{player.appearances}</td>
                         <td style={tableCell}>
                           {player.wins}-{player.losses}

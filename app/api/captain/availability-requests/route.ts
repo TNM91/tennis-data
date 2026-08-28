@@ -213,13 +213,40 @@ export async function POST(request: Request) {
     invited_players_json: Array<{ playerId?: string; playerName?: string }> | null
   } | undefined
   const appendInvites = body.inviteMode === 'append'
+  const existingInviteTokens = new Map<string, string>()
+  if (appendInvites && existing?.id) {
+    const { data: existingInviteRows, error: existingInviteError } = await service
+      .from('captain_availability_request_invites')
+      .select('player_id,player_name,response_token')
+      .eq('request_id', existing.id)
+
+    if (existingInviteError) {
+      console.error('[api/captain/availability-requests] existing invite read failed', {
+        durationMs: Date.now() - startedAt,
+        userId: auth.userId,
+        requestId: existing.id,
+        message: existingInviteError.message,
+      })
+      return Response.json({ ok: false, message: 'TiQ could not reopen the saved player asks. Please try again in a moment.' }, { status: 500 })
+    }
+
+    for (const invite of existingInviteRows ?? []) {
+      const key = `${cleanAvailabilityText(invite.player_id, 80)}:${cleanAvailabilityText(invite.player_name).toLowerCase()}`
+      if (isUuid(invite.response_token)) existingInviteTokens.set(key, invite.response_token)
+    }
+  }
+
   const existingInvites = appendInvites && Array.isArray(existing?.invited_players_json)
     ? existing.invited_players_json
-      .map((player) => ({
-        playerId: cleanAvailabilityText(player.playerId, 80),
-        playerName: cleanAvailabilityText(player.playerName),
-        responseToken: '',
-      }))
+      .map((player) => {
+        const playerId = cleanAvailabilityText(player.playerId, 80)
+        const playerName = cleanAvailabilityText(player.playerName)
+        return {
+          playerId,
+          playerName,
+          responseToken: existingInviteTokens.get(`${playerId}:${playerName.toLowerCase()}`) || randomUUID(),
+        }
+      })
       .filter((player) => player.playerName)
     : []
   const requestInvitedPlayers = Array.from(
@@ -227,7 +254,12 @@ export async function POST(request: Request) {
       `${player.playerId || ''}:${player.playerName.toLowerCase()}`,
       player,
     ])).values()
-  )
+  ).map((player) => ({
+    ...player,
+    // Existing request JSON from an earlier build can lack a response token.
+    // The final row normalization protects appends as well as brand-new asks.
+    responseToken: isUuid(player.responseToken) ? player.responseToken : randomUUID(),
+  }))
   const payload = {
     created_by: auth.userId,
     scenario_id: isUuid(scenarioId) ? scenarioId : null,
@@ -272,7 +304,7 @@ export async function POST(request: Request) {
     request_id: requestId,
     player_id: isUuid(player.playerId) ? player.playerId : null,
     player_name: player.playerName,
-    ...(player.responseToken ? { response_token: player.responseToken } : {}),
+    response_token: player.responseToken,
     updated_at: new Date().toISOString(),
   }))
   const { error: inviteError } = await service
