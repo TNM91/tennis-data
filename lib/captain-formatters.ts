@@ -113,14 +113,51 @@ export function formatPhone(phone: string) {
   return phone
 }
 
-export function getSmsBodySeparator(userAgent?: string) {
+export function isAppleSmsComposer(userAgent?: string) {
   const resolvedUserAgent = userAgent ?? (typeof navigator === 'undefined' ? '' : navigator.userAgent)
-  return /iPad|iPhone|iPod/i.test(resolvedUserAgent) ? '&' : '?'
+  return /iPad|iPhone|iPod/i.test(resolvedUserAgent)
+}
+
+export function getSmsBodySeparator(userAgent?: string) {
+  return isAppleSmsComposer(userAgent) ? '' : '?'
+}
+
+/**
+ * Apple documents sms:NUMBER as the supported web handoff and explicitly
+ * excludes message text from the URL. Copy the TiQ message during the same
+ * trusted tap so iPhone users can paste it after Messages opens.
+ */
+export function prepareSmsBodyForNativeComposer(body: string, userAgent?: string) {
+  if (!body.trim() || !isAppleSmsComposer(userAgent)) {
+    return false
+  }
+
+  if (typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea')
+    textarea.value = body.trim()
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.append(textarea)
+    textarea.select()
+    const copied = document.execCommand('copy')
+    textarea.remove()
+    if (copied) return true
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(body.trim()).catch(() => undefined)
+    return true
+  }
+
+  return false
 }
 
 export function buildSmsHref(recipients: string[], body: string, userAgent?: string) {
   const address = recipients.map(cleanPhone).filter(Boolean).join(',')
-  const query = body.trim() ? `${getSmsBodySeparator(userAgent)}body=${encodeURIComponent(body.trim())}` : ''
+  const query = body.trim() && !isAppleSmsComposer(userAgent)
+    ? `${getSmsBodySeparator(userAgent)}body=${encodeURIComponent(body.trim())}`
+    : ''
   return `sms:${address}${query}`
 }
 

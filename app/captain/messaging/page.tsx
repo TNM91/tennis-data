@@ -32,6 +32,7 @@ import {
   pickNullableString,
   formatPhone,
   buildSmsHref,
+  prepareSmsBodyForNativeComposer,
   cleanText,
   safeKey,
   readLocalArray as readLocal,
@@ -2191,7 +2192,8 @@ function CaptainMessagingContent() {
 
     const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
     const nextContacts = [...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name))
-    const smsHref = buildSmsHref([phone], buildPotentialPlayerMessage(playerName))
+    const potentialMessage = buildPotentialPlayerMessage(playerName)
+    const smsHref = buildSmsHref([phone], potentialMessage)
 
     setError(null)
     setSavingInlinePhoneKey(playerKey)
@@ -2204,7 +2206,8 @@ function CaptainMessagingContent() {
     markPotentialPlayerTextOpened(playerKey)
 
     if (typeof window !== 'undefined') {
-      window.location.assign(smsHref)
+      prepareSmsBodyForNativeComposer(potentialMessage)
+      window.location.href = smsHref
     }
 
     await contactSave
@@ -2832,7 +2835,10 @@ function importScenarioToLineup() {
                     [nextPotentialTextTarget.contact.phone],
                     buildPotentialPlayerMessage(nextPotentialTextTarget.playerName)
                   )}
-                  onClick={() => markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)}
+                  onClick={() => {
+                    prepareSmsBodyForNativeComposer(buildPotentialPlayerMessage(nextPotentialTextTarget.playerName))
+                    markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)
+                  }}
                   style={primaryButtonBlock}
                 >
                   Text next: {nextPotentialTextTarget.playerName.split(' ')[0]}
@@ -2887,7 +2893,10 @@ function importScenarioToLineup() {
                     {canText && contact ? (
                       <a
                         href={buildSmsHref([contact.phone], privateMessage)}
-                        onClick={() => markPotentialPlayerTextOpened(playerKey)}
+                        onClick={() => {
+                          prepareSmsBodyForNativeComposer(privateMessage)
+                          markPotentialPlayerTextOpened(playerKey)
+                        }}
                         style={primaryButtonBlock}
                       >
                         {openedPotentialPlayerKeySet.has(playerKey) ? 'Text again' : `Text ${playerName.split(' ')[0]}`}
@@ -4452,7 +4461,7 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.') } }}>Open texts</a>
+                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
                       <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>
