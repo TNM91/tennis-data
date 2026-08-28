@@ -46,11 +46,15 @@ describe('Captain guided availability texting', () => {
     expect(builderSource).toContain('prepareSmsBodyForNativeComposer(body)')
     expect(builderSource).toContain('function openPreparedCourtText(preparedText: PreparedCourtText)')
     expect(builderSource).toContain('href={preparedText.href}')
-    expect(builderSource).toContain('onClick={() => onOpenPreparedCourtText(preparedText)}')
+    expect(builderSource).toContain('event.preventDefault()')
+    expect(builderSource).toContain('openNativeSmsHandoff(preparedText.phone, preparedText.playerName, preparedText.body)')
     expect(builderSource).not.toContain('keepalive: true')
     expect(builderSource).toContain('href={smsFallback.href}')
     expect(builderSource).toContain('Open Messages for')
     expect(builderSource).toContain("responseToken: player.playerId === invitedPlayer.playerId")
+    expect(builderSource).toContain('const { data: sessionData } = await supabase.auth.getSession()')
+    expect(builderSource).toContain('Draft restoration should be just as ready to text as a fresh player')
+    expect(builderSource).toContain('void askProposedCourtPlayers(slot, player, { silent: true })')
   })
 
   it('records structured availability request lifecycle logs for production diagnosis', () => {
