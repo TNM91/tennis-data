@@ -10,5 +10,7 @@ describe('My Teams lineup handoff', () => {
     expect(page).toContain("const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', {")
     expect(page).toContain('team: group.teamName')
     expect(page).toContain('competitionLayer,')
+    expect(page).toContain("const competitionLayer = group.connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta'")
+    expect(page).not.toContain("group.connection.sourceType === 'tiq_entry' || group.tiqLeagues.length > 0")
   })
 })

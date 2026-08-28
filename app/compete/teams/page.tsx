@@ -296,7 +296,10 @@ function CompeteTeamsContent() {
         ) : (
           <div style={listStyle}>
             {groupedTeams.map((group) => {
-              const competitionLayer = group.connection.sourceType === 'tiq_entry' || group.tiqLeagues.length > 0 ? 'tiq' : 'usta'
+              // A connected USTA team can also participate in TiQ features.
+              // Its Builder handoff must retain the connection's source so a
+              // TiQ participation record cannot relabel a USTA Tri-Level team.
+              const competitionLayer = group.connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta'
               const teamPageHref = buildTeamProfileHref(group.teamName, {
                 layer: competitionLayer,
                 league: group.sourceLeagueName,
