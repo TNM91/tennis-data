@@ -32,7 +32,7 @@ import { readCaptainWeekStatus } from '@/lib/captain-week-status'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -2757,7 +2757,10 @@ function LineupBuilderContent() {
       slotsJson: activeHandoff.slotsJson,
       availabilityRequestUrl: player.requestUrl,
     })
-    window.location.assign(buildSmsHref([contact.phone], body))
+    if (prepareSmsBodyForNativeComposer(body)) {
+      setMessage('Messages opened. TiQ availability text copied—paste it to send.')
+    }
+    window.location.href = buildSmsHref([contact.phone], body)
   }
 
   async function askProposedCourtPlayers(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
@@ -2880,7 +2883,10 @@ function LineupBuilderContent() {
       .finally(() => setAskingCourtId(''))
 
     void saveScenario(false, true)
-    window.location.assign(buildSmsHref([contact.phone], body))
+    if (prepareSmsBodyForNativeComposer(body)) {
+      setMessage('Messages opened. TiQ availability text copied—paste it to send.')
+    }
+    window.location.href = buildSmsHref([contact.phone], body)
   }
 
   async function refreshSavedScenarios() {

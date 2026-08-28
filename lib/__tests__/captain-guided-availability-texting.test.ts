@@ -28,8 +28,9 @@ describe('Captain guided availability texting', () => {
     expect(source).toContain('type="tel"')
     expect(source).toContain("{savingInlinePhoneKey === playerKey ? 'Saving...' : 'Save & text'}")
     expect(source).toContain('const contactSave = saveContacts(nextContacts)')
-    expect(source).toContain('window.location.assign(smsHref)')
-    expect(source.indexOf('window.location.assign(smsHref)')).toBeLessThan(source.indexOf('await contactSave'))
+    expect(source).toContain('prepareSmsBodyForNativeComposer(potentialMessage)')
+    expect(source).toContain('window.location.href = smsHref')
+    expect(source.indexOf('window.location.href = smsHref')).toBeLessThan(source.indexOf('await contactSave'))
     expect(source).toContain("opt_in_text: true")
     expect(source).not.toContain('open={Boolean(availabilityHandoff && missingPotentialLineupNames.length) || undefined}')
   })
@@ -39,8 +40,17 @@ describe('Captain guided availability texting', () => {
 
     expect(builderSource).toContain('const responseToken = window.crypto.randomUUID()')
     expect(builderSource).toContain('keepalive: true')
-    expect(builderSource).toContain('window.location.assign(buildSmsHref([contact.phone], body))')
+    expect(builderSource).toContain('prepareSmsBodyForNativeComposer(body)')
+    expect(builderSource).toContain('window.location.href = buildSmsHref([contact.phone], body)')
     expect(builderSource).toContain("responseToken: player.playerId === invitedPlayer.playerId")
+  })
+
+  it('records structured availability request lifecycle logs for production diagnosis', () => {
+    const routeSource = readFileSync(join(process.cwd(), 'app/api/captain/availability-requests/route.ts'), 'utf8')
+
+    expect(routeSource).toContain("[api/captain/availability-requests] incoming")
+    expect(routeSource).toContain("[api/captain/availability-requests] created")
+    expect(routeSource).toContain("[api/captain/availability-requests] invite upsert failed")
   })
 
   it('keeps the queue and inline form within mobile width', () => {
