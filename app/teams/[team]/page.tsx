@@ -78,7 +78,7 @@ type LineMatch = {
 }
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
-type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles'
+type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
 type TeamActivityFilter = 'all' | 'upcoming' | 'results'
 
 type Player = {
@@ -386,7 +386,7 @@ function TeamPageContent() {
       setActivityFilter(nextActivity)
     }
     const nextRoster = query.get('roster')
-    if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'all') {
+    if (nextRoster === 'played' || nextRoster === 'roster-only' || nextRoster === 'singles' || nextRoster === 'doubles' || nextRoster === 'needs-mobile' || nextRoster === 'all') {
       setRosterFilter(nextRoster)
     }
     setDetailReady(true)
@@ -1149,65 +1149,6 @@ function TeamPageContent() {
       .slice(0, 6)
   }, [roster])
 
-  useEffect(() => {
-    if (isDoublesOnlyTeam && rosterFilter === 'singles') {
-      setRosterFilter('all')
-    }
-  }, [isDoublesOnlyTeam, rosterFilter])
-
-  const activeRosterFilter: RosterFilter = isDoublesOnlyTeam && rosterFilter === 'singles'
-    ? 'all'
-    : rosterFilter
-
-  const filteredRoster = useMemo(() => {
-    const searchTerm = cleanText(rosterSearch).toLowerCase()
-    const nextRoster = roster.filter((player) => {
-      if (searchTerm && !player.name.toLowerCase().includes(searchTerm)) return false
-      if (activeRosterFilter === 'played') return player.appearances > 0
-      if (activeRosterFilter === 'roster-only') return player.appearances === 0
-      return true
-    })
-
-    if (activeRosterFilter === 'singles') {
-      return [...nextRoster].sort((a, b) => {
-        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        if (right !== left) return right - left
-        return a.name.localeCompare(b.name)
-      })
-    }
-
-    if (activeRosterFilter === 'doubles') {
-      return [...nextRoster].sort((a, b) => {
-        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
-        if (right !== left) return right - left
-        return a.name.localeCompare(b.name)
-      })
-    }
-
-    return nextRoster
-  }, [activeRosterFilter, roster, rosterSearch])
-  const mobileRosterPreviewLimit = isMobile ? 4 : 12
-  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
-
-  const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => {
-    const options: Array<{ key: RosterFilter; label: string; count: number }> = [
-      { key: 'all', label: 'All', count: roster.length },
-      { key: 'played', label: 'Played', count: roster.filter((player) => player.appearances > 0).length },
-      { key: 'roster-only', label: 'Roster only', count: roster.filter((player) => player.appearances === 0).length },
-    ]
-    if (!isDoublesOnlyTeam) options.push({ key: 'singles', label: 'Singles options', count: roster.length })
-    options.push({ key: 'doubles', label: 'Doubles options', count: roster.length })
-    return options
-  }, [isDoublesOnlyTeam, roster])
-  const hasRosterParticipationSplit = useMemo(() => {
-    const playedCount = roster.filter((player) => player.appearances > 0).length
-    return playedCount > 0 && playedCount < roster.length
-  }, [roster])
-  const showRosterFilters = !isMobile || hasRosterParticipationSplit
-  const showRosterTools = !isMobile || showFullRoster
-
   const selectedRosterPlayers = useMemo(() => {
     return selectedRosterPlayerIds
       .map((id) => roster.find((player) => player.id === id) || null)
@@ -1574,6 +1515,73 @@ function TeamPageContent() {
           cta: 'Check availability',
           href: captainLinks[0].href,
         }
+
+  useEffect(() => {
+    if ((isDoublesOnlyTeam && rosterFilter === 'singles') || (!canManageThisTeam && rosterFilter === 'needs-mobile')) {
+      setRosterFilter('all')
+    }
+  }, [canManageThisTeam, isDoublesOnlyTeam, rosterFilter])
+
+  const activeRosterFilter: RosterFilter = isDoublesOnlyTeam && rosterFilter === 'singles'
+    ? 'all'
+    : !canManageThisTeam && rosterFilter === 'needs-mobile'
+      ? 'all'
+      : rosterFilter
+
+  const filteredRoster = useMemo(() => {
+    const searchTerm = cleanText(rosterSearch).toLowerCase()
+    const nextRoster = roster.filter((player) => {
+      if (searchTerm && !player.name.toLowerCase().includes(searchTerm)) return false
+      if (activeRosterFilter === 'played') return player.appearances > 0
+      if (activeRosterFilter === 'roster-only') return player.appearances === 0
+      if (activeRosterFilter === 'needs-mobile') {
+        return !captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))?.phone?.trim()
+      }
+      return true
+    })
+
+    if (activeRosterFilter === 'singles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    if (activeRosterFilter === 'doubles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    return nextRoster
+  }, [activeRosterFilter, captainContactByPlayerName, roster, rosterSearch])
+  const mobileRosterPreviewLimit = isMobile ? 4 : 12
+  const visibleRoster = showFullRoster ? filteredRoster : filteredRoster.slice(0, mobileRosterPreviewLimit)
+
+  const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => {
+    const options: Array<{ key: RosterFilter; label: string; count: number }> = [
+      { key: 'all', label: 'All', count: roster.length },
+      { key: 'played', label: 'Played', count: roster.filter((player) => player.appearances > 0).length },
+      { key: 'roster-only', label: 'Roster only', count: roster.filter((player) => player.appearances === 0).length },
+    ]
+    if (!isDoublesOnlyTeam) options.push({ key: 'singles', label: 'Singles options', count: roster.length })
+    options.push({ key: 'doubles', label: 'Doubles options', count: roster.length })
+    if (canManageThisTeam && captainContactCoverage.missingPhoneNames.length > 0) {
+      options.push({ key: 'needs-mobile', label: 'Needs mobile', count: captainContactCoverage.missingPhoneNames.length })
+    }
+    return options
+  }, [canManageThisTeam, captainContactCoverage.missingPhoneNames.length, isDoublesOnlyTeam, roster])
+  const hasRosterParticipationSplit = useMemo(() => {
+    const playedCount = roster.filter((player) => player.appearances > 0).length
+    return playedCount > 0 && playedCount < roster.length
+  }, [roster])
+  const showRosterFilters = !isMobile || hasRosterParticipationSplit || (canManageThisTeam && captainContactCoverage.missingPhoneNames.length > 0)
+  const showRosterTools = !isMobile || showFullRoster
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -2654,7 +2662,7 @@ function TeamPageContent() {
                 </details>
               ) : null}
 
-              {showRosterFilters && showRosterTools ? (
+              {showRosterFilters ? (
                 <>
                   <div style={rosterFilterRow}>
                     {rosterFilterOptions.filter((option) => !isMobile || option.count > 0).map((option) => {
@@ -2682,7 +2690,9 @@ function TeamPageContent() {
                           ? 'Roster sorted by singles strength.'
                           : activeRosterFilter === 'doubles'
                             ? 'Roster sorted by doubles strength.'
-                            : 'Full roster from Player Roster and match history.'}
+                            : activeRosterFilter === 'needs-mobile'
+                              ? 'Teammates who need a mobile number before you can send a lineup text.'
+                              : 'Full roster from Player Roster and match history.'}
                   </div>
                 </>
               ) : null}
