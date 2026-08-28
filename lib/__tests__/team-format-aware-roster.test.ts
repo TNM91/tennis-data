@@ -21,4 +21,13 @@ describe('team format-aware roster', () => {
     expect(source).toContain('Text {contact.phone}')
     expect(source).toContain('TiQ Team Chat')
   })
+
+  it('gives captains a private contact-readiness hub with direct contact actions', () => {
+    expect(source).toContain('const captainContactCoverage = useMemo')
+    expect(source).toContain('Contact readiness for match week')
+    expect(source).toContain('Private to captains.')
+    expect(source).toContain('Add missing mobiles')
+    expect(source).toContain('mailto:${email}')
+    expect(source).toContain('captainContactPreviewGridStyle')
+  })
 })

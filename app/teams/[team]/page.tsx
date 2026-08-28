@@ -44,6 +44,8 @@ import { fetchTeamConnections } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
+  buildCaptainContactReviewHref,
+  getCaptainRosterPhoneCoverage,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
@@ -1512,6 +1514,36 @@ function TeamPageContent() {
     () => new Map(scopedCaptainContacts.map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact])),
     [scopedCaptainContacts],
   )
+  const captainContactCoverage = useMemo(() => {
+    const rosterNames = roster.map((player) => player.name)
+    const phoneCoverage = getCaptainRosterPhoneCoverage({
+      rosterNames,
+      contacts: scopedCaptainContacts,
+    })
+    const emailNameKeys = new Set(
+      scopedCaptainContacts
+        .filter((contact) => Boolean(contact.email?.trim()))
+        .map((contact) => normalizeCaptainRosterContactKey(contact.full_name))
+        .filter(Boolean),
+    )
+    const emailReadyCount = rosterNames.filter((name) => emailNameKeys.has(normalizeCaptainRosterContactKey(name))).length
+    const unreachableCount = rosterNames.filter((name) => {
+      const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(name))
+      return !contact?.phone?.trim() && !contact?.email?.trim()
+    }).length
+
+    return {
+      total: rosterNames.length,
+      phoneReadyCount: phoneCoverage.readyCount,
+      emailReadyCount,
+      missingPhoneNames: phoneCoverage.missingNames,
+      unreachableCount,
+    }
+  }, [captainContactByPlayerName, roster, scopedCaptainContacts])
+  const captainContactReviewHref = buildCaptainContactReviewHref({
+    baseHref: teamContactsHref,
+    missingNames: captainContactCoverage.missingPhoneNames,
+  })
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -2498,6 +2530,78 @@ function TeamPageContent() {
 
           {roster.length ? (
             <>
+              {canManageThisTeam ? (
+                <details style={captainContactHubStyle}>
+                  <summary style={captainContactHubSummaryStyle}>
+                    <span style={detailDrawerCopyStyle}>
+                      <span style={sectionKicker}>Captain contacts</span>
+                      <strong style={detailDrawerTitleStyle}>Contact readiness for match week</strong>
+                      <span style={captainContactHubSummaryTextStyle}>
+                        {captainContactCoverage.phoneReadyCount} of {captainContactCoverage.total} players are ready for a text.
+                      </span>
+                    </span>
+                    <span style={captainContactHubSummaryBadgeStyle}>
+                      {captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total} text-ready
+                    </span>
+                  </summary>
+                  <div style={captainContactHubContentStyle}>
+                    <p style={captainContactPrivacyNoteStyle}>Private to captains. Keep player details current before you send a lineup ask.</p>
+                    <div style={captainContactMetricGridStyle}>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Text-ready</span>
+                        <strong>{captainContactCoverage.phoneReadyCount}/{captainContactCoverage.total}</strong>
+                        <span style={captainContactMetricTextStyle}>mobile saved</span>
+                      </div>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Email-ready</span>
+                        <strong>{captainContactCoverage.emailReadyCount}/{captainContactCoverage.total}</strong>
+                        <span style={captainContactMetricTextStyle}>email saved</span>
+                      </div>
+                      <div style={captainContactMetricStyle}>
+                        <span style={captainContactMetricLabelStyle}>Needs a path</span>
+                        <strong>{captainContactCoverage.unreachableCount}</strong>
+                        <span style={captainContactMetricTextStyle}>no mobile or email</span>
+                      </div>
+                    </div>
+                    <div style={captainContactHubActionsStyle}>
+                      <Link href={captainContactReviewHref} style={rosterPeopleContactLinkStyle}>
+                        {captainContactCoverage.missingPhoneNames.length ? 'Add missing mobiles' : 'Review contacts'}
+                      </Link>
+                      <Link href={teamContactsHref} style={rosterPeopleChatLinkStyle}>Manage contacts</Link>
+                    </div>
+                    <div style={captainContactPreviewGridStyle}>
+                      {roster.map((player) => {
+                        const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))
+                        const phone = contact?.phone?.trim() || ''
+                        const email = contact?.email?.trim() || ''
+                        return (
+                          <article key={`contact-${player.id}`} style={captainContactPreviewCardStyle}>
+                            <div style={captainContactPreviewHeaderStyle}>
+                              <div style={captainContactPreviewIdentityStyle}>
+                                <strong>{player.name}</strong>
+                                <span>{contact?.is_captain ? 'Captain' : contact?.role || 'Player'}</span>
+                              </div>
+                              <span style={phone ? captainContactReadyBadgeStyle : captainContactMissingBadgeStyle}>
+                                {phone ? 'Text ready' : 'Add mobile'}
+                              </span>
+                            </div>
+                            <div style={captainContactPreviewDetailsStyle}>
+                              <span>{phone || 'No mobile saved'}</span>
+                              <span>{email || 'No email saved'}</span>
+                            </div>
+                            <div style={captainContactPreviewActionsStyle}>
+                              {phone ? <a href={`sms:${phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>Text</a> : null}
+                              {email ? <a href={`mailto:${email}`} style={rosterContactManageLinkStyle}>Email</a> : null}
+                              {!phone || !email ? <Link href={teamContactsHref} style={rosterContactManageLinkStyle}>Update</Link> : null}
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </details>
+              ) : null}
+
               {showRosterFilters && showRosterTools ? (
                 <>
                   <div style={rosterFilterRow}>
@@ -4456,6 +4560,172 @@ const rosterPeopleChatLinkStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   textAlign: 'center',
+}
+
+const captainContactHubStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  margin: '0 0 18px',
+  borderRadius: 20,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(56,189,248,0.06))',
+  overflow: 'hidden',
+}
+
+const captainContactHubSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: '16px',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const captainContactHubSummaryTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const captainContactHubSummaryBadgeStyle: CSSProperties = {
+  flex: '0 0 auto',
+  maxWidth: '48%',
+  padding: '7px 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#d9f84a',
+  fontSize: 11,
+  fontWeight: 900,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const captainContactHubContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: '0 16px 16px',
+}
+
+const captainContactPrivacyNoteStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const captainContactMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainContactMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: 14,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(5, 12, 28, 0.48)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainContactMetricLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const captainContactMetricTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+}
+
+const captainContactHubActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainContactPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 11,
+  minWidth: 0,
+  padding: '13px',
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(5, 12, 28, 0.50)',
+}
+
+const captainContactPreviewHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactPreviewIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const captainContactPreviewDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const captainContactPreviewActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainContactReadyBadgeStyle: CSSProperties = {
+  flex: '0 0 auto',
+  padding: '5px 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#d9f84a',
+  fontSize: 10,
+  fontWeight: 900,
+  textAlign: 'center',
+}
+
+const captainContactMissingBadgeStyle: CSSProperties = {
+  ...captainContactReadyBadgeStyle,
+  border: '1px solid rgba(251, 191, 36, 0.28)',
+  background: 'rgba(251, 191, 36, 0.10)',
+  color: '#fde68a',
 }
 
 const rosterContactActionRowStyle: CSSProperties = {
