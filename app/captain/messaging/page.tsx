@@ -4573,33 +4573,61 @@ function importScenarioToLineup() {
                     <h3 style={sectionTitleSmall}>Team contacts</h3>
                   </div>
                 </div>
-                <div style={tableWrapStyle}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>Name</th>
-                        <th style={thStyle}>Phone</th>
-                        <th style={thStyle}>Scope</th>
-                        <th style={thStyle}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scopedContacts.map((contact) => (
-                        <tr key={contact.id}>
-                          <td style={tdLabelStyle}>{contact.full_name}</td>
-                          <td style={tdStyle}>{formatPhone(contact.phone)}</td>
-                          <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
-                          <td style={tdStyle}>
-                            <div style={actionRowStyleCompact}>
-                              <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
-                              <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                {isMobile ? (
+                  <div style={contactCardListStyle} aria-label="Team contacts">
+                    {scopedContacts.map((contact) => {
+                      const scope = [contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' · ')
+                      const imported = (contact.notes || '').toLowerCase().includes('player roster')
+                      return (
+                        <article key={contact.id} style={contactCardStyle}>
+                          <div style={contactCardHeaderStyle}>
+                            <div style={contactCardCopyStyle}>
+                              <strong style={contactCardNameStyle}>{contact.full_name}</strong>
+                              <span style={contactCardPhoneStyle}>{contact.phone ? formatPhone(contact.phone) : 'Mobile not saved'}</span>
                             </div>
-                          </td>
+                            <span style={imported ? miniPillBlue : miniPillSlate}>
+                              {imported ? 'Player Roster' : 'Team contact'}
+                            </span>
+                          </div>
+                          <span style={contactCardScopeStyle}>{scope || 'Current team'}</span>
+                          <div style={contactCardActionsStyle}>
+                            <button type="button" style={contactCardEditButtonStyle} onClick={() => handleEditContact(contact)}>Edit contact</button>
+                            <button type="button" style={contactCardDeleteButtonStyle} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                    {!scopedContacts.length ? <p style={mutedTextStyle}>No contacts are saved for this team yet.</p> : null}
+                  </div>
+                ) : (
+                  <div style={tableWrapStyle}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Phone</th>
+                          <th style={thStyle}>Scope</th>
+                          <th style={thStyle}>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {scopedContacts.map((contact) => (
+                          <tr key={contact.id}>
+                            <td style={tdLabelStyle}>{contact.full_name}</td>
+                            <td style={tdStyle}>{formatPhone(contact.phone)}</td>
+                            <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
+                            <td style={tdStyle}>
+                              <div style={actionRowStyleCompact}>
+                                <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
+                                <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
 
               <section style={surfaceCard}>
@@ -5405,6 +5433,16 @@ const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse', m
 const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em', overflowWrap: 'anywhere' }
 const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top', overflowWrap: 'anywhere' }
 const tdLabelStyle: CSSProperties = { ...tdStyle, fontWeight: 800 }
+const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
+const contactCardStyle: CSSProperties = { display: 'grid', gap: 12, padding: 16, borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const contactCardHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, minWidth: 0 }
+const contactCardCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0 }
+const contactCardNameStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 18, lineHeight: 1.2, overflowWrap: 'anywhere' }
+const contactCardPhoneStyle: CSSProperties = { color: 'var(--foreground)', fontSize: 15, fontWeight: 800, overflowWrap: 'anywhere' }
+const contactCardScopeStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }
+const contactCardActionsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, minWidth: 0 }
+const contactCardEditButtonStyle: CSSProperties = { borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg-strong)', color: '#9cc6ff', padding: '10px 12px', fontWeight: 850, cursor: 'pointer', width: '100%', minHeight: 42, minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const contactCardDeleteButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#fca5a5', fontWeight: 800, cursor: 'pointer', padding: '10px 4px', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', alignSelf: 'center' }
 const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4, overflowWrap: 'anywhere' }
