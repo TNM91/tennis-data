@@ -30,7 +30,8 @@ describe('captain tri-level first run', () => {
     expect(dataAssistSource).toContain('Review scorecards now')
     expect(dataAssistSource).toContain('Review now')
     expect(dataAssistSource).toContain('data-assist-submission-${submission.id}')
-    expect(dataAssistSource).toContain("focusedSubmissionId ? 'needs_review' : 'all'")
+    expect(dataAssistSource).toContain("const focusedHistoryFilter: DataAssistHistoryFilter = outcome?.tone === 'success' || outcome?.tone === 'duplicate'")
+    expect(dataAssistSource).toContain("? 'imported'\n    : 'needs_review'")
   })
 
   it('keeps review cards compact and gives player profiles a dominant first-glance scorecard', () => {

@@ -205,6 +205,14 @@ type BulkScorecardResult = {
 
 type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'
 
+type DataAssistOutcome = {
+  tone: 'success' | 'review' | 'duplicate'
+  title: string
+  detail: string
+  batchId?: string
+  target: 'history' | 'latest-read'
+}
+
 function getDataAssistIntent(value: string | null): DataAssistIntent | null {
   if (value === 'upload-source' || value === 'report-issue' || value === 'request-review') return value
   return null
@@ -289,6 +297,7 @@ function DataAssistWorkspace() {
   const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [outcome, setOutcome] = useState<DataAssistOutcome | null>(null)
   const [bulkScorecardResults, setBulkScorecardResults] = useState<BulkScorecardResult[]>([])
   const [focusedSubmissionId, setFocusedSubmissionId] = useState('')
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
@@ -325,6 +334,9 @@ function DataAssistWorkspace() {
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
   const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
   const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
+  const focusedHistoryFilter: DataAssistHistoryFilter = outcome?.tone === 'success' || outcome?.tone === 'duplicate'
+    ? 'imported'
+    : 'needs_review'
 
   async function finishCaptainImport(input: {
     batchId: string
@@ -360,12 +372,13 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage('')
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
     setFocusedSubmissionId('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function completeUploadFlow(completionMessage = 'Upload complete.') {
+  function completeUploadFlow(completionMessage = 'Upload complete.', nextOutcome: DataAssistOutcome | null = null) {
     setPreparing(false)
     setSelectedFileCount(0)
     setSaving(false)
@@ -373,9 +386,10 @@ function DataAssistWorkspace() {
     setLatestScan(null)
     setSavedBatchId('')
     setBulkScorecardResults([])
-    setFocusedSubmissionId('')
+    setFocusedSubmissionId(nextOutcome?.batchId || '')
     setError('')
     setMessage(completionMessage)
+    setOutcome(nextOutcome)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -393,6 +407,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage('')
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
     setFocusedSubmissionId('')
   }
@@ -444,6 +459,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage('')
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
     setFocusedSubmissionId('')
   }, [requestedImportType])
@@ -473,6 +489,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
 
     const detected = await detectDataAssistExportType(files, importType)
@@ -697,9 +714,18 @@ function DataAssistWorkspace() {
 
       if (scanRunRef.current !== scanRunId) return
       if (reviewCount === 0 && failedCount === 0) {
-        completeUploadFlow(duplicateCount === files.length
-          ? 'Already uploaded. No changes were needed.'
-          : 'Upload complete.')
+        const duplicateOnly = duplicateCount === files.length
+        completeUploadFlow(
+          duplicateOnly ? 'Already uploaded. No changes were needed.' : 'Upload complete.',
+          {
+            tone: duplicateOnly ? 'duplicate' : 'success',
+            title: duplicateOnly ? 'Scorecards already in TiQ' : `${importedCount} scorecard${importedCount === 1 ? '' : 's'} imported`,
+            detail: duplicateOnly
+              ? 'Every scorecard matched a saved result, so TiQ protected the existing records.'
+              : 'The completed batch is saved below with each scorecard and its final status.',
+            target: 'history',
+          },
+        )
       } else {
         setMessage(buildBulkScorecardMessage({
           total: files.length,
@@ -800,12 +826,18 @@ function DataAssistWorkspace() {
                 })
               : false
           if (didReturn) return
-          completeUploadFlow('Upload complete.')
+          completeUploadFlow(
+            'Upload complete.',
+            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId),
+          )
           void refreshSubmissions()
           return
         }
         if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
-          completeUploadFlow('Already uploaded. No changes were needed.')
+          completeUploadFlow(
+            'Already uploaded. No changes were needed.',
+            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId, true),
+          )
           void refreshSubmissions()
           return
         }
@@ -816,6 +848,7 @@ function DataAssistWorkspace() {
           autoAssessment: ocrResult.autoAssessment,
           autoImport: ocrResult.autoImport,
         })
+        setOutcome(buildReviewDataAssistOutcome(ocrResult.parsedDraft, result.batchId))
         setMessage(typeCorrection + (isScheduleParsedDraft(ocrResult.parsedDraft)
           ? 'Team schedule read complete. Review the visible matches before import.'
           : isTeamSummaryParsedDraft(ocrResult.parsedDraft)
@@ -866,7 +899,10 @@ function DataAssistWorkspace() {
               })
             : false
         if (didReturn) return
-        completeUploadFlow('Upload complete.')
+        completeUploadFlow(
+          'Upload complete.',
+          buildImportedDataAssistOutcome(latestScan.parsedDraft, latestScan.batchId),
+        )
         await refreshSubmissions()
         return
       } else {
@@ -874,6 +910,16 @@ function DataAssistWorkspace() {
       }
       setSummary(null)
       setSavedBatchId('')
+      setFocusedSubmissionId(latestScan.batchId)
+      setOutcome({
+        tone: 'review',
+        title: decision === 'flagged' ? `${reviewLabel} sent for review` : `${reviewLabel} review saved`,
+        detail: decision === 'flagged'
+          ? 'TiQ saved your note for a closer check. This upload will not change records until it is resolved.'
+          : 'Your review is saved. Open the upload below whenever you need to check its status.',
+        batchId: latestScan.batchId,
+        target: 'history',
+      })
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update this Data Assist review.')
@@ -1004,9 +1050,10 @@ function DataAssistWorkspace() {
 
   return (
     <section style={pageStyle(isMobile)}>
-      {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
+      {!showOrderStep && message && !outcome ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       {intent ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
+      {outcome ? <DataAssistOutcomePanel outcome={outcome} onUploadAnother={resetUploadFlow} /> : null}
       {showBulkScorecardResults ? (
         <BulkScorecardResultsPanel
           results={bulkScorecardResults}
@@ -1308,7 +1355,7 @@ function DataAssistWorkspace() {
 
       {showHistoryStep ? (
       <MySubmissionsPanel
-        key={focusedSubmissionId || 'data-assist-history'}
+        key={focusedSubmissionId || (outcome ? `data-assist-history-${outcome.tone}` : 'data-assist-history')}
         authResolved={authResolved}
         userId={userId}
         submissions={submissions}
@@ -1326,6 +1373,8 @@ function DataAssistWorkspace() {
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
         focusedSubmissionId={focusedSubmissionId}
+        forceHistoryOpen={Boolean(outcome)}
+        initialHistoryFilter={focusedHistoryFilter}
         isMobile={isMobile}
         returnTo={returnTo}
       />
@@ -1689,6 +1738,40 @@ function DataAssistIntentPanel({ intent, context, query }: { intent: DataAssistI
   )
 }
 
+function DataAssistOutcomePanel({
+  outcome,
+  onUploadAnother,
+}: {
+  outcome: DataAssistOutcome
+  onUploadAnother: () => void
+}) {
+  const targetId = outcome.target === 'latest-read' ? 'latest-data-assist-read' : 'history'
+  const actionLabel = outcome.target === 'latest-read'
+    ? 'Review this upload'
+    : outcome.batchId
+      ? 'Open import record'
+      : 'Open import history'
+
+  return (
+    <section style={dataAssistOutcomeStyle(outcome.tone)} aria-live="polite" data-data-assist-outcome={outcome.tone}>
+      <div style={dataAssistOutcomeHeaderStyle}>
+        <div style={headerCopyStyle}>
+          <span style={dataAssistOutcomeEyebrowStyle}>{outcome.tone === 'review' ? 'Your next action' : 'Import complete'}</span>
+          <h2 style={dataAssistOutcomeTitleStyle}>{outcome.title}</h2>
+          <p style={dataAssistOutcomeCopyStyle}>{outcome.detail}</p>
+        </div>
+        <span style={dataAssistOutcomePillStyle(outcome.tone)}>
+          {outcome.tone === 'review' ? 'Needs review' : outcome.tone === 'duplicate' ? 'No duplicate created' : 'Saved'}
+        </span>
+      </div>
+      <div style={dataAssistOutcomeActionRowStyle}>
+        <a href={`#${targetId}`} style={primaryButtonStyle}>{actionLabel}</a>
+        <button type="button" onClick={onUploadAnother} style={secondaryButtonStyle}>Upload another</button>
+      </div>
+    </section>
+  )
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs)
@@ -1727,6 +1810,71 @@ function getAutoAssessmentMessage(
     return 'Scorecard read complete. Some details need a closer look before import.'
   }
   return 'TenAceIQ could not safely read this scorecard export. Upload the TennisLink Score Card Excel file again.'
+}
+
+function buildImportedDataAssistOutcome(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+  batchId: string,
+  duplicate = false,
+): DataAssistOutcome {
+  if (duplicate) {
+    return {
+      tone: 'duplicate',
+      title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} already in TiQ`,
+      detail: 'TiQ kept the existing record and saved this upload in your history as proof. No duplicate was created.',
+      batchId,
+      target: 'history',
+    }
+  }
+
+  if (isTeamSummaryParsedDraft(parsedDraft)) {
+    return {
+      tone: 'success',
+      title: 'Roster imported',
+      detail: `${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'}, USTA ratings, and ${parsedDraft.contactCount || 0} available contact${parsedDraft.contactCount === 1 ? '' : 's'} are now connected for team tools.`,
+      batchId,
+      target: 'history',
+    }
+  }
+
+  if (isScheduleParsedDraft(parsedDraft)) {
+    return {
+      tone: 'success',
+      title: 'Schedule imported',
+      detail: `${parsedDraft.matchCount} scheduled match${parsedDraft.matchCount === 1 ? '' : 'es'} are now ready for your team and captain views.`,
+      batchId,
+      target: 'history',
+    }
+  }
+
+  return {
+    tone: 'success',
+    title: 'Scorecard imported',
+    detail: 'The result is saved and ready to support player, team, and league context.',
+    batchId,
+    target: 'history',
+  }
+}
+
+function buildReviewDataAssistOutcome(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+  batchId: string,
+): DataAssistOutcome {
+  return {
+    tone: 'review',
+    title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} review ready`,
+    detail: 'TiQ saved the upload but will not change player, team, league, or rating records until the visible details are checked.',
+    batchId,
+    target: 'latest-read',
+  }
+}
+
+function getParsedDraftImportType(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+): DataAssistImportType {
+  if (isTeamSummaryParsedDraft(parsedDraft)) return 'team_summary'
+  if (isScheduleParsedDraft(parsedDraft)) return 'schedule'
+  return 'scorecard'
 }
 
 function buildBulkScorecardMessage({
@@ -2144,6 +2292,8 @@ function MySubmissionsPanel({
   onDeleteSubmission,
   onDeleteAllDrafts,
   focusedSubmissionId,
+  forceHistoryOpen,
+  initialHistoryFilter,
   isMobile,
   returnTo,
 }: {
@@ -2164,13 +2314,16 @@ function MySubmissionsPanel({
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
   focusedSubmissionId: string
+  forceHistoryOpen: boolean
+  initialHistoryFilter: DataAssistHistoryFilter
   isMobile: boolean
   returnTo: string
 }) {
-  const [historyOpen, setHistoryOpen] = useState(Boolean(focusedSubmissionId))
-  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>(focusedSubmissionId ? 'needs_review' : 'all')
+  const [historyOpen, setHistoryOpen] = useState(Boolean(focusedSubmissionId) || forceHistoryOpen)
+  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>(focusedSubmissionId ? initialHistoryFilter : 'all')
   const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
+  const importedCount = submissions.filter((submission) => submission.status === 'imported').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
@@ -2185,6 +2338,12 @@ function MySubmissionsPanel({
     }, 80)
     return () => window.clearTimeout(timeout)
   }, [focusedSubmissionId, historyOpen, submissions])
+
+  function openHistory(filter: DataAssistHistoryFilter = 'all') {
+    setHistoryFilter(filter)
+    setHistoryOpen(true)
+    window.setTimeout(() => document.getElementById('data-assist-history-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
 
   if ((!authResolved || !userId) && isMobile) {
     return (
@@ -2207,8 +2366,8 @@ function MySubmissionsPanel({
     <section id="history" style={panelStyle}>
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
-          <div className="section-kicker">History</div>
-          <h2 style={sectionTitleStyle}>Saved Data Assist uploads.</h2>
+          <div className="section-kicker">Upload activity</div>
+          <h2 style={sectionTitleStyle}>Know what happened next.</h2>
         </div>
         <div style={cardActionRowStyle}>
           <button type="button" onClick={() => setHistoryOpen((current) => !current)} style={smallButtonStyle}>
@@ -2216,6 +2375,16 @@ function MySubmissionsPanel({
           </button>
         </div>
       </div>
+
+      {authResolved && userId ? (
+        <DataAssistOperationsPanel
+          pendingCount={pendingCount}
+          importedCount={importedCount}
+          totalCount={submissions.length}
+          onOpenReview={() => openHistory('needs_review')}
+          onOpenHistory={() => openHistory('all')}
+        />
+      ) : null}
 
       {!authResolved || !userId ? (
         <div style={noticeStyle}>
@@ -2229,7 +2398,7 @@ function MySubmissionsPanel({
             : 'No saved uploads yet.'}
         </div>
       ) : submissions.length ? (
-        <>
+        <div id="data-assist-history-records" style={historyRecordsStyle}>
           <div style={historyManagementStyle}>
             <span>Imported uploads stay as references. Drafts and review items can be removed.</span>
             <div style={cardActionRowStyle}>
@@ -2283,7 +2452,7 @@ function MySubmissionsPanel({
           ) : (
             <div style={emptyStateStyle}>No uploads match this filter.</div>
           )}
-        </>
+        </div>
       ) : loading ? (
         <div style={emptyStateStyle}>Loading your submissions...</div>
       ) : (
@@ -2310,6 +2479,39 @@ function EmptyDataAssistHistory() {
         ))}
       </div>
     </div>
+  )
+}
+
+function DataAssistOperationsPanel({
+  pendingCount,
+  importedCount,
+  totalCount,
+  onOpenReview,
+  onOpenHistory,
+}: {
+  pendingCount: number
+  importedCount: number
+  totalCount: number
+  onOpenReview: () => void
+  onOpenHistory: () => void
+}) {
+  return (
+    <section style={dataAssistOperationsStyle} aria-label="Upload operations">
+      <button type="button" onClick={onOpenReview} style={dataAssistOperationCardStyle(pendingCount > 0 ? 'review' : 'clear')} data-data-assist-operation="review">
+        <span style={dataAssistOperationLabelStyle}>Needs your review</span>
+        <strong style={dataAssistOperationValueStyle}>{pendingCount}</strong>
+        <small style={dataAssistOperationDetailStyle}>
+          {pendingCount ? 'Open the review queue' : 'Nothing waiting on you'}
+        </small>
+      </button>
+      <button type="button" onClick={onOpenHistory} style={dataAssistOperationCardStyle('history')} data-data-assist-operation="history">
+        <span style={dataAssistOperationLabelStyle}>Import history</span>
+        <strong style={dataAssistOperationValueStyle}>{totalCount}</strong>
+        <small style={dataAssistOperationDetailStyle}>
+          {importedCount ? `${importedCount} imported record${importedCount === 1 ? '' : 's'} saved` : 'Open saved uploads'}
+        </small>
+      </button>
+    </section>
   )
 }
 
@@ -4415,6 +4617,67 @@ const historyCollapsedStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const dataAssistOperationsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const dataAssistOperationCardStyle = (tone: 'review' | 'clear' | 'history'): CSSProperties => ({
+  display: 'grid',
+  gap: 4,
+  minHeight: 118,
+  alignContent: 'center',
+  textAlign: 'left',
+  cursor: 'pointer',
+  padding: '15px 16px',
+  borderRadius: 18,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.46)'
+    : tone === 'clear'
+      ? '1px solid rgba(155, 225, 29, 0.28)'
+      : '1px solid rgba(125, 211, 252, 0.25)',
+  background: tone === 'review'
+    ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.30), rgba(15, 23, 42, 0.92))'
+    : tone === 'clear'
+      ? 'linear-gradient(135deg, rgba(71, 129, 25, 0.18), rgba(15, 23, 42, 0.92))'
+      : 'linear-gradient(135deg, rgba(30, 87, 153, 0.16), rgba(15, 23, 42, 0.92))',
+  color: 'var(--foreground-strong)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 24px rgba(2,8,23,0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOperationLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const dataAssistOperationValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 32,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const dataAssistOperationDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+}
+
+const historyRecordsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  scrollMarginTop: 18,
+}
+
 const mobileHistoryShellStyle: CSSProperties = {
   display: 'grid',
   minWidth: 0,
@@ -5354,6 +5617,87 @@ const emptyHistoryActionStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomeStyle = (tone: DataAssistOutcome['tone']): CSSProperties => ({
+  display: 'grid',
+  gap: 14,
+  padding: '18px',
+  borderRadius: 22,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.48)'
+    : tone === 'duplicate'
+      ? '1px solid rgba(125, 211, 252, 0.30)'
+      : '1px solid rgba(155, 225, 29, 0.42)',
+  background: tone === 'review'
+    ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.28), rgba(8, 16, 31, 0.95))'
+    : tone === 'duplicate'
+      ? 'linear-gradient(135deg, rgba(17, 70, 103, 0.23), rgba(8, 16, 31, 0.95))'
+      : 'linear-gradient(135deg, rgba(70, 119, 25, 0.24), rgba(8, 16, 31, 0.95))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 42px rgba(2,8,23,0.18)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOutcomeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const dataAssistOutcomeEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.12em',
+  textTransform: 'uppercase',
+}
+
+const dataAssistOutcomeTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5.6vw, 34px)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomeCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 700,
+  maxWidth: 720,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomePillStyle = (tone: DataAssistOutcome['tone']): CSSProperties => ({
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '7px 10px',
+  borderRadius: 999,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.55)'
+    : '1px solid rgba(155, 225, 29, 0.50)',
+  background: tone === 'review' ? 'rgba(120, 53, 15, 0.30)' : 'rgba(70, 119, 25, 0.26)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.06em',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOutcomeActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const successStyle: CSSProperties = {
