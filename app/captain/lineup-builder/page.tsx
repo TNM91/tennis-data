@@ -80,7 +80,6 @@ import {
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
-  CAPTAIN_ROSTER_CONTACTS_TABLE,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
   type CaptainRosterContactRow,
@@ -579,7 +578,7 @@ function getCourtAskSignal({
   needsPhone: boolean
 }): CourtAskSignal {
   if (replyLabel === 'Confirmed') {
-    return { label: 'Yes · locked', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
+    return { label: 'Confirmed · locked', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
   }
   if (replyLabel === 'Maybe') {
     return { label: 'Maybe · review', detail: 'Reply received. Keep this court flexible until they confirm.', tone: 'maybe' }
@@ -3099,38 +3098,40 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return
     }
 
-    // Keep player-entered numbers in the same scoped roster-contact store used
-    // by Player Roster imports. The Builder can then reuse them immediately and
-    // Captain > Messaging shows the same team contact list.
-    const contact: CaptainRosterContactRow = {
-      captain_user_id: userId,
-      team_name: teamName,
-      normalized_team_name: normalizeCaptainRosterContactKey(teamName),
-      league_name: leagueName || '',
-      flight: flight || '',
-      full_name: invitedPlayer.playerName.trim(),
-      normalized_name: playerKey,
-      phone,
-      email: '',
-      role: 'Player',
-      is_captain: false,
-      source: 'captain_manual_entry',
-      source_batch_id: null,
-    }
-
     setSavingPhonePlayerKey(playerKey)
     setError('')
     try {
-      const { error: saveError } = await supabase
-        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
-        .upsert(contact, {
-          onConflict: 'captain_user_id,normalized_team_name,normalized_name,league_name,flight',
-        })
-      if (saveError) throw saveError
+      const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+      if (!accessToken) throw new Error('Sign in again before saving this mobile number.')
+
+      const existingContact = captainRosterContactsForTeam.find((contact) => (
+        normalizeCaptainRosterContactKey(contact.full_name) === playerKey
+      ))
+      const response = await fetch('/api/captain/team-contacts', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: existingContact?.id || '',
+          teamName,
+          leagueName,
+          flight,
+          fullName: invitedPlayer.playerName.trim(),
+          phone,
+          role: existingContact?.role || 'Player',
+          isCaptain: existingContact?.is_captain || false,
+        }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; contact?: CaptainRosterContactRow }
+      if (!response.ok || !result.ok || !result.contact) {
+        throw new Error(result.message || `Could not save ${invitedPlayer.playerName}'s mobile number.`)
+      }
+      const contact = result.contact
 
       setCaptainRosterContacts((current) => [
         ...current.filter((row) => !(
-          row.captain_user_id === userId &&
           normalizeCaptainRosterContactKey(row.team_name) === normalizeCaptainRosterContactKey(teamName) &&
           normalizeCaptainRosterContactKey(row.full_name) === playerKey &&
           normalizeCaptainRosterContactKey(row.league_name) === normalizeCaptainRosterContactKey(leagueName) &&
@@ -5922,13 +5923,15 @@ function SlotEditor({
                         ? `Re-lock confirmed player ${player.playerName}.`
                         : undefined}
                     style={lockedPlayerIds.has(player.playerId)
-                      ? isAutoLocked ? confirmedPlayerLockButtonStyle : pillButtonActive
-                      : pillButton}
+                      ? isAutoLocked
+                        ? { ...confirmedPlayerLockButtonStyle, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }
+                        : { ...pillButtonActive, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }
+                      : { ...pillButton, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }}
                     onClick={() => toggleLockedPlayer(player.playerId)}
                   >
                     {lockedPlayerIds.has(player.playerId)
-                      ? isAutoLocked ? 'confirmed · unlock' : 'player locked'
-                      : isConfirmedReleased ? 're-lock confirmed player' : 'lock player'}
+                      ? isAutoLocked ? 'Unlock player' : 'Player locked'
+                      : isConfirmedReleased ? 'Re-lock player' : 'Lock player'}
                   </button>
                 </div>
               ) : null}
@@ -5992,7 +5995,7 @@ function SlotEditor({
             )
           })}
           <span style={mutedTextStyle}>
-            TiQ keeps the court selected while it prepares each private reply link. Add a doubles partner first when you know it.
+            Each Ask stays tied to this court. Add a doubles partner first when you know it.
           </span>
         </div>
       ) : null}
@@ -6751,7 +6754,16 @@ const slotPlayerActionRowStyle: CSSProperties = {
 
 const mobileSlotPlayerActionRowStyle: CSSProperties = {
   ...slotPlayerActionRowStyle,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'stretch',
+  width: '100%',
+}
+
+const mobilePlayerLockButtonStyle: CSSProperties = {
+  minHeight: 32,
+  padding: '0 11px',
+  whiteSpace: 'nowrap',
 }
 
 const courtAskControlStyle: CSSProperties = {

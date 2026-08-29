@@ -11,18 +11,19 @@ describe('captain team contacts route', () => {
     expect(source).toContain('Captain access is required for this team.')
   })
 
-  it('saves phone-only contacts without including an email field', () => {
+  it('saves a phone-only contact in the roster-contact record used by imports and the Builder', () => {
     const payload = source.slice(source.indexOf('const contactPayload ='), source.indexOf('const select ='))
     expect(payload).toContain('phone,')
-    expect(payload).not.toContain('email')
-    expect(source).toContain(".from('captain_message_contacts').insert")
-    expect(source).toContain(".from('captain_message_contacts').update")
+    expect(payload).toContain("email: existingContact?.email || ''")
+    expect(source).toContain(".from(CAPTAIN_ROSTER_CONTACTS_TABLE).upsert")
+    expect(source).toContain(".from(CAPTAIN_ROSTER_CONTACTS_TABLE).update")
+    expect(source).toContain("onConflict: 'captain_user_id,normalized_team_name,normalized_name,league_name,flight'")
   })
 
   it('only updates a contact already scoped to the selected team', () => {
-    expect(source).toContain(".select('id,team_name')")
+    expect(source).toContain(".select('id,team_name,captain_user_id,email,source,source_batch_id')")
     expect(source).toContain(".eq('id', contactId)")
-    expect(source).toContain('normalizeTeamRoomKey(existingContact.team_name)')
+    expect(source).toContain('normalizeTeamRoomKey(data.team_name) !== normalizeTeamRoomKey(teamName)')
   })
 
   it('records a structured production error if a save fails', () => {
