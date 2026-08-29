@@ -49,7 +49,15 @@ export type CaptainLineupBuilderDraft = {
   notes: string
   teamSlots: unknown
   opponentSlots: unknown
+  manualRosterEntries: CaptainLineupManualRosterEntry[]
   updatedAt?: string
+}
+
+export type CaptainLineupManualRosterEntry = {
+  name: string
+  teamName: string
+  leagueName: string
+  flight: string
 }
 
 export type CaptainDirectCourtTextHandoff = {
@@ -159,6 +167,24 @@ export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineup
     const parsed = JSON.parse(raw) as Partial<CaptainLineupBuilderDraft>
     if (!Array.isArray(parsed.teamSlots) || !Array.isArray(parsed.opponentSlots)) return null
 
+    const manualRosterEntries = Array.isArray(parsed.manualRosterEntries)
+      ? parsed.manualRosterEntries
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') return null
+          const candidate = entry as Partial<CaptainLineupManualRosterEntry>
+          const name = typeof candidate.name === 'string' ? candidate.name.trim() : ''
+          if (!name) return null
+          return {
+            name,
+            teamName: typeof candidate.teamName === 'string' ? candidate.teamName.trim() : '',
+            leagueName: typeof candidate.leagueName === 'string' ? candidate.leagueName.trim() : '',
+            flight: typeof candidate.flight === 'string' ? candidate.flight.trim() : '',
+          }
+        })
+        .filter((entry): entry is CaptainLineupManualRosterEntry => Boolean(entry))
+        .slice(-80)
+      : []
+
     return {
       competitionLayer: typeof parsed.competitionLayer === 'string' ? parsed.competitionLayer : '',
       leagueName: typeof parsed.leagueName === 'string' ? parsed.leagueName : '',
@@ -173,6 +199,7 @@ export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineup
       notes: typeof parsed.notes === 'string' ? parsed.notes : '',
       teamSlots: parsed.teamSlots,
       opponentSlots: parsed.opponentSlots,
+      manualRosterEntries,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
     }
   } catch {

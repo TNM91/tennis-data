@@ -154,6 +154,13 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('opponentRosterReadyStyle')).toContain('minWidth: 0')
   })
 
+  it('keeps manual opponent names available after a Builder refresh or upload return', () => {
+    expect(source).toContain('function restoreManualRosterPlayers(')
+    expect(source).toContain('const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft')
+    expect(source).toContain('manualRosterEntries: manualRosterPlayers.slice(-80).map((player) => ({')
+    expect(source).toContain('const restoredManualRosterPlayers = restoreManualRosterPlayers(storedDraft)')
+  })
+
   it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
     expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
     expect(source).toContain('Save mobile & prepare Ask')
