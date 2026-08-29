@@ -2865,7 +2865,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     ].join(':')
   }
 
-  function openPreparedCourtText(preparedText: PreparedCourtText) {
+  function markPreparedCourtTextOpened(preparedText: PreparedCourtText) {
     const playerKey = normalizeCaptainRosterContactKey(preparedText.playerName)
     setOpenedCourtTextKeys((current) => Array.from(new Set([...current, preparedText.key])))
     if (directCourtTextHandoff) {
@@ -2876,10 +2876,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     }
 
     setError('')
-    // This is intentionally a direct location change inside the physical Ask
-    // tap. Mobile Safari will suppress a Messages handoff after a promise,
-    // timer, or an anchor's competing default navigation.
-    openNativeSmsHandoff(preparedText.phone, preparedText.playerName, preparedText.body)
+    setSmsFallback({ href: preparedText.href, playerName: preparedText.playerName })
+    setMessage(`Opening Messages for ${preparedText.playerName}.`)
   }
 
   async function askProposedCourtPlayers(
@@ -5117,7 +5115,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     onInlinePhoneChange={(playerKey, value) => setInlinePhoneByPlayerKey((current) => ({ ...current, [playerKey]: value }))}
                     savingPhonePlayerKey={savingPhonePlayerKey}
                     getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
-                    onOpenPreparedCourtText={openPreparedCourtText}
+                    onOpenPreparedCourtText={markPreparedCourtTextOpened}
                     openedCourtTextKeys={openedCourtTextKeySet}
                     askingPlayers={askingCourtId === slot.id}
                     focused={backupFocusSlot?.id === slot.id}
@@ -5908,10 +5906,7 @@ function SlotEditor({
                 <a
                   key={player.playerId || player.playerName}
                   href={preparedText.href}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    onOpenPreparedCourtText(preparedText)
-                  }}
+                  onClick={() => onOpenPreparedCourtText(preparedText)}
                   style={isMobileLayout ? mobileSmsFallbackLinkStyle : smsFallbackLinkStyle}
                 >
                   Ask {player.playerName.split(' ')[0]}
