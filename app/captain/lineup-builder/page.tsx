@@ -4701,52 +4701,83 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         ) : null}
 
         {isMobile ? (
-          <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
-            <div>
-              <p style={sectionKicker}>Next decision</p>
-              <h2 style={mobileCourtFocusTitleStyle}>Set the courts.</h2>
-              <p style={mobileCourtFocusTextStyle}>
-                {lineupHasAssignments
-                  ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
-                  : 'Start with the three team courts. TiQ can fill a balanced first draft for you.'}
-              </p>
-              <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
-                {mobileLineupPulse.map((item) => (
-                  <div key={item.label} style={mobileLineupPulseCardStyle}>
-                    <span style={mobileLineupPulseLabelStyle}>{item.label}</span>
-                    <strong style={mobileLineupPulseValueStyle}>{item.value}</strong>
-                    <small style={mobileLineupPulseDetailStyle}>{item.detail}</small>
-                  </div>
-                ))}
-              </div>
-              {mobileCourtMap.length ? (
-                <div style={mobileCourtMapShellStyle} aria-label="Court map">
-                  <div style={mobileCourtMapHeaderStyle}>
-                    <span style={mobileCourtMapTitleStyle}>Court map</span>
-                    <span style={mobileCourtMapHintStyle}>Where to lean in</span>
-                  </div>
-                  <div style={mobileCourtMapGridStyle}>
-                    {mobileCourtMap.map((court) => (
-                      <div key={court.label} style={mobileCourtMapCardStyle(court.tone)}>
-                        <span style={mobileCourtMapLabelStyle}>{court.label}</span>
-                        <div style={mobileCourtMapValueRowStyle}>
-                          <strong style={mobileCourtMapValueStyle}>{court.value}</strong>
-                          <span style={mobileCourtMapStatusStyle(court.tone)}>{court.status}</span>
-                        </div>
-                        <span style={mobileCourtMapDetailStyle}>{court.detail}</span>
-                      </div>
-                    ))}
-                  </div>
+          <>
+            <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
+              <div>
+                <p style={sectionKicker}>Next decision</p>
+                <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : 'Set the courts.'}</h2>
+                <p style={mobileCourtFocusTextStyle}>
+                  {finalLineupReady
+                    ? 'Every selected player is in. Send one clear lineup and match update to the team.'
+                    : lineupHasAssignments
+                      ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
+                      : 'Start with the three team courts. TiQ can fill a balanced first draft for you.'}
+                </p>
+                <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
+                  {mobileLineupPulse.map((item) => (
+                    <div key={item.label} style={mobileLineupPulseCardStyle}>
+                      <span style={mobileLineupPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileLineupPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileLineupPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
                 </div>
-              ) : null}
-            </div>
-            <div style={mobileCourtFocusActionsStyle}>
-              <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
-                {lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}
-              </PrimaryBtn>
-              <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
-            </div>
-          </section>
+                {mobileCourtMap.length ? (
+                  <div style={mobileCourtMapShellStyle} aria-label="Court map">
+                    <div style={mobileCourtMapHeaderStyle}>
+                      <span style={mobileCourtMapTitleStyle}>Court map</span>
+                      <span style={mobileCourtMapHintStyle}>Where to lean in</span>
+                    </div>
+                    <div style={mobileCourtMapGridStyle}>
+                      {mobileCourtMap.map((court) => (
+                        <div key={court.label} style={mobileCourtMapCardStyle(court.tone)}>
+                          <span style={mobileCourtMapLabelStyle}>{court.label}</span>
+                          <div style={mobileCourtMapValueRowStyle}>
+                            <strong style={mobileCourtMapValueStyle}>{court.value}</strong>
+                            <span style={mobileCourtMapStatusStyle(court.tone)}>{court.status}</span>
+                          </div>
+                          <span style={mobileCourtMapDetailStyle}>{court.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div style={mobileCourtFocusActionsStyle}>
+                {!finalLineupReady ? (
+                  <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
+                    {lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}
+                  </PrimaryBtn>
+                ) : null}
+                <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+              </div>
+            </section>
+
+            {lineupHasAssignments ? (
+              <section style={mobileFinalLineupPanelStyle} aria-label="Final lineup status" role="status" aria-live="polite">
+                <div style={mobileFinalLineupHeaderStyle}>
+                  <div style={mobileFinalLineupCopyStyle}>
+                    <p style={sectionKicker}>Final lineup</p>
+                    <strong>{finalLineupReadinessTitle}</strong>
+                    <span>{finalLineupReadinessDetail}</span>
+                  </div>
+                  <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>
+                    {assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in
+                  </span>
+                </div>
+                <div style={mobileFinalLineupActionsStyle}>
+                  {finalLineupReady ? (
+                    <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+                  ) : (
+                    <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                      {refreshingReplies ? 'Checking replies...' : 'Check replies'}
+                    </GhostBtn>
+                  )}
+                  <GhostLink href="#captain-lineup-courts">Edit courts</GhostLink>
+                </div>
+              </section>
+            ) : null}
+          </>
         ) : <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
@@ -7338,6 +7369,44 @@ const mobileCourtFocusTextStyle: CSSProperties = {
 }
 
 const mobileCourtFocusActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileFinalLineupPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 13,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-chip-bg))',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileFinalLineupHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileFinalLineupCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  flex: '1 1 220px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const mobileFinalLineupActionsStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,

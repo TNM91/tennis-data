@@ -258,4 +258,20 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('mobileCourtMapGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 132px), 1fr))")
     expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
   })
+
+  it('gives mobile captains a clear final lineup check before they send the team update', () => {
+    expect(source).toContain('aria-label="Final lineup status"')
+    expect(source).toContain('Ready to send.')
+    expect(source).toContain('Send lineup to team')
+    expect(source).toContain('Edit courts')
+    for (const styleName of [
+      'mobileFinalLineupPanelStyle',
+      'mobileFinalLineupHeaderStyle',
+      'mobileFinalLineupCopyStyle',
+      'mobileFinalLineupActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('mobileFinalLineupActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+  })
 })
