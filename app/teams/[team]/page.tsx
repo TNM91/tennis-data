@@ -1702,7 +1702,7 @@ function TeamPageContent() {
 
   const dynamicRosterMetricGrid: CSSProperties = {
     ...mobileRosterMetricGridStyle,
-    gridTemplateColumns: isDoublesOnlyTeam ? 'repeat(2, minmax(0, 1fr))' : mobileRosterMetricGridStyle.gridTemplateColumns,
+    gridTemplateColumns: isMobile || isDoublesOnlyTeam ? 'repeat(2, minmax(0, 1fr))' : mobileRosterMetricGridStyle.gridTemplateColumns,
   }
 
   const dynamicHeroActions: CSSProperties = {
@@ -2894,10 +2894,62 @@ function TeamPageContent() {
                   const singlesRating = player.singles_dynamic_rating ?? player.overall_dynamic_rating
                   const doublesRating = player.doubles_dynamic_rating ?? player.overall_dynamic_rating
                   const ustaRating = player.overall_rating
+                  const primaryRating = isDoublesOnlyTeam
+                    ? doublesRating
+                    : player.overall_dynamic_rating ?? player.overall_rating ?? doublesRating
                   const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))
                   const phone = contact?.phone?.trim() || ''
                   const email = contact?.email?.trim() || ''
                   const isPendingLink = player.id.startsWith('summary:')
+                  const rosterPlayerTools = (
+                    <>
+                      <div style={rosterActionRow}>
+                        {!isPendingLink ? <Link href={`/players/${player.id}`} style={rosterActionLink}>Profile</Link> : null}
+                        {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
+                          <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
+                        ) : null}
+                        {!isPendingLink && isLinkedTeamMember && player.id !== linkedPlayerId ? (
+                          <QuickMessageComposer
+                            mode="direct"
+                            triggerLabel="Message in TiQ"
+                            recipientName={player.name}
+                            recipientPlayerId={player.id}
+                            subject={`Team message for ${player.name}`}
+                            body={`Hi ${player.name},`}
+                          />
+                        ) : null}
+                        {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterActionLink}>Team chat</Link> : null}
+                      </div>
+                      {canManageThisTeam ? (
+                        <>
+                          <div style={rosterContactSummaryStyle} aria-label={`${player.name} private captain contact details`}>
+                            <span style={rosterContactSummaryItemStyle}>
+                              <em style={rosterContactSummaryLabelStyle}>Mobile</em>
+                              <strong>{phone ? formatPhone(phone) : 'Not saved'}</strong>
+                            </span>
+                            <span style={rosterContactSummaryItemStyle}>
+                              <em style={rosterContactSummaryLabelStyle}>Email</em>
+                              <strong>{email || 'Not saved'}</strong>
+                            </span>
+                          </div>
+                          <div style={rosterContactActionRowStyle}>
+                            {phone ? (
+                              <NativeRosterTextButton phone={phone} playerName={player.name} label={`Text ${formatPhone(phone)}`} />
+                            ) : <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Add mobile</button>}
+                            <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Edit contact</button>
+                          </div>
+                          {editingRosterContactId === player.id ? (
+                            <InlineRosterContactEditor
+                              playerName={player.name}
+                              initialPhone={phone}
+                              onCancel={() => setEditingRosterContactId(null)}
+                              onSave={saveRosterContact}
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </>
+                  )
                   return (
                     <article key={player.id} id={`roster-player-${player.id}`} style={mobileRosterCardStyle}>
                       <div style={mobileRosterHeaderStyle}>
@@ -2921,69 +2973,44 @@ function TeamPageContent() {
 
                       <div style={mobileRosterCompactRowStyle}>
                         <dl style={dynamicRosterMetricGrid} aria-label={`${player.name} roster stats`}>
-                          {!isDoublesOnlyTeam ? <div style={mobileRosterMetricStyle}>
-                            <dt style={mobileRosterMetricLabelStyle}>TiQ singles</dt>
-                            <dd style={mobileRosterMetricValueStyle}>{formatRating(singlesRating)}</dd>
-                          </div> : null}
-                          <div style={mobileRosterMetricStyle}>
-                            <dt style={mobileRosterMetricLabelStyle}>TiQ doubles</dt>
-                            <dd style={mobileRosterMetricValueStyle}>{formatRating(doublesRating)}</dd>
-                          </div>
-                          <div style={mobileRosterMetricStyle}>
-                            <dt style={mobileRosterMetricLabelStyle}>USTA</dt>
-                            <dd style={mobileRosterMetricValueStyle}>{formatRating(ustaRating)}</dd>
-                          </div>
+                          {isMobile ? <>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>{isDoublesOnlyTeam ? 'TiQ doubles' : 'TiQ overall'}</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(primaryRating)}</dd>
+                            </div>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>USTA</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(ustaRating)}</dd>
+                            </div>
+                          </> : <>
+                            {!isDoublesOnlyTeam ? <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>TiQ singles</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(singlesRating)}</dd>
+                            </div> : null}
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>TiQ doubles</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(doublesRating)}</dd>
+                            </div>
+                            <div style={mobileRosterMetricStyle}>
+                              <dt style={mobileRosterMetricLabelStyle}>USTA</dt>
+                              <dd style={mobileRosterMetricValueStyle}>{formatRating(ustaRating)}</dd>
+                            </div>
+                          </>}
                         </dl>
                         <span style={rosterPlayerRecordStyle}>{player.appearances} starts · {player.wins}-{player.losses}</span>
                       </div>
 
-                      <div style={rosterCardFooterStyle}>
-                        <div style={rosterActionRow}>
-                          {!isPendingLink ? <Link href={`/players/${player.id}`} style={rosterActionLink}>Profile</Link> : null}
-                          {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
-                            <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
-                          ) : null}
-                          {!isPendingLink && isLinkedTeamMember && player.id !== linkedPlayerId ? (
-                            <QuickMessageComposer
-                              mode="direct"
-                              triggerLabel="Message in TiQ"
-                              recipientName={player.name}
-                              recipientPlayerId={player.id}
-                              subject={`Team message for ${player.name}`}
-                              body={`Hi ${player.name},`}
-                            />
-                          ) : null}
-                          {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterActionLink}>Team chat</Link> : null}
-                        </div>
-                        {canManageThisTeam ? (
-                          <>
-                            <div style={rosterContactSummaryStyle} aria-label={`${player.name} private captain contact details`}>
-                              <span style={rosterContactSummaryItemStyle}>
-                                <em style={rosterContactSummaryLabelStyle}>Mobile</em>
-                                <strong>{phone ? formatPhone(phone) : 'Not saved'}</strong>
-                              </span>
-                              <span style={rosterContactSummaryItemStyle}>
-                                <em style={rosterContactSummaryLabelStyle}>Email</em>
-                                <strong>{email || 'Not saved'}</strong>
-                              </span>
-                            </div>
-                            <div style={rosterContactActionRowStyle}>
-                              {phone ? (
-                                <NativeRosterTextButton phone={phone} playerName={player.name} label={`Text ${formatPhone(phone)}`} />
-                              ) : <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Add mobile</button>}
-                              <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Edit contact</button>
-                            </div>
-                            {editingRosterContactId === player.id ? (
-                              <InlineRosterContactEditor
-                                playerName={player.name}
-                                initialPhone={phone}
-                                onCancel={() => setEditingRosterContactId(null)}
-                                onSave={saveRosterContact}
-                              />
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
+                      {isMobile ? (
+                        <details style={mobileRosterDetailsStyle}>
+                          <summary style={mobileRosterDetailsSummaryStyle}>
+                            <span>Player tools</span>
+                            <span style={phone ? mobileRosterDetailsReadyStyle : mobileRosterDetailsHintStyle}>
+                              {phone ? 'Text ready' : canManageThisTeam ? 'Add mobile' : 'Open'}
+                            </span>
+                          </summary>
+                          <div style={mobileRosterDetailsBodyStyle}>{rosterPlayerTools}</div>
+                        </details>
+                      ) : <div style={rosterCardFooterStyle}>{rosterPlayerTools}</div>}
                     </article>
                   )
                 })}
@@ -4884,6 +4911,44 @@ const mobileRosterCompactRowStyle: CSSProperties = {
   minWidth: 0,
   paddingTop: 9,
   borderTop: '1px solid rgba(125, 211, 252, 0.10)',
+}
+
+const mobileRosterDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  paddingTop: 8,
+  borderTop: '1px solid rgba(125, 211, 252, 0.10)',
+}
+
+const mobileRosterDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  cursor: 'pointer',
+  listStyle: 'none',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const mobileRosterDetailsHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  whiteSpace: 'nowrap',
+}
+
+const mobileRosterDetailsReadyStyle: CSSProperties = {
+  ...mobileRosterDetailsHintStyle,
+  color: '#d9f84a',
+}
+
+const mobileRosterDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  paddingTop: 10,
 }
 
 const playerLink: CSSProperties = {
