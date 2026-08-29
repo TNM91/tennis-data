@@ -242,7 +242,7 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap }
+      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
@@ -327,7 +327,7 @@ function RecordResultContent() {
           </section>
 
           <div className={styles.recapActions}>
-            <Link className={styles.saveButton} href={updatedTeamRoomHref}>Open team recap</Link>
+            <Link className={styles.saveButton} href={updatedTeamRoomHref}>{notice.includes('updated Team Chat') ? 'View team update' : 'Open team recap'}</Link>
             <button className={styles.addCourt} type="button" onClick={() => {
               setSavedRecap(null)
               const url = new URL(window.location.href)

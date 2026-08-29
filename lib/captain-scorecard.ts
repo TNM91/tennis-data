@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { ScorecardImportRow } from './ingestion/importEngine'
+import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './tennisrecord/reconcile'
 
 export type CaptainScorecardLineInput = {
@@ -210,6 +211,44 @@ export function buildCaptainScorecardImportRow(
       evidenceClass: 'locked',
       isLocked: true,
     })),
+  }
+}
+
+/**
+ * The Team Chat result announcer accepts the same normalized match shape used
+ * by reviewed scorecard imports. A captain-entered scorecard is already
+ * verified, so build that shape directly instead of waiting for a later
+ * source pass to announce the completed match.
+ */
+export function buildCaptainScorecardTeamRoomDraft(
+  input: CaptainScorecardInput,
+  externalMatchId = buildCaptainScorecardExternalMatchId(input),
+): DataAssistScorecardParsedDraft {
+  return {
+    externalMatchId,
+    leagueName: cleanText(input.leagueName),
+    homeTeam: cleanText(input.teamName),
+    awayTeam: cleanText(input.opponentTeam),
+    matchDate: cleanText(input.matchDate),
+    lineCount: input.lines.length,
+    parserWarnings: [],
+    lines: input.lines.map((line) => ({
+      lineLabel: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      homePlayers: cleanNames(line.teamPlayers),
+      awayPlayers: cleanNames(line.opponentPlayers),
+      score: cleanText(line.score),
+      winner: line.outcome === 'team' ? 'home' : 'away',
+      winnerSource: 'winner_column',
+      confidenceScore: 1,
+      scoreEventType: /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
+        ? 'third_set_match_tiebreak'
+        : 'standard',
+      parseNotes: [],
+    })),
+    rawTextPreview: 'Verified captain scorecard',
+    sourceScreenshotCount: 0,
+    provider: 'manual_review',
+    confidenceScore: 1,
   }
 }
 

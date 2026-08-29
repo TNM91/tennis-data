@@ -3,6 +3,7 @@ import {
   buildCaptainScorecardImportRow,
   buildCaptainScorecardObservations,
   buildCaptainScorecardRecap,
+  buildCaptainScorecardTeamRoomDraft,
   hasHigherPriorityCaptainScorecardConflict,
   isCaptainScorecardSavedRecap,
   validateCaptainScorecardInput,
@@ -14,6 +15,7 @@ import { runScorecardImport } from '@/lib/ingestion/runImport'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { sourcePriority } from '@/lib/tennisrecord/reconcile'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
+import { announceTeamRoomScorecardResult } from '@/lib/team-room-result-announcement-server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -367,11 +369,30 @@ export async function POST(request: Request) {
       .in('canonical_match_id', savedLineIds)
     : { error: null }
   if (receiptError) console.error('Could not persist captain scorecard recap', receiptError)
+
+  // Captain scorecards are already verified local records. Send the final
+  // result to the matching Team Chat in the same save, while the announcement
+  // helper keeps repeat saves and later corrections idempotent.
+  let teamAnnouncementUpdated = false
+  try {
+    const announcement = await announceTeamRoomScorecardResult({
+      service,
+      userId: auth.userId,
+      draft: buildCaptainScorecardTeamRoomDraft(input, scorecard.externalMatchId),
+    })
+    teamAnnouncementUpdated = announcement.inserted > 0 || announcement.updated > 0
+  } catch (announcementError) {
+    // Team Chat availability never blocks the verified match and rating save.
+    console.error('Could not announce captain scorecard result in Team Chat', announcementError)
+  }
   return Response.json({
     ok: true,
     externalMatchId: scorecard.externalMatchId,
     linesRecorded: observationPayload.length,
     recap,
-    message: `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
+    teamAnnouncementUpdated,
+    message: teamAnnouncementUpdated
+      ? `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'}, refreshed TiQ ratings, and updated Team Chat.`
+      : `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
   })
 }
