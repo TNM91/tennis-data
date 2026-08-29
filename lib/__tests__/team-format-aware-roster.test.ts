@@ -25,15 +25,17 @@ describe('team format-aware roster', () => {
     expect(source).toContain('TiQ Team Chat')
   })
 
-  it('gives captains a private contact-readiness hub with direct contact actions', () => {
+  it('gives captains a private contact-readiness hub with direct inline contact actions', () => {
     expect(source).toContain('const captainContactCoverage = useMemo')
     expect(source).toContain('Contact readiness for match week')
     expect(source).toContain('Private to captains.')
     expect(source).toContain('Add missing mobiles')
     expect(source).toContain('mailto:${email}')
     expect(source).toContain('captainContactPreviewGridStyle')
-    expect(source).toContain('const captainContactHrefFor = (playerName: string)')
-    expect(source).toContain('href={captainContactHrefFor(player.name)}')
+    expect(source).toContain('const saveRosterContact = useCallback')
+    expect(source).toContain('function InlineRosterContactEditor')
+    expect(source).toContain('onSave={saveRosterContact}')
+    expect(source).toContain('style={rosterContactManageButtonStyle}>Add mobile</button>')
   })
 
   it('lets linked teammates open a direct TiQ message from a roster card', () => {
