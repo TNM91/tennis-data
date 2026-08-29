@@ -18,7 +18,10 @@ describe('team format-aware roster', () => {
     expect(source).toContain("from '@/lib/captain-roster-contacts'")
     expect(source).toContain('const teamContactsHref =')
     expect(source).toContain('private captain contacts saved for this team')
-    expect(source).toContain('Text {contact.phone}')
+    expect(source).toContain('function NativeRosterTextButton')
+    expect(source).toContain('data-roster-text-player={playerName}')
+    expect(source).toContain('rosterContactSummaryStyle')
+    expect(source).toContain('formatPhone(phone)')
     expect(source).toContain('TiQ Team Chat')
   })
 
