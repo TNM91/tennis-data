@@ -2,6 +2,7 @@ import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import {
   buildCaptainScorecardImportRow,
   buildCaptainScorecardObservations,
+  buildCaptainScorecardRecap,
   hasHigherPriorityCaptainScorecardConflict,
   validateCaptainScorecardInput,
   type CaptainScorecardInput,
@@ -26,6 +27,24 @@ type StoredObservation = {
 type ExistingMatch = {
   id: string
   external_match_id: string | null
+}
+
+type SavedMatchParticipant = {
+  match_id: string
+  player_id: string
+  side: 'A' | 'B'
+}
+
+type RatingPlayer = {
+  id: string
+  name: string | null
+  singles_dynamic_rating: number | null
+  doubles_dynamic_rating: number | null
+}
+
+function matchRating(player: RatingPlayer | undefined, matchType: 'singles' | 'doubles') {
+  const value = matchType === 'singles' ? player?.singles_dynamic_rating : player?.doubles_dynamic_rating
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null
 }
 
 function parseInput(value: unknown): CaptainScorecardInput | null {
@@ -162,6 +181,23 @@ export async function POST(request: Request) {
     .in('external_match_id', lineExternalIds)
   if (savedLinesError) return Response.json({ ok: false, message: 'The saved court results could not be confirmed.' }, { status: 500 })
   const lineIdByExternalId = new Map(((savedLines || []) as ExistingMatch[]).map((line) => [line.external_match_id || '', line.id]))
+  const savedLineIds = [...lineIdByExternalId.values()]
+  const matchTypeById = new Map(input.lines.flatMap((line) => {
+    const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
+    return lineId ? [[lineId, line.matchType] as const] : []
+  }))
+  const { data: participantData } = savedLineIds.length
+    ? await service.from('match_players').select('match_id,player_id,side').in('match_id', savedLineIds)
+    : { data: [] }
+  const savedParticipants = (participantData || []) as SavedMatchParticipant[]
+  const participantIds = [...new Set(savedParticipants.map((participant) => participant.player_id).filter(Boolean))]
+  const { data: beforeRatingData } = participantIds.length
+    ? await service
+      .from('players')
+      .select('id,name,singles_dynamic_rating,doubles_dynamic_rating')
+      .in('id', participantIds)
+    : { data: [] }
+  const beforeRatings = new Map(((beforeRatingData || []) as RatingPlayer[]).map((player) => [player.id, player]))
   const observedAt = new Date().toISOString()
   const observationPayload = localObservations.flatMap((observation, index) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${input.lines[index].courtNumber}`)
@@ -224,10 +260,38 @@ export async function POST(request: Request) {
   }
 
   await recalculateDynamicRatings(undefined, service)
+  const { data: afterRatingData } = participantIds.length
+    ? await service
+      .from('players')
+      .select('id,name,singles_dynamic_rating,doubles_dynamic_rating')
+      .in('id', participantIds)
+    : { data: [] }
+  const afterRatings = new Map(((afterRatingData || []) as RatingPlayer[]).map((player) => [player.id, player]))
+  const ratingChanges = [...new Map(savedParticipants.map((participant) => [participant.player_id, participant])).values()]
+    .map((participant) => {
+      const matchType = matchTypeById.get(participant.match_id) || 'doubles'
+      const before = matchRating(beforeRatings.get(participant.player_id), matchType)
+      const after = matchRating(afterRatings.get(participant.player_id), matchType)
+      return {
+        playerId: participant.player_id,
+        playerName: afterRatings.get(participant.player_id)?.name || beforeRatings.get(participant.player_id)?.name || 'Player',
+        side: participant.side === 'A' ? 'team' as const : 'opponent' as const,
+        matchType,
+        before,
+        after,
+        delta: before !== null && after !== null ? Math.round((after - before) * 1000) / 1000 : null,
+      }
+    })
+  const sourceConflictCount = canonicalRows.reduce((total, row) => total + row.conflict_count, 0)
   return Response.json({
     ok: true,
     externalMatchId: scorecard.externalMatchId,
     linesRecorded: observationPayload.length,
+    recap: {
+      ...buildCaptainScorecardRecap(input),
+      ratingChanges,
+      sourceConflictCount,
+    },
     message: `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
   })
 }

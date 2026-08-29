@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -37,6 +37,31 @@ type TeamRoomResponse = {
   } | null
 }
 
+type SavedScorecardRecap = {
+  outcome: 'won' | 'lost' | 'split'
+  teamCourts: number
+  opponentCourts: number
+  lines: Array<{
+    courtNumber: number
+    label: string
+    matchType: 'singles' | 'doubles'
+    teamPlayers: string[]
+    opponentPlayers: string[]
+    outcome: 'team' | 'opponent'
+    score: string
+  }>
+  ratingChanges: Array<{
+    playerId: string
+    playerName: string
+    side: 'team' | 'opponent'
+    matchType: 'singles' | 'doubles'
+    before: number | null
+    after: number | null
+    delta: number | null
+  }>
+  sourceConflictCount: number
+}
+
 function createCourt(courtNumber: number): CourtDraft {
   return {
     id: `court-${courtNumber}-${Math.random().toString(36).slice(2, 8)}`,
@@ -53,8 +78,11 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+function formatRating(value: number | null) {
+  return value === null ? 'TiQ pending' : value.toFixed(2)
+}
+
 function RecordResultContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
   const teamName = searchParams.get('team')?.trim() || ''
@@ -74,6 +102,7 @@ function RecordResultContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [savedRecap, setSavedRecap] = useState<SavedScorecardRecap | null>(null)
   const lineupPrefillKey = useRef('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
@@ -85,6 +114,7 @@ function RecordResultContent() {
     time: matchTime,
     facility,
   }), [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
+  const updatedTeamRoomHref = `${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -218,18 +248,91 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean }
+      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; recap?: SavedScorecardRecap }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
       }
       setNotice(payload.message || 'Result saved.')
-      window.setTimeout(() => router.replace(`${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`), 450)
+      setSavedRecap(payload.recap || null)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
       setError('The scorecard could not be saved. Check your connection and try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  if (savedRecap) {
+    const outcomeLabel = savedRecap.outcome === 'won' ? 'Match won.' : savedRecap.outcome === 'lost' ? 'Match recorded.' : 'Match split.'
+    const ratingChanges = [...savedRecap.ratingChanges].sort((left, right) => Number(right.side === 'team') - Number(left.side === 'team'))
+    return (
+      <main className={styles.page}>
+        <section className={styles.recapShell} aria-labelledby="scorecard-recap-title">
+          <div className={styles.recapHeading}>
+            <div>
+              <p className={styles.eyebrow}>Verified result</p>
+              <h1 id="scorecard-recap-title">{outcomeLabel}</h1>
+              <p>{teamName || 'Your team'} vs {opponentTeam || 'opponent'} · {matchDate || 'Match date'}</p>
+            </div>
+            <span className={styles.verifiedPill}>Captain verified</span>
+          </div>
+
+          <section className={styles.resultScoreboard} aria-label="Team result">
+            <div><span>{teamName || 'Your team'}</span><strong>{savedRecap.teamCourts}</strong></div>
+            <em>Final courts</em>
+            <div><span>{opponentTeam || 'Opponent'}</span><strong>{savedRecap.opponentCourts}</strong></div>
+          </section>
+
+          <section className={styles.recapSection}>
+            <div className={styles.recapSectionHeading}>
+              <div><p className={styles.eyebrow}>Court tape</p><h2>What was recorded</h2></div>
+              <span>{savedRecap.lines.length} court{savedRecap.lines.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className={styles.recapLines}>
+              {savedRecap.lines.map((line) => (
+                <article className={styles.recapLine} key={`${line.courtNumber}-${line.label}`} data-outcome={line.outcome}>
+                  <div><strong>{line.label}</strong><span>{line.outcome === 'team' ? 'Won' : 'Lost'} · {line.score}</span></div>
+                  <p>{line.teamPlayers.join(' / ')} <small>vs</small> {line.opponentPlayers.join(' / ')}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.recapSection}>
+            <div className={styles.recapSectionHeading}>
+              <div><p className={styles.eyebrow}>TiQ movement</p><h2>After this result</h2></div>
+              <span>Match-specific</span>
+            </div>
+            {ratingChanges.length ? (
+              <div className={styles.ratingChanges}>
+                {ratingChanges.map((change) => (
+                  <article className={styles.ratingChange} key={change.playerId}>
+                    <div><strong>{change.playerName}</strong><span>{change.side === 'team' ? 'Your team' : 'Opponent'} · {change.matchType === 'doubles' ? 'Doubles TiQ' : 'Singles TiQ'}</span></div>
+                    <div className={styles.ratingValues}>
+                      <strong>{formatRating(change.after)}</strong>
+                      {change.delta !== null ? <span data-direction={change.delta > 0 ? 'up' : change.delta < 0 ? 'down' : 'flat'}>{change.delta > 0 ? '+' : ''}{change.delta.toFixed(3)}</span> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <p className={styles.recapEmpty}>TiQ is refreshing the player read. This verified scorecard is already saved.</p>}
+          </section>
+
+          <section className={styles.auditNote}>
+            <strong>{savedRecap.sourceConflictCount ? 'Source detail retained' : 'Match record protected'}</strong>
+            <span>{savedRecap.sourceConflictCount
+              ? `TiQ kept ${savedRecap.sourceConflictCount} lower-confidence score difference for audit. Your verified captain scorecard remains canonical.`
+              : 'Your verified captain scorecard is now connected to this match. Future imports can fill gaps but cannot silently replace it.'}</span>
+          </section>
+
+          <div className={styles.recapActions}>
+            <Link className={styles.saveButton} href={updatedTeamRoomHref}>Open team recap</Link>
+            <button className={styles.addCourt} type="button" onClick={() => setSavedRecap(null)}>Edit scorecard</button>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   return (

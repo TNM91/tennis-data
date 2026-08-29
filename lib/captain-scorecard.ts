@@ -29,6 +29,21 @@ export type CaptainScorecardObservation = {
   participants: Array<{ name: string; side: 'A' | 'B'; seat: number }>
 }
 
+export type CaptainScorecardRecap = {
+  outcome: 'won' | 'lost' | 'split'
+  teamCourts: number
+  opponentCourts: number
+  lines: Array<{
+    courtNumber: number
+    label: string
+    matchType: 'singles' | 'doubles'
+    teamPlayers: string[]
+    opponentPlayers: string[]
+    outcome: 'team' | 'opponent'
+    score: string
+  }>
+}
+
 function cleanText(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim()
 }
@@ -97,6 +112,25 @@ export function buildCaptainScorecardObservations(input: CaptainScorecardInput):
       participants,
     }
   })
+}
+
+export function buildCaptainScorecardRecap(input: CaptainScorecardInput): CaptainScorecardRecap {
+  const teamCourts = input.lines.filter((line) => line.outcome === 'team').length
+  const opponentCourts = input.lines.filter((line) => line.outcome === 'opponent').length
+  return {
+    outcome: teamCourts === opponentCourts ? 'split' : teamCourts > opponentCourts ? 'won' : 'lost',
+    teamCourts,
+    opponentCourts,
+    lines: input.lines.map((line) => ({
+      courtNumber: line.courtNumber,
+      label: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      matchType: line.matchType,
+      teamPlayers: cleanNames(line.teamPlayers),
+      opponentPlayers: cleanNames(line.opponentPlayers),
+      outcome: line.outcome,
+      score: cleanText(line.score),
+    })),
+  }
 }
 
 export function buildCaptainScorecardImportRow(

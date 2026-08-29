@@ -3,6 +3,7 @@ import {
   buildCaptainScorecardExternalMatchId,
   buildCaptainScorecardImportRow,
   buildCaptainScorecardObservations,
+  buildCaptainScorecardRecap,
   hasHigherPriorityCaptainScorecardConflict,
   validateCaptainScorecardInput,
 } from '../captain-scorecard'
@@ -53,5 +54,21 @@ describe('captain scorecard capture', () => {
     const observation = buildCaptainScorecardObservations(input)[0]
     expect(hasHigherPriorityCaptainScorecardConflict({ source: 'admin_verified', scoreText: '6-4 6-4' }, observation)).toBe(true)
     expect(hasHigherPriorityCaptainScorecardConflict({ source: 'tennisrecord', scoreText: '6-4 6-4' }, observation)).toBe(false)
+  })
+
+  it('summarizes the final court record for an immediate captain recap', () => {
+    const recap = buildCaptainScorecardRecap({
+      ...input,
+      lines: [
+        input.lines[0],
+        { ...input.lines[0], courtNumber: 2, outcome: 'team', score: '6-3 6-4' },
+      ],
+    })
+    expect(recap).toMatchObject({
+      outcome: 'split',
+      teamCourts: 1,
+      opponentCourts: 1,
+    })
+    expect(recap.lines[0]).toMatchObject({ label: 'Doubles 1', score: '6-4 3-6 1-0' })
   })
 })
