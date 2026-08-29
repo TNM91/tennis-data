@@ -62,9 +62,9 @@ describe('team detail week path', () => {
 
   it('keeps the core team jobs first and removes generic player-ID detours', () => {
     expect(source).toContain('aria-label="Team page sections"')
-    expect(source).toContain('href="#team-overview"')
-    expect(source).toContain('href="#team-schedule"')
-    expect(source).toContain('href="#team-roster"')
+    expect(source).toContain("{ id: 'overview', label: 'Overview', href: '#team-overview' }")
+    expect(source).toContain("{ id: 'activity', label: 'Activity', href: '#team-schedule' }")
+    expect(source).toContain("{ id: 'roster', label: 'Roster', href: '#team-roster' }")
     expect(source).toContain('id="team-schedule"')
     expect(source).toContain('id="team-roster"')
     expect(source).not.toContain('Roster Player ID trail')
@@ -73,11 +73,11 @@ describe('team detail week path', () => {
   })
 
   it('keeps public team exploration data-first while preserving private roster chat', () => {
-    expect(source).toContain("{isLinkedTeamMember ? <a href=\"#team-chat\"")
+    expect(source).toContain("...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : [])")
     expect(source).toContain("{isLinkedTeamMember ? <section id=\"team-chat\"")
     expect(source).toContain('Team activity')
     expect(source).toContain('results ready to review')
-    expect(source).toContain('>Activity</a>')
+    expect(source).toContain("{ id: 'activity', label: 'Activity', href: '#team-schedule' }")
     expect(source).toContain('{!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (')
   })
 
@@ -103,7 +103,8 @@ describe('team detail week path', () => {
     expect(styleBlock('rosterActionLink')).toContain("minHeight: '44px'")
     expect(rosterBlock).toContain('>Profile</Link>')
     expect(rosterBlock).toContain('>Team chat</Link>')
-    expect(rosterBlock).toContain('Text {contact.phone}')
+    expect(rosterBlock).toContain('NativeRosterTextButton')
+    expect(rosterBlock).toContain('Message in TiQ')
   })
 
   it('keeps long team detail tables short by default with user-opened detail', () => {
@@ -132,7 +133,11 @@ describe('team detail week path', () => {
     expect(source).toContain('style={mobileMatchCardStyle}')
     expect(styleBlock('mobileMatchFactsStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('panelCountPill')).toContain("whiteSpace: 'nowrap'")
-    expect(styleBlock('teamSectionNavLinkStyle')).toContain('minHeight: 44')
+    expect(source).toContain("const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('overview')")
+    expect(source).toContain('data-team-section={item.id}')
+    expect(source).toContain('aria-current={active ? \'page\' : undefined}')
+    expect(styleBlock('teamSectionNavLinkStyle')).toContain('minHeight: 52')
+    expect(styleBlock('teamSectionNavLinkActiveStyle')).toContain("background: 'linear-gradient(135deg, rgba(155,225,29,0.24), rgba(56,189,248,0.13))'")
     expect(styleBlock('seasonFilterButtonStyle')).toContain('minHeight: 44')
   })
 

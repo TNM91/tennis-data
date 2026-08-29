@@ -29,7 +29,15 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
-import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import {
+  buildSmsHref,
+  cleanText,
+  formatDate,
+  formatPhone,
+  formatRating,
+  normalizeTeamName,
+  prepareSmsBodyForNativeComposer,
+} from '@/lib/captain-formatters'
 import {
   getReportStatusLabel,
   listMyMatchAccuracyReports,
@@ -80,6 +88,7 @@ type LineMatch = {
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
 type TeamActivityFilter = 'all' | 'upcoming' | 'results'
+type TeamSection = 'overview' | 'activity' | 'roster' | 'chat'
 
 type Player = {
   id: string
@@ -337,6 +346,7 @@ function TeamPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
   const [activityFilter, setActivityFilter] = useState<TeamActivityFilter>('all')
+  const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('overview')
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
   const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const [showFullRoster, setShowFullRoster] = useState(false)
@@ -390,6 +400,17 @@ function TeamPageContent() {
       setRosterFilter(nextRoster)
     }
     setDetailReady(true)
+  }, [])
+
+  useEffect(() => {
+    const syncActiveSection = () => {
+      const hash = window.location.hash
+      setActiveTeamSection(hash === '#team-schedule' ? 'activity' : hash === '#team-roster' ? 'roster' : hash === '#team-chat' ? 'chat' : 'overview')
+    }
+
+    syncActiveSection()
+    window.addEventListener('hashchange', syncActiveSection)
+    return () => window.removeEventListener('hashchange', syncActiveSection)
   }, [])
 
   const exploreResumeHref = useMemo(() => {
@@ -1674,10 +1695,30 @@ function TeamPageContent() {
           enabled={detailReady}
         />
         <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
-          <a href="#team-overview" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Overview</a>
-          <a href="#team-schedule" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Activity</a>
-          <a href="#team-roster" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Roster</a>
-          {isLinkedTeamMember ? <a href="#team-chat" style={isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle}>Team chat</a> : null}
+          {([
+            { id: 'overview', label: 'Overview', href: '#team-overview' },
+            { id: 'activity', label: 'Activity', href: '#team-schedule' },
+            { id: 'roster', label: 'Roster', href: '#team-roster' },
+            ...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : []),
+          ] as Array<{ id: TeamSection; label: string; href: string }>).map((item) => {
+            const active = activeTeamSection === item.id
+            return (
+              <a
+                key={item.id}
+                href={item.href}
+                onClick={() => setActiveTeamSection(item.id)}
+                style={{
+                  ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
+                  ...(active ? teamSectionNavLinkActiveStyle : {}),
+                }}
+                aria-current={active ? 'page' : undefined}
+                data-team-section={item.id}
+              >
+                {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
+                <strong style={teamSectionNavLabelStyle}>{item.label}</strong>
+              </a>
+            )
+          })}
         </nav>
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
@@ -2650,7 +2691,7 @@ function TeamPageContent() {
                               <span>{email || 'No email saved'}</span>
                             </div>
                             <div style={captainContactPreviewActionsStyle}>
-                              {phone ? <a href={`sms:${phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>Text</a> : null}
+                              {phone ? <NativeRosterTextButton phone={phone} playerName={player.name} label="Text" /> : null}
                               {email ? <a href={`mailto:${email}`} style={rosterContactManageLinkStyle}>Email</a> : null}
                               {!phone || !email ? <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Update</Link> : null}
                             </div>
@@ -2749,6 +2790,8 @@ function TeamPageContent() {
                   const doublesRating = player.doubles_dynamic_rating ?? player.overall_dynamic_rating
                   const ustaRating = player.overall_rating
                   const contact = captainContactByPlayerName.get(normalizeCaptainRosterContactKey(player.name))
+                  const phone = contact?.phone?.trim() || ''
+                  const email = contact?.email?.trim() || ''
                   const isPendingLink = player.id.startsWith('summary:')
                   return (
                     <article key={player.id} style={mobileRosterCardStyle}>
@@ -2808,14 +2851,24 @@ function TeamPageContent() {
                           {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterActionLink}>Team chat</Link> : null}
                         </div>
                         {canManageThisTeam ? (
-                          <div style={rosterContactActionRowStyle}>
-                            {contact?.phone ? (
-                              <a href={`sms:${contact.phone.replace(/[^+\d]/g, '')}`} style={rosterContactTextLinkStyle}>
-                                Text {contact.phone}
-                              </a>
-                            ) : <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Add mobile</Link>}
-                            <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Contact details</Link>
-                          </div>
+                          <>
+                            <div style={rosterContactSummaryStyle} aria-label={`${player.name} private captain contact details`}>
+                              <span style={rosterContactSummaryItemStyle}>
+                                <em style={rosterContactSummaryLabelStyle}>Mobile</em>
+                                <strong>{phone ? formatPhone(phone) : 'Not saved'}</strong>
+                              </span>
+                              <span style={rosterContactSummaryItemStyle}>
+                                <em style={rosterContactSummaryLabelStyle}>Email</em>
+                                <strong>{email || 'Not saved'}</strong>
+                              </span>
+                            </div>
+                            <div style={rosterContactActionRowStyle}>
+                              {phone ? (
+                                <NativeRosterTextButton phone={phone} playerName={player.name} label={`Text ${formatPhone(phone)}`} />
+                              ) : <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Add mobile</Link>}
+                              <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Contact details</Link>
+                            </div>
+                          </>
                         ) : null}
                       </div>
                     </article>
@@ -2859,6 +2912,26 @@ function TeamPageContent() {
         </section>
         ) : null}
       </section>
+  )
+}
+
+function NativeRosterTextButton({ phone, playerName, label }: { phone: string; playerName: string; label: string }) {
+  function openNativeText() {
+    const body = `Hi ${playerName},`
+    prepareSmsBodyForNativeComposer(body)
+    window.location.href = buildSmsHref([phone], body)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={openNativeText}
+      style={rosterContactTextButtonStyle}
+      aria-label={`Text ${playerName} at ${formatPhone(phone)}`}
+      data-roster-text-player={playerName}
+    >
+      {label}
+    </button>
   )
 }
 
@@ -2984,32 +3057,58 @@ const pageContent: CSSProperties = {
 
 const teamSectionNavStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
-  gap: 6,
+  alignItems: 'stretch',
+  gap: 7,
   width: 'fit-content',
   maxWidth: '100%',
   margin: '0 auto -6px',
-  padding: 5,
+  padding: 6,
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
-  borderRadius: 999,
-  border: '1px solid rgba(125, 211, 252, 0.16)',
-  background: 'rgba(8, 13, 28, 0.78)',
+  borderRadius: 20,
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'linear-gradient(135deg, rgba(9, 20, 41, 0.94), rgba(4, 12, 26, 0.88))',
+  boxShadow: '0 14px 32px rgba(2,8,23,0.24)',
   boxSizing: 'border-box',
 }
 
 const teamSectionNavLinkStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
+  display: 'grid',
+  alignContent: 'center',
   justifyContent: 'center',
-  minHeight: 44,
-  padding: '0 13px',
-  borderRadius: 999,
+  minWidth: 96,
+  minHeight: 52,
+  gap: 2,
+  padding: '7px 14px',
+  borderRadius: 15,
+  border: '1px solid transparent',
   color: 'var(--foreground)',
   fontSize: 13,
   fontWeight: 850,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
+  transition: 'background 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
+}
+
+const teamSectionNavLinkActiveStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.52)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.24), rgba(56,189,248,0.13))',
+  color: '#f6ffdc',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16), 0 7px 18px rgba(0,0,0,0.16)',
+}
+
+const teamSectionNavKickerStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const teamSectionNavLabelStyle: CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const teamSectionNavMobileStyle: CSSProperties = {
@@ -3018,17 +3117,19 @@ const teamSectionNavMobileStyle: CSSProperties = {
   gap: 4,
   width: '100%',
   margin: '0 0 -6px',
-  padding: 4,
+  padding: 5,
   borderRadius: 16,
-  border: '1px solid rgba(125, 211, 252, 0.16)',
-  background: 'rgba(8, 13, 28, 0.78)',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'linear-gradient(135deg, rgba(9, 20, 41, 0.94), rgba(4, 12, 26, 0.88))',
+  boxShadow: '0 12px 26px rgba(2,8,23,0.20)',
   boxSizing: 'border-box',
 }
 
 const teamSectionNavLinkMobileStyle: CSSProperties = {
   ...teamSectionNavLinkStyle,
   minWidth: 0,
-  padding: '0 5px',
+  minHeight: 48,
+  padding: '6px 5px',
   borderRadius: 12,
   fontSize: 11,
   whiteSpace: 'normal',
@@ -4854,6 +4955,36 @@ const rosterContactActionRowStyle: CSSProperties = {
   borderTop: '1px solid rgba(125, 211, 252, 0.10)',
 }
 
+const rosterContactSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(255,255,255,0.025)',
+}
+
+const rosterContactSummaryItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const rosterContactSummaryLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontStyle: 'normal',
+  fontWeight: 900,
+  letterSpacing: '.06em',
+  textTransform: 'uppercase',
+}
+
 const rosterContactTextLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -4868,6 +4999,11 @@ const rosterContactTextLinkStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   textAlign: 'center',
+}
+
+const rosterContactTextButtonStyle: CSSProperties = {
+  ...rosterContactTextLinkStyle,
+  cursor: 'pointer',
 }
 
 const rosterContactManageLinkStyle: CSSProperties = {
