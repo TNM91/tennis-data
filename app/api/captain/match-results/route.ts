@@ -4,8 +4,10 @@ import {
   buildCaptainScorecardObservations,
   buildCaptainScorecardRecap,
   hasHigherPriorityCaptainScorecardConflict,
+  isCaptainScorecardSavedRecap,
   validateCaptainScorecardInput,
   type CaptainScorecardInput,
+  type CaptainScorecardSavedRecap,
 } from '@/lib/captain-scorecard'
 import { getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
 import { runScorecardImport } from '@/lib/ingestion/runImport'
@@ -27,6 +29,14 @@ type StoredObservation = {
 type ExistingMatch = {
   id: string
   external_match_id: string | null
+}
+
+type ReceiptMatch = ExistingMatch & {
+  home_team: string | null
+}
+
+type ReceiptObservation = {
+  raw: unknown
 }
 
 type SavedMatchParticipant = {
@@ -83,6 +93,67 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
 function extractParentExternalId(externalMatchId: string | null) {
   const value = externalMatchId?.trim() || ''
   return value.replace(/::line:\d+$/, '')
+}
+
+export async function GET(request: Request) {
+  const auth = await getCaptainApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const url = new URL(request.url)
+  const externalMatchId = url.searchParams.get('externalMatchId')?.trim() || ''
+  const teamName = url.searchParams.get('team')?.trim() || ''
+  if (!externalMatchId || !teamName) {
+    return Response.json({ ok: false, message: 'Choose the saved team result to reopen its recap.' }, { status: 400 })
+  }
+
+  const service = getCaptainAvailabilityServiceClient()
+  const { data: teamLinks, error: teamLinksError } = await service
+    .from('team_profile_links')
+    .select('team_role,team_roles')
+    .eq('profile_user_id', auth.userId)
+    .eq('normalized_team_name', normalizeTeamRoomKey(teamName))
+    .eq('status', 'accepted')
+    .limit(10)
+  if (teamLinksError) return Response.json({ ok: false, message: 'Captain access could not be checked.' }, { status: 500 })
+  const hasTeamAccess = (teamLinks || []).some((link) => {
+    const roles = Array.isArray(link.team_roles) && link.team_roles.length
+      ? link.team_roles.map(String)
+      : [String(link.team_role || 'player')]
+    return canManageTeamRoom(roles)
+  })
+  if (!auth.isAdmin && !hasTeamAccess) {
+    return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
+  }
+
+  const { data: savedLineData, error: savedLineError } = await service
+    .from('matches')
+    .select('id,external_match_id,home_team')
+    .like('external_match_id', `${externalMatchId}::line:%`)
+  if (savedLineError) return Response.json({ ok: false, message: 'The saved result could not be reopened.' }, { status: 500 })
+  const savedLines = (savedLineData || []) as ReceiptMatch[]
+  if (!savedLines.length || (!auth.isAdmin && !savedLines.every((line) => normalizeTeamRoomKey(line.home_team || '') === normalizeTeamRoomKey(teamName)))) {
+    return Response.json({ ok: false, message: 'That saved result is not available for this team.' }, { status: 404 })
+  }
+
+  const { data: observationData, error: observationError } = await service
+    .from('tennisrecord_match_observations')
+    .select('raw')
+    .eq('source', 'captain_upload')
+    .in('canonical_match_id', savedLines.map((line) => line.id))
+    .order('last_seen_at', { ascending: false })
+  if (observationError) return Response.json({ ok: false, message: 'The saved scorecard receipt could not be reopened.' }, { status: 500 })
+  const recap = ((observationData || []) as ReceiptObservation[])
+    .map((observation) => (
+      observation.raw && typeof observation.raw === 'object'
+        ? (observation.raw as { recap?: unknown }).recap
+        : null
+    ))
+    .find(isCaptainScorecardSavedRecap)
+  if (!recap) {
+    return Response.json({ ok: false, message: 'This scorecard is saved, but its recap is still being prepared.' }, { status: 404 })
+  }
+
+  return Response.json({ ok: true, externalMatchId, recap })
 }
 
 export async function POST(request: Request) {
@@ -283,15 +354,24 @@ export async function POST(request: Request) {
       }
     })
   const sourceConflictCount = canonicalRows.reduce((total, row) => total + row.conflict_count, 0)
+  const recap: CaptainScorecardSavedRecap = {
+    ...buildCaptainScorecardRecap(input),
+    ratingChanges,
+    sourceConflictCount,
+  }
+  const { error: receiptError } = savedLineIds.length
+    ? await service
+      .from('tennisrecord_match_observations')
+      .update({ raw: { source: 'captain_scorecard', submitted_by: auth.userId, input, recap } })
+      .eq('source', 'captain_upload')
+      .in('canonical_match_id', savedLineIds)
+    : { error: null }
+  if (receiptError) console.error('Could not persist captain scorecard recap', receiptError)
   return Response.json({
     ok: true,
     externalMatchId: scorecard.externalMatchId,
     linesRecorded: observationPayload.length,
-    recap: {
-      ...buildCaptainScorecardRecap(input),
-      ratingChanges,
-      sourceConflictCount,
-    },
+    recap,
     message: `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
   })
 }

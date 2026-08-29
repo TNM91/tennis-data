@@ -5,6 +5,7 @@ import {
   buildCaptainScorecardObservations,
   buildCaptainScorecardRecap,
   hasHigherPriorityCaptainScorecardConflict,
+  isCaptainScorecardSavedRecap,
   validateCaptainScorecardInput,
 } from '../captain-scorecard'
 
@@ -70,5 +71,23 @@ describe('captain scorecard capture', () => {
       opponentCourts: 1,
     })
     expect(recap.lines[0]).toMatchObject({ label: 'Doubles 1', score: '6-4 3-6 1-0' })
+  })
+
+  it('recognizes the stored recap shape before a captain reopens it', () => {
+    const storedRecap = {
+      ...buildCaptainScorecardRecap(input),
+      ratingChanges: [{
+        playerId: 'player-1',
+        playerName: 'Nathan Meinert',
+        side: 'team' as const,
+        matchType: 'doubles' as const,
+        before: 4.5,
+        after: 4.51,
+        delta: 0.01,
+      }],
+      sourceConflictCount: 0,
+    }
+    expect(isCaptainScorecardSavedRecap(storedRecap)).toBe(true)
+    expect(isCaptainScorecardSavedRecap({ outcome: 'won' })).toBe(false)
   })
 })

@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import styles from './record-result.module.css'
 
@@ -35,31 +36,6 @@ type TeamRoomResponse = {
       } | null
     }>
   } | null
-}
-
-type SavedScorecardRecap = {
-  outcome: 'won' | 'lost' | 'split'
-  teamCourts: number
-  opponentCourts: number
-  lines: Array<{
-    courtNumber: number
-    label: string
-    matchType: 'singles' | 'doubles'
-    teamPlayers: string[]
-    opponentPlayers: string[]
-    outcome: 'team' | 'opponent'
-    score: string
-  }>
-  ratingChanges: Array<{
-    playerId: string
-    playerName: string
-    side: 'team' | 'opponent'
-    matchType: 'singles' | 'doubles'
-    before: number | null
-    after: number | null
-    delta: number | null
-  }>
-  sourceConflictCount: number
 }
 
 function createCourt(courtNumber: number): CourtDraft {
@@ -102,7 +78,7 @@ function RecordResultContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [savedRecap, setSavedRecap] = useState<SavedScorecardRecap | null>(null)
+  const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const lineupPrefillKey = useRef('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
@@ -115,6 +91,8 @@ function RecordResultContent() {
     facility,
   }), [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
   const updatedTeamRoomHref = `${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`
+  const savedResultMatchId = searchParams.get('resultMatch')?.trim() || ''
+  const shouldRestoreRecap = searchParams.get('result') === 'updated' && Boolean(savedResultMatchId)
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -185,6 +163,22 @@ function RecordResultContent() {
     return () => { active = false }
   }, [authResolved, flight, leagueName, matchDate, opponentTeam, session?.access_token, teamName])
 
+  useEffect(() => {
+    if (!authResolved || !session?.access_token || !teamName || !shouldRestoreRecap || !savedResultMatchId || savedRecap) return
+    let active = true
+    const params = new URLSearchParams({ externalMatchId: savedResultMatchId, team: teamName })
+    void fetch(`/api/captain/match-results?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ ok?: boolean; recap?: CaptainScorecardSavedRecap }> : null)
+      .then((payload) => {
+        if (active && payload?.ok && payload.recap) setSavedRecap(payload.recap)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [authResolved, savedRecap, savedResultMatchId, session?.access_token, shouldRestoreRecap, teamName])
+
   function updateCourt(id: string, patch: Partial<CourtDraft>) {
     setCourts((current) => current.map((court) => court.id === id ? { ...court, ...patch } : court))
   }
@@ -248,13 +242,19 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; recap?: SavedScorecardRecap }
+      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
       }
       setNotice(payload.message || 'Result saved.')
       setSavedRecap(payload.recap || null)
+      if (payload.externalMatchId) {
+        const url = new URL(window.location.href)
+        url.searchParams.set('result', 'updated')
+        url.searchParams.set('resultMatch', payload.externalMatchId)
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
       setError('The scorecard could not be saved. Check your connection and try again.')
@@ -328,7 +328,13 @@ function RecordResultContent() {
 
           <div className={styles.recapActions}>
             <Link className={styles.saveButton} href={updatedTeamRoomHref}>Open team recap</Link>
-            <button className={styles.addCourt} type="button" onClick={() => setSavedRecap(null)}>Edit scorecard</button>
+            <button className={styles.addCourt} type="button" onClick={() => {
+              setSavedRecap(null)
+              const url = new URL(window.location.href)
+              url.searchParams.delete('result')
+              url.searchParams.delete('resultMatch')
+              window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+            }}>Edit scorecard</button>
           </div>
         </section>
       </main>

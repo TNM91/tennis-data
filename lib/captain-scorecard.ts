@@ -44,6 +44,21 @@ export type CaptainScorecardRecap = {
   }>
 }
 
+export type CaptainScorecardRatingChange = {
+  playerId: string
+  playerName: string
+  side: 'team' | 'opponent'
+  matchType: 'singles' | 'doubles'
+  before: number | null
+  after: number | null
+  delta: number | null
+}
+
+export type CaptainScorecardSavedRecap = CaptainScorecardRecap & {
+  ratingChanges: CaptainScorecardRatingChange[]
+  sourceConflictCount: number
+}
+
 function cleanText(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim()
 }
@@ -131,6 +146,19 @@ export function buildCaptainScorecardRecap(input: CaptainScorecardInput): Captai
       score: cleanText(line.score),
     })),
   }
+}
+
+export function isCaptainScorecardSavedRecap(value: unknown): value is CaptainScorecardSavedRecap {
+  if (!value || typeof value !== 'object') return false
+  const recap = value as Partial<CaptainScorecardSavedRecap>
+  return (
+    (recap.outcome === 'won' || recap.outcome === 'lost' || recap.outcome === 'split')
+    && typeof recap.teamCourts === 'number'
+    && typeof recap.opponentCourts === 'number'
+    && Array.isArray(recap.lines)
+    && Array.isArray(recap.ratingChanges)
+    && typeof recap.sourceConflictCount === 'number'
+  )
 }
 
 export function buildCaptainScorecardImportRow(
