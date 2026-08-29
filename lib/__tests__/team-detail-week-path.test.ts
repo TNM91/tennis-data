@@ -44,9 +44,20 @@ describe('team detail week path', () => {
     expect(source).toContain('players with a tracked start')
     expect(source).toContain('Top doubles read')
     expect(source).toContain('Top singles read')
-    expect(source).toContain("{canManageThisTeam ? 'Open lineup' : 'Explore Captain'}")
+    expect(source).toContain("{canManageThisTeam ? captainMatchWeekAction.label : 'Explore Captain'}")
     expect(source).toContain('Turn this team read into a clear lineup.')
     expect(source).toContain('teamPulseCaptainPreviewStyle')
+  })
+
+  it('keeps the current match-week state visible on the Team page for captains', () => {
+    expect(source).toContain("import { getCaptainWeekStatusMeta, readCaptainWeekStatus } from '@/lib/captain-week-status'")
+    expect(source).toContain('const captainWeekScope = useMemo')
+    expect(source).toContain('window.addEventListener(\'focus\', refreshCaptainWeekStatus)')
+    expect(source).toContain('data-team-match-week-status={captainWeekStatus?.status || \'not-started\'}')
+    expect(source).toContain("{ label: 'Not started', detail: 'Build the first version, then TiQ keeps the week status visible here.' }")
+    expect(source).toContain("captainWeekStatus?.status === 'ready-to-send'")
+    expect(source).toContain("captainWeekStatus?.status === 'finalized'")
+    expect(source).toContain("label: 'Send team plan'")
   })
 
   it('keeps the team week path compact and mobile-safe', () => {
