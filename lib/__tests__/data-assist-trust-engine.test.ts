@@ -120,9 +120,9 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('function resetUploadFlow()')
     expect(source).toContain('setSaving(false)')
     expect(source).toContain('Cancel upload')
-    expect(source).toContain("function completeUploadFlow(completionMessage = 'Upload complete.')")
-    expect(source).toContain("completeUploadFlow('Upload complete.')")
-    expect(source).toContain("completeUploadFlow('Already uploaded. No changes were needed.')")
+    expect(source).toContain("function completeUploadFlow(completionMessage = 'Upload complete.', nextOutcome: DataAssistOutcome | null = null)")
+    expect(source).toContain("'Upload complete.',\n            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId)")
+    expect(source).toContain("'Already uploaded. No changes were needed.',\n            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId, true)")
     expect(source).toContain('const showUploadStep = !hasPreparedScreenshots && !saving && !latestScan')
   })
 
