@@ -449,8 +449,14 @@ function TeamRoomContent() {
     const params = new URLSearchParams({ source: 'team_room', availability: 'replies' })
     return `${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}#captain-lineup-courts`
   }, [activeMatchMessage?.card, room?.flight, room?.leagueName, room?.teamName])
+  const scorecardHref = useMemo(() => buildCaptainScopedHref('/captain/record-result', {
+    team: room?.teamName,
+    league: room?.leagueName,
+    flight: room?.flight,
+    date: activeMatchMessage?.card?.matchDate || matchDraft.matchDate,
+    opponent: activeMatchMessage?.card?.opponent || matchDraft.opponent,
+  }), [activeMatchMessage?.card?.matchDate, activeMatchMessage?.card?.opponent, matchDraft.matchDate, matchDraft.opponent, room?.flight, room?.leagueName, room?.teamName])
   const scorecardReturnHref = room?.href || captainHref
-  const scorecardHref = `/data-assist?intent=upload-source&context=Team%20Room&type=scorecard&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const playerLinksHref = `/data-assist?intent=upload-source&context=Team%20Room&type=team_summary&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const resultJustUpdated = searchParams.get('result') === 'updated'
   const focusedFinalResult = Boolean(
