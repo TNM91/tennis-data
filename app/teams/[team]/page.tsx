@@ -1774,23 +1774,48 @@ function TeamPageContent() {
             ...(canManageThisTeam ? [{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }] : []),
           ] as Array<{ id: TeamSection; label: string; href: string; primary?: boolean }>).map((item) => {
             const active = activeTeamSection === item.id
+            const navigationStyle = {
+              ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
+              ...(active ? teamSectionNavLinkActiveStyle : {}),
+              ...(item.primary ? isMobile ? teamSectionNavLineupMobileStyle : teamSectionNavLineupStyle : {}),
+            }
+            const navigationLabel = (
+              <>
+                {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
+                <strong style={isMobile ? teamSectionNavLabelMobileStyle : teamSectionNavLabelStyle}>{item.label}</strong>
+              </>
+            )
+
+            // Route the Builder through Next navigation with scroll restoration
+            // explicitly enabled. On mobile Safari, a plain anchor can retain the
+            // deep scroll position from the Team page when entering this route.
+            if (item.id === 'lineup') {
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  scroll
+                  onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })}
+                  style={navigationStyle}
+                  data-team-section={item.id}
+                >
+                  {navigationLabel}
+                </Link>
+              )
+            }
+
             return (
               <a
                 key={item.id}
                 href={item.href}
                 onClick={() => {
-                  if (item.id !== 'lineup') setActiveTeamSection(item.id)
+                  setActiveTeamSection(item.id)
                 }}
-                style={{
-                  ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
-                  ...(active ? teamSectionNavLinkActiveStyle : {}),
-                  ...(item.primary ? isMobile ? teamSectionNavLineupMobileStyle : teamSectionNavLineupStyle : {}),
-                }}
+                style={navigationStyle}
                 aria-current={active ? 'page' : undefined}
                 data-team-section={item.id}
               >
-                {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
-                <strong style={isMobile ? teamSectionNavLabelMobileStyle : teamSectionNavLabelStyle}>{item.label}</strong>
+                {navigationLabel}
               </a>
             )
           })}

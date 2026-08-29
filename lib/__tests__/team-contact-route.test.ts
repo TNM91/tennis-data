@@ -22,6 +22,9 @@ describe('team contact route', () => {
   it('keeps Build lineup in the team quick links for captains', () => {
     expect(source).toContain("{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }")
     expect(source).toContain('teamSectionNavLineupMobileStyle')
+    expect(source).toContain("if (item.id === 'lineup')")
+    expect(source).toContain('scroll')
+    expect(source).toContain("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
   })
 
   it('only asks for the mobile number in the inline roster contact editor', () => {
