@@ -578,7 +578,7 @@ function getCourtAskSignal({
   needsPhone: boolean
 }): CourtAskSignal {
   if (replyLabel === 'Confirmed') {
-    return { label: 'Confirmed · locked', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
+    return { label: 'Confirmed', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
   }
   if (replyLabel === 'Maybe') {
     return { label: 'Maybe · review', detail: 'Reply received. Keep this court flexible until they confirm.', tone: 'maybe' }
@@ -5815,6 +5815,10 @@ function SlotEditor({
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
   )
   const selectedPlayers = slot.players.filter((player) => player.playerId && player.playerName.trim())
+  const askablePlayers = selectedPlayers.filter((player) => {
+    const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+    return availabilityLabel(selectedPoolPlayer?.availabilityStatus) !== 'Confirmed'
+  })
   return (
     <div
       id={`captain-lineup-slot-${slot.id}`}
@@ -5873,6 +5877,7 @@ function SlotEditor({
                 needsPhone,
               })
             : null
+          const showAskSignal = !isMobileLayout || askSignal?.tone !== 'ready'
 
           return (
             <div
@@ -5908,8 +5913,14 @@ function SlotEditor({
               </select>
 
               {side === 'team' && player.playerId ? (
-                <div style={isMobileLayout ? mobileSlotPlayerActionRowStyle : slotPlayerActionRowStyle}>
-                  {askSignal ? (
+                <div style={isMobileLayout
+                  ? {
+                      ...mobileSlotPlayerActionRowStyle,
+                      gridTemplateColumns: showAskSignal ? 'minmax(0, 1fr) auto' : 'auto',
+                      justifyContent: showAskSignal ? undefined : 'start',
+                    }
+                  : slotPlayerActionRowStyle}>
+                  {showAskSignal && askSignal ? (
                     <span style={courtAskSignalStyle(askSignal.tone)} title={askSignal.detail}>
                       {askSignal.label}
                     </span>
@@ -5930,8 +5941,8 @@ function SlotEditor({
                     onClick={() => toggleLockedPlayer(player.playerId)}
                   >
                     {lockedPlayerIds.has(player.playerId)
-                      ? isAutoLocked ? 'Unlock player' : 'Player locked'
-                      : isConfirmedReleased ? 'Re-lock player' : 'Lock player'}
+                      ? isAutoLocked ? 'Unlock' : 'Locked'
+                      : isConfirmedReleased ? 'Re-lock' : 'Lock'}
                   </button>
                 </div>
               ) : null}
@@ -5940,9 +5951,14 @@ function SlotEditor({
         })}
       </div>
 
-      {side === 'team' && onAskPlayers && selectedPlayers.length ? (
-        <div style={isMobileLayout ? mobileReplacementHandoffActionsStyle : replacementHandoffActionsStyle}>
-          {selectedPlayers.map((player) => {
+      {side === 'team' && onAskPlayers && askablePlayers.length ? (
+        <div style={isMobileLayout
+          ? {
+              ...mobileReplacementHandoffActionsStyle,
+              gridTemplateColumns: askablePlayers.length === 1 ? 'minmax(0, 1fr)' : mobileReplacementHandoffActionsStyle.gridTemplateColumns,
+            }
+          : replacementHandoffActionsStyle}>
+          {askablePlayers.map((player) => {
             const preparedText = getPreparedCourtText?.(slot, player)
             const playerKey = normalizeCaptainRosterContactKey(player.playerName)
             const needsPhone = Boolean(missingPhonePlayerKeys?.has(playerKey))
@@ -5960,9 +5976,14 @@ function SlotEditor({
             }
 
             return (
-              <div key={player.playerId || player.playerName} style={isMobileLayout ? mobileCourtAskControlStyle : courtAskControlStyle}>
+              <div
+                key={player.playerId || player.playerName}
+                style={isMobileLayout
+                  ? needsPhone ? mobileCourtAskControlWithPhoneStyle : mobileCourtAskControlStyle
+                  : courtAskControlStyle}
+              >
                 <GhostSmallBtn onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers} fullWidth={isMobileLayout}>
-                  {askingPlayers ? 'Preparing Ask...' : `Prepare Ask for ${player.playerName.split(' ')[0]}`}
+                  {askingPlayers ? 'Preparing...' : `Ask ${player.playerName.split(' ')[0]}`}
                 </GhostSmallBtn>
                 {needsPhone && onSavePlayerPhone && onInlinePhoneChange ? (
                   <form
@@ -5994,8 +6015,8 @@ function SlotEditor({
               </div>
             )
           })}
-          <span style={mutedTextStyle}>
-            Each Ask stays tied to this court. Add a doubles partner first when you know it.
+          <span style={isMobileLayout ? mobileCourtAskHelperStyle : mutedTextStyle}>
+            Private reply links stay with this court.
           </span>
         </div>
       ) : null}
@@ -6047,7 +6068,7 @@ const replacementHandoffActionsStyle: CSSProperties = {
 const mobileReplacementHandoffActionsStyle: CSSProperties = {
   ...replacementHandoffActionsStyle,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   alignItems: 'stretch',
   width: '100%',
   gap: 10,
@@ -6762,6 +6783,7 @@ const mobileSlotPlayerActionRowStyle: CSSProperties = {
 
 const mobilePlayerLockButtonStyle: CSSProperties = {
   minHeight: 32,
+  minWidth: 78,
   padding: '0 11px',
   whiteSpace: 'nowrap',
 }
@@ -6777,6 +6799,18 @@ const mobileCourtAskControlStyle: CSSProperties = {
   ...courtAskControlStyle,
   width: '100%',
   gridTemplateColumns: 'minmax(0, 1fr)',
+}
+
+const mobileCourtAskControlWithPhoneStyle: CSSProperties = {
+  ...mobileCourtAskControlStyle,
+  gridColumn: '1 / -1',
+}
+
+const mobileCourtAskHelperStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
 }
 
 const courtPhoneFormStyle: CSSProperties = {

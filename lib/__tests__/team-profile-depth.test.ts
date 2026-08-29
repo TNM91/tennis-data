@@ -18,6 +18,15 @@ describe('team profile depth controls', () => {
     expect(source).toContain('const showRosterTools = !isMobile || showFullRoster')
   })
 
+  it('keeps the phone roster scan compact while preserving each player’s tools on demand', () => {
+    expect(source).toContain('const primaryRating = isDoublesOnlyTeam')
+    expect(source).toContain("{isDoublesOnlyTeam ? 'TiQ doubles' : 'TiQ overall'}")
+    expect(source).toContain('<details style={mobileRosterDetailsStyle}>')
+    expect(source).toContain('<span>Player tools</span>')
+    expect(source).toContain("{phone ? 'Text ready' : canManageThisTeam ? 'Add mobile' : 'Open'}")
+    expect(source).toContain('const mobileRosterDetailsBodyStyle: CSSProperties = {')
+  })
+
   it('makes full mobile roster browsing searchable without duplicating roster data', () => {
     expect(source).toContain("const [rosterSearch, setRosterSearch] = useState('')")
     expect(source).toContain('placeholder="Search this roster"')
