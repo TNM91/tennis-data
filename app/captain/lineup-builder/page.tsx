@@ -492,6 +492,14 @@ function createManualRosterPlayer(
   }
 }
 
+function restoreManualRosterPlayers(draft: CaptainLineupBuilderDraft | null | undefined) {
+  return (draft?.manualRosterEntries ?? []).map((entry) => createManualRosterPlayer(entry.name, {
+    teamName: entry.teamName,
+    leagueName: entry.leagueName,
+    flight: entry.flight,
+  }))
+}
+
 function buildTeamSummaryUploadHref(context: {
   teamName: string
   leagueName: string
@@ -1353,6 +1361,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const persistedBuilderDraft = initialContext.hasExplicitRouteScope
     ? null
     : (persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft)
+  const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft
   const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
   const initialLeagueName = initialContext.league || persistedBuilderDraft?.leagueName || ''
   const initialFlight = initialContext.flight || persistedBuilderDraft?.flight || ''
@@ -1420,7 +1429,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [scenarioName, setScenarioName] = useState(persistedBuilderDraft?.scenarioName || '')
   const [notes, setNotes] = useState(persistedBuilderDraft?.notes || '')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>([])
+  const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>(() =>
+    restoreManualRosterPlayers(persistedManualRosterDraft)
+  )
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
   const [manualOpponentRosterText, setManualOpponentRosterText] = useState('')
@@ -1540,12 +1551,19 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     notes,
     teamSlots: cloneSlots(teamSlots),
     opponentSlots: cloneSlots(opponentSlots),
+    manualRosterEntries: manualRosterPlayers.slice(-80).map((player) => ({
+      name: player.name,
+      teamName: player.manualTeamName,
+      leagueName: player.manualLeagueName,
+      flight: player.manualFlight,
+    })),
   }), [
     competitionLayer,
     currentScenarioId,
     flight,
     leagueName,
     matchDate,
+    manualRosterPlayers,
     notes,
     opponentSlots,
     opponentTeam,
@@ -1616,6 +1634,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setCurrentScenarioId(storedDraft.scenarioId)
     setScenarioName(storedDraft.scenarioName)
     setNotes(storedDraft.notes)
+    const restoredManualRosterPlayers = restoreManualRosterPlayers(storedDraft)
+    if (restoredManualRosterPlayers.length) {
+      setManualRosterPlayers((current) => {
+        const currentIds = new Set(current.map((player) => player.id))
+        return [...current, ...restoredManualRosterPlayers.filter((player) => !currentIds.has(player.id))]
+      })
+    }
     if (restoredTeamSlots.length) setTeamSlots(restoredTeamSlots)
     if (restoredOpponentSlots.length) setOpponentSlots(restoredOpponentSlots)
     setActiveLineupFormatKey(getCaptainLineupFormatKey(

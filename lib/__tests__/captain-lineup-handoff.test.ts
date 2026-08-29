@@ -119,11 +119,42 @@ describe('captain potential-lineup handoff', () => {
       matchDate: '2026-08-31',
       teamSlots: slots,
       opponentSlots: [],
+      manualRosterEntries: [{
+        name: 'Rival One',
+        teamName: 'Other Team',
+        leagueName: 'Adult 18+',
+        flight: '4.0',
+      }],
     }))
 
     expect(draft?.teamName).toBe('TiQ Team')
     expect(draft?.teamSlots).toEqual(slots)
+    expect(draft?.manualRosterEntries).toEqual([{
+      name: 'Rival One',
+      teamName: 'Other Team',
+      leagueName: 'Adult 18+',
+      flight: '4.0',
+    }])
     expect(getCaptainLineupDraftStorageKey('captain-1')).toBe('tenaceiq_captain_lineup_draft:captain-1')
     expect(readCaptainLineupBuilderDraft('{"teamSlots":[]}')).toBeNull()
+  })
+
+  it('drops malformed manual roster entries while preserving valid saved names', () => {
+    const draft = readCaptainLineupBuilderDraft(JSON.stringify({
+      teamSlots: slots,
+      opponentSlots: [],
+      manualRosterEntries: [
+        { name: 'Rival One', teamName: 'Other Team', leagueName: 'Adult 18+', flight: '4.0' },
+        { name: '   ', teamName: 'Other Team' },
+        null,
+      ],
+    }))
+
+    expect(draft?.manualRosterEntries).toEqual([{
+      name: 'Rival One',
+      teamName: 'Other Team',
+      leagueName: 'Adult 18+',
+      flight: '4.0',
+    }])
   })
 })
