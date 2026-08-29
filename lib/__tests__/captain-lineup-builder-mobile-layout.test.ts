@@ -132,6 +132,19 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
   })
 
+  it('treats an absent opponent roster as a compact recovery choice, not a failure', () => {
+    expect(source).toContain('aria-label="Opponent roster options"')
+    expect(source).toContain('has not been added yet.')
+    expect(source).toContain('Enter names now, or add its TennisLink Player Roster for TiQ ratings.')
+    expect(source).toContain('Upload TennisLink roster')
+    expect(source).toContain('function addManualOpponentRosterPlayers()')
+    expect(source).toContain('const scopedManualOpponentRosterPlayers = useMemo(')
+    expect(source).toContain('const opponentSummaryUploadHref = useMemo(')
+    expect(source).not.toContain('No opponent roster is available for {opponentTeam} yet.')
+    expect(styleBlock('opponentRosterRecoveryStyle')).toContain('minWidth: 0')
+    expect(styleBlock('opponentRosterManualEntryStyle')).toContain("gridColumn: '1 / -1'")
+  })
+
   it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
     expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
     expect(source).toContain('Save mobile & prepare Ask')
