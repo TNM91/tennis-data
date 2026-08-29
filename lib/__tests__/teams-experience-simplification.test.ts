@@ -20,9 +20,9 @@ describe('Teams experience simplification', () => {
     )
   })
 
-  it('keeps team sections visible without horizontal phone scrolling', () => {
+  it('keeps team sections legible without horizontal phone scrolling', () => {
     expect(teamDetail).toContain('teamSectionNavMobileStyle')
-    expect(teamDetail).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
+    expect(teamDetail).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(teamDetail).toContain('teamSectionNavLinkMobileStyle')
     expect(teamDetail).toContain("whiteSpace: 'normal'")
     expect(teamDetail).toContain('aria-label="Team activity filter"')

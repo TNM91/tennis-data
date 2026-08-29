@@ -157,6 +157,30 @@ type TennisRecordTeamHistoryRow = {
   team_side: 'A' | 'B' | null
 }
 
+type CaptainMessageContactRow = {
+  id: string
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  full_name: string | null
+  phone: string | null
+  email: string | null
+  role: string | null
+  is_captain: boolean | null
+}
+
+type TeamCaptainContact = {
+  id?: string
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  full_name: string | null
+  phone: string | null
+  email: string | null
+  role: string | null
+  is_captain: boolean | null
+}
+
 type RosterPlayer = Player & {
   appearances: number
   singlesAppearances: number
@@ -181,6 +205,45 @@ type MatchCard = TeamMatch & {
   venueLabel: string
   linkedPlayerAppears: boolean
   linkedPlayerReportSource: 'parent_match' | 'line_match' | null
+}
+
+function captainTeamContactScopeKey(contact: TeamCaptainContact) {
+  return [contact.team_name, contact.league_name, contact.flight, contact.full_name]
+    .map((value) => normalizeCaptainRosterContactKey(value))
+    .join('|')
+}
+
+function mergeCaptainTeamContacts(input: {
+  imported: CaptainRosterContactRow[]
+  saved: CaptainMessageContactRow[]
+}) {
+  const byScope = new Map<string, TeamCaptainContact>()
+
+  for (const contact of input.imported) {
+    byScope.set(captainTeamContactScopeKey(contact), contact)
+  }
+
+  for (const contact of input.saved) {
+    const key = captainTeamContactScopeKey(contact)
+    const importedContact = byScope.get(key)
+    byScope.set(key, {
+      ...importedContact,
+      ...contact,
+      phone: contact.phone || importedContact?.phone || '',
+      email: contact.email || importedContact?.email || '',
+      role: contact.role || importedContact?.role || 'Player',
+      is_captain: contact.is_captain ?? importedContact?.is_captain ?? false,
+    })
+  }
+
+  return Array.from(byScope.values()).sort((left, right) =>
+    (left.full_name || '').localeCompare(right.full_name || ''),
+  )
+}
+
+function createTeamContactId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function normalizePlayer(player: PlayerRelation): Player | null {
@@ -361,6 +424,9 @@ function TeamPageContent() {
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
   const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
+  const [captainSavedContacts, setCaptainSavedContacts] = useState<CaptainMessageContactRow[]>([])
+  const [editingRosterContactId, setEditingRosterContactId] = useState<string | null>(null)
+  const [rosterContactSaveMessage, setRosterContactSaveMessage] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { userId: currentUserId, authResolved, role, entitlements, session } = useAuth()
@@ -959,24 +1025,38 @@ function TeamPageContent() {
   useEffect(() => {
     if (!currentUserId || !team) {
       setCaptainRosterContacts([])
+      setCaptainSavedContacts([])
       return
     }
 
     let active = true
-    void supabase
-      .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
-      .select('id, captain_user_id, team_name, normalized_team_name, league_name, flight, full_name, normalized_name, phone, email, role, is_captain, source, source_batch_id')
-      .eq('captain_user_id', currentUserId)
-      .eq('normalized_team_name', normalizeCaptainRosterContactKey(team))
-      .order('full_name')
-      .then(({ data, error }) => {
+    void Promise.all([
+      supabase
+        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+        .select('id, captain_user_id, team_name, normalized_team_name, league_name, flight, full_name, normalized_name, phone, email, role, is_captain, source, source_batch_id')
+        .eq('captain_user_id', currentUserId)
+        .eq('normalized_team_name', normalizeCaptainRosterContactKey(team))
+        .order('full_name'),
+      supabase
+        .from('captain_message_contacts')
+        .select('id, team_name, league_name, flight, full_name, phone, email, role, is_captain')
+        .eq('team_name', team)
+        .order('full_name'),
+    ]).then(([rosterResult, savedResult]) => {
         if (!active) return
-        if (error) {
-          console.warn('captain roster contacts lookup skipped', error.message)
+        if (rosterResult.error) {
+          console.warn('captain roster contacts lookup skipped', rosterResult.error.message)
           setCaptainRosterContacts([])
-          return
+        } else {
+          setCaptainRosterContacts((rosterResult.data || []) as CaptainRosterContactRow[])
         }
-        setCaptainRosterContacts((data || []) as CaptainRosterContactRow[])
+
+        if (savedResult.error) {
+          console.warn('captain saved contacts lookup skipped', savedResult.error.message)
+          setCaptainSavedContacts([])
+        } else {
+          setCaptainSavedContacts((savedResult.data || []) as CaptainMessageContactRow[])
+        }
       })
 
     return () => {
@@ -1471,16 +1551,30 @@ function TeamPageContent() {
   )
   const scopedCaptainContacts = useMemo(
     () => selectCaptainContactRowsForScope({
-      rows: captainRosterContacts,
+      rows: mergeCaptainTeamContacts({
+        imported: captainRosterContacts,
+        saved: captainSavedContacts,
+      }),
       team,
       league: leagueFilter || teamMeta.league || undefined,
       flight: flightFilter || teamMeta.flight || undefined,
     }),
-    [captainRosterContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
+    [captainRosterContacts, captainSavedContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
   )
   const captainContactByPlayerName = useMemo(
     () => new Map(scopedCaptainContacts.map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact])),
     [scopedCaptainContacts],
+  )
+  const captainSavedContactByPlayerName = useMemo(
+    () => new Map(
+      selectCaptainContactRowsForScope({
+        rows: captainSavedContacts,
+        team,
+        league: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+      }).map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact]),
+    ),
+    [captainSavedContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
   )
   const captainContactCoverage = useMemo(() => {
     const rosterNames = roster.map((player) => player.name)
@@ -1512,10 +1606,58 @@ function TeamPageContent() {
     baseHref: teamContactsHref,
     missingNames: captainContactCoverage.missingPhoneNames,
   })
-  const captainContactHrefFor = (playerName: string) => buildCaptainContactReviewHref({
-    baseHref: teamContactsHref,
-    missingNames: [playerName],
-  })
+  const saveRosterContact = useCallback(async (input: { playerName: string; phone: string; email: string }) => {
+    const phone = input.phone.trim()
+    const email = input.email.trim().toLowerCase()
+    if (!currentUserId || !canManageThisTeam) {
+      return { ok: false, message: 'Captain access is needed to save a team contact.' }
+    }
+    if (!phone) {
+      return { ok: false, message: 'Add a mobile number before saving.' }
+    }
+
+    const playerKey = normalizeCaptainRosterContactKey(input.playerName)
+    const existingSavedContact = captainSavedContactByPlayerName.get(playerKey)
+    const existingContact = captainContactByPlayerName.get(playerKey)
+    const savedContact: CaptainMessageContactRow = {
+      id: existingSavedContact?.id || createTeamContactId(),
+      team_name: team,
+      league_name: leagueFilter || teamMeta.league || null,
+      flight: flightFilter || teamMeta.flight || null,
+      full_name: input.playerName,
+      phone,
+      email,
+      role: existingContact?.role || 'Player',
+      is_captain: existingContact?.is_captain || false,
+    }
+    const payload = {
+      ...savedContact,
+      season_label: null,
+      session_label: null,
+      is_active: true,
+      opt_in_text: true,
+      notes: null,
+    }
+    const { error: saveError } = await supabase.from('captain_message_contacts').upsert(payload)
+    if (saveError) {
+      return { ok: false, message: 'We could not save that contact. Please try again.' }
+    }
+
+    setCaptainSavedContacts((current) => [
+      ...current.filter((contact) => captainTeamContactScopeKey(contact) !== captainTeamContactScopeKey(savedContact)),
+      savedContact,
+    ].sort((left, right) => (left.full_name || '').localeCompare(right.full_name || '')))
+    setEditingRosterContactId(null)
+    setRosterContactSaveMessage(`${input.playerName}'s contact is saved and ready for match week.`)
+    return { ok: true, message: '' }
+  }, [canManageThisTeam, captainContactByPlayerName, captainSavedContactByPlayerName, currentUserId, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league])
+  const openRosterContactEditor = useCallback((playerId: string) => {
+    setRosterContactSaveMessage(null)
+    setEditingRosterContactId(playerId)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`roster-player-${playerId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
   const captainWeekFocus = captainContactCoverage.total > 0 && captainContactCoverage.missingPhoneNames.length > 0
     ? {
         key: 'contacts',
@@ -1721,7 +1863,7 @@ function TeamPageContent() {
                 data-team-section={item.id}
               >
                 {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
-                <strong style={teamSectionNavLabelStyle}>{item.label}</strong>
+                <strong style={isMobile ? teamSectionNavLabelMobileStyle : teamSectionNavLabelStyle}>{item.label}</strong>
               </a>
             )
           })}
@@ -2634,6 +2776,9 @@ function TeamPageContent() {
               {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterPeopleChatLinkStyle}>TiQ Team Chat</Link> : null}
             </div>
           </div>
+          {rosterContactSaveMessage ? (
+            <p role="status" aria-live="polite" style={rosterContactSaveMessageStyle}>{rosterContactSaveMessage}</p>
+          ) : null}
 
           {roster.length ? (
             <>
@@ -2699,7 +2844,9 @@ function TeamPageContent() {
                             <div style={captainContactPreviewActionsStyle}>
                               {phone ? <NativeRosterTextButton phone={phone} playerName={player.name} label="Text" /> : null}
                               {email ? <a href={`mailto:${email}`} style={rosterContactManageLinkStyle}>Email</a> : null}
-                              {!phone || !email ? <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Update</Link> : null}
+                              {!phone || !email ? (
+                                <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Update</button>
+                              ) : null}
                             </div>
                           </article>
                         )
@@ -2800,7 +2947,7 @@ function TeamPageContent() {
                   const email = contact?.email?.trim() || ''
                   const isPendingLink = player.id.startsWith('summary:')
                   return (
-                    <article key={player.id} style={mobileRosterCardStyle}>
+                    <article key={player.id} id={`roster-player-${player.id}`} style={mobileRosterCardStyle}>
                       <div style={mobileRosterHeaderStyle}>
                         <div style={mobileRosterIdentityStyle}>
                           {isPendingLink ? <strong>{player.name}</strong> : (
@@ -2871,9 +3018,18 @@ function TeamPageContent() {
                             <div style={rosterContactActionRowStyle}>
                               {phone ? (
                                 <NativeRosterTextButton phone={phone} playerName={player.name} label={`Text ${formatPhone(phone)}`} />
-                              ) : <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Add mobile</Link>}
-                              <Link href={captainContactHrefFor(player.name)} style={rosterContactManageLinkStyle}>Contact details</Link>
+                              ) : <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Add mobile</button>}
+                              <button type="button" onClick={() => openRosterContactEditor(player.id)} style={rosterContactManageButtonStyle}>Edit contact</button>
                             </div>
+                            {editingRosterContactId === player.id ? (
+                              <InlineRosterContactEditor
+                                playerName={player.name}
+                                initialPhone={phone}
+                                initialEmail={email}
+                                onCancel={() => setEditingRosterContactId(null)}
+                                onSave={saveRosterContact}
+                              />
+                            ) : null}
                           </>
                         ) : null}
                       </div>
@@ -2938,6 +3094,68 @@ function NativeRosterTextButton({ phone, playerName, label }: { phone: string; p
     >
       {label}
     </button>
+  )
+}
+
+function InlineRosterContactEditor({
+  playerName,
+  initialPhone,
+  initialEmail,
+  onCancel,
+  onSave,
+}: {
+  playerName: string
+  initialPhone: string
+  initialEmail: string
+  onCancel: () => void
+  onSave: (input: { playerName: string; phone: string; email: string }) => Promise<{ ok: boolean; message: string }>
+}) {
+  const [phone, setPhone] = useState(initialPhone)
+  const [email, setEmail] = useState(initialEmail)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSaving(true)
+    setMessage(null)
+    const result = await onSave({ playerName, phone, email })
+    setSaving(false)
+    if (!result.ok) setMessage(result.message)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={inlineRosterContactEditorStyle}>
+      <strong style={inlineRosterContactTitleStyle}>Update {playerName}&apos;s contact</strong>
+      <label style={inlineRosterContactFieldStyle}>
+        <span>Mobile number</span>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="314-555-1234"
+          style={inlineRosterContactInputStyle}
+        />
+      </label>
+      <label style={inlineRosterContactFieldStyle}>
+        <span>Email (optional)</span>
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="email"
+          placeholder="player@email.com"
+          style={inlineRosterContactInputStyle}
+        />
+      </label>
+      <div style={inlineRosterContactActionStyle}>
+        <button type="submit" disabled={saving} style={inlineRosterContactSaveButtonStyle}>{saving ? 'Saving…' : 'Save contact'}</button>
+        <button type="button" onClick={onCancel} style={inlineRosterContactCancelButtonStyle}>Cancel</button>
+      </div>
+      {message ? <p role="alert" style={inlineRosterContactErrorStyle}>{message}</p> : null}
+    </form>
   )
 }
 
@@ -3119,11 +3337,11 @@ const teamSectionNavLabelStyle: CSSProperties = {
 
 const teamSectionNavMobileStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: 4,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
   width: '100%',
-  margin: '0 0 -6px',
-  padding: 5,
+  margin: '0 0 -4px',
+  padding: 7,
   borderRadius: 16,
   border: '1px solid rgba(125, 211, 252, 0.22)',
   background: 'linear-gradient(135deg, rgba(9, 20, 41, 0.94), rgba(4, 12, 26, 0.88))',
@@ -3134,13 +3352,22 @@ const teamSectionNavMobileStyle: CSSProperties = {
 const teamSectionNavLinkMobileStyle: CSSProperties = {
   ...teamSectionNavLinkStyle,
   minWidth: 0,
-  minHeight: 48,
-  padding: '6px 5px',
+  minHeight: 52,
+  padding: '9px 12px',
   borderRadius: 12,
-  fontSize: 11,
-  whiteSpace: 'normal',
+  fontSize: 15,
+  whiteSpace: 'nowrap',
   textAlign: 'center',
-  lineHeight: 1.15,
+  lineHeight: 1.2,
+}
+
+const teamSectionNavLabelMobileStyle: CSSProperties = {
+  ...teamSectionNavLabelStyle,
+  fontSize: 15,
+  lineHeight: 1.2,
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
+  whiteSpace: 'nowrap',
 }
 
 const heroShell: CSSProperties = {
@@ -5026,6 +5253,103 @@ const rosterContactManageLinkStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   textAlign: 'center',
+}
+
+const rosterContactManageButtonStyle: CSSProperties = {
+  ...rosterContactManageLinkStyle,
+  cursor: 'pointer',
+}
+
+const rosterContactSaveMessageStyle: CSSProperties = {
+  margin: '-4px 0 16px',
+  padding: '11px 13px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#d9ff76',
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const inlineRosterContactEditorStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(56,189,248,0.05))',
+}
+
+const inlineRosterContactTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const inlineRosterContactFieldStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  letterSpacing: '.04em',
+  textTransform: 'uppercase',
+}
+
+const inlineRosterContactInputStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  boxSizing: 'border-box',
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.22)',
+  background: 'rgba(2,8,23,0.44)',
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+}
+
+const inlineRosterContactActionStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 8,
+  minWidth: 0,
+}
+
+const inlineRosterContactSaveButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  minWidth: 0,
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'rgba(155,225,29,0.16)',
+  color: '#ecffc5',
+  fontSize: 13,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const inlineRosterContactCancelButtonStyle: CSSProperties = {
+  ...rosterContactManageButtonStyle,
+  minHeight: 42,
+  padding: '0 12px',
+}
+
+const inlineRosterContactErrorStyle: CSSProperties = {
+  margin: 0,
+  color: '#fecaca',
+  fontSize: 13,
+  fontWeight: 750,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const rosterCardGridStyle: CSSProperties = {
