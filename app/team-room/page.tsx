@@ -449,13 +449,33 @@ function TeamRoomContent() {
     const params = new URLSearchParams({ source: 'team_room', availability: 'replies' })
     return `${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}#captain-lineup-courts`
   }, [activeMatchMessage?.card, room?.flight, room?.leagueName, room?.teamName])
-  const scorecardHref = useMemo(() => buildCaptainScopedHref('/captain/record-result', {
-    team: room?.teamName,
-    league: room?.leagueName,
-    flight: room?.flight,
-    date: activeMatchMessage?.card?.matchDate || matchDraft.matchDate,
-    opponent: activeMatchMessage?.card?.opponent || matchDraft.opponent,
-  }), [activeMatchMessage?.card?.matchDate, activeMatchMessage?.card?.opponent, matchDraft.matchDate, matchDraft.opponent, room?.flight, room?.leagueName, room?.teamName])
+  const scorecardHref = useMemo(() => {
+    const card = activeMatchMessage?.card
+    const baseHref = buildCaptainScopedHref('/captain/record-result', {
+      team: room?.teamName,
+      league: room?.leagueName,
+      flight: room?.flight,
+      date: card?.matchDate || matchDraft.matchDate,
+      opponent: card?.opponent || matchDraft.opponent,
+    })
+    const details = new URLSearchParams()
+    const matchTime = card?.matchTime || matchDraft.matchTime
+    const facility = card?.facility || matchDraft.facility
+    if (matchTime) details.set('time', matchTime)
+    if (facility) details.set('facility', facility)
+    const query = details.toString()
+    return query ? `${baseHref}${baseHref.includes('?') ? '&' : '?'}${query}` : baseHref
+  }, [
+    activeMatchMessage?.card,
+    matchDraft.facility,
+    matchDraft.matchDate,
+    matchDraft.matchTime,
+    matchDraft.opponent,
+    room?.flight,
+    room?.leagueName,
+    room?.teamName,
+  ])
+  const matchupSheetHref = useMemo(() => scorecardHref.replace('/captain/record-result', '/captain/matchup-sheet'), [scorecardHref])
   const scorecardReturnHref = room?.href || captainHref
   const playerLinksHref = `/data-assist?intent=upload-source&context=Team%20Room&type=team_summary&help=1&returnTo=${encodeURIComponent(scorecardReturnHref)}#upload`
   const resultJustUpdated = searchParams.get('result') === 'updated'
@@ -1659,6 +1679,7 @@ function TeamRoomContent() {
               canManage={room.canManage}
               phase="post_match"
               scorecardHref={scorecardHref}
+              matchupSheetHref={matchupSheetHref}
               playerLinksHref={playerLinksHref}
               lineupHref={finalLineupEditHref}
               markingSeen={false}
@@ -1703,6 +1724,7 @@ function TeamRoomContent() {
               canManage={room.canManage}
               phase={currentFinalLineupPhase}
               scorecardHref={scorecardHref}
+              matchupSheetHref={matchupSheetHref}
               playerLinksHref={playerLinksHref}
               lineupHref={finalLineupEditHref}
               markingSeen={markingFinalLineupSeen}
@@ -2057,6 +2079,7 @@ function PublishedLineupPin({
   canManage,
   phase,
   scorecardHref,
+  matchupSheetHref,
   playerLinksHref,
   lineupHref,
   markingSeen,
@@ -2089,6 +2112,7 @@ function PublishedLineupPin({
   canManage: boolean
   phase: TeamRoomMatchDayPhase
   scorecardHref: string
+  matchupSheetHref: string
   playerLinksHref: string
   lineupHref: string
   markingSeen: boolean
@@ -2248,6 +2272,9 @@ function PublishedLineupPin({
       )}
       {!result ? (
         <div className={styles.matchDayActions}>
+          {canManage ? (
+            <Link className={styles.buttonSecondary} href={matchupSheetHref}>Print matchup sheet</Link>
+          ) : null}
           {isPostMatch && canManage ? (
             <Link className={styles.buttonPrimary} href={scorecardHref}>Add scorecard</Link>
           ) : null}

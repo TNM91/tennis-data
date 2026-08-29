@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -22,6 +22,19 @@ type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
   rosterMembers?: Array<{ player_name?: string | null }>
+}
+
+type TeamRoomResponse = {
+  ok?: boolean
+  room?: {
+    messages?: Array<{
+      card?: {
+        matchDate?: string
+        opponent?: string
+        lineup?: Array<{ label?: string; players?: string[] }>
+      } | null
+    }>
+  } | null
 }
 
 function createCourt(courtNumber: number): CourtDraft {
@@ -61,6 +74,7 @@ function RecordResultContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const lineupPrefillKey = useRef('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
     teamName,
@@ -100,6 +114,46 @@ function RecordResultContent() {
       })
     return () => { active = false }
   }, [authResolved, flight, leagueName, session?.access_token, teamName])
+
+  useEffect(() => {
+    if (!authResolved || !session?.access_token || !teamName || !matchDate || !opponentTeam) return
+    const prefillKey = [teamName, leagueName, flight, matchDate, opponentTeam].join('::').toLowerCase()
+    if (lineupPrefillKey.current === prefillKey) return
+    let active = true
+    const params = new URLSearchParams({ team: teamName, date: matchDate, opponent: opponentTeam })
+    if (leagueName) params.set('league', leagueName)
+    if (flight) params.set('flight', flight)
+    void fetch(`/api/team-rooms?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<TeamRoomResponse> : null)
+      .then((payload) => {
+        if (!active || !payload?.ok || lineupPrefillKey.current === prefillKey) return
+        const expectedOpponent = normalizeName(opponentTeam).toLowerCase()
+        const card = (payload.room?.messages || [])
+          .map((message) => message.card)
+          .find((candidate) => candidate?.matchDate === matchDate && normalizeName(candidate.opponent).toLowerCase() === expectedOpponent)
+        const lineup = card?.lineup || []
+        if (!lineup.length) return
+        const prepared = lineup.map((line, index) => {
+          const players = (line.players || []).map(normalizeName).filter(Boolean).slice(0, 2)
+          const singles = /single/i.test(line.label || '')
+          return {
+            ...createCourt(index + 1),
+            courtNumber: index + 1,
+            matchType: singles ? 'singles' as const : 'doubles' as const,
+            teamPlayers: singles ? [players[0] || ''] : [players[0] || '', players[1] || ''],
+            opponentPlayers: singles ? [''] : ['', ''],
+          }
+        })
+        lineupPrefillKey.current = prefillKey
+        setCourts(prepared)
+        setNotice(`Loaded ${prepared.length} saved court${prepared.length === 1 ? '' : 's'} from your lineup.`)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [authResolved, flight, leagueName, matchDate, opponentTeam, session?.access_token, teamName])
 
   function updateCourt(id: string, patch: Partial<CourtDraft>) {
     setCourts((current) => current.map((court) => court.id === id ? { ...court, ...patch } : court))
