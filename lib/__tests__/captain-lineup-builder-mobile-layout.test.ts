@@ -145,6 +145,15 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('opponentRosterManualEntryStyle')).toContain("gridColumn: '1 / -1'")
   })
 
+  it('confirms when opponent players are ready and opens the opponent courts directly', () => {
+    expect(source).toContain('aria-label="Opponent roster ready"')
+    expect(source).toContain('TiQ ratings are available where matched.')
+    expect(source).toContain('Set opponent courts')
+    expect(source).toContain("document.getElementById('opponent-lineup')?.scrollIntoView")
+    expect(source).toContain('<section id="opponent-lineup" style={surfaceCardStrong}>')
+    expect(styleBlock('opponentRosterReadyStyle')).toContain('minWidth: 0')
+  })
+
   it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
     expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
     expect(source).toContain('Save mobile & prepare Ask')

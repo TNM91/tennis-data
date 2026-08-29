@@ -2249,6 +2249,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return [...importedRoster, ...manualRoster]
   }, [opponentRosterEligibilityByPlayerId, opponentRosterPlayerIds, players, scopedManualOpponentRosterPlayers])
 
+  const opponentManualPlayerIdSet = useMemo(
+    () => new Set(scopedManualOpponentRosterPlayers.map((player) => player.id)),
+    [scopedManualOpponentRosterPlayers],
+  )
+  const importedOpponentRosterCount = useMemo(
+    () => opponentPlayerPool.filter((player) => !opponentManualPlayerIdSet.has(player.id)).length,
+    [opponentManualPlayerIdSet, opponentPlayerPool],
+  )
+
   const builderPlayers = useMemo<PlayerRow[]>(() => {
     const enrichedById = new Map<string, PlayerRow>()
     for (const player of players) enrichedById.set(player.id, player)
@@ -2598,6 +2607,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setManualOpponentRosterOpen(false)
     setError('')
     setMessage(`${newPlayers.length} opponent${newPlayers.length === 1 ? '' : 's'} added for this matchup. Upload their TennisLink Player Roster later to connect TiQ ratings.`)
+  }
+
+  function openOpponentCourts() {
+    setBuilderMode('insights')
+    window.requestAnimationFrame(() => {
+      document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   function setSlotPlayer(
@@ -4511,49 +4527,69 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </details>
           </section>
         ) : null}
-        {opponentTeam && !opponentPlayerPool.length ? (
-          <section
-            style={{
-              ...opponentRosterRecoveryStyle,
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : opponentRosterRecoveryStyle.gridTemplateColumns,
-            }}
-            aria-label="Opponent roster options"
-          >
-            <div style={opponentRosterRecoveryCopyStyle}>
-              <span style={miniPillBlueStyle}>Opponent roster</span>
-              <strong>{opponentTeam} has not been added yet.</strong>
-              <span>Enter names now, or add its TennisLink Player Roster for TiQ ratings.</span>
-            </div>
-            <div style={opponentRosterRecoveryActionsStyle}>
-              <button
-                type="button"
-                onClick={() => setManualOpponentRosterOpen((current) => !current)}
-                style={ghostButton}
-                aria-expanded={manualOpponentRosterOpen}
-                aria-controls="manual-opponent-roster"
-              >
-                {manualOpponentRosterOpen ? 'Close names' : 'Enter names'}
-              </button>
-              <Link href={opponentSummaryUploadHref} style={primaryButton}>Upload TennisLink roster</Link>
-            </div>
-            {manualOpponentRosterOpen ? (
-              <div id="manual-opponent-roster" style={opponentRosterManualEntryStyle}>
-                <label htmlFor="manual-opponent-roster-names" style={labelStyle}>Opponent names</label>
-                <textarea
-                  id="manual-opponent-roster-names"
-                  value={manualOpponentRosterText}
-                  onChange={(event) => setManualOpponentRosterText(event.target.value)}
-                  placeholder={'Player one\nPlayer two'}
-                  rows={3}
-                  style={opponentRosterTextareaStyle}
-                />
-                <div style={opponentRosterManualActionsStyle}>
-                  <span style={subtleHelperTextStyle}>One player per line. You can add ratings later.</span>
-                  <PrimaryBtn onClick={addManualOpponentRosterPlayers}>Add opponents</PrimaryBtn>
-                </div>
+        {opponentTeam ? (
+          opponentPlayerPool.length ? (
+            <section
+              style={{
+                ...opponentRosterReadyStyle,
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : opponentRosterReadyStyle.gridTemplateColumns,
+              }}
+              aria-label="Opponent roster ready"
+            >
+              <div style={opponentRosterRecoveryCopyStyle}>
+                <span style={miniPillBlueStyle}>Opponent roster</span>
+                <strong>{opponentPlayerPool.length} player{opponentPlayerPool.length === 1 ? '' : 's'} ready for {opponentTeam}.</strong>
+                <span>{importedOpponentRosterCount ? 'TiQ ratings are available where matched.' : 'Names are ready now; upload the TennisLink Player Roster to connect TiQ ratings.'}</span>
               </div>
-            ) : null}
-          </section>
+              <div style={opponentRosterRecoveryActionsStyle}>
+                {!importedOpponentRosterCount ? <Link href={opponentSummaryUploadHref} style={ghostButton}>Add TennisLink roster</Link> : null}
+                <button type="button" onClick={openOpponentCourts} style={primaryButton}>Set opponent courts</button>
+              </div>
+            </section>
+          ) : (
+            <section
+              style={{
+                ...opponentRosterRecoveryStyle,
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : opponentRosterRecoveryStyle.gridTemplateColumns,
+              }}
+              aria-label="Opponent roster options"
+            >
+              <div style={opponentRosterRecoveryCopyStyle}>
+                <span style={miniPillBlueStyle}>Opponent roster</span>
+                <strong>{opponentTeam} has not been added yet.</strong>
+                <span>Enter names now, or add its TennisLink Player Roster for TiQ ratings.</span>
+              </div>
+              <div style={opponentRosterRecoveryActionsStyle}>
+                <button
+                  type="button"
+                  onClick={() => setManualOpponentRosterOpen((current) => !current)}
+                  style={ghostButton}
+                  aria-expanded={manualOpponentRosterOpen}
+                  aria-controls="manual-opponent-roster"
+                >
+                  {manualOpponentRosterOpen ? 'Close names' : 'Enter names'}
+                </button>
+                <Link href={opponentSummaryUploadHref} style={primaryButton}>Upload TennisLink roster</Link>
+              </div>
+              {manualOpponentRosterOpen ? (
+                <div id="manual-opponent-roster" style={opponentRosterManualEntryStyle}>
+                  <label htmlFor="manual-opponent-roster-names" style={labelStyle}>Opponent names</label>
+                  <textarea
+                    id="manual-opponent-roster-names"
+                    value={manualOpponentRosterText}
+                    onChange={(event) => setManualOpponentRosterText(event.target.value)}
+                    placeholder={'Player one\nPlayer two'}
+                    rows={3}
+                    style={opponentRosterTextareaStyle}
+                  />
+                  <div style={opponentRosterManualActionsStyle}>
+                    <span style={subtleHelperTextStyle}>One player per line. You can add ratings later.</span>
+                    <PrimaryBtn onClick={addManualOpponentRosterPlayers}>Add opponents</PrimaryBtn>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          )
         ) : null}
 
         {replacementHandoff ? (
@@ -5288,7 +5324,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </div>
                 <span style={miniPillBlueStyle}>{builderMode === 'insights' ? 'Open' : 'Optional'}</span>
               </summary>
-            <section style={surfaceCardStrong}>
+            <section id="opponent-lineup" style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Opponent lineup</p>
@@ -7928,6 +7964,13 @@ const opponentRosterRecoveryStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(37, 99, 235, 0.30)',
   background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(8, 13, 28, 0.74))',
+}
+
+const opponentRosterReadyStyle: CSSProperties = {
+  ...opponentRosterRecoveryStyle,
+  minWidth: 0,
+  border: '1px solid rgba(155, 225, 29, 0.42)',
+  background: 'linear-gradient(135deg, rgba(70, 119, 25, 0.20), rgba(8, 13, 28, 0.74))',
 }
 
 const opponentRosterRecoveryCopyStyle: CSSProperties = {
