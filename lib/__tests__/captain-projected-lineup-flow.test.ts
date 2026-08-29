@@ -54,7 +54,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('setSmsFallback({ href: preparedText.href, playerName: preparedText.playerName })')
     expect(source).toContain('openNativeSmsHandoff(contact.phone, player.playerName, body)')
     expect(source).toContain("const [openedCourtTextKeys, setOpenedCourtTextKeys] = useState<string[]>([])")
-    expect(source).toContain("? 'Asked · waiting' : 'Ask ready'")
+    expect(source).toContain("label: 'Ask sent · waiting'")
+    expect(source).toContain("label: 'Ask ready'")
     expect(source).toContain('Waiting for player replies. TiQ is checking automatically while this Builder stays open.')
     expect(source).toContain('window.setInterval(refreshPendingReplies, 20_000)')
   })
@@ -82,6 +83,19 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Confirmed players lock automatically.')
     expect(source).toContain("selectedReplyLabel === 'Confirmed'\n                ? { ...slotPlayerRowStyle, ...confirmedPlayerRowStyle }")
     expect(source).toContain('const confirmedPlayerRowStyle: CSSProperties = {')
+  })
+
+  it('makes the Ask and reply state explicit on each selected player', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+
+    expect(source).toContain('function getCourtAskSignal({')
+    expect(source).toContain("label: 'Ask ready'")
+    expect(source).toContain("label: 'Ask sent · waiting'")
+    expect(source).toContain("label: 'Yes · locked'")
+    expect(source).toContain("label: 'Maybe · review'")
+    expect(source).toContain("label: 'No · replace'")
+    expect(source).toContain("label: 'Mobile needed'")
+    expect(source).toContain('style={courtAskSignalStyle(askSignal.tone)}')
   })
 
   it('returns to the exact Team Room card before the captain sends the lineup', () => {

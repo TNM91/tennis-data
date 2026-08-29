@@ -298,6 +298,12 @@ type AppliedLineupNotice = {
 
 type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
 
+type CourtAskSignal = {
+  label: string
+  detail: string
+  tone: 'ready' | 'waiting' | 'confirmed' | 'maybe' | 'out' | 'warning' | 'muted'
+}
+
 function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
   if (stage === 'saving-lineup') return 'Saving lineup...'
   if (stage === 'preparing-replies') return 'Preparing replies...'
@@ -557,6 +563,43 @@ function availabilityLabel(status: string | null | undefined) {
   if (normalized === 'maybe' || normalized === 'limited') return 'Maybe'
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out' || normalized === 'declined') return 'Out'
   return 'No response'
+}
+
+function getCourtAskSignal({
+  replyLabel,
+  prepared,
+  opened,
+  preparing,
+  needsPhone,
+}: {
+  replyLabel: ReturnType<typeof availabilityLabel>
+  prepared: boolean
+  opened: boolean
+  preparing: boolean
+  needsPhone: boolean
+}): CourtAskSignal {
+  if (replyLabel === 'Confirmed') {
+    return { label: 'Yes · locked', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
+  }
+  if (replyLabel === 'Maybe') {
+    return { label: 'Maybe · review', detail: 'Reply received. Keep this court flexible until they confirm.', tone: 'maybe' }
+  }
+  if (replyLabel === 'Out') {
+    return { label: 'No · replace', detail: 'Reply received. Choose another player for this court.', tone: 'out' }
+  }
+  if (needsPhone) {
+    return { label: 'Mobile needed', detail: 'Add a mobile number to prepare this player’s private Ask.', tone: 'warning' }
+  }
+  if (prepared && opened) {
+    return { label: 'Ask sent · waiting', detail: 'TiQ is checking for their reply while you keep building.', tone: 'waiting' }
+  }
+  if (prepared) {
+    return { label: 'Ask ready', detail: 'Tap Ask below to open a prefilled message.', tone: 'ready' }
+  }
+  if (preparing) {
+    return { label: 'Preparing Ask', detail: 'Securing this player’s one-tap reply link now.', tone: 'waiting' }
+  }
+  return { label: 'Ask pending', detail: 'Prepare this player’s private Ask when you are ready.', tone: 'muted' }
 }
 
 function reliabilityWeight(status: string | null | undefined) {
@@ -5813,18 +5856,22 @@ function SlotEditor({
             : selectedReplyLabel === 'Out'
               ? selectedPlayerOutFieldStyle
               : undefined
+          const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+          const needsPhone = Boolean(missingPhonePlayerKeys?.has(playerKey))
           const isAutoLocked = autoLockedPlayerIds.has(player.playerId)
           const isConfirmedReleased = selectedReplyLabel === 'Confirmed' && releasedConfirmedPlayerIds.has(player.playerId)
           const preparedCourtText = side === 'team' && player.playerId
             ? getPreparedCourtText?.(slot, player)
             : undefined
-          const courtTextStatus = selectedReplyLabel === 'Confirmed'
-            ? 'Confirmed'
-            : selectedReplyLabel === 'Out'
-              ? 'Out'
-              : preparedCourtText
-                ? openedCourtTextKeys?.has(preparedCourtText.key) ? 'Asked · waiting' : 'Ask ready'
-                : askingPlayers ? 'Preparing ask' : ''
+          const askSignal = side === 'team' && player.playerId
+            ? getCourtAskSignal({
+                replyLabel: selectedReplyLabel,
+                prepared: Boolean(preparedCourtText),
+                opened: Boolean(preparedCourtText && openedCourtTextKeys?.has(preparedCourtText.key)),
+                preparing: askingPlayers,
+                needsPhone,
+              })
+            : null
 
           return (
             <div
@@ -5861,14 +5908,9 @@ function SlotEditor({
 
               {side === 'team' && player.playerId ? (
                 <div style={isMobileLayout ? mobileSlotPlayerActionRowStyle : slotPlayerActionRowStyle}>
-                  {selectedReplyLabel === 'Confirmed' ? <span style={selectedPlayerInPillStyle}>In</span> : null}
-                  {selectedReplyLabel === 'Out' ? <span style={selectedPlayerOutPillStyle}>Out</span> : null}
-                  {courtTextStatus && selectedReplyLabel !== 'Confirmed' && selectedReplyLabel !== 'Out' ? (
-                    <span style={preparedCourtText && openedCourtTextKeys?.has(preparedCourtText.key)
-                      ? courtAskWaitingPillStyle
-                      : courtAskReadyPillStyle}
-                    >
-                      {courtTextStatus}
+                  {askSignal ? (
+                    <span style={courtAskSignalStyle(askSignal.tone)} title={askSignal.detail}>
+                      {askSignal.label}
                     </span>
                   ) : null}
                   <button
@@ -7552,6 +7594,22 @@ const courtAskWaitingPillStyle: CSSProperties = {
   minHeight: 32,
   fontSize: 11,
   border: '1px solid rgba(155, 225, 29, 0.54)',
+}
+
+function courtAskSignalStyle(tone: CourtAskSignal['tone']): CSSProperties {
+  const base: CSSProperties = {
+    ...miniPillStyle,
+    minHeight: 32,
+    fontSize: 11,
+    textAlign: 'left',
+  }
+  if (tone === 'confirmed') return { ...base, ...selectedPlayerInPillStyle }
+  if (tone === 'ready') return { ...base, ...courtAskReadyPillStyle }
+  if (tone === 'waiting') return { ...base, ...courtAskWaitingPillStyle }
+  if (tone === 'maybe') return { ...base, ...miniPillWarnStyle }
+  if (tone === 'out') return { ...base, ...selectedPlayerOutPillStyle }
+  if (tone === 'warning') return { ...base, ...miniPillWarnStyle, border: '1px solid rgba(251, 191, 36, 0.58)' }
+  return { ...base, ...miniPillSlateStyle }
 }
 
 const badgeGreen: CSSProperties = { ...miniPillGreenStyle }
